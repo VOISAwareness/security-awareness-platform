@@ -432,6 +432,6 @@ feat(campaign): add campaign scheduling feature
 
 # License
 
-Proprietary © Organization Security Team
+Proprietary © VOIS
 
 All rights reserved.
