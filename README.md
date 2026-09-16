@@ -1,97 +1,271 @@
 # Security Awareness Platform
 
+https://img.shields.io/badge/AWS-Cloud%20Native-orange
+https://img.shields.io/badge/React-Frontend-blue
+https://img.shields.io/badge/Node.js-Backend-green
+https://img.shields.io/badge/Aurora-PostgreSQL-blue
+https://img.shields.io/badge/License-Proprietary-red
+
 ## Overview
 
-The Security Awareness Platform (SAP) is a cloud-native web application designed to improve enterprise cybersecurity awareness through campaigns, simulations, learning assignments, gamification, risk scoring, and analytics.
+The Security Awareness Platform is a cloud-native enterprise application designed to strengthen organizational cybersecurity awareness through awareness campaigns, phishing simulations, learning assignments, gamification, risk scoring, and analytics.
 
-The platform enables organizations to create security awareness programs, manage targeted campaigns, measure employee engagement, track learning completion, and gain actionable security insights through dashboards and reports.
-
----
-
-## Key Features
-
-### Campaign Management
-- Create and manage awareness campaigns
-- Schedule campaigns
-- Email template management
-- Campaign versioning
-- Approval workflows
-- Audience targeting
-
-### Training Management
-- Assign learning paths
-- Learning content tracking
-- Video-based awareness training
-- Quiz and assessment support
-- Training completion monitoring
-
-### Phishing Simulation
-- Simulation campaign management
-- Email interaction tracking
-- Landing page simulation
-- User behavior monitoring
-- Phishing awareness measurement
-
-### Gamification
-- Points management
-- Badge system
-- Leaderboards
-- Engagement tracking
-- Reward mechanisms
-
-### Risk Scoring
-- Dynamic risk score calculation
-- User risk categorization
-- Department risk assessment
-- Trend analysis
-
-### Analytics & Reporting
-- Executive dashboards
-- Operational reporting
-- Security awareness KPIs
-- Campaign performance reports
-- Risk reporting
-- Training compliance tracking
-
-### Security & Compliance
-- Microsoft Entra ID SSO
-- RBAC authorization
-- Audit logging
-- Data encryption
-- Secure API architecture
-- AWS security controls
+Built on AWS, the platform enables organizations to create targeted security campaigns, assign mandatory awareness training, evaluate user engagement, track training completion, and provide actionable insights through advanced reporting dashboards.
 
 ---
 
 # Architecture
 
-## High-Level Architecture
+## High Level Architecture (HLD)
+
+<p align="center">
+  assets/architecture/hld-architecture.png
+</p>
+
+<p align="center">
+<b>Figure 1:</b> Security Awareness Platform AWS High-Level Architecture
+</p>
+
+### Architecture Components
+
+#### Presentation Layer
+- React Web Application
+- Responsive User Interface
+- Dashboard & Reporting Portal
+
+#### Identity & Access Management
+- Microsoft Entra ID (SSO)
+- OAuth 2.0 Authentication
+- Role-Based Access Control (RBAC)
+
+#### Application Layer
+- AWS API Gateway
+- AWS Lambda Microservices
+
+#### Transactional Data Layer
+- Amazon Aurora PostgreSQL
+
+#### Communication Layer
+- Amazon SES
+- Microsoft Outlook
+
+#### Analytics Layer
+- Amazon S3
+- AWS Glue
+- Amazon Athena
+
+#### Security & Monitoring
+- AWS WAF
+- AWS CloudWatch
+- AWS CloudTrail
+- AWS Config
+
+#### Secrets & Encryption
+- AWS IAM
+- AWS Secrets Manager
+- AWS KMS
+- AWS Backup
+
+---
+
+# CI/CD & DevSecOps Pipeline
+
+<p align="center">
+  <img src="assets/architecture/cicd-pipeline.png"
+       alt="CI CD Pipeline"
+       width="100%">
+</p>
+
+<p align="centerment Workflow
 
 ```text
-React Frontend
-      │
-      ▼
-AWS WAF
-      │
-      ▼
-Amazon API Gateway
-      │
-      ▼
-AWS Lambda Services
-      │
- ┌────┼────┐
- ▼    ▼    ▼
-Aurora SES S3
-Postgres     Data Lake
-      │
-      ▼
-AWS Glue
-      │
-      ▼
-Amazon Athena
-      │
-      ▼
-Analytics Dashboard
+GitHub
+   │
+   ▼
+AWS CodeBuild
+   │
+   ├── SonarQube Analysis
+   │
+   ├── Build Docker Image
+   │
+   ▼
+Amazon ECR
+   │
+   ├── Container Security Scan
+   │
+   ▼
+AWS CodePipeline
+   │
+   ├── Deployment Approval
+   │
+   ├── Development Environment
+   │
+   └── Production Environment
+```
+
+---
+
+# Key Features
+
+## Awareness Campaign Management
+
+- Campaign creation
+- Campaign scheduling
+- Campaign approval workflow
+- Audience targeting
+- Email personalization
+- Multi-region campaign execution
+
+---
+
+## Phishing Simulation
+
+- Phishing campaigns
+- Landing page simulation
+- Click tracking
+- Risk assessment
+- User behavior analytics
+
+---
+
+## Learning & Training Management System (LTMS)
+
+### Training Content Management
+
+- Upload awareness videos
+- Video categorization
+- Version control
+- Learning path management
+
+### Video Learning Engine
+
+- Secure video storage in Amazon S3
+- Private access using pre-signed URLs
+- Progress tracking
+- Disable fast-forward functionality
+- Unskippable training videos
+
+### Quiz Engine
+
+- Multiple-choice questions
+- Multi-select questions
+- True/False questions
+- Scenario-based questions
+- Randomized question sets
+- Pass/fail evaluation
+
+### Training Assignment
+
+- Manual assignment
+- Campaign-linked assignment
+- Automated assignment after phishing click
+- Risk-based assignment
+
+### Completion Tracking
+
+- Video completion
+- Quiz completion
+- Learning journey tracking
+- Certificate eligibility
+
+---
+
+## Gamification
+
+- Points allocation
+- Badges
+- Leaderboards
+- Rewards tracking
+- Engagement scoring
+
+---
+
+## Risk Scoring
+
+- User risk score
+- Department risk score
+- Awareness maturity score
+- Trend analysis
+
+---
+
+## Reporting & Analytics
+
+### Executive Dashboard
+
+- Campaign effectiveness
+- Organizational risk
+- Training compliance
+- Security trends
+
+### Operational Dashboard
+
+- Open campaigns
+- User participation
+- Training status
+- Quiz performance
+
+### Learning Analytics Dashboard
+
+- Training assigned
+- Training completed
+- Quiz pass rate
+- Video completion rate
+- Overdue trainings
+- Department-wise completion
+
+---
+
+# User Roles
+
+| Role | Responsibilities |
+|--------|------------------|
+| Admin | Complete platform administration |
+| Campaign Creator | Create awareness campaigns and training assignments |
+| Campaign Manager | Manage campaign execution and approvals |
+| Regular User | Consume awareness content and complete training |
+| Gamification Manager | Manage points, badges, and rewards |
+| GMT Leadership | Executive reporting and analytics |
+
+---
+
+# Learning Management Workflow
+
+```text
+Campaign Created
+        │
+        ▼
+User Receives Campaign
+        │
+        ▼
+User Clicks Simulation Link
+        │
+        ▼
+Risk Event Generated
+        │
+        ▼
+Training Automatically Assigned
+        │
+        ▼
+User Watches Mandatory Video
+        │
+        ▼
+Video Completion Verified
+        │
+        ▼
+Quiz Enabled
+        │
+        ▼
+User Passes Quiz
+        │
+        ▼
+Training Marked Complete
+        │
+        ▼
+Risk Score Updated
+        │
+        ▼
+Rewards / Badges Issued
 ```
 
 ---
@@ -100,60 +274,58 @@ Analytics Dashboard
 
 ## Frontend
 
-- React.js
-- TypeScript
-- Redux Toolkit
-- Material UI
-- Chart.js
-- Axios
-
-## Backend
-
-- AWS Lambda
-- Node.js
-- TypeScript
-- REST APIs
-- API Gateway
-
-## Database
-
-- Amazon Aurora PostgreSQL
-
-## Analytics
-
-- Amazon Athena
-- AWS Glue
-- Amazon S3
-
-## Communication
-
-- Amazon SES
-- Microsoft Outlook
-
-## Authentication
-
-- Microsoft Entra ID
-- OAuth 2.0
-- OpenID Connect
-
-## Monitoring
-
-- CloudWatch
-- CloudTrail
-- AWS Config
+```text
+React
+TypeScript
+Redux Toolkit
+Material UI
+Axios
+Chart.js
+```
 
 ---
 
-# User Roles
+## Backend
 
-| Role | Description |
-|--------|------------|
-| Admin | Full platform administration |
-| Campaign Creator | Creates campaigns and templates |
-| Campaign Manager | Executes campaigns and manages approvals |
-| Regular User | Consumes training and awareness content |
-| Gamification Manager | Manages points, badges, rewards |
-| GMT Leadership | Access to executive dashboards |
+```text
+Node.js
+TypeScript
+AWS Lambda
+REST APIs
+API Gateway
+```
+
+---
+
+## Database
+
+```text
+Amazon Aurora PostgreSQL
+```
+
+---
+
+## Analytics
+
+```text
+Amazon S3
+AWS Glue
+Amazon Athena
+```
+
+---
+
+## Security
+
+```text
+AWS WAF
+AWS IAM
+AWS KMS
+AWS Secrets Manager
+CloudTrail
+CloudWatch
+AWS Config
+```
 
 ---
 
@@ -162,49 +334,47 @@ Analytics Dashboard
 ```text
 security-awareness-platform/
 │
+├── assets/
+│   └── architecture/
+│       ├── hld-architecture.png
+│       └── cicd-pipeline.png
+│
 ├── frontend/
 │   ├── src/
 │   ├── public/
-│   ├── assets/
 │   ├── pages/
-│   ├── components/
 │   ├── services/
 │   ├── hooks/
 │   ├── context/
-│   └── utils/
+│   └── components/
 │
 ├── backend/
-│   ├── lambda/
-│   │   ├── auth/
-│   │   ├── campaigns/
-│   │   ├── trainings/
-│   │   ├── analytics/
-│   │   ├── gamification/
-│   │   └── users/
-│   │
-│   ├── shared/
-│   └── layers/
-│
-├── infrastructure/
-│   ├── terraform/
-│   ├── cloudformation/
-│   └── scripts/
+│   ├── auth/
+│   ├── campaigns/
+│   ├── training/
+│   ├── quizzes/
+│   ├── analytics/
+│   ├── users/
+│   ├── gamification/
+│   └── shared/
 │
 ├── database/
 │   ├── schema/
 │   ├── migrations/
 │   └── seeds/
 │
-├── analytics/
-│   ├── athena/
-│   ├── glue-jobs/
-│   └── reports/
+├── infrastructure/
+│   ├── terraform/
+│   ├── cloudformation/
+│   ├── cicd/
+│   └── scripts/
 │
 ├── docs/
-│   ├── BRD/
+│   ├── BRS/
 │   ├── HLD/
 │   ├── LLD/
-│   └── API/
+│   ├── API/
+│   └── Security/
 │
 ├── tests/
 │   ├── unit/
@@ -216,75 +386,49 @@ security-awareness-platform/
 
 ---
 
-# Core Modules
-
-## User Management
-
-- User onboarding
-- Profile management
-- RBAC
-- SSO Integration
+# Database Modules
 
 ## Campaign Module
 
-- Campaign lifecycle
-- Scheduling
-- Personalization
-- Target audience management
-
-## Training Module
-
-- Training assignment
-- Learning paths
-- Quiz management
-- Completion tracking
-
-## Simulation Module
-
-- Scenario management
-- Email simulation
-- Landing page simulation
-- Event tracking
-
-## Gamification Module
-
-- Point engine
-- Badge engine
-- Leaderboards
-- Achievement tracking
-
-## Analytics Module
-
-- KPI calculation
-- Dashboard engine
-- Data aggregation
-- Reporting service
-
----
-
-# Database Highlights
-
-### Important Entities
-
 ```text
-REGION
 CAMPAIGN
 CAMPAIGN_VERSION
 CAMPAIGN_APPROVAL
-
-RECIPIENT
-RECIPIENT_IMPORT_BATCH
 CAMPAIGN_RECIPIENT
+```
 
-EMAIL_LINK
+## User Module
+
+```text
+RECIPIENT
+REGION
+USER_SESSION
+```
+
+## Email Module
+
+```text
 EMAIL_MESSAGE
 EMAIL_EVENT
+EMAIL_LINK
+```
 
-USER_SESSION
-INTERACTION_EVENT
+## Learning Module
 
-AUDIT_LOG
+```text
+TRAINING_CONTENT
+TRAINING_ASSIGNMENT
+VIDEO_PROGRESS
+QUIZ
+QUESTION
+QUESTION_OPTION
+QUIZ_ATTEMPT
+TRAINING_COMPLETION
+```
 
+## Analytics Module
+
+```text
 FACT_CAMPAIGN_DAILY
 DIM_USER
 DIM_CAMPAIGN
@@ -293,90 +437,62 @@ DIM_DATE
 
 ---
 
-# API Examples
+# Security Controls
 
-## Authentication
-
-```http
-POST /api/v1/auth/login
-```
-
-## Campaigns
-
-```http
-GET    /api/v1/campaigns
-POST   /api/v1/campaigns
-PUT    /api/v1/campaigns/{id}
-DELETE /api/v1/campaigns/{id}
-```
-
-## Training
-
-```http
-GET    /api/v1/training
-POST   /api/v1/training/assign
-```
-
-## Analytics
-
-```http
-GET /api/v1/analytics/dashboard
-```
-
----
-
-# Deployment
-
-## Environments
-
-- Development
-- SIT
-- UAT
-- Production
-
-## AWS Services
-
-- AWS WAF
-- API Gateway
-- Lambda
-- Aurora PostgreSQL
-- Amazon SES
-- Amazon S3
-- AWS Glue
-- Amazon Athena
-- CloudWatch
-- CloudTrail
-- AWS Backup
-
----
-
-# Security
-
-- SSO Authentication
-- Role-Based Access Control
-- Encryption at Rest
-- Encryption in Transit
-- Audit Logging
+- SSO Authentication (Microsoft Entra ID)
 - Least Privilege Access
-- Data Retention Policies
-- AWS Security Best Practices
+- End-to-End Encryption
+- Private S3 Storage
+- Audit Logging
+- Role-Based Authorization
+- Data Retention Controls
+- Secure Secret Management
 
 ---
 
-# Development Standards
+# Environment Strategy
 
-## Branch Strategy
+## Development
+
+```text
+DEV
+```
+
+## System Integration Testing
+
+```text
+SIT
+```
+
+## User Acceptance Testing
+
+```text
+UAT
+```
+
+## Production
+
+```text
+PROD
+```
+
+---
+
+# Branch Strategy
 
 ```text
 main
 develop
+
 feature/*
 bugfix/*
 hotfix/*
 release/*
 ```
 
-## Commit Convention
+---
+
+# Commit Convention
 
 ```text
 feat:
@@ -390,48 +506,49 @@ chore:
 Example:
 
 ```text
-feat(campaign): add campaign scheduling feature
+feat(training): add video completion tracking module
 ```
 
 ---
 
-# Roadmap
+# Future Roadmap
 
 ## Phase 1
+
+- Awareness Campaigns
 - User Management
 - Authentication
-- Campaign Management
 
 ## Phase 2
-- Training Module
-- Email Tracking
-- Reporting
+
+- Learning Management System
+- Quiz Engine
+- Completion Tracking
 
 ## Phase 3
+
 - Gamification
 - Risk Scoring
-- Analytics Dashboards
+- Analytics
 
 ## Phase 4
-- AI-Powered Recommendations
-- Advanced Threat Awareness
-- Predictive Risk Insights
+
+- AI Quiz Generation
+- Personalized Learning Paths
+- Predictive Risk Recommendations
 
 ---
 
-# Contribution
+# Contributors
 
-1. Fork Repository
-2. Create Feature Branch
-3. Commit Changes
-4. Create Pull Request
-5. Code Review
-6. Merge
+Security Awareness Platform Engineering Team
 
 ---
 
 # License
 
-Proprietary © VOIS
+Proprietary and Confidential
 
-All rights reserved.
+© Organization Security Team
+
+All Rights Reserved.
