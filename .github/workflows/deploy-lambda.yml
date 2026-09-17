@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show GitHub Context
+      - name: Show Context
         run: |
           echo "Repository=${{ github.repository }}"
           echo "Ref=${{ github.ref }}"
@@ -26,6 +26,3 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole
           aws-region: ap-south-1
-
-      - name: Verify Identity
-        run: aws sts get-caller-identity
