@@ -20,7 +20,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::798299234472:role/github-actions-role
+          role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole
           aws-region: ap-south-1
 
       - name: Deploy campaign-reader
