@@ -1,0 +1,31 @@
+{
+    "Role": {
+        "Path": "/",
+        "RoleName": "GitHubActionsLambdaDeployRole",
+        "RoleId": "AROA3TXSXUCUHCYT46HMA",
+        "Arn": "arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole",
+        "CreateDate": "2026-09-17T14:16:52+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": "arn:aws:iam::798299234472:oidc-provider/token.actions.githubusercontent.com"
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                        "StringEquals": {
+                            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                        },
+                        "StringLike": {
+                            "token.actions.githubusercontent.com:sub": "repo:satyajit1106/security-awareness-platform:*"
+                        }
+                    }
+                }
+            ]
+        },
+        "MaxSessionDuration": 3600,
+        "RoleLastUsed": {}
+    }
+}

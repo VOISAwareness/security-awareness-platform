@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-lambda.yml'
 
 permissions:
   id-token: write
@@ -22,9 +19,15 @@ jobs:
 
       - name: Debug GitHub Context
         run: |
-          echo "Repository: ${{ github.repository }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "Actor: ${{ github.actor }}"
+          echo "Repository=${{ github.repository }}"
+          echo "Ref=${{ github.ref }}"
+          echo "Actor=${{ github.actor }}"
+
+      - name: Dump GitHub Context
+        env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+            echo "$GITHUB_CONTEXT"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -35,6 +38,14 @@ jobs:
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
+
+      - name: Validate Python Files
+        run: |
+          for f in backend/*/lambda_function.py
+          do
+            echo "Validating $f"
+            python -m py_compile "$f"
+          done
 
       - name: Deploy Campaign Reader
         run: |
