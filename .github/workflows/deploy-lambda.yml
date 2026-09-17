@@ -1,4 +1,4 @@
-name: OIDC Test
+name: OIDC Debug
 
 on:
   push:
@@ -10,19 +10,19 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  debug:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show Context
+      - name: Show Repository Info
         run: |
           echo "Repository=${{ github.repository }}"
           echo "Ref=${{ github.ref }}"
+          echo "Actor=${{ github.actor }}"
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole
-          aws-region: ap-south-1
+      - name: Show OIDC Variables
+        run: |
+          echo "OIDC URL present:"
+          echo "${ACTIONS_ID_TOKEN_REQUEST_URL}" | cut -c1-80
