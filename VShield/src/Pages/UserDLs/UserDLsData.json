@@ -1,0 +1,246 @@
+{
+  "savedUserLists": [
+    {
+      "id": "ul-001",
+      "name": "Batch 01 – August Campaign Finance Department",
+      "type": "Bulk Upload",
+      "description": "Target group focused on global corporate finance and accounting divisions for Q3 invoices simulations.",
+      "totalUsers": 58,
+      "usedCount": 4,
+      "createdDate": "July 17th, 2026",
+      "aggregatedHookRate": "12.1%",
+      "aggregatedReportRate": "65.1%",
+      "departmentBreakdown": [
+        { "dept": "Finance", "count": 28 },
+        { "dept": "AI & Data Analytics", "count": 12 },
+        { "dept": "CARE", "count": 7 },
+        { "dept": "Supply Chain Management", "count": 12 }
+      ],
+      "users": [
+        {
+          "srNo": 1,
+          "userName": "Abhay H S",
+          "email": "abhay.hs1@vodafone.com",
+          "department": "AI & Data Analytics",
+          "location": "INDIA",
+          "hookRate": "12.2%",
+          "reportRate": "48.8%"
+        },
+        {
+          "srNo": 2,
+          "userName": "Trevor Sile",
+          "email": "trevor.sile@vodafone.com",
+          "department": "CARE",
+          "location": "UK",
+          "hookRate": "92.2%",
+          "reportRate": "0%"
+        },
+        {
+          "srNo": 3,
+          "userName": "Mitin Rinis",
+          "email": "mitin.rinis@vodafone.com",
+          "department": "Finance",
+          "location": "UK",
+          "hookRate": "12.2%",
+          "reportRate": "0%"
+        },
+        {
+          "srNo": 4,
+          "userName": "Sarah Jenkins",
+          "email": "sarah.jenkins@vodafone.com",
+          "department": "Finance",
+          "location": "GERMANY",
+          "hookRate": "5.4%",
+          "reportRate": "85.2%"
+        },
+        {
+          "srNo": 5,
+          "userName": "Karim Mostafa",
+          "email": "karim.mostafa@vodafone.com",
+          "department": "Supply Chain Management",
+          "location": "EGYPT",
+          "hookRate": "18.0%",
+          "reportRate": "52.0%"
+        }
+      ]
+    },
+    {
+      "id": "ul-002",
+      "name": "Batch 02 – August Campaign Supply Chain Management",
+      "type": "Bulk Upload",
+      "description": "Supply chain operations and vendor management teams across Cairo and Pune facilities.",
+      "totalUsers": 58,
+      "usedCount": 4,
+      "createdDate": "July 17th, 2026",
+      "aggregatedHookRate": "14.2%",
+      "aggregatedReportRate": "58.4%",
+      "departmentBreakdown": [
+        { "dept": "Supply Chain Management", "count": 36 },
+        { "dept": "CARE", "count": 14 },
+        { "dept": "Finance", "count": 8 }
+      ],
+      "users": [
+        {
+          "srNo": 1,
+          "userName": "David Miller",
+          "email": "david.miller@vodafone.com",
+          "department": "Supply Chain Management",
+          "location": "UK",
+          "hookRate": "15.0%",
+          "reportRate": "60.0%"
+        },
+        {
+          "srNo": 2,
+          "userName": "Elena Rossi",
+          "email": "elena.rossi@vodafone.com",
+          "department": "CARE",
+          "location": "ALBANIA",
+          "hookRate": "8.5%",
+          "reportRate": "75.0%"
+        }
+      ]
+    },
+    {
+      "id": "ul-003",
+      "name": "Phishing Batch VOIS DL, Egypt",
+      "type": "Distribution List",
+      "dlId": "dl-phisingcampaignvoisshield@vodafone.com",
+      "description": "Official Cairo operational delivery team synced directly from Exchange Admin Center.",
+      "totalUsers": 58,
+      "usedCount": 4,
+      "createdDate": "July 17th, 2026",
+      "aggregatedHookRate": "12.1%",
+      "aggregatedReportRate": "65.1%",
+      "departmentBreakdown": [
+        { "dept": "AI & Data Analytics", "count": 12 },
+        { "dept": "Finance", "count": 28 },
+        { "dept": "CARE", "count": 7 },
+        { "dept": "BVOIS", "count": 12 }
+      ],
+      "users": [
+        {
+          "srNo": 1,
+          "userName": "Abhay H S",
+          "email": "abhay.hs1@vodafone.com",
+          "department": "AI & Data Analytics",
+          "location": "INDIA",
+          "hookRate": "12.2%",
+          "reportRate": "48.8%"
+        },
+        {
+          "srNo": 2,
+          "userName": "Trevor Sile",
+          "email": "trevor.sile@vodafone.com",
+          "department": "CARE",
+          "location": "UK",
+          "hookRate": "92.2%",
+          "reportRate": "0%"
+        },
+        {
+          "srNo": 3,
+          "userName": "Mitin Rinis",
+          "email": "mitin.rinis@vodafone.com",
+          "department": "Finance",
+          "location": "UK",
+          "hookRate": "12.2%",
+          "reportRate": "0%"
+        }
+      ]
+    }
+  ],
+  "syncedDistributionLists": [
+    {
+      "dlId": "dl-phisingcampaignvoisshield@vodafone.com",
+      "dlName": "VOIS Egypt & India Core Delivery DL",
+      "description": "Pre-configured Active Directory group for frontline operational staff.",
+      "totalUsers": 58,
+      "aggregatedHookRate": "12.1%",
+      "aggregatedReportRate": "65.1%",
+      "departmentBreakdown": [
+        { "dept": "AI & Data Analytics", "count": 12 },
+        { "dept": "Finance", "count": 28 },
+        { "dept": "CARE", "count": 7 },
+        { "dept": "Supply Chain Management", "count": 12 }
+      ],
+      "members": [
+        {
+          "srNo": 1,
+          "userName": "Abhay H S",
+          "email": "abhay.hs1@vodafone.com",
+          "department": "AI & Data Analytics",
+          "location": "INDIA",
+          "hookRate": "12.2%",
+          "reportRate": "48.8%"
+        },
+        {
+          "srNo": 2,
+          "userName": "Trevor Sile",
+          "email": "trevor.sile@vodafone.com",
+          "department": "CARE",
+          "location": "UK",
+          "hookRate": "92.2%",
+          "reportRate": "0%"
+        },
+        {
+          "srNo": 3,
+          "userName": "Mitin Rinis",
+          "email": "mitin.rinis@vodafone.com",
+          "department": "Finance",
+          "location": "UK",
+          "hookRate": "12.2%",
+          "reportRate": "0%"
+        },
+        {
+          "srNo": 4,
+          "userName": "Sarah Jenkins",
+          "email": "sarah.jenkins@vodafone.com",
+          "department": "Finance",
+          "location": "GERMANY",
+          "hookRate": "5.4%",
+          "reportRate": "85.2%"
+        },
+        {
+          "srNo": 5,
+          "userName": "Karim Mostafa",
+          "email": "karim.mostafa@vodafone.com",
+          "department": "Supply Chain Management",
+          "location": "EGYPT",
+          "hookRate": "18.0%",
+          "reportRate": "52.0%"
+        }
+      ]
+    },
+    {
+      "dlId": "dl-global-leadership@vodafone.com",
+      "dlName": "Global Management & Leadership (GMT)",
+      "description": "Senior leadership distribution list across UK, Germany, and India.",
+      "totalUsers": 32,
+      "aggregatedHookRate": "4.2%",
+      "aggregatedReportRate": "88.5%",
+      "departmentBreakdown": [
+        { "dept": "Executive Board", "count": 10 },
+        { "dept": "IT Security", "count": 22 }
+      ],
+      "members": [
+        {
+          "srNo": 1,
+          "userName": "Hanah Brooks",
+          "email": "hanah.brooks@vodafone.com",
+          "department": "Executive Board",
+          "location": "INDIA",
+          "hookRate": "2.1%",
+          "reportRate": "95.0%"
+        },
+        {
+          "srNo": 2,
+          "userName": "Alexander Wright",
+          "email": "alex.wright@vodafone.com",
+          "department": "IT Security",
+          "location": "UK",
+          "hookRate": "6.2%",
+          "reportRate": "82.0%"
+        }
+      ]
+    }
+  ]
+}

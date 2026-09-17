@@ -1,0 +1,34 @@
+[
+  {
+    "id": "em-001",
+    "email": "no-reply.vodafonepasswordnotification@domain",
+    "description": "Used for simulated IT password reset notification campaigns",
+    "createdDate": "17th July 2026",
+    "status": "Active",
+    "usageCount": 14
+  },
+  {
+    "id": "em-002",
+    "email": "Spirit_VOIS@domain",
+    "description": "Used for internal employee reward and HR recognition lures",
+    "createdDate": "17th July 2026",
+    "status": "Active",
+    "usageCount": 9
+  },
+  {
+    "id": "em-003",
+    "email": "VOIS.internalcommunications@domain",
+    "description": "Broadcasts simulated CEO & executive operational announcements",
+    "createdDate": "17th July 2026",
+    "status": "Active",
+    "usageCount": 22
+  },
+  {
+    "id": "em-004",
+    "email": "Learning_Notifications@domain",
+    "description": "Triggers simulated compliance and mandatory training reminders",
+    "createdDate": "17th July 2026",
+    "status": "Active",
+    "usageCount": 18
+  }
+]

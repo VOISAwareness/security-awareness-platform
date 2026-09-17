@@ -1,0 +1,253 @@
+{
+  "campaigns": [
+    {
+      "campaignId": "CAMP-001",
+      "campaignStatus": "Completed",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-001",
+      "CampaignTitle": "Q2 Global SSO Synchronization Simulation",
+      "CampaignDescription": "Organization-wide high-urgency credential verification check simulating an expired Active Directory single sign-on notification.",
+      "TestCampaign": "No",
+      "StartTime": "08/10/2026 09:00 AM",
+      "EndTime": "08/20/2026 05:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "08/01/2026 11:30 AM",
+      "SenderEmailID": "no-reply.vodafonepasswordnotification@domain",
+      "SenderName": "Vodafone Password Notification",
+      "EmailSubject": "@UserName, your Vodafone account password has expired",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F4F6F9;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#E60000;padding:18px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:18px;font-weight:900;letter-spacing:0.5px;\">Vodafone Identity & Access Management</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Dear <strong>{{userName}}</strong>,</p><p>Your Vodafone Single Sign-On (SSO) credentials expired today. To prevent uninterrupted access to Outlook 365, Teams, and internal VPN portals, immediate password synchronization is mandatory.</p><div style=\"background:#FFF1F2;border-left:4px solid #E11D48;padding:12px 16px;margin:20px 0;border-radius:4px;\"><p style=\"margin:0;font-size:13px;color:#9F1239;font-weight:600;\">Action Required: Verify and update password within the next 4 hours to avoid automatic account deactivation.</p></div><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#E60000;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:700;\">Verify Password Now</a></div><p style=\"font-size:12px;color:#64748B;\">If the button does not work, copy and paste this secure link into your browser:<br><span style=\"color:#2563EB;word-break:break-all;\">{{phishLink}}</span></p></div><div style=\"background-color:#F8FAFC;padding:14px 24px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center;\">This is an automated security advisory from Vodafone Group IT Security & Governance.</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-001"
+      },
+      "LandingPageID": "LP-001",
+      "TrainingPathID": "TP-00001"
+    },
+    {
+      "campaignId": "CAMP-002",
+      "campaignStatus": "Completed",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-022",
+      "CampaignTitle": "Finance Regulatory Compliance Audit Drill",
+      "CampaignDescription": "Targeted simulation focusing on financial operations to assess vulnerability against overdue audit notifications.",
+      "TestCampaign": "No",
+      "StartTime": "06/08/2026 10:00 AM",
+      "EndTime": "06/18/2026 06:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "06/01/2026 02:15 PM",
+      "SenderEmailID": "Learning_Notifications@domain",
+      "SenderName": "Learning Notifications",
+      "EmailSubject": "Mandatory Learning Assignment Overdue: Immediate Remediation Required",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#B91C1C;padding:18px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:17px;font-weight:900;\">Vodafone Group Compliance & Ethics Office</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Attention <strong>{{userName}}</strong>,</p><p>Our quarterly audit indicators confirm that your mandatory module <strong>Anti-Bribery, Sanctions & Financial Crime Prevention (2026)</strong> is now <strong>7 days overdue</strong>.</p><p>Failure to complete this module within 24 hours will result in automatic escalation to your direct Line Manager and temporary suspension of SAP finance transactional approvals.</p><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#B91C1C;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-size:14px;font-weight:700;\">Complete Training Module</a></div><p style=\"font-size:12px;color:#64748B;\">Module duration: Approximately 15 minutes. An active score of 80% is required for audit clearance.</p></div><div style=\"background-color:#FEF2F2;padding:14px 24px;border-top:1px solid #FEE2E2;font-size:11px;color:#991B1B;text-align:center;\">Vodafone Learning Academy LMS Automated Dispatch Service</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-001"
+      },
+      "LandingPageID": "LP-003",
+      "TrainingPathID": "TP-00004"
+    },
+    {
+      "campaignId": "CAMP-003",
+      "campaignStatus": "Completed",
+      "CampaignStartType": "Start_Fresh",
+      "ScenarioID": "NA",
+      "CampaignTitle": "Mid-Year Rewards & Benefit Choice Assessment",
+      "CampaignDescription": "Custom created lure simulating the mid-year Vodafone cafeteria benefits enrolment to test social engineering resilience.",
+      "TestCampaign": "No",
+      "StartTime": "05/12/2026 08:30 AM",
+      "EndTime": "05/22/2026 04:30 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "05/05/2026 09:00 AM",
+      "SenderEmailID": "Spirit_VOIS@domain",
+      "SenderName": "VOIS Employee Benefits Desk",
+      "EmailSubject": "Urgent: Complete your Annual Flexible Benefit Selection",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#16A34A;padding:20px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:18px;font-weight:800;\">VOIS Total Rewards & Employee Benefits</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p>Hello <strong>{{userName}}</strong>,</p><p>The flexible benefit adjustment window for this financial cycle is ending soon. Confirm your cafeteria health insurance plan and commuter allowances.</p><div style=\"text-align:center;margin:24px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#16A34A;color:#ffffff;padding:12px 30px;border-radius:8px;text-decoration:none;font-weight:700;\">Review Benefits Allocation</a></div><p style=\"font-size:11px;color:#64748B;\">Unverified allocations will default to standard statutory options.</p></div></div></body></html>",
+      "RecipientGroupType": "IndividualEntry",
+      "RecipientDetails": {
+        "EmailIDsListed": [
+          "sarah.jenkins@vodafone.com",
+          "mitin.rinis@vodafone.com",
+          "david.miller@vodafone.com",
+          "elena.rossi@vodafone.com",
+          "karim.mostafa@vodafone.com"
+        ]
+      },
+      "LandingPageID": "LP-002",
+      "TrainingPathID": "TP-00001"
+    },
+    {
+      "campaignId": "CAMP-004",
+      "campaignStatus": "Completed",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-044",
+      "CampaignTitle": "Critical Zero-Day KB504821 Remote Update Test",
+      "CampaignDescription": "Emergency desktop IT engineering exercise evaluating hybrid employees' adherence to verified software deployment procedures.",
+      "TestCampaign": "No",
+      "StartTime": "02/15/2026 11:00 AM",
+      "EndTime": "02/25/2026 05:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "02/10/2026 01:20 PM",
+      "SenderEmailID": "VSSI-IT@domain",
+      "SenderName": "VSSI IT",
+      "EmailSubject": "Immediate Action Required: Software Patch Update (KB504821)",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F1F5F9;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #CBD5E1;\"><div style=\"background-color:#0F172A;padding:18px 24px;border-bottom:3px solid #E60000;\"><h1 style=\"color:#ffffff;margin:0;font-size:17px;font-weight:900;\">VSSI Global End-User IT Support</h1></div><div style=\"padding:28px 24px;color:#0F172A;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Hello <strong>{{userName}}</strong>,</p><p>A critical zero-day security flaw impacting enterprise Windows Defender configurations on remote workstations was identified this morning.</p><p>A mandatory emergency policy package (<strong>KB504821-VODAFONE-SEC</strong>) must be acknowledged and queued for deployment on your system to prevent automatic network isolation.</p><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#0F172A;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-size:14px;font-weight:700;\">Install & Authorize Patch</a></div><p style=\"font-size:12px;color:#64748B;\">If working via Global Protect or Zscaler VPN, ensure your tunnel stays connected during validation.</p></div><div style=\"background-color:#F8FAFC;padding:14px 24px;border-top:1px solid #E2E8F0;font-size:11px;color:#64748B;text-align:center;\">VSSI Corporate Desktop Engineering & Cyber Defense Team</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-002"
+      },
+      "LandingPageID": "LP-001",
+      "TrainingPathID": "TP-00005"
+    },
+    {
+      "campaignId": "CAMP-005",
+      "campaignStatus": "Completed",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-009",
+      "CampaignTitle": "Global Leadership Realignment Townhall Broadcast",
+      "CampaignDescription": "Executive communications drill verifying if leadership announcements provoke unverified link engagements.",
+      "TestCampaign": "No",
+      "StartTime": "11/17/2025 01:00 PM",
+      "EndTime": "11/27/2025 06:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "11/10/2025 10:00 AM",
+      "SenderEmailID": "VOIS.internalcommunications@domain",
+      "SenderName": "VOIS Communication & Engagement Team",
+      "EmailSubject": "Gary Live - Major Announcement Awaits",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F1F5F9;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#831843;padding:20px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:18px;font-weight:800;\">Executive Broadcast: All-Hands Townhall</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Dear Colleagues,</p><p>Please join us for a special global broadcast session today at 14:30 GMT hosted by executive leadership to discuss strategic organizational realignment and operational tower milestones.</p><p>Due to auditorium capacity restrictions and digital bandwidth management, please confirm your attendance slot and pre-register your Q&A submissions below:</p><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#BE185D;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;\">View Townhall Deck & Pre-Register</a></div><p style=\"font-size:12px;color:#64748B;\">Live translation feeds will be provisioned in German, Italian, Spanish, and Arabic.</p></div><div style=\"background-color:#FDF2F8;padding:14px 24px;border-top:1px solid #FBCFE8;font-size:11px;color:#9D174D;text-align:center;\">VOIS Global Internal Communications & Employee Engagement</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-003"
+      },
+      "LandingPageID": "LP-001",
+      "TrainingPathID": "TP-00003"
+    },
+    {
+      "campaignId": "CAMP-006",
+      "campaignStatus": "Live",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-003",
+      "CampaignTitle": "VOIS Spirit Pulse Engagement Survey 2026",
+      "CampaignDescription": "Current live organizational culture evaluation evaluating click rates on workplace sentiment lures.",
+      "TestCampaign": "No",
+      "StartTime": "09/10/2026 09:30 AM",
+      "EndTime": "09/25/2026 05:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "09/02/2026 03:45 PM",
+      "SenderEmailID": "Spirit_VOIS@domain",
+      "SenderName": "VOIS Spirit Team",
+      "EmailSubject": "Spirit Pulse is open: your voice matters!",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#0F172A;padding:22px 24px;text-align:center;\"><h1 style=\"color:#ffffff;margin:0;font-size:20px;font-weight:900;\">_VOIS Spirit Pulse 2026</h1><p style=\"color:#94A3B8;margin:6px 0 0 0;font-size:12px;\">Quarterly Employee Experience & Workplace Sentiment</p></div><div style=\"padding:28px 24px;color:#334155;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Hi <strong>{{userName}}</strong>,</p><p>As part of our continuous commitment to cultivating an inclusive, high-performing workspace, the <strong>Q3 Spirit Pulse Survey</strong> is officially live.</p><p>Your inputs directly influence leadership decisions regarding hybrid working policies, wellness stipends, and internal mobility opportunities.</p><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#2563EB;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-size:14px;font-weight:700;\">Start 3-Minute Survey</a></div><p style=\"font-size:12px;color:#64748B;\">Survey submissions close on Friday at 17:00 GMT. Responses are treated with strict confidentiality.</p></div><div style=\"background-color:#F1F5F9;padding:14px 24px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center;\">&copy; 2026 _VOIS People & Culture Directorate.</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-003"
+      },
+      "LandingPageID": "LP-002",
+      "TrainingPathID": "TP-00002"
+    },
+    {
+      "campaignId": "CAMP-007",
+      "campaignStatus": "Live",
+      "CampaignStartType": "Start_Fresh",
+      "ScenarioID": "NA",
+      "CampaignTitle": "Critical Secure Sharepoint Document Access Check",
+      "CampaignDescription": "Active custom spear-phishing test simulating an encrypted cloud document notification from corporate executive leadership.",
+      "TestCampaign": "No",
+      "StartTime": "09/15/2026 10:00 AM",
+      "EndTime": "10/02/2026 06:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "09/08/2026 11:20 AM",
+      "SenderEmailID": "VOIS.internalcommunications@domain",
+      "SenderName": "Vodafone Cloud Collaboration Service",
+      "EmailSubject": "Shared Confidential Document: Q3 Commercial Review.pdf",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#0284C7;padding:18px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:17px;font-weight:800;\">Vodafone SharePoint Online Document Portal</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p>Hello <strong>{{userName}}</strong>,</p><p>A confidential operational roadmap document has been shared with you for your immediate quarterly review.</p><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#0284C7;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-size:14px;font-weight:700;\">Authenticate & Open Document</a></div><p style=\"font-size:11px;color:#64748B;\">Link will expire in 48 hours in accordance with data governance policies.</p></div></div></body></html>",
+      "RecipientGroupType": "IndividualEntry",
+      "RecipientDetails": {
+        "EmailIDsListed": [
+          "abhay.hs1@vodafone.com",
+          "trevor.sile@vodafone.com",
+          "hanah.brooks@vodafone.com",
+          "alex.wright@vodafone.com",
+          "lukas.weber@vodafone.com"
+        ]
+      },
+      "LandingPageID": "LP-001",
+      "TrainingPathID": "TP-00003"
+    },
+    {
+      "campaignId": "CAMP-008",
+      "campaignStatus": "Upcoming",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-001",
+      "CampaignTitle": "Q3 Enterprise Authentication & Identity Check",
+      "CampaignDescription": "Scheduled credential synchronization simulation focusing on identity access hygiene across all frontline operational hubs.",
+      "TestCampaign": "No",
+      "StartTime": "10/05/2026 09:00 AM",
+      "EndTime": "10/16/2026 05:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "09/12/2026 02:40 PM",
+      "SenderEmailID": "no-reply.vodafonepasswordnotification@domain",
+      "SenderName": "Vodafone Password Notification",
+      "EmailSubject": "@UserName, your Vodafone account password has expired",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F4F6F9;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#E60000;padding:18px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:18px;font-weight:900;letter-spacing:0.5px;\">Vodafone Identity & Access Management</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Dear <strong>{{userName}}</strong>,</p><p>Your Vodafone Single Sign-On (SSO) credentials expired today. To prevent uninterrupted access to Outlook 365, Teams, and internal VPN portals, immediate password synchronization is mandatory.</p><div style=\"background:#FFF1F2;border-left:4px solid #E11D48;padding:12px 16px;margin:20px 0;border-radius:4px;\"><p style=\"margin:0;font-size:13px;color:#9F1239;font-weight:600;\">Action Required: Verify and update password within the next 4 hours to avoid automatic account deactivation.</p></div><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#E60000;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:700;\">Verify Password Now</a></div><p style=\"font-size:12px;color:#64748B;\">If the button does not work, copy and paste this secure link into your browser:<br><span style=\"color:#2563EB;word-break:break-all;\">{{phishLink}}</span></p></div><div style=\"background-color:#F8FAFC;padding:14px 24px;border-top:1px solid #E2E8F0;font-size:11px;color:#94A3B8;text-align:center;\">This is an automated security advisory from Vodafone Group IT Security & Governance.</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-002"
+      },
+      "LandingPageID": "LP-001",
+      "TrainingPathID": "TP-00001"
+    },
+    {
+      "campaignId": "CAMP-009",
+      "campaignStatus": "Upcoming",
+      "CampaignStartType": "Scenario",
+      "ScenarioID": "SC-022",
+      "CampaignTitle": "Q3 Year-End Regulatory Code of Conduct Compliance",
+      "CampaignDescription": "Mandatory audit certification reminder targeting high-risk operational departments.",
+      "TestCampaign": "No",
+      "StartTime": "11/02/2026 10:00 AM",
+      "EndTime": "11/13/2026 06:00 PM",
+      "AutoEndPostCompletion": "Yes",
+      "CreationDate": "09/14/2026 04:10 PM",
+      "SenderEmailID": "Learning_Notifications@domain",
+      "SenderName": "Learning Notifications",
+      "EmailSubject": "Mandatory Learning Assignment Overdue: Immediate Remediation Required",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#B91C1C;padding:18px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:17px;font-weight:900;\">Vodafone Group Compliance & Ethics Office</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p style=\"margin-top:0;\">Attention <strong>{{userName}}</strong>,</p><p>Our quarterly audit indicators confirm that your mandatory module <strong>Anti-Bribery, Sanctions & Financial Crime Prevention (2026)</strong> is now <strong>7 days overdue</strong>.</p><p>Failure to complete this module within 24 hours will result in automatic escalation to your direct Line Manager and temporary suspension of SAP finance transactional approvals.</p><div style=\"text-align:center;margin:28px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#B91C1C;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-size:14px;font-weight:700;\">Complete Training Module</a></div><p style=\"font-size:12px;color:#64748B;\">Module duration: Approximately 15 minutes. An active score of 80% is required for audit clearance.</p></div><div style=\"background-color:#FEF2F2;padding:14px 24px;border-top:1px solid #FEE2E2;font-size:11px;color:#991B1B;text-align:center;\">Vodafone Learning Academy LMS Automated Dispatch Service</div></div></body></html>",
+      "RecipientGroupType": "UserList",
+      "RecipientDetails": {
+        "UserListID": "ul-001"
+      },
+      "LandingPageID": "LP-003",
+      "TrainingPathID": "TP-00004"
+    },
+    {
+      "campaignId": "CAMP-010",
+      "campaignStatus": "Upcoming",
+      "CampaignStartType": "Start_Fresh",
+      "ScenarioID": "NA",
+      "CampaignTitle": "Global IT Security Team System Dry Run",
+      "CampaignDescription": "Internal dry-run baseline validation conducted exclusively on Cyber Defense & Identity Security staff.",
+      "TestCampaign": "Yes",
+      "StartTime": "12/01/2026 09:00 AM",
+      "EndTime": "12/08/2026 05:00 PM",
+      "AutoEndPostCompletion": "No",
+      "CreationDate": "09/16/2026 10:15 AM",
+      "SenderEmailID": "VSSI-IT@domain",
+      "SenderName": "Cyber Security Testing Group",
+      "EmailSubject": "Security Diagnostic: Authorize Remote Certificate Validation",
+      "EmailBody": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"></head><body style=\"margin:0;padding:24px;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;\"><div style=\"max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;\"><div style=\"background-color:#1E293B;padding:18px 24px;\"><h1 style=\"color:#ffffff;margin:0;font-size:17px;font-weight:800;\">Vodafone Cyber Defense Testing Cell</h1></div><div style=\"padding:28px 24px;color:#1E293B;font-size:14px;line-height:1.6;\"><p>Dear Security Member,</p><p>This is an internal test routine to evaluate system-level response triggers against staged digital certificate validation prompts.</p><div style=\"text-align:center;margin:24px 0;\"><a href=\"{{phishLink}}\" style=\"display:inline-block;background-color:#E60000;color:#ffffff;text-decoration:none;padding:12px 30px;border-radius:8px;font-size:14px;font-weight:700;\">Verify Test Certificate</a></div><p style=\"font-size:11px;color:#64748B;\">Simulated payload strictly for pre-approved test environments.</p></div></div></body></html>",
+      "RecipientGroupType": "IndividualEntry",
+      "RecipientDetails": {
+        "EmailIDsListed": [
+          "aarav.sharma@vodafone.com",
+          "hannah.schmidt@vodafone.com",
+          "david.ruiz@vodafone.com",
+          "jack.roberts@vodafone.com",
+          "fabio.fontana@vodafone.com",
+          "hossam.hassan@vodafone.com"
+        ]
+      },
+      "LandingPageID": "LP-001",
+      "TrainingPathID": "TP-00005"
+    }
+  ]
+}

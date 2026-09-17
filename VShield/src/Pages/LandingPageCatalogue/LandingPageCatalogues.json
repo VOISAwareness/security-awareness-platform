@@ -1,0 +1,25 @@
+{
+  "landingPages": [
+    {
+      "LandingPageID": "LP-001",
+      "LandingPageName": "Blue Security Alert Landing Page",
+      "LandingPageDescription": "Standard corporate blue notification informing the employee that they were involved in a controlled awareness exercise.",
+      "CreatedDate": "14/08/2026 10:30 AM",
+      "LandingPageContent": "<div style=\"width:100%;min-height:480px;background:#0d58be;color:#ffffff;font-family:'Segoe UI',Arial,sans-serif;padding:48px 24px;text-align:center;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;\"><h1 style=\"font-size:38px;font-weight:900;margin:0 0 12px 0;letter-spacing:-0.5px;\">Oops!<br/>You've been Phished</h1><h2 style=\"font-size:22px;font-weight:600;margin:0 0 16px 0;opacity:0.95;\">But Worry Not...</h2><p style=\"font-size:14px;font-weight:700;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;\">This was just a SIMULATION.</p><p style=\"font-size:13px;max-width:620px;line-height:1.6;margin:0 auto 24px auto;opacity:0.9;\">This is part of our security awareness training campaign run by the Information Security Team, powered by HumanFirewall™. Phishing is a technique used by malicious criminals to try and gain access to critical confidential information, or to compromise critical assets.<br/><br/>Please go through a short training linked below to learn how to avoid this in future.</p><a href=\"#training\" style=\"display:inline-block;background:#ffffff;color:#0d58be;font-size:14px;font-weight:800;padding:12px 28px;border-radius:8px;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);\">Click Here to complete the training.</a></div>"
+    },
+    {
+      "LandingPageID": "LP-002",
+      "LandingPageName": "VOIS Themed Red Flag Landing Page",
+      "LandingPageDescription": "Branded VOIS simulation landing template highlighting key red flags in emails with immediate link to corrective training.",
+      "CreatedDate": "19/08/2026 03:45 PM",
+      "LandingPageContent": "<div style=\"width:100%;min-height:480px;background:#ffffff;color:#1e293b;font-family:'Segoe UI',Arial,sans-serif;padding:40px 24px;text-align:center;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;\"><h1 style=\"font-size:34px;font-weight:900;color:#E60000;margin:0 0 10px 0;letter-spacing:1px;\">_VOIS</h1><div style=\"background:linear-gradient(90deg,#E60000,#7c3aed);color:#ffffff;padding:12px 32px;border-radius:10px;margin-bottom:20px;\"><h2 style=\"font-size:20px;font-weight:800;margin:0;\">Oops! You've been Phished!</h2><p style=\"font-size:12px;margin:4px 0 0 0;opacity:0.9;\">Don't worry, this was only a Phishing Simulation run by Corporate Security Team.</p></div><p style=\"font-size:13px;max-width:560px;line-height:1.6;color:#475569;margin:0 auto 24px auto;\">This is your moment to sharpen your phishing spotting skills. Cyber threats are designed to trigger urgency and trick you into clicking malicious links.</p><a href=\"#training\" style=\"display:inline-block;background:#E60000;color:#ffffff;font-size:13px;font-weight:700;padding:10px 26px;border-radius:24px;text-decoration:none;margin-bottom:18px;\">Click here to complete your short assigned training</a><div style=\"margin-top:10px;\"><span style=\"background:#581c87;color:#ffffff;font-size:11px;font-weight:800;letter-spacing:1px;padding:8px 24px;border-radius:20px;text-transform:uppercase;\">🛡️ RED FLAGS IN THE EMAILS</span></div></div>"
+    },
+    {
+      "LandingPageID": "LP-003",
+      "LandingPageName": "Corporate Dark Security Intercept",
+      "LandingPageDescription": "High contrast dark-mode awareness template for technical & developer cohorts.",
+      "CreatedDate": "01/09/2026 11:15 AM",
+      "LandingPageContent": "<div style=\"width:100%;min-height:480px;background:#0f172a;color:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;padding:48px 24px;text-align:center;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;\"><div style=\"width:54px;height:54px;border-radius:50%;background:#ef4444;color:#ffffff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;margin-bottom:16px;\">!</div><h1 style=\"font-size:32px;font-weight:900;margin:0 0 10px 0;\">SECURITY SIMULATION INTERCEPT</h1><p style=\"font-size:14px;color:#94a3b8;max-width:540px;line-height:1.6;margin:0 auto 24px auto;\">You recently interacted with a simulated cyber security test. Your system has not been compromised, but this highlights how deceptive modern spear phishing attacks can be.</p><a href=\"#training\" style=\"display:inline-block;background:#22c55e;color:#0f172a;font-size:14px;font-weight:800;padding:12px 30px;border-radius:8px;text-decoration:none;\">Acknowledge & Start 2-Minute Module</a></div>"
+    }
+  ]
+}

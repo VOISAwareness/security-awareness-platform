@@ -1,0 +1,93 @@
+[
+  {
+    "TrainingPathID": "TP-00001",
+    "TrainingPathName": "Anti-Phishing & Social Engineering Remediation Path",
+    "Thumbnail(CoverImage)": "CovImg-001.png",
+    "Description": "Core remediation curriculum combining header analysis and psychological manipulation breakdown with an assessment and corporate completion certificate.",
+    "CreatedOn": "15-Jan-2026",
+    "UsedTime": 14,
+    "TrainingVideoAttached": [
+      "TV-00001",
+      "TV-00002"
+    ],
+    "TrainingQuizAttached": [
+      "TQ-00001"
+    ],
+    "TrainingCertificateAttached": [
+      "TC-00001"
+    ]
+  },
+  {
+    "TrainingPathID": "TP-00002",
+    "TrainingPathName": "Executive Wire Fraud & BEC Defense Track",
+    "Thumbnail(CoverImage)": "CovImg-004.png",
+    "Description": "Specialized path designed for leadership and finance teams to identify business email compromise and forged executive requests.",
+    "CreatedOn": "01-Feb-2026",
+    "UsedTime": 9,
+    "TrainingVideoAttached": [
+      "TV-00002",
+      "TV-00003"
+    ],
+    "TrainingQuizAttached": [
+      "TQ-00002"
+    ],
+    "TrainingCertificateAttached": [
+      "TC-00002"
+    ]
+  },
+  {
+    "TrainingPathID": "TP-00003",
+    "TrainingPathName": "Comprehensive 360° Phishing & Payload Defense",
+    "Thumbnail(CoverImage)": "CovImg-002.png",
+    "Description": "In-depth multi-module training pathway covering headers, fake login portals, malicious payloads, and SOC escalation protocols.",
+    "CreatedOn": "18-Feb-2026",
+    "UsedTime": 22,
+    "TrainingVideoAttached": [
+      "TV-00001",
+      "TV-00003",
+      "TV-00004",
+      "TV-00005"
+    ],
+    "TrainingQuizAttached": [
+      "TQ-00001"
+    ],
+    "TrainingCertificateAttached": [
+      "TC-00001"
+    ]
+  },
+  {
+    "TrainingPathID": "TP-00004",
+    "TrainingPathName": "Authentication Hygiene & Credential Defense",
+    "Thumbnail(CoverImage)": "CovImg-005.png",
+    "Description": "Focused drill on multi-factor authentication hygiene, session hijacking defense, and verifying corporate SSO URLs.",
+    "CreatedOn": "24-Feb-2026",
+    "UsedTime": 6,
+    "TrainingVideoAttached": [
+      "TV-00003"
+    ],
+    "TrainingQuizAttached": [
+      "TQ-00003"
+    ],
+    "TrainingCertificateAttached": [
+      "TC-00001"
+    ]
+  },
+  {
+    "TrainingPathID": "TP-00005",
+    "TrainingPathName": "Frontline Threat Reporting & Incident Response",
+    "Thumbnail(CoverImage)": "CovImg-003.png",
+    "Description": "Hands-on module instructing users on identifying suspicious emails and efficiently escalating indicators to the security operations team.",
+    "CreatedOn": "02-Mar-2026",
+    "UsedTime": 11,
+    "TrainingVideoAttached": [
+      "TV-00004",
+      "TV-00005"
+    ],
+    "TrainingQuizAttached": [
+      "TQ-00001"
+    ],
+    "TrainingCertificateAttached": [
+      "TC-00003"
+    ]
+  }
+]
