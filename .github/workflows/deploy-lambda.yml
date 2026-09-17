@@ -1,4 +1,4 @@
-name: Deploy Lambdas
+name: OIDC Test
 
 on:
   push:
@@ -10,17 +10,16 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug GitHub Context
+      - name: Show GitHub Context
         run: |
           echo "Repository=${{ github.repository }}"
           echo "Ref=${{ github.ref }}"
-          echo "Actor=${{ github.actor }}"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -28,6 +27,5 @@ jobs:
           role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole
           aws-region: ap-south-1
 
-      - name: Verify AWS Identity
-        run: |
-          aws sts get-caller-identity
+      - name: Verify Identity
+        run: aws sts get-caller-identity
