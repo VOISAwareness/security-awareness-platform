@@ -1,0 +1,1 @@
+{"statusCode": 400, "headers": {"Content-Type": "application/json", "Cache-Control": "no-store"}, "body": "{\"message\": \"campaignId is required\"}"}
