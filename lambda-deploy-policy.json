@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LambdaDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration"
+      ],
+      "Resource": "arn:aws:lambda:ap-south-1:798299234472:function:security-awareness-poc-*"
+    }
+  ]
+}

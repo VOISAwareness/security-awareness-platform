@@ -1,11 +1,9 @@
-name: Deploy Lambda
+name: Deploy Lambdas
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'backend/**'
 
 permissions:
   id-token: write
@@ -16,51 +14,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole
+          role-to-assume: arn:aws:iam::798299234472:role/github-actions-role
           aws-region: ap-south-1
 
-      - name: Deploy Campaign Reader
+      - name: Deploy campaign-reader
         run: |
           cd backend/campaign-reader
-          zip -r lambda.zip lambda_function.py
+          zip lambda.zip lambda_function.py
           aws lambda update-function-code \
             --function-name security-awareness-poc-campaign-reader \
-            --zip-file fileb://lambda.zip
-
-      - name: Deploy Email Sender
-        run: |
-          cd backend/email-sender
-          zip -r lambda.zip lambda_function.py
-          aws lambda update-function-code \
-            --function-name security-awareness-poc-email-sender \
-            --zip-file fileb://lambda.zip
-
-      - name: Deploy Tracking
-        run: |
-          cd backend/tracking
-          zip -r lambda.zip lambda_function.py
-          aws lambda update-function-code \
-            --function-name security-awareness-poc-tracking \
-            --zip-file fileb://lambda.zip
-
-      - name: Deploy Report Event
-        run: |
-          cd backend/report-event
-          zip -r lambda.zip lambda_function.py
-          aws lambda update-function-code \
-            --function-name security-awareness-poc-report-event \
-            --zip-file fileb://lambda.zip
-
-      - name: Deploy Approval
-        run: |
-          cd backend/approval
-          zip -r lambda.zip lambda_function.py
-          aws lambda update-function-code \
-            --function-name security-awareness-poc-approval \
             --zip-file fileb://lambda.zip
