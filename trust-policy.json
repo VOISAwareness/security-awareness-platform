@@ -13,6 +13,9 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
+            "repo:VOISAwareness/security-awareness-platform:*",
+            "repo:VOISAwareness@*/security-awareness-platform@*:*",
+            "repo:VOISAwareness*security-awareness-platform*:*",
             "repo:satyajit1106/security-awareness-platform:*",
             "repo:satyajit1106@*/security-awareness-platform@*:*",
             "repo:satyajit1106*security-awareness-platform*:*"
