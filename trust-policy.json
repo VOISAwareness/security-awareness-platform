@@ -12,7 +12,11 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:satyajit1106/security-awareness-platform:*"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:satyajit1106/security-awareness-platform:*",
+            "repo:satyajit1106@*/security-awareness-platform@*:*",
+            "repo:satyajit1106*security-awareness-platform*:*"
+          ]
         }
       }
     }

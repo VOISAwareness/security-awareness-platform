@@ -1,20 +1,24 @@
-name: OIDC Debug
+name: Deploy Lambdas
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  debug:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Show Context
         run: |
@@ -22,10 +26,12 @@ jobs:
           echo "Ref=${{ github.ref }}"
           echo "Actor=${{ github.actor }}"
 
-      - name: Show OIDC Variables
+      - name: Debug OIDC Token Claims
         run: |
-          echo "OIDC URL exists: ${ACTIONS_ID_TOKEN_REQUEST_URL:+YES}"
-          echo "OIDC TOKEN exists: ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+YES}"
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r '.value')
+          echo "=== Decoded OIDC Token Payload ==="
+          echo "$TOKEN" | cut -d'.' -f2 | base64 -d 2>/dev/null | jq .
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -33,6 +39,54 @@ jobs:
           role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsLambdaDeployRole
           aws-region: ap-south-1
 
-      - name: Verify Identity
+      - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
+
+      - name: Validate Python
+        run: |
+          for f in backend/*/lambda_function.py
+          do
+            echo "Validating $f"
+            python -m py_compile "$f"
+          done
+
+      - name: Deploy Campaign Reader
+        run: |
+          cd backend/campaign-reader
+          zip -r lambda.zip lambda_function.py
+          aws lambda update-function-code \
+            --function-name security-awareness-poc-campaign-reader \
+            --zip-file fileb://lambda.zip
+
+      - name: Deploy Email Sender
+        run: |
+          cd backend/email-sender
+          zip -r lambda.zip lambda_function.py
+          aws lambda update-function-code \
+            --function-name security-awareness-poc-email-sender \
+            --zip-file fileb://lambda.zip
+
+      - name: Deploy Tracking
+        run: |
+          cd backend/tracking
+          zip -r lambda.zip lambda_function.py
+          aws lambda update-function-code \
+            --function-name security-awareness-poc-tracking \
+            --zip-file fileb://lambda.zip
+
+      - name: Deploy Report Event
+        run: |
+          cd backend/report-event
+          zip -r lambda.zip lambda_function.py
+          aws lambda update-function-code \
+            --function-name security-awareness-poc-report-event \
+            --zip-file fileb://lambda.zip
+
+      - name: Deploy Approval
+        run: |
+          cd backend/approval
+          zip -r lambda.zip lambda_function.py
+          aws lambda update-function-code \
+            --function-name security-awareness-poc-approval \
+            --zip-file fileb://lambda.zip
