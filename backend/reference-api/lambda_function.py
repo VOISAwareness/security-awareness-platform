@@ -10,6 +10,7 @@ the API-Gateway level, so responses carry no Access-Control headers themselves.
 import decimal
 import json
 import os
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -18,7 +19,11 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 TABLE_PREFIX = os.environ["TABLE_PREFIX"]
+UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET")
+INGEST_FUNCTION = os.environ.get("INGEST_FUNCTION")
 dynamodb = boto3.resource("dynamodb")
+s3_client = boto3.client("s3")
+lambda_client = boto3.client("lambda")
 
 
 def table(name):
@@ -147,6 +152,67 @@ def lambda_handler(event, context):
         if route == "DELETE /sender-identities/{id}":
             table("sender-identities").delete_item(Key={"id": params["id"]})
             return respond(204, {"data": None})
+
+        # --- recipient list bulk upload: create pending list + presigned S3 PUT ---
+        if route == "POST /user-lists/bulk-upload":
+            if not UPLOAD_BUCKET:
+                return err(500, "Upload bucket is not configured")
+            body = parse_body(event)
+            if not body.get("name"):
+                return err(400, "name is required")
+            list_id = f"ul-{uuid.uuid4().hex[:8]}"
+            raw_name = body.get("fileName") or "recipients.csv"
+            safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", raw_name)
+            s3_key = f"uploads/recipients/{list_id}/{safe_name}"
+            now = datetime.now(UTC).isoformat()
+
+            table("user-lists").put_item(
+                Item={
+                    "userListId": list_id,
+                    "id": list_id,
+                    "name": body["name"],
+                    "description": body.get("description", ""),
+                    "type": "Bulk Upload",
+                    "listType": "SAVED",
+                    "status": "UPLOADING",
+                    "s3Key": s3_key,
+                    "s3Bucket": UPLOAD_BUCKET,
+                    "totalUsers": 0,
+                    "createdDate": now,
+                }
+            )
+            upload_url = s3_client.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": UPLOAD_BUCKET,
+                    "Key": s3_key,
+                    "ContentType": "text/csv",
+                },
+                ExpiresIn=900,
+            )
+            return respond(
+                201,
+                {"data": {"listId": list_id, "s3Key": s3_key, "uploadUrl": upload_url}},
+            )
+
+        # --- trigger ingest after the browser has PUT the file to S3 ---
+        if route == "POST /user-lists/{id}/ingest":
+            if not INGEST_FUNCTION:
+                return err(500, "Ingest function is not configured")
+            lst = get_one("user-lists", {"userListId": params["id"]})
+            if not lst:
+                return err(404, "List not found")
+            key, bucket = lst.get("s3Key"), lst.get("s3Bucket")
+            if not key or not bucket:
+                return err(400, "List has no uploaded file yet")
+            payload = {"Records": [{"s3": {"bucket": {"name": bucket}, "object": {"key": key}}}]}
+            lambda_client.invoke(
+                FunctionName=INGEST_FUNCTION,
+                InvocationType="RequestResponse",
+                Payload=json.dumps(payload).encode("utf-8"),
+            )
+            updated = get_one("user-lists", {"userListId": params["id"]})
+            return ok(updated)
 
         return err(404, f"No handler for route: {route}")
 

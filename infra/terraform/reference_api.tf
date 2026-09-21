@@ -60,9 +60,32 @@ resource "aws_lambda_function" "reference_api" {
 
   environment {
     variables = {
-      TABLE_PREFIX = var.name_prefix
+      TABLE_PREFIX    = var.name_prefix
+      UPLOAD_BUCKET   = aws_s3_bucket.assets.bucket
+      INGEST_FUNCTION = aws_lambda_function.recipient_ingest.function_name
     }
   }
+}
+
+# Allow reference-api to presign uploads and to invoke the ingest Lambda.
+resource "aws_iam_role_policy" "reference_api_s3" {
+  name = "reference-api-s3-and-invoke"
+  role = aws_iam_role.reference_api.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "${aws_s3_bucket.assets.arn}/uploads/recipients/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = aws_lambda_function.recipient_ingest.arn
+      },
+    ]
+  })
 }
 
 resource "aws_lambda_permission" "reference_api" {
@@ -95,6 +118,8 @@ locals {
     "GET /landing-pages/{id}",
     "GET /user-lists",
     "GET /user-lists/{id}/members",
+    "POST /user-lists/bulk-upload",
+    "POST /user-lists/{id}/ingest",
     "GET /gamification-rules",
     "GET /training/paths",
     "GET /training/videos",
