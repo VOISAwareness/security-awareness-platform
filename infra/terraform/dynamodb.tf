@@ -10,6 +10,25 @@ resource "aws_dynamodb_table" "campaigns" {
     name = "campaignId"
     type = "S"
   }
+
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+
+  # Campaigns hub filters by status; the approvals queue reads PENDING_APPROVAL.
+  # Without this both would need a full table scan.
+  global_secondary_index {
+    name            = "status-index"
+    hash_key        = "status"
+    range_key       = "createdAt"
+    projection_type = "ALL"
+  }
 }
 
 resource "aws_dynamodb_table" "recipients" {
