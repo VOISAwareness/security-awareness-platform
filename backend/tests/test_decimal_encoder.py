@@ -17,6 +17,8 @@ def _load_module():
     os.environ.setdefault("CAMPAIGNS_TABLE", "t")
     os.environ.setdefault("TEMPLATE_BUCKET", "b")
     os.environ.setdefault("TEMPLATE_KEY", "k")
+    # boto3 clients are created at import and need a region (none on CI runners).
+    os.environ.setdefault("AWS_DEFAULT_REGION", "ap-south-1")
     spec = importlib.util.spec_from_file_location("campaign_reader", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

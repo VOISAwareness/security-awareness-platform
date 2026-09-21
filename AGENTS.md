@@ -79,7 +79,14 @@ AGENTS.md                This file
 
 ## 6. Deploy & CI
 
-- **`ci.yml`** runs on every push/PR: `ruff` lint + `pytest` + `py_compile`.
+- **`ci.yml`** runs on every push/PR: backend `ruff` lint + `pytest` + `py_compile`;
+  frontend `npm ci` + `npm run build` on Node 22 (ESLint is advisory until the
+  prototype's existing lint debt is cleared).
+- CI has **no AWS credentials or region**. Tests must not call AWS; set dummy
+  env (incl. `AWS_DEFAULT_REGION`) before importing a Lambda that builds boto3
+  clients at import time.
+- `frontend/VShield/.npmrc` sets `legacy-peer-deps=true` because
+  `react-simple-maps@3` declares peer React <=18 (works on React 19).
 - **`deploy-lambda.yml`** runs on push to `main` touching `backend/**` (and via
   workflow_dispatch): OIDC assume-role → zip → `aws lambda update-function-code`
   for each function. It deploys **code only**; env/config/tables are Terraform.
