@@ -348,6 +348,28 @@ const LandingPageDetails = () => {
     }
   };
 
+  // Insert fx parameter into Rich Editor at exact caret position
+  const insertFxToEditor = (param) => {
+    setShowEditorFxMenu(false);
+    if (rawHtmlMode) {
+      setRawHtmlCode((prev) => prev + param.code);
+      activeHtmlRef.current += param.code;
+      persistChanges({ landingPageContent: activeHtmlRef.current });
+      return;
+    }
+
+    if (editorCanvasRef.current) {
+      editorCanvasRef.current.focus();
+      restoreSelection();
+      const spanHtml = `<span style="background-color: rgba(230,0,0,0.12); color: #E60000; font-weight: bold; padding: 1px 5px; border-radius: 4px; font-family: monospace;">${param.label}</span>&nbsp;`;
+      document.execCommand('insertHTML', false, spanHtml);
+      activeHtmlRef.current = editorCanvasRef.current.innerHTML;
+      setRawHtmlCode(activeHtmlRef.current);
+      persistChanges({ landingPageContent: activeHtmlRef.current });
+      saveSelection();
+    }
+  };
+
   const insertComponent = (type) => {
     if (rawHtmlMode) return;
     let html = '';
