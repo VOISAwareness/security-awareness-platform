@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,6 +12,7 @@ import {
 
 // Default initial dataset
 import defaultEmailData from './EmailIDsAndDomains.json';
+import { api } from '../../services/api';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -48,15 +49,8 @@ const PRESET_DOMAINS = [
 const EmailIDsAndDomains = () => {
   const { isDark } = useUserType?.() || { isDark: false };
 
-  // Load from localStorage or JSON
-  const [emailsList, setEmailsList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('voisshield_email_domains_data');
-      return saved ? JSON.parse(saved) : (defaultEmailData || []);
-    } catch {
-      return defaultEmailData || [];
-    }
-  });
+  // Backed by the API (falls back to bundled JSON only if the API is unreachable).
+  const [emailsList, setEmailsList] = useState([]);
 
   // Form Inputs
   const [localPart, setLocalPart] = useState('');
@@ -69,14 +63,22 @@ const EmailIDsAndDomains = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Persist to localStorage
+  // Load sender identities from the backend on mount.
   useEffect(() => {
-    try {
-      localStorage.setItem('voisshield_email_domains_data', JSON.stringify(emailsList));
-    } catch (err) {
-      console.error('Failed saving to localStorage', err);
-    }
-  }, [emailsList]);
+    let active = true;
+    api.senderIdentities
+      .list()
+      .then((items) => {
+        if (active) setEmailsList(Array.isArray(items) ? items : []);
+      })
+      .catch((err) => {
+        console.error('Failed to load sender identities', err);
+        if (active) setEmailsList(defaultEmailData || []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -148,7 +150,6 @@ const EmailIDsAndDomains = () => {
     }
 
     const newItem = {
-      id: `em-${Date.now().toString().slice(-4)}`,
       email: fullEmail,
       description: description.trim() || "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text eve",
       createdDate: getFormattedDate(),
@@ -156,28 +157,51 @@ const EmailIDsAndDomains = () => {
       usageCount: 0
     };
 
-    setEmailsList([newItem, ...emailsList]);
-    setLocalPart('');
-    setDomainPart('');
-    setDescription('');
-    showToast(`Saved ${fullEmail} successfully!`);
+    api.senderIdentities
+      .create(newItem)
+      .then((saved) => {
+        setEmailsList((prev) => [saved, ...prev]);
+        setLocalPart('');
+        setDomainPart('');
+        setDescription('');
+        showToast(`Saved ${fullEmail} successfully!`);
+      })
+      .catch((err) => {
+        console.error(err);
+        showToast('Could not save Email ID. Please try again.');
+      });
   };
 
   // Handle Delete
   const handleDelete = (id) => {
     const target = emailsList.find((item) => item.id === id);
-    setEmailsList(emailsList.filter((item) => item.id !== id));
-    showToast(`Deleted ${target?.email || 'Email ID'}`);
+    api.senderIdentities
+      .remove(id)
+      .then(() => {
+        setEmailsList((prev) => prev.filter((item) => item.id !== id));
+        showToast(`Deleted ${target?.email || 'Email ID'}`);
+      })
+      .catch((err) => {
+        console.error(err);
+        showToast('Could not delete Email ID. Please try again.');
+      });
   };
 
   // Handle Save Edit Modal
   const handleSaveEdit = () => {
     if (!editingItem) return;
-    setEmailsList((prev) =>
-      prev.map((item) => (item.id === editingItem.id ? editingItem : item))
-    );
-    setEditingItem(null);
-    showToast('Updated Email record');
+    const { id, ...patch } = editingItem;
+    api.senderIdentities
+      .update(id, patch)
+      .then((updated) => {
+        setEmailsList((prev) => prev.map((item) => (item.id === id ? updated : item)));
+        setEditingItem(null);
+        showToast('Updated Email record');
+      })
+      .catch((err) => {
+        console.error(err);
+        showToast('Could not update Email record. Please try again.');
+      });
   };
 
   // Search Filter
