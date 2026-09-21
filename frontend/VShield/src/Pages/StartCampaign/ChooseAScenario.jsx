@@ -8,6 +8,7 @@ import {
   X
 } from 'lucide-react';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
+import { api } from '../../services/api';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 
 // =========================================================================
@@ -130,23 +131,51 @@ const ChooseAScenario = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read scenarios from ScenariosData.json & map CoverImageID dynamically
-  const scenariosList = (scenariosJsonData?.scenarios || []).map((s, idx) => ({
-    ...s,
-    difficulty: s.difficulty || 'Medium',
-    CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
-    CoverImageID: s.CoverImageID || `CovImg-${String(idx + 1).padStart(3, '0')}.png`
-  }));
+  // Normalise a scenario row for display. Sorted by id because a DynamoDB scan
+  // returns no guaranteed order (and the cover-image fallback is index-based).
+  const normaliseScenarios = (rows) =>
+    [...(rows || [])]
+      .sort((a, b) => String(a.scenarioId).localeCompare(String(b.scenarioId)))
+      .map((s, idx) => ({
+        ...s,
+        difficulty: s.difficulty || 'Medium',
+        CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
+        CoverImageID: s.CoverImageID || `CovImg-${String(idx + 1).padStart(3, '0')}.png`
+      }));
 
-  // Selected State
+  // Scenarios come from the API (bundled JSON is only an offline fallback).
+  const [scenariosList, setScenariosList] = useState([]);
+
+  // Selected State — seeded from the saved draft; falls back to the first
+  // scenario once the list has loaded.
   const [selectedScenarioId, setSelectedScenarioId] = useState(() => {
     try {
       const draft = localStorage.getItem('voisshield_active_campaign_draft');
-      return draft ? JSON.parse(draft)?.scenarioId || scenariosList[0]?.scenarioId : scenariosList[0]?.scenarioId;
+      return (draft && JSON.parse(draft)?.scenarioId) || '';
     } catch {
-      return scenariosList[0]?.scenarioId;
+      return '';
     }
   });
+
+  useEffect(() => {
+    let active = true;
+    const apply = (rows) => {
+      if (!active) return;
+      const list = normaliseScenarios(rows);
+      setScenariosList(list);
+      setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
+    };
+    api.scenarios
+      .list()
+      .then(apply)
+      .catch((e) => {
+        console.error('Failed to load scenarios', e);
+        apply(scenariosJsonData?.scenarios || []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
