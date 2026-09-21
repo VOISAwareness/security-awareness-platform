@@ -48,6 +48,28 @@ export const api = {
   userLists: {
     list: () => request('/user-lists'),
     members: (id) => request(`/user-lists/${encodeURIComponent(id)}/members`),
+    update: (id, patch) =>
+      request(`/user-lists/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
+    remove: (id) =>
+      request(`/user-lists/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+    // Option A upload: presign -> PUT the file straight to S3 -> trigger ingest.
+    // `listId` is optional; passing it replaces an existing list in place.
+    async upload({ name, description, file, listId }) {
+      const presign = await request('/user-lists/bulk-upload', {
+        method: 'POST',
+        body: { name, description, fileName: file.name, listId },
+      });
+      const put = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/csv' },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Upload to storage failed (${put.status})`);
+      return request(`/user-lists/${encodeURIComponent(presign.listId)}/ingest`, {
+        method: 'POST',
+      });
+    },
   },
   gamificationRules: { list: () => request('/gamification-rules') },
   training: {

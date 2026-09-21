@@ -39,6 +39,8 @@ resource "aws_iam_role_policy" "reference_api_dynamo" {
         "dynamodb:PutItem",
         "dynamodb:UpdateItem",
         "dynamodb:DeleteItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:BatchGetItem",
       ]
       Resource = [
         "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.name_prefix}-*",
@@ -76,8 +78,17 @@ resource "aws_iam_role_policy" "reference_api_s3" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["s3:PutObject"]
+        Action   = ["s3:PutObject", "s3:DeleteObject"]
         Resource = "${aws_s3_bucket.assets.arn}/uploads/recipients/*"
+      },
+      {
+        # Needed to enumerate a list's files before deleting them.
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.assets.arn
+        Condition = {
+          StringLike = { "s3:prefix" = "uploads/recipients/*" }
+        }
       },
       {
         Effect   = "Allow"
@@ -120,6 +131,8 @@ locals {
     "GET /user-lists/{id}/members",
     "POST /user-lists/bulk-upload",
     "POST /user-lists/{id}/ingest",
+    "PUT /user-lists/{id}",
+    "DELETE /user-lists/{id}",
     "GET /gamification-rules",
     "GET /training/paths",
     "GET /training/videos",
