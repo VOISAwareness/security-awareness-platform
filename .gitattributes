@@ -1,0 +1,8 @@
+# Keep Lambda sources and IaC as LF so archive_file zip hashes are stable across
+# platforms. Without this, a Windows checkout yields CRLF and Terraform shows
+# perpetual source_code_hash drift on the Lambdas.
+*.py text eol=lf
+*.tf text eol=lf
+
+# Vendored AWS CLI bundle: never normalize (huge, not ours).
+aws/** -text
