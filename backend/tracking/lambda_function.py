@@ -1,12 +1,11 @@
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
-
 
 RECIPIENTS_TABLE = os.environ["RECIPIENTS_TABLE"]
 EVENTS_TABLE = os.environ["EVENTS_TABLE"]
@@ -20,7 +19,7 @@ events_table = dynamodb.Table(EVENTS_TABLE)
 
 def utc_timestamp():
     """Return the current UTC timestamp in ISO-8601 format."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def json_response(status_code, body):

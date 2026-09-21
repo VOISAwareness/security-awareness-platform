@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-21",
+  "source": "VODAFONE_INTERNAL_WHITELIST",
+  "notes": "Allowed 'from' identities for simulated-phishing sends. status ACTIVE requires a matching SES-verified identity (sandbox) or verified domain (production).",
+  "senders": [
+    {
+      "senderEmailId": "no-reply@example.com",
+      "senderName": "Security Awareness",
+      "domain": "example.com",
+      "description": "POC verified sender placeholder (real value lives only in S3).",
+      "status": "ACTIVE",
+      "sesVerified": true
+    },
+    {
+      "senderEmailId": "no-reply.security@vodafone.com",
+      "senderName": "Vodafone Security",
+      "domain": "vodafone.com",
+      "description": "Simulated IT security / password notifications.",
+      "status": "PENDING_VERIFICATION",
+      "sesVerified": false
+    },
+    {
+      "senderEmailId": "learning.notifications@vodafone.com",
+      "senderName": "Vodafone Learning",
+      "domain": "vodafone.com",
+      "description": "Simulated mandatory-training reminders.",
+      "status": "PENDING_VERIFICATION",
+      "sesVerified": false
+    },
+    {
+      "senderEmailId": "internal.comms@vodafone.com",
+      "senderName": "Vodafone Internal Communications",
+      "domain": "vodafone.com",
+      "description": "Simulated executive / operational announcements.",
+      "status": "PENDING_VERIFICATION",
+      "sesVerified": false
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev dependencies
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check backend
+
+      - name: Compile check
+        run: |
+          for f in backend/*/lambda_function.py; do
+            echo "py_compile $f"
+            python -m py_compile "$f"
+          done
+
+      - name: Pytest
+        working-directory: backend
+        run: pytest
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/VShield
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm ci
+      # Advisory until the prototype's pre-existing lint debt (~95 errors) is
+      # cleaned up; flip to blocking by removing continue-on-error.
+      - name: Lint
+        run: npm run lint --if-present
+        continue-on-error: true
+      - name: Build
+        run: npm run build

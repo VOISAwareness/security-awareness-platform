@@ -3,13 +3,12 @@ import json
 import os
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html import escape
 from urllib.parse import quote, urlparse
 
 import boto3
 from botocore.exceptions import ClientError
-
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -59,7 +58,7 @@ REQUIRED_PLACEHOLDERS = [
 
 def utc_timestamp():
     """Return the current UTC timestamp in ISO-8601 format."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def build_response(status_code, body):
