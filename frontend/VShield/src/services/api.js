@@ -25,8 +25,18 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 
   if (!res.ok) {
-    const message = payload?.error?.message || `Request failed (${res.status})`;
-    throw new Error(message);
+    // Two error shapes are in play: the newer `{ error: { message } }` envelope
+    // and the original Lambdas' flat `{ message, problems: [...] }`. Read both so
+    // validation failures surface their reasons instead of "Request failed (400)".
+    const message =
+      payload?.error?.message ||
+      payload?.message ||
+      `Request failed (${res.status})`;
+    const error = new Error(message);
+    error.status = res.status;
+    error.problems = payload?.problems || payload?.error?.problems || [];
+    error.payload = payload;
+    throw error;
   }
   // Endpoints wrap results as { data, ... }; return the data.
   return payload?.data ?? payload;
@@ -86,6 +96,36 @@ export const api = {
     certificates: () => request('/training/certificates'),
   },
   campaignsCatalog: { list: () => request('/campaigns-catalog') },
+
+  campaigns: {
+    // status is the backend enum: DRAFT | PENDING_APPROVAL | APPROVED |
+    // REJECTED | SENDING | SENT | FAILED
+    list: (status) =>
+      request(`/campaigns${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    get: (id) => request(`/campaigns/${encodeURIComponent(id)}`),
+    create: (fields) => request('/campaigns', { method: 'POST', body: fields }),
+    update: (id, patch) =>
+      request(`/campaigns/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
+    remove: (id) =>
+      request(`/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+    // Workflow transitions are owned by the approval Lambda.
+    submit: (id, actor, comments) =>
+      request(`/campaigns/${encodeURIComponent(id)}/submit`, {
+        method: 'POST',
+        body: { actor, comments },
+      }),
+    approve: (id, actor, comments) =>
+      request(`/campaigns/${encodeURIComponent(id)}/approve`, {
+        method: 'POST',
+        body: { actor, comments },
+      }),
+    reject: (id, actor, comments) =>
+      request(`/campaigns/${encodeURIComponent(id)}/reject`, {
+        method: 'POST',
+        body: { actor, comments },
+      }),
+  },
 };
 
 export { BASE_URL };

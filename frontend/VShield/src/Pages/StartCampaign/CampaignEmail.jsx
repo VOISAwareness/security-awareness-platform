@@ -27,6 +27,8 @@ import {
   X
 } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
+import { api } from '../../services/api';
+import { useCampaignDraft } from '../../services/useCampaignDraft';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
@@ -129,15 +131,10 @@ const CampaignEmail = () => {
   return () => observer.disconnect();
  }, [userContext.isDark]);
 
- // Read saved draft from prior steps
- const [draft, setDraft] = useState(() => {
-  try {
-   const stored = localStorage.getItem('voisshield_active_campaign_draft');
-   return stored ? JSON.parse(stored) : {};
-  } catch {
-   return {};
-  }
- });
+ // Server-backed draft shared by every wizard step. It loads asynchronously, so
+ // `serverDraft` is null on the first renders and `draft` stands in as empty.
+ const { draft: serverDraft, update, flush } = useCampaignDraft();
+ const draft = serverDraft || {};
 
  // Check if originated from "Start Fresh"
  const isStartFresh = draft.scenarioId === 'start-fresh' || draft.scenarioName === 'Start Fresh' || Boolean(draft.isStartFresh);
@@ -159,8 +156,57 @@ const CampaignEmail = () => {
   )
  );
 
+ // Recipient lists come from the API, so a list uploaded on the User Lists screen
+ // is immediately targetable here. UserDLsData.json stays as the fallback while
+ // the request is in flight, and if it fails or comes back empty.
+ const [serverUserLists, setServerUserLists] = useState(null);
+
+ useEffect(() => {
+  let active = true;
+  api.userLists
+   .list()
+   .then((rows) => {
+    if (active && Array.isArray(rows)) setServerUserLists(rows);
+   })
+   .catch(() => {
+    /* keep the bundled fallback below */
+   });
+  return () => {
+   active = false;
+  };
+ }, []);
+
+ // Member rows live on their own endpoint, so a list row carries counts only.
+ const mappedServerLists = (serverUserLists || []).map((l) =>
+  l.listType === 'SYNCED' || l.dlName
+   ? {
+      id: l.dlId || l.userListId,
+      name: l.dlName,
+      subText: l.dlId || l.description || '',
+      type: 'Distribution List',
+      totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.members ? l.members.length : 0),
+      hookRate: l.aggregatedHookRate || '0%',
+      reportRate: l.aggregatedReportRate || '0%',
+      departmentBreakdown: l.departmentBreakdown || [],
+      locationBreakdown: l.locationBreakdown || [],
+      users: l.members || []
+     }
+   : {
+      id: l.id || l.userListId,
+      name: l.name,
+      subText: l.dlId || l.description || '',
+      type: l.type || 'Bulk Upload',
+      totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.users ? l.users.length : 0),
+      hookRate: l.aggregatedHookRate || '0%',
+      reportRate: l.aggregatedReportRate || '0%',
+      departmentBreakdown: l.departmentBreakdown || [],
+      locationBreakdown: l.locationBreakdown || [],
+      users: l.users || []
+     }
+ );
+
  // Dynamic User Lists directly from UserDLsData.json
- const availableLists = [
+ const bundledAvailableLists = [
   ...(userDLsJson?.savedUserLists || []).map((l) => ({
    id: l.id,
    name: l.name,
@@ -187,6 +233,8 @@ const CampaignEmail = () => {
   }))
  ];
 
+ const availableLists = mappedServerLists.length ? mappedServerLists : bundledAvailableLists;
+
  // Master Users sorted by Hook Rate % in descending order
  const sortedMasterUsers = [...(masterUsersData || [])].sort((a, b) => {
   const rateA = parseFloat(a['HookRate%'] ?? a.HookRate) || 0;
@@ -195,34 +243,50 @@ const CampaignEmail = () => {
  });
 
  // Form Fields Initialization
- const [senderEmailId, setSenderEmailId] = useState(() => {
-  if (draft.senderEmailId !== undefined) return draft.senderEmailId;
-  return isStartFresh ? '' : (matchedScenario?.senderEmailId || '');
- });
+ //
+ // The draft is fetched, so it cannot seed useState at mount. Each field is
+ // therefore DERIVED from the draft and only overridden once the user edits it
+ // (the setters keep their original names, so every call site is unchanged).
+ // That preserves the original precedence — a value stored in the draft,
+ // including an empty string, beats the scenario default — while making it
+ // impossible for the arriving draft to clobber something already typed.
+ const seedText = (value, fallback) => {
+  if (!serverDraft) return '';
+  return value !== undefined && value !== null ? value : fallback;
+ };
 
- const [senderName, setSenderName] = useState(() => {
-  if (draft.senderName !== undefined) return draft.senderName;
-  return isStartFresh ? '' : (matchedScenario?.senderName || '');
- });
+ const [senderEmailIdEdit, setSenderEmailId] = useState(undefined);
+ const senderEmailId =
+  senderEmailIdEdit !== undefined
+   ? senderEmailIdEdit
+   : seedText(draft.senderEmailId, isStartFresh ? '' : (matchedScenario?.senderEmailId || ''));
 
- const [emailSubject, setEmailSubject] = useState(() => {
-  if (draft.emailSubject !== undefined) return draft.emailSubject;
-  return isStartFresh ? '' : (matchedScenario?.emailSubject || '');
- });
+ const [senderNameEdit, setSenderName] = useState(undefined);
+ const senderName =
+  senderNameEdit !== undefined
+   ? senderNameEdit
+   : seedText(draft.senderName, isStartFresh ? '' : (matchedScenario?.senderName || ''));
+
+ const [emailSubjectEdit, setEmailSubject] = useState(undefined);
+ const emailSubject =
+  emailSubjectEdit !== undefined
+   ? emailSubjectEdit
+   : seedText(draft.emailSubject, isStartFresh ? '' : (matchedScenario?.emailSubject || ''));
 
  // Rich Text Editor State
- const initialContent = (() => {
-  if (draft.emailBody !== undefined) return draft.emailBody;
-  return isStartFresh ? '' : (matchedScenario?.emailBody || '');
- })();
+ const initialContent = seedText(
+  draft.emailBody,
+  isStartFresh ? '' : (matchedScenario?.emailBody || '')
+ );
 
  const [rawHtmlMode, setRawHtmlMode] = useState(false);
- const [rawHtmlCode, setRawHtmlCode] = useState(initialContent);
+ const [rawHtmlCodeEdit, setRawHtmlCode] = useState(undefined);
+ const rawHtmlCode = rawHtmlCodeEdit !== undefined ? rawHtmlCodeEdit : initialContent;
  const [isEditorExpanded, setIsEditorExpanded] = useState(false);
  const [showSubjectFxMenu, setShowSubjectFxMenu] = useState(false);
  const [showEditorFxMenu, setShowEditorFxMenu] = useState(false);
 
- const activeHtmlRef = useRef(initialContent);
+ const activeHtmlRef = useRef('');
  const editorCanvasRef = useRef(null);
  const imageInputRef = useRef(null);
  const subjectInputRef = useRef(null);
@@ -239,6 +303,19 @@ const CampaignEmail = () => {
    editorCanvasRef.current.innerHTML = activeHtmlRef.current || '';
   }
  }, [rawHtmlMode, isEditorExpanded]);
+
+ // The body arrives with the draft, i.e. after mount, so paint it into the
+ // contentEditable canvas exactly once — and never over something already typed.
+ const bodySeededRef = useRef(false);
+ useEffect(() => {
+  if (bodySeededRef.current || !serverDraft) return;
+  bodySeededRef.current = true;
+  if (activeHtmlRef.current) return;
+  activeHtmlRef.current = initialContent;
+  if (!rawHtmlMode && editorCanvasRef.current) {
+   editorCanvasRef.current.innerHTML = initialContent || '';
+  }
+ }, [serverDraft, initialContent, rawHtmlMode]);
 
  // Click outside listeners to close menus
  useEffect(() => {
@@ -271,11 +348,16 @@ const CampaignEmail = () => {
   }
  }, [isEditorExpanded]);
 
- // User list state: ALWAYS empty selection initially with "Select from dropdown"
- const [selectedListId, setSelectedListId] = useState('');
+ // User list state. The selection and its loaded flag live in the draft, so a
+ // user returning to this step sees the list they had attached; `loadedData`
+ // (the whole list with every user row) stays LOCAL — the server strips it.
+ const [selectedListIdEdit, setSelectedListId] = useState(undefined);
+ const selectedListId =
+  selectedListIdEdit !== undefined ? selectedListIdEdit : (draft.selectedListId || '');
  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
- const [isListLoaded, setIsListLoaded] = useState(false);
+ const [isListLoadedEdit, setIsListLoaded] = useState(undefined);
  const [loadedData, setLoadedData] = useState(null);
+ const membersFetchedRef = useRef(false);
 
  // Single user dropdown state from MasterUserData.json
  const [selectedSingleUser, setSelectedSingleUser] = useState(null);
@@ -294,16 +376,31 @@ const CampaignEmail = () => {
 
  const currentSelectedList = availableLists.find((l) => l.id === selectedListId);
 
- // Persist draft updates
- const persistChanges = (fields) => {
-  try {
-   const current = localStorage.getItem('voisshield_active_campaign_draft');
-   const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
-   localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
-  } catch (e) {
-   console.error(e);
-  }
- };
+ // Restored as loaded only when the saved list still exists in the catalogue.
+ const isListLoaded =
+  isListLoadedEdit !== undefined
+   ? isListLoadedEdit
+   : Boolean(draft.isListLoaded && currentSelectedList);
+
+ // Returning to this step: the draft remembers WHICH list was loaded but never
+ // its rows, so pull the members back once to repopulate the breakdown charts.
+ useEffect(() => {
+  if (membersFetchedRef.current) return;
+  if (!isListLoaded || loadedData || !currentSelectedList) return;
+  membersFetchedRef.current = true;
+  const list = currentSelectedList;
+  api.userLists
+   .members(list.id)
+   .then((members) => {
+    setLoadedData({
+     ...list,
+     users: Array.isArray(members) ? members : (list.users || [])
+    });
+   })
+   .catch(() => {
+    setLoadedData(list);
+   });
+ }, [isListLoaded, loadedData, currentSelectedList]);
 
  // Selection preservation using cloneRange so blur does not destroy range
  const saveSelection = () => {
@@ -332,7 +429,7 @@ const CampaignEmail = () => {
    document.execCommand(command, false, value);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -345,7 +442,7 @@ const CampaignEmail = () => {
    document.execCommand('formatBlock', false, blockTag);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -358,7 +455,7 @@ const CampaignEmail = () => {
    document.execCommand('fontName', false, fontName);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -371,7 +468,7 @@ const CampaignEmail = () => {
    document.execCommand('fontSize', false, sizeVal);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -382,7 +479,7 @@ const CampaignEmail = () => {
   if (rawHtmlMode) {
    setRawHtmlCode((prev) => prev + param.code);
    activeHtmlRef.current += param.code;
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
    return;
   }
 
@@ -393,7 +490,7 @@ const CampaignEmail = () => {
    document.execCommand('insertHTML', false, spanHtml);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -409,17 +506,15 @@ const CampaignEmail = () => {
    const after = emailSubject.substring(end);
    const updated = `${before}${param.label} ${after}`;
    setEmailSubject(updated);
-   persistChanges({ emailSubject: updated });
+   update({ emailSubject: updated });
    setTimeout(() => {
     input.focus();
     input.setSelectionRange(start + param.label.length + 1, start + param.label.length + 1);
    }, 0);
   } else {
-   setEmailSubject((prev) => {
-    const updated = prev ? `${prev} ${param.label}` : param.label;
-    persistChanges({ emailSubject: updated });
-    return updated;
-   });
+   const updated = emailSubject ? `${emailSubject} ${param.label}` : param.label;
+   setEmailSubject(updated);
+   update({ emailSubject: updated });
   }
  };
 
@@ -433,7 +528,7 @@ const CampaignEmail = () => {
   } else {
    activeHtmlRef.current = rawHtmlCode;
    setRawHtmlMode(false);
-   persistChanges({ emailBody: rawHtmlCode });
+   update({ emailBody: rawHtmlCode });
   }
  };
 
@@ -459,25 +554,38 @@ const CampaignEmail = () => {
   setIsListLoaded(false);
   setLoadedData(null);
   setErrorMsg('');
-  persistChanges({
+  // `loadedData` is never sent: the server strips it and it would bloat the row.
+  update({
    selectedListId: listId,
-   isListLoaded: false,
-   loadedData: null
+   isListLoaded: false
   });
  };
 
- // Clicking Load loads the active selection from UserDLsData.json
- const handleLoadList = () => {
+ // Clicking Load pulls the members for the active selection. They are held in
+ // LOCAL state only — the draft never carries the recipient rows.
+ const handleLoadList = async () => {
   if (!currentSelectedList) return;
+  membersFetchedRef.current = true;
   setIsListLoaded(true);
   setLoadedData(currentSelectedList);
   setErrorMsg('');
-  persistChanges({
+  update({
    isListLoaded: true,
    selectedListId: currentSelectedList?.id,
-   selectedListName: currentSelectedList?.name,
-   loadedData: currentSelectedList
+   selectedListName: currentSelectedList?.name
   });
+
+  try {
+   const members = await api.userLists.members(currentSelectedList.id);
+   setLoadedData({
+    ...currentSelectedList,
+    users: Array.isArray(members) ? members : (currentSelectedList.users || [])
+   });
+  } catch {
+   // Members unavailable: keep the summary the list row already gives us
+   // (totals and rates) rather than blanking the panel.
+   setLoadedData(currentSelectedList);
+  }
  };
 
  // Toggle expand mode safely keeping track of edits
@@ -485,15 +593,15 @@ const CampaignEmail = () => {
   if (!rawHtmlMode && editorCanvasRef.current) {
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   persistChanges({ emailBody: activeHtmlRef.current });
+   update({ emailBody: activeHtmlRef.current });
   } else if (rawHtmlMode) {
    activeHtmlRef.current = rawHtmlCode;
-   persistChanges({ emailBody: rawHtmlCode });
+   update({ emailBody: rawHtmlCode });
   }
   setIsEditorExpanded((prev) => !prev);
  };
 
- const handleProceed = () => {
+ const handleProceed = async () => {
   if (!senderEmailId.trim()) {
    setErrorMsg('Please specify a Sender Email ID');
    return;
@@ -508,7 +616,7 @@ const CampaignEmail = () => {
   }
 
   const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
-  persistChanges({
+  update({
    senderEmailId: senderEmailId.trim(),
    senderName: senderName.trim(),
    emailSubject: emailSubject.trim(),
@@ -516,16 +624,17 @@ const CampaignEmail = () => {
    selectedListId: currentSelectedList?.id || '',
    selectedListName: currentSelectedList?.name || '',
    isListLoaded,
-   loadedData,
    selectedSingleUserEmail: selectedSingleUser?.UserEMailID
   });
 
+  // Make sure the debounced save has landed before the next step reads the draft.
+  await flush();
   navigate('/start-campaign/landing-page');
  };
 
- const handleGoBack = () => {
+ const handleGoBack = async () => {
   const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
-  persistChanges({
+  update({
    senderEmailId: senderEmailId.trim(),
    senderName: senderName.trim(),
    emailSubject: emailSubject.trim(),
@@ -533,9 +642,9 @@ const CampaignEmail = () => {
    selectedListId: currentSelectedList?.id || '',
    selectedListName: currentSelectedList?.name || '',
    isListLoaded,
-   loadedData,
    selectedSingleUserEmail: selectedSingleUser?.UserEMailID
   });
+  await flush();
   navigate('/start-campaign/details');
  };
 
@@ -855,7 +964,7 @@ const CampaignEmail = () => {
        onChange={(e) => {
         setRawHtmlCode(e.target.value);
         activeHtmlRef.current = e.target.value;
-        persistChanges({ emailBody: e.target.value });
+        update({ emailBody: e.target.value });
        }}
        className="w-full h-full p-2.5 font-mono-tech text-[10.5px] bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed rounded-lg"
        placeholder="Design Canvas"
@@ -874,7 +983,7 @@ const CampaignEmail = () => {
         if (editorCanvasRef.current) {
          activeHtmlRef.current = editorCanvasRef.current.innerHTML;
          setRawHtmlCode(activeHtmlRef.current);
-         persistChanges({ emailBody: activeHtmlRef.current });
+         update({ emailBody: activeHtmlRef.current });
         }
        }}
        className="w-full h-full outline-none cursor-text text-slate-900 dark:text-slate-100 p-1 leading-normal text-xs rich-editor-canvas"
@@ -1032,9 +1141,9 @@ const CampaignEmail = () => {
              const matchingScn = (scenariosJsonData?.scenarios || []).find((s) => s.senderEmailId === chosen);
              if (matchingScn && matchingScn.senderName) {
               setSenderName(matchingScn.senderName);
-              persistChanges({ senderEmailId: chosen, senderName: matchingScn.senderName });
+              update({ senderEmailId: chosen, senderName: matchingScn.senderName });
              } else {
-              persistChanges({ senderEmailId: chosen });
+              update({ senderEmailId: chosen });
              }
             }}
             className="w-full bg-transparent text-[10.5px] font-medium outline-none cursor-pointer pr-4 appearance-none"
@@ -1071,7 +1180,7 @@ const CampaignEmail = () => {
             value={senderName}
             onChange={(e) => {
              setSenderName(e.target.value);
-             persistChanges({ senderName: e.target.value });
+             update({ senderName: e.target.value });
             }}
             placeholder="Type Here"
             className="w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400"
@@ -1102,7 +1211,7 @@ const CampaignEmail = () => {
             onChange={(e) => {
              setEmailSubject(e.target.value);
              setErrorMsg('');
-             persistChanges({ emailSubject: e.target.value });
+             update({ emailSubject: e.target.value });
             }}
             placeholder="Type Here"
             className="w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400 pr-2 justify-self-start text-left"

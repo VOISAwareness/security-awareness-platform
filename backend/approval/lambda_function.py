@@ -31,6 +31,41 @@ def utc_timestamp():
     return datetime.now(UTC).isoformat()
 
 
+# Fields a campaign must carry before it can leave DRAFT. The wizard's Review &
+# Publish step performs NO validation of its own — every missing value silently
+# falls back to a demo default — so this is the only place it is enforced.
+def validate_for_submit(campaign):
+    """Return a list of human-readable problems blocking submission."""
+    problems = []
+
+    def missing(field):
+        return not str(campaign.get(field) or "").strip()
+
+    for field, label in (
+        ("campaignTitle", "Campaign Title"),
+        ("campaignDescription", "Campaign Description"),
+        ("startTime", "Start Time"),
+        ("senderEmailId", "Sender Email ID"),
+        ("emailSubject", "Email Subject"),
+        ("selectedListId", "Recipient List"),
+        ("trainingId", "Training Path"),
+    ):
+        if missing(field):
+            problems.append(f"{label} is required")
+
+    # End time may be omitted only when the campaign auto-ends after sending.
+    if missing("endTime") and not campaign.get("autoEndPostSending"):
+        problems.append(
+            "End Time is required unless the campaign auto-ends after sending"
+        )
+
+    # The wizard accepts either a catalogue page or hand-authored HTML.
+    if missing("landingPageId") and missing("landingPageContent"):
+        problems.append("A Landing Page must be attached or designed")
+
+    return problems
+
+
 def build_response(status_code, body):
     return {
         "statusCode": status_code,
@@ -172,6 +207,17 @@ def lambda_handler(event, context):
             )
 
         if action == "SUBMIT":
+            problems = validate_for_submit(campaign)
+            if problems:
+                return build_response(
+                    400,
+                    {
+                        "message": "Campaign is not ready to submit",
+                        "campaignId": campaign_id,
+                        "problems": problems
+                    }
+                )
+
             update_expression = (
                 "SET #status = :newStatus, "
                 "submittedBy = :actor, "

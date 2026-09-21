@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { Check, Calendar, AlertTriangle, X } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
+import { useCampaignDraft } from '../../services/useCampaignDraft';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 
 // =========================================================================
@@ -79,45 +80,69 @@ const DetailsAndSettings = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read saved draft from step 1
-  const [draft, setDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_active_campaign_draft');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Read the saved draft from step 1 — server-backed now, so it arrives
+  // asynchronously and is null until then. Edits made in the meantime are safe:
+  // flush() waits for the load before saving.
+  const { draft, update, flush } = useCampaignDraft();
 
   // Base L-shape container color
   const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
 
-  // Prevent scenario names and descriptions from populating here (Start Fresh or Scenario Chosen -> Always empty by default)
-  const allScenarioTitles = new Set([
-    'Start Fresh',
-    draft.scenarioName,
-    ...(scenariosJsonData?.scenarios || []).map((s) => s.scenarioName)
-  ].filter(Boolean));
-
-  const allScenarioDescs = new Set([
-    draft.description,
-    ...(scenariosJsonData?.scenarios || []).map((s) => s.description)
-  ].filter(Boolean));
-
   // Form Fields: ALWAYS empty with placeholder "Type Here"
-  const [campaignTitle, setCampaignTitle] = useState(
-    draft.campaignTitle && !allScenarioTitles.has(draft.campaignTitle) ? draft.campaignTitle : ''
-  );
-  const [campaignDescription, setCampaignDescription] = useState(
-    draft.campaignDescription && !allScenarioDescs.has(draft.campaignDescription) ? draft.campaignDescription : ''
-  );
-  const [startTime, setStartTime] = useState(draft.startTime || '');
-  const [endTime, setEndTime] = useState(draft.endTime || '');
-  const [isTestCampaign, setIsTestCampaign] = useState(Boolean(draft.isTestCampaign));
-  const [autoEndPostSending, setAutoEndPostSending] = useState(
-    draft.autoEndPostSending !== undefined ? Boolean(draft.autoEndPostSending) : true
-  );
+  const [campaignTitle, setCampaignTitle] = useState('');
+  const [campaignDescription, setCampaignDescription] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [isTestCampaign, setIsTestCampaign] = useState(false);
+  // Defaults to true when the draft carries no value — same rule as before.
+  const [autoEndPostSending, setAutoEndPostSending] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Seed the form from the draft once it lands. `seededRef` keeps it to a single
+  // pass; `touchedRef` protects anything the user already edited while it loaded.
+  const seededRef = useRef(false);
+  const touchedRef = useRef({});
+  const markTouched = (field) => {
+    touchedRef.current[field] = true;
+  };
+
+  useEffect(() => {
+    if (!draft || seededRef.current) return;
+    seededRef.current = true;
+
+    // Prevent scenario names and descriptions from populating here (Start Fresh or Scenario Chosen -> Always empty by default)
+    const allScenarioTitles = new Set([
+      'Start Fresh',
+      draft.scenarioName,
+      ...(scenariosJsonData?.scenarios || []).map((s) => s.scenarioName)
+    ].filter(Boolean));
+
+    const allScenarioDescs = new Set([
+      draft.description,
+      ...(scenariosJsonData?.scenarios || []).map((s) => s.description)
+    ].filter(Boolean));
+
+    const touched = touchedRef.current;
+
+    if (!touched.campaignTitle) {
+      setCampaignTitle(
+        draft.campaignTitle && !allScenarioTitles.has(draft.campaignTitle) ? draft.campaignTitle : ''
+      );
+    }
+    if (!touched.campaignDescription) {
+      setCampaignDescription(
+        draft.campaignDescription && !allScenarioDescs.has(draft.campaignDescription) ? draft.campaignDescription : ''
+      );
+    }
+    if (!touched.startTime) setStartTime(draft.startTime || '');
+    if (!touched.endTime) setEndTime(draft.endTime || '');
+    if (!touched.isTestCampaign) setIsTestCampaign(Boolean(draft.isTestCampaign));
+    if (!touched.autoEndPostSending) {
+      setAutoEndPostSending(
+        draft.autoEndPostSending !== undefined ? Boolean(draft.autoEndPostSending) : true
+      );
+    }
+  }, [draft]);
 
   // Auto-dismiss top right toaster after 4 seconds
   useEffect(() => {
@@ -130,19 +155,13 @@ const DetailsAndSettings = () => {
   // Gamification Card Flip State
   const [isGamificationFlipped, setIsGamificationFlipped] = useState(false);
 
-  // Save changes to draft
+  // Save changes to draft (the hook debounces and coalesces the actual write)
   const persistChanges = (fields) => {
-    try {
-      const current = localStorage.getItem('voisshield_active_campaign_draft');
-      const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
+    update(fields);
   };
 
   // Strict Validation: Title, Description, Start Time, and End Time (or Auto End checkbox)
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (!campaignTitle.trim()) {
       setErrorMsg('Please specify a Campaign Title');
       return;
@@ -169,10 +188,11 @@ const DetailsAndSettings = () => {
       isTestCampaign,
       autoEndPostSending
     });
+    await flush();
     navigate('/start-campaign/email');
   };
 
-  const handleGoBack = () => {
+  const handleGoBack = async () => {
     persistChanges({
       campaignTitle: campaignTitle.trim(),
       campaignDescription: campaignDescription.trim(),
@@ -181,6 +201,7 @@ const DetailsAndSettings = () => {
       isTestCampaign,
       autoEndPostSending
     });
+    await flush();
     navigate('/start-campaign');
   };
 
@@ -331,6 +352,7 @@ const DetailsAndSettings = () => {
                       rows={3}
                       value={campaignTitle}
                       onChange={(e) => {
+                        markTouched('campaignTitle');
                         setCampaignTitle(e.target.value);
                         setErrorMsg('');
                         persistChanges({ campaignTitle: e.target.value });
@@ -359,6 +381,7 @@ const DetailsAndSettings = () => {
                         rows={5}
                         value={campaignDescription}
                         onChange={(e) => {
+                          markTouched('campaignDescription');
                           setCampaignDescription(e.target.value);
                           setErrorMsg('');
                           persistChanges({ campaignDescription: e.target.value });
@@ -376,6 +399,7 @@ const DetailsAndSettings = () => {
                         type="checkbox"
                         checked={isTestCampaign}
                         onChange={(e) => {
+                          markTouched('isTestCampaign');
                           setIsTestCampaign(e.target.checked);
                           persistChanges({ isTestCampaign: e.target.checked });
                         }}
@@ -529,6 +553,7 @@ const DetailsAndSettings = () => {
                           type="datetime-local"
                           value={startTime}
                           onChange={(e) => {
+                            markTouched('startTime');
                             setStartTime(e.target.value);
                             setErrorMsg('');
                             persistChanges({ startTime: e.target.value });
@@ -554,6 +579,7 @@ const DetailsAndSettings = () => {
                           type="datetime-local"
                           value={endTime}
                           onChange={(e) => {
+                            markTouched('endTime');
                             setEndTime(e.target.value);
                             setErrorMsg('');
                             persistChanges({ endTime: e.target.value });
@@ -572,6 +598,7 @@ const DetailsAndSettings = () => {
                           type="checkbox"
                           checked={autoEndPostSending}
                           onChange={(e) => {
+                            markTouched('autoEndPostSending');
                             setAutoEndPostSending(e.target.checked);
                             setErrorMsg('');
                             persistChanges({ autoEndPostSending: e.target.checked });

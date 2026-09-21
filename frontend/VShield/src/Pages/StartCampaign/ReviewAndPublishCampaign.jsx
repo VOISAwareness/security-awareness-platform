@@ -13,8 +13,11 @@ import {
   Award,
   ArrowLeft,
   Users,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
+import { useCampaignDraft, clearActiveCampaign } from '../../services/useCampaignDraft';
+import { api } from '../../services/api';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import userDLsJson from '../UserDLs/UserDLsData.json';
@@ -77,6 +80,13 @@ const VODAFONE_FONT_STYLE = `
 
 const CURRENT_STEP_NUMBER = 6; // Step 6: Review & Publish
 
+// Stable placeholder used while the server draft is still loading.
+const EMPTY_DRAFT = {};
+
+// Submit validation can return up to 9 reasons; show the first few and count the
+// rest so the toaster stays a toaster.
+const MAX_VISIBLE_PROBLEMS = 5;
+
 const ReviewAndPublishCampaign = () => {
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
@@ -107,15 +117,11 @@ const ReviewAndPublishCampaign = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read saved draft from previous steps
-  const [draft] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_active_campaign_draft');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Server-backed draft from previous steps (null until it has loaded, so every
+  // derived value below falls back to its original default in the meantime).
+  const { draft: serverDraft, flush, campaignId } = useCampaignDraft();
+  const draft = serverDraft || EMPTY_DRAFT;
+  const activeCampaignId = campaignId || draft.campaignId || '';
 
   // Base background for L-shapes
   const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
@@ -160,8 +166,51 @@ const ReviewAndPublishCampaign = () => {
   const emailSubject = draft.emailSubject || matchedScenario?.emailSubject || '@UserName, your Vodafone account password has expired';
   const emailBody = draft.emailBody || matchedScenario?.emailBody || '<p>Dear Employee, please verify your credentials immediately to prevent mailbox disruption.</p>';
 
-  // Recipient List
-  const allAvailableLists = [
+  // Recipient List — the draft now only carries selectedListId, so the summary is
+  // resolved against the server's user lists. The bundled JSON stays as a fallback
+  // while that request is in flight (or if it fails), so the card is never blank.
+  const [serverUserLists, setServerUserLists] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    api.userLists
+      .list()
+      .then((rows) => {
+        if (active && Array.isArray(rows)) setServerUserLists(rows);
+      })
+      .catch(() => {
+        /* keep the bundled fallback below */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const mappedServerLists = (serverUserLists || []).map((l) =>
+    l.listType === 'SYNCED' || l.dlName
+      ? {
+          id: l.dlId || l.userListId,
+          name: l.dlName,
+          subText: l.dlId || l.description || '',
+          type: 'Distribution List',
+          totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.members ? l.members.length : 0),
+          hookRate: l.aggregatedHookRate || '0%',
+          reportRate: l.aggregatedReportRate || '0%',
+          users: l.members || []
+        }
+      : {
+          id: l.id || l.userListId,
+          name: l.name,
+          subText: l.dlId || l.description || '',
+          type: l.type || 'Bulk Upload',
+          totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.users ? l.users.length : 0),
+          hookRate: l.aggregatedHookRate || '0%',
+          reportRate: l.aggregatedReportRate || '0%',
+          users: l.users || []
+        }
+  );
+
+  const bundledAvailableLists = [
     ...(userDLsJson?.savedUserLists || []).map((l) => ({
       id: l.id,
       name: l.name,
@@ -183,6 +232,8 @@ const ReviewAndPublishCampaign = () => {
       users: l.members || []
     }))
   ];
+
+  const allAvailableLists = mappedServerLists.length ? mappedServerLists : bundledAvailableLists;
 
   const activeUserList = draft.loadedData ||
     allAvailableLists.find((l) => l.id === draft.selectedListId) ||
@@ -253,6 +304,27 @@ const ReviewAndPublishCampaign = () => {
   const [showUserListModal, setShowUserListModal] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState('');
+  // Per-field reasons the server rejected the submit (may be empty).
+  const [publishProblems, setPublishProblems] = useState([]);
+
+  // Who the approval workflow records as the submitter.
+  const actor = userContext.user?.role || 'wizard-user';
+
+  const dismissPublishError = () => {
+    setPublishError('');
+    setPublishProblems([]);
+  };
+
+  // Auto-dismiss the publish error toaster — a list of reasons needs longer to read
+  useEffect(() => {
+    if (!publishError) return undefined;
+    const timer = setTimeout(() => {
+      setPublishError('');
+      setPublishProblems([]);
+    }, publishProblems.length ? 14000 : 6000);
+    return () => clearTimeout(timer);
+  }, [publishError, publishProblems]);
 
   // Stepper list
   const stepsList = CAMPAIGN_STEPS || [
@@ -264,33 +336,39 @@ const ReviewAndPublishCampaign = () => {
     { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish', path: '/start-campaign/review' }
   ];
 
-  // Publish Action
-  const handlePublishCampaign = () => {
+  // Publish Action — submits the draft to the approval workflow on the server.
+  // A ref guards the submit itself: the disabled attribute alone can still let a
+  // second click through before React has re-rendered the button.
+  const publishLockRef = useRef(false);
+
+  const handlePublishCampaign = async () => {
+    if (publishLockRef.current) return;
+
+    if (!activeCampaignId) {
+      setPublishError('Campaign draft is still loading. Please try again in a moment.');
+      setPublishProblems([]);
+      return;
+    }
+
+    publishLockRef.current = true;
     setIsPublishing(true);
-    setTimeout(() => {
-      try {
-        const publishedCampaigns = JSON.parse(localStorage.getItem('voisshield_published_campaigns') || '[]');
-        const newCampaign = {
-          ...draft,
-          campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
-          publishedAt: new Date().toISOString(),
-          status: 'Active',
-          stats: {
-            sent: activeUserList.totalUsers || 100,
-            opened: 0,
-            clicked: 0,
-            compromised: 0,
-            reported: 0
-          }
-        };
-        publishedCampaigns.unshift(newCampaign);
-        localStorage.setItem('voisshield_published_campaigns', JSON.stringify(publishedCampaigns));
-      } catch (e) {
-        console.error(e);
-      }
+    setPublishError('');
+    setPublishProblems([]);
+
+    try {
+      // Land any debounced edits before the server validates the campaign.
+      await flush();
+      await api.campaigns.submit(activeCampaignId, actor);
       setIsPublishing(false);
+      // Lock stays engaged: this draft has been submitted and cannot be re-sent.
       setPublishSuccessModal(true);
-    }, 600);
+    } catch (e) {
+      console.error(e);
+      publishLockRef.current = false;
+      setIsPublishing(false);
+      setPublishError(e?.message || 'Could not publish this campaign. Please try again.');
+      setPublishProblems(Array.isArray(e?.problems) ? e.problems : []);
+    }
   };
 
   // Renderable landing page preview HTML
@@ -1107,7 +1185,7 @@ const ReviewAndPublishCampaign = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    localStorage.removeItem('voisshield_active_campaign_draft');
+                    clearActiveCampaign();
                     navigate('/start-campaign');
                   }}
                   className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
@@ -1115,6 +1193,55 @@ const ReviewAndPublishCampaign = () => {
                   Return to Dashboard
                 </button>
               </div>
+            </div>,
+            document.body
+          )}
+
+        {/* ========================================================================= */}
+        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PUBLISH FAILURE)                   */}
+        {/* ========================================================================= */}
+        {publishError &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div className="fixed top-5 right-6 z-[2147483647] flex items-start gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
+              <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div className="flex flex-col text-left leading-tight flex-1 min-w-0">
+                <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
+                  Publish Failed
+                </span>
+                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
+                  {publishError}
+                </span>
+
+                {/* Per-field reasons from the server (capped so a long list cannot
+                    blow out the toaster) */}
+                {publishProblems.length > 0 && (
+                  <div className="flex flex-col gap-1 mt-1.5">
+                    {publishProblems.slice(0, MAX_VISIBLE_PROBLEMS).map((problem) => (
+                      <div key={problem} className="flex items-start gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#E60000] flex-shrink-0 mt-[3px]" />
+                        <span className="text-[9px] font-medium text-slate-600 leading-snug">
+                          {problem}
+                        </span>
+                      </div>
+                    ))}
+                    {publishProblems.length > MAX_VISIBLE_PROBLEMS && (
+                      <span className="text-[9px] font-bold text-slate-500 pl-3">
+                        +{publishProblems.length - MAX_VISIBLE_PROBLEMS} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={dismissPublishError}
+                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>,
             document.body
           )}
