@@ -1,0 +1,25 @@
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfplan
+infra/terraform/crash.log
+
+# Claude Code local settings (machine-specific: profile, PATH)
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Backend build artifacts (Lambda code is zipped in CI, not committed)
+backend/*/lambda.zip
+backend/*/response.json
+
+# Stale root artifacts (do not re-commit)
+awscliv2.zip
+aws/
+campaign-reader.zip
+email-sender.zip
+url.txt
+response.json

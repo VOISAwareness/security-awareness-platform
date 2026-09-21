@@ -1,3 +1,4 @@
+import decimal
 import json
 import os
 
@@ -15,13 +16,29 @@ TEMPLATE_KEY = os.environ["TEMPLATE_KEY"]
 campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
 
 
+class DecimalEncoder(json.JSONEncoder):
+    """
+    Serialise DynamoDB numeric attributes (returned as decimal.Decimal)
+    as JSON numbers: int when whole, otherwise float.
+
+    Without this, json.dumps on any campaign item containing a numeric
+    attribute (e.g. recipientCount) raises TypeError and the handler
+    returns an opaque 500.
+    """
+
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return int(obj) if obj % 1 == 0 else float(obj)
+        return super().default(obj)
+
+
 def build_response(status_code, body):
     return {
         "statusCode": status_code,
         "headers": {
             "Content-Type": "application/json"
         },
-        "body": json.dumps(body)
+        "body": json.dumps(body, cls=DecimalEncoder)
     }
 
 
