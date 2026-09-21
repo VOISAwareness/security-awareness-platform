@@ -23,3 +23,4 @@ campaign-reader.zip
 email-sender.zip
 url.txt
 response.json
+infra/terraform/build/
