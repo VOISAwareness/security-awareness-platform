@@ -34,6 +34,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
+import { api } from '../../services/api';
+import { useCampaignDraft } from '../../services/useCampaignDraft';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
@@ -136,15 +138,10 @@ const LandingPageDetails = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read saved draft from prior steps
-  const [draft, setDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_active_campaign_draft');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Server-backed draft shared by every wizard step. It loads asynchronously, so
+  // `serverDraft` is null on the first renders and `draft` stands in as empty.
+  const { draft: serverDraft, update, flush } = useCampaignDraft();
+  const draft = serverDraft || {};
 
   // Strict Start Fresh Detection
   const isStartFresh =
@@ -155,19 +152,30 @@ const LandingPageDetails = () => {
   // Base background
   const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
 
-  // Available landing pages (combines localStorage custom pages and LandingPageCatalogues.json)
-  const [catalogues] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_landing_pages');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      return initialLandingCatalogues?.landingPages || [];
-    } catch {
-      return initialLandingCatalogues?.landingPages || [];
-    }
-  });
+  // Available landing pages. The catalogue now lives in the API; the bundled
+  // LandingPageCatalogues.json stays as the offline fallback. It arrives after
+  // mount, so the list starts empty instead of being read synchronously.
+  const [catalogues, setCatalogues] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    api.landingPages
+      .list()
+      .then((rows) => {
+        if (!active) return;
+        setCatalogues(
+          Array.isArray(rows) && rows.length > 0
+            ? rows
+            : (initialLandingCatalogues?.landingPages || [])
+        );
+      })
+      .catch(() => {
+        if (active) setCatalogues(initialLandingCatalogues?.landingPages || []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Safe Property Extractors
   const getItemId = (item) => item?.LandingPageID || item?.landingPageId || item?.id || '';
@@ -181,28 +189,40 @@ const LandingPageDetails = () => {
 
   const targetLandingPageId = draft.landingPageId || matchedScenario?.landingPageId || 'LP-001';
 
-  const [selectedLandingPage, setSelectedLandingPage] = useState(() => {
-    return (
-      catalogues.find((c) => getItemId(c) === targetLandingPageId) ||
-      catalogues[0] ||
-      null
-    );
-  });
+  // The draft and the catalogue both arrive after mount, so nothing here can be
+  // seeded synchronously. Each value is DERIVED from them and only overridden
+  // once the user (or the selection effect below) changes it, which reproduces
+  // the original defaulting without ever clobbering an edit in progress. The
+  // selection stays null until BOTH are in, so it is never resolved against a
+  // half-loaded draft.
+  const [selectedLandingPageEdit, setSelectedLandingPage] = useState(undefined);
+  const selectedLandingPage =
+    selectedLandingPageEdit !== undefined
+      ? selectedLandingPageEdit
+      : (serverDraft
+        ? (catalogues.find((c) => getItemId(c) === targetLandingPageId) || catalogues[0] || null)
+        : null);
 
   // Form & Content states
-  const [landingPageId, setLandingPageId] = useState(() => {
-    return draft.landingPageId || (selectedLandingPage ? getItemId(selectedLandingPage) : 'LP-001');
-  });
+  const [landingPageIdEdit, setLandingPageId] = useState(undefined);
+  const landingPageId =
+    landingPageIdEdit !== undefined
+      ? landingPageIdEdit
+      : (draft.landingPageId || (selectedLandingPage ? getItemId(selectedLandingPage) : 'LP-001'));
 
-  const [landingPageName, setLandingPageName] = useState(() => {
-    return draft.landingPageName || (selectedLandingPage ? getItemName(selectedLandingPage) : 'Blue Security Alert Landing Page');
-  });
-  
+  const [landingPageNameEdit, setLandingPageName] = useState(undefined);
+  const landingPageName =
+    landingPageNameEdit !== undefined
+      ? landingPageNameEdit
+      : (draft.landingPageName || (selectedLandingPage ? getItemName(selectedLandingPage) : 'Blue Security Alert Landing Page'));
+
   // Editor States
   const [rawHtmlMode, setRawHtmlMode] = useState(false);
-  const [rawHtmlCode, setRawHtmlCode] = useState(() => {
-    return draft.landingPageContent || (selectedLandingPage ? getItemContent(selectedLandingPage) : '');
-  });
+  const [rawHtmlCodeEdit, setRawHtmlCode] = useState(undefined);
+  const rawHtmlCode =
+    rawHtmlCodeEdit !== undefined
+      ? rawHtmlCodeEdit
+      : (draft.landingPageContent || (selectedLandingPage ? getItemContent(selectedLandingPage) : ''));
   const [isEditorExpanded, setIsEditorExpanded] = useState(false);
   const [isFullScreenLivePreview, setIsFullScreenLivePreview] = useState(false);
   const [showEditorFxMenu, setShowEditorFxMenu] = useState(false);
@@ -217,9 +237,7 @@ const LandingPageDetails = () => {
     }
   }, [errorMsg]);
 
-  const activeHtmlRef = useRef(
-    draft.landingPageContent || (selectedLandingPage ? getItemContent(selectedLandingPage) : '')
-  );
+  const activeHtmlRef = useRef('');
 
   const editorCanvasRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -227,6 +245,7 @@ const LandingPageDetails = () => {
   const savedSelectionRef = useRef(null);
 
   // Synchronize canvas when selected landing page changes
+  const selectionSyncedRef = useRef(false);
   useEffect(() => {
     if (selectedLandingPage) {
       const id = getItemId(selectedLandingPage);
@@ -235,6 +254,15 @@ const LandingPageDetails = () => {
 
       setLandingPageId(id);
       setLandingPageName(name);
+
+      // The first resolution is the page being restored, not chosen: content the
+      // user already saved in the draft wins over the catalogue's copy, or a
+      // hand-edited landing page would be silently lost on returning to this step.
+      // Actively picking another catalogue item (every later run) still replaces it.
+      const isInitialResolution = !selectionSyncedRef.current;
+      selectionSyncedRef.current = true;
+      if (isInitialResolution && draft.landingPageContent) return;
+
       setRawHtmlCode(content);
       activeHtmlRef.current = content;
 
@@ -243,6 +271,20 @@ const LandingPageDetails = () => {
       }
     }
   }, [selectedLandingPage]);
+
+  // The saved content arrives with the draft, i.e. after mount, so paint it into
+  // the canvas once. (The effect above then re-syncs it from the catalogue as
+  // soon as a landing page is selected, exactly as it did on mount before.)
+  const contentSeededRef = useRef(false);
+  useEffect(() => {
+    if (contentSeededRef.current || !serverDraft) return;
+    contentSeededRef.current = true;
+    if (activeHtmlRef.current) return;
+    activeHtmlRef.current = draft.landingPageContent || '';
+    if (!rawHtmlMode && editorCanvasRef.current) {
+      editorCanvasRef.current.innerHTML = activeHtmlRef.current;
+    }
+  }, [serverDraft, draft.landingPageContent, rawHtmlMode]);
 
   // Layout restoration for editorCanvas
   useLayoutEffect(() => {
@@ -273,17 +315,6 @@ const LandingPageDetails = () => {
     }
   }, [isEditorExpanded, isAttachModalOpen, isFullScreenLivePreview]);
 
-  // Persist draft updates
-  const persistChanges = (fields) => {
-    try {
-      const current = localStorage.getItem('voisshield_active_campaign_draft');
-      const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   // Selection preservation helpers
   const saveSelection = () => {
     if (window.getSelection) {
@@ -310,7 +341,7 @@ const LandingPageDetails = () => {
       restoreSelection();
       document.execCommand(command, false, value);
       activeHtmlRef.current = editorCanvasRef.current.innerHTML;
-      persistChanges({ landingPageContent: activeHtmlRef.current });
+      update({ landingPageContent: activeHtmlRef.current });
       saveSelection();
     }
   };
@@ -321,7 +352,7 @@ const LandingPageDetails = () => {
       restoreSelection();
       document.execCommand('formatBlock', false, blockTag);
       activeHtmlRef.current = editorCanvasRef.current.innerHTML;
-      persistChanges({ landingPageContent: activeHtmlRef.current });
+      update({ landingPageContent: activeHtmlRef.current });
       saveSelection();
     }
   };
@@ -332,7 +363,7 @@ const LandingPageDetails = () => {
       restoreSelection();
       document.execCommand('fontName', false, fontName);
       activeHtmlRef.current = editorCanvasRef.current.innerHTML;
-      persistChanges({ landingPageContent: activeHtmlRef.current });
+      update({ landingPageContent: activeHtmlRef.current });
       saveSelection();
     }
   };
@@ -343,7 +374,7 @@ const LandingPageDetails = () => {
       restoreSelection();
       document.execCommand('fontSize', false, sizeVal);
       activeHtmlRef.current = editorCanvasRef.current.innerHTML;
-      persistChanges({ landingPageContent: activeHtmlRef.current });
+      update({ landingPageContent: activeHtmlRef.current });
       saveSelection();
     }
   };
@@ -354,7 +385,7 @@ const LandingPageDetails = () => {
     if (rawHtmlMode) {
       setRawHtmlCode((prev) => prev + param.code);
       activeHtmlRef.current += param.code;
-      persistChanges({ landingPageContent: activeHtmlRef.current });
+      update({ landingPageContent: activeHtmlRef.current });
       return;
     }
 
@@ -365,7 +396,7 @@ const LandingPageDetails = () => {
       document.execCommand('insertHTML', false, spanHtml);
       activeHtmlRef.current = editorCanvasRef.current.innerHTML;
       setRawHtmlCode(activeHtmlRef.current);
-      persistChanges({ landingPageContent: activeHtmlRef.current });
+      update({ landingPageContent: activeHtmlRef.current });
       saveSelection();
     }
   };
@@ -411,7 +442,7 @@ const LandingPageDetails = () => {
     } else {
       activeHtmlRef.current = rawHtmlCode;
       setRawHtmlMode(false);
-      persistChanges({ landingPageContent: rawHtmlCode });
+      update({ landingPageContent: rawHtmlCode });
     }
   };
 
@@ -453,7 +484,7 @@ const LandingPageDetails = () => {
     if (editorCanvasRef.current) {
       editorCanvasRef.current.innerHTML = content;
     }
-    persistChanges({
+    update({
       landingPageAttachedByUser: true,
       landingPageId: id,
       landingPageName: name,
@@ -462,36 +493,40 @@ const LandingPageDetails = () => {
   };
 
   // Direct Redirect to Create New Canvas Designer inside Landing Page Catalogue
-  const handleCreateNewLandingPage = () => {
-    persistChanges({
+  const handleCreateNewLandingPage = async () => {
+    update({
       landingPageId,
       landingPageName,
       landingPageContent: rawHtmlMode ? rawHtmlCode : activeHtmlRef.current
     });
+    await flush();
     navigate('/landing-page-catalogue', { state: { createNew: true, openCreate: true } });
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
     if (!landingPageId.trim() && !finalHtml.trim()) {
       setErrorMsg('Please attach or design a Landing Page');
       return;
     }
-    persistChanges({
+    update({
       landingPageId,
       landingPageName,
       landingPageContent: finalHtml
     });
+    // Make sure the debounced save has landed before the next step reads the draft.
+    await flush();
     navigate('/start-campaign/training');
   };
 
-  const handleGoBack = () => {
+  const handleGoBack = async () => {
     const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
-    persistChanges({
+    update({
       landingPageId,
       landingPageName,
       landingPageContent: finalHtml
     });
+    await flush();
     navigate('/start-campaign/email');
   };
 
@@ -806,7 +841,7 @@ const LandingPageDetails = () => {
             onChange={(e) => {
               setRawHtmlCode(e.target.value);
               activeHtmlRef.current = e.target.value;
-              persistChanges({ landingPageContent: e.target.value });
+              update({ landingPageContent: e.target.value });
             }}
             className="w-full h-full p-3 font-mono-tech text-xs bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed"
             placeholder="Design Canvas"
@@ -824,7 +859,7 @@ const LandingPageDetails = () => {
               saveSelection();
               if (editorCanvasRef.current) {
                 activeHtmlRef.current = editorCanvasRef.current.innerHTML;
-                persistChanges({ landingPageContent: activeHtmlRef.current });
+                update({ landingPageContent: activeHtmlRef.current });
               }
             }}
             className="w-full h-full outline-none cursor-text text-slate-900 dark:text-slate-100 overflow-y-auto p-0 leading-normal text-xs rich-editor-canvas"

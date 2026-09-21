@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useCampaignDraft } from '../../services/useCampaignDraft';
 import {
   Check,
   ExternalLink,
@@ -123,15 +124,9 @@ const AddTrainingPath = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read saved draft from prior steps
-  const [draft, setDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_active_campaign_draft');
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Server-backed draft from prior steps (loads asynchronously).
+  const { draft: serverDraft, update, flush } = useCampaignDraft();
+  const draft = serverDraft || {};
 
   // Strict Start Fresh Detection
   const isStartFresh =
@@ -144,13 +139,22 @@ const AddTrainingPath = () => {
     ? (scenariosJsonData?.scenarios || []).find((s) => s.scenarioId === draft.scenarioId) || scenariosJsonData?.scenarios?.[0]
     : null;
 
-  // Selected Training Path ID: None preselected if Start Fresh unless explicitly chosen by user
-  const [selectedPathId, setSelectedPathId] = useState(() => {
-    if (isStartFresh) {
-      return draft.trainingPathAttachedByUser ? (draft.trainingId || null) : null;
-    }
-    return draft.trainingId || matchedScenario?.trainingId || 'TP-00001';
-  });
+  // Selected Training Path ID: None preselected if Start Fresh unless explicitly chosen by user.
+  // Safe default while the draft is still loading; seeded once it arrives.
+  const [selectedPathId, setSelectedPathId] = useState(null);
+
+  // The draft is fetched asynchronously, so the original preselection logic runs
+  // when it lands. Seeded only once so a later save cannot clobber a user pick.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!serverDraft || seededRef.current) return;
+    seededRef.current = true;
+    setSelectedPathId(
+      isStartFresh
+        ? (serverDraft.trainingPathAttachedByUser ? (serverDraft.trainingId || null) : null)
+        : (serverDraft.trainingId || matchedScenario?.trainingId || 'TP-00001')
+    );
+  }, [serverDraft, isStartFresh, matchedScenario]);
 
   // Validation toaster message state
   const [errorMsg, setErrorMsg] = useState('');
@@ -173,28 +177,19 @@ const AddTrainingPath = () => {
   const [previewQuizModal, setPreviewQuizModal] = useState(null);
   const [previewCertModal, setPreviewCertModal] = useState(null);
 
-  // Persist draft updates
-  const persistChanges = (fields) => {
-    try {
-      const current = localStorage.getItem('voisshield_active_campaign_draft');
-      const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const handleSelectPath = (path) => {
+    // An explicit pick always wins, even if the draft is still in flight.
+    seededRef.current = true;
     setSelectedPathId(path.TrainingPathID);
     setErrorMsg('');
-    persistChanges({
+    update({
       trainingPathAttachedByUser: true,
       trainingId: path.TrainingPathID,
       trainingPathName: path.TrainingPathName
     });
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (!selectedPathId) {
       setErrorMsg('Please select a Training Path to proceed');
       return;
@@ -204,15 +199,19 @@ const AddTrainingPath = () => {
       setErrorMsg('Please select a Training Path to proceed');
       return;
     }
-    persistChanges({
+    update({
       trainingPathAttachedByUser: true,
       trainingId: activePath.TrainingPathID,
       trainingPathName: activePath.TrainingPathName
     });
+    await flush().catch(() => {});
     navigate('/start-campaign/review');
   };
 
-  const handleGoBack = () => {
+  // Back does not persist anything new — the selection is saved on click — but
+  // any debounced save still pending must land before we leave.
+  const handleGoBack = async () => {
+    await flush().catch(() => {});
     navigate('/start-campaign/landing-page');
   };
 

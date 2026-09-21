@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { api } from '../../services/api';
+import { useCampaignDraft } from '../../services/useCampaignDraft';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 
 // =========================================================================
@@ -106,6 +107,10 @@ const ChooseAScenario = () => {
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 
+  // The wizard draft now lives on the server; `draft` is null until it loads.
+  // Writes made before then are safe: flush() waits for the load.
+  const { draft, update, flush } = useCampaignDraft();
+
   // Theme check
   const [isDark, setIsDark] = useState(() => {
     if (typeof document !== 'undefined') {
@@ -146,16 +151,29 @@ const ChooseAScenario = () => {
   // Scenarios come from the API (bundled JSON is only an offline fallback).
   const [scenariosList, setScenariosList] = useState([]);
 
-  // Selected State — seeded from the saved draft; falls back to the first
-  // scenario once the list has loaded.
-  const [selectedScenarioId, setSelectedScenarioId] = useState(() => {
-    try {
-      const draft = localStorage.getItem('voisshield_active_campaign_draft');
-      return (draft && JSON.parse(draft)?.scenarioId) || '';
-    } catch {
-      return '';
+  // Selected State — seeded from the saved draft once it arrives; falls back to
+  // the first scenario once the list has loaded.
+  const [selectedScenarioId, setSelectedScenarioId] = useState('');
+
+  // Seed from the draft exactly once. Set the moment the user picks a card too,
+  // so a late-arriving draft never overrides a deliberate choice.
+  const scenarioSeededRef = useRef(false);
+
+  const pickScenario = (scenarioId) => {
+    scenarioSeededRef.current = true;
+    setSelectedScenarioId(scenarioId);
+  };
+
+  useEffect(() => {
+    if (!draft || scenarioSeededRef.current) return;
+    scenarioSeededRef.current = true;
+    // Same defaulting as before: only a saved scenarioId wins; otherwise the
+    // "first scenario in the list" fallback below stands.
+    if (draft.scenarioId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time seed of local state from the async draft
+      setSelectedScenarioId(draft.scenarioId);
     }
-  });
+  }, [draft]);
 
   useEffect(() => {
     let active = true;
@@ -181,20 +199,16 @@ const ChooseAScenario = () => {
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
 
   // Auto-fill campaign draft & navigate to step 2
-  const handleUseScenario = (scenario) => {
-    setSelectedScenarioId(scenario.scenarioId);
+  const handleUseScenario = async (scenario) => {
+    pickScenario(scenario.scenarioId);
 
     try {
-      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
-      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
-
-      const updatedDraft = {
-        ...draftObj,
+      update({
         isStartFresh: false,
         scenarioId: scenario.scenarioId,
         scenarioName: scenario.scenarioName,
-        campaignTitle: draftObj.campaignTitle || scenario.scenarioName,
-        campaignDescription: draftObj.campaignDescription || scenario.description,
+        campaignTitle: draft?.campaignTitle || scenario.scenarioName,
+        campaignDescription: draft?.campaignDescription || scenario.description,
         campaignType: scenario.campaignType,
         targetAudience: scenario.targetAudience,
         difficulty: scenario.difficulty,
@@ -206,9 +220,9 @@ const ChooseAScenario = () => {
         landingPageId: scenario.landingPageId || 'LP-001',
         trainingId: scenario.trainingId || 'TP-001',
         CoverImageID: scenario.CoverImageID
-      };
+      });
 
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updatedDraft));
+      await flush();
     } catch (e) {
       console.error(e);
     }
@@ -218,15 +232,11 @@ const ChooseAScenario = () => {
   };
 
   // Start from scratch / Start Fresh (Blank canvas: clears all template defaults)
-  const handleStartFresh = () => {
-    setSelectedScenarioId('start-fresh');
+  const handleStartFresh = async () => {
+    pickScenario('start-fresh');
 
     try {
-      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
-      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
-
-      const freshDraft = {
-        ...draftObj,
+      update({
         isStartFresh: true,
         scenarioId: 'start-fresh',
         scenarioName: 'Start Fresh',
@@ -243,9 +253,9 @@ const ChooseAScenario = () => {
         landingPageId: '',
         trainingId: '',
         CoverImageID: ''
-      };
+      });
 
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(freshDraft));
+      await flush();
     } catch (e) {
       console.error(e);
     }
@@ -253,13 +263,13 @@ const ChooseAScenario = () => {
     navigate('/start-campaign/details');
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (selectedScenarioId === 'start-fresh') {
-      handleStartFresh();
+      await handleStartFresh();
       return;
     }
     const selected = scenariosList.find((s) => s.scenarioId === selectedScenarioId) || scenariosList[0];
-    handleUseScenario(selected);
+    await handleUseScenario(selected);
   };
 
   return (
@@ -351,7 +361,7 @@ const ChooseAScenario = () => {
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
-              onClick={() => setSelectedScenarioId('start-fresh')}
+              onClick={() => pickScenario('start-fresh')}
               className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px] h-[270px] shadow-2xs hover:shadow-md ${
                 isDark 
                   ? 'bg-white text-black border-slate-200' 
@@ -427,7 +437,7 @@ const ChooseAScenario = () => {
               return (
                 <div
                   key={scenario.scenarioId}
-                  onClick={() => setSelectedScenarioId(scenario.scenarioId)}
+                  onClick={() => pickScenario(scenario.scenarioId)}
                   style={{
                     backgroundColor: isDark ? theme.bgDark : theme.bgLight,
                     borderColor: isSelected ? '#e66565' : isDark ? theme.borderDark : theme.border
