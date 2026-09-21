@@ -55,5 +55,9 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
         continue-on-error: true
+      # Blocking, unlike lint: this covers the shared campaign vocabulary that
+      # every campaign screen depends on, and it starts green.
+      - name: Test
+        run: npm test --if-present
       - name: Build
         run: npm run build

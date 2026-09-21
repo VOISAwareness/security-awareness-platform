@@ -11,17 +11,21 @@ dynamodb = boto3.resource("dynamodb")
 campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
 
 
+# `required_statuses` is a tuple: SUBMIT accepts more than one starting state.
+# A REJECTED campaign must be able to go back for review once its owner has
+# fixed it — otherwise rejection is a dead end, the campaign is editable but
+# permanently unsubmittable, and the only way out is to rebuild it from scratch.
 TRANSITIONS = {
     "SUBMIT": {
-        "required_status": "DRAFT",
+        "required_statuses": ("DRAFT", "REJECTED"),
         "new_status": "PENDING_APPROVAL"
     },
     "APPROVE": {
-        "required_status": "PENDING_APPROVAL",
+        "required_statuses": ("PENDING_APPROVAL",),
         "new_status": "APPROVED"
     },
     "REJECT": {
-        "required_status": "PENDING_APPROVAL",
+        "required_statuses": ("PENDING_APPROVAL",),
         "new_status": "REJECTED"
     }
 }
@@ -171,7 +175,7 @@ def lambda_handler(event, context):
             )
 
         transition = TRANSITIONS[action]
-        required_status = transition["required_status"]
+        required_statuses = transition["required_statuses"]
         new_status = transition["new_status"]
         changed_at = utc_timestamp()
 
@@ -194,7 +198,7 @@ def lambda_handler(event, context):
 
         current_status = campaign.get("status")
 
-        if current_status != required_status:
+        if current_status not in required_statuses:
             return build_response(
                 409,
                 {
@@ -202,7 +206,7 @@ def lambda_handler(event, context):
                     "campaignId": campaign_id,
                     "action": action,
                     "currentStatus": current_status,
-                    "requiredStatus": required_status
+                    "requiredStatus": list(required_statuses)
                 }
             )
 
@@ -244,21 +248,31 @@ def lambda_handler(event, context):
                 "updatedAt = :changedAt"
             )
 
+        # Guard against a concurrent transition: the status must still be one of
+        # the ones we checked above when the write lands.
+        status_placeholders = {
+            f":expectedStatus{i}": value
+            for i, value in enumerate(required_statuses)
+        }
+        condition = (
+            f"#status IN ({', '.join(status_placeholders)})"
+        )
+
         update_response = campaigns_table.update_item(
             Key={
                 "campaignId": campaign_id
             },
             UpdateExpression=update_expression,
-            ConditionExpression="#status = :expectedStatus",
+            ConditionExpression=condition,
             ExpressionAttributeNames={
                 "#status": "status"
             },
             ExpressionAttributeValues={
                 ":newStatus": new_status,
-                ":expectedStatus": required_status,
                 ":actor": actor,
                 ":comments": comments,
-                ":changedAt": changed_at
+                ":changedAt": changed_at,
+                **status_placeholders
             },
             ReturnValues="ALL_NEW"
         )
