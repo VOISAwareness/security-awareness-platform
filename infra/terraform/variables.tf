@@ -19,5 +19,5 @@ variable "name_prefix" {
 variable "cors_allowed_origins" {
   description = "Origins allowed to call the HTTP API from a browser"
   type        = list(string)
-  default     = ["http://localhost:5173"]
+  default     = ["http://localhost:5173", "http://localhost:5174"]
 }

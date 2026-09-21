@@ -143,58 +143,153 @@ const UserListViaBulkUpload = () => {
     showToast('Downloaded sample template (.csv)');
   };
 
-  // Parse Uploaded File
-  const handleFileUpload = (e) => {
+  // Canonical column order the backend ingest expects.
+  const CSV_HEADERS = ['User Name', 'Email ID', 'Department', 'Location'];
+
+  // Match the header row case-insensitively, tolerating a few common spellings.
+  const columnIndexes = (header) => {
+    const find = (...names) =>
+      header.findIndex((h) => names.includes(String(h || '').trim().toLowerCase()));
+    return {
+      userName: find('user name', 'name', 'username'),
+      email: find('email id', 'email', 'email address'),
+      department: find('department', 'dept'),
+      location: find('location', 'country')
+    };
+  };
+
+  const csvCell = (v) => {
+    const s = String(v ?? '').trim();
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  // Split a CSV line honouring quoted fields (so "Smith, John" stays one cell).
+  const splitCsvLine = (line) => {
+    const out = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i += 1;
+        } else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        out.push(cur);
+        cur = '';
+      } else cur += ch;
+    }
+    out.push(cur);
+    return out.map((c) => c.trim());
+  };
+
+  // Turn parsed rows into the preview table + a normalised CSV file for upload.
+  const applyRows = (rows, originalName) => {
+    const nonEmpty = rows.filter((r) => r.some((c) => String(c ?? '').trim() !== ''));
+    if (nonEmpty.length <= 1) {
+      showToast('File appears empty or missing data rows');
+      return;
+    }
+
+    const idx = columnIndexes(nonEmpty[0]);
+    if (idx.email === -1) {
+      showToast("Missing an 'Email ID' column. Use the sample template.");
+      return;
+    }
+
+    const deptMap = {};
+    let skipped = 0;
+    const parsedUsers = [];
+    nonEmpty.slice(1).forEach((cols) => {
+      const val = (i) => (i >= 0 ? String(cols[i] ?? '').trim() : '');
+      const email = val(idx.email);
+      // Rows without an email are dropped — the backend drops them too, and we
+      // must never invent recipient addresses.
+      if (!email) {
+        skipped += 1;
+        return;
+      }
+      const department = val(idx.department) || 'Unspecified';
+      deptMap[department] = (deptMap[department] || 0) + 1;
+      parsedUsers.push({
+        srNo: parsedUsers.length + 1,
+        userName: val(idx.userName),
+        email,
+        department,
+        location: val(idx.location),
+        hookRate: '—',
+        reportRate: '—'
+      });
+    });
+
+    if (parsedUsers.length === 0) {
+      showToast('No rows with an email address were found');
+      return;
+    }
+
+    // Normalised CSV is what gets uploaded, so Excel and CSV take one code path.
+    const csv = [
+      CSV_HEADERS.join(','),
+      ...parsedUsers.map((u) =>
+        [u.userName, u.email, u.department, u.location].map(csvCell).join(',')
+      )
+    ].join('\n');
+    const csvName = originalName.replace(/\.[^/.]+$/, '') + '.csv';
+    setSelectedFile(new File([csv], csvName, { type: 'text/csv' }));
+
+    setLoadedMembers(parsedUsers);
+    setLoadedDeptBreakdown(
+      Object.entries(deptMap).map(([dept, count]) => ({ dept, count }))
+    );
+    setIsLoaded(true);
+
+    if (!cohortName) {
+      setCohortName(originalName.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+    }
+    showToast(
+      `Parsed ${parsedUsers.length} recipients` +
+        (skipped ? ` (${skipped} row(s) skipped — no email)` : '!')
+    );
+  };
+
+  // Parse Uploaded File (.csv or .xlsx)
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadedFileName(file.name);
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result;
-      if (typeof text !== 'string') return;
+    setSelectedFile(null);
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
 
-      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      if (lines.length <= 1) {
-        showToast('File appears empty or missing data rows');
-        return;
+    try {
+      if (ext === 'xlsx') {
+        // Lazy-loaded so the spreadsheet parser stays out of the main bundle.
+        // The package only exposes subpath exports; /browser is the web build.
+        const readXlsxFile = (await import('read-excel-file/browser')).default;
+        const raw = await readXlsxFile(file);
+        // Depending on version this returns either rows ([[...]]) or a list of
+        // sheets ([{ sheet, data: [[...]] }]). Normalise to the first sheet's rows.
+        const rows =
+          Array.isArray(raw) && raw.length && raw[0] && Array.isArray(raw[0].data)
+            ? raw[0].data
+            : raw;
+        applyRows(rows, file.name);
+      } else if (ext === 'csv') {
+        const text = await file.text();
+        applyRows(
+          text.split(/\r?\n/).map(splitCsvLine),
+          file.name
+        );
+      } else if (ext === 'xls') {
+        showToast('Legacy .xls is not supported — save as .xlsx or .csv');
+      } else {
+        showToast('Unsupported file type. Please upload .csv or .xlsx');
       }
-
-      const dataRows = lines.slice(1);
-      const deptMap = {};
-      const parsedUsers = dataRows.map((row, idx) => {
-        const cols = row.split(',').map((c) => c.trim());
-        const userName = cols[0] || `User ${idx + 1}`;
-        const email = cols[1] || `user${idx + 1}@vodafone.com`;
-        const department = cols[2] || 'Corporate Operations';
-        const location = cols[3] || 'GLOBAL';
-
-        deptMap[department] = (deptMap[department] || 0) + 1;
-
-        return {
-          srNo: idx + 1,
-          userName,
-          email,
-          department,
-          location,
-          hookRate: `${(Math.random() * 20 + 2).toFixed(1)}%`,
-          reportRate: `${(Math.random() * 40 + 45).toFixed(1)}%`
-        };
-      });
-
-      const breakdown = Object.entries(deptMap).map(([dept, count]) => ({ dept, count }));
-      setLoadedMembers(parsedUsers);
-      setLoadedDeptBreakdown(breakdown);
-      setIsLoaded(true);
-
-      if (!cohortName) {
-        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
-        setCohortName(cleanName);
-      }
-      showToast(`Parsed ${parsedUsers.length} user records successfully!`);
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error('Failed to read file', err);
+      showToast('Could not read that file. Please check the format.');
+    }
   };
 
   // Save Action
@@ -382,7 +477,7 @@ const UserListViaBulkUpload = () => {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept=".csv, .xlsx, .xls, text/csv"
+                    accept=".csv,.xlsx"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
