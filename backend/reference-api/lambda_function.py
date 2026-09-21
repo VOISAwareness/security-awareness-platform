@@ -153,6 +153,41 @@ def lambda_handler(event, context):
             table("sender-identities").delete_item(Key={"id": params["id"]})
             return respond(204, {"data": None})
 
+        # --- landing-pages CRUD (catalogue screen) ---
+        if route == "POST /landing-pages":
+            body = parse_body(event)
+            if not body.get("LandingPageName"):
+                return err(400, "LandingPageName is required")
+            item = dict(body)
+            if not item.get("LandingPageID"):
+                # Continue the LP-00N sequence the catalogue already uses.
+                nums = []
+                for row in scan_all("landing-pages"):
+                    m = re.match(r"^LP-(\d+)$", str(row.get("LandingPageID", "")))
+                    if m:
+                        nums.append(int(m.group(1)))
+                item["LandingPageID"] = f"LP-{(max(nums) + 1) if nums else 1:03d}"
+            item.setdefault(
+                "CreatedDate", datetime.now(UTC).strftime("%d/%m/%Y %I:%M %p")
+            )
+            item.setdefault("LandingPageDescription", "")
+            item.setdefault("LandingPageContent", "")
+            table("landing-pages").put_item(Item=item)
+            return respond(201, {"data": item})
+
+        if route == "PUT /landing-pages/{id}":
+            body = parse_body(event)
+            existing = get_one("landing-pages", {"LandingPageID": params["id"]})
+            if not existing:
+                return err(404, "Landing page not found")
+            merged = {**existing, **body, "LandingPageID": params["id"]}
+            table("landing-pages").put_item(Item=merged)
+            return ok(merged)
+
+        if route == "DELETE /landing-pages/{id}":
+            table("landing-pages").delete_item(Key={"LandingPageID": params["id"]})
+            return respond(204, {"data": None})
+
         # --- recipient list bulk upload: create pending list + presigned S3 PUT ---
         if route == "POST /user-lists/bulk-upload":
             if not UPLOAD_BUCKET:

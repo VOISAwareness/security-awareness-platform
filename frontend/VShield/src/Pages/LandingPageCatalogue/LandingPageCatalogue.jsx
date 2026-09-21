@@ -37,6 +37,7 @@ import {
   Monitor
 } from 'lucide-react';
 import LandingPageCatalogues from './LandingPageCatalogues.json';
+import { api } from '../../services/api';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS
@@ -93,30 +94,24 @@ const LandingPageCatalogue = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Data Store with safe JSON fallback
-  const [catalogues, setCatalogues] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_landing_pages');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-      return LandingPageCatalogues?.landingPages || [];
-    } catch {
-      return LandingPageCatalogues?.landingPages || [];
-    }
-  });
+  // Backed by the API (bundled JSON is only a fallback if it is unreachable).
+  const [catalogues, setCatalogues] = useState([]);
 
-  // Keep localStorage synchronized
   useEffect(() => {
-    try {
-      localStorage.setItem('voisshield_landing_pages', JSON.stringify(catalogues));
-    } catch (e) {
-      console.error('Failed to save to localStorage:', e);
-    }
-  }, [catalogues]);
+    let active = true;
+    api.landingPages
+      .list()
+      .then((rows) => {
+        if (active) setCatalogues(Array.isArray(rows) ? rows : []);
+      })
+      .catch((e) => {
+        console.error('Failed to load landing pages', e);
+        if (active) setCatalogues(LandingPageCatalogues?.landingPages || []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // View & Filter States (Directly lands in Editor mode if navigated with createNew state)
   const shouldOpenCreateImmediately = Boolean(location.state?.createNew || location.state?.openCreate);
@@ -186,21 +181,6 @@ const LandingPageCatalogue = () => {
   const getItemContent = (item) => item?.LandingPageContent || item?.landingPageContent || item?.content || '';
   const getItemDate = (item) => item?.CreatedDate || item?.createdDate || item?.date || '';
 
-  // Formatter for timestamp: dd/mm/yyyy hh:mm am/pm
-  const getFormattedTimestamp = () => {
-    const d = new Date();
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const strHours = String(hours).padStart(2, '0');
-    return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
-  };
-
   // Compute Next ID based on highest existing index
   const getNextAvailableId = () => {
     let highestNum = 0;
@@ -242,17 +222,17 @@ const LandingPageCatalogue = () => {
 
   // Delete Action
   const handleDeleteItem = (id) => {
-    setCatalogues((prev) => {
-      const updated = prev.filter((item) => getItemId(item) !== id);
-      try {
-        localStorage.setItem('voisshield_landing_pages', JSON.stringify(updated));
-      } catch (e) {
+    api.landingPages
+      .remove(id)
+      .then(() => {
+        setCatalogues((prev) => prev.filter((item) => getItemId(item) !== id));
+        setDeleteConfirmationItem(null);
+        showToast(`Deleted ${id}`);
+      })
+      .catch((e) => {
         console.error(e);
-      }
-      return updated;
-    });
-    setDeleteConfirmationItem(null);
-    showToast(`Deleted ${id}`);
+        showToast('Could not delete landing page. Please try again.');
+      });
   };
 
   // Toggle Expand Safely without losing canvas content
@@ -389,45 +369,39 @@ const LandingPageCatalogue = () => {
       (rawHtmlMode ? rawHtmlCode : editorCanvasRef.current?.innerHTML || '');
 
     if (editorId) {
-      setCatalogues((prev) => {
-        const updated = prev.map((item) =>
-          getItemId(item) === editorId
-            ? {
-                ...item,
-                LandingPageName: pageName.trim() || getItemName(item),
-                LandingPageDescription: pageDescription.trim(),
-                LandingPageContent: htmlContent
-              }
-            : item
-        );
-        try {
-          localStorage.setItem('voisshield_landing_pages', JSON.stringify(updated));
-        } catch (e) {
+      api.landingPages
+        .update(editorId, {
+          LandingPageName: pageName.trim() || undefined,
+          LandingPageDescription: pageDescription.trim(),
+          LandingPageContent: htmlContent
+        })
+        .then((saved) => {
+          setCatalogues((prev) =>
+            prev.map((item) => (getItemId(item) === editorId ? saved : item))
+          );
+          showToast(`Updated '${pageName.trim()}'`);
+        })
+        .catch((e) => {
           console.error(e);
-        }
-        return updated;
-      });
-      showToast(`Updated '${pageName.trim()}'`);
+          showToast('Could not save landing page. Please try again.');
+        });
     } else {
-      const newId = getNextAvailableId();
-      const newPage = {
-        LandingPageID: newId,
-        LandingPageName: pageName.trim() || `Landing Page ${newId}`,
-        LandingPageDescription: pageDescription.trim() || 'Custom created security awareness landing page.',
-        CreatedDate: getFormattedTimestamp(),
-        LandingPageContent: htmlContent
-      };
-
-      setCatalogues((prev) => {
-        const updated = [newPage, ...prev];
-        try {
-          localStorage.setItem('voisshield_landing_pages', JSON.stringify(updated));
-        } catch (e) {
+      // The backend assigns the next LP-00N id.
+      api.landingPages
+        .create({
+          LandingPageName: pageName.trim() || 'Untitled Landing Page',
+          LandingPageDescription:
+            pageDescription.trim() || 'Custom created security awareness landing page.',
+          LandingPageContent: htmlContent
+        })
+        .then((created) => {
+          setCatalogues((prev) => [created, ...prev]);
+          showToast(`Created '${created?.LandingPageID || ''}' successfully!`);
+        })
+        .catch((e) => {
           console.error(e);
-        }
-        return updated;
-      });
-      showToast(`Created '${newId}' successfully!`);
+          showToast('Could not create landing page. Please try again.');
+        });
     }
 
     setShowSaveChoiceModal(false);

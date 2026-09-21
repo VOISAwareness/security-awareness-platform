@@ -44,7 +44,14 @@ export const api = {
   // Read-only reference data (used by later screens).
   users: { list: () => request('/users') },
   scenarios: { list: () => request('/scenarios') },
-  landingPages: { list: () => request('/landing-pages') },
+  landingPages: {
+    list: () => request('/landing-pages'),
+    create: (item) => request('/landing-pages', { method: 'POST', body: item }),
+    update: (id, patch) =>
+      request(`/landing-pages/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
+    remove: (id) =>
+      request(`/landing-pages/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   userLists: {
     list: () => request('/user-lists'),
     members: (id) => request(`/user-lists/${encodeURIComponent(id)}/members`),
