@@ -160,7 +160,9 @@ def lambda_handler(event, context):
             body = parse_body(event)
             if not body.get("name"):
                 return err(400, "name is required")
-            list_id = f"ul-{uuid.uuid4().hex[:8]}"
+            # Reusing an existing listId lets "edit + re-upload" replace a list
+            # in place instead of creating a duplicate.
+            list_id = body.get("listId") or f"ul-{uuid.uuid4().hex[:8]}"
             raw_name = body.get("fileName") or "recipients.csv"
             safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", raw_name)
             s3_key = f"uploads/recipients/{list_id}/{safe_name}"
@@ -214,11 +216,62 @@ def lambda_handler(event, context):
             updated = get_one("user-lists", {"userListId": params["id"]})
             return ok(updated)
 
+        if route == "PUT /user-lists/{id}":
+            body = parse_body(event)
+            existing = get_one("user-lists", {"userListId": params["id"]})
+            if not existing:
+                return err(404, "List not found")
+            merged = {**existing, **body, "userListId": params["id"]}
+            table("user-lists").put_item(Item=merged)
+            return ok(merged)
+
+        if route == "DELETE /user-lists/{id}":
+            list_id = params["id"]
+            existing = get_one("user-lists", {"userListId": list_id})
+            # Remove the cached member rows.
+            members_tbl = table("user-list-members")
+            resp = members_tbl.query(
+                KeyConditionExpression=Key("userListId").eq(list_id)
+            )
+            with members_tbl.batch_writer() as batch:
+                for m in resp.get("Items", []):
+                    batch.delete_item(Key={"userListId": list_id, "email": m["email"]})
+            # Remove EVERY uploaded file for this list (re-uploads leave earlier
+            # versions behind), so no recipient PII is orphaned in S3.
+            bucket = (existing or {}).get("s3Bucket") or UPLOAD_BUCKET
+            if bucket:
+                try:
+                    prefix = f"uploads/recipients/{list_id}/"
+                    paginator = s3_client.get_paginator("list_objects_v2")
+                    to_delete = [
+                        {"Key": obj["Key"]}
+                        for page in paginator.paginate(Bucket=bucket, Prefix=prefix)
+                        for obj in page.get("Contents", [])
+                    ]
+                    for i in range(0, len(to_delete), 1000):
+                        s3_client.delete_objects(
+                            Bucket=bucket, Delete={"Objects": to_delete[i : i + 1000]}
+                        )
+                except ClientError as e:
+                    print(json.dumps({"message": "S3 cleanup failed", "error": str(e)}))
+            table("user-lists").delete_item(Key={"userListId": list_id})
+            return respond(204, {"data": None})
+
         return err(404, f"No handler for route: {route}")
 
     except ClientError as e:
         code = e.response.get("Error", {}).get("Code", "AWSClientError")
-        print(json.dumps({"message": "AWS error", "code": code, "route": route}))
+        print(
+            json.dumps(
+                {
+                    "message": "AWS error",
+                    "code": code,
+                    "route": route,
+                    "operation": e.operation_name,
+                    "detail": e.response.get("Error", {}).get("Message", "")[:400],
+                }
+            )
+        )
         return err(500, "A backend error occurred")
     except Exception as e:  # noqa: BLE001
         print(json.dumps({"message": "Unhandled error", "type": type(e).__name__, "route": route}))

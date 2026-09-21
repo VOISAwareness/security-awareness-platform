@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -12,7 +12,7 @@ import {
   User as UserIcon,
   FileSpreadsheet
 } from 'lucide-react';
-import defaultData from './UserDLsData.json';
+import { api } from '../../services/api';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -73,6 +73,9 @@ const UserListViaBulkUpload = () => {
   const [cohortName, setCohortName] = useState('');
   const [description, setDescription] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
+  // Raw file kept so it can be uploaded to S3 (the parsed rows are preview-only).
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Staged Telemetry States
   const [isLoaded, setIsLoaded] = useState(false);
@@ -86,27 +89,31 @@ const UserListViaBulkUpload = () => {
   const [isTableExpanded, setIsTableExpanded] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Pre-load editing cohort if editId exists
+  // Pre-load the cohort being edited from the backend.
   useEffect(() => {
-    if (editId) {
-      try {
-        const stored = localStorage.getItem('voisshield_user_dls_data');
-        const all = stored ? JSON.parse(stored) : defaultData.savedUserLists || [];
-        const target = all.find((l) => l.id === editId);
+    if (!editId) return;
+    let active = true;
+    Promise.all([api.userLists.list(), api.userLists.members(editId)])
+      .then(([rows, members]) => {
+        if (!active) return;
+        const target = (Array.isArray(rows) ? rows : []).find(
+          (l) => (l.userListId || l.id || l.dlId) === editId
+        );
         if (target) {
-          setCohortName(target.name || '');
+          setCohortName(target.name || target.dlName || '');
           setDescription(target.description || '');
-          setUploadedFileName('Loaded_Cohort_Batch.csv');
-          setLoadedMembers(target.users || []);
+          setUploadedFileName(target.s3Key ? target.s3Key.split('/').pop() : 'Existing_Cohort.csv');
           setLoadedDeptBreakdown(target.departmentBreakdown || []);
           setLoadedHookRate(target.aggregatedHookRate || '14.2%');
           setLoadedReportRate(target.aggregatedReportRate || '58.4%');
-          setIsLoaded(true);
         }
-      } catch (e) {
-        console.error(e);
-      }
-    }
+        setLoadedMembers(Array.isArray(members) ? members : []);
+        setIsLoaded(true);
+      })
+      .catch((e) => console.error('Failed to load cohort for editing', e));
+    return () => {
+      active = false;
+    };
   }, [editId]);
 
   const showToast = (msg) => {
@@ -142,6 +149,7 @@ const UserListViaBulkUpload = () => {
     if (!file) return;
 
     setUploadedFileName(file.name);
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result;
@@ -190,7 +198,7 @@ const UserListViaBulkUpload = () => {
   };
 
   // Save Action
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!cohortName.trim()) {
       showToast('Please enter a Cohort Name');
       return;
@@ -200,50 +208,40 @@ const UserListViaBulkUpload = () => {
       return;
     }
 
-    try {
-      const stored = localStorage.getItem('voisshield_user_dls_data');
-      const allLists = stored ? JSON.parse(stored) : defaultData.savedUserLists || [];
+    const name = cohortName.trim();
+    const desc = description.trim() || 'Custom user cohort uploaded via spreadsheet file.';
 
-      if (editId) {
-        const updated = allLists.map((item) =>
-          item.id === editId
-            ? {
-                ...item,
-                name: cohortName.trim(),
-                description: description.trim() || item.description,
-                totalUsers: loadedMembers.length,
-                departmentBreakdown: loadedDeptBreakdown,
-                users: loadedMembers,
-                aggregatedHookRate: loadedHookRate,
-                aggregatedReportRate: loadedReportRate
-              }
-            : item
-        );
-        localStorage.setItem('voisshield_user_dls_data', JSON.stringify(updated));
+    try {
+      setIsSaving(true);
+
+      if (selectedFile) {
+        // Upload the raw file to S3, then ingest it server-side.
+        // Passing editId replaces that list in place instead of duplicating it.
+        showToast('Uploading recipient list...');
+        const saved = await api.userLists.upload({
+          name,
+          description: desc,
+          file: selectedFile,
+          listId: editId || undefined
+        });
+        showToast(`Saved '${name}' with ${saved?.totalUsers ?? loadedMembers.length} recipients!`);
+      } else if (editId) {
+        // Editing metadata only (no new file staged).
+        await api.userLists.update(editId, { name, description: desc });
+        showToast(`Updated '${name}' successfully!`);
       } else {
-        const newList = {
-          id: `ul-${Date.now().toString().slice(-4)}`,
-          name: cohortName.trim(),
-          type: 'Bulk upload',
-          description: description.trim() || 'Custom user cohort uploaded via spreadsheet file.',
-          totalUsers: loadedMembers.length,
-          usedCount: 0,
-          createdDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-          aggregatedHookRate: loadedHookRate,
-          aggregatedReportRate: loadedReportRate,
-          departmentBreakdown: loadedDeptBreakdown,
-          users: loadedMembers
-        };
-        localStorage.setItem('voisshield_user_dls_data', JSON.stringify([newList, ...allLists]));
+        setIsSaving(false);
+        showToast('Please select a file to upload');
+        return;
       }
 
-      showToast(`Saved User List '${cohortName.trim()}' successfully!`);
       setTimeout(() => {
         navigate('/user-dls');
       }, 700);
     } catch (e) {
+      setIsSaving(false);
       console.error(e);
-      showToast('Error saving user list');
+      showToast(e?.message || 'Could not save the user list. Please try again.');
     }
   };
 
@@ -445,9 +443,9 @@ const UserListViaBulkUpload = () => {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={!isLoaded || loadedMembers.length === 0}
+                  disabled={!isLoaded || loadedMembers.length === 0 || isSaving}
                   className={`px-8 py-2 rounded-xl text-[12px] font-voda-exb uppercase tracking-wider shadow-sm transition-all cursor-pointer ${
-                    isLoaded && loadedMembers.length > 0
+                    isLoaded && loadedMembers.length > 0 && !isSaving
                       ? 'bg-[#15171C] text-white hover:bg-black hover:scale-[1.02]'
                       : 'bg-[#15171C]/60 text-white/40 cursor-not-allowed'
                   }`}

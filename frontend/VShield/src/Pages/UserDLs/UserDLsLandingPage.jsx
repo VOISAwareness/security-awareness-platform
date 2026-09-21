@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { Search, Trash2, Edit3 } from 'lucide-react';
+import { api } from '../../services/api';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -80,39 +81,42 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
   const [isExistingExpanded, setIsExistingExpanded] = useState(true);
 
   // Initial Mock Lists matching canvas
-  const [lists, setLists] = useState([
-    {
-      id: 'batch-01',
-      name: 'Batch 01 – August Campaign Finance Department',
-      type: 'Bulk upload',
-      description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever.",
-      totalUsers: 58,
-      usedCount: 4,
-      createdDate: 'July 17th, 2026'
-    },
-    {
-      id: 'batch-02',
-      name: 'Batch 02 – August Campaign Supply Chain Management Department',
-      type: 'Bulk upload',
-      description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever.",
-      totalUsers: 58,
-      usedCount: 4,
-      createdDate: 'July 17th, 2026'
-    },
-    {
-      id: 'dl-01',
-      name: 'Phishing Batch VOIS DL, Egypt',
-      type: 'Distribution List',
-      dlId: 'dl-phishingcampaignvoisshield@vodafone.com',
-      description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever.",
-      totalUsers: 58,
-      usedCount: 4,
-      createdDate: 'July 17th, 2026'
-    }
-  ]);
+  const [lists, setLists] = useState([]);
+
+  // Normalise a backend user-list row into the shape this screen renders.
+  // SAVED lists carry name/type; SYNCED distribution lists carry dlName/dlId.
+  const normaliseList = (row) => ({
+    ...row,
+    id: row.userListId || row.id || row.dlId,
+    name: row.name || row.dlName || 'Untitled list',
+    type: row.type || (row.listType === 'SYNCED' ? 'Distribution List' : 'Bulk upload'),
+    description: row.description || '',
+    totalUsers: row.totalUsers ?? 0,
+    usedCount: row.usedCount ?? 0,
+    createdDate: row.createdDate || ''
+  });
+
+  useEffect(() => {
+    let active = true;
+    api.userLists
+      .list()
+      .then((rows) => {
+        if (active) setLists((Array.isArray(rows) ? rows : []).map(normaliseList));
+      })
+      .catch((err) => {
+        console.error('Failed to load user lists', err);
+        if (active) setLists([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleDelete = (id) => {
-    setLists(prev => prev.filter(item => item.id !== id));
+    api.userLists
+      .remove(id)
+      .then(() => setLists(prev => prev.filter(item => item.id !== id)))
+      .catch((err) => console.error('Failed to delete user list', err));
   };
 
   const handleEdit = (list) => {
