@@ -5,7 +5,6 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-
 dynamodb = boto3.resource("dynamodb")
 s3_client = boto3.client("s3")
 

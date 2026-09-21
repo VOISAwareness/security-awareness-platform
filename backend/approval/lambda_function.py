@@ -1,10 +1,9 @@
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 from botocore.exceptions import ClientError
-
 
 CAMPAIGNS_TABLE = os.environ["CAMPAIGNS_TABLE"]
 
@@ -29,7 +28,7 @@ TRANSITIONS = {
 
 
 def utc_timestamp():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def build_response(status_code, body):
@@ -53,8 +52,8 @@ def parse_request_body(event):
 
     try:
         return json.loads(body)
-    except json.JSONDecodeError:
-        raise ValueError("Request body must contain valid JSON")
+    except json.JSONDecodeError as err:
+        raise ValueError("Request body must contain valid JSON") from err
 
 
 def identify_action(event):

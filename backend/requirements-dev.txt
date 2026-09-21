@@ -1,0 +1,5 @@
+# Local development / CI tooling (not bundled into Lambda zips)
+boto3
+ruff==0.6.9
+pytest==8.3.3
+moto[dynamodb,s3,ses]==5.0.16
