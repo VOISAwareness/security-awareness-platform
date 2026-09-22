@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from './api';
+import { isEditable } from './campaignStatus';
 
 const POINTER_KEY = 'voisshield_active_campaign_id';
 const LEGACY_DRAFT_KEY = 'voisshield_active_campaign_draft';
@@ -73,7 +74,11 @@ export function useCampaignDraft() {
         if (id) {
           item = await api.campaigns.get(id).catch(() => null);
           // Pointer may reference a campaign that was deleted or already sent.
-          if (item && item.status && item.status !== 'DRAFT') item = null;
+          // REJECTED counts as openable: the whole point of a rejection is that
+          // the owner reworks it, and the backend allows editing it (see
+          // EDITABLE_STATUSES in campaigns-api). Testing for DRAFT alone here
+          // silently discarded the rejected campaign and started a blank one.
+          if (item && item.status && !isEditable(item.status)) item = null;
           if (!item) {
             id = '';
             setActiveCampaignId('');
@@ -125,7 +130,7 @@ export function useCampaignDraft() {
       try {
         const pointer = getActiveCampaignId();
         let item = pointer ? await api.campaigns.get(pointer).catch(() => null) : null;
-        if (item && item.status && item.status !== 'DRAFT') item = null;
+        if (item && item.status && !isEditable(item.status)) item = null;
         if (!item) {
           item = await api.campaigns.create({});
           setActiveCampaignId(item.campaignId);
