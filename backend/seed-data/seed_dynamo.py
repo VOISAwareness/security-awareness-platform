@@ -154,7 +154,7 @@ def user_list_lookup():
 
 
 def _iso(dt):
-    return dt.replace(tzinfo=datetime.timezone.utc).isoformat()
+    return dt.replace(tzinfo=datetime.UTC).isoformat()
 
 
 def seed_campaigns(only=None):
