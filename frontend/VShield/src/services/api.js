@@ -7,6 +7,15 @@ const BASE_URL = (
   'https://1ldu4adn0l.execute-api.ap-south-1.amazonaws.com'
 ).replace(/\/$/, '');
 
+// Recipient uploads PUT straight to a presigned S3 URL, bypassing the dev
+// proxy. The bucket's CORS allowlist only covers the localhost dev origins, so
+// in dev the PUT is routed through the dev server instead — see the
+// s3-upload proxy in vite.config.js. Builds keep PUTting to S3 directly.
+const uploadTarget = (url) =>
+  typeof import.meta !== 'undefined' && import.meta.env?.DEV
+    ? `/__s3-upload?url=${encodeURIComponent(url)}`
+    : url;
+
 async function request(path, { method = 'GET', body } = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
@@ -77,7 +86,7 @@ export const api = {
         method: 'POST',
         body: { name, description, fileName: file.name, listId },
       });
-      const put = await fetch(presign.uploadUrl, {
+      const put = await fetch(uploadTarget(presign.uploadUrl), {
         method: 'PUT',
         headers: { 'Content-Type': 'text/csv' },
         body: file,
