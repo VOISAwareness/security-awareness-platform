@@ -198,11 +198,7 @@ const Layout = () => {
             <NavLink to="/announcements" label="ANNOUNCEMENT" icon={MessageSquare} perm="announcements" />
             <NavLink to="/user-dls" label="USER LIST (DL)" icon={Users} perm="user-dls" />
             <NavLink to="/email-domains" label="EMAIL IDs & DOMAINS" icon={AtSign} perm="email-domains" />
-            
-            {(hasAccess('requests') || hasAccess('approvals')) && (
-              <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="requests-approvals" />
-            )}
-            
+            <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="requests-approvals" />
             <NavLink to="/gamification" label="GAMIFICATION ENGINE" icon={Sparkles} perm="gamification-engine" />
             <NavLink to="/analytics" label="DASHBOARD & ANALYTICS" icon={BarChart2} perm="analytics" />
             <NavLink to="/my-space" label="MY SPACE" icon={User} perm="always" />
