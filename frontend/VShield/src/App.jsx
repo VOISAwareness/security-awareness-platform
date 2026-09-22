@@ -7,6 +7,10 @@ import Layout from './GlobalComponents/Layout';
 import LandingPage from './Pages/LandingPage/LandingPage';
 import HomeScreen from './Pages/HomeScreen/HomeScreen';
 
+// Import Scenario Pages
+import Scenarios from './Pages/Scenarios/Scenarios';
+import NewScenario from './Pages/Scenarios/ScenarioDeatils';
+
 // 🌟 Import MySpace Page
 import MySpace from './Pages/UserProfileandPointsScoreing/MySpace';
 
@@ -26,10 +30,6 @@ import CampaignEmail from './Pages/StartCampaign/CampaignEmail';
 import LandingPageDetails from './Pages/StartCampaign/LandingPageDetails';
 import AddTrainingPath from './Pages/StartCampaign/AddTrainingPath';
 import ReviewAndPublishCampaign from './Pages/StartCampaign/ReviewAndPublishCampaign';
-
-// 🌟 Import Campaign Lifecycle Pages
-import CampaignsHub from './Pages/Campaigns/CampaignsHub';
-import RequestsAndApprovals from './Pages/Approvals/RequestsAndApprovals';
 
 // 🌟 Import UserDLs Suite
 import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
@@ -105,10 +105,9 @@ function App() {
             <Route path="/user-lists/bulk-upload" element={<UserListViaBulkUpload />} />
 
             {/* Campaign Management Routes */}
-            {/* NB: /start-campaign is already routed to the wizard above; the
-                duplicate placeholder that used to sit here was dead code. */}
-            <Route path="/create-scenario" element={<PlaceholderPage title="Create Scenario" />} />
-            <Route path="/campaigns" element={<CampaignsHub />} />
+            <Route path="/create-scenario" element={<Scenarios/>} />
+            <Route path="/new-scenario" element={<NewScenario/>} />
+            <Route path="/campaigns" element={<PlaceholderPage title="Campaigns Hub" />} />
 
             {/* Training & Learning Routes */}
             <Route path="/add-training" element={<PlaceholderPage title="Training Matrix" />} />
@@ -118,7 +117,7 @@ function App() {
             <Route path="/announcements" element={<PlaceholderPage title="Security Announcements" />} />
 
             {/* Approvals & Analytics */}
-            <Route path="/requests-approvals" element={<RequestsAndApprovals />} />
+            <Route path="/requests-approvals" element={<PlaceholderPage title="Requests & Approvals" />} />
             <Route path="/analytics" element={<PlaceholderPage title="Dashboard & Analytics" />} />
 
             {/* Fallback inside dashboard */}
