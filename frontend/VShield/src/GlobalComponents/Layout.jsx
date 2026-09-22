@@ -192,7 +192,7 @@ const Layout = () => {
           <nav className="flex-1 px-2 flex flex-col gap-[2.5px] overflow-hidden select-none">
             <NavLink to="/start-campaign" label="START NEW CAMPAIGN" icon={Rocket} perm="start-campaign" />
             <NavLink to="/scenarios" label="SCENARIOS" icon={FileText} perm="scenarios" />
-            <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="start-campaign" />
+            <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="campaigns" />
             <NavLink to="/training" label="TRAINING" icon={Laptop} perm="training" />
             <NavLink to="/landing-page-catalogue" label="LANDING PAGE CATALOGUE" icon={LayoutTemplate} perm="landing-page-catalogue" />
             <NavLink to="/announcements" label="ANNOUNCEMENT" icon={MessageSquare} perm="announcements" />
