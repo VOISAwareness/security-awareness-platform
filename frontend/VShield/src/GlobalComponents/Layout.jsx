@@ -60,10 +60,15 @@ const Layout = () => {
   const resolvedIconColor = VarNavPaneIconColor(Boolean(isDark));
   const resolvedTextColor = VarNavPaneIconTextColor(Boolean(isDark));
 
-  const NavLink = ({ to, label, icon: Icon, perm }) => {
-    if (perm !== 'always' && !hasAccess(perm)) return null;
+  const NavLink = ({ to, label, icon: Icon, perm, activePaths = [] }) => {
+  if (perm !== 'always' && !hasAccess(perm)) return null;
 
-    const isActive = location.pathname === to || (to !== '/' && to !== '/home' && location.pathname.startsWith(to));
+  const isActive =
+    location.pathname === to ||
+    (to !== '/' &&
+      to !== '/home' &&
+      location.pathname.startsWith(to)) ||
+    activePaths.includes(location.pathname);
 
     return (
       <Link 
@@ -191,14 +196,24 @@ const Layout = () => {
           {/* 13 Navigation Items */}
           <nav className="flex-1 px-2 flex flex-col gap-[2.5px] overflow-hidden select-none">
             <NavLink to="/start-campaign" label="START NEW CAMPAIGN" icon={Rocket} perm="start-campaign" />
-            <NavLink to="/scenarios" label="SCENARIOS" icon={FileText} perm="scenarios" />
-            <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="campaigns" />
+            <NavLink
+  to="/create-scenario"
+  label="SCENARIOS"
+  icon={FileText}
+  perm="scenarios"
+  activePaths={['/new-scenario']}
+/>
+            <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="start-campaign" />
             <NavLink to="/training" label="TRAINING" icon={Laptop} perm="training" />
             <NavLink to="/landing-page-catalogue" label="LANDING PAGE CATALOGUE" icon={LayoutTemplate} perm="landing-page-catalogue" />
             <NavLink to="/announcements" label="ANNOUNCEMENT" icon={MessageSquare} perm="announcements" />
             <NavLink to="/user-dls" label="USER LIST (DL)" icon={Users} perm="user-dls" />
             <NavLink to="/email-domains" label="EMAIL IDs & DOMAINS" icon={AtSign} perm="email-domains" />
-            <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="requests-approvals" />
+            
+            {(hasAccess('requests') || hasAccess('approvals')) && (
+              <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="requests-approvals" />
+            )}
+            
             <NavLink to="/gamification" label="GAMIFICATION ENGINE" icon={Sparkles} perm="gamification-engine" />
             <NavLink to="/analytics" label="DASHBOARD & ANALYTICS" icon={BarChart2} perm="analytics" />
             <NavLink to="/my-space" label="MY SPACE" icon={User} perm="always" />
