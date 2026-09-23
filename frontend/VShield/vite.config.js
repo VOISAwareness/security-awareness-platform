@@ -38,7 +38,11 @@ const s3UploadProxy = () => ({
         try {
           const put = await fetch(upstream, {
             method: 'PUT',
-            headers: { 'content-type': req.headers['content-type'] || 'text/csv' },
+            // The browser always sets this; the fallback must stay neutral so a
+            // non-CSV upload (a scenario cover) can't be signed as text/csv.
+            headers: {
+              'content-type': req.headers['content-type'] || 'application/octet-stream',
+            },
             body: Buffer.concat(chunks),
           })
           res.statusCode = put.status

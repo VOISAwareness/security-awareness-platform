@@ -62,7 +62,30 @@ export const api = {
   },
   // Read-only reference data (used by later screens).
   users: { list: () => request('/users') },
-  scenarios: { list: () => request('/scenarios') },
+  scenarios: {
+    list: () => request('/scenarios'),
+    get: (id) => request(`/scenarios/${encodeURIComponent(id)}`),
+    create: (item) => request('/scenarios', { method: 'POST', body: item }),
+    update: (id, patch) =>
+      request(`/scenarios/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
+    remove: (id) => request(`/scenarios/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+    // Presign, then PUT the image straight to S3. Returns the key to store as
+    // CoverImageID; the API hands back a presigned GET for it on later reads.
+    async uploadCover({ scenarioId, file }) {
+      const presign = await request('/scenarios/cover-upload', {
+        method: 'POST',
+        body: { scenarioId, fileName: file.name, contentType: file.type },
+      });
+      const put = await fetch(uploadTarget(presign.uploadUrl), {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Cover upload failed (${put.status})`);
+      return presign.coverImageKey;
+    },
+  },
   landingPages: {
     list: () => request('/landing-pages'),
     create: (item) => request('/landing-pages', { method: 'POST', body: item }),

@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
+import { api } from "../../services/api";
+import { catalogueCoverName, toStoredScenario } from "../../services/scenarioMapper";
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import RenderEditorWorkspace from './RenderEditorWorkspace';
 import scenariosJsonData from "./ScenariosData.json";
@@ -1125,7 +1127,7 @@ const goNext = () => {
       return previous + 1;
     }
 
-    handlePublishCampaign();
+    handlePublishScenario();
     return previous;
   });
 };
@@ -1143,58 +1145,50 @@ const goNext = () => {
 // PUBLISH SCENARIO
 // Same functionality as ReviewAndPublishCampaign
 // ==========================================================
-const handlePublishCampaign = () => {
+const handlePublishScenario = async () => {
   setIsPublishing(true);
+  setErrorMsg('');
 
-  setTimeout(() => {
-    try {
-      const publishedCampaigns = JSON.parse(
-        localStorage.getItem(
-          'voisshield_published_campaigns'
-        ) || '[]'
-      );
-
-      const newCampaign = {
-        ...formData,
-
-        campaignId: `CAMP-${Date.now()
-          .toString()
-          .slice(-5)}`,
-
-        publishedAt: new Date().toISOString(),
-
-        status: 'Active',
-
-        stats: {
-          sent: formData.totalUsers || 100,
-          opened: 0,
-          clicked: 0,
-          compromised: 0,
-          reported: 0,
-        },
-      };
-
-      publishedCampaigns.unshift(newCampaign);
-
-      localStorage.setItem(
-        'voisshield_published_campaigns',
-        JSON.stringify(publishedCampaigns)
-      );
-
-      console.log(
-        'Published Campaign:',
-        newCampaign
-      );
-    } catch (error) {
-      console.error(
-        'Failed to publish campaign:',
-        error
-      );
+  try {
+    // A custom-built landing page is a real landing page: save it to the
+    // catalogue and keep its id, rather than discarding the author's work.
+    let landingPageId = formData.landingPageId;
+    if (formData.landingPageSource === 'builder' && formData.landingPageContent) {
+      const page = await api.landingPages.create({
+        LandingPageName: `${formData.scenarioName || formData.scenarioId} landing page`,
+        LandingPageDescription: `Created with scenario ${formData.scenarioId}.`,
+        LandingPageContent: formData.landingPageContent,
+      });
+      landingPageId = page?.LandingPageID || landingPageId;
     }
 
-    setIsPublishing(false);
+    let coverImageId = '';
+    if (formData.coverImageSource === 'upload' && formData.coverImage) {
+      coverImageId = await api.scenarios.uploadCover({
+        scenarioId: formData.scenarioId,
+        file: formData.coverImage,
+      });
+    } else if (formData.selectedCatalogueImageId) {
+      const chosen = imageCatalogue.find(
+        (img) => img.id === formData.selectedCatalogueImageId
+      );
+      coverImageId = catalogueCoverName(chosen?.image);
+    }
+
+    await api.scenarios.create(
+      toStoredScenario(formData, { coverImageId, landingPageId })
+    );
     setPublishSuccessModal(true);
-  }, 600);
+  } catch (error) {
+    // Never show the success modal on failure — the author would leave
+    // believing the scenario was saved when nothing was written.
+    console.error('Failed to publish scenario:', error);
+    setErrorMsg(
+      error?.message || 'Could not publish the scenario. Please try again.'
+    );
+  } finally {
+    setIsPublishing(false);
+  }
 };
 
   return (
