@@ -203,17 +203,13 @@ const Layout = () => {
   perm="scenarios"
   activePaths={['/new-scenario']}
 />
-            <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="start-campaign" />
+            <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="campaigns" />
             <NavLink to="/training" label="TRAINING" icon={Laptop} perm="training" />
             <NavLink to="/landing-page-catalogue" label="LANDING PAGE CATALOGUE" icon={LayoutTemplate} perm="landing-page-catalogue" />
             <NavLink to="/announcements" label="ANNOUNCEMENT" icon={MessageSquare} perm="announcements" />
             <NavLink to="/user-dls" label="USER LIST (DL)" icon={Users} perm="user-dls" />
             <NavLink to="/email-domains" label="EMAIL IDs & DOMAINS" icon={AtSign} perm="email-domains" />
-            
-            {(hasAccess('requests') || hasAccess('approvals')) && (
-              <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="requests-approvals" />
-            )}
-            
+            <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="requests-approvals" />
             <NavLink to="/gamification" label="GAMIFICATION ENGINE" icon={Sparkles} perm="gamification-engine" />
             <NavLink to="/analytics" label="DASHBOARD & ANALYTICS" icon={BarChart2} perm="analytics" />
             <NavLink to="/my-space" label="MY SPACE" icon={User} perm="always" />
