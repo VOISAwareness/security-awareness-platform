@@ -80,6 +80,88 @@ def parse_body(event):
     return json.loads(raw)
 
 
+# DynamoDB's hard limit is 400 KB per item; leave headroom for what we add.
+MAX_ITEM_BYTES = 380 * 1024
+
+# Cover images the browser may upload. Anything else is refused before signing,
+# so an arbitrary file type can never reach the bucket through a presigned PUT.
+COVER_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+
+
+def too_large(item):
+    """Return the offending size in bytes if the item exceeds the DynamoDB cap."""
+    size = len(json.dumps(item, cls=DecimalEncoder).encode("utf-8"))
+    return size if size > MAX_ITEM_BYTES else 0
+
+
+def size_error(size):
+    return err(
+        413,
+        (
+            f"Scenario is too large to save ({size // 1024} KB; limit "
+            f"{MAX_ITEM_BYTES // 1024} KB). This usually means images were pasted "
+            "into the email or landing page as embedded data. Link to images "
+            "instead of embedding them."
+        ),
+    )
+
+
+def next_sequence_id(rows, key_attr, prefix):
+    """Continue a PREFIX-00N sequence, ignoring rows that don't match the shape."""
+    nums = []
+    pattern = rf"^{re.escape(prefix)}-(\d+)$"
+    for row in rows:
+        m = re.match(pattern, str(row.get(key_attr, "")))
+        if m:
+            nums.append(int(m.group(1)))
+    return f"{prefix}-{(max(nums) + 1) if nums else 1:03d}"
+
+
+def safe_name(name):
+    return re.sub(r"[^A-Za-z0-9._-]", "_", str(name))
+
+
+def cover_image_key(scenario_id, file_name):
+    """S3 key for a scenario cover. Both segments are sanitized because the
+    scenario id is typed by the user in the wizard, not generated."""
+    return f"uploads/scenario-covers/{safe_name(scenario_id)}/{safe_name(file_name)}"
+
+
+def delete_s3_prefix(bucket, prefix):
+    """Remove every object under a prefix (re-uploads leave earlier versions
+    behind). Best effort: a failure is logged and swallowed so it can never
+    block the DynamoDB delete it accompanies."""
+    try:
+        paginator = s3_client.get_paginator("list_objects_v2")
+        to_delete = [
+            {"Key": obj["Key"]}
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix)
+            for obj in page.get("Contents", [])
+        ]
+        for i in range(0, len(to_delete), 1000):
+            s3_client.delete_objects(
+                Bucket=bucket, Delete={"Objects": to_delete[i : i + 1000]}
+            )
+    except ClientError as e:
+        print(json.dumps({"message": "S3 cleanup failed", "prefix": prefix, "error": str(e)}))
+
+
+def sign_cover(item):
+    """Uploaded covers live in a private bucket, so a bare URL would 403. Swap
+    the stored key for a presigned GET. CoverImageID stays a string, so the
+    response shape is unchanged and the UI's existing resolver handles it."""
+    key = (item or {}).get("CoverImageID", "")
+    if not UPLOAD_BUCKET or not str(key).startswith("uploads/"):
+        return item
+    signed = dict(item)
+    signed["CoverImageID"] = s3_client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": UPLOAD_BUCKET, "Key": key},
+        ExpiresIn=3600,
+    )
+    return signed
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /sender-identities": "sender-identities",
@@ -110,13 +192,18 @@ def lambda_handler(event, context):
 
     try:
         if route in LIST_ROUTES:
-            items = scan_all(LIST_ROUTES[route])
+            name = LIST_ROUTES[route]
+            items = scan_all(name)
+            if name == "scenarios":
+                items = [sign_cover(i) for i in items]
             return ok(items, count=len(items))
 
         if route in GET_BY_ID:
             name, key_attr = GET_BY_ID[route]
             item = get_one(name, {key_attr: params["id"]})
-            return ok(item) if item else err(404, "Not found")
+            if not item:
+                return err(404, "Not found")
+            return ok(sign_cover(item) if name == "scenarios" else item)
 
         if route == "GET /user-lists/{id}/members":
             resp = table("user-list-members").query(
@@ -161,12 +248,9 @@ def lambda_handler(event, context):
             item = dict(body)
             if not item.get("LandingPageID"):
                 # Continue the LP-00N sequence the catalogue already uses.
-                nums = []
-                for row in scan_all("landing-pages"):
-                    m = re.match(r"^LP-(\d+)$", str(row.get("LandingPageID", "")))
-                    if m:
-                        nums.append(int(m.group(1)))
-                item["LandingPageID"] = f"LP-{(max(nums) + 1) if nums else 1:03d}"
+                item["LandingPageID"] = next_sequence_id(
+                    scan_all("landing-pages"), "LandingPageID", "LP"
+                )
             item.setdefault(
                 "CreatedDate", datetime.now(UTC).strftime("%d/%m/%Y %I:%M %p")
             )
@@ -188,6 +272,93 @@ def lambda_handler(event, context):
             table("landing-pages").delete_item(Key={"LandingPageID": params["id"]})
             return respond(204, {"data": None})
 
+        # --- scenarios CRUD (authoring wizard) ---
+        if route == "POST /scenarios":
+            body = parse_body(event)
+            if not body.get("scenarioName"):
+                return err(400, "scenarioName is required")
+            item = dict(body)
+            # The wizard's first step asks the author to type an id, so the
+            # SC-00N sequence is only a fallback for when one wasn't supplied.
+            item["scenarioId"] = body.get("scenarioId") or next_sequence_id(
+                scan_all("scenarios"), "scenarioId", "SC"
+            )
+            now = datetime.now(UTC)
+            item.setdefault("CreatedOn", f"{now.day}-{now.strftime('%b-%y')}")
+            for field in (
+                "description",
+                "emailBody",
+                "CoverImageID",
+                "landingPageId",
+                "trainingId",
+            ):
+                item.setdefault(field, "")
+            oversize = too_large(item)
+            if oversize:
+                return size_error(oversize)
+            try:
+                table("scenarios").put_item(
+                    Item=item,
+                    ConditionExpression="attribute_not_exists(scenarioId)",
+                )
+            except ClientError as e:
+                # Caught here on purpose: the outer handler would flatten this
+                # into a generic 500 and the author would never learn the id is
+                # taken. Unlike landing-pages, the id is user-typed, so a plain
+                # put_item would silently overwrite someone else's scenario.
+                if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                    return err(409, f"Scenario {item['scenarioId']} already exists")
+                raise
+            return respond(201, {"data": item})
+
+        if route == "PUT /scenarios/{id}":
+            body = parse_body(event)
+            existing = get_one("scenarios", {"scenarioId": params["id"]})
+            if not existing:
+                return err(404, "Scenario not found")
+            merged = {**existing, **body, "scenarioId": params["id"]}
+            oversize = too_large(merged)
+            if oversize:
+                return size_error(oversize)
+            table("scenarios").put_item(Item=merged)
+            return ok(merged)
+
+        if route == "DELETE /scenarios/{id}":
+            table("scenarios").delete_item(Key={"scenarioId": params["id"]})
+            if UPLOAD_BUCKET:
+                delete_s3_prefix(
+                    UPLOAD_BUCKET,
+                    f"uploads/scenario-covers/{safe_name(params['id'])}/",
+                )
+            return respond(204, {"data": None})
+
+        # Presign a cover upload. No DynamoDB row is written here -- the POST or
+        # PUT that follows persists the returned key on the scenario itself.
+        if route == "POST /scenarios/cover-upload":
+            if not UPLOAD_BUCKET:
+                return err(500, "Upload bucket is not configured")
+            body = parse_body(event)
+            if not body.get("scenarioId"):
+                return err(400, "scenarioId is required")
+            if not body.get("fileName"):
+                return err(400, "fileName is required")
+            content_type = body.get("contentType") or "image/png"
+            if content_type not in COVER_CONTENT_TYPES:
+                return err(400, f"Unsupported cover image type: {content_type}")
+            key = cover_image_key(body["scenarioId"], body["fileName"])
+            upload_url = s3_client.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": UPLOAD_BUCKET,
+                    "Key": key,
+                    "ContentType": content_type,
+                },
+                ExpiresIn=900,
+            )
+            return respond(
+                201, {"data": {"coverImageKey": key, "uploadUrl": upload_url}}
+            )
+
         # --- recipient list bulk upload: create pending list + presigned S3 PUT ---
         if route == "POST /user-lists/bulk-upload":
             if not UPLOAD_BUCKET:
@@ -199,8 +370,7 @@ def lambda_handler(event, context):
             # in place instead of creating a duplicate.
             list_id = body.get("listId") or f"ul-{uuid.uuid4().hex[:8]}"
             raw_name = body.get("fileName") or "recipients.csv"
-            safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", raw_name)
-            s3_key = f"uploads/recipients/{list_id}/{safe_name}"
+            s3_key = f"uploads/recipients/{list_id}/{safe_name(raw_name)}"
             now = datetime.now(UTC).isoformat()
 
             table("user-lists").put_item(
@@ -275,20 +445,7 @@ def lambda_handler(event, context):
             # versions behind), so no recipient PII is orphaned in S3.
             bucket = (existing or {}).get("s3Bucket") or UPLOAD_BUCKET
             if bucket:
-                try:
-                    prefix = f"uploads/recipients/{list_id}/"
-                    paginator = s3_client.get_paginator("list_objects_v2")
-                    to_delete = [
-                        {"Key": obj["Key"]}
-                        for page in paginator.paginate(Bucket=bucket, Prefix=prefix)
-                        for obj in page.get("Contents", [])
-                    ]
-                    for i in range(0, len(to_delete), 1000):
-                        s3_client.delete_objects(
-                            Bucket=bucket, Delete={"Objects": to_delete[i : i + 1000]}
-                        )
-                except ClientError as e:
-                    print(json.dumps({"message": "S3 cleanup failed", "error": str(e)}))
+                delete_s3_prefix(bucket, f"uploads/recipients/{list_id}/")
             table("user-lists").delete_item(Key={"userListId": list_id})
             return respond(204, {"data": None})
 

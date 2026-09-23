@@ -18,6 +18,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
+import { api } from "../../services/api";
 
 // =========================================================================
 // 🖼️ IMAGE RESOLVER — eagerly import every asset once, then look up by filename
@@ -552,9 +553,36 @@ const Scenarios = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read scenarios from scenarioData.json, keep original index for a stable key
-  // (two entries currently share id "PH-001", so id alone isn't unique)
-  const scenariosList = (scenarioData?.scenarios || []).map((s, idx) => ({
+  const [rawScenarios, setRawScenarios] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    const apply = (rows) => {
+      if (!active) return;
+      // A DynamoDB scan is unordered and the cover fallback below is
+      // index-based, so pin the order before it reaches the grid.
+      setRawScenarios(
+        [...(rows || [])].sort((a, b) =>
+          String(a.scenarioId || '').localeCompare(String(b.scenarioId || ''))
+        )
+      );
+    };
+    api.scenarios
+      .list()
+      .then(apply)
+      // Falling back to the bundled data keeps the screen usable if the API is
+      // unreachable, which is also how ChooseAScenario behaves.
+      .catch((e) => {
+        console.error('Failed to load scenarios', e);
+        apply(scenarioData?.scenarios || []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Keep the original index for a stable key: ids are not guaranteed unique.
+  const scenariosList = rawScenarios.map((s, idx) => ({
     ...s,
     _key: `${s.id}-${idx}`,
     difficulty: s.difficulty || 'Medium',

@@ -77,17 +77,34 @@ resource "aws_iam_role_policy" "reference_api_s3" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["s3:PutObject", "s3:DeleteObject"]
-        Resource = "${aws_s3_bucket.assets.arn}/uploads/recipients/*"
+        Effect = "Allow"
+        Action = ["s3:PutObject", "s3:DeleteObject"]
+        Resource = [
+          "${aws_s3_bucket.assets.arn}/uploads/recipients/*",
+          "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*",
+        ]
       },
       {
-        # Needed to enumerate a list's files before deleting them.
+        # Scenario covers only. The bucket is private, so the browser cannot
+        # fetch a bare S3 URL and the API hands out presigned GETs instead.
+        # Recipient uploads stay write-and-delete only: they hold PII, and
+        # nothing in this API should be able to read them back.
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*"
+      },
+      {
+        # Needed to enumerate a list's or a scenario's files before deleting them.
         Effect   = "Allow"
         Action   = ["s3:ListBucket"]
         Resource = aws_s3_bucket.assets.arn
         Condition = {
-          StringLike = { "s3:prefix" = "uploads/recipients/*" }
+          StringLike = {
+            "s3:prefix" = [
+              "uploads/recipients/*",
+              "uploads/scenario-covers/*",
+            ]
+          }
         }
       },
       {
@@ -125,6 +142,11 @@ locals {
     "GET /users/{id}",
     "GET /scenarios",
     "GET /scenarios/{id}",
+    "POST /scenarios",
+    "PUT /scenarios/{id}",
+    "DELETE /scenarios/{id}",
+    # Static path, so it never collides with POST /scenarios.
+    "POST /scenarios/cover-upload",
     "GET /landing-pages",
     "GET /landing-pages/{id}",
     "POST /landing-pages",
