@@ -31,6 +31,10 @@ import LandingPageDetails from './Pages/StartCampaign/LandingPageDetails';
 import AddTrainingPath from './Pages/StartCampaign/AddTrainingPath';
 import ReviewAndPublishCampaign from './Pages/StartCampaign/ReviewAndPublishCampaign';
 
+// 🌟 Import Campaign Lifecycle Pages
+import CampaignsHub from './Pages/Campaigns/CampaignsHub';
+import RequestsAndApprovals from './Pages/Approvals/RequestsAndApprovals';
+
 // 🌟 Import UserDLs Suite
 import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
 import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
@@ -107,7 +111,7 @@ function App() {
             {/* Campaign Management Routes */}
             <Route path="/create-scenario" element={<Scenarios/>} />
             <Route path="/new-scenario" element={<NewScenario/>} />
-            <Route path="/campaigns" element={<PlaceholderPage title="Campaigns Hub" />} />
+            <Route path="/campaigns" element={<CampaignsHub />} />
 
             {/* Training & Learning Routes */}
             <Route path="/add-training" element={<PlaceholderPage title="Training Matrix" />} />
@@ -117,7 +121,7 @@ function App() {
             <Route path="/announcements" element={<PlaceholderPage title="Security Announcements" />} />
 
             {/* Approvals & Analytics */}
-            <Route path="/requests-approvals" element={<PlaceholderPage title="Requests & Approvals" />} />
+            <Route path="/requests-approvals" element={<RequestsAndApprovals />} />
             <Route path="/analytics" element={<PlaceholderPage title="Dashboard & Analytics" />} />
 
             {/* Fallback inside dashboard */}
