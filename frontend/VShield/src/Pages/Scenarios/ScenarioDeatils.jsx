@@ -320,6 +320,7 @@ const ScenarioDetailsTab = ({
   setFormData,
   goNext,
   goBack,
+  setErrorMsg,
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
 
@@ -943,6 +944,10 @@ const ScenarioDeatils = () => {
 
   const [activeTab, setActiveTab] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  // Kept separate from errorMsg on purpose. A validation hint is transient and
+  // self-dismisses; a failed save means nothing was written, so it has to stay
+  // on screen until the author dismisses it.
+  const [saveError, setSaveError] = useState('');
  const navigate = useNavigate();
    const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
@@ -1121,15 +1126,16 @@ const goNext = () => {
   // Clear any previous validation error
   setErrorMsg('');
 
-  // Move to next tab
-  setActiveTab((previous) => {
-    if (previous < 3) {
-      return previous + 1;
-    }
-
+  // Publishing is a side effect, so it must not run inside a state updater.
+  // React invokes updaters twice under StrictMode, which sent two POSTs: the
+  // first saved the scenario and the second came back 409 as a duplicate id,
+  // so a successful publish reported itself as a failure.
+  if (activeTab >= 3) {
     handlePublishScenario();
-    return previous;
-  });
+    return;
+  }
+
+  setActiveTab((previous) => previous + 1);
 };
 
   const goBack = () => {
@@ -1148,6 +1154,7 @@ const goNext = () => {
 const handlePublishScenario = async () => {
   setIsPublishing(true);
   setErrorMsg('');
+  setSaveError('');
 
   try {
     // A custom-built landing page is a real landing page: save it to the
@@ -1183,7 +1190,7 @@ const handlePublishScenario = async () => {
     // Never show the success modal on failure — the author would leave
     // believing the scenario was saved when nothing was written.
     console.error('Failed to publish scenario:', error);
-    setErrorMsg(
+    setSaveError(
       error?.message || 'Could not publish the scenario. Please try again.'
     );
   } finally {
@@ -1320,7 +1327,7 @@ const handlePublishScenario = async () => {
       {/* ====================================================
     TOP-RIGHT VALIDATION TOAST
 ==================================================== */}
-{errorMsg &&
+{(saveError || errorMsg) &&
   typeof document !== 'undefined' &&
   createPortal(
     <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
@@ -1333,18 +1340,18 @@ const handlePublishScenario = async () => {
       {/* Error Message */}
       <div className="flex flex-col text-left leading-tight flex-1">
         <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-          Input Required
+          {saveError ? 'Scenario Not Saved' : 'Input Required'}
         </span>
 
         <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-          {errorMsg}
+          {saveError || errorMsg}
         </span>
       </div>
 
       {/* Close Button */}
       <button
         type="button"
-        onClick={() => setErrorMsg('')}
+        onClick={() => { setErrorMsg(''); setSaveError(''); }}
         className="p-1 rounded text-slate-400 hover:text-black cursor-pointer flex-shrink-0"
       >
         <X className="w-3.5 h-3.5" />
@@ -1448,6 +1455,7 @@ const handlePublishScenario = async () => {
                 setFormData={setFormData}
                 goNext={goNext}
                 goBack={goBack}
+                setErrorMsg={setErrorMsg}
               />
             )}
 
