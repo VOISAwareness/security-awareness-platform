@@ -29,6 +29,7 @@ gamification and executive reporting — built on AWS serverless services.
 | Authentication | **Not implemented** — Entra ID SSO is designed for but deferred; the UI uses a local role picker |
 | Email sending | **SES sandbox** — real sends only reach verified identities |
 | Analytics pipeline | **Not built** — S3/Glue/Athena layer is design only |
+| Production cost | Estimated at ≈ $530/month for 30,000 users and ≈ $1,405/month for 3,00,000 — see [`docs/cost-estimate.md`](docs/cost-estimate.md) |
 
 ---
 
@@ -36,40 +37,93 @@ gamification and executive reporting — built on AWS serverless services.
 
 ![Security Awareness Platform — AWS high-level architecture](docs/architecture.png)
 
-**Figure 1 — Target AWS architecture** (vector copy: [`docs/architecture.svg`](docs/architecture.svg)).
+**Figure 1 — Target AWS architecture for the productionised version** (vector copy:
+[`docs/architecture.svg`](docs/architecture.svg)). Running cost:
+[`docs/cost-estimate.md`](docs/cost-estimate.md).
 
-- **Front door.** Users sign in with Microsoft Entra ID. CloudFront (with WAF, ACM
-  and Route 53) is the single entry point: it serves the React build and SCORM
-  training content from S3, and forwards `/api` to API Gateway (HTTP API, JWT).
-- **Application.** Lambdas run in private subnets of a Multi-AZ VPC. They reach
-  DynamoDB and S3 through gateway endpoints, and SES, Secrets Manager and Athena
-  through an interface endpoint. The only outbound internet path is
-  NAT Gateway → Internet Gateway → Microsoft Graph.
-- **Phishing loop.** Application Services sends simulations through SES to Outlook.
-  A link click hits the API, is recorded, and redirects the user to the LMS.
+The diagram is laid out as a 2 × 2 grid under a shared security strip. The AWS
+Cloud boundary is L-shaped so that Microsoft 365 sits outside it.
+
+| | Left | Right |
+|---|---|---|
+| **Top** | Application & Presentation Layer | Data & ETL Layer (AWS managed, regional) |
+| **Bottom** | External Enabler Systems (Microsoft 365) | BI Data Layer (Analytics account) |
+
+**How it works:**
+
+- **Front door.** Users sign in with Microsoft Entra ID. CloudFront is the single
+  entry point, with WAF, ACM and Route 53 alongside. It serves the React build and
+  the SCORM training content from S3, and forwards `/api` to API Gateway
+  (HTTP API, JWT). API Gateway is reachable only through CloudFront.
+- **Application.** Lambdas run in private subnets of a Multi-AZ VPC.
+  - DynamoDB and S3 are reached through gateway endpoints.
+  - SES, SQS, Secrets Manager and Athena are reached through an interface endpoint.
+  - The only outbound internet path is NAT Gateway → Internet Gateway →
+    Microsoft Graph.
+- **Queued email sending.** Application Services puts send jobs on Amazon SQS,
+  which is regional and outside the VPC. The Email Sender Lambda sends at a
+  controlled rate through SES to Outlook, with retries and a dead-letter queue.
+- **Phishing loop.** When an employee clicks a simulation link in Outlook, the
+  browser goes through CloudFront to the API. The API records the click and
+  redirects the employee to the LMS in React.
+- **Training content.** An admin uploads a SCORM `.zip` from the React app.
+  1. Application Services checks the admin's role and issues a short-lived
+     pre-signed URL.
+  2. The browser uploads the file straight to S3 Training.
+  3. GuardDuty scans the package. It is then validated (it must contain
+     `imsmanifest.xml` and no path traversal) and published.
+  4. Employees play it through CloudFront from a separate content domain.
 - **Reported emails.** Outlook → reporting mailbox → Power Automate → SharePoint.
-  An EventBridge schedule runs the Report Ingestion Lambda every 3 hours; it pulls
-  reports over Microsoft Graph, writes events to DynamoDB and raw payloads to S3.
-- **Analytics.** Glue extracts DynamoDB and raw data into S3 Curated summary
-  tables. Application Services queries Athena and returns the results to the
-  React charts — no separate BI tool.
+  Every 3 hours an EventBridge schedule runs the Report Ingestion Lambda. It pulls
+  reports over Microsoft Graph, writes events to DynamoDB and writes raw payloads
+  to S3 Raw.
+- **Analytics.** Glue extracts DynamoDB and S3 Raw data into S3 Curated summary
+  tables. Application Services queries Athena, which writes to S3 Query Results,
+  and returns the results to the React charts. There is no separate BI tool.
+- **Security, governance and observability** apply to all layers:
+  - **Identity & Secrets:** IAM, Secrets Manager, KMS.
+  - **Observability:** CloudWatch, X-Ray.
+  - **Governance & Protection:** CloudTrail, AWS Config, GuardDuty.
+  - **Resilience:** AWS Backup.
 
 VPC, account and region names in the diagram are placeholders until the target
 environment is confirmed.
 
-### Target vs. what runs today
+### Implemented today vs. planned for production
 
-| Area | Target (Figure 1) | Today |
+| Area | Implemented today (proof of concept) | Planned for the productionised Vodafone version |
 |---|---|---|
-| Database | Amazon DynamoDB | Amazon DynamoDB |
-| Compute | Lambda in private subnets of a Multi-AZ VPC | Lambda, **no VPC** (public AWS endpoints, free-tier friendly) |
-| API | API Gateway HTTP API behind CloudFront, JWT auth | API Gateway HTTP API (v2), called directly, **no auth** |
-| Front end | React on S3 behind CloudFront | Local `npm run dev` only |
-| Auth | Entra ID SSO / OIDC | **None** — client-side role selection, no tokens |
-| Email | SES production | SES **sandbox** |
-| Reported emails | Power Automate → SharePoint → scheduled Graph ingestion | **Not built** |
-| Analytics | Glue → S3 Curated → Athena → React charts | **Not built** |
-| Edge security | WAF, Secrets Manager, KMS CMKs, Backup | **Not provisioned** — AWS-owned-key SSE only |
+| Front end | React app, run locally with `npm run dev` | React on S3 behind CloudFront, with WAF, ACM and Route 53 |
+| API | API Gateway HTTP API (v2), called directly, **no auth** | HTTP API reachable **only through CloudFront**, JWT-validated |
+| Authentication / authorisation | **None**; the UI has a role picker | Entra ID SSO (OIDC); role checks inside the Lambdas using Entra groups |
+| Compute and network | Lambdas with **no VPC**, on public AWS endpoints | Lambdas in private subnets of a Multi-AZ VPC; gateway and interface endpoints; NAT per AZ |
+| Database | DynamoDB (15 tables, 5 GSIs), conditional writes | Same, plus customer-managed KMS keys, PITR, AWS Backup and TTL-based retention |
+| Campaigns, approvals, scenarios, landing pages, recipient lists | **Built**, backed by the live API | Same, behind authentication |
+| Email sending | Direct SES send, **sandbox** | SQS-queued Email Sender, SES production access, SPF/DKIM/DMARC, optional dedicated IP |
+| Phishing tracking | Tracking Lambda (open / click / compromise); never stores submitted secrets | Signed, unguessable link tokens; scanner-click filtering; Defender simulation allow-list |
+| Training / LMS | Training screens in the UI; no SCORM delivery | SCORM upload by pre-signed URL, GuardDuty scan, validation, playback from a separate domain |
+| Reported emails | Not built | Power Automate → SharePoint → scheduled Graph ingestion (`Sites.Selected`, delta queries) |
+| Analytics | Not built; UI charts use sample data | Glue → S3 Curated → Athena (scan-limited workgroup, cached results) → React charts |
+| Security and governance | S3 SSE (AES256), GitHub OIDC deploys, structured logs | WAF, Secrets Manager, KMS CMKs, CloudTrail, Config, GuardDuty, X-Ray, CloudWatch alarms |
+| Infrastructure as code | Terraform owns tables, bucket and 3 Lambdas; 5 Lambdas still click-ops | Everything in Terraform |
+| Environments | One account; merging to `main` deploys | Separate dev and prod accounts, with promotion between them |
+
+### Production rules not shown in the diagram
+
+- **Role checks.** Role-based authorisation is enforced in every Lambda from Entra
+  group claims, not only in the UI.
+- **Link tokens.** Tracking links carry signed, unguessable tokens. Automated
+  scanner clicks (for example Defender Safe Links) are filtered out of results.
+- **Email domain.** The sending domain has SPF, DKIM and DMARC. Simulation domains
+  are registered under Microsoft 365 *Advanced delivery → Phishing simulation*.
+- **Personal data.** Retention is enforced with DynamoDB TTL and S3 lifecycle
+  rules. Personal data is removed or pseudonymised before it reaches S3 Curated.
+- **Microsoft Graph.** Access is limited to the one SharePoint site
+  (`Sites.Selected`), with the credentials held in Secrets Manager.
+- **Cost guard-rails.** The Athena workgroup has a per-query scan limit. Budget
+  alerts are set on every account.
+- **Uploads.** Uploaded zips have size limits and path-traversal checks, and are
+  malware-scanned before publishing.
 
 ---
 
@@ -311,6 +365,7 @@ security-awareness-platform
 ├── docs/
 │   ├── architecture.png       # Figure 1 — target architecture (HD)
 │   ├── architecture.svg       # Figure 1 — vector copy
+│   ├── cost-estimate.md       # monthly/annual AWS cost for Figure 1
 │   └── cicd-pipeline.png      # Figure 2 — proposed pipeline
 ├── frontend/VShield/          # React 19 + Vite app
 │   └── src/
