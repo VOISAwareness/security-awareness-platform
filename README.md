@@ -36,31 +36,40 @@ gamification and executive reporting — built on AWS serverless services.
 
 ![Security Awareness Platform — AWS high-level architecture](docs/architecture.png)
 
-**Figure 1 — Target AWS architecture.**
+**Figure 1 — Target AWS architecture** (vector copy: [`docs/architecture.svg`](docs/architecture.svg)).
 
-The diagram shows the intended end state: corporate users authenticating through
-Microsoft Entra ID into a React front end, an API Gateway fronting Lambdas in a
-private subnet, SES for delivery, a separate user-interaction path for recipients
-who click a simulated phish, and an S3 → Glue → Athena analytics pipeline feeding
-executive dashboards — wrapped in WAF, IAM, Secrets Manager, KMS, CloudTrail,
-CloudWatch, Config and Backup.
+- **Front door.** Users sign in with Microsoft Entra ID. CloudFront (with WAF, ACM
+  and Route 53) is the single entry point: it serves the React build and SCORM
+  training content from S3, and forwards `/api` to API Gateway (HTTP API, JWT).
+- **Application.** Lambdas run in private subnets of a Multi-AZ VPC. They reach
+  DynamoDB and S3 through gateway endpoints, and SES, Secrets Manager and Athena
+  through an interface endpoint. The only outbound internet path is
+  NAT Gateway → Internet Gateway → Microsoft Graph.
+- **Phishing loop.** Application Services sends simulations through SES to Outlook.
+  A link click hits the API, is recorded, and redirects the user to the LMS.
+- **Reported emails.** Outlook → reporting mailbox → Power Automate → SharePoint.
+  An EventBridge schedule runs the Report Ingestion Lambda every 3 hours; it pulls
+  reports over Microsoft Graph, writes events to DynamoDB and raw payloads to S3.
+- **Analytics.** Glue extracts DynamoDB and raw data into S3 Curated summary
+  tables. Application Services queries Athena and returns the results to the
+  React charts — no separate BI tool.
+
+VPC, account and region names in the diagram are placeholders until the target
+environment is confirmed.
 
 ### Target vs. what runs today
 
 | Area | Target (Figure 1) | Today |
 |---|---|---|
-| Database | Amazon Aurora PostgreSQL | **Amazon DynamoDB** — Aurora was dropped; see note below |
-| Compute | Lambda in a private VPC subnet | Lambda, **no VPC** (public AWS endpoints, free-tier friendly) |
-| API | API Gateway REST | **API Gateway HTTP API (v2)** |
-| Auth | Entra ID SSO / OAuth2 / OIDC | **None** — client-side role selection, no tokens |
+| Database | Amazon DynamoDB | Amazon DynamoDB |
+| Compute | Lambda in private subnets of a Multi-AZ VPC | Lambda, **no VPC** (public AWS endpoints, free-tier friendly) |
+| API | API Gateway HTTP API behind CloudFront, JWT auth | API Gateway HTTP API (v2), called directly, **no auth** |
+| Front end | React on S3 behind CloudFront | Local `npm run dev` only |
+| Auth | Entra ID SSO / OIDC | **None** — client-side role selection, no tokens |
 | Email | SES production | SES **sandbox** |
-| Analytics | S3 → Glue → Athena → dashboards | **Not built** |
+| Reported emails | Power Automate → SharePoint → scheduled Graph ingestion | **Not built** |
+| Analytics | Glue → S3 Curated → Athena → React charts | **Not built** |
 | Edge security | WAF, Secrets Manager, KMS CMKs, Backup | **Not provisioned** — AWS-owned-key SSE only |
-
-> **Note on the database.** Figure 1 still shows Aurora PostgreSQL. That decision
-> was reversed: the platform uses **DynamoDB**, to stay inside the free tier and
-> avoid running a VPC and NAT for a POC. Treat DynamoDB as authoritative and the
-> Aurora box in the diagram as stale — the diagram is queued for revision.
 
 ---
 
@@ -300,7 +309,8 @@ security-awareness-platform
 │   ├── seed-data/             # sample S3 payloads
 │   └── tests/                 # pytest; must not call AWS
 ├── docs/
-│   ├── architecture.png       # Figure 1 — target architecture
+│   ├── architecture.png       # Figure 1 — target architecture (HD)
+│   ├── architecture.svg       # Figure 1 — vector copy
 │   └── cicd-pipeline.png      # Figure 2 — proposed pipeline
 ├── frontend/VShield/          # React 19 + Vite app
 │   └── src/
