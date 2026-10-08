@@ -132,23 +132,38 @@ export const PHASE = {
 };
 
 /**
- * Where an approved campaign sits in real time. Returns null when the campaign
- * has not been approved yet (a DRAFT with a future start date is not
- * "Upcoming" in any meaningful sense — it may never be approved) or when the
- * dates are missing/unparseable.
+ * Which of the three campaign tabs an approved campaign belongs to, keyed off
+ * what has actually happened to it rather than only its scheduled dates:
+ *
+ *   - APPROVED (not yet sent) -> Upcoming (Scheduled): it is waiting to be
+ *     sent, whatever its start/end dates say. A future start that has already
+ *     lapsed must not drag a sent campaign back into Scheduled.
+ *   - SENDING -> Live (Ongoing): emails are going out now.
+ *   - SENT -> Live (Ongoing) while it is still within its run window, then
+ *     Completed (Historical) once its end time passes. A campaign set to
+ *     auto-end after sending, or with no end time, is finished the moment it
+ *     is sent.
+ *
+ * Returns null for any other status (DRAFT, PENDING_APPROVAL, REJECTED,
+ * FAILED): those are not shown on the published tabs.
  */
 export function derivePhase(campaign, now = new Date()) {
-  const running = [STATUS.APPROVED, STATUS.SENDING, STATUS.SENT];
-  if (!campaign || !running.includes(campaign.status)) return null;
+  if (!campaign) return null;
 
-  const start = parseDate(campaign.startTime);
-  const end = parseDate(campaign.endTime);
+  if (campaign.status === STATUS.APPROVED) return PHASE.UPCOMING;
 
-  if (start && now < start) return PHASE.UPCOMING;
-  if (end && now > end) return PHASE.COMPLETED;
-  if (start && now >= start && (!end || now <= end)) return PHASE.LIVE;
-  // Sent with no usable dates: treat as finished rather than claiming it's live.
-  return campaign.status === STATUS.SENT ? PHASE.COMPLETED : null;
+  if (campaign.status === STATUS.SENDING) return PHASE.LIVE;
+
+  if (campaign.status === STATUS.SENT) {
+    // Auto-end after sending, or no end date -> finished at once.
+    if (campaign.autoEndPostSending === true) return PHASE.COMPLETED;
+    const end = parseDate(campaign.endTime);
+    if (!end) return PHASE.COMPLETED;
+    // Live until the end time passes, then Historical.
+    return now > end ? PHASE.COMPLETED : PHASE.LIVE;
+  }
+
+  return null;
 }
 
 /**
