@@ -7,6 +7,8 @@ import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+import { useGamificationRules } from '../../services/useGamificationRules';
+import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -84,6 +86,9 @@ const DetailsAndSettings = () => {
   // asynchronously and is null until then. Edits made in the meantime are safe:
   // flush() waits for the load before saving.
   const { draft, update, flush } = useCampaignDraft();
+
+  // Live gamification scores, as last saved in the Gamification Engine.
+  const gamificationRules = useGamificationRules();
 
   // Base L-shape container color
   const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
@@ -190,6 +195,21 @@ const DetailsAndSettings = () => {
     });
     await flush();
     navigate('/start-campaign/email');
+  };
+
+  // Save what has been typed, then open the Gamification Engine with a way
+  // back here; the card re-reads the scores when this step mounts again.
+  const handleOpenGamification = async () => {
+    persistChanges({
+      campaignTitle: campaignTitle.trim(),
+      campaignDescription: campaignDescription.trim(),
+      startTime,
+      endTime,
+      isTestCampaign,
+      autoEndPostSending
+    });
+    await flush();
+    navigate('/gamification', { state: { returnTo: '/start-campaign/details' } });
   };
 
   const handleGoBack = async () => {
@@ -472,24 +492,14 @@ const DetailsAndSettings = () => {
 
                         {/* Middle: Capsules (2 Columns × 3 Rows) */}
                         <div className="grid grid-cols-2 gap-x-2.5 gap-y-1.5 flex-shrink-0">
-                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
-                            Opened: 0
-                          </span>
-                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
-                            Clicked: -30
-                          </span>
-                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
-                            Compromised: 0
-                          </span>
-                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
-                            Reported: -30
-                          </span>
-                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
-                            Trained: 0
-                          </span>
-                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
-                            Evaluated: -30
-                          </span>
+                          {GAMIFICATION_EVENTS.map((name) => (
+                            <span
+                              key={name}
+                              className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs"
+                            >
+                              {name}: {gamificationRules.loading ? '…' : formatPoints(gamificationRules.points[name])}
+                            </span>
+                          ))}
                         </div>
 
                         {/* Right: Controller Image */}
@@ -522,7 +532,7 @@ const DetailsAndSettings = () => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate('/gamification');
+                            handleOpenGamification();
                           }}
                           className="px-5 py-1 rounded-full bg-[#8ED973] hover:bg-[#7ec963] text-white text-[10px] font-bold shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
                         >
