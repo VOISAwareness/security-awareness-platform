@@ -229,9 +229,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
     return { ongoing, scheduled, historical, drafts };
   }, [campaignsList, actor]);
 
+  // Reopen the draft on its details step (not step 1, which reads as starting
+  // over); "Go back" from there still reaches the scenario choice.
   const handleResume = (camp) => {
     setActiveCampaignId(camp.campaignId);
-    navigate('/start-campaign');
+    navigate('/start-campaign/details');
   };
 
   const handleDelete = async (camp) => {
