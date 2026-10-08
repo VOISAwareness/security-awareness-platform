@@ -27,6 +27,12 @@ TRANSITIONS = {
     "REJECT": {
         "required_statuses": ("PENDING_APPROVAL",),
         "new_status": "REJECTED"
+    },
+    # The creator pulls a request back to DRAFT, e.g. once its start time has
+    # passed without a decision, so it can be rescheduled and resubmitted.
+    "WITHDRAW": {
+        "required_statuses": ("PENDING_APPROVAL",),
+        "new_status": "DRAFT"
     }
 }
 
@@ -108,6 +114,9 @@ def identify_action(event):
     if route_key.endswith("/reject") or raw_path.endswith("/reject"):
         return "REJECT"
 
+    if route_key.endswith("/withdraw") or raw_path.endswith("/withdraw"):
+        return "WITHDRAW"
+
     # Allows direct Lambda console testing during the POC.
     return str(event.get("action", "")).upper()
 
@@ -137,6 +146,10 @@ def lambda_handler(event, context):
             or ""
         )
 
+        # Approvers can approve, reject, or reject with a notification asking
+        # the creator for changes. They never edit the campaign themselves.
+        notify = request_body.get("notify") is True
+
         if not campaign_id:
             return build_response(
                 400,
@@ -150,11 +163,7 @@ def lambda_handler(event, context):
                 400,
                 {
                     "message": "Unable to identify workflow action",
-                    "allowedActions": [
-                        "SUBMIT",
-                        "APPROVE",
-                        "REJECT"
-                    ]
+                    "allowedActions": list(TRANSITIONS)
                 }
             )
 
@@ -166,11 +175,16 @@ def lambda_handler(event, context):
                 }
             )
 
-        if action == "REJECT" and not comments.strip():
+        # A plain reject may carry an optional reason; a reject with
+        # notification is the message to the creator, so it cannot be empty.
+        if action == "REJECT" and notify and not comments.strip():
             return build_response(
                 400,
                 {
-                    "message": "comments are required when rejecting a campaign"
+                    "message": (
+                        "comments are required when rejecting with a "
+                        "notification to the creator"
+                    )
                 }
             )
 
@@ -210,6 +224,25 @@ def lambda_handler(event, context):
                 }
             )
 
+        # Only the creator may pull their own request back. createdBy is
+        # client-supplied until Entra ID lands; campaigns created before it
+        # existed have none, so they are not blocked.
+        creator = str(campaign.get("createdBy") or "").strip().lower()
+        if (
+            action == "WITHDRAW"
+            and creator
+            and creator != str(actor).strip().lower()
+        ):
+            return build_response(
+                403,
+                {
+                    "message": "Only the campaign's creator can withdraw it",
+                    "campaignId": campaign_id
+                }
+            )
+
+        extra_values = {}
+
         if action == "SUBMIT":
             problems = validate_for_submit(campaign)
             if problems:
@@ -239,12 +272,25 @@ def lambda_handler(event, context):
                 "updatedAt = :changedAt"
             )
 
-        else:
+        elif action == "REJECT":
+            # changesRequested separates "reject with notification" (the
+            # creator fixes and resubmits) from a plain reject.
             update_expression = (
                 "SET #status = :newStatus, "
                 "rejectedBy = :actor, "
                 "rejectedAt = :changedAt, "
                 "rejectionComments = :comments, "
+                "changesRequested = :notify, "
+                "updatedAt = :changedAt"
+            )
+            extra_values[":notify"] = notify
+
+        else:
+            update_expression = (
+                "SET #status = :newStatus, "
+                "withdrawnBy = :actor, "
+                "withdrawnAt = :changedAt, "
+                "withdrawalComments = :comments, "
                 "updatedAt = :changedAt"
             )
 
@@ -272,6 +318,7 @@ def lambda_handler(event, context):
                 ":actor": actor,
                 ":comments": comments,
                 ":changedAt": changed_at,
+                **extra_values,
                 **status_placeholders
             },
             ReturnValues="ALL_NEW"
