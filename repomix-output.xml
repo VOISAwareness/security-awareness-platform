@@ -1,0 +1,3193 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+public/
+  favicon.svg
+  icons.svg
+src/
+  assets/
+    hero.png
+    HomeScreenStoneElement.png
+    react.svg
+    v-shield-animated-shackle.gif
+    vite.svg
+  GlobalComponents/
+    Layout.jsx
+    TopHeaderSection.jsx
+  Pages/
+    DashboardAndAnalytics/
+      DashboardAndAnalytics.jsx
+    HomeScreen/
+      HomeScreen.jsx
+    LandingPage/
+      DepthCarousel.css
+      DepthCarousel.jsx
+      LandingPage.jsx
+      LandingPagePart2.jsx
+  UserTypeContext/
+    UserTypeContext.jsx
+  App.css
+  App.jsx
+  index.css
+  LandingPageImage.png
+  main.jsx
+.gitignore
+design.md
+eslint.config.js
+index.html
+package.json
+postcss.config.js
+README.md
+tailwind.config.js
+vite.config.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="public/favicon.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="46" fill="none" viewBox="0 0 48 46"><path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" style="fill:#863bff;fill:color(display-p3 .5252 .23 1);fill-opacity:1"/><mask id="a" width="48" height="46" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M25.842 44.938c-.664.844-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.183c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.498 0-3.579-1.842-3.579H1.133c-.92 0-1.456-1.04-.92-1.787L9.91.473c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.578 1.842 3.578h11.377c.943 0 1.473 1.088.89 1.832L25.843 44.94z" style="fill:#000;fill-opacity:1"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#ede6ff" rx="5.508" ry="14.704" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -4.47 31.516)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#ede6ff" rx="10.399" ry="29.851" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -39.328 7.883)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#7e14ff" rx="5.508" ry="30.487" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -25.913 -14.639)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -32.644 -3.334)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -34.34 30.47)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#ede6ff" rx="14.072" ry="22.078" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="rotate(93.35 24.506 48.493)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx=".387" cy="8.972" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(39.51 .387 8.972)"/></g><g filter="url(#k)"><ellipse cx="47.523" cy="-6.092" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 47.523 -6.092)"/></g><g filter="url(#l)"><ellipse cx="41.412" cy="6.333" fill="#47bfff" rx="5.971" ry="9.665" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 41.412 6.333)"/></g><g filter="url(#m)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#n)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#o)"><ellipse cx="35.651" cy="29.907" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 35.651 29.907)"/></g><g filter="url(#p)"><ellipse cx="38.418" cy="32.4" fill="#47bfff" rx="5.971" ry="15.297" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 38.418 32.4)"/></g></g><defs><filter id="b" width="60.045" height="41.654" x="-19.77" y="16.149" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-54.613" y="-7.533" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-49.64" y="2.03" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-45.045" y="20.029" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-43.513" y="21.178" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="15.756" y="-17.901" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-27.636" y="-22.853" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="20.116" y="-38.415" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="24.641" y="-11.323" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="8.244" y="-2.416" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="18.713" y="10.588" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="public/icons.svg">
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="bluesky-icon" viewBox="0 0 16 17">
+    <g clip-path="url(#bluesky-clip)"><path fill="#08060d" d="M7.75 7.735c-.693-1.348-2.58-3.86-4.334-5.097-1.68-1.187-2.32-.981-2.74-.79C.188 2.065.1 2.812.1 3.251s.241 3.602.398 4.13c.52 1.744 2.367 2.333 4.07 2.145-2.495.37-4.71 1.278-1.805 4.512 3.196 3.309 4.38-.71 4.987-2.746.608 2.036 1.307 5.91 4.93 2.746 2.72-2.746.747-4.143-1.747-4.512 1.702.189 3.55-.4 4.07-2.145.156-.528.397-3.691.397-4.13s-.088-1.186-.575-1.406c-.42-.19-1.06-.395-2.741.79-1.755 1.24-3.64 3.752-4.334 5.099"/></g>
+    <defs><clipPath id="bluesky-clip"><path fill="#fff" d="M.1.85h15.3v15.3H.1z"/></clipPath></defs>
+  </symbol>
+  <symbol id="discord-icon" viewBox="0 0 20 19">
+    <path fill="#08060d" d="M16.224 3.768a14.5 14.5 0 0 0-3.67-1.153c-.158.286-.343.67-.47.976a13.5 13.5 0 0 0-4.067 0c-.128-.306-.317-.69-.476-.976A14.4 14.4 0 0 0 3.868 3.77C1.546 7.28.916 10.703 1.231 14.077a14.7 14.7 0 0 0 4.5 2.306q.545-.748.965-1.587a9.5 9.5 0 0 1-1.518-.74q.191-.14.372-.293c2.927 1.369 6.107 1.369 8.999 0q.183.152.372.294-.723.437-1.52.74.418.838.963 1.588a14.6 14.6 0 0 0 4.504-2.308c.37-3.911-.63-7.302-2.644-10.309m-9.13 8.234c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.894 0 1.614.82 1.599 1.82.001 1-.705 1.82-1.6 1.82m5.91 0c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.893 0 1.614.82 1.599 1.82 0 1-.706 1.82-1.6 1.82"/>
+  </symbol>
+  <symbol id="documentation-icon" viewBox="0 0 21 20">
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="m15.5 13.333 1.533 1.322c.645.555.967.833.967 1.178s-.322.623-.967 1.179L15.5 18.333m-3.333-5-1.534 1.322c-.644.555-.966.833-.966 1.178s.322.623.966 1.179l1.534 1.321"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M17.167 10.836v-4.32c0-1.41 0-2.117-.224-2.68-.359-.906-1.118-1.621-2.08-1.96-.599-.21-1.349-.21-2.848-.21-2.623 0-3.935 0-4.983.369-1.684.591-3.013 1.842-3.641 3.428C3 6.449 3 7.684 3 10.154v2.122c0 2.558 0 3.838.706 4.726q.306.383.713.671c.76.536 1.79.64 3.581.66"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M3 10a2.78 2.78 0 0 1 2.778-2.778c.555 0 1.209.097 1.748-.047.48-.129.854-.503.982-.982.145-.54.048-1.194.048-1.749a2.78 2.78 0 0 1 2.777-2.777"/>
+  </symbol>
+  <symbol id="github-icon" viewBox="0 0 19 19">
+    <path fill="#08060d" fill-rule="evenodd" d="M9.356 1.85C5.05 1.85 1.57 5.356 1.57 9.694a7.84 7.84 0 0 0 5.324 7.44c.387.079.528-.168.528-.376 0-.182-.013-.805-.013-1.454-2.165.467-2.616-.935-2.616-.935-.349-.91-.864-1.143-.864-1.143-.71-.48.051-.48.051-.48.787.051 1.2.805 1.2.805.695 1.194 1.817.857 2.268.649.064-.507.27-.857.49-1.052-1.728-.182-3.545-.857-3.545-3.87 0-.857.31-1.558.8-2.104-.078-.195-.349-1 .077-2.078 0 0 .657-.208 2.14.805a7.5 7.5 0 0 1 1.946-.26c.657 0 1.328.092 1.946.26 1.483-1.013 2.14-.805 2.14-.805.426 1.078.155 1.883.078 2.078.502.546.799 1.247.799 2.104 0 3.013-1.818 3.675-3.558 3.87.284.247.528.714.528 1.454 0 1.052-.012 1.896-.012 2.156 0 .208.142.455.528.377a7.84 7.84 0 0 0 5.324-7.441c.013-4.338-3.48-7.844-7.773-7.844" clip-rule="evenodd"/>
+  </symbol>
+  <symbol id="social-icon" viewBox="0 0 20 20">
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M12.5 6.667a4.167 4.167 0 1 0-8.334 0 4.167 4.167 0 0 0 8.334 0"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M2.5 16.667a5.833 5.833 0 0 1 8.75-5.053m3.837.474.513 1.035c.07.144.257.282.414.309l.93.155c.596.1.736.536.307.965l-.723.73a.64.64 0 0 0-.152.531l.207.903c.164.715-.213.991-.84.618l-.872-.52a.63.63 0 0 0-.577 0l-.872.52c-.624.373-1.003.094-.84-.618l.207-.903a.64.64 0 0 0-.152-.532l-.723-.729c-.426-.43-.289-.864.306-.964l.93-.156a.64.64 0 0 0 .412-.31l.513-1.034c.28-.562.735-.562 1.012 0"/>
+  </symbol>
+  <symbol id="x-icon" viewBox="0 0 19 19">
+    <path fill="#08060d" fill-rule="evenodd" d="M1.893 1.98c.052.072 1.245 1.769 2.653 3.77l2.892 4.114c.183.261.333.48.333.486s-.068.089-.152.183l-.522.593-.765.867-3.597 4.087c-.375.426-.734.834-.798.905a1 1 0 0 0-.118.148c0 .01.236.017.664.017h.663l.729-.83c.4-.457.796-.906.879-.999a692 692 0 0 0 1.794-2.038c.034-.037.301-.34.594-.675l.551-.624.345-.392a7 7 0 0 1 .34-.374c.006 0 .93 1.306 2.052 2.903l2.084 2.965.045.063h2.275c1.87 0 2.273-.003 2.266-.021-.008-.02-1.098-1.572-3.894-5.547-2.013-2.862-2.28-3.246-2.273-3.266.008-.019.282-.332 2.085-2.38l2-2.274 1.567-1.782c.022-.028-.016-.03-.65-.03h-.674l-.3.342a871 871 0 0 1-1.782 2.025c-.067.075-.405.458-.75.852a100 100 0 0 1-.803.91c-.148.172-.299.344-.99 1.127-.304.343-.32.358-.345.327-.015-.019-.904-1.282-1.976-2.808L6.365 1.85H1.8zm1.782.91 8.078 11.294c.772 1.08 1.413 1.973 1.425 1.984.016.017.241.02 1.05.017l1.03-.004-2.694-3.766L7.796 5.75 5.722 2.852l-1.039-.004-1.039-.004z" clip-rule="evenodd"/>
+  </symbol>
+</svg>
+</file>
+
+<file path="src/assets/react.svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
+</file>
+
+<file path="src/assets/vite.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="77" height="47" fill="none" aria-labelledby="vite-logo-title" viewBox="0 0 77 47"><title id="vite-logo-title">Vite</title><style>.parenthesis{fill:#000}@media (prefers-color-scheme:dark){.parenthesis{fill:#fff}}</style><path fill="#9135ff" d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.472c-1.07 1.497 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"/><mask id="a" width="48" height="47" x="14" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M40.047 45.71c-.663.843-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.389c-.92 0-1.457-1.04-.92-1.788l7.479-10.472c1.07-1.497 0-3.578-1.842-3.578H15.34c-.92 0-1.456-1.04-.92-1.788l9.696-13.575c.213-.297.556-.474.92-.474H53.93c.92 0 1.456 1.04.92 1.788L47.37 13.03c-1.07 1.498 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.088.89 1.831L40.049 45.712z"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#eee6ff" rx="5.508" ry="14.704" transform="rotate(269.814 20.96 11.29)scale(-1 1)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#eee6ff" rx="10.399" ry="29.851" transform="rotate(89.814 -16.902 -8.275)scale(1 -1)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#8900ff" rx="5.508" ry="30.487" transform="rotate(89.814 -19.197 -7.127)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.928 4.177)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.738 5.52)scale(1 -1)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#eee6ff" rx="14.072" ry="22.078" transform="rotate(93.35 31.245 55.578)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx="14.592" cy="9.743" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(39.51 14.592 9.743)"/></g><g filter="url(#k)"><ellipse cx="61.728" cy="-5.321" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 61.728 -5.32)"/></g><g filter="url(#l)"><ellipse cx="55.618" cy="7.104" fill="#00c2ff" rx="5.971" ry="9.665" transform="rotate(37.892 55.618 7.104)"/></g><g filter="url(#m)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#n)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#o)"><ellipse cx="49.857" cy="30.678" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 49.857 30.678)"/></g><g filter="url(#p)"><ellipse cx="52.623" cy="33.171" fill="#00c2ff" rx="5.971" ry="15.297" transform="rotate(37.892 52.623 33.17)"/></g></g><path d="M6.919 0c-9.198 13.166-9.252 33.575 0 46.789h6.215c-9.25-13.214-9.196-33.623 0-46.789zm62.424 0h-6.215c9.198 13.166 9.252 33.575 0 46.789h6.215c9.25-13.214 9.196-33.623 0-46.789" class="parenthesis"/><defs><filter id="b" width="60.045" height="41.654" x="-5.564" y="16.92" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-40.407" y="-6.762" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-35.435" y="2.801" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-30.84" y="20.8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-29.307" y="21.949" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="29.961" y="-17.13" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-13.43" y="-22.082" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="34.321" y="-37.644" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="38.847" y="-10.552" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="22.45" y="-1.645" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="32.919" y="11.36" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="src/GlobalComponents/Layout.jsx">
+import React, { useState } from 'react';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useUserType } from '../UserTypeContext/UserTypeContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  LayoutGrid, 
+  Rocket, 
+  FileText, 
+  Megaphone, 
+  Laptop, 
+  MessageSquare, 
+  Users, 
+  AtSign, 
+  MessagesSquare, 
+  Sparkles, 
+  BarChart2, 
+  User, 
+  GraduationCap, 
+  LogOut 
+} from 'lucide-react';
+
+import TopHeaderSection from './TopHeaderSection';
+
+// Shared animation configuration ensuring identical speed across header and sidebar
+export const TRANSITION_CONFIG = {
+  type: "tween",
+  duration: 0.2,
+  ease: [0.16, 1, 0.3, 1]
+};
+
+const Layout = () => {
+  const { user, logout, hasAccess } = useUserType();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  // Detect and lock translucent glassmorphism whenever page is scrolled down
+  const handleScroll = (e) => {
+    setIsScrolled(e.currentTarget.scrollTop > 10);
+  };
+
+  const NavLink = ({ to, label, icon: Icon, perm }) => {
+    if (perm !== 'always' && !hasAccess(perm)) return null;
+
+    const isActive = location.pathname === to;
+
+    return (
+      <Link 
+        to={to} 
+        title={!isHovered ? label : undefined}
+        className={`relative flex items-center h-10 rounded-xl transition-colors duration-150 select-none ${
+          isHovered ? 'w-full px-2' : 'w-10 mx-auto justify-center'
+        } ${
+          isActive 
+            ? 'bg-[#E60000]/15 dark:bg-[#E60000]/20 text-[#E60000] dark:text-[#ff3b3b] shadow-sm shadow-[#E60000]/10 font-bold' 
+            : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium'
+        }`}
+      >
+        <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+          <Icon 
+            className={`w-4 h-4 transition-transform duration-150 group-hover:scale-110 ${
+              isActive ? 'text-[#E60000] dark:text-[#ff3b3b]' : 'text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
+            }`} 
+            strokeWidth={isActive ? 2.3 : 1.8} 
+          />
+        </div>
+
+        <AnimatePresence>
+          {isHovered && (
+            <motion.span 
+              initial={{ opacity: 0, x: -6 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, transition: { duration: 0.08 } }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="ml-2 text-[10.5px] uppercase tracking-wider whitespace-nowrap overflow-hidden text-slate-700 dark:text-slate-200"
+            >
+              {label}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </Link>
+    );
+  };
+
+  const isHomeActive = location.pathname === '/home' || location.pathname === '/';
+
+  return (
+    <div className="h-screen w-full flex overflow-hidden bg-slate-50 dark:bg-[#030403] relative transition-colors duration-500">
+      
+      {/* Ambient background glow */}
+      <div className="absolute top-[-20%] left-[10%] w-[50vw] h-[50vw] bg-[#E60000]/5 rounded-full blur-[150px] pointer-events-none z-0" />
+
+      {/* ========================================== */}
+      {/* BORDERLESS DOCKED SIDEBAR                  */}
+      {/* ========================================== */}
+      <motion.aside 
+        initial={{ width: 60 }} 
+        animate={{ width: isHovered ? 220 : 60 }}
+        transition={TRANSITION_CONFIG}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="h-screen flex flex-col justify-between flex-shrink-0 z-50 bg-white/70 dark:bg-[#05070a]/90 backdrop-blur-2xl border-none shadow-none select-none"
+      >
+        {/* TOP ITEM: HOME (Centered Red Fill Tile) */}
+        <div className="h-[60px] flex items-center justify-center px-2 flex-shrink-0">
+          <Link
+            to="/home"
+            title="HOME"
+            className={`h-10 rounded-xl flex items-center transition-all duration-150 select-none ${
+              isHovered ? 'w-full px-2' : 'w-10 justify-center'
+            } ${
+              isHomeActive
+                ? 'bg-[#E60000]/15 dark:bg-[#E60000]/20 text-[#E60000] dark:text-[#ff3b3b] shadow-sm shadow-[#E60000]/10 font-bold'
+                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium'
+            }`}
+          >
+            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <LayoutGrid 
+                className={`w-4 h-4 ${isHomeActive ? 'text-[#E60000] dark:text-[#ff3b3b]' : 'text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'}`} 
+                strokeWidth={2.3} 
+              />
+            </div>
+
+            <AnimatePresence>
+              {isHovered && (
+                <motion.span 
+                  initial={{ opacity: 0, x: -6 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, transition: { duration: 0.08 } }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="ml-2 text-[11px] font-black tracking-widest uppercase whitespace-nowrap overflow-hidden text-slate-800 dark:text-white"
+                >
+                  HOME
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        </div>
+
+        {/* Subtle separator under Home */}
+        <div className="px-3 mb-1">
+          <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+        </div>
+
+        {/* 12 Clean Navigation Items */}
+        <nav className="flex-1 px-2 flex flex-col gap-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <NavLink to="/start-campaign" label="NEW CAMPAIGN" icon={Rocket} perm="start-campaign" />
+          <NavLink to="/create-scenario" label="SCENARIOS" icon={FileText} perm="create-scenario" />
+          <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="start-campaign" />
+          <NavLink to="/add-training" label="TRAINING" icon={Laptop} perm="add-training" />
+          <NavLink to="/announcements" label="ANNOUNCEMENT" icon={MessageSquare} perm="announcements" />
+          <NavLink to="/user-dls" label="USER LIST (DL)" icon={Users} perm="user-dls" />
+          <NavLink to="/email-domains" label="EMAIL IDs & DOMAINS" icon={AtSign} perm="email-domains" />
+          
+          {(hasAccess('requests') || hasAccess('approvals')) && (
+            <NavLink to="/requests-approvals" label="REQUESTS & APPROVALS" icon={MessagesSquare} perm="always" />
+          )}
+          
+          <NavLink to="/gamification" label="GAMIFICATION ENGINE" icon={Sparkles} perm="gamification-engine" />
+          <NavLink to="/analytics" label="DASHBOARD & ANALYTICS" icon={BarChart2} perm="analytics" />
+          <NavLink to="/my-space" label="MY SPACE" icon={User} perm="always" />
+          <NavLink to="/my-training" label="MY TRAINING" icon={GraduationCap} perm="training-path" />
+        </nav>
+
+        {/* Bottom Profile Section */}
+        <div className="p-2 border-t border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/[0.01]">
+          <div className={`flex items-center ${isHovered ? 'w-full px-1' : 'justify-center'}`}>
+            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#E60000] to-[#990099] flex items-center justify-center text-white font-black text-[10px] shadow-sm">
+                {user?.role?.charAt(0) || 'A'}
+              </div>
+            </div>
+            
+            <AnimatePresence>
+              {isHovered && (
+                <motion.div 
+                  initial={{ opacity: 0, x: -6 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, transition: { duration: 0.08 } }} 
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="ml-2 overflow-hidden whitespace-nowrap flex-1"
+                >
+                  <p className="text-[10px] font-bold text-slate-900 dark:text-white truncate leading-tight">{user?.role}</p>
+                  <button 
+                    onClick={handleLogout} 
+                    className="text-[9px] font-bold text-red-500 hover:text-red-400 hover:underline flex items-center gap-1 mt-0.5"
+                  >
+                    <LogOut className="w-2.5 h-2.5"/> Logout
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.aside>
+
+      {/* ========================================== */}
+      {/* MAIN VIEWPORT (HEADER + CONTENT)           */}
+      {/* ========================================== */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <TopHeaderSection 
+          isSidebarExpanded={isHovered} 
+          isScrolled={isScrolled} 
+        />
+        
+        <main 
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto relative z-10 pt-[60px]"
+        >
+          <Outlet />
+        </main>
+      </div>
+
+    </div>
+  );
+};
+
+export default Layout;
+</file>
+
+<file path="src/GlobalComponents/TopHeaderSection.jsx">
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useUserType } from '../UserTypeContext/UserTypeContext';
+import { motion } from 'framer-motion';
+import { Sun, Moon } from 'lucide-react';
+import { TRANSITION_CONFIG } from './Layout';
+
+const TopHeaderSection = ({ isSidebarExpanded = false, isScrolled = false }) => {
+  const { isDark, setIsDark } = useUserType();
+
+  return (
+    <motion.header
+      initial={false}
+      animate={{ left: isSidebarExpanded ? 220 : 60 }}
+      transition={TRANSITION_CONFIG}
+      className={`fixed top-0 right-0 h-[60px] flex items-center justify-between px-6 lg:px-6 z-40 border-none transition-colors duration-200 ${
+        isScrolled
+          ? 'bg-white/80 dark:bg-[#030403]/75 backdrop-blur-2xl shadow-sm'
+          : 'bg-transparent'
+      }`}
+    >
+      {/* Brand Title: Clicking navigates to Landing Page ('/') */}
+      <Link 
+        to="/" 
+        title="Go to Landing Page" 
+        className="flex items-center cursor-pointer select-none group"
+      >
+        <h2 className="text-2xl font-bold tracking-tight transition-colors pl-2">
+              <span className="text-slate-900 dark:text-white">VOIS</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099]">Shield</span>
+              <span className="text-slate-900 dark:text-white">.</span>
+            </h2>
+      </Link>
+
+      {/* Right Side Actions */}
+      <div className="flex items-center gap-6">
+        <span className="hidden md:inline-flex items-center text-xs font-medium text-slate-500 dark:text-slate-400">
+          Contact:&nbsp;
+          <a
+            href="mailto:abhay.hs1@vodafone.com"
+            className="font-semibold text-slate-700 dark:text-slate-300 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors"
+          >
+            abhay.hs1@vodafone.com
+          </a>
+        </span>
+
+        {/* Theme Toggle */}
+        <div
+          className="flex items-center bg-black/5 dark:bg-white/5 p-1 rounded-full relative w-16 h-8"
+          role="group"
+          aria-label="Theme toggle"
+        >
+          <button
+            type="button"
+            onClick={() => setIsDark(false)}
+            aria-label="Light mode"
+            className={`flex-1 flex justify-center items-center z-10 transition-colors ${
+              !isDark ? 'text-black' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsDark(true)}
+            aria-label="Dark mode"
+            className={`flex-1 flex justify-center items-center z-10 transition-colors ${
+              isDark ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Moon className="w-3.5 h-3.5" />
+          </button>
+
+          <div
+            className={`absolute w-[calc(50%-4px)] h-[calc(100%-8px)] bg-white dark:bg-[#E60000] rounded-full shadow-sm transition-transform duration-200 ease-out ${
+              isDark ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'
+            }`}
+          />
+        </div>
+      </div>
+    </motion.header>
+  );
+};
+
+export default TopHeaderSection;
+</file>
+
+<file path="src/Pages/DashboardAndAnalytics/DashboardAndAnalytics.jsx">
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Target, Mail, AlertTriangle, ShieldCheck } from 'lucide-react';
+
+// Custom Donut Chart Component using SVG and Framer Motion
+const AnimatedDonut = ({ percentage, color, label }) => {
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative w-24 h-24 flex items-center justify-center">
+      <svg className="w-full h-full transform -rotate-90 drop-shadow-md">
+        {/* Background Circle */}
+        <circle cx="48" cy="48" r={radius} stroke="currentColor" strokeWidth="8" fill="transparent" className="text-black/5 dark:text-white/10" />
+        {/* Animated Foreground Circle */}
+        <motion.circle 
+          cx="48" cy="48" r={radius} stroke={color} strokeWidth="8" fill="transparent"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset }}
+          transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold text-slate-900 dark:text-white">{percentage}%</span>
+      </div>
+    </div>
+  );
+};
+
+const AnimatedNumber = ({ value }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const increment = value / (1500 / 16); 
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= value) { clearInterval(timer); setDisplayValue(value); } else { setDisplayValue(start); }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [value]);
+  return <>{Math.floor(displayValue)}</>;
+};
+
+const DashboardAndAnalytics = () => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+      className="p-8 max-w-[1400px] w-full mx-auto pb-20 flex flex-col gap-8 relative z-10 font-sans"
+    >
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Analytics Overview</h2>
+        <p className="text-xs text-slate-500 mt-1">Real-time metrics for your active campaigns.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        
+        {/* KPI 1: Active Campaigns (Number) */}
+        <div className="whitish-glass rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="flex justify-between items-start mb-6">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><Target className="w-3.5 h-3.5"/> Active Campaigns</p>
+          </div>
+          <h4 className="text-5xl font-display font-extrabold text-slate-900 dark:text-white tracking-tighter">
+            0<AnimatedNumber value={2} />
+          </h4>
+        </div>
+
+        {/* KPI 2: Open Rate (Donut) */}
+        <div className="whitish-glass rounded-2xl p-6 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2"><Mail className="w-3.5 h-3.5"/> Open Rate</p>
+            <p className="text-xs text-slate-400">Target: 15%</p>
+          </div>
+          <AnimatedDonut percentage={12.1} color="#10b981" /> {/* Emerald Green */}
+        </div>
+
+        {/* KPI 3: Hook Rate (Donut) */}
+        <div className="whitish-glass rounded-2xl p-6 flex items-center justify-between shadow-sm border-l-4 border-l-[#E60000]">
+          <div>
+            <p className="text-[10px] font-bold text-[#E60000] uppercase tracking-widest flex items-center gap-2 mb-2"><AlertTriangle className="w-3.5 h-3.5"/> Hook Rate</p>
+            <p className="text-xs text-slate-400">Target: &lt; 5%</p>
+          </div>
+          <AnimatedDonut percentage={8.6} color="#E60000" /> {/* VOIS Red */}
+        </div>
+
+        {/* KPI 4: Reporter Rate (Donut) */}
+        <div className="whitish-glass rounded-2xl p-6 flex items-center justify-between shadow-sm border-l-4 border-l-[#990099]">
+          <div>
+            <p className="text-[10px] font-bold text-[#990099] uppercase tracking-widest flex items-center gap-2 mb-2"><ShieldCheck className="w-3.5 h-3.5"/> Reporter Rate</p>
+            <p className="text-xs text-slate-400">Target: &gt; 25%</p>
+          </div>
+          <AnimatedDonut percentage={20.1} color="#990099" /> {/* VOIS Purple */}
+        </div>
+
+      </div>
+    </motion.div>
+  );
+};
+
+export default DashboardAndAnalytics;
+</file>
+
+<file path="src/Pages/HomeScreen/HomeScreen.jsx">
+import React, { useState, useEffect } from 'react';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
+import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { motion } from 'framer-motion';
+import { 
+  Rocket, 
+  Sparkles, 
+  MonitorPlay,
+  Wand2
+} from 'lucide-react';
+
+// Floating Stone Asset
+import StoneAsset from '../../assets/HomeScreenStoneElement.png';
+
+const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
+const markers = [
+  { name: "Egypt", coordinates: [30.8025, 26.8206] },
+  { name: "India", coordinates: [78.9629, 20.5937] },
+  { name: "Hungary", coordinates: [19.5033, 47.1625] },
+  { name: "UK", coordinates: [-3.4360, 55.3781] }
+];
+
+// =========================================================================
+// 🪨 FULL-CONTAINER FLOATING ASTEROID STONES (SIZES UNCHANGED)
+// =========================================================================
+const asteroidConfigs = [
+  // Right Zone Asteroids (Behind KPIs)
+  { id: 1, size: 110, top: '4%', left: '78%', duration: 9.5, xRange: [-45, 60, -30, -45], yRange: [-25, 35, -30, -25], rotate: [0, 90, 210, 360], opacity: 0.85 },
+  { id: 2, size: 75, top: '48%', left: '86%', duration: 11.0, xRange: [40, -50, 35, 40], yRange: [30, -40, 25, 30], rotate: [360, 200, 80, 0], opacity: 0.8 },
+  
+  // Center Zone Asteroids (Drifting between Quick Access and Overview)
+  { id: 3, size: 90, top: '15%', left: '52%', duration: 12.5, xRange: [-70, 65, -40, -70], yRange: [-35, 40, -25, -35], rotate: [0, 120, 260, 360], opacity: 0.75 },
+  { id: 4, size: 60, top: '62%', left: '60%', duration: 10.2, xRange: [50, -60, 45, 50], yRange: [-30, 35, -20, -30], rotate: [360, 170, 60, 0], opacity: 0.8 },
+  
+  // Left Zone Asteroids (Behind Quick Access & Greetings)
+  { id: 5, size: 85, top: '8%', left: '26%', duration: 13.0, xRange: [-55, 70, -35, -55], yRange: [30, -35, 40, 30], rotate: [0, 150, 290, 360], opacity: 0.7 },
+  { id: 6, size: 68, top: '55%', left: '8%', duration: 10.8, xRange: [60, -45, 50, 60], yRange: [-28, 38, -32, -28], rotate: [360, 220, 90, 0], opacity: 0.75 },
+  { id: 7, size: 45, top: '75%', left: '38%', duration: 8.6, xRange: [-35, 45, -25, -35], yRange: [25, -30, 20, 25], rotate: [0, 180, 310, 360], opacity: 0.65 }
+];
+
+// ==========================================
+// ANIMATED NUMBER COMPONENT
+// ==========================================
+const AnimatedNumber = ({ value, decimals = 0 }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const increment = value / (1200 / 16);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= value) { 
+        clearInterval(timer); 
+        setDisplayValue(value); 
+      } else { 
+        setDisplayValue(start); 
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <>{displayValue.toFixed(decimals)}</>;
+};
+
+const HomeScreen = () => {
+  const { isDark } = useUserType();
+  const [activeQuarter, setActiveQuarter] = useState('This Quater');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="p-6 max-w-[1600px] w-full mx-auto pb-16 flex flex-col gap-5 relative z-10 font-sans select-none"
+    >
+      {/* ========================================================================= */}
+      {/* 🌌 COMPACT HERO BANNER: QUICK ACCESS & METRICS WITH ASTEROIDS             */}
+      {/* ========================================================================= */}
+      <div className="relative w-full rounded-2xl bg-white dark:bg-black border border-black/10 dark:border-white/20 shadow-0xl overflow-hidden p-4 sm:p-5 lg:p-6 transition-colors duration-500">
+        
+        {/* Ambient Radial Glows in Background */}
+        <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-gradient-to-br from-[#E60000]/15 via-[#990099]/10 to-transparent rounded-full blur-3xl pointer-events-none z-0" />
+        <div className="absolute -bottom-20 left-10 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-3xl pointer-events-none z-0" />
+        
+        {/* ------------------------------------------------------------- */}
+        {/* ☄️ 3D FLOATING ASTEROIDS (FULL CONTAINER SPREAD - BEHIND UI)   */}
+        {/* ------------------------------------------------------------- */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          {asteroidConfigs.map((st) => (
+            <motion.img
+              key={st.id}
+              src={StoneAsset}
+              alt="Floating Crystal Asteroid"
+              style={{
+                width: `${st.size}px`,
+                height: `${st.size}px`,
+                top: st.top,
+                left: st.left,
+                opacity: st.opacity,
+              }}
+              className="absolute object-contain drop-shadow-[0_20px_35px_rgba(230,0,0,0.3)]"
+              animate={{
+                x: st.xRange,
+                y: st.yRange,
+                rotate: st.rotate,
+              }}
+              transition={{
+                duration: st.duration,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          ))}
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* FOREGROUND CONTENT (SCALED PROPORTIONALLY)                     */}
+        {/* ------------------------------------------------------------- */}
+        <div className="relative z-10 grid grid-cols-1 xl:grid-cols-12 gap-5 lg:gap-6 items-stretch">
+          
+          {/* ========================================== */}
+          {/* LEFT COLUMN: GREETING & 3 QUICK ACTIONS    */}
+          {/* ========================================== */}
+          <div className="xl:col-span-6 flex flex-col justify-between gap-4">
+            
+            {/* Greeting Header */}
+            <div>
+              <h1 className="text-lg sm:text-2xl font-extrabold text-black dark:text-white tracking-tight leading-tight">
+                Hi Abhay H S,
+              </h1>
+              <h2 className="text-base sm:text-lg font-bold text-black/80 dark:text-white/80 tracking-tight">
+                Welcome
+              </h2>
+            </div>
+
+            {/* 3 Quick Action Cards in a Horizontal Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              
+              {/* CARD 1: New Campaign */}
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                transition={{ duration: 0.16 }}
+                className="p-3 rounded-xl bg-[#2b2b2e]/80 dark:bg-[#1f1f22]/85 hover:bg-[#343438]/90 border border-black/10 dark:border-white/10 backdrop-blur-xl shadow-md cursor-pointer flex items-center justify-between gap-2 transition-all group"
+              >
+                <div className="flex flex-col justify-center min-w-0">
+                  <h4 className="font-bold text-xs sm:text-[13px] text-white group-hover:text-red-400 transition-colors leading-snug truncate">
+                    New Campaign
+                  </h4>
+                  <p className="text-[9.5px] text-slate-300 leading-tight mt-0.5 line-clamp-2">
+                    Start or Schedule a new campaign.
+                  </p>
+                </div>
+
+                <div className="w-8.5 h-8.5 rounded-lg bg-gradient-to-br from-[#E60000] via-[#990099] to-[#d946ef] flex items-center justify-center text-white shadow-md shadow-[#E60000]/25 flex-shrink-0">
+                  <Rocket className="w-4 h-4 -rotate-45" />
+                </div>
+              </motion.div>
+
+              {/* CARD 2: Create new scenario */}
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                transition={{ duration: 0.16 }}
+                className="p-3 rounded-xl bg-[#2b2b2e]/80 dark:bg-[#1f1f22]/85 hover:bg-[#343438]/90 border border-black/10 dark:border-white/10 backdrop-blur-xl shadow-md cursor-pointer flex items-center justify-between gap-2 transition-all group"
+              >
+                <div className="flex flex-col justify-center min-w-0">
+                  <h4 className="font-bold text-xs sm:text-[13px] text-white group-hover:text-purple-400 transition-colors leading-snug truncate">
+                    Create new scenario
+                  </h4>
+                  <p className="text-[9.5px] text-slate-300 leading-tight mt-0.5 line-clamp-2">
+                    Got an idea? Create new scenarios.
+                  </p>
+                </div>
+
+                <div className="w-8.5 h-8.5 rounded-lg bg-gradient-to-br from-[#7e22ce] via-[#990099] to-[#c084fc] flex items-center justify-center text-white shadow-md shadow-[#990099]/25 flex-shrink-0">
+                  <Wand2 className="w-4 h-4" />
+                </div>
+              </motion.div>
+
+              {/* CARD 3: Create Training Materials */}
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                transition={{ duration: 0.16 }}
+                className="p-3 rounded-xl bg-[#2b2b2e]/80 dark:bg-[#1f1f22]/85 hover:bg-[#343438]/90 border border-black/10 dark:border-white/10 backdrop-blur-xl shadow-md cursor-pointer flex items-center justify-between gap-2 transition-all group"
+              >
+                <div className="flex flex-col justify-center min-w-0">
+                  <h4 className="font-bold text-xs sm:text-[13px] text-white group-hover:text-indigo-400 transition-colors leading-snug truncate">
+                    Training Materials
+                  </h4>
+                  <p className="text-[9.5px] text-slate-300 leading-tight mt-0.5 line-clamp-2">
+                    Create or upgrade training modules.
+                  </p>
+                </div>
+
+                <div className="w-8.5 h-8.5 rounded-lg bg-gradient-to-br from-[#4f46e5] via-[#7c3aed] to-[#990099] flex items-center justify-center text-white shadow-md shadow-indigo-500/25 flex-shrink-0">
+                  <MonitorPlay className="w-4 h-4" />
+                </div>
+              </motion.div>
+
+            </div>
+          </div>
+
+          {/* ========================================== */}
+          {/* RIGHT COLUMN: TIMELINE FILTER + 6 KPI CARDS*/}
+          {/* ========================================== */}
+          <div className="xl:col-span-6 flex flex-col justify-between gap-2.5">
+            
+            {/* Top-Right FY Filters */}
+            <div className="flex justify-end">
+              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-black/60 dark:bg-black/70 border border-white/15 backdrop-blur-md">
+                {['Previous FY', 'Current FY', 'This Quater'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveQuarter(tab)}
+                    className={`text-[9.5px] font-bold px-2.5 py-0.5 rounded-md transition-all ${
+                      activeQuarter === tab
+                        ? 'bg-white/20 text-white border border-white/25 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 6 Translucent Glass KPI Cards */}
+            <div className="grid grid-cols-3 gap-2.5">
+              
+              {/* KPI 1: Active */}
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[#2b2b2e]/75 dark:bg-[#1a1a1d]/75 border border-white/10 backdrop-blur-xl shadow-md flex flex-col justify-between min-h-[82px] relative">
+                <span className="text-[9.5px] font-bold text-white tracking-tight">Active</span>
+                <div className="flex items-baseline gap-1.5 my-0.5">
+                  <span className="text-xl sm:text-[20px] font-black text-white leading-none">
+                    <AnimatedNumber value={2} />
+                  </span>
+                  <span className="text-[7px] font-medium text-slate-300">Closed - 7</span>
+                </div>
+                <div className="w-full bg-[#4a4a4e]/70 rounded-full h-1 overflow-hidden">
+                  <div className="bg-[#22c55e] h-full rounded-full" style={{ width: '28%' }} />
+                </div>
+              </div>
+
+              {/* KPI 2: Open/Read Rate % */}
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[#2b2b2e]/75 dark:bg-[#1a1a1d]/75 border border-white/10 backdrop-blur-xl shadow-md flex flex-col justify-between min-h-[82px] relative">
+                <span className="text-[9.5px] font-bold text-white tracking-tight">Open/Read Rate %</span>
+                <div className="my-0.5">
+                  <span className="text-xl sm:text-[20px] font-black text-white leading-none">12.1%</span>
+                </div>
+                <div className="w-full bg-[#4a4a4e]/70 rounded-full h-1 overflow-hidden">
+                  <div className="bg-[#22c55e] h-full rounded-full" style={{ width: '60%' }} />
+                </div>
+              </div>
+
+              {/* KPI 3: Reporter Rate % */}
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[#2b2b2e]/75 dark:bg-[#1a1a1d]/75 border border-white/10 backdrop-blur-xl shadow-md flex flex-col justify-between min-h-[82px] relative">
+                <span className="text-[9.5px] font-bold text-white tracking-tight">Reporter Rate %</span>
+                <div className="my-0.5">
+                  <span className="text-xl sm:text-[20px] font-black text-white leading-none">20.1%</span>
+                </div>
+                <div className="w-full bg-[#4a4a4e]/70 rounded-full h-1 overflow-hidden">
+                  <div className="bg-gradient-to-r from-[#E60000] to-[#990099] h-full rounded-full" style={{ width: '50%' }} />
+                </div>
+              </div>
+
+              {/* KPI 4: Hook Rate % */}
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[#2b2b2e]/75 dark:bg-[#1a1a1d]/75 border border-white/10 backdrop-blur-xl shadow-md flex flex-col justify-between min-h-[82px] relative">
+                <span className="text-[9.5px] font-bold text-white tracking-tight">Hook Rate %</span>
+                <div className="my-0.5">
+                  <span className="text-xl sm:text-[20px] font-black text-white leading-none">8.6%</span>
+                </div>
+                <div className="w-full bg-[#4a4a4e]/70 rounded-full h-1 overflow-hidden">
+                  <div className="bg-[#E60000] h-full rounded-full" style={{ width: '26%' }} />
+                </div>
+              </div>
+
+              {/* KPI 5: Total Recipients */}
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[#2b2b2e]/75 dark:bg-[#1a1a1d]/75 border border-white/10 backdrop-blur-xl shadow-md flex flex-col justify-between min-h-[82px] relative">
+                <span className="text-[9.5px] font-bold text-white tracking-tight">Total Recipients</span>
+                <div className="my-0.5">
+                  <span className="text-xl sm:text-[20px] font-black text-white leading-none">
+                    <AnimatedNumber value={84} />
+                  </span>
+                </div>
+                <div className="w-full bg-[#4a4a4e]/70 rounded-full h-1 overflow-hidden">
+                  <div className="bg-white/70 h-full rounded-full" style={{ width: '45%' }} />
+                </div>
+              </div>
+
+              {/* KPI 6: Trained Rate % */}
+              <div className="p-2.5 sm:p-3 rounded-xl bg-[#2b2b2e]/75 dark:bg-[#1a1a1d]/75 border border-white/10 backdrop-blur-xl shadow-md flex flex-col justify-between min-h-[82px] relative">
+                <span className="text-[9.5px] font-bold text-white tracking-tight">Trained Rate %</span>
+                <div className="my-0.5">
+                  <span className="text-xl sm:text-[20px] font-black text-white leading-none">20.1%</span>
+                </div>
+                <div className="w-full bg-[#4a4a4e]/70 rounded-full h-1 overflow-hidden">
+                  <div className="bg-[#22c55e] h-full rounded-full" style={{ width: '65%' }} />
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 2: MASTER CAMPAIGN DETAILS & TARGET MAP                           */}
+      {/* ========================================================================= */}
+      <div className="bg-white dark:bg-[#0B1121] border border-black/5 dark:border-white/10 rounded-2xl flex flex-col shadow-lg overflow-hidden transition-colors duration-500">
+        
+        {/* Sub Header */}
+        <div className="flex border-b border-black/5 dark:border-white/10 bg-slate-50 dark:bg-[#030403]/50 p-3 px-4 items-center justify-between">
+          <div className="flex gap-2">
+            <button className="px-5 py-1.5 bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-white rounded-lg text-[10px] font-bold">Latest Campaign</button>
+            <button className="px-5 py-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg text-[10px] font-bold transition-colors">All Campaigns</button>
+          </div>
+          <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 text-[9px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Live
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 flex-1 p-4 gap-4">
+          
+          {/* Funnel Box */}
+          <div className="xl:col-span-5 flex flex-col gap-4">
+            <div className="border border-black/5 dark:border-white/10 rounded-xl p-4 bg-slate-50 dark:bg-white/[0.02]">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 border-b border-black/5 dark:border-white/10 pb-2">Campaign Details</h4>
+              <div className="grid grid-cols-2 gap-y-3 text-xs">
+                <div className="col-span-2">
+                  <span className="text-slate-500">Campaign Name:</span> 
+                  <span className="font-bold text-slate-900 dark:text-white ml-1">Mandatory Verification of Salary</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-slate-500">Campaign Type:</span> 
+                  <span className="font-bold text-slate-900 dark:text-white ml-1">User Verification</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-black/5 dark:border-white/10 rounded-xl p-4 bg-slate-50 dark:bg-white/[0.02] flex-1 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] font-bold text-green-500 mb-1">Emails Sent</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white mb-2">624</p>
+                <div className="w-full bg-black/5 dark:bg-white/10 rounded-full h-1 mb-1">
+                  <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 1 }} className="bg-green-500 h-1 rounded-full" />
+                </div>
+              </div>
+              <div>
+                <p className="text-[8px] font-bold text-slate-900 dark:text-white mb-1">Opened/Read</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white mb-2">426</p>
+                <div className="w-full bg-black/5 dark:bg-white/10 rounded-full h-1 mb-1">
+                  <motion.div initial={{ width: 0 }} animate={{ width: '68.3%' }} transition={{ duration: 1 }} className="bg-[#E60000] h-1 rounded-full" />
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-[#E60000] mb-1">Phished/Trapped</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white mb-2">26</p>
+                <div className="w-full bg-black/5 dark:bg-white/10 rounded-full h-1 mb-1">
+                  <motion.div initial={{ width: 0 }} animate={{ width: '6.1%' }} transition={{ duration: 1 }} className="bg-[#E60000] h-1 rounded-full" />
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-yellow-500 mb-1">Reported</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white mb-2">327</p>
+                <div className="w-full bg-black/5 dark:bg-white/10 rounded-full h-1 mb-1">
+                  <motion.div initial={{ width: 0 }} animate={{ width: '76.8%' }} transition={{ duration: 1 }} className="bg-yellow-500 h-1 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Map */}
+          <div className="xl:col-span-7 border border-black/5 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-white/[0.02] flex overflow-hidden">
+            <div className="w-1/3 p-4 border-r border-black/5 dark:border-white/10 flex flex-col gap-2">
+              <h4 className="text-[10px] font-bold text-green-500 border-b border-black/5 dark:border-white/10 pb-2 mb-2">Targeted Locations</h4>
+              {['Egypt', 'India', 'Hungary', 'UK'].map((country) => (
+                <div key={country} className="p-2 border border-black/5 dark:border-white/10 rounded-lg bg-white dark:bg-black/20">
+                  <p className="text-[10px] font-bold text-slate-900 dark:text-white">{country} <span className="font-normal text-slate-500">- Hook 6.1%</span></p>
+                </div>
+              ))}
+            </div>
+            <div className="w-2/3 relative flex items-center justify-center p-4 bg-slate-100 dark:bg-[#030403]/50">
+              <ComposableMap projection="geoMercator" projectionConfig={{ scale: 100 }} style={{ width: "100%", height: "100%" }}>
+                <Geographies geography={geoUrl}>
+                  {({ geographies }) => geographies.map((geo) => (
+                    <Geography 
+                      key={geo.rsmKey} 
+                      geography={geo} 
+                      fill={isDark ? "#1E293B" : "#cbd5e1"} 
+                      stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} 
+                      strokeWidth={0.5} 
+                      style={{ default: { outline: "none" } }} 
+                    />
+                  ))}
+                </Geographies>
+                {markers.map(({ name, coordinates }) => (
+                  <Marker key={name} coordinates={coordinates}>
+                    <circle r={6} fill="#E60000" className="animate-pulse opacity-40" />
+                    <circle r={2} fill="#E60000" />
+                  </Marker>
+                ))}
+              </ComposableMap>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+export default HomeScreen;
+</file>
+
+<file path="src/Pages/LandingPage/DepthCarousel.css">
+.depth-carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: var(--dc-perspective, 1400px);
+  perspective-origin: 50% 50%;
+  touch-action: pan-y;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.depth-carousel:active {
+  cursor: grabbing;
+}
+
+.depth-carousel:focus-visible {
+  outline: 2px solid rgba(230, 0, 0, 0.5);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+.depth-carousel__stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.depth-carousel__card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  overflow: hidden;
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.65),
+    0 8px 20px -10px rgba(0, 0, 0, 0.5);
+  will-change: transform, opacity, filter;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.depth-carousel__content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 2;
+}
+
+.depth-carousel__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.depth-carousel__tint {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  z-index: 5;
+}
+
+.depth-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3000;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  background: rgba(18, 20, 26, 0.65);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.depth-carousel__arrow:hover {
+  background: rgba(230, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.depth-carousel__arrow:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.depth-carousel__arrow--prev {
+  left: 8px;
+}
+
+.depth-carousel__arrow--next {
+  right: 8px;
+}
+
+.depth-carousel__dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(14, 16, 22, 0.55);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.depth-carousel__dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition:
+    width 0.25s ease,
+    background 0.25s ease;
+}
+
+.depth-carousel__dot.is-active {
+  width: 18px;
+  background: #E60000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .depth-carousel__card {
+    will-change: auto;
+  }
+  .depth-carousel__arrow,
+  .depth-carousel__dot {
+    transition: none;
+  }
+}
+</file>
+
+<file path="src/Pages/LandingPage/DepthCarousel.jsx">
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import gsap from 'gsap';
+import './DepthCarousel.css';
+
+const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+const normalizeItem = it => (typeof it === 'string' ? { image: it, alt: '' } : it);
+
+const DepthCarousel = ({
+  items = [],
+  cardWidth = 240,
+  cardHeight = 295,
+  radius = 16,
+  tint = '#05060a',
+  depth = 120,
+  spread = 60,
+  tilt = 20,
+  perspective = 1100,
+  visibleCards = 3,
+  falloff = 0.22,
+  blur = 3,
+  duration = 450,
+  ease = 'power3.out',
+  autoplay = true,
+  autoplayDelay = 3000,
+  loop = true,
+  showControls = true,
+  showIndicators = true,
+  onChange,
+  className = ''
+}) => {
+  const data = useMemo(() => (Array.isArray(items) ? items : []).map(normalizeItem), [items]);
+  const count = data.length;
+
+  const rootRef = useRef(null);
+  const stageRef = useRef(null);
+  const cardRefs = useRef([]);
+  const overlayRefs = useRef([]);
+
+  const posRef = useRef(0);
+  const focusRef = useRef(0);
+  const tweenRef = useRef(null);
+  const scaleRef = useRef(1);
+  const cfgRef = useRef({});
+  const onChangeRef = useRef(onChange);
+
+  const dragRef = useRef(null);
+  const wheelTimerRef = useRef(null);
+  const autoTimerRef = useRef(null);
+  const reducedRef = useRef(false);
+
+  const [active, setActive] = useState(0);
+
+  onChangeRef.current = onChange;
+  cfgRef.current = {
+    count,
+    depth,
+    spread,
+    tilt,
+    visibleCards,
+    falloff,
+    blur,
+    duration,
+    ease,
+    loop,
+    cardWidth,
+    autoplayDelay
+  };
+
+  // Symmetrical Left & Right 3D Distribution Math
+  const layout = useCallback(pos => {
+    const cfg = cfgRef.current;
+    const n = cfg.count;
+    if (!n) return;
+    const sc = scaleRef.current;
+
+    for (let i = 0; i < n; i++) {
+      const el = cardRefs.current[i];
+      if (!el) continue;
+
+      let d = i - pos;
+      if (cfg.loop && n > 1) {
+        d = ((d % n) + n) % n;
+        if (d > n / 2) d -= n;
+      }
+
+      const ad = Math.abs(d);
+      const sign = Math.sign(d);
+      const shown = ad <= cfg.visibleCards + 0.5;
+
+      // Symmetrical Z-Depth (pushes both sides back equally)
+      const tz = -cfg.depth * ad;
+
+      // Symmetrical X-Offset (negative to left, positive to right)
+      const tx = d * cfg.spread;
+
+      // Symmetrical Y-Axis Tilt (angles both wings inward toward center)
+      const ry = -sign * cfg.tilt * clamp(ad, 0, 1);
+
+      // Smooth fading on the furthest boundary cards
+      let opacity = 1 - Math.max(0, (ad - cfg.visibleCards) / 0.5);
+      if (ad > cfg.visibleCards + 0.5) opacity = 0;
+
+      const brightness = Math.max(0.18, 1 - ad * cfg.falloff);
+      const blurPx = cfg.blur > 0 ? Math.min(cfg.blur, (ad / Math.max(1, cfg.visibleCards)) * cfg.blur) : 0;
+      
+      // Highest zIndex in center (active), lower zIndex further out
+      const zi = Math.round(2000 - ad * 20);
+
+      el.style.transform = `translate(-50%, -50%) scale(${sc}) translateX(${tx.toFixed(2)}px) translateZ(${tz.toFixed(2)}px) rotateY(${ry.toFixed(3)}deg)`;
+      el.style.opacity = opacity.toFixed(3);
+      el.style.filter = `brightness(${brightness.toFixed(3)}) blur(${blurPx.toFixed(2)}px)`;
+      el.style.zIndex = String(zi);
+      el.style.pointerEvents = shown && opacity > 0.05 ? 'auto' : 'none';
+
+      const ov = overlayRefs.current[i];
+      if (ov) ov.style.opacity = clamp(ad * cfg.falloff * 1.25, 0, 0.85).toFixed(3);
+    }
+  }, []);
+
+  const notify = useCallback(
+    idx => {
+      setActive(idx);
+      onChangeRef.current?.(idx, data[idx]);
+    },
+    [data]
+  );
+
+  const tweenTo = useCallback(
+    (target, animate) => {
+      tweenRef.current?.kill();
+      const cfg = cfgRef.current;
+      const proxy = { p: posRef.current };
+      const dur = animate && !reducedRef.current ? cfg.duration / 1000 : 0;
+      tweenRef.current = gsap.to(proxy, {
+        p: target,
+        duration: dur,
+        ease: cfg.ease,
+        onUpdate: () => {
+          posRef.current = proxy.p;
+          layout(proxy.p);
+        },
+        onComplete: () => {
+          const n = cfg.count;
+          if (n > 0) posRef.current = ((posRef.current % n) + n) % n;
+          layout(posRef.current);
+        }
+      });
+    },
+    [layout]
+  );
+
+  const setFocus = useCallback(
+    (rawIndex, animate = true) => {
+      const cfg = cfgRef.current;
+      const n = cfg.count;
+      if (!n) return;
+      const idx = cfg.loop ? ((rawIndex % n) + n) % n : clamp(rawIndex, 0, n - 1);
+      let delta = idx - posRef.current;
+      if (cfg.loop && n > 1) {
+        delta = ((delta % n) + n) % n;
+        if (delta > n / 2) delta -= n;
+      }
+      tweenTo(posRef.current + delta, animate);
+      if (idx !== focusRef.current) {
+        focusRef.current = idx;
+        notify(idx);
+      }
+    },
+    [tweenTo, notify]
+  );
+
+  const navigateBy = useCallback(step => setFocus(focusRef.current + step, true), [setFocus]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0].contentRect.width;
+      const cfg = cfgRef.current;
+      // Account for symmetrical left + right span
+      const needed = cfg.cardWidth + Math.abs(cfg.spread) * cfg.visibleCards * 2 + 60;
+      scaleRef.current = clamp(w / needed, 0.5, 1);
+      layout(posRef.current);
+    });
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [layout]);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const onWheel = e => {
+      const cfg = cfgRef.current;
+      if (cfg.count < 2) return;
+      e.preventDefault();
+      tweenRef.current?.kill();
+      const raw = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const delta = e.deltaMode === 1 ? raw * 24 : raw;
+      const step = clamp(delta / (cfg.cardWidth * 0.9), -0.6, 0.6);
+      posRef.current += step;
+      layout(posRef.current);
+      if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+      wheelTimerRef.current = setTimeout(() => setFocus(Math.round(posRef.current), true), 130);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+    };
+  }, [layout, setFocus]);
+
+  const onPointerDown = useCallback(e => {
+    const cfg = cfgRef.current;
+    if (cfg.count < 2) return;
+    tweenRef.current?.kill();
+    dragRef.current = {
+      x: e.clientX,
+      startPos: posRef.current,
+      lastX: e.clientX,
+      lastT: performance.now(),
+      v: 0,
+      moved: false,
+      id: e.pointerId
+    };
+  }, []);
+
+  const onPointerMove = useCallback(
+    e => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const cfg = cfgRef.current;
+      const stepPx = Math.max(cfg.cardWidth * 0.55 * scaleRef.current, 40);
+      const dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) > 4) {
+        drag.moved = true;
+        rootRef.current?.setPointerCapture(drag.id);
+      }
+      if (!drag.moved) return;
+      const now = performance.now();
+      const dt = Math.max(now - drag.lastT, 1);
+      drag.v = (e.clientX - drag.lastX) / dt;
+      drag.lastX = e.clientX;
+      drag.lastT = now;
+      posRef.current = drag.startPos - dx / stepPx;
+      layout(posRef.current);
+    },
+    [layout]
+  );
+
+  const onPointerEnd = useCallback(() => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    if (!drag.moved) return;
+    const cfg = cfgRef.current;
+    const stepPx = Math.max(cfg.cardWidth * 0.55 * scaleRef.current, 40);
+    const projected = posRef.current - (drag.v * 180) / stepPx;
+    setFocus(Math.round(projected), true);
+  }, [setFocus]);
+
+  const onKeyDown = useCallback(
+    e => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigateBy(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigateBy(1);
+      }
+    },
+    [navigateBy]
+  );
+
+  const onCardClick = useCallback(
+    index => {
+      if (dragRef.current?.moved) return;
+      setFocus(index, true);
+    },
+    [setFocus]
+  );
+
+  useEffect(() => {
+    reducedRef.current = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!autoplay || reducedRef.current || count < 2) return;
+    const root = rootRef.current;
+    let hovered = false;
+    let focused = false;
+    const stop = () => {
+      if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+      autoTimerRef.current = null;
+    };
+    const start = () => {
+      stop();
+      autoTimerRef.current = window.setInterval(
+        () => {
+          if (!hovered && !focused) navigateBy(1);
+        },
+        Math.max(cfgRef.current.autoplayDelay, 600)
+      );
+    };
+    const onEnter = () => {
+      hovered = true;
+    };
+    const onLeave = () => {
+      hovered = false;
+    };
+    const onFocusIn = () => {
+      focused = true;
+    };
+    const onFocusOut = () => {
+      focused = false;
+    };
+    root?.addEventListener('mouseenter', onEnter);
+    root?.addEventListener('mouseleave', onLeave);
+    root?.addEventListener('focusin', onFocusIn);
+    root?.addEventListener('focusout', onFocusOut);
+    start();
+    return () => {
+      stop();
+      root?.removeEventListener('mouseenter', onEnter);
+      root?.removeEventListener('mouseleave', onLeave);
+      root?.removeEventListener('focusin', onFocusIn);
+      root?.removeEventListener('focusout', onFocusOut);
+    };
+  }, [autoplay, autoplayDelay, count, navigateBy]);
+
+  useEffect(() => {
+    layout(posRef.current);
+  }, [layout, depth, spread, tilt, visibleCards, falloff, blur, cardWidth, cardHeight, radius, count]);
+
+  useEffect(
+    () => () => {
+      tweenRef.current?.kill();
+      if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+      if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+    },
+    []
+  );
+
+  return (
+    <div
+      ref={rootRef}
+      className={`depth-carousel ${className}`.trim()}
+      style={{ '--dc-perspective': `${perspective}px` }}
+      role="group"
+      aria-roledescription="carousel"
+      aria-label="Depth carousel"
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onKeyDown={onKeyDown}
+    >
+      <div className="depth-carousel__stage" ref={stageRef}>
+        {data.map((item, i) => (
+          <div
+            key={i}
+            className="depth-carousel__card"
+            ref={el => (cardRefs.current[i] = el)}
+            style={{ width: cardWidth, height: cardHeight, borderRadius: radius }}
+            aria-roledescription="slide"
+            aria-label={`${i + 1} of ${count}`}
+            aria-hidden={active !== i}
+            onClick={() => onCardClick(i)}
+          >
+            {item.content ? (
+              <div className="depth-carousel__content">{item.content}</div>
+            ) : (
+              <img className="depth-carousel__img" src={item.image} alt={item.alt || ''} draggable={false} />
+            )}
+            <span
+              className="depth-carousel__tint"
+              ref={el => (overlayRefs.current[i] = el)}
+              style={{ background: tint }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {showControls && count > 1 && (
+        <>
+          <button
+            type="button"
+            className="depth-carousel__arrow depth-carousel__arrow--prev"
+            aria-label="Previous slide"
+            onClick={() => navigateBy(-1)}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                d="M15 5l-7 7 7 7"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="depth-carousel__arrow depth-carousel__arrow--next"
+            aria-label="Next slide"
+            onClick={() => navigateBy(1)}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path
+                d="M9 5l7 7-7 7"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {showIndicators && count > 1 && (
+        <div className="depth-carousel__dots" role="tablist" aria-label="Slides">
+          {data.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={active === i}
+              aria-label={`Go to slide ${i + 1}`}
+              className={`depth-carousel__dot${active === i ? ' is-active' : ''}`}
+              onClick={() => setFocus(i, true)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DepthCarousel;
+</file>
+
+<file path="src/Pages/LandingPage/LandingPage.jsx">
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { motion, useScroll, AnimatePresence } from 'framer-motion';
+import Lenis from '@studio-freight/lenis';
+import { 
+  ShieldCheck, Lock, UserCircle, Sun, Moon, X, Sparkles, ArrowRight, ChevronUp
+} from 'lucide-react';
+
+import HeroImage from '../../LandingPageImage.png';
+import AnimatedShackleGif from '../../assets/v-shield-animated-shackle.gif';
+// IMPORT PART 2 SECTION
+import LandingPagePart2 from './LandingPagePart2';
+
+const LandingPage = () => {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [role, setRole] = useState('Admin');
+  const [password, setPassword] = useState('123456');
+  const [error, setError] = useState('');
+  const [isScrolled, setIsScrolled] = useState(false);
+  
+  const { login, isDark, setIsDark } = useUserType();
+  const navigate = useNavigate();
+  const { scrollYProgress, scrollY } = useScroll();
+
+  // Initialize Lenis for Smooth Scrolling
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 0.8,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smooth: true,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.2,
+    });
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    return () => lenis.destroy();
+  }, []);
+
+  // Sync header glassmorphism across the entire page scroll
+  useEffect(() => {
+    const unsubscribe = scrollY.on("change", (latest) => {
+      setIsScrolled(latest > 20);
+    });
+    return () => unsubscribe();
+  }, [scrollY]);
+
+  // Sync scroll progress with dead-lock threshold
+  useEffect(() => {
+    const unsubscribe = scrollYProgress.on("change", (latest) => {
+      setIsScrolled(latest > 0.08);
+    });
+    return () => unsubscribe();
+  }, [scrollYProgress]);
+
+  const handleLogin = (e) => {
+    if (e) e.preventDefault();
+    if (login(role, password)) {
+      navigate('/home');
+    } else {
+      setError('Invalid credentials. Access Denied.');
+    }
+  };
+
+  const roles = ['Admin', 'Campaign Creator', 'Campaign Manager', 'Gamification Engine Manager', 'Regular User', 'GMT'];
+
+  return (
+    <div className="w-full bg-slate-50 dark:bg-[#030403] relative selection:bg-[#E60000] selection:text-white font-sans transition-colors duration-500 overflow-x-hidden select-none">
+      
+      {/* ========================================================= */}
+      {/* PERSISTENT HEADER (VISIBLE ON LANDING PAGE & PART 2)      */}
+      {/* ========================================================= */}
+      <header className={`fixed top-0 left-0 w-full h-[55px] flex items-center justify-between px-6 lg:px-12 z-50 transition-all duration-300 border-b border-black/[0.1] dark:border-white/[0.1] ${
+        isScrolled 
+          ? 'bg-slate-50/80 dark:bg-[#030403]/80 backdrop-blur-md shadow-sm' 
+          : 'bg-transparent'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E60000]/20 to-[#990099]/20 flex items-center justify-center border border-[#E60000]/30 shadow-sm">
+            <ShieldCheck className="w-5 h-5 text-[#E60000]" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight transition-colors">
+            <span className="text-slate-900 dark:text-white">VOIS</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099]">Shield</span>
+            <span className="text-slate-900 dark:text-white">.</span>
+          </h2>
+        </div>
+        
+        <div className="flex items-center gap-6">
+          <span className="hidden md:block text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Contact: <a href="mailto:abhay.hs1@vodafone.com" className="hover:text-[#E60000] transition-colors">abhay.hs1@vodafone.com</a>
+          </span>
+          
+          <div className="flex items-center bg-black/5 dark:bg-white/5 p-1 rounded-full border border-black/5 dark:border-white/10 relative w-16 h-8">
+            <button onClick={() => setIsDark(false)} className={`flex-1 flex justify-center z-10 transition-colors ${!isDark ? 'text-black' : 'text-slate-400'}`}><Sun className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setIsDark(true)} className={`flex-1 flex justify-center z-10 transition-colors ${isDark ? 'text-white' : 'text-slate-400'}`}><Moon className="w-3.5 h-3.5" /></button>
+            <div className={`absolute w-[calc(50%-4px)] h-[calc(100%-8px)] bg-white dark:bg-[#E60000] rounded-full shadow-sm transition-transform duration-300 ease-out ${isDark ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`} />
+          </div>
+        </div>
+      </header>
+
+      {/* ========================================== */}
+      {/* STAGE 1: HERO & KNOW MORE PRESENTATION     */}
+      {/* ========================================== */}
+      <div className="h-[180vh] w-full relative">
+        <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between">
+          
+          {/* HERO SECTION */}
+          <motion.div 
+            animate={{ 
+              opacity: isScrolled ? 0 : 1, 
+              y: isScrolled ? -50 : 0, 
+              scale: isScrolled ? 0.96 : 1,
+              pointerEvents: isScrolled ? "none" : "auto"
+            }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full flex-1 flex items-center pt-[60px] pb-[70px] px-6 lg:px-12 relative z-10 overflow-hidden"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full max-w-[1600px] mx-auto items-center h-full">
+              
+              {/* LEFT: Text & SSO */}
+              <div className="lg:col-span-6 w-full pr-0 lg:pr-8">
+                <div className="mb-6">
+                  <h1 className="text-6xl lg:text-7xl font-extrabold tracking-tighter transition-colors leading-none -mt-8">
+                    <span className="text-slate-900 dark:text-white">VOIS</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099]">Shield</span>
+                    <span className="text-slate-900 dark:text-white">.</span>
+                  </h1>
+                </div>
+
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-slate-200 to-slate-100 dark:from-white/10 dark:to-white/5 border border-slate-300 dark:border-white/10 shadow-sm mb-5">
+                  <Sparkles className="w-3 h-3 text-[#990099]" />
+                  <span className="text-[10px] font-bold tracking-widest text-slate-700 dark:text-slate-300 uppercase">Powered by AIDA</span>
+                </div>
+
+                <h2 className="text-2xl lg:text-3xl font-display font-semibold text-slate-900 dark:text-white tracking-tight mb-3 transition-colors leading-[1.2]">
+                  Next-generation human firewall <br className="hidden lg:block" /> & security awareness matrix.
+                </h2>
+
+                <p className="font-display text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-8 max-w-lg transition-colors tracking-wide">
+                  Equip your workforce with the knowledge to identify and neutralize cyber threats. Our intelligent platform delivers targeted simulations, comprehensive training, and real-time analytics.
+                </p>
+
+                <button 
+                  onClick={() => setShowLoginModal(true)}
+                  className="w-full sm:w-auto px-6 py-3 rounded-[8px] bg-[#0B1121] dark:bg-white text-white dark:text-[#0B1121] font-semibold text-sm tracking-wide hover:shadow-[0_10px_30px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_10px_30px_rgba(255,255,255,0.2)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 group border border-transparent dark:border-white/20"
+                >
+                  <svg className="w-3.5 h-4" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                  Login with Microsoft SSO
+                </button>
+              </div>
+
+              {/* RIGHT: Floating Shield Graphic */}
+              <div className="hidden lg:flex flex-col items-center justify-center relative w-full h-full lg:col-span-6 pointer-events-none">
+                <motion.div
+                  initial={{ x: "-50%" }}
+                  animate={{ 
+                    scale: [0.85, 1.15, 0.85],
+                    opacity: [0.15, 0.4, 0.15]
+                  }}
+                  transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute bottom-[10%] left-1/2 w-[45%] h-[25px] bg-black/50 dark:bg-white/60 rounded-[100%] blur-[12px] z-0"
+                />
+
+                <motion.div 
+                  animate={{ y: [-20, 15, -20] }}
+                  transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                  className="relative z-10 w-full h-[85%] flex items-center justify-center"
+                >
+                  <img 
+                    src={HeroImage} 
+                    alt="VOIS Shield Core" 
+                    className="relative z-10 w-full h-full object-contain scale-90 drop-shadow-xl dark:drop-shadow-[0_15px_30px_rgba(0,0,0,0.6)]"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                </motion.div>
+              </div>
+
+            </div>
+          </motion.div>
+
+          {/* ========================================================= */}
+          {/* KNOW MORE SECTION (OPEN BOTTOM DRAWER IN UNEXPANDED STATE)*/}
+          {/* ========================================================= */}
+          <div 
+            className={`w-full px-6 lg:px-6 z-30 transition-all duration-500 ${
+              isScrolled 
+                ? 'fixed inset-0 pt-[66px] pb-4 flex items-center justify-center pointer-events-auto' 
+                : 'relative pb-3 flex justify-end pointer-events-auto'
+            }`}
+          >
+            <motion.div
+              layout
+              animate={{ 
+                height: isScrolled ? "calc(100vh - 82px)" : "45px",
+                y: 0
+              }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              onClick={() => !isScrolled && window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+              className="max-w-[1600px] w-full mx-auto rounded-[10px] bg-[#06080d] dark:bg-white border border-black/10 dark:border-slate-200 shadow-2xl overflow-hidden relative flex flex-col justify-center cursor-pointer md:cursor-default transition-colors duration-500"
+            >
+              {/* 1. INITIAL PEEK HEADER */}
+              {!isScrolled && (
+                <div className="w-full h-[60px] px-6 flex items-center justify-between">
+                  <h3 className="text-sm sm:text-base font-bold tracking-tight text-white dark:text-slate-900 flex items-center gap-3 select-none transition-colors duration-300">
+                    Know More About This Platform
+                  </h3>
+                  <span className="text-xs font-medium tracking-wide text-slate-400 dark:text-slate-500 inline-flex items-center gap-1 select-none">
+                  </span>
+                </div>
+              )}
+
+              {/* 2. EXPANDED CONTENT (THEME INVERTED) */}
+              {isScrolled && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center w-full my-auto px-6 sm:px-10 lg:px-12 xl:px-14 py-4"
+                >
+                  
+                  {/* LEFT: Headline, Paragraph, and Button */}
+                  <div className="lg:col-span-7 flex flex-col justify-center items-start text-left">
+                    <h2 className="text-4xl sm:text-5xl md:text-[3.35rem] lg:text-[3.5rem] xl:text-[4.2rem] font-black text-white dark:text-slate-900 tracking-tighter leading-[0.88] mb-4 text-left transition-colors duration-300">
+                      KNOW<br />
+                      MORE<br />
+                      ABOUT<br />
+                      THIS<br />
+                      PLATFORM
+                    </h2>
+
+                    <p className="text-xs sm:text-[13px] lg:text-[13.5px] text-slate-300 dark:text-slate-600 font-normal leading-relaxed max-w-lg text-left mb-5 transition-colors duration-300">
+                      <strong className="text-white dark:text-black font-semibold">VOISShield</strong> is an advanced AI-driven human firewall platform engineered to protect enterprise ecosystems. By combining real-time simulation algorithms with automated micro-learning, adaptive risk scoring, and holistic employee engagement matrixes, VOISShield transforms organizational awareness into robust frontline security intelligence.
+                    </p>
+
+                    <a
+                      href="mailto:abhay.hs1@vodafone.com"
+                      className="inline-flex items-center justify-center px-6 py-2.5 rounded-md bg-white dark:bg-[#0B1121] text-black dark:text-white font-extrabold text-xs uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors shadow-md"
+                    >
+                      CONTACT US
+                    </a>
+                  </div>
+
+                  {/* RIGHT: Animated Shackle GIF & VOISShield Wordmark */}
+                  <div className="lg:col-span-5 flex flex-col items-center justify-center gap-3 lg:gap-4">
+                    <div className="w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] xl:max-w-[350px] flex items-center justify-center">
+                      <img 
+                        src={AnimatedShackleGif} 
+                        alt="VOIS Shield Secure Lock" 
+                        className="w-full h-auto max-h-[240px] lg:max-h-[270px] xl:max-h-[300px] object-contain drop-shadow-[0_20px_45px_rgba(230,0,0,0.35)] dark:drop-shadow-[0_20px_40px_rgba(0,0,0,0.2)]"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+
+                    <h1 className="text-6xl lg:text-5xl font-extrabold tracking-tighter transition-colors leading-none mt-4">
+                      <span className="text-slate-900 text-white dark:text-black">VOIS</span>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099]">Shield</span>
+                      <span className="text-slate-900 text-white dark:text-black">.</span>
+                    </h1>
+                  </div>
+
+                </motion.div>
+              )}
+
+            </motion.div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* STAGE 2: PART 2 - CAPABILITIES & 3D DOTTED GLOBE          */}
+      {/* ========================================================= */}
+      <div className="-mt-5 relative z-10">
+        <LandingPagePart2 />
+      </div>
+
+      {/* ========================================== */}
+      {/* 3D LOGIN MODAL                             */}
+      {/* ========================================== */}
+      <AnimatePresence>
+        {showLoginModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 perspective-[1000px]">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowLoginModal(false)}
+              className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+
+            <motion.div
+              initial={{ scale: 0.9, y: 40, opacity: 0, rotateX: 10 }} 
+              animate={{ scale: 1, y: 0, opacity: 1, rotateX: 0 }} 
+              exit={{ scale: 0.9, y: 40, opacity: 0, rotateX: -10 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-md p-8 rounded-2xl bg-white dark:bg-[#0B1121] border border-black/10 dark:border-white/10 shadow-2xl relative z-10"
+            >
+              <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-[#E60000] transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Developer Access</h3>
+                <p className="text-xs text-slate-500 mt-1">Select a workspace role to preview the dashboard.</p>
+              </div>
+
+              <form className="space-y-5">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clearance Level</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <UserCircle className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+                    </div>
+                    <select 
+                      value={role} onChange={(e) => setRole(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all appearance-none cursor-pointer text-sm"
+                    >
+                      {roles.map(r => <option key={r} value={r} className="dark:bg-[#0B1121]">{r}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Passcode</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+                    </div>
+                    <input 
+                      type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                      className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-12 pr-4 py-3.5 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all placeholder-slate-400 dark:placeholder-slate-600 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {error && <p className="text-[#ff4d4d] text-xs font-medium bg-[#ff4d4d]/10 py-2 px-3 rounded-lg border border-[#ff4d4d]/20">{error}</p>}
+
+                <button 
+                  type="button" 
+                  onClick={handleLogin} 
+                  className="w-full py-3.5 mt-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black font-bold text-sm tracking-wide hover:bg-gradient-to-r hover:from-[#E60000] hover:to-[#990099] hover:text-white hover:shadow-[0_10px_30px_rgba(230,0,0,0.3)] transition-all duration-300 flex items-center justify-center gap-2 group"
+                >
+                  INITIALIZE SESSION
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+};
+
+export default LandingPage;
+</file>
+
+<file path="src/Pages/LandingPage/LandingPagePart2.jsx">
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import DepthCarousel from './DepthCarousel';
+import { 
+  Sliders, 
+  GraduationCap, 
+  CalendarClock, 
+  Activity, 
+  Users, 
+  Globe2, 
+  Trophy, 
+  ShieldCheck, 
+  GitPullRequest, 
+  KeyRound,
+  Sparkles
+} from 'lucide-react';
+
+// =========================================================================
+// 🎛️ CONTROLLERS: Quick adjust variables for Size, Spacing, Speed & Globe Colors
+// =========================================================================
+const VarDepthCarouselAnimationSpeed = 500;  // Transition speed in ms
+const VarCardWidth = 290;                   // Card width in px
+const VarCardHeight = 360;                  // Card height in px
+const VarCardSpread = 65;                   // Symmetrical lateral spread in px
+const VarCardDepth = 140;                   // 3D Z-depth between cards in px
+const VarShowCarouselControls = false;      // Removed arrow buttons
+const VarShowCarouselIndicators = true;     // Show bottom dots
+
+// 🌐 GLOBE SURFACE (NON-CONTINENT OCEANS) & CONTINENT DOT COLOR CONTROLLERS
+// DARK MODE: White-dominant globe surface with opposite dark/black continent dots
+const VarDarkModeGlobeSurfaceColor = [255, 255, 255];       // Dominant white non-continent globe surface
+const VarDarkModeGlobeContinentColor = [20, 24, 32];        // Opposite dark continent dots
+const VarDarkModeGlobeColorOpacity = 0.98;                  // Surface opacity (0.1 - 1.0)
+
+// LIGHT MODE: Black-dominant globe surface with opposite white continent dots
+const VarLightModeGlobeSurfaceColor = [18, 22, 28];         // Dominant black non-continent globe surface
+const VarLightModeGlobeContinentColor = [255, 255, 255];    // Opposite white continent dots
+const VarLightModeGlobeColorOpacity = 0.95;                 // Surface opacity (0.1 - 1.0)
+
+// 10 CAPABILITIES DATA
+const rawCapabilities = [
+  { id: 1, tag: "CAPABILITY 01", title: "Design Interactive Scenarios", desc: "Construct highly customizable outreach templates to simulate real-world situations and evaluate audience responses.", icon: Sliders },
+  { id: 2, tag: "CAPABILITY 02", title: "Develop Educational Modules", desc: "Build and integrate engaging multimedia content, interactive quizzes, and downloadable digital certificates directly into your communication pathways.", icon: GraduationCap },
+  { id: 3, tag: "CAPABILITY 03", title: "Automate Campaign Scheduling", desc: "Precisely time and distribute targeted communications to specific audience segments across your global network.", icon: CalendarClock },
+  { id: 4, tag: "CAPABILITY 04", title: "Track User Interaction Metrics", desc: "Monitor real-time performance data, including open rates, click-throughs, and geographic engagement heatmaps.", icon: Activity },
+  { id: 5, tag: "CAPABILITY 05", title: "Segment Target Audiences", desc: "Upload and manage dynamic distribution lists to ensure your content reaches the exact intended demographic.", icon: Users },
+  { id: 6, tag: "CAPABILITY 06", title: "Manage Custom Outreach Domains", desc: "Configure and control the specific sender identities and email environments used for your internal deployments.", icon: Globe2 },
+  { id: 7, tag: "CAPABILITY 07", title: "Drive Participation with Incentives", desc: "Configure dynamic point structures, achievement badges, and competitive leaderboards to maximize user completion rates.", icon: Trophy },
+  { id: 8, tag: "CAPABILITY 08", title: "Centralize Workspace Access", desc: "Granularly control which team members have administrative or creative privileges within specific platform modules.", icon: ShieldCheck },
+  { id: 9, tag: "CAPABILITY 09", title: "Enforce Publishing Workflows", desc: "Maintain strict quality control by routing drafted campaigns through authorized managerial review before final deployment.", icon: GitPullRequest },
+  { id: 10, tag: "CAPABILITY 10", title: "Enterprise Single Sign-On Integration", desc: "Provide frictionless and protected platform access for your entire workforce using your existing corporate identity provider.", icon: KeyRound }
+];
+
+// REAL LOCATIONS WITH ACCURATE LATITUDE & LONGITUDE
+const locationMarkers = [
+  { name: "India", lat: 20.5937, lon: 78.9629, code: "IND-NODE-01" },
+  { name: "United Kingdom", lat: 55.3781, lon: -3.4360, code: "UK-SEC-HQ" },
+  { name: "Egypt", lat: 26.8206, lon: 30.8025, code: "EGY-HUB-04" },
+  { name: "Spain", lat: 40.4637, lon: -3.7492, code: "ESP-GATE-02" },
+  { name: "Italy", lat: 41.8719, lon: 12.5674, code: "ITA-CORE-07" },
+  { name: "Albania", lat: 41.1533, lon: 20.1683, code: "ALB-RELAY" },
+  { name: "South Africa", lat: -30.5595, lon: 22.9375, code: "ZAF-DEFENSE" }
+];
+
+// CYBER ARCS LINKING THE NODES
+const cyberArcs = [
+  { from: locationMarkers[0], to: locationMarkers[1] },
+  { from: locationMarkers[1], to: locationMarkers[3] },
+  { from: locationMarkers[3], to: locationMarkers[4] },
+  { from: locationMarkers[4], to: locationMarkers[5] },
+  { from: locationMarkers[5], to: locationMarkers[2] },
+  { from: locationMarkers[2], to: locationMarkers[6] },
+  { from: locationMarkers[6], to: locationMarkers[0] },
+];
+
+// =========================================================================
+// 🌐 3D CYBER SECURITY GLOBE (SURFACE DOMINANT COLOR + OPPOSITE CONTINENTS)
+// =========================================================================
+const NextGenCyberGlobe = ({ isDark }) => {
+  const canvasRef = useRef(null);
+  const [rotation, setRotation] = useState({ phi: 0.6, theta: 0.28 });
+  const [activeLocations, setActiveLocations] = useState([]);
+  const [dotsData, setDotsData] = useState([]);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, phi: 0, theta: 0 });
+
+  // Load and sample true landmass points from World Map
+  useEffect(() => {
+    let isMounted = true;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 180" width="360" height="180"><rect width="360" height="180" fill="white"/><g fill="black"><path d="M72,25 Q85,15 110,20 Q145,18 165,30 Q170,45 155,55 Q130,55 120,40 Z"/><path d="M170,30 Q210,25 250,35 Q290,45 300,70 Q280,95 240,85 Q210,65 190,50 Z"/><path d="M185,55 Q215,65 240,75 Q260,95 245,115 Q230,105 210,80 Z"/><path d="M180,75 Q215,80 225,110 Q210,150 190,140 Q175,110 170,85 Z"/><path d="M40,35 Q75,25 90,50 Q85,85 55,90 Q40,65 35,45 Z"/><path d="M60,95 Q85,95 90,120 Q80,165 60,155 Q50,125 55,100 Z"/><path d="M280,120 Q320,115 330,140 Q310,160 275,150 Z"/><path d="M172,40 Q178,35 180,48 Q174,52 172,40 Z"/><path d="M225,65 Q238,70 235,90 Q220,85 225,65 Z"/></g></svg>';
+
+    img.onload = () => {
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = 360;
+      offCanvas.height = 180;
+      const offCtx = offCanvas.getContext('2d');
+      offCtx.drawImage(img, 0, 0);
+      const imgData = offCtx.getImageData(0, 0, 360, 180).data;
+
+      const sampled = [];
+      for (let lat = -75; lat <= 75; lat += 2.8) {
+        const latRad = (lat * Math.PI) / 180;
+        const count = Math.floor(Math.cos(latRad) * 90);
+        if (count <= 0) continue;
+
+        for (let i = 0; i < count; i++) {
+          const lon = -180 + (i * 360) / count;
+          const px = Math.floor(((lon + 180) / 360) * 360);
+          const py = Math.floor(((90 - lat) / 180) * 180);
+          const idx = (py * 360 + px) * 4;
+
+          const isLand = imgData[idx] < 128;
+          if (isLand || Math.random() < 0.03) {
+            sampled.push({ lat, lon, isLand });
+          }
+        }
+      }
+
+      if (isMounted) setDotsData(sampled);
+    };
+
+    return () => { isMounted = false; };
+  }, []);
+
+  // Continuous auto-rotation
+  useEffect(() => {
+    let animId;
+    const rotate = () => {
+      if (!isDragging.current) {
+        setRotation(prev => ({
+          ...prev,
+          phi: prev.phi + 0.005
+        }));
+      }
+      animId = requestAnimationFrame(rotate);
+    };
+    animId = requestAnimationFrame(rotate);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  // Main Canvas Render
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const cx = width / 2;
+    const cy = height / 2;
+    const radius = width * 0.38;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const phi = rotation.phi;
+    const theta = rotation.theta;
+
+    // Theme-driven colors for surface and continent dots
+    const [sR, sG, sB] = isDark ? VarDarkModeGlobeSurfaceColor : VarLightModeGlobeSurfaceColor;
+    const [cR, cG, cB] = isDark ? VarDarkModeGlobeContinentColor : VarLightModeGlobeContinentColor;
+    const surfaceOpacity = isDark ? VarDarkModeGlobeColorOpacity : VarLightModeGlobeColorOpacity;
+
+    const project = (lat, lon, r = radius) => {
+      const latRad = (lat * Math.PI) / 180;
+      const lonRad = (lon * Math.PI) / 180 + phi;
+
+      const x = r * Math.cos(latRad) * Math.sin(lonRad);
+      const y = -r * Math.sin(latRad) * Math.cos(theta) + r * Math.cos(latRad) * Math.cos(lonRad) * Math.sin(theta);
+      const z = r * Math.cos(latRad) * Math.cos(lonRad) * Math.cos(theta) + r * Math.sin(latRad) * Math.sin(theta);
+
+      return { x: cx + x, y: cy + y, z, visible: z > -r * 0.1 };
+    };
+
+    // 1. Atmosphere Radial Glow
+    const glowGrad = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius * 1.18);
+    if (isDark) {
+      glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+      glowGrad.addColorStop(0.65, 'rgba(230, 0, 0, 0.2)');
+      glowGrad.addColorStop(1, 'rgba(35, 35, 35, 0)');
+    } else {
+      glowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.08)');
+      glowGrad.addColorStop(0.65, 'rgba(230, 0, 0, 0.16)');
+      glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    }
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 1.18, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Globe Surface Shading (Non-Continent Oceans Body)
+    const sphereShading = ctx.createRadialGradient(
+      cx - radius * 0.35,
+      cy - radius * 0.35,
+      radius * 0.1,
+      cx,
+      cy,
+      radius
+    );
+    sphereShading.addColorStop(0, `rgba(${sR}, ${sG}, ${sB}, ${surfaceOpacity})`);
+    sphereShading.addColorStop(0.85, `rgba(${Math.max(0, sR - 30)}, ${Math.max(0, sG - 30)}, ${Math.max(0, sB - 30)}, ${surfaceOpacity * 0.95})`);
+    sphereShading.addColorStop(1, `rgba(${Math.max(0, sR - 60)}, ${Math.max(0, sG - 60)}, ${Math.max(0, sB - 60)}, ${surfaceOpacity})`);
+
+    ctx.fillStyle = sphereShading;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Telemetry Wireframe Rings
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = `rgba(${cR}, ${cG}, ${cB}, 0.12)`;
+    [-40, 0, 40].forEach(lat => {
+      ctx.beginPath();
+      for (let lon = -180; lon <= 180; lon += 5) {
+        const p = project(lat, lon);
+        if (p.z > 0) {
+          ctx.lineTo(p.x, p.y);
+        } else {
+          ctx.moveTo(p.x, p.y);
+        }
+      }
+      ctx.stroke();
+    });
+
+    // 4. Draw Continent Matrix Dots (Opposite Color of Surface)
+    dotsData.forEach(dot => {
+      const p = project(dot.lat, dot.lon);
+      if (p.z > 0) {
+        const alpha = Math.max(0.15, (p.z / radius) * (dot.isLand ? 0.95 : 0.2));
+        const dotSize = Math.max(1, (p.z / radius) * (dot.isLand ? 1.9 : 1.1));
+
+        ctx.fillStyle = `rgba(${cR}, ${cG}, ${cB}, ${alpha})`;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, dotSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // 5. Draw Animated Cyber Defense Laser Arcs
+    const time = Date.now() * 0.002;
+    cyberArcs.forEach((arc, i) => {
+      const p1 = project(arc.from.lat, arc.from.lon);
+      const p2 = project(arc.to.lat, arc.to.lon);
+
+      if (p1.z > -radius * 0.2 || p2.z > -radius * 0.2) {
+        const midLat = (arc.from.lat + arc.to.lat) / 2;
+        const midLon = (arc.from.lon + arc.to.lon) / 2;
+        const pMid = project(midLat, midLon, radius * 1.24);
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(pMid.x, pMid.y, p2.x, p2.y);
+        ctx.strokeStyle = 'rgba(230, 0, 0, 0.65)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Traveling Photon Pulse
+        const t = ((time + i * 0.3) % 1);
+        const qx = (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * pMid.x + t * t * p2.x;
+        const qy = (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * pMid.y + t * t * p2.y;
+
+        ctx.fillStyle = '#ff1a1a';
+        ctx.shadowColor = '#ff1a1a';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(qx, qy, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    });
+
+    // 6. Draw Cyber Security Target Nodes & Radar Ripples
+    const projectedPositions = [];
+    locationMarkers.forEach((node, idx) => {
+      const p = project(node.lat, node.lon);
+      const isFront = p.z > -radius * 0.15;
+
+      if (isFront) {
+        const pulse = (time * 2 + idx * 0.4) % 1;
+        const pulseRadius = 5 + pulse * 14;
+        const pulseAlpha = Math.max(0, 1 - pulse) * (p.z > 0 ? 0.85 : 0.3);
+
+        // Radar ripple
+        ctx.strokeStyle = '#E60000';
+        ctx.lineWidth = 1.6;
+        ctx.globalAlpha = pulseAlpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, pulseRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+        // Core Node
+        ctx.fillStyle = '#E60000';
+        ctx.shadowColor = '#E60000';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        projectedPositions.push({
+          ...node,
+          x: (p.x / width) * 100,
+          y: (p.y / height) * 100,
+          z: p.z,
+          visible: p.z > 0
+        });
+      }
+    });
+
+    setActiveLocations(projectedPositions);
+  }, [rotation, isDark, dotsData]);
+
+  // Drag Handlers
+  const handleMouseDown = e => {
+    isDragging.current = true;
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      phi: rotation.phi,
+      theta: rotation.theta
+    };
+  };
+
+  const handleMouseMove = e => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setRotation({
+      phi: dragStart.current.phi + dx * 0.007,
+      theta: Math.min(Math.max(dragStart.current.theta + dy * 0.007, -0.6), 0.6)
+    });
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  return (
+    <div 
+      className="relative w-full max-w-[390px] aspect-square flex items-center justify-center my-auto select-none cursor-grab active:cursor-grabbing"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <canvas
+        ref={canvasRef}
+        width={780}
+        height={780}
+        className="w-full h-full object-contain pointer-events-none"
+      />
+
+      {/* 3D TRANSLUCENT RED FLOATING COUNTRY BADGES */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {activeLocations.map(loc => {
+          if (!loc.visible) return null;
+          const scale = 0.82 + (loc.z / 180) * 0.28;
+          const opacity = Math.min(1, Math.max(0, loc.z / 50));
+
+          return (
+            <div
+              key={loc.name}
+              style={{
+                left: `${loc.x}%`,
+                top: `${loc.y}%`,
+                transform: `translate(-50%, -125%) scale(${scale})`,
+                opacity: opacity,
+              }}
+              className="absolute flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E60000]/25 dark:bg-[#E60000]/35 text-white border border-[#E60000]/50 shadow-md shadow-[#E60000]/20 backdrop-blur-md transition-transform duration-75"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black tracking-wider leading-none text-white">{loc.name}</span>
+                <span className="text-[7.5px] font-mono text-[#E60000] dark:text-white/80 leading-none mt-0.5">{loc.code}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Outer Orbit Hologram Ring */}
+      <div className="absolute inset-0 rounded-full border border-dashed border-[#E60000]/25 animate-[spin_40s_linear_infinite] pointer-events-none scale-105" />
+    </div>
+  );
+};
+
+// =========================================================================
+// MAIN PART 2 COMPONENT
+// =========================================================================
+const LandingPagePart2 = () => {
+  const { isDark } = useUserType();
+
+  const carouselItems = useMemo(() => {
+    return rawCapabilities.map((item) => {
+      const IconComponent = item.icon;
+      return {
+        id: item.id,
+        content: (
+          <div className="h-full w-full p-5 sm:p-6 flex flex-col justify-between bg-[#07090e] dark:bg-white text-white dark:text-slate-900 border border-white/10 dark:border-slate-200 rounded-[10px] shadow-xl relative overflow-hidden group transition-colors duration-500">
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-gradient-to-br from-[#E60000]/20 to-[#990099]/20 dark:from-[#E60000]/10 dark:to-[#990099]/10 rounded-full blur-xl pointer-events-none" />
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[9.5px] font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-md bg-white/10 dark:bg-black/5 border border-white/10 dark:border-black/5 text-slate-300 dark:text-slate-600 transition-colors">
+                  {item.tag}
+                </span>
+
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E60000] to-[#990099] flex items-center justify-center text-white shadow-md shadow-[#E60000]/20">
+                  <IconComponent className="w-5 h-5 text-white" strokeWidth={2.2} />
+                </div>
+              </div>
+
+              <h3 className="text-base sm:text-lg font-black tracking-tight leading-snug mb-2.5 text-white dark:text-slate-900 transition-colors">
+                {item.title}
+              </h3>
+
+              <p className="text-[12.5px] text-slate-300 dark:text-slate-600 leading-relaxed font-normal transition-colors line-clamp-4">
+                {item.desc}
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-white/10 dark:border-black/5 flex items-center justify-between transition-colors">
+              <span className="text-[9.5px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1.5 transition-colors">
+                <Sparkles className="w-3 h-3 text-[#E60000]" />
+                VOIS Shield Feature
+              </span>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#E60000] animate-pulse" />
+            </div>
+          </div>
+        )
+      };
+    });
+  }, []);
+
+  return (
+    <section className="w-full bg-slate-50 dark:bg-[#030403] pt-6 pb-0 px-6 lg:px-6 relative z-30 transition-colors duration-500 flex flex-col justify-between">
+      
+      {/* ========================================================= */}
+      {/* UNIFIED CONTAINER: LIGHT = WHITE, DARK = #232323          */}
+      {/* ========================================================= */}
+      <div className="max-w-[1600px] w-full mx-auto rounded-[10px] bg-white dark:bg-[#232323] border border-slate-200 dark:border-white/10 shadow-sm p-6 sm:p-8 lg:p-10 transition-colors duration-500">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          
+          {/* LEFT SIDE: DEPTH CAROUSEL CAPABILITIES CARDS */}
+          <div className="lg:col-span-6 flex flex-col gap-4 ">
+            <div>
+              <h2 className="text-2xl sm:text-3xl xl:text-4xl font-black uppercase tracking-tighter text-slate-900/90 dark:text-white/90 leading-snug transition-colors duration-300 -mt-4 pl-4">
+                Immersive Phishing Simulation &amp; Campaign Management Tool
+              </h2>
+            </div>
+
+            <div className="w-full h-[390px] relative overflow-hidden rounded-xl bg-slate-100/70 dark:bg-black/50 border border-slate-200/80 dark:border-white/5 p-1 transition-colors duration-500">
+              <DepthCarousel
+                items={carouselItems}
+                cardWidth={VarCardWidth}
+                cardHeight={VarCardHeight}
+                radius={18}
+                depth={VarCardDepth}
+                spread={VarCardSpread}
+                tilt={20}
+                perspective={1200}
+                visibleCards={3}
+                falloff={0.2}
+                blur={3}
+                tint={isDark ? '#cbd5e1' : '#05060a'}
+                duration={VarDepthCarouselAnimationSpeed}
+                autoplay={true}
+                autoplayDelay={3000}
+                loop={true}
+                showControls={VarShowCarouselControls}
+                showIndicators={VarShowCarouselIndicators}
+              />
+            </div>
+          </div>
+
+          {/* RIGHT SIDE: 3D DOTTED GLOBE ANIMATION */}
+          <div className="lg:col-span-6 flex flex-col items-center justify-center">
+            
+            {/* Header Behind Globe */}
+            <div className="relative w-full text-center select-none -mb-8 z-0">
+              <h2 className="text-2xl sm:text-3xl xl:text-4xl font-black uppercase tracking-tighter text-slate-900/90 dark:text-white/90 transition-colors duration-300">
+                ACROSS GLOBAL<br />
+                <span className="relative inline-block">
+                  LOCATIONS
+                  <span className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-[#232323] pointer-events-none" />
+                </span>
+              </h2>
+            </div>
+
+            {/* 3D Dotted Canvas Globe Container */}
+            <NextGenCyberGlobe isDark={isDark} />
+
+            {/* Translucent Red Country Tags Bottom Row */}
+            <div className="w-full max-w-[420px] mt-2 flex flex-wrap justify-center gap-1.5">
+              {locationMarkers.map((loc) => (
+                <span
+                  key={loc.name}
+                  className="px-2.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-[#E60000]/15 dark:bg-[#E60000]/25 border border-[#E60000]/30 text-[#E60000] dark:text-[#ff4d4d] transition-colors duration-300 flex items-center gap-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#E60000] animate-pulse" />
+                  {loc.name}
+                </span>
+              ))}
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* FINAL FOOTER SECTION (WITH UPPER BORDER LINE)             */}
+      {/* ========================================================= */}
+      <footer className="w-full max-w-[1600px] mx-auto mt-12 pt-10 pb-6 text-slate-900 dark:text-white border-t border-black/10 dark:border-white/10 transition-colors duration-500 select-none">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-8 items-start">
+          
+          <div className="md:col-span-3 flex flex-col gap-3">
+            <h4 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white mb-1">
+              Policies
+            </h4>
+            <a href="#privacy" className="text-xs text-slate-600 dark:text-slate-400 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
+              Privacy policy
+            </a>
+            <a href="#cookies" className="text-xs text-slate-600 dark:text-slate-400 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
+              Cookie notice
+            </a>
+            <a href="#terms" className="text-xs text-slate-600 dark:text-slate-400 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
+              Terms &amp; conditions
+            </a>
+          </div>
+
+          <div className="md:col-span-4 flex flex-col gap-3">
+            <h4 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white mb-1">
+              Operating responsibility
+            </h4>
+            <a href="#code-of-conduct" className="text-xs text-slate-600 dark:text-slate-400 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
+              Code of conduct
+            </a>
+          </div>
+
+          <div className="md:col-span-5 flex flex-col items-start md:items-end justify-between gap-6">
+            <div className="flex flex-col items-start md:items-end">
+              <h3 className="text-2xl font-black tracking-tight flex items-baseline">
+                <span className="text-slate-900 dark:text-white font-extrabold tracking-tight">VOIS</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099] ml-0.5">Shield</span>
+                <span className="text-slate-900 dark:text-white font-black">.</span>
+              </h3>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                Powered by AIDA
+              </p>
+            </div>
+
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+              Contact us:&nbsp;
+              <a href="mailto:abhay.hs1@vodafone.com" className="font-semibold text-slate-900 dark:text-slate-200 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
+                abhay.hs1@vodafone.com
+              </a>
+            </p>
+          </div>
+
+        </div>
+
+        <div className="border-t border-black/10 dark:border-white/10 pt-4 flex items-center justify-center text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">
+          <span>All Rights Reserved</span>
+          <span className="mx-2 text-slate-400 dark:text-slate-600">|</span>
+          <span>VOISShield</span>
+          <span className="mx-2 text-slate-400 dark:text-slate-600">|</span>
+          <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099]">VOIS</span>
+        </div>
+      </footer>
+
+    </section>
+  );
+};
+
+export default LandingPagePart2;
+</file>
+
+<file path="src/UserTypeContext/UserTypeContext.jsx">
+import React, { createContext, useState, useContext, useEffect } from 'react';
+
+const UserTypeContext = createContext();
+
+// EXACT MATRIX MAPPING
+export const ROLE_PERMISSIONS = {
+  'Admin': [
+    'start-campaign', 'create-scenario', 'add-training', 'announcements', 'user-dls', 
+    'email-domains', 'gamification-engine', 'uam', 'analytics', 'requests', 'approvals', 
+    'points-scoring', 'leaderboard', 'training-path', 'history-pending'
+  ],
+  'Campaign Creator': [
+    'start-campaign', 'create-scenario', 'add-training', 'announcements', 'user-dls', 
+    'email-domains', 'analytics', 'requests', 'points-scoring', 'leaderboard', 
+    'training-path', 'history-pending'
+  ],
+  'Campaign Manager': [
+    'start-campaign', 'create-scenario', 'add-training', 'announcements', 'user-dls', 
+    'email-domains', 'analytics', 'approvals', 'points-scoring', 'leaderboard', 
+    'training-path', 'history-pending'
+  ],
+  'Gamification Engine Manager': [
+    'gamification-engine', 'points-scoring', 'leaderboard', 'training-path', 'history-pending'
+  ],
+  'Regular User': [
+    'points-scoring', 'leaderboard', 'training-path', 'history-pending'
+  ],
+  'GMT': [
+    'analytics', 'points-scoring', 'leaderboard', 'training-path', 'history-pending'
+  ]
+};
+
+export const UserTypeProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    isDark ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
+  }, [isDark]);
+
+  const login = (role, password) => {
+    if (password === '123456') {
+      const normalizedRole = role === 'GMT (Leadership)' ? 'GMT' : role;
+      setUser({ 
+        role: normalizedRole,
+        permissions: ROLE_PERMISSIONS[normalizedRole] || []
+      });
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => setUser(null);
+
+  const hasAccess = (permission) => {
+    if (!user) return false;
+    return user.permissions.includes(permission);
+  };
+
+  // Helper to find the first available screen for a user when they log in
+  const getDefaultRoute = () => {
+    if (!user || user.permissions.length === 0) return '/';
+    return `/${user.permissions[0]}`; // Redirects to their first allowed screen
+  };
+
+  return (
+    <UserTypeContext.Provider value={{ user, login, logout, isDark, setIsDark, hasAccess, getDefaultRoute }}>
+      {children}
+    </UserTypeContext.Provider>
+  );
+};
+
+export const useUserType = () => useContext(UserTypeContext);
+</file>
+
+<file path="src/App.css">
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+</file>
+
+<file path="src/App.jsx">
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { UserTypeProvider, useUserType } from './UserTypeContext/UserTypeContext';
+
+import Layout from './GlobalComponents/Layout';
+import LandingPage from './Pages/LandingPage/LandingPage';
+import HomeScreen from './Pages/HomeScreen/HomeScreen';
+
+const ProtectedRoute = ({ children, requiredScreen }) => {
+  const { user, hasAccess } = useUserType();
+  if (!user) return <Navigate to="/" replace />;
+  if (requiredScreen && !hasAccess(requiredScreen)) {
+    return <div className="p-10 text-red-500 font-bold">Access Denied.</div>;
+  }
+  return children;
+};
+
+function App() {
+  return (
+    <UserTypeProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+
+          <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            {/* Restored the /home route so the login button works! */}
+            <Route path="/home" element={<HomeScreen />} />
+            
+            {/* Placeholder routes to prevent crashes if you click the sidebar */}
+            <Route path="/start-campaign" element={<div className="p-10 text-slate-900 dark:text-white">Start Campaign (Coming Soon)</div>} />
+            <Route path="/create-scenario" element={<div className="p-10 text-slate-900 dark:text-white">Create Scenario (Coming Soon)</div>} />
+            <Route path="/analytics" element={<div className="p-10 text-slate-900 dark:text-white">Analytics (Coming Soon)</div>} />
+          </Route>
+        </Routes>
+      </Router>
+    </UserTypeProvider>
+  );
+}
+
+export default App;
+</file>
+
+<file path="src/index.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #e19494;
+  --text-primary: #060807;
+}
+
+.dark {
+  --bg-primary: #000000;
+  --text-primary: #ffffff;
+}
+
+/* Global Scrollbar Hiding (Keeps scrolling functional while completely hiding the bar) */
+html,
+body,
+#root {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+body {
+  /* Use system / corporate font stack matching the UI typography */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* True Acrylic Glassmorphism (Apple macOS Style) */
+.premium-glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dark .premium-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.15); /* Top edge light reflection */
+  border-left: 1px solid rgba(255, 255, 255, 0.15); /* Left edge light reflection */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+/* Hover-Only Scrollbar */
+.hover-scrollbar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+.hover-scrollbar::-webkit-scrollbar { width: 3px; }
+.hover-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.hover-scrollbar::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+.hover-scrollbar:hover { scrollbar-color: rgba(150, 150, 150, 0.4) transparent; }
+.hover-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.4); }
+</file>
+
+<file path="src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+</file>
+
+<file path="design.md">
+---
+version: 2.0.0
+name: VOIS Shield Design System
+description: A cinematic, high-contrast, scroll-driven digital identity for enterprise security awareness.
+colors:
+  dark-mode:
+    background-primary: "#030403" # Deep space black
+    background-elevated: "#0B1121" # Rich navy-black for cards/modals
+    text-primary: "#ffffff"
+    text-secondary: "#94a3b8" # slate-400
+    border-subtle: "rgba(255,255,255,0.1)"
+    glass-panel: "rgba(11, 17, 33, 0.6)"
+  light-mode:
+    background-primary: "#f8fafc" # slate-50
+    background-elevated: "#ffffff"
+    text-primary: "#0f172a" # slate-900
+    text-secondary: "#64748b" # slate-500
+    border-subtle: "rgba(0,0,0,0.05)"
+    glass-panel: "rgba(255, 255, 255, 0.8)"
+  brand-accents:
+    vois-red: "#E60000"
+    vois-purple: "#990099"
+    gradient-primary: "linear-gradient(to right, #E60000, #990099)"
+    gradient-hover: "linear-gradient(to right, #E60000, #ff4d4d)"
+typography:
+  display:
+    family: "Outfit, sans-serif"
+    weight: "800" (Extrabold)
+    lineHeight: "1" (leading-none)
+    letterSpacing: "-0.05em" (tracking-tighter)
+  heading:
+    family: "Outfit, sans-serif"
+    weight: "600" (SemiBold)
+    lineHeight: "1.2"
+    letterSpacing: "-0.025em" (tracking-tight)
+  body:
+    family: "Inter, sans-serif"
+    weight: "400"
+    lineHeight: "1.625" (leading-relaxed)
+    letterSpacing: "0.025em" (tracking-wide)
+  label:
+    family: "Inter, sans-serif"
+    weight: "700" (Bold)
+    size: "10px"
+    letterSpacing: "0.1em" (tracking-widest)
+    case: "uppercase"
+spacing:
+  container-max: "1600px"
+  header-height: "65px"
+  grid-columns: "12"
+  gap-standard: "24px" (gap-6)
+rounded:
+  card: "16px" (rounded-2xl)
+  modal: "24px" (rounded-3xl)
+  button: "12px" (rounded-xl)
+  pill: "9999px" (rounded-full)
+motion:
+  easing-standard: "cubic-bezier(0.16, 1, 0.3, 1)"
+  spring-stiffness: "300"
+  spring-damping: "25"
+  scroll-engine: "Lenis (duration: 1.2)"
+---
+
+
+Overview
+VOIS Shield utilizes a "Cinematic Editorial" design language. It abandons traditional flat SaaS layouts in favor of immersive, scroll-driven storytelling. The system relies on heavy contrast, atmospheric lighting (ambient glowing orbs and film grain), and buttery-smooth layout morphing to create a premium, native-app feel in the browser.
+
+Colors & Theming
+The palette transitions flawlessly between a stark, clean Light Mode and a deep, immersive Dark Mode.
+
+Brand Identity: The core identity is maintained through the strict use of the #E60000 (Red) to #990099 (Purple) gradient.
+Text: To maintain an editorial feel, text is never pure black or pure white; it uses deep slates (slate-900) or off-whites (slate-50) to reduce eye strain.
+Typography
+Hierarchy is established through extreme contrast in scale and tracking:
+
+Hero/Display Text: Massive (6xl to 7xl), extremely tight tracking (tracking-tighter), and tight line-heights.
+Eyebrows & Labels: Micro-typography (10px), fully uppercase, and extremely wide tracking (tracking-widest) to create a technical, "cyber-security" aesthetic.
+Elevation & Depth
+Depth is not achieved through standard drop shadows. Instead, we use physical lighting emulation:
+
+Volumetric Backgrounds: Massive 50vw colored orbs with blur-[150px] sit in the background to create ambient light bleed.
+Dynamic Ground Shadows: 3D objects feature independent, animated ground shadows that shrink and fade as the object levitates, simulating real physics.
+Film Grain: A 3% opacity SVG fractal noise overlay (mix-blend-overlay) is applied globally to prevent color banding and give the application a physical, premium texture.
+Glassmorphism: Cards use backdrop-blur-xl combined with highly transparent backgrounds (bg-white/80 or bg-[#0B1121]/60) and 1px borders to separate foreground from background.
+Layout & Scroll Architecture
+The application avoids standard document flow in favor of Sticky Canvas Morphing:
+
+The Hero Section is pinned using sticky top-0 h-screen. Instead of scrolling out of view, its height dynamically shrinks (from 75vh to 25vh) and fades out based on scroll depth.
+The Gallery (Bento Box) utilizes Framer Motion's layout engine. It begins as a horizontal row (grid-cols-6) peeking out from the bottom of the screen. Upon scrolling, it physically detaches and morphs into a centered 3x2 grid, expanding its height to fill the available space.
+
+Components
+Header: Fixed at exactly 65px. Starts completely transparent and transitions to a blurred glass panel with a 1px bottom border immediately upon scroll.
+AIDA Badge: A technical pill shape featuring a pulsating 3px dot to indicate active AI integration.
+SSO Button: High-visibility, solid contrast block (White in dark mode, Black in light mode) to draw the primary Call to Action, featuring a 3D hover lift and group-hover arrow translation.
+Login Modal: Hidden from the DOM until triggered. Enters via a 3D spring-loaded animation (rotateX: 10 to 0) over a blurred backdrop.
+
+Do's and Don'ts
+Do use Framer Motion for all layout changes to ensure smooth interpolation between CSS states.
+Do map all colors to Tailwind's dark: modifier to ensure perfect theme toggling.
+Don't use standard overflow-hidden on containers holding interactive elements (like the Hero section), as it will clip hover states and dropdowns.
+Don't use solid backgrounds for cards; always use a translucent color + backdrop blur to allow the ambient background orbs to bleed through.
+</file>
+
+<file path="eslint.config.js">
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+])
+</file>
+
+<file path="index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>vois-shield</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="package.json">
+{
+  "name": "vois-shield",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "@studio-freight/lenis": "^1.0.42",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cobe": "^2.0.1",
+    "framer-motion": "^13.1.0",
+    "gsap": "^3.15.0",
+    "lucide-react": "^1.32.0",
+    "react": "^19.2.8",
+    "react-countup": "^6.5.3",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "react-simple-maps": "^3.0.0",
+    "shadcn": "^4.16.2",
+    "tailwind-merge": "^3.6.0",
+    "three": "^0.180.0",
+    "tw-animate-css": "^1.4.0",
+    "whatamesh": "^0.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "autoprefixer": "^10.5.4",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.2.0"
+  }
+}
+</file>
+
+<file path="postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+</file>
+
+<file path="README.md">
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class',
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+</file>
+
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { fileURLToPath, URL } from "url";
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: [
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+    ]
+  }
+})
+</file>
+
+</files>

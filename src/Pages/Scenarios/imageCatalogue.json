@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "title": "Password Verification",
+    "image": "src/Pages/Scenarios/CovImg-001.png"
+  },
+  {
+    "id": 2,
+    "title": "Security Alert",
+    "image": "src/Pages/Scenarios/CovImg-002.png"
+  },
+  {
+    "id": 3,
+    "title": "Account Verification",
+    "image": "src/Pages/Scenarios/CovImg-003.png"
+  },
+  {
+    "id": 4,
+    "title": "Microsoft Login",
+    "image": "src/Pages/Scenarios/CovImg-004.png"
+  },
+  {
+    "id": 5,
+    "title": "Suspicious Email",
+    "image": "src/Pages/Scenarios/CovImg-005.png"
+  },
+  {
+    "id": 6,
+    "title": "Security Awareness",
+    "image": "src/Pages/Scenarios/CovImg-001.png"
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "TrainingQuizID": "TQ-00001",
+    "TrainingQuizName": "Phishing Detection Fundamentals Assessment",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"145\" y=\"162\" width=\"110\" height=\"28\" rx=\"14\" fill=\"#7C3AED\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">QUIZ</text></svg></div>",
+    "CreatedOn": "14-Jan-2026",
+    "Description": "Tests foundational knowledge on identifying spoofed senders, suspicious attachments, and urgent call-to-actions.",
+    "TrainingCompletionThreshold": 80,
+    "QuizData": {
+      "Question01": {
+        "question": "What is the primary indicator of a spoofed sender address in an email?",
+        "optionA": "The email has a high-priority red exclamation flag",
+        "optionB": "The display name shows a senior executive, but the actual domain does not match official company domains",
+        "optionC": "The email contains a footer disclaimer",
+        "optionD": "The subject line is written in lowercase",
+        "Answer": "optionB"
+      },
+      "Question02": {
+        "question": "What should you do before clicking on a hyperlink contained in an unexpected email?",
+        "optionA": "Hover over the hyperlink to inspect the true destination URL",
+        "optionB": "Click it immediately to verify if the website is active",
+        "optionC": "Forward the link to all team members for opinion",
+        "optionD": "Reply to the sender asking if the link is safe",
+        "Answer": "optionA"
+      },
+      "Question03": {
+        "question": "An email threatens that your account will be deleted within 2 hours if you don't confirm credentials. This is an example of:",
+        "optionA": "Routine IT administration",
+        "optionB": "Urgency and fear-based psychological manipulation",
+        "optionC": "Standard password synchronization",
+        "optionD": "Multi-factor authentication enforcement",
+        "Answer": "optionB"
+      },
+      "Question04": {
+        "question": "You receive a password-protected ZIP file from an unknown vendor. What is the safest action?",
+        "optionA": "Extract it on your desktop and scan with antivirus later",
+        "optionB": "Use your phone to open the attachment",
+        "optionC": "Report the email using the official reporting button without extracting the archive",
+        "optionD": "Forward it to your personal email account to open safely",
+        "Answer": "optionC"
+      },
+      "Question05": {
+        "question": "Why is entering your credentials on a login page reached via an email link dangerous?",
+        "optionA": "It consumes extra internet bandwidth",
+        "optionB": "The page may be an attacker-controlled lookalike designed to harvest passwords",
+        "optionC": "It automatically disables your multi-factor authentication",
+        "optionD": "It will send spam emails to your inbox",
+        "Answer": "optionB"
+      }
+    }
+  },
+  {
+    "TrainingQuizID": "TQ-00002",
+    "TrainingQuizName": "Executive Impersonation & BEC Defense",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"145\" y=\"162\" width=\"110\" height=\"28\" rx=\"14\" fill=\"#7C3AED\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">QUIZ</text></svg></div>",
+    "CreatedOn": "28-Jan-2026",
+    "Description": "Evaluates readiness against Business Email Compromise (BEC), fake urgent wire transfer requests, and VIP impersonations.",
+    "TrainingCompletionThreshold": 75,
+    "QuizData": {
+      "Question01": {
+        "question": "An email from your CEO requests an urgent off-channel bank transfer for a confidential acquisition. What is the mandatory protocol?",
+        "optionA": "Execute the wire transfer immediately to prevent delays",
+        "optionB": "Verify the request through an established out-of-band communication channel (e.g., direct phone call)",
+        "optionC": "Reply directly to the email asking for confirmation",
+        "optionD": "Transfer half the amount first to test the account",
+        "Answer": "optionB"
+      },
+      "Question02": {
+        "question": "What is a typical trait of Business Email Compromise (BEC) attacks?",
+        "optionA": "Heavy use of virus attachments",
+        "optionB": "Absence of malicious links or malware, relying solely on text-based persuasion and authority",
+        "optionC": "Emails sent only on weekends",
+        "optionD": "Poor English grammar in every case",
+        "Answer": "optionB"
+      },
+      "Question03": {
+        "question": "If a known vendor emails asking to update their bank details for an invoice payment, you must:",
+        "optionA": "Update the bank details in the ERP system right away",
+        "optionB": "Call the vendor using a pre-verified phone number from your official supplier directory",
+        "optionC": "Send the payment to both old and new bank accounts",
+        "optionD": "Ignore the email entirely",
+        "Answer": "optionB"
+      },
+      "Question04": {
+        "question": "Which header field can attackers easily forge if authentication checks (SPF/DMARC) are absent?",
+        "optionA": "Reply-To and Friendly From",
+        "optionB": "IP Origin Timestamp",
+        "optionC": "SSL Certificate Serial",
+        "optionD": "Domain Registrar ID",
+        "Answer": "optionA"
+      }
+    }
+  },
+  {
+    "TrainingQuizID": "TQ-00003",
+    "TrainingQuizName": "Data Security & Credential Protection",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"145\" y=\"162\" width=\"110\" height=\"28\" rx=\"14\" fill=\"#7C3AED\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">QUIZ</text></svg></div>",
+    "CreatedOn": "10-Feb-2026",
+    "Description": "Covers authentication hygiene, multi-factor fatigue attacks, and safeguarding enterprise credentials.",
+    "TrainingCompletionThreshold": 80,
+    "QuizData": {
+      "Question01": {
+        "question": "You receive multiple unexpected MFA push approval notifications on your phone late at night. What should you do?",
+        "optionA": "Approve one so the notifications stop",
+        "optionB": "Deny the prompt immediately and report an unauthorized access attempt to the Cyber Defense Center",
+        "optionC": "Turn off your phone and check in the morning",
+        "optionD": "Change only your Wi-Fi password",
+        "Answer": "optionB"
+      },
+      "Question02": {
+        "question": "When is it acceptable to share your corporate single sign-on password with IT Support?",
+        "optionA": "During urgent system outages",
+        "optionB": "When requested by phone with employee badge verification",
+        "optionC": "Never; legitimate IT personnel will never request your password",
+        "optionD": "Only via encrypted instant messaging",
+        "Answer": "optionC"
+      },
+      "Question03": {
+        "question": "What should you verify in the browser address bar on any corporate authentication page?",
+        "optionA": "That the page displays the corporate logo",
+        "optionB": "That the domain exactly matches the genuine corporate URL and uses HTTPS with a valid certificate",
+        "optionC": "That the background color matches corporate guidelines",
+        "optionD": "That the page loads in less than one second",
+        "Answer": "optionB"
+      }
+    }
+  }
+]

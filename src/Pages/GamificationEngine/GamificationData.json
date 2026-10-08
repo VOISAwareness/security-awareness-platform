@@ -1,0 +1,38 @@
+[
+  {
+    "EventOperation": "Opened",
+    "PointsAssigned": 0,
+    "ModifiedBy": "abhay.hs1@vodafone.com",
+    "LastModifiedOn": "1-Aug-26"
+  },
+  {
+    "EventOperation": "Clicked",
+    "PointsAssigned": -30,
+    "ModifiedBy": "abhay.hs1@vodafone.com",
+    "LastModifiedOn": "1-Aug-26"
+  },
+  {
+    "EventOperation": "Compromised",
+    "PointsAssigned": -50,
+    "ModifiedBy": "abhay.hs1@vodafone.com",
+    "LastModifiedOn": "1-Aug-26"
+  },
+  {
+    "EventOperation": "Reported",
+    "PointsAssigned": 80,
+    "ModifiedBy": "abhay.hs1@vodafone.com",
+    "LastModifiedOn": "1-Aug-26"
+  },
+  {
+    "EventOperation": "Trained",
+    "PointsAssigned": 30,
+    "ModifiedBy": "abhay.hs1@vodafone.com",
+    "LastModifiedOn": "1-Aug-26"
+  },
+  {
+    "EventOperation": "Evaluated",
+    "PointsAssigned": 30,
+    "ModifiedBy": "abhay.hs1@vodafone.com",
+    "LastModifiedOn": "1-Aug-26"
+  }
+]

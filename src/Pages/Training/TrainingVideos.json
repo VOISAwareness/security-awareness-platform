@@ -1,0 +1,42 @@
+[
+  {
+    "TrainingVideoID": "TV-00001",
+    "TrainingVideoName": "Spotting Deceptive Email Lures & Headers",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"135\" y=\"162\" width=\"130\" height=\"28\" rx=\"14\" fill=\"#E60000\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">VIDEO</text></svg></div>",
+    "TrainingVideo": "/src/assets/TrainingVideo1.mp4",
+    "CreatedOn": "12-Jan-2026",
+    "Description": "Comprehensive guide on analyzing suspicious sender domains, mismatched DKIM/SPF headers, and spoofed display names."
+  },
+  {
+    "TrainingVideoID": "TV-00002",
+    "TrainingVideoName": "Social Engineering & Urgent Action Traps",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"135\" y=\"162\" width=\"130\" height=\"28\" rx=\"14\" fill=\"#E60000\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">VIDEO</text></svg></div>",
+    "TrainingVideo": "/src/assets/TrainingVideo2.mp4",
+    "CreatedOn": "18-Jan-2026",
+    "Description": "Explores how psychological manipulation, urgency triggers, and fear tactics are weaponized in credential harvesting attacks."
+  },
+  {
+    "TrainingVideoID": "TV-00003",
+    "TrainingVideoName": "Credential Harvesting & Fake Portals",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"135\" y=\"162\" width=\"130\" height=\"28\" rx=\"14\" fill=\"#E60000\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">VIDEO</text></svg></div>",
+    "TrainingVideo": "/src/assets/TrainingVideo3.mp4",
+    "CreatedOn": "25-Jan-2026",
+    "Description": "Walkthrough of realistic fake Single Sign-On (SSO) login portals, reverse proxy phishing, and URL inspection techniques."
+  },
+  {
+    "TrainingVideoID": "TV-00004",
+    "TrainingVideoName": "Malicious Attachments & Macro Threats",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"135\" y=\"162\" width=\"130\" height=\"28\" rx=\"14\" fill=\"#E60000\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">VIDEO</text></svg></div>",
+    "TrainingVideo": "/src/assets/TrainingVideo4.mp4",
+    "CreatedOn": "04-Feb-2026",
+    "Description": "Details how malicious payloads hide inside PDF invoices, password-protected archives, and weaponized Office macros."
+  },
+  {
+    "TrainingVideoID": "TV-00005",
+    "TrainingVideoName": "Incident Escalation & SOC Reporting",
+    "Thumbnail(CoverImage)": "<div style=\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 240\" width=\"100%\" height=\"100%\" fill=\"none\"><g transform=\"translate(200, 70)\"><circle cx=\"0\" cy=\"0\" r=\"32\" fill=\"#E60000\"/><circle cx=\"-5\" cy=\"-3\" r=\"14\" fill=\"#FFFFFF\"/><circle cx=\"4\" cy=\"4\" r=\"8\" fill=\"#E60000\"/></g><g font-family=\"'Montserrat','Arial',sans-serif\" text-anchor=\"middle\"><text x=\"165\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"currentColor\">VOIS</text><text x=\"222\" y=\"140\" font-size=\"24\" font-weight=\"900\" fill=\"#E60000\">Shield</text><text x=\"264\" y=\"128\" font-size=\"9\" font-weight=\"800\" fill=\"#94A3B8\">TM</text></g><rect x=\"135\" y=\"162\" width=\"130\" height=\"28\" rx=\"14\" fill=\"#E60000\"/><text x=\"200\" y=\"180\" font-family=\"'Montserrat','Arial',sans-serif\" font-size=\"11\" font-weight=\"900\" fill=\"#FFFFFF\" text-anchor=\"middle\" letter-spacing=\"1.5\">VIDEO</text></svg></div>",
+    "TrainingVideo": "/src/assets/TrainingVideo5.mp4",
+    "CreatedOn": "15-Feb-2026",
+    "Description": "Best practices for utilizing the 'Report Phish' button and escalating suspicious communications directly to the Cyber Defense Center."
+  }
+]

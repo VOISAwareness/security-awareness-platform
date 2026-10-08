@@ -1,0 +1,14 @@
+[
+  {
+    "UserID_Admin": "VSLD-000006",
+    "UserName_Admin": "Aarav Sharma",
+    "UserEmailD_Admin": "aarav.sharma@vodafone.com",
+    "UserStatus_Admin": "Active"
+  },
+  {
+    "UserID_Admin": "VSLD-000053",
+    "UserName_Admin": "Jack Roberts",
+    "UserEmailD_Admin": "jack.roberts@vodafone.com",
+    "UserStatus_Admin": "Active"
+  }
+]
