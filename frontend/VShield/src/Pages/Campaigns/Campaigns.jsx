@@ -12,7 +12,8 @@ import {
   FilePenLine,
   Trash2,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Send
 } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
@@ -111,7 +112,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
   const userContext = useUserType?.() || {};
   const navigate = useNavigate();
   const actor = actorFor(userContext.user);
-  const { campaigns, loading, error, pendingAction, refresh, remove } = useCampaigns({ actor });
+  const { campaigns, loading, error, pendingAction, refresh, remove, send } = useCampaigns({ actor });
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
   const [isDark, setIsDark] = useState(() => {
@@ -161,6 +162,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // Drafts tab: which card is asking "delete?", and the last action failure.
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [actionError, setActionError] = useState('');
+  // Send-test flow: which card is awaiting confirmation, and the success note.
+  const [confirmSendId, setConfirmSendId] = useState(null);
+  const [sendNotice, setSendNotice] = useState('');
 
   // Live campaigns from the API, in the field names this screen was drawn with.
   const campaignsList = useMemo(() => campaigns.map((c) => toDesignCampaign(c)), [campaigns]);
@@ -248,6 +252,27 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
+  // Trigger the real send for an APPROVED campaign. The backend sends to the
+  // campaign's recipient list, but in the SES sandbox only verified addresses
+  // are actually delivered to — others are recorded as failed, never emailed.
+  const handleSend = async (camp) => {
+    setActionError('');
+    setSendNotice('');
+    try {
+      const res = await send(camp.campaignId);
+      const sentCount = res?.sentCount ?? 0;
+      const failedCount = res?.failedCount ?? 0;
+      setSendNotice(
+        `Send triggered for ${camp.campaignId}: ${sentCount} sent, ${failedCount} failed. ` +
+          'In the SES sandbox only verified addresses receive mail — check that inbox.'
+      );
+    } catch (e) {
+      setActionError(e?.message || 'Could not send that campaign.');
+    } finally {
+      setConfirmSendId(null);
+    }
+  };
+
   // Active Category List Filtered by Search & Sort
   const currentCategoryList = useMemo(() => {
     let list = categorizedCampaigns[activeTab] || [];
@@ -313,6 +338,44 @@ const Campaigns = ({ isDark: propIsDark }) => {
     return isDark
       ? 'bg-[#1C1E24] text-white hover:bg-[#252830] border-white/10 shadow-xs'
       : 'bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs';
+  };
+
+  // Send-test control for an APPROVED campaign card. Confirms first, then calls
+  // the backend; the Lambda delivers only to the configured verified recipient.
+  const renderSendAction = (camp) => {
+    const busy = pendingAction === camp.campaignId;
+    if (busy) return <span className="text-slate-500 font-bold">Sending…</span>;
+    if (confirmSendId === camp.campaignId) {
+      return (
+        <span className="flex items-center gap-1.5 font-bold">
+          <span className="text-slate-700 dark:text-slate-300">Send test email?</span>
+          <button
+            type="button"
+            onClick={() => handleSend(camp)}
+            className="px-2 py-0.5 rounded-md bg-[#E60000] text-white cursor-pointer"
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmSendId(null)}
+            className="px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 cursor-pointer"
+          >
+            No
+          </button>
+        </span>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirmSendId(camp.campaignId)}
+        className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black font-bold cursor-pointer"
+        title="Send the real email to the campaign's recipient list (sandbox delivers only to verified addresses)"
+      >
+        <Send className="w-3 h-3" /> Send test
+      </button>
+    );
   };
 
   // Drafts tab card footer: a draft can be resumed or deleted; a failed send
@@ -704,6 +767,22 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             )}
 
+            {sendNotice && (
+              <div className="w-full px-6 py-2 flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-500/10 border-l border-r border-emerald-200 dark:border-emerald-400/20 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold relative z-20">
+                <span className="flex items-center gap-1.5">
+                  <Send className="w-3.5 h-3.5" />
+                  {sendNotice}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSendNotice('')}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-emerald-200 dark:border-emerald-400/30 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             {/* 🌟 2. CONTINUOUS LOWER L-BASE: CAMPAIGNS FEED */}
             <div
               style={{ 
@@ -781,12 +860,15 @@ const Campaigns = ({ isDark: propIsDark }) => {
                           {activeTab === 'drafts' ? (
                             renderDraftActions(camp)
                           ) : (
-                            <span className="text-slate-700 dark:text-slate-300 font-bold">
-                              Scheduled End Time: <strong className="font-semibold">{formatDisplayDate(camp.EndTime, true)}</strong>
-                              {daysLeft && activeTab !== 'historical' && (
-                                <span className="ml-1 text-[#15803D] dark:text-[#4ADE80] font-extrabold">{daysLeft}</span>
-                              )}
-                            </span>
+                            <>
+                              <span className="text-slate-700 dark:text-slate-300 font-bold">
+                                Scheduled End Time: <strong className="font-semibold">{formatDisplayDate(camp.EndTime, true)}</strong>
+                                {daysLeft && activeTab !== 'historical' && (
+                                  <span className="ml-1 text-[#15803D] dark:text-[#4ADE80] font-extrabold">{daysLeft}</span>
+                                )}
+                              </span>
+                              {camp.status === 'APPROVED' && renderSendAction(camp)}
+                            </>
                           )}
                         </div>
                       </div>

@@ -174,6 +174,16 @@ export const api = {
         method: 'POST',
         body: { actor, comments },
       }),
+    // Trigger the send for an APPROVED campaign. The email-sender Lambda owns
+    // the APPROVED -> SENDING -> SENT transition and, in the SES sandbox,
+    // delivers only to its configured verified recipient — never the campaign's
+    // real audience. `actor` is recorded for audit; the body is otherwise
+    // ignored by the Lambda.
+    send: (id, actor) =>
+      request(`/campaigns/${encodeURIComponent(id)}/send`, {
+        method: 'POST',
+        body: { actor },
+      }),
   },
 };
 
