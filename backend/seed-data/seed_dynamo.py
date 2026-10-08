@@ -42,6 +42,15 @@ def load(rel):
         return json.load(f)
 
 
+# The bundled campaign mock data was removed once the Campaigns screens read
+# the live API; its tables are skipped rather than crashing the whole run.
+def missing(rel):
+    if (FE / rel).exists():
+        return False
+    print(f"  skipped: {rel} no longer exists")
+    return True
+
+
 def put_all(table_short, items):
     table = _dynamodb.Table(f"{NAME_PREFIX}-{table_short}")
     n = 0
@@ -71,6 +80,8 @@ SIMPLE = [
 def seed_simple(only=None):
     for short, rel, root in SIMPLE:
         if only and only != short:
+            continue
+        if missing(rel):
             continue
         data = load(rel)
         records = data[root] if root else data
@@ -166,6 +177,8 @@ def seed_campaigns(only=None):
     Live/Upcoming rows are genuinely live/upcoming rather than stuck in the past.
     """
     if only and only != "campaigns":
+        return
+    if missing("Pages/Campaigns/CampaignsData.json"):
         return
 
     now = datetime.datetime.now(datetime.UTC)
