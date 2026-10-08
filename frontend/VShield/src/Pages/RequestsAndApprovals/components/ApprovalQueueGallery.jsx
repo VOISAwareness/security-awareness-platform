@@ -18,6 +18,7 @@ import {
   Info
 } from 'lucide-react';
 import ApprovalQueueImg from '../../../assets/RequestAndApprovalsAssets/ApprovalQueueImage.png';
+import { DEMO_USER } from '../../../appConfig';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -145,8 +146,8 @@ const ApprovalQueueGallery = ({
     if (!rawBody) return '<p class="text-slate-400 italic">No email payload defined.</p>';
 
     let processed = String(rawBody)
-      .replace(/{{userName}}/g, 'Abhay H S')
-      .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
+      .replace(/{{userName}}/g, DEMO_USER.name)
+      .replace(/{{email}}/g, DEMO_USER.email)
       .replace(/{{department}}/g, 'AI & Data Analytics')
       .replace(/{{phishLink}}/g, '#simulated-phish-link');
 
@@ -681,8 +682,8 @@ const ApprovalQueueGallery = ({
                     </div>
                     <div>
                       <strong className="text-slate-900 dark:text-white">To: </strong>
-                      <span>Abhay H S</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;abhay.hs1@vodafone.com&gt;</span>
+                      <span>{DEMO_USER.name}</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{DEMO_USER.email}&gt;</span>
                     </div>
                   </div>
                 </div>

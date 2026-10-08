@@ -19,8 +19,8 @@
       "users": [
         {
           "srNo": 1,
-          "userName": "Abhay H S",
-          "email": "abhay.hs1@vodafone.com",
+          "userName": "VOIS Demo User",
+          "email": "vois.demo.user@vodafone.com",
           "department": "AI & Data Analytics",
           "location": "INDIA",
           "hookRate": "12.2%",
@@ -120,8 +120,8 @@
       "users": [
         {
           "srNo": 1,
-          "userName": "Abhay H S",
-          "email": "abhay.hs1@vodafone.com",
+          "userName": "VOIS Demo User",
+          "email": "vois.demo.user@vodafone.com",
           "department": "AI & Data Analytics",
           "location": "INDIA",
           "hookRate": "12.2%",
@@ -165,8 +165,8 @@
       "members": [
         {
           "srNo": 1,
-          "userName": "Abhay H S",
-          "email": "abhay.hs1@vodafone.com",
+          "userName": "VOIS Demo User",
+          "email": "vois.demo.user@vodafone.com",
           "department": "AI & Data Analytics",
           "location": "INDIA",
           "hookRate": "12.2%",

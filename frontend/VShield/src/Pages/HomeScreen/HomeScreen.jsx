@@ -10,6 +10,7 @@ import CardBgLight from '../../assets/HomeScreenCardLightMode.png';
 import CardBgDark from '../../assets/HomeScreenCardDarkMode.png';
 import QuoteCardLight from '../../assets/HomeScreenQuoteCard2LightMode.png';
 import QuoteCardDark from '../../assets/HomeScreenQuoteCard2DarkMode.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -401,7 +402,7 @@ const SecurityFitnessDonut = ({ isDark }) => {
 // 3. MAIN HOMESCREEN COMPONENT
 // ==========================================
 const HomeScreen = () => {
-  const { isDark } = useUserType?.() || { isDark: false };
+  const { isDark, user } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
   const [activeQuarter, setActiveQuarter] = useState('This Quater');
 
@@ -437,7 +438,7 @@ const HomeScreen = () => {
             {/* Top Greeting Block */}
             <div className="relative z-10 flex flex-col">
               <h1 className="font-voda-exb text-[22px] xl:text-[22px] tracking-[-0.02em] leading-[1.1] text-inherit text-[#404040] dark:text-[#F2F2F2]">
-                Hi ABHAY H S,
+                Hi {(user?.UserName || DEMO_USER.name).toUpperCase()},
               </h1>
               <h2 className="font-voda-exb text-[22px] xl:text-[19px] uppercase tracking-[-0.02em] leading-[1.1] text-inherit mt-0.5 opacity-90">
                 WELCOME

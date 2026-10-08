@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { createPortal } from "react-dom";
+import { DEMO_USER } from '../../appConfig';
 // ============================================================
 // REVIEW CARD THEMES
 // ============================================================
@@ -925,11 +926,11 @@ const ReviewPublishDashboard = ({ formData, shellHeightClass = "h-[calc(100vh-16
     (formData.landingPageContent || formData.outcomeRichText || "")
       .replace(
         /{{userName}}/g,
-        formData.userName || "Abhay H S"
+        formData.userName || DEMO_USER.name
       )
       .replace(
         /{{userEmailID}}/g,
-        "abhay.hs1@vodafone.com"
+        DEMO_USER.email
       )
       .replace(
         /{{department}}/g,

@@ -15,6 +15,7 @@ import {
   KeyRound,
   Sparkles
 } from 'lucide-react';
+import { SUPPORT_EMAIL } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ CONTROLLERS: Quick adjust variables for Size, Spacing, Speed & Globe Colors
@@ -555,8 +556,8 @@ const LandingPagePart2 = () => {
 
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
               Contact us:&nbsp;
-              <a href="mailto:abhay.hs1@vodafone.com" className="font-semibold text-slate-900 dark:text-slate-200 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
-                abhay.hs1@vodafone.com
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-slate-900 dark:text-slate-200 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors">
+                {SUPPORT_EMAIL}
               </a>
             </p>
           </div>

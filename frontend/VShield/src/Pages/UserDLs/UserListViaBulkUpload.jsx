@@ -13,6 +13,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -125,7 +126,7 @@ const UserListViaBulkUpload = () => {
   const handleDownloadTemplate = () => {
     const headers = 'User Name,Email ID,Department,Location\n';
     const sampleRows = [
-      'Abhay H S,abhay.hs1@vodafone.com,AI & Data Analytics,INDIA',
+      `${DEMO_USER.name},${DEMO_USER.email},AI & Data Analytics,INDIA`,
       'Trevor Sile,trevor.sile@vodafone.com,CARE,UK',
       'Mitin Rinis,mitin.rinis@vodafone.com,Finance,UK',
       'Sarah Jenkins,sarah.jenkins@vodafone.com,Finance,GERMANY',

@@ -22,6 +22,7 @@ import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import videoBottomAsset from '../../assets/VideoImageStartACampaign.png';
 import quizBottomAsset from '../../assets/QuizImageStartANewCampaign.png';
 import certBottomAsset from '../../assets/CertificateImageStartANewCampaign.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -1029,7 +1030,7 @@ const AddTrainingPath = () => {
                   <iframe
                     title="Certificate Preview"
                     srcDoc={previewCertModal['Certificate(html)']
-                      ?.replace(/{{userName}}/g, draft.userName || 'Abhay H S')
+                      ?.replace(/{{userName}}/g, draft.userName || DEMO_USER.name)
                       ?.replace(/{{trainingPathName}}/g, detailItem?.TrainingPathName || 'Anti-Phishing Path')
                       ?.replace(/{{completionDate}}/g, '15-Jan-2026')
                       ?.replace(/{{certificateId}}/g, previewCertModal.TrainingCertificateID)}
