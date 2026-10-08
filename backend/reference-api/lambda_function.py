@@ -106,6 +106,26 @@ def size_error(size):
     )
 
 
+# Points one gamification rule may award (positive) or deduct (negative).
+POINTS_LIMIT = 1000
+
+
+def parse_points(value):
+    """Return (points, None) for a whole number within +/-POINTS_LIMIT, else
+    (None, message). Booleans are refused: JSON true would otherwise read as 1."""
+    if isinstance(value, bool):
+        return None, "PointsAssigned must be a whole number"
+    try:
+        number = decimal.Decimal(str(value).strip())
+    except (decimal.InvalidOperation, ValueError):
+        return None, "PointsAssigned must be a whole number"
+    if not number.is_finite() or number != number.to_integral_value():
+        return None, "PointsAssigned must be a whole number"
+    if abs(number) > POINTS_LIMIT:
+        return None, f"PointsAssigned must be between -{POINTS_LIMIT} and {POINTS_LIMIT}"
+    return int(number), None
+
+
 def next_sequence_id(rows, key_attr, prefix):
     """Continue a PREFIX-00N sequence, ignoring rows that don't match the shape."""
     nums = []
@@ -239,6 +259,35 @@ def lambda_handler(event, context):
         if route == "DELETE /sender-identities/{id}":
             table("sender-identities").delete_item(Key={"id": params["id"]})
             return respond(204, {"data": None})
+
+        # --- gamification rules (Gamification Engine screen) ---
+        if route == "PUT /gamification-rules/{id}":
+            body = parse_body(event)
+            points, problem = parse_points(body.get("PointsAssigned"))
+            if problem:
+                return err(400, problem)
+            now = datetime.now(UTC)
+            try:
+                # Only the six seeded rules exist; an unknown name must not
+                # quietly create a seventh.
+                resp = table("gamification-rules").update_item(
+                    Key={"EventOperation": params["id"]},
+                    UpdateExpression=(
+                        "SET PointsAssigned = :points, ModifiedBy = :by, LastModifiedOn = :on"
+                    ),
+                    ConditionExpression="attribute_exists(EventOperation)",
+                    ExpressionAttributeValues={
+                        ":points": points,
+                        ":by": str(body.get("ModifiedBy") or "unknown"),
+                        ":on": f"{now.day}-{now.strftime('%b-%y')}",
+                    },
+                    ReturnValues="ALL_NEW",
+                )
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                    return err(404, f"No gamification rule named {params['id']}")
+                raise
+            return ok(resp["Attributes"])
 
         # --- landing-pages CRUD (catalogue screen) ---
         if route == "POST /landing-pages":
