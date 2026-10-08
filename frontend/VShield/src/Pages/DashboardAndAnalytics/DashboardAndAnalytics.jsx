@@ -1,102 +1,299 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Target, Mail, AlertTriangle, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
 
-// Custom Donut Chart Component using SVG and Framer Motion
-const AnimatedDonut = ({ percentage, color, label }) => {
-  const radius = 36;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+import { useUserType } from '../../UserTypeContext/UserTypeContext';
+
+import { useNavigate } from 'react-router-dom';
+
+import ExecutiveOverviewTab from './ExecutiveOverviewTab';
+import EmailPerformanceTab from './EmailPerformanceTab';
+import TrainingLearningTab from './TrainingLearningTab';
+
+
+
+
+// ============================================================
+// SCALE / DESIGN VARIABLES
+// ============================================================
+
+const VarScenarioScale = 0.975;
+
+const VarOverallScenarioRoundednessScale = 0.75;
+
+
+// ============================================================
+// VODAFONE FONT STYLE
+// ============================================================
+
+const VODAFONE_FONT_STYLE = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+
+  .font-voda-exb {
+    font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-weight: 900;
+  }
+
+  .rounded-2xl {
+    border-radius: ${Math.round(
+  16 * VarOverallScenarioRoundednessScale
+)}px !important;
+  }
+
+  .rounded-xl {
+    border-radius: ${Math.round(
+  12 * VarOverallScenarioRoundednessScale
+)}px !important;
+  }
+
+  .rounded-lg {
+    border-radius: ${Math.round(
+  8 * VarOverallScenarioRoundednessScale
+)}px !important;
+  }
+
+  .rounded-md {
+    border-radius: ${Math.round(
+  6 * VarOverallScenarioRoundednessScale
+)}px !important;
+  }
+
+  .dashboard-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+`;
+
+
+// ============================================================
+// ANALYTICS TABS
+// ============================================================
+
+const AnalyticsTabs = ({
+  activeTab,
+  onTabChange,
+}) => {
+
+  const {
+    isDark,
+  } = useUserType?.() || {
+    isDark: false,
+  };
+
+  const tabs = [
+    {
+      id: 0,
+      label: 'Executive Overview'
+    },
+    {
+      id: 1,
+      label: 'Campaign & Email Performance'
+    },
+    {
+      id: 2,
+      label: 'Training & Learning'
+    },
+  ];
 
   return (
-    <div className="relative w-24 h-24 flex items-center justify-center">
-      <svg className="w-full h-full transform -rotate-90 drop-shadow-md">
-        {/* Background Circle */}
-        <circle cx="48" cy="48" r={radius} stroke="currentColor" strokeWidth="8" fill="transparent" className="text-black/5 dark:text-white/10" />
-        {/* Animated Foreground Circle */}
-        <motion.circle 
-          cx="48" cy="48" r={radius} stroke={color} strokeWidth="8" fill="transparent"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset }}
-          transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-bold text-slate-900 dark:text-white">{percentage}%</span>
-      </div>
+    <div className="flex gap-4 flex-wrap">
+
+      {tabs.map(
+        (tab) => (
+
+          <button
+            key={tab.id}
+            onClick={() =>
+              onTabChange(tab.id)
+            }
+            className={`
+              min-w-[210px]
+              h-[27px]
+              px-5
+              rounded-xl
+              border
+              transition-all
+              item-center
+              justify-between
+              text-[10.5px]
+              font-bold
+
+              ${activeTab === tab.id
+
+                ? isDark
+                  ? "bg-white text-black border-white"
+                  : "bg-[#06080D] text-white border-[#06080D]"
+
+                : isDark
+                  ? "bg-[#1A1A1A] text-white border-white/20"
+                  : "bg-white text-slate-700 border-slate-300"
+              }
+            `}
+          >
+            {tab.label}
+          </button>
+
+        )
+      )}
+
     </div>
   );
 };
 
-const AnimatedNumber = ({ value }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const increment = value / (1500 / 16); 
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= value) { clearInterval(timer); setDisplayValue(value); } else { setDisplayValue(start); }
-    }, 16);
-    return () => clearInterval(timer);
-  }, [value]);
-  return <>{Math.floor(displayValue)}</>;
-};
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 
 const DashboardAndAnalytics = () => {
+
+  const {
+    isDark,
+  } = useUserType?.() || {
+    isDark: false,
+  };
+
+
+  const [activeTab, setActiveTab] =
+    useState(0);
+
+
+  const [errorMsg, setErrorMsg] =
+    useState('');
+
+
+  const navigate =
+    useNavigate();
+
+
+  const [isPublishing, setIsPublishing] =
+    useState(false);
+
+
+  const [publishSuccessModal, setPublishSuccessModal] =
+    useState(false);
+
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-      className="p-8 max-w-[1400px] w-full mx-auto pb-20 flex flex-col gap-8 relative z-10 font-sans"
-    >
-      <div className="mb-2">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Analytics Overview</h2>
-        <p className="text-xs text-slate-500 mt-1">Real-time metrics for your active campaigns.</p>
+    <>
+      {/* =====================================================
+          FONT STYLE
+      ===================================================== */}
+
+      <style>
+        {VODAFONE_FONT_STYLE}
+      </style>
+
+
+      <div
+        style={{
+          zoom: VarScenarioScale,
+        }}
+        className="
+          w-full
+          max-w-[1780px]
+          mx-auto
+          p-3
+          sm:p-3.5
+          -mt-2
+          select-none
+          font-sans
+          flex
+          flex-col
+          gap-2.5
+          overflow-hidden
+        "
+      >
+
+        {/* ===================================================
+            PAGE HEADER
+        =================================================== */}
+
+        <div
+        className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
+              DASHBOARD & ANALYTICS
+            </h1>
+
+          </div>
+
+        </div>
+
+
+        {/* ===================================================
+            TABS
+        =================================================== */}
+
+        <div className="mb-0">
+
+          
+          <AnalyticsTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+          
+
+        </div>
+
+
+        {/* ===================================================
+            CONTENT SHELL
+        =================================================== */}
+
+        <div
+          className={`
+            w-full
+            min-h-[400px]
+            h-[calc(100vh-90px)]
+            rounded-3xl
+            
+            
+
+            ${isDark
+              ? 'border-white/5 '
+              : 'border-slate-200 text-slate-900 '
+            }
+          `}
+        >
+
+          {/* =================================================
+              TAB 1
+          ================================================= */}
+
+          {activeTab === 0 && (
+            <ExecutiveOverviewTab
+              isDark={isDark}
+            />
+          )}
+
+
+          {/* =================================================
+              TAB 2
+          ================================================= */}
+
+          {activeTab === 1 && (
+            <EmailPerformanceTab isDark={isDark} />
+          )}
+
+
+          {/* =================================================
+              TAB 3
+          ================================================= */}
+
+          {activeTab === 2 && (
+            <TrainingLearningTab isDark={isDark} />
+          )}
+
+        </div>
+
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        
-        {/* KPI 1: Active Campaigns (Number) */}
-        <div className="whitish-glass rounded-2xl p-6 flex flex-col justify-between shadow-sm">
-          <div className="flex justify-between items-start mb-6">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><Target className="w-3.5 h-3.5"/> Active Campaigns</p>
-          </div>
-          <h4 className="text-5xl font-display font-extrabold text-slate-900 dark:text-white tracking-tighter">
-            0<AnimatedNumber value={2} />
-          </h4>
-        </div>
-
-        {/* KPI 2: Open Rate (Donut) */}
-        <div className="whitish-glass rounded-2xl p-6 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-2"><Mail className="w-3.5 h-3.5"/> Open Rate</p>
-            <p className="text-xs text-slate-400">Target: 15%</p>
-          </div>
-          <AnimatedDonut percentage={12.1} color="#10b981" /> {/* Emerald Green */}
-        </div>
-
-        {/* KPI 3: Hook Rate (Donut) */}
-        <div className="whitish-glass rounded-2xl p-6 flex items-center justify-between shadow-sm border-l-4 border-l-[#E60000]">
-          <div>
-            <p className="text-[10px] font-bold text-[#E60000] uppercase tracking-widest flex items-center gap-2 mb-2"><AlertTriangle className="w-3.5 h-3.5"/> Hook Rate</p>
-            <p className="text-xs text-slate-400">Target: &lt; 5%</p>
-          </div>
-          <AnimatedDonut percentage={8.6} color="#E60000" /> {/* VOIS Red */}
-        </div>
-
-        {/* KPI 4: Reporter Rate (Donut) */}
-        <div className="whitish-glass rounded-2xl p-6 flex items-center justify-between shadow-sm border-l-4 border-l-[#990099]">
-          <div>
-            <p className="text-[10px] font-bold text-[#990099] uppercase tracking-widest flex items-center gap-2 mb-2"><ShieldCheck className="w-3.5 h-3.5"/> Reporter Rate</p>
-            <p className="text-xs text-slate-400">Target: &gt; 25%</p>
-          </div>
-          <AnimatedDonut percentage={20.1} color="#990099" /> {/* VOIS Purple */}
-        </div>
-
-      </div>
-    </motion.div>
+    </>
   );
 };
+
 
 export default DashboardAndAnalytics;

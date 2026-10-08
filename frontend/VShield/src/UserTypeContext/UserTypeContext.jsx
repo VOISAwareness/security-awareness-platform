@@ -3,9 +3,10 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const UserTypeContext = createContext();
 
 // EXACT STANDARDIZED PERMISSION MATRIX
-// Keys directly map to route paths and layout navigation permissions
+// 'home' is restricted to Admin, Campaign Creator, and Campaign Manager only
 export const ROLE_PERMISSIONS = {
   'Admin': [
+    'home',
     'start-campaign',
     'scenarios',
     'campaigns',
@@ -21,6 +22,7 @@ export const ROLE_PERMISSIONS = {
     'my-training'
   ],
   'Campaign Creator': [
+    'home',
     'start-campaign',
     'scenarios',
     'campaigns',
@@ -35,6 +37,7 @@ export const ROLE_PERMISSIONS = {
     'my-training'
   ],
   'Campaign Manager': [
+    'home',
     'start-campaign',
     'scenarios',
     'campaigns',
@@ -50,7 +53,6 @@ export const ROLE_PERMISSIONS = {
   ],
   'Gamification Engine Manager': [
     'gamification-engine',
-    'analytics',
     'my-space',
     'my-training'
   ],
@@ -65,11 +67,26 @@ export const ROLE_PERMISSIONS = {
   ]
 };
 
+// ROLE-SPECIFIC DEFAULT LANDING ROUTES
+export const ROLE_DEFAULT_ROUTES = {
+  'Admin': '/home',
+  'Campaign Creator': '/home',
+  'Campaign Manager': '/home',
+  'Regular User': '/my-space',
+  'Gamification Engine Manager': '/gamification',
+  'GMT': '/analytics'
+};
+
 export const UserTypeProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('voisshield_active_user');
-      return saved ? JSON.parse(saved) : null;
+      const saved = localStorage.getItem('voisshield_active_user') || localStorage.getItem('voisshield_current_user');
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.role) {
+        parsed.permissions = ROLE_PERMISSIONS[parsed.role] || [];
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -90,18 +107,26 @@ export const UserTypeProvider = ({ children }) => {
     }
   }, [isDark]);
 
-  const login = (role, password) => {
+  const login = (role, password, userProfile = null) => {
     if (password === '123456') {
       const normalizedRole = role === 'GMT (Leadership)' ? 'GMT' : role;
+      const permissions = ROLE_PERMISSIONS[normalizedRole] || [];
+      
       const userData = {
+        ...(userProfile || {}),
         role: normalizedRole,
-        permissions: ROLE_PERMISSIONS[normalizedRole] || []
+        permissions
       };
+
       setUser(userData);
       try {
         localStorage.setItem('voisshield_active_user', JSON.stringify(userData));
+        localStorage.setItem('voisshield_current_user', JSON.stringify(userData));
+        localStorage.setItem('voisshield_user_role', normalizedRole);
+        sessionStorage.setItem('voisshield_active_user', JSON.stringify(userData));
+        sessionStorage.setItem('voisshield_current_user', JSON.stringify(userData));
       } catch (e) {
-        console.error(e);
+        console.error('Storage write error:', e);
       }
       return true;
     }
@@ -112,24 +137,26 @@ export const UserTypeProvider = ({ children }) => {
     setUser(null);
     try {
       localStorage.removeItem('voisshield_active_user');
+      localStorage.removeItem('voisshield_current_user');
+      localStorage.removeItem('voisshield_user_role');
+      sessionStorage.removeItem('voisshield_active_user');
+      sessionStorage.removeItem('voisshield_current_user');
     } catch (e) {
-      console.error(e);
+      console.error('Storage removal error:', e);
     }
   };
 
   const hasAccess = (permission) => {
     if (permission === 'always') return true;
-    if (!user) return false;
+    if (!user || !user.permissions) return false;
     return user.permissions.includes(permission);
   };
 
-  // Helper to find the first accessible route when entering dashboard
-  const getDefaultRoute = () => {
-    if (!user || user.permissions.length === 0) return '/home';
-    const firstPerm = user.permissions[0];
-    if (firstPerm === 'scenarios') return '/create-scenario';
-    if (firstPerm === 'training') return '/add-training';
-    return `/${firstPerm}`;
+  // Helper to find the first accessible default route by role
+  const getDefaultRoute = (customUser = user) => {
+    if (!customUser) return '/';
+    // Unknown roles go to /my-space (open to everyone); '/home' would loop via its 'home' guard
+    return ROLE_DEFAULT_ROUTES[customUser.role] || '/my-space';
   };
 
   return (

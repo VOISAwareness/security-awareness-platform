@@ -290,12 +290,12 @@ const AddTrainingPath = () => {
         {/* ── 1. TOP HEADER BAR: "Start New Campaign"                                */}
         {/* ========================================================================= */}
         <div
-          className={`w-full py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
-            isDark ? 'bg-[#ffffff] text-white border-white/10' : 'bg-[#000000] text-white border-black/10'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <h1 className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+        className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               Start New Campaign
             </h1>
           </div>

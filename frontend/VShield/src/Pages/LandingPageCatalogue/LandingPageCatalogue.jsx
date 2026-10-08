@@ -876,7 +876,7 @@ const LandingPageCatalogue = () => {
         {/* ── 1. TOP HEADER BAR: "LANDING PAGE CATALOGUE"                            */}
         {/* ========================================================================= */}
         <div
-          className={`w-full py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
             isDark ? 'bg-[#ffffff] text-white border-white/10' : 'bg-[#000000] text-white border-black/10'
           }`}
         >
@@ -891,17 +891,9 @@ const LandingPageCatalogue = () => {
                 <ArrowLeft className="w-4 h-4 stroke-[2.5] rounded-md text-white dark:text-black" />
               </button>
             )}
-            <h1 className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+            <h1 className="text-[13.5px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
               LANDING PAGE CATALOGUE
             </h1>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] font-voda font-bold tracking-tight text-white/80 dark:text-black/80">
-              {currentView === VIEW_GALLERY
-                ? '-- Oops! You Have Been Phished Templates'
-                : '-- Design Landing Page in Canvas Designer'}
-            </span>
           </div>
         </div>
 

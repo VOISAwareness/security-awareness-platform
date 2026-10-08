@@ -1384,7 +1384,7 @@ const handlePublishScenario = async () => {
         <div
           className={`
             w-full
-            h-[40px]
+            h-[38px]
             px-5
             rounded-xl
             border
@@ -1402,12 +1402,8 @@ const handlePublishScenario = async () => {
             }
           `}
         >
-          <span className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+          <span className="text-[13px] font-bold tracking-tight uppercase">
             CREATE NEW SCENARIO
-          </span>
-
-          <span className="text-[9px] font-bold opacity-60 uppercase">
-            Scenario Creation
           </span>
         </div>
 

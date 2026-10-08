@@ -1,0 +1,674 @@
+{
+  "kpiCards": [
+    {
+      "title": "Total Users",
+      "value": "12,842",
+      "growth": "↑ 3.8%",
+      "color": "#3B82F6"
+    },
+    {
+      "title": "Risk Score",
+      "value": "68/100",
+      "growth": "↑ 4.2 pts",
+      "color": "#A855F7"
+    },
+    {
+      "title": "High Risk Users",
+      "value": "315",
+      "growth": "↓ 18.2%",
+      "color": "#EF4444"
+    },
+    {
+      "title": "Active Campaigns",
+      "value": "14",
+      "growth": "12 new",
+      "color": "#10B981"
+    },
+    {
+      "title": "Click Rate",
+      "value": "12.4%",
+      "growth": "↑ 1.8%",
+      "color": "#06B6D4"
+    },
+    {
+      "title": "Report Rate",
+      "value": "22.8%",
+      "growth": "↑ 2.9%",
+      "color": "#10B981"
+    },
+    {
+      "title": "Training Complete",
+      "value": "76.4%",
+      "growth": "↑ 6.8%",
+      "color": "#EC4899"
+    },
+    {
+      "title": "Users Improved",
+      "value": "1,208",
+      "growth": "↑ 9.4%",
+      "color": "#84CC16"
+    }
+  ],
+  "emailKpiCards": [
+    {
+      "title": "Total Campaigns",
+      "value": "48",
+      "growth": "↑ 6 prior",
+      "color": "#3B82F6"
+    },
+    {
+      "title": "Active Campaigns",
+      "value": "14",
+      "growth": "2 ending soon",
+      "color": "#A855F7"
+    },
+    {
+      "title": "Email Sent",
+      "value": "42.6K",
+      "growth": "↑ 8.1%",
+      "color": "#EF4444"
+    },
+    {
+      "title": "Delivery Rate",
+      "value": "98.1%",
+      "growth": "↑ 0.6%",
+      "color": "#10B981"
+    },
+    {
+      "title": "Open Rate",
+      "value": "61.8%",
+      "growth": "↑ 2.1%",
+      "color": "#06B6D4"
+    },
+    {
+      "title": "Click Rate",
+      "value": "12.4%",
+      "growth": "↑ 1.8%",
+      "color": "#10B981"
+    },
+    {
+      "title": "Report Rate",
+      "value": "22.8%",
+      "growth": "↑ 2.9%",
+      "color": "#EC4899"
+    },
+    {
+      "title": "Camplaint Rate",
+      "value": "0.08%",
+      "growth": "↑ 0.02%",
+      "color": "#84CC16"
+    }
+  ],
+  
+  "trainingKpiCards": [
+    {
+      "title": "Assigned",
+      "value": "2,450",
+      "growth": "↑ 7.4%",
+      "color": "#4F8DF7"
+    },
+    {
+      "title": "Completed",
+      "value": "1,870",
+      "growth": "↑ 8.4%",
+      "color": "#4ADE80"
+    },
+    {
+      "title": "Completion %",
+      "value": "76.4%",
+      "growth": "↑ 16.8%",
+      "color": "#A855F7"
+    },
+    {
+      "title": "Avg Quiz Score",
+      "value": "78.6",
+      "growth": "↑ 3.1 pts",
+      "color": "#2DD4BF"
+    },
+    {
+      "title": "Pass Rate",
+      "value": "72.1%",
+      "growth": "↑ 4.2%",
+      "color": "#4ADE80"
+    },
+    {
+      "title": "Badges Awarded",
+      "value": "853",
+      "growth": "↑ 12.6%",
+      "color": "#F87171"
+    },
+    {
+      "title": "Points Earned",
+      "value": "125,430",
+      "growth": "↑ 14.8%",
+      "color": "#FBBF24"
+    }
+  ],
+
+  
+  "funnelData": [
+    {
+      "name": "Assigned",
+      "value": 2450,
+      "percentage": "100%",
+      "color": "#2563EB"
+    },
+    {
+      "name": "Started",
+      "value": 2120,
+      "percentage": "86.5%",
+      "color": "#42A5F5"
+    },
+    {
+      "name": "Completed",
+      "value": 1870,
+      "percentage": "76.4%",
+      "color": "#20B486"
+    },
+    {
+      "name": "Passed",
+      "value": 1760,
+      "percentage": "71.8%",
+      "color": "#F9A825"
+    }
+  ],
+
+  "evaluationData": [
+    {
+      "month": "Jan",
+      "evaluation": 42,
+      "reporting": 32
+    },
+    {
+      "month": "Feb",
+      "evaluation": 48,
+      "reporting": 37
+    },
+    {
+      "month": "Mar",
+      "evaluation": 55,
+      "reporting": 43
+    },
+    {
+      "month": "Apr",
+      "evaluation": 58,
+      "reporting": 49
+    },
+    {
+      "month": "May",
+      "evaluation": 59,
+      "reporting": 45
+    },
+    {
+      "month": "Jun",
+      "evaluation": 63,
+      "reporting": 61
+    },
+    {
+      "month": "Jul",
+      "evaluation": 72,
+      "reporting": 68
+    }
+  ],
+
+  "departmentData": [
+    {
+      "name": "Finance",
+      "completion": 82,
+      "quizScore": 81
+    },
+    {
+      "name": "Technology",
+      "completion": 79,
+      "quizScore": 80
+    },
+    {
+      "name": "Human Resources",
+      "completion": 75,
+      "quizScore": 78
+    },
+    {
+      "name": "Operations",
+      "completion": 71,
+      "quizScore": 74
+    },
+    {
+      "name": "Sales & Marketing",
+      "completion": 64,
+      "quizScore": 71
+    }
+  ],
+
+  "leaderboardData": [
+    {
+      "rank": 1,
+      "group": "Technology",
+      "avgPoints": 142,
+      "points": "28,450",
+      "badges": 142,
+      "participants": 420
+    },
+    {
+      "rank": 2,
+      "group": "Finance",
+      "avgPoints": 118,
+      "points": "22,180",
+      "badges": 118,
+      "participants": 310
+    },
+    {
+      "rank": 3,
+      "group": "Operations",
+      "avgPoints": 96,
+      "points": "19,750",
+      "badges": 96,
+      "participants": 378
+    },
+    {
+      "rank": 4,
+      "group": "Sales & Marketing",
+      "avgPoints": 91,
+      "points": "18,620",
+      "badges": 91,
+      "participants": 265
+    },
+    {
+      "rank": 5,
+      "group": "Human Resources",
+      "avgPoints": 75,
+      "points": "15,340",
+      "badges": 75,
+      "participants": 198
+    }
+  ],
+
+  "riskScoreData": [
+    { "month": "Jan", "score": 68 },
+    { "month": "Feb", "score": 65 },
+    { "month": "Mar", "score": 62 },
+    { "month": "Apr", "score": 60 },
+    { "month": "May", "score": 56 },
+    { "month": "Jun", "score": 53 },
+    { "month": "Jul", "score": 50 },
+    { "month": "Aug", "score": 54 },
+    { "month": "Sep", "score": 48 },
+    { "month": "Oct", "score": 56 },
+    { "month": "Nov", "score": 66 },
+    { "month": "Dec", "score": 61 }
+  ],
+  
+  "clickReportData": [
+    { "month": "Jan", "click": 52, "report": 62 },
+    { "month": "Feb", "click": 49, "report": 68 },
+    { "month": "Mar", "click": 47, "report": 72 },
+    { "month": "Apr", "click": 54, "report": 76 },
+    { "month": "May", "click": 45, "report": 80 },
+    { "month": "Jun", "click": 42, "report": 82 },
+    { "month": "Jul", "click": 39, "report": 81 },
+    { "month": "Aug", "click": 37, "report": 85 },
+    { "month": "Sep", "click": 40, "report": 84 },
+    { "month": "Oct", "click": 36, "report": 87 },
+    { "month": "Nov", "click": 48, "report": 89 },
+    { "month": "Dec", "click": 44, "report": 91 }
+  ],
+
+  "trainingPrograms": [
+    {
+      "program": "Phishing Awareness Basics",
+      "completion": 92,
+      "score": 84,
+      "pass": 85,
+      "avgDays": 84,
+      "status": "Good"
+    },
+    {
+      "program": "Password Security Essentials",
+      "completion": 88,
+      "score": 81,
+      "pass": 82,
+      "avgDays": 81,
+      "status": "Good"
+    },
+    {
+      "program": "Invoice Fraud Prevention",
+      "completion": 78,
+      "score": 76,
+      "pass": 74,
+      "avgDays": 76,
+      "status": "Good"
+    },
+    {
+      "program": "Data Privacy Fundamentals",
+      "completion": 68,
+      "score": 71,
+      "pass": 68,
+      "avgDays": 71,
+      "status": "Average"
+    },
+    {
+      "program": "Social Engineering Awareness",
+      "completion": 58,
+      "score": 64,
+      "pass": 61,
+      "avgDays": 64,
+      "status": "Average"
+    },
+    {
+      "program": "Secure Remote Working",
+      "completion": 49,
+      "score": 59,
+      "pass": 52,
+      "avgDays": 59,
+      "status": "Needs Work"
+    },
+    {
+      "program": "Mobile Security Essentials",
+      "completion": 42,
+      "score": 55,
+      "pass": 48,
+      "avgDays": 55,
+      "status": "Needs Work"
+    },
+    {
+      "program": "Data Handling Essentials",
+      "completion": 40,
+      "score": 53,
+      "pass": 46,
+      "avgDays": 53,
+      "status": "Needs Work"
+    },
+    {
+      "program": "QR Code Awareness",
+      "completion": 38,
+      "score": 51,
+      "pass": 44,
+      "avgDays": 51,
+      "status": "Needs Work"
+    }
+  ],
+
+
+
+  "engagementTrend": [
+    {
+      "month": "Jan",
+      "openRate": 64,
+      "clickRate": 23,
+      "reportRate": 35
+    },
+    {
+      "month": "Feb",
+      "openRate": 61,
+      "clickRate": 21,
+      "reportRate": 39
+    },
+    {
+      "month": "Mar",
+      "openRate": 66,
+      "clickRate": 19,
+      "reportRate": 42
+    },
+    {
+      "month": "Apr",
+      "openRate": 62,
+      "clickRate": 23,
+      "reportRate": 47
+    },
+    {
+      "month": "May",
+      "openRate": 58,
+      "clickRate": 18,
+      "reportRate": 50
+    },
+    {
+      "month": "Jun",
+      "openRate": 55,
+      "clickRate": 17,
+      "reportRate": 54
+    },
+    {
+      "month": "Jul",
+      "openRate": 59,
+      "clickRate": 15,
+      "reportRate": 57
+    },
+    {
+      "month": "Aug",
+      "openRate": 56,
+      "clickRate": 13,
+      "reportRate": 60
+    },
+    {
+      "month": "Sep",
+      "openRate": 53,
+      "clickRate": 16,
+      "reportRate": 64
+    },
+    {
+      "month": "Oct",
+      "openRate": 56,
+      "clickRate": 15,
+      "reportRate": 67
+    },
+    {
+      "month": "Nov",
+      "openRate": 59,
+      "clickRate": 18,
+      "reportRate": 70
+    },
+    {
+      "month": "Dec",
+      "openRate": 57,
+      "clickRate": 14,
+      "reportRate": 75
+    }
+  ],
+  "scenarioEffectiveness": [
+    {
+      "label": "Invoice Fraud",
+      "clickValue": 41.7,
+      "reportValue": 39
+    },
+    {
+      "label": "Password Reset",
+      "clickValue": 35.1,
+      "reportValue": 35
+    },
+    {
+      "label": "QR Code",
+      "clickValue": 31.8,
+      "reportValue": 32
+    },
+    {
+      "label": "Cloud Share",
+      "clickValue": 29.6,
+      "reportValue": 27
+    },
+    {
+      "label": "Package Delivery",
+      "clickValue": 28.4,
+      "reportValue": 23
+    }
+  ],
+  "motivatorEffectiveness": [
+    {
+      "label": "Urgency",
+      "value": 38
+    },
+    {
+      "label": "Authority",
+      "value": 33
+    },
+    {
+      "label": "Reward",
+      "value": 29
+    },
+    {
+      "label": "Curiosity",
+      "value": 25
+    },
+    {
+      "label": "Fear",
+      "value": 21
+    }
+  ],
+  "campaignPerformance": [
+    {
+      "label": "Invoice Fraud Prevention",
+      "clickRate": 18.9,
+      "reportRate": 15.2
+    },
+    {
+      "label": "Password Reset Simulation",
+      "clickRate": 15.6,
+      "reportRate": 21.4
+    },
+    {
+      "label": "QR Code Awareness",
+      "clickRate": 13.2,
+      "reportRate": 23.7
+    },
+    {
+      "label": "Remote Access Alert",
+      "clickRate": 11.8,
+      "reportRate": 27.6
+    },
+    {
+      "label": "Cloud Share Link",
+      "clickRate": 10.3,
+      "reportRate": 24.1
+    }
+  ],
+  "departmentEngagement": [
+    {
+      "label": "Finance",
+      "clickRate": 18.9,
+      "reportRate": 15.2
+    },
+    {
+      "label": "Human Resources",
+      "clickRate": 15.6,
+      "reportRate": 21.4
+    },
+    {
+      "label": "Operations",
+      "clickRate": 13.2,
+      "reportRate": 23.7
+    },
+    {
+      "label": "Information Technology",
+      "clickRate": 11.8,
+      "reportRate": 27.6
+    },
+    {
+      "label": "Sales & Marketing",
+      "clickRate": 10.3,
+      "reportRate": 24.1
+    }
+  ],
+  "topRiskDepartments": [
+    {
+      "name": "Finance",
+      "score": 78
+    },
+    {
+      "name": "Human Resources",
+      "score": 72
+    },
+    {
+      "name": "Operations",
+      "score": 64
+    },
+    {
+      "name": "Technology",
+      "score": 52
+    },
+    {
+      "name": "Sales & Marketing",
+      "score": 41
+    },
+    {
+      "name": "Sales & Marketing",
+      "score": 41
+    },
+    {
+      "name": "Sales & Marketing",
+      "score": 41
+    },
+    {
+      "name": "Sales & Marketing",
+      "score": 41
+    }
+  ],
+  "highRiskUsers": [
+    {
+      "department": "Finance",
+      "highRiskUsers": 85,
+      "totalUsers": 178
+    },
+    {
+      "department": "Human Resources",
+      "highRiskUsers": 62,
+      "totalUsers": 62
+    },
+    {
+      "department": "Operations",
+      "highRiskUsers": 47,
+      "totalUsers": 47
+    },
+    {
+      "department": "Technology",
+      "highRiskUsers": 35,
+      "totalUsers": 35
+    },
+    {
+      "department": "Sales & Marketing",
+      "highRiskUsers": 21,
+      "totalUsers": 21
+    }
+  ],
+  "riskDrivers": [
+    {
+      "driver": "Repeat Clickers",
+      "users": 67,
+      "impact": "+18%"
+    },
+    {
+      "driver": "Low / No Reporting",
+      "users": 85,
+      "impact": "+7%"
+    },
+    {
+      "driver": "Overdue Training",
+      "users": 58,
+      "impact": "+10%"
+    },
+    {
+      "driver": "Repeated Quiz Failures",
+      "users": 42,
+      "impact": "+5%"
+    }
+  ],
+  "riskDistribution": [
+    {
+      "label": "Low",
+      "value": 47,
+      "color": "#16A34A"
+    },
+    {
+      "label": "Moderate",
+      "value": 28,
+      "color": "#FBBF24"
+    },
+    {
+      "label": "High",
+      "value": 17,
+      "color": "#F97316"
+    },
+    {
+      "label": "Critical",
+      "value": 8,
+      "color": "#DC2626"
+    }
+  ]
+}
