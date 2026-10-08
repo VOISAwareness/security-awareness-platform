@@ -1,5 +1,11 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useCampaigns } from '../../services/useCampaigns';
+import { setActiveCampaignId } from '../../services/useCampaignDraft';
+import { toDesignCampaign } from '../../services/campaignDesign';
+import { actorFor } from '../../services/identity';
 
 // Gallery Components
 import ApprovalQueueGallery from './components/ApprovalQueueGallery';
@@ -18,7 +24,6 @@ import MegaphoneImg from '../../assets/RequestAndApprovalsAssets/NotifyForChange
 import ExpiredImg from '../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
 import MyApprovedImg from '../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
 
-import initialCampaignsData from '../Campaigns/CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -65,106 +70,86 @@ const VODAFONE_FONT_STYLE = `
 
 const RequestAndApprovals = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
+  const navigate = useNavigate();
 
-  // =========================================================================
-  // 🔍 ROBUST EMAIL RESOLVER
-  // =========================================================================
-  const activeUserEmail = useMemo(() => {
-    if (!user) return '';
-    return (
-      user.email ||
-      user.userEmail ||
-      user.UserEmailD_Admin ||
-      user.UserEmailD_CamapignManager ||
-      user.UserEmailD_CamapignCreator ||
-      user.UserEmailD_GMT ||
-      user.UserEmailD_GamificationEngineManager ||
-      user.UserEMailID ||
-      user.userEmailId ||
-      ''
-    ).trim().toLowerCase();
-  }, [user]);
+  // Lower-cased profile email: the audit identity sent with every action and
+  // used for "created by me" / "approved by me".
+  const activeUserEmail = actorFor(user);
 
   const isCampaignCreator = user?.role === 'Campaign Creator';
 
   // Active view tab state: 'queue' | 'rejected' | 'notified' | 'expired' | 'approved'
   const [activeTab, setActiveTab] = useState('queue');
 
-  // Trigger for notify window modal
+  // Trigger for notify window modal, and the plain-reject confirmation
   const [notifyingCampaign, setNotifyingCampaign] = useState(null);
+  const [rejectingCampaign, setRejectingCampaign] = useState(null);
+  const [actionError, setActionError] = useState('');
 
-  // Load campaigns from local storage or CampaignsData.json
-  const [campaigns, setCampaigns] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_campaigns_data');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length >= (initialCampaignsData?.campaigns?.length || 0)) {
-          return parsed;
-        }
-      }
-      return initialCampaignsData?.campaigns || [];
-    } catch {
-      return initialCampaignsData?.campaigns || [];
-    }
-  });
+  const {
+    campaigns: liveCampaigns,
+    loading,
+    error,
+    pendingAction,
+    refresh,
+    approve,
+    reject,
+    notify,
+    reschedule,
+  } = useCampaigns({ actor: activeUserEmail });
 
-  const persistCampaigns = (newCampaigns) => {
-    setCampaigns(newCampaigns);
+  // Live campaigns, in the field names the galleries were drawn with.
+  const campaigns = useMemo(() => liveCampaigns.map((c) => toDesignCampaign(c)), [liveCampaigns]);
+
+  // Every action reports failure the same way and leaves the list refreshed.
+  const runAction = async (fn, fallbackMessage) => {
+    // One transition at a time: a double click must not send it twice.
+    if (pendingAction) return false;
+    setActionError('');
     try {
-      localStorage.setItem('voisshield_campaigns_data', JSON.stringify(newCampaigns));
+      await fn();
+      return true;
     } catch (e) {
-      console.error(e);
+      setActionError(e?.message || fallbackMessage);
+      return false;
     }
   };
 
-  const handleApprove = (camp) => {
-    const updated = campaigns.map((c) => {
-      if (c.campaignId === camp.campaignId) {
-        return {
-          ...c,
-          CampaignStatus: 'Published',
-          'Approved/RejectedBy': activeUserEmail || 'abhay.hs1@vodafone.com',
-          Approver: user?.role === 'Admin' ? 'Admin' : 'Campaign Manager',
-          LastModified: new Date().toLocaleString()
-        };
-      }
-      return c;
-    });
-    persistCampaigns(updated);
+  // Approvers approve, reject, or reject with a notification. They never edit.
+  const handleApprove = (camp) =>
+    runAction(() => approve(camp.campaignId), 'Could not approve that campaign.');
+
+  const handleNotifySubmit = async (camp, message) => {
+    const done = await runAction(
+      () => notify(camp.campaignId, message),
+      'Could not send that notification.'
+    );
+    if (done) setNotifyingCampaign(null);
   };
 
-  const handleNotifySubmit = (camp, message) => {
-    const updated = campaigns.map((c) => {
-      if (c.campaignId === camp.campaignId) {
-        return {
-          ...c,
-          CampaignStatus: 'Notified',
-          NotifiedBy: activeUserEmail || 'abhay.hs1@vodafone.com',
-          NotificationMessage: message,
-          LastModified: new Date().toLocaleString()
-        };
-      }
-      return c;
-    });
-    persistCampaigns(updated);
-    setNotifyingCampaign(null);
+  const handleReject = (camp) => setRejectingCampaign(camp);
+
+  const confirmReject = async () => {
+    const camp = rejectingCampaign;
+    const done = await runAction(() => reject(camp.campaignId), 'Could not reject that campaign.');
+    if (done) setRejectingCampaign(null);
   };
 
-  const handleReject = (camp) => {
-    const updated = campaigns.map((c) => {
-      if (c.campaignId === camp.campaignId) {
-        return {
-          ...c,
-          CampaignStatus: 'Rejected',
-          'Approved/RejectedBy': activeUserEmail || 'abhay.hs1@vodafone.com',
-          Approver: user?.role === 'Admin' ? 'Admin' : 'Campaign Manager',
-          LastModified: new Date().toLocaleString()
-        };
-      }
-      return c;
-    });
-    persistCampaigns(updated);
+  // Creator only: open a campaign that came back with a notification in the wizard.
+  const handleEditCampaign = (camp) => {
+    setActiveCampaignId(camp.campaignId);
+    navigate('/start-campaign/details');
+  };
+
+  // Creator only: an expired request goes back to DRAFT with its new start
+  // time, then opens in the wizard to be checked and resubmitted.
+  const handleExtendAndInvoke = async (camp, newStartTime) => {
+    const done = await runAction(
+      () => reschedule(camp.campaignId, newStartTime),
+      'Could not reschedule that campaign.'
+    );
+    if (done) handleEditCampaign(camp);
+    return done;
   };
 
   // Switcher navigation items configuration
@@ -247,15 +232,15 @@ const RequestAndApprovals = () => {
       }
     });
 
-    const cCount = creatorsSet.size > 0 ? creatorsSet.size : 7;
-    const aCount = approversSet.size > 0 ? approversSet.size : 12;
+    const cCount = creatorsSet.size;
+    const aCount = approversSet.size;
     const total = cCount + aCount;
 
     return {
       creatorsCount: cCount,
       approversCount: aCount,
-      creatorsPct: total > 0 ? (cCount / total) * 100 : 36.8,
-      approversPct: total > 0 ? (aCount / total) * 100 : 63.2
+      creatorsPct: total > 0 ? (cCount / total) * 100 : 0,
+      approversPct: total > 0 ? (aCount / total) * 100 : 0
     };
   }, [campaigns]);
 
@@ -384,6 +369,29 @@ const RequestAndApprovals = () => {
             style={{ width: VarRightSectionWidth, flex: `0 0 ${VarRightSectionWidth}` }}
             className="flex flex-col min-w-0 h-full"
           >
+            {(error || actionError) && (
+              <div className="mb-2 px-4 py-2 rounded-xl flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-400/20 text-rose-700 dark:text-rose-300 text-[10.5px] font-bold">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {actionError || `Could not load campaigns: ${error.message}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionError('');
+                    refresh();
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" /> Retry
+                </button>
+              </div>
+            )}
+
+            {loading && liveCampaigns.length === 0 && !error && (
+              <p className="mb-2 text-[10.5px] font-bold text-slate-400">Loading campaigns…</p>
+            )}
+
             {activeTab === 'queue' && (
               isCampaignCreator ? (
                 <RequestedQueueGallery
@@ -417,6 +425,7 @@ const RequestAndApprovals = () => {
                 isInlineView={true}
                 campaigns={campaigns}
                 currentUserEmail={activeUserEmail}
+                onEdit={handleEditCampaign}
                 isDark={isDark}
               />
             )}
@@ -424,7 +433,8 @@ const RequestAndApprovals = () => {
             {activeTab === 'expired' && (
               <ExpiredCampaignsGallery
                 campaigns={campaigns}
-                onExtendAndInvoke={(camp) => console.log('Extend invoked:', camp)}
+                currentUserEmail={activeUserEmail}
+                onExtendAndInvoke={handleExtendAndInvoke}
                 isDark={isDark}
               />
             )}
@@ -442,12 +452,56 @@ const RequestAndApprovals = () => {
         </div>
 
         {/* 🌟 Notify For Change Feedback Modal Window 🌟 */}
+        {/* Keyed per campaign so a note typed for one never carries over to the next. */}
         <NotifyForChangeWindow
+          key={notifyingCampaign?.campaignId || 'closed'}
           isOpen={Boolean(notifyingCampaign)}
           campaign={notifyingCampaign}
-          onClose={() => setNotifyingCampaign(null)}
+          busy={Boolean(notifyingCampaign) && pendingAction === notifyingCampaign.campaignId}
+          error={notifyingCampaign ? actionError : ''}
+          onClose={() => {
+            setActionError('');
+            setNotifyingCampaign(null);
+          }}
           onSubmit={handleNotifySubmit}
         />
+
+        {/* Plain reject: one confirmation, no message to the creator. */}
+        {rejectingCampaign && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white p-6 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col gap-3">
+              <h2 className="text-[16px] font-black tracking-tight">Reject this campaign?</h2>
+              <p className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug">
+                <span className="font-bold text-slate-900 dark:text-white">{rejectingCampaign.CampaignTitle}</span>{' '}
+                ({rejectingCampaign.campaignId}) will move to Rejected Campaigns. To ask the creator for
+                changes instead, use Notify For Changes.
+              </p>
+              {actionError && (
+                <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-300">{actionError}</p>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionError('');
+                    setRejectingCampaign(null);
+                  }}
+                  className="px-5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmReject}
+                  disabled={pendingAction === rejectingCampaign.campaignId}
+                  className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
+                >
+                  {pendingAction === rejectingCampaign.campaignId ? 'Rejecting…' : 'Reject'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

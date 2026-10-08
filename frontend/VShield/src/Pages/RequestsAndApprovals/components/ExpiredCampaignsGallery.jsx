@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { formatDateTime } from '../../../services/campaignStatus';
 import { 
   Search, 
   ChevronDown, 
@@ -12,7 +12,6 @@ import {
   ArrowRight
 } from 'lucide-react';
 import ExpiredIconImg from '../../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
-import campaignsJsonData from '../../Campaigns/CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -44,12 +43,12 @@ const CAPSULE_THEME_COLOR = '#FDE2D2';
 const CAPSULE_COUNTER_COLOR = '#E57A44';
 
 const ExpiredCampaignsGallery = ({ 
-  campaigns = (campaignsJsonData?.campaigns || []), 
+  campaigns = [], 
+  currentUserEmail = '',
   onExtendAndInvoke, 
   onViewDetails,
   isDark = false 
 }) => {
-  const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('Latest Date');
@@ -63,11 +62,18 @@ const ExpiredCampaignsGallery = ({
   const [extendModalItem, setExtendModalItem] = useState(null);
   const [newStartTime, setNewStartTime] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const [isExtending, setIsExtending] = useState(false);
+
+  // Only the creator may reschedule (and so edit) their own request;
+  // approvers see expired requests read-only.
+  const isOwner = (camp) =>
+    Boolean(currentUserEmail) &&
+    String(camp.CreatedBy || '').trim().toLowerCase() === currentUserEmail.trim().toLowerCase();
 
   const lCardBg = getLCardBg(isDark);
 
   const formatShortDate = (dateStr) => {
-    if (!dateStr) return '2-Jan-26';
+    if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr.split(' ')[0];
@@ -76,31 +82,12 @@ const ExpiredCampaignsGallery = ({
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
     } catch {
-      return dateStr.split(' ')[0] || '2-Jan-26';
+      return dateStr.split(' ')[0] || '—';
     }
-  };
-
-  const formatForDateTimeInput = (dateStr) => {
-    if (!dateStr) return '';
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateStr)) return dateStr.slice(0, 16);
-    try {
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-      }
-    } catch {
-      // fallback
-    }
-    return dateStr;
   };
 
   const formatReadableDateTime = (dateStr) => {
-    if (!dateStr) return 'Not changes yet';
+    if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
@@ -118,19 +105,18 @@ const ExpiredCampaignsGallery = ({
   };
 
   const getElapsedString = (dateStr) => {
-    if (!dateStr) return '2 days Ago';
+    if (!dateStr) return '—';
     try {
       const diffMs = new Date() - new Date(dateStr);
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       return diffDays > 0 ? `${diffDays} days Ago` : 'Today';
     } catch {
-      return '2 days Ago';
+      return '—';
     }
   };
 
   const resolvedCampaigns = useMemo(() => {
-    if (Array.isArray(campaigns) && campaigns.length > 0) return campaigns;
-    return campaignsJsonData?.campaigns || [];
+    return Array.isArray(campaigns) ? campaigns : [];
   }, [campaigns]);
 
   const filteredExpiredCampaigns = useMemo(() => {
@@ -176,45 +162,18 @@ const ExpiredCampaignsGallery = ({
     }
   };
 
-  const handleProceedEditFurther = () => {
-    if (!isExtensionValid || !extendModalItem) return;
-
-    try {
-      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
-      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
-
-      const updatedDraft = {
-        ...draftObj,
-        isEditingExisting: true,
-        campaignId: extendModalItem.campaignId || extendModalItem.CampaignID || '',
-        campaignTitle: extendModalItem.CampaignTitle || extendModalItem.campaignTitle || '',
-        campaignDescription: extendModalItem.CampaignDescription || extendModalItem.campaignDescription || '',
-        startTime: formatForDateTimeInput(newStartTime),
-        endTime: formatForDateTimeInput(extendModalItem.EndTime || extendModalItem.endTime || ''),
-        isTestCampaign: extendModalItem.TestCampaign === 'Yes' || extendModalItem.TestCampaign === true,
-        autoEndPostSending: extendModalItem.autoEndPostSending !== undefined ? Boolean(extendModalItem.autoEndPostSending) : true,
-        senderEmailId: extendModalItem.SenderEmailID || extendModalItem.senderEmailId || '',
-        senderName: extendModalItem.SenderName || extendModalItem.senderName || '',
-        emailSubject: extendModalItem.EmailSubject || extendModalItem.emailSubject || '',
-        emailBody: extendModalItem.EmailBody || extendModalItem.emailBody || extendModalItem.ScenarioEmailBody || '',
-        landingPageId: extendModalItem.LandingPageID || extendModalItem.landingPageId || 'LP-001',
-        trainingId: extendModalItem.TrainingPathID || extendModalItem.trainingId || 'TP-001',
-        targetAudience: extendModalItem.UserList || extendModalItem.TargetUsers || 'All Employees',
-        scenarioId: extendModalItem.scenarioId || 'custom',
-        scenarioName: '__EDIT_MODE__'
-      };
-
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updatedDraft));
-    } catch (e) {
-      console.error(e);
+  // Withdraw the expired request to DRAFT with the new start time; the
+  // container then opens it in the wizard to be checked and resubmitted.
+  const handleProceedEditFurther = async () => {
+    if (!isExtensionValid || !extendModalItem || isExtending) return;
+    setIsExtending(true);
+    const done = onExtendAndInvoke ? await onExtendAndInvoke(extendModalItem, newStartTime) : false;
+    setIsExtending(false);
+    if (done) {
+      setExtendModalItem(null);
+    } else {
+      setToastMessage('Could not reschedule this campaign. Check the message above the list and try again.');
     }
-
-    if (onExtendAndInvoke) {
-      onExtendAndInvoke(extendModalItem, newStartTime);
-    }
-
-    setExtendModalItem(null);
-    navigate('/start-campaign/details');
   };
 
   return (
@@ -382,6 +341,7 @@ const ExpiredCampaignsGallery = ({
 
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <div className="flex items-center gap-1.5 flex-nowrap">
+                    {isOwner(camp) && (
                     <button
                       type="button"
                       onClick={() => {
@@ -394,6 +354,7 @@ const ExpiredCampaignsGallery = ({
                       <RotateCcw className="w-2.5 h-2.5 stroke-[2.5]" />
                       <span>Extend Start Date & Invoke</span>
                     </button>
+                    )}
 
                     <span className="h-5 px-2.5 rounded-md bg-[#E57A44] text-white text-[8.5px] font-voda font-bold uppercase whitespace-nowrap flex items-center shadow-2xs">
                       {getElapsedString(camp.CreationDate)}
@@ -451,7 +412,7 @@ const ExpiredCampaignsGallery = ({
               <div className="flex flex-col gap-1 text-[11.5px] font-voda text-left pt-1">
                 <p className="text-slate-800 dark:text-slate-200">
                   <strong className="font-bold">Previous Start Time: </strong>
-                  <span>{extendModalItem.StartTime || 'N/A'}</span>
+                  <span>{formatReadableDateTime(extendModalItem.StartTime)}</span>
                 </p>
                 <p className="text-slate-800 dark:text-slate-200">
                   <strong className="font-bold">New Start Time: </strong>
@@ -480,7 +441,7 @@ const ExpiredCampaignsGallery = ({
 
                   <button
                     type="button"
-                    disabled={!isExtensionValid}
+                    disabled={!isExtensionValid || isExtending}
                     onClick={handleProceedEditFurther}
                     className={`h-8 px-5 rounded-lg text-[10.5px] font-voda font-bold tracking-wide transition-all flex items-center gap-1.5 shadow-xs ${
                       isExtensionValid
@@ -488,7 +449,7 @@ const ExpiredCampaignsGallery = ({
                         : 'bg-slate-300 dark:bg-white/10 text-slate-500 dark:text-slate-500 cursor-not-allowed opacity-75'
                     }`}
                   >
-                    <span>Edit Further</span>
+                    <span>{isExtending ? 'Rescheduling…' : 'Edit Further'}</span>
                     <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                   </button>
                 </div>
@@ -533,7 +494,7 @@ const ExpiredCampaignsGallery = ({
                   {detailModalItem.CampaignDescription || 'No description provided.'}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {detailModalItem.CreationDate || 'N/A'} &bull; Created By: {detailModalItem.CreatedBy || 'N/A'}
+                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy || 'N/A'}
                 </div>
               </div>
 
@@ -546,15 +507,15 @@ const ExpiredCampaignsGallery = ({
                 </div>
                 <div>
                   <strong>Target Audience: </strong>
-                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'All Employees'}</span>
+                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'No recipients selected'}</span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{detailModalItem.StartTime || 'N/A'}</span>
+                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
                 </div>
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{detailModalItem.EndTime || 'N/A'}</span>
+                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
                 </div>
               </div>
             </div>

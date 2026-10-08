@@ -8,8 +8,11 @@
  * Notes that matter to callers:
  *  - Rows come back NORMALIZED (see campaignStatus.js). Three field
  *    vocabularies exist in the table; screens should never see that.
- *  - `reject` REQUIRES a non-empty comment. The approval Lambda returns 400
- *    without one, so the caller must collect it rather than send a default.
+ *  - Approvers approve, reject, or reject with notification (`notify`). They
+ *    never edit a campaign. `notify` REQUIRES a message — it is what the
+ *    creator reads — and the approval Lambda returns 400 without one.
+ *  - `reschedule` is the creator's way out of an expired request: withdraw it
+ *    to DRAFT, then move its start time.
  *  - After any transition the list is refetched. The approval Lambda is the
  *    only owner of `status`, so re-reading is the only way to be sure.
  */
@@ -113,15 +116,34 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
   );
 
   const reject = useCallback(
-    (campaignId, comments) => {
-      const text = String(comments || '').trim();
+    (campaignId, comments = '') =>
+      runAction(campaignId, () =>
+        api.campaigns.reject(campaignId, actor, String(comments || '').trim())
+      ),
+    [actor, runAction]
+  );
+
+  const notify = useCallback(
+    (campaignId, message) => {
+      const text = String(message || '').trim();
       if (!text) {
         // Fail here rather than letting the server 400: the caller needs to
-        // know it must collect a reason, not that "something went wrong".
-        return Promise.reject(new Error('A reason is required when rejecting a campaign.'));
+        // know it must collect a message, not that "something went wrong".
+        return Promise.reject(new Error('Write a message for the creator before sending.'));
       }
-      return runAction(campaignId, () => api.campaigns.reject(campaignId, actor, text));
+      return runAction(campaignId, () =>
+        api.campaigns.reject(campaignId, actor, text, { notify: true })
+      );
     },
+    [actor, runAction]
+  );
+
+  const reschedule = useCallback(
+    (campaignId, startTime) =>
+      runAction(campaignId, async () => {
+        await api.campaigns.withdraw(campaignId, actor, 'Rescheduled after expiring');
+        return api.campaigns.update(campaignId, { startTime });
+      }),
     [actor, runAction]
   );
 
@@ -138,6 +160,8 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
     refresh,
     approve,
     reject,
+    notify,
+    reschedule,
     remove,
   };
 }

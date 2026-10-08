@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from './api';
 import { isEditable } from './campaignStatus';
+import { currentActor } from './identity';
 
 const POINTER_KEY = 'voisshield_active_campaign_id';
 const LEGACY_DRAFT_KEY = 'voisshield_active_campaign_draft';
@@ -86,7 +87,7 @@ export function useCampaignDraft() {
         }
 
         if (!id) {
-          item = await api.campaigns.create({});
+          item = await api.campaigns.create({ createdBy: currentActor() });
           id = item.campaignId;
           setActiveCampaignId(id);
         }
@@ -132,7 +133,7 @@ export function useCampaignDraft() {
         let item = pointer ? await api.campaigns.get(pointer).catch(() => null) : null;
         if (item && item.status && !isEditable(item.status)) item = null;
         if (!item) {
-          item = await api.campaigns.create({});
+          item = await api.campaigns.create({ createdBy: currentActor() });
           setActiveCampaignId(item.campaignId);
         }
         idRef.current = item.campaignId;

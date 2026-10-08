@@ -26,9 +26,9 @@ import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalo
 // 🌟 Dashboard and Analytics Page
 import DashboardAndAnalytics from './Pages/DashboardAndAnalytics/DashboardAndAnalytics';
 
-// 🌟 New-design previews (mock data; not yet wired to the API)
-import CampaignsPreview from './Pages/Campaigns/Campaigns';
-import RequestAndApprovalsPreview from './Pages/RequestsAndApprovals/RequestAndApprovals';
+// 🌟 Campaign lifecycle pages (wired to the backend)
+import Campaigns from './Pages/Campaigns/Campaigns';
+import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApprovals';
 
 // 🌟 Import Start New Campaign Page
 import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
@@ -37,10 +37,6 @@ import CampaignEmail from './Pages/StartCampaign/CampaignEmail';
 import LandingPageDetails from './Pages/StartCampaign/LandingPageDetails';
 import AddTrainingPath from './Pages/StartCampaign/AddTrainingPath';
 import ReviewAndPublishCampaign from './Pages/StartCampaign/ReviewAndPublishCampaign';
-
-// 🌟 Import Campaign Lifecycle Pages
-import CampaignsHub from './Pages/Campaigns/CampaignsHub';
-import RequestsAndApprovals from './Pages/Approvals/RequestsAndApprovals';
 
 // 🌟 Import UserDLs Suite
 import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
@@ -116,12 +112,8 @@ function App() {
             <Route path="/landing-page-catalogue" element={<LandingPageCatalogue />} />
 
             {/* 🌟 Campaign lifecycle (wired to the backend) */}
-            <Route path="/campaigns" element={<CampaignsHub />} />
-            <Route path="/requests-approvals" element={<RequestsAndApprovals />} />
-
-            {/* 🌟 New designs for the same screens, on preview routes until wired to the API */}
-            <Route path="/campaigns/new" element={<CampaignsPreview />} />
-            <Route path="/requests-approvals/new" element={<RequestAndApprovalsPreview />} />
+            <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/requests-approvals" element={<RequestAndApprovals />} />
 
             {/* 🌟 Dashboard And Analytics Route */}
             <Route path="/analytics" element={<DashboardAndAnalytics />} />
