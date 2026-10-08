@@ -252,16 +252,19 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
-  // Trigger the real send for an APPROVED campaign. In the SES sandbox the
-  // backend delivers only to its configured verified recipient, so this is a
-  // safe end-to-end pipeline test, not a send to the campaign's real audience.
+  // Trigger the real send for an APPROVED campaign. The backend sends to the
+  // campaign's recipient list, but in the SES sandbox only verified addresses
+  // are actually delivered to — others are recorded as failed, never emailed.
   const handleSend = async (camp) => {
     setActionError('');
     setSendNotice('');
     try {
-      await send(camp.campaignId);
+      const res = await send(camp.campaignId);
+      const sentCount = res?.sentCount ?? 0;
+      const failedCount = res?.failedCount ?? 0;
       setSendNotice(
-        `Send triggered for ${camp.campaignId}. The test email goes to the verified recipient configured in AWS — check that inbox.`
+        `Send triggered for ${camp.campaignId}: ${sentCount} sent, ${failedCount} failed. ` +
+          'In the SES sandbox only verified addresses receive mail — check that inbox.'
       );
     } catch (e) {
       setActionError(e?.message || 'Could not send that campaign.');
@@ -368,7 +371,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
         type="button"
         onClick={() => setConfirmSendId(camp.campaignId)}
         className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black font-bold cursor-pointer"
-        title="Send the real email to the AWS-verified test recipient"
+        title="Send the real email to the campaign's recipient list (sandbox delivers only to verified addresses)"
       >
         <Send className="w-3 h-3" /> Send test
       </button>
