@@ -11,8 +11,9 @@
  *  2. LIFECYCLE PHASE — Upcoming / Live / Completed. This is NOT stored; it is
  *     derived from startTime/endTime and only means anything once a campaign
  *     has actually been approved to run. The frontend's original dummy data
- *     (CampaignsData.json) used these as if they were the status, which is why
- *     they are defined here rather than invented separately on each screen.
+ *     used these as if they were the status, which is why they are defined
+ *     here rather than invented separately on each screen. The screens' own
+ *     display labels (Pending, Notified, Expired…) come from campaignDesign.js.
  *
  * `normalizeCampaign` also exists because three different field vocabularies
  * are live in the campaigns table at once:
@@ -265,6 +266,7 @@ export function normalizeCampaign(raw) {
     selectedListId: pick(raw, 'selectedListId'),
     selectedListName: pick(raw, 'selectedListName'),
     recipientCount: raw?.recipientCount ?? raw?.totalUsers ?? null,
+    createdBy: pick(raw, 'createdBy', 'CreatedBy'),
     submittedBy: pick(raw, 'submittedBy'),
     submittedAt: pick(raw, 'submittedAt'),
     submissionComments: pick(raw, 'submissionComments'),
@@ -274,6 +276,9 @@ export function normalizeCampaign(raw) {
     rejectedBy: pick(raw, 'rejectedBy'),
     rejectedAt: pick(raw, 'rejectedAt'),
     rejectionComments: pick(raw, 'rejectionComments'),
+    // Set by "reject with notification": the approver asked for changes, and
+    // the creator is expected to fix and resubmit.
+    changesRequested: raw?.changesRequested === true,
   };
 
   // Nested legacy recipient reference.

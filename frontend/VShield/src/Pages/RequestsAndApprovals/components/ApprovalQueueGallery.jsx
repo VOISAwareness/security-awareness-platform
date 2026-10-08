@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { formatDateTime } from '../../../services/campaignStatus';
 import { 
   Search, 
   ChevronDown, 
@@ -8,7 +8,6 @@ import {
   Megaphone, 
   Check, 
   AlertCircle, 
-  Edit3, 
   XCircle, 
   Eye, 
   X,
@@ -73,12 +72,10 @@ const ApprovalQueueGallery = ({
   currentUserEmail,
   onApprove, 
   onNotify, 
-  onEdit, 
   onReject, 
   onOpenNotifiedModal, 
   isDark 
 }) => {
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('Shortest Expiring Date');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -86,65 +83,6 @@ const ApprovalQueueGallery = ({
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
 
   const lCardBg = getLCardBg(isDark);
-
-  // Helper to format ISO or human date strings to datetime-local input format
-  const formatForDateTimeInput = (dateStr) => {
-    if (!dateStr) return '';
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateStr)) return dateStr.slice(0, 16);
-    try {
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-      }
-    } catch {
-      // fallback
-    }
-    return dateStr;
-  };
-
-  // Select campaign and navigate directly to DetailsAndSettings.jsx
-  const handleEditYourself = (camp) => {
-    try {
-      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
-      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
-
-      const updatedDraft = {
-        ...draftObj,
-        isEditingExisting: true,
-        campaignId: camp.campaignId || camp.CampaignID || '',
-        campaignTitle: camp.CampaignTitle || camp.campaignTitle || '',
-        campaignDescription: camp.CampaignDescription || camp.campaignDescription || '',
-        startTime: formatForDateTimeInput(camp.StartTime || camp.startTime || ''),
-        endTime: formatForDateTimeInput(camp.EndTime || camp.endTime || ''),
-        isTestCampaign: camp.TestCampaign === 'Yes' || camp.TestCampaign === true || camp.isTestCampaign === true,
-        autoEndPostSending: camp.autoEndPostSending !== undefined ? Boolean(camp.autoEndPostSending) : true,
-        senderEmailId: camp.SenderEmailID || camp.senderEmailId || '',
-        senderName: camp.SenderName || camp.senderName || '',
-        emailSubject: camp.EmailSubject || camp.emailSubject || '',
-        emailBody: camp.EmailBody || camp.emailBody || camp.ScenarioEmailBody || camp.EmailContent || '',
-        landingPageId: camp.LandingPageID || camp.landingPageId || 'LP-001',
-        trainingId: camp.TrainingPathID || camp.trainingId || 'TP-001',
-        targetAudience: camp.UserList || camp.TargetUsers || camp.targetAudience || 'All Employees',
-        scenarioId: camp.scenarioId || 'custom',
-        scenarioName: '__EDIT_MODE__' // Ensures DetailsAndSettings retains the existing campaign title
-      };
-
-      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updatedDraft));
-    } catch (e) {
-      console.error('Error saving campaign draft for edit:', e);
-    }
-
-    if (onEdit) {
-      onEdit(camp);
-    }
-
-    navigate('/start-campaign/details');
-  };
 
   // Compute days left until start date
   const getDaysLeft = (startTimeStr) => {
@@ -455,7 +393,7 @@ const ApprovalQueueGallery = ({
                       <>
                         <span className="text-slate-400 font-bold">&bull;</span>
                         <span className="font-bold text-slate-700">
-                          Scheduled for: <span className="font-semibold">{camp.StartTime}</span>
+                          Scheduled for: <span className="font-semibold">{formatDateTime(camp.StartTime)}</span>
                           {daysLeft && (
                             <span className="ml-1 text-[#15803D] font-black">({daysLeft})</span>
                           )}
@@ -484,14 +422,6 @@ const ApprovalQueueGallery = ({
                       Notify For Changes
                     </button>
 
-                    {/* <button
-                      type="button"
-                      onClick={() => handleEditYourself(camp)}
-                      className="h-5 px-3 rounded-md bg-[#FBBF24] hover:bg-[#F59E0B] text-slate-900 text-[8.5px] font-voda font-bold tracking-tight uppercase transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
-                    >
-                      <Edit3 className="w-2.5 h-2.5" />
-                      Edit Yourself
-                    </button> */}
 
                     <button
                       type="button"
@@ -546,7 +476,7 @@ const ApprovalQueueGallery = ({
                   {detailModalItem.CampaignDescription}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {detailModalItem.CreationDate} &bull; Created By: {detailModalItem.CreatedBy}
+                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy}
                 </div>
               </div>
 
@@ -569,7 +499,7 @@ const ApprovalQueueGallery = ({
                       className="font-mono-tech text-[#E60000] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <span>
-                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'DL-ALL-EMPLOYEES'}
+                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'No recipients selected'}
                       </span>
                       <ExternalLink className="w-2.5 h-2.5 stroke-[2.5]" />
                     </button>
@@ -582,12 +512,12 @@ const ApprovalQueueGallery = ({
 
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{detailModalItem.StartTime}</span>
+                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
                 </div>
 
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{detailModalItem.EndTime}</span>
+                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
                 </div>
               </div>
 
@@ -604,7 +534,7 @@ const ApprovalQueueGallery = ({
                   </div>
                   <div>
                     <strong>Sender Email: </strong>
-                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}</span>
+                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'Not set'}</span>
                   </div>
                   <div className="sm:col-span-2">
                     <strong>Email Subject: </strong>
@@ -670,7 +600,7 @@ const ApprovalQueueGallery = ({
                 )}
               </div>
 
-              {/* Bottom: 3 Action Buttons inside Modal (Edit Option Commented Out) */}
+              {/* Bottom: approver actions — approve, notify for changes, reject. Approvers never edit. */}
               <div className={`flex items-center gap-2 pt-2 border-t border-black/10 ${getButtonsRowJustifyClass()}`}>
                 <button
                   type="button"
@@ -696,17 +626,6 @@ const ApprovalQueueGallery = ({
                   Notify For Changes
                 </button>
 
-                {/* <button
-                  type="button"
-                  onClick={() => {
-                    handleEditYourself(detailModalItem);
-                    setDetailModalItem(null);
-                  }}
-                  className="h-7 px-4 rounded-lg bg-[#FBBF24] hover:bg-[#F59E0B] text-slate-900 text-[10px] font-voda font-bold uppercase tracking-tight transition-all shadow-2xs hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  Edit Yourself
-                </button> */}
 
                 <button
                   type="button"
@@ -757,8 +676,8 @@ const ApprovalQueueGallery = ({
                   <div className="flex flex-wrap items-center gap-x-4">
                     <div>
                       <strong className="text-slate-900 dark:text-white">From: </strong>
-                      <span>{detailModalItem.SenderName || 'Security Operations'}</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}&gt;</span>
+                      <span>{detailModalItem.SenderName || 'Not set'}</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'Not set'}&gt;</span>
                     </div>
                     <div>
                       <strong className="text-slate-900 dark:text-white">To: </strong>

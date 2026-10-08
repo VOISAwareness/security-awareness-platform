@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useCampaignDraft, clearActiveCampaign } from '../../services/useCampaignDraft';
 import { api } from '../../services/api';
+import { actorFor } from '../../services/identity';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import userDLsJson from '../UserDLs/UserDLsData.json';
@@ -309,7 +310,7 @@ const ReviewAndPublishCampaign = () => {
   const [publishProblems, setPublishProblems] = useState([]);
 
   // Who the approval workflow records as the submitter.
-  const actor = userContext.user?.role || 'wizard-user';
+  const actor = actorFor(userContext.user);
 
   const dismissPublishError = () => {
     setPublishError('');

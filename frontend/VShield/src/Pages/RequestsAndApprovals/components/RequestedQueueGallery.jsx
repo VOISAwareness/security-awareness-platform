@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatDateTime } from '../../../services/campaignStatus';
 import { 
   Search, 
   ChevronDown, 
@@ -381,7 +382,7 @@ const RequestedQueueGallery = ({
                       <>
                         <span className="text-slate-400 font-bold">&bull;</span>
                         <span className="font-bold text-slate-700">
-                          Scheduled for: <span className="font-semibold">{camp.StartTime}</span>
+                          Scheduled for: <span className="font-semibold">{formatDateTime(camp.StartTime)}</span>
                           {daysLeft && (
                             <span className="ml-1 text-[#15803D] font-black">({daysLeft})</span>
                           )}
@@ -433,7 +434,7 @@ const RequestedQueueGallery = ({
                   {detailModalItem.CampaignDescription}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {detailModalItem.CreationDate} &bull; Created By: {detailModalItem.CreatedBy}
+                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy}
                 </div>
               </div>
 
@@ -456,7 +457,7 @@ const RequestedQueueGallery = ({
                       className="font-mono-tech text-[#E60000] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <span>
-                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'DL-ALL-EMPLOYEES'}
+                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'No recipients selected'}
                       </span>
                       <ExternalLink className="w-2.5 h-2.5 stroke-[2.5]" />
                     </button>
@@ -468,12 +469,12 @@ const RequestedQueueGallery = ({
 
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{detailModalItem.StartTime}</span>
+                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
                 </div>
 
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{detailModalItem.EndTime}</span>
+                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
                 </div>
               </div>
 
@@ -490,7 +491,7 @@ const RequestedQueueGallery = ({
                   </div>
                   <div>
                     <strong>Sender Email: </strong>
-                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}</span>
+                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'Not set'}</span>
                   </div>
                   <div className="sm:col-span-2">
                     <strong>Email Subject: </strong>
@@ -590,8 +591,8 @@ const RequestedQueueGallery = ({
                   <div className="flex flex-wrap items-center gap-x-4">
                     <div>
                       <strong className="text-slate-900 dark:text-white">From: </strong>
-                      <span>{detailModalItem.SenderName || 'Security Operations'}</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}&gt;</span>
+                      <span>{detailModalItem.SenderName || 'Not set'}</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'Not set'}&gt;</span>
                     </div>
                     <div>
                       <strong className="text-slate-900 dark:text-white">To: </strong>

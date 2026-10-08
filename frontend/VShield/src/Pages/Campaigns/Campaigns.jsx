@@ -1,18 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   ChevronDown, 
   ExternalLink, 
   User, 
-  Calendar as CalendarIcon,
   ArrowUp,
   ArrowDown,
-  Clock,
   Eye,
   X,
-  Check
+  FilePenLine,
+  Trash2,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useCampaigns } from '../../services/useCampaigns';
+import { setActiveCampaignId } from '../../services/useCampaignDraft';
+import { DESIGN_STATUS, toDesignCampaign } from '../../services/campaignDesign';
+import { PHASE } from '../../services/campaignStatus';
+import { actorFor } from '../../services/identity';
 
 // Assets imported strictly from src/assets/CampaignsAssets
 import OnGoingImg from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
@@ -20,9 +27,6 @@ import ScheduledImg from '../../assets/CampaignsAssets/ScheduledCampaignsImage.p
 import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage.png';
 import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
 import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
-
-// Fallback direct JSON data
-import initialCampaignsData from './CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -92,11 +96,21 @@ const TAB_CONFIG = {
     subtitle: 'Campaigns that were successfully ended over time',
     counterColor: '#E57A44', // Orange
     img: HistoricalImg
+  },
+  drafts: {
+    id: 'drafts',
+    title: 'Drafts',
+    subtitle: 'Your unfinished campaigns, and sends that failed',
+    counterColor: '#94A3B8', // Slate
+    img: null
   }
 };
 
 const Campaigns = ({ isDark: propIsDark }) => {
   const userContext = useUserType?.() || {};
+  const navigate = useNavigate();
+  const actor = actorFor(userContext.user);
+  const { campaigns, loading, error, pendingAction, refresh, remove } = useCampaigns({ actor });
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
   const [isDark, setIsDark] = useState(() => {
@@ -143,26 +157,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
   const lCardBg = getLCardBg(isDark);
 
-  // Load campaigns data from localStorage or fallback
-  const campaignsList = useMemo(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_campaigns_data');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return initialCampaignsData?.campaigns || [];
-  }, []);
+  // Drafts tab: which card is asking "delete?", and the last action failure.
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [actionError, setActionError] = useState('');
 
-  // Standardized Date Parser
-  const parseDateSafe = (dateStr) => {
-    if (!dateStr) return null;
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? null : d;
-  };
+  // Live campaigns from the API, in the field names this screen was drawn with.
+  const campaignsList = useMemo(() => campaigns.map((c) => toDesignCampaign(c)), [campaigns]);
 
   // Standardized Date Formatters: mm/dd/yyyy
   const formatDisplayDate = (dateStr, includeTime = false) => {
@@ -201,34 +201,49 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
-  // Categorize campaigns dynamically based on status and timestamps
+  // Published campaigns split on their schedule (the derived phase); drafts
+  // and failed sends go to the Drafts tab. Pending, rejected and expired
+  // requests live on Requests & Approvals instead.
   const categorizedCampaigns = useMemo(() => {
-    const now = new Date().getTime();
-
     const ongoing = [];
     const scheduled = [];
     const historical = [];
+    const drafts = [];
 
     campaignsList.forEach((c) => {
-      const status = (c.CampaignStatus || c.campaignStatus || '').toLowerCase();
-      const start = parseDateSafe(c.StartTime);
-      const end = parseDateSafe(c.EndTime);
-
-      if (status === 'published' || status === 'completed') {
-        if (status === 'completed' || (end && end.getTime() < now)) {
-          historical.push(c);
-        } else if (start && start.getTime() > now) {
-          scheduled.push(c);
-        } else {
-          ongoing.push(c);
-        }
-      } else if (status === 'expired') {
-        historical.push(c);
+      if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
+        if (c.phase === PHASE.COMPLETED) historical.push(c);
+        else if (c.phase === PHASE.LIVE) ongoing.push(c);
+        else scheduled.push(c);
+      } else if (
+        c.CampaignStatus === DESIGN_STATUS.DRAFTED ||
+        c.CampaignStatus === DESIGN_STATUS.FAILED
+      ) {
+        // Drafts are personal work in progress. Rows created before createdBy
+        // was recorded have no owner, so everyone still sees those.
+        const owner = String(c.CreatedBy || '').toLowerCase();
+        if (!owner || owner === actor) drafts.push(c);
       }
     });
 
-    return { ongoing, scheduled, historical };
-  }, [campaignsList]);
+    return { ongoing, scheduled, historical, drafts };
+  }, [campaignsList, actor]);
+
+  const handleResume = (camp) => {
+    setActiveCampaignId(camp.campaignId);
+    navigate('/start-campaign');
+  };
+
+  const handleDelete = async (camp) => {
+    setActionError('');
+    try {
+      await remove(camp.campaignId);
+    } catch (e) {
+      setActionError(e?.message || 'Could not delete that campaign.');
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   // Active Category List Filtered by Search & Sort
   const currentCategoryList = useMemo(() => {
@@ -282,6 +297,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
   }, [calendarDate]);
 
   const activeTabConfig = TAB_CONFIG[activeTab];
+  const today = new Date();
 
   // Helper for Top Three Buttons styling
   const getTabButtonClasses = (tabId) => {
@@ -294,6 +310,64 @@ const Campaigns = ({ isDark: propIsDark }) => {
     return isDark
       ? 'bg-[#1C1E24] text-white hover:bg-[#252830] border-white/10 shadow-xs'
       : 'bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs';
+  };
+
+  // Drafts tab card footer: a draft can be resumed or deleted; a failed send
+  // can only be deleted (the sender will not retry it).
+  const renderDraftActions = (camp) => {
+    const failed = camp.CampaignStatus === DESIGN_STATUS.FAILED;
+    const chip = failed
+      ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
+      : 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300';
+    const busy = pendingAction === camp.campaignId;
+
+    return (
+      <span className="flex items-center gap-1.5 font-bold">
+        <span className={`px-2 py-0.5 rounded-full text-[8.5px] uppercase tracking-wide ${chip}`}>
+          {failed ? 'Send failed' : 'Draft'}
+        </span>
+        {busy ? (
+          <span className="text-slate-500">Working…</span>
+        ) : confirmDeleteId === camp.campaignId ? (
+          <>
+            <span className="text-slate-700 dark:text-slate-300">Delete?</span>
+            <button
+              type="button"
+              onClick={() => handleDelete(camp)}
+              className="px-2 py-0.5 rounded-md bg-[#E60000] text-white cursor-pointer"
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteId(null)}
+              className="px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 cursor-pointer"
+            >
+              No
+            </button>
+          </>
+        ) : (
+          <>
+            {!failed && (
+              <button
+                type="button"
+                onClick={() => handleResume(camp)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black cursor-pointer"
+              >
+                <FilePenLine className="w-3 h-3" /> Resume
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteId(camp.campaignId)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 text-[#E60000] cursor-pointer"
+            >
+              <Trash2 className="w-3 h-3" /> Delete
+            </button>
+          </>
+        )}
+      </span>
+    );
   };
 
   return (
@@ -423,6 +497,32 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
+            {/* 4. DRAFTS CAPSULE (resume or delete unfinished work; failed sends) */}
+            <div
+              onClick={() => setActiveTab('drafts')}
+              style={{
+                height: `${VarThreeButtonsHeightAdjuster}px`,
+                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
+              }}
+              className={`relative p-3.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden border ${getTabButtonClasses('drafts')}`}
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <h3 className="text-[14px] font-voda font-bold tracking-tight leading-tight">
+                  Drafts
+                </h3>
+              </div>
+              <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
+                activeTab === 'drafts' 
+                  ? (isDark ? 'text-slate-700' : 'text-slate-300')
+                  : (isDark ? 'text-slate-400' : 'text-slate-500')
+              }`}>
+                {TAB_CONFIG.drafts.subtitle}
+              </p>
+              <div className="absolute bottom-2 right-3 pointer-events-none select-none z-0">
+                <FilePenLine className="w-9 h-9 text-[#94A3B8]" strokeWidth={1.6} />
+              </div>
+            </div>
+
             {/* 4. DOCKED CALENDAR CARD */}
             <div
               style={{
@@ -478,7 +578,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
               {/* Days Grid */}
               <div className="grid grid-cols-7 gap-y-1.5 text-center text-[10.5px]">
                 {calendarMonthDays.map((item, idx) => {
-                  const isCurrentDay = item.isCurrentMonth && item.day === 5;
+                  const isCurrentDay =
+                    item.isCurrentMonth &&
+                    item.day === today.getDate() &&
+                    calendarDate.getMonth() === today.getMonth() &&
+                    calendarDate.getFullYear() === today.getFullYear();
                   return (
                     <div key={idx} className="flex items-center justify-center h-6">
                       <span 
@@ -578,6 +682,25 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
+            {(error || actionError) && (
+              <div className="w-full px-6 py-2 flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-500/10 border-l border-r border-rose-200 dark:border-rose-400/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold relative z-20">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {actionError || `Could not load campaigns: ${error.message}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionError('');
+                    refresh();
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" /> Retry
+                </button>
+              </div>
+            )}
+
             {/* 🌟 2. CONTINUOUS LOWER L-BASE: CAMPAIGNS FEED */}
             <div
               style={{ 
@@ -588,7 +711,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
               }}
               className="w-full p-4 flex flex-col gap-3 overflow-y-auto border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
             >
-              {currentCategoryList.length === 0 ? (
+              {loading && campaigns.length === 0 ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-center">
+                  <p className="text-xs font-bold text-slate-400">Loading campaigns…</p>
+                </div>
+              ) : currentCategoryList.length === 0 ? (
                 <div className="w-full h-full flex flex-col items-center justify-center text-center">
                   <p className="text-xs font-bold text-slate-400">
                     No {activeTabConfig.title.toLowerCase()} found matching criteria.
@@ -648,12 +775,16 @@ const Campaigns = ({ isDark: propIsDark }) => {
                             Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy?.split('@')[0] || 'User'}</strong>
                           </span>
 
-                          <span className="text-slate-700 dark:text-slate-300 font-bold">
-                            Scheduled End Time: <strong className="font-semibold">{formatDisplayDate(camp.EndTime, true)}</strong>
-                            {daysLeft && (
-                              <span className="ml-1 text-[#15803D] dark:text-[#4ADE80] font-extrabold">{daysLeft}</span>
-                            )}
-                          </span>
+                          {activeTab === 'drafts' ? (
+                            renderDraftActions(camp)
+                          ) : (
+                            <span className="text-slate-700 dark:text-slate-300 font-bold">
+                              Scheduled End Time: <strong className="font-semibold">{formatDisplayDate(camp.EndTime, true)}</strong>
+                              {daysLeft && activeTab !== 'historical' && (
+                                <span className="ml-1 text-[#15803D] dark:text-[#4ADE80] font-extrabold">{daysLeft}</span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -711,11 +842,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800 dark:text-slate-200">
                 <div>
                   <strong>Start Type: </strong>
-                  <span>{detailModalItem.CampaignStartType || detailModalItem.startType || 'Scenario'}</span>
+                  <span>{detailModalItem.CampaignStartType}</span>
                 </div>
                 <div>
                   <strong>User List: </strong>
-                  <span className="font-mono-tech text-[#E60000] font-bold">{detailModalItem.RecipientGroupType || 'UserList (ul-001)'}</span>
+                  <span className="font-mono-tech text-[#E60000] font-bold">{detailModalItem.RecipientGroupType}</span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
@@ -736,11 +867,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-6 text-[11.5px] text-slate-700 dark:text-slate-300 font-medium">
                   <div>
                     <strong>Sender Name: </strong>
-                    <span>{detailModalItem.SenderName || 'Security Operations'}</span>
+                    <span>{detailModalItem.SenderName || 'Not set'}</span>
                   </div>
                   <div>
                     <strong>Sender Email: </strong>
-                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}</span>
+                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'Not set'}</span>
                   </div>
                   <div className="sm:col-span-2">
                     <strong>Email Subject: </strong>
@@ -748,11 +879,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
                   </div>
                   <div>
                     <strong>Landing Page ID: </strong>
-                    <span className="font-mono-tech text-[#E60000] font-bold">{detailModalItem.LandingPageID || 'LP-001'}</span>
+                    <span className="font-mono-tech text-[#E60000] font-bold">{detailModalItem.LandingPageID || 'Not set'}</span>
                   </div>
                   <div>
                     <strong>Training Path ID: </strong>
-                    <span className="font-mono-tech text-[#E60000] font-bold">{detailModalItem.TrainingPathID || 'TP-00001'}</span>
+                    <span className="font-mono-tech text-[#E60000] font-bold">{detailModalItem.TrainingPathID || 'Not set'}</span>
                   </div>
                 </div>
 

@@ -152,8 +152,16 @@ export const api = {
         method: 'POST',
         body: { actor, comments },
       }),
-    reject: (id, actor, comments) =>
+    // `notify: true` is "reject with notification": `comments` becomes the
+    // message asking the creator for changes, and is then required.
+    reject: (id, actor, comments, { notify = false } = {}) =>
       request(`/campaigns/${encodeURIComponent(id)}/reject`, {
+        method: 'POST',
+        body: { actor, comments, notify },
+      }),
+    // Creator only: pulls a pending request back to DRAFT (e.g. to reschedule).
+    withdraw: (id, actor, comments) =>
+      request(`/campaigns/${encodeURIComponent(id)}/withdraw`, {
         method: 'POST',
         body: { actor, comments },
       }),
