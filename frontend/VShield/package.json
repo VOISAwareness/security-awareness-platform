@@ -33,6 +33,7 @@
     "react-router-dom": "^7.18.2",
     "react-simple-maps": "^3.0.0",
     "read-excel-file": "^9.3.10",
+    "recharts": "^3.10.1",
     "shadcn": "^4.16.2",
     "tailwind-merge": "^3.6.0",
     "three": "^0.180.0",

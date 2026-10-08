@@ -23,6 +23,13 @@ import EmailIDsAndDomains from './Pages/EmailIDsandDomains/EmailIDsAndDomains';
 // 🌟 Import Landing Page Catalogue Page
 import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalogue';
 
+// 🌟 Dashboard and Analytics Page
+import DashboardAndAnalytics from './Pages/DashboardAndAnalytics/DashboardAndAnalytics';
+
+// 🌟 New-design previews (mock data; not yet wired to the API)
+import CampaignsPreview from './Pages/Campaigns/Campaigns';
+import RequestAndApprovalsPreview from './Pages/RequestsAndApprovals/RequestAndApprovals';
+
 // 🌟 Import Start New Campaign Page
 import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
 import DetailsAndSettings from './Pages/StartCampaign/DetailsAndSettings';
@@ -40,14 +47,20 @@ import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
 import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
 import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
 
-// Protected Route Wrapper
+// Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
-  const { user, hasAccess } = useUserType();
+  const { user, hasAccess, getDefaultRoute } = useUserType();
   if (!user) return <Navigate to="/" replace />;
   if (requiredScreen && !hasAccess(requiredScreen)) {
-    return <div className="p-10 text-red-500 font-bold">Access Denied.</div>;
+    return <Navigate to={getDefaultRoute()} replace />;
   }
   return children;
+};
+
+// Component to dynamically navigate to the active user's default route
+const DashboardFallback = () => {
+  const { getDefaultRoute } = useUserType();
+  return <Navigate to={getDefaultRoute()} replace />;
 };
 
 // Generic Placeholder Component for WIP Sidebar Pages
@@ -80,8 +93,15 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* Dashboard / Home */}
-            <Route path="/home" element={<HomeScreen />} />
+            {/* Dashboard / Home (Protected: restricted to Admin, Campaign Creator & Manager) */}
+            <Route 
+              path="/home" 
+              element={
+                <ProtectedRoute requiredScreen="home">
+                  <HomeScreen />
+                </ProtectedRoute>
+              } 
+            />
 
             {/* 🌟 My Space Route */}
             <Route path="/my-space" element={<MySpace />} />
@@ -94,6 +114,17 @@ function App() {
             
             {/* 🌟 Landing Page Catalogue Route */}
             <Route path="/landing-page-catalogue" element={<LandingPageCatalogue />} />
+
+            {/* 🌟 Campaign lifecycle (wired to the backend) */}
+            <Route path="/campaigns" element={<CampaignsHub />} />
+            <Route path="/requests-approvals" element={<RequestsAndApprovals />} />
+
+            {/* 🌟 New designs for the same screens, on preview routes until wired to the API */}
+            <Route path="/campaigns/new" element={<CampaignsPreview />} />
+            <Route path="/requests-approvals/new" element={<RequestAndApprovalsPreview />} />
+
+            {/* 🌟 Dashboard And Analytics Route */}
+            <Route path="/analytics" element={<DashboardAndAnalytics />} />
             
             {/* 🌟 Start New Campaign Page Route */}
             <Route path="/start-campaign" element={<ChooseAScenario />} />
@@ -111,21 +142,17 @@ function App() {
             {/* Campaign Management Routes */}
             <Route path="/create-scenario" element={<Scenarios/>} />
             <Route path="/new-scenario" element={<NewScenario/>} />
-            <Route path="/campaigns" element={<CampaignsHub />} />
 
             {/* Training & Learning Routes */}
+            <Route path="/training" element={<PlaceholderPage title="Training Matrix" />} />
             <Route path="/add-training" element={<PlaceholderPage title="Training Matrix" />} />
             <Route path="/my-training" element={<PlaceholderPage title="My Training Path" />} />
 
             {/* Communications & Directories */}
             <Route path="/announcements" element={<PlaceholderPage title="Security Announcements" />} />
 
-            {/* Approvals & Analytics */}
-            <Route path="/requests-approvals" element={<RequestsAndApprovals />} />
-            <Route path="/analytics" element={<PlaceholderPage title="Dashboard & Analytics" />} />
-
-            {/* Fallback inside dashboard */}
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            {/* Fallback inside dashboard -> Route to user role default */}
+            <Route path="*" element={<DashboardFallback />} />
           </Route>
 
           {/* Global Fallback */}

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useUserType, ROLE_DEFAULT_ROUTES } from '../../UserTypeContext/UserTypeContext';
 import { motion, useScroll, AnimatePresence } from 'framer-motion';
 import Lenis from '@studio-freight/lenis';
 import { 
-  ShieldCheck, Lock, UserCircle, Sun, Moon, X, Sparkles, ArrowRight, ChevronUp
+  ShieldCheck, Lock, UserCircle, Sun, Moon, X, Sparkles, ArrowRight, ChevronUp, ChevronDown
 } from 'lucide-react';
 
 import HeroImage from '../../LandingPageImage.png';
 import AnimatedShackleGif from '../../assets/v-shield-animated-shackle.gif';
+import masterUsersData from '../../MasterUserData.json';
 // IMPORT PART 2 SECTION
 import LandingPagePart2 from './LandingPagePart2';
 
@@ -17,6 +18,41 @@ import LandingPagePart2 from './LandingPagePart2';
 // =========================================================================
 export const VarLandingPageScale = 1.0;
 
+// Role-Based User Data derived strictly from MasterUserData
+const ROLE_USERS = {
+  'Admin': [
+    { UserID: 'VSLD-000006', UserName: 'Aarav Sharma', UserEMailID: 'aarav.sharma@vodafone.com', Department: 'Cyber Security', Country: 'India' },
+    { UserID: 'VSLD-000053', UserName: 'Jack Roberts', UserEMailID: 'jack.roberts@vodafone.com', Department: 'Cyber Security', Country: 'UK' }
+  ],
+  'Campaign Manager': [
+    { UserID: 'VSLD-000001', UserName: 'Abhay H S', UserEMailID: 'abhay.hs1@vodafone.com', Department: 'AIDA', Country: 'India' },
+    { UserID: 'VSLD-000002', UserName: 'Trevor Sile', UserEMailID: 'trevor.sile@vodafone.com', Department: 'CARE', Country: 'UK' },
+    { UserID: 'VSLD-000003', UserName: 'Mitin Rinis', UserEMailID: 'mitin.rinis@vodafone.com', Department: 'Finance Operations', Country: 'UK' }
+  ],
+  'Campaign Creator': [
+    { UserID: 'VSLD-000004', UserName: 'Sarah Jenkins', UserEMailID: 'sarah.jenkins@vodafone.com', Department: 'Finance Operations', Country: 'Germany' },
+    { UserID: 'VSLD-000005', UserName: 'Karim Mostafa', UserEMailID: 'karim.mostafa@vodafone.com', Department: 'Supply Chain Management', Country: 'Egypt' },
+    { UserID: 'VSLD-000007', UserName: 'Priya Nair', UserEMailID: 'priya.nair@vodafone.com', Department: 'AIDA', Country: 'India' },
+    { UserID: 'VSLD-000008', UserName: 'Oliver Hughes', UserEMailID: 'oliver.hughes@vodafone.com', Department: 'Network Engineering', Country: 'UK' }
+  ],
+  'Gamification Engine Manager': [
+    { UserID: 'VSLD-000023', UserName: 'Luca Conti', UserEMailID: 'luca.conti@vodafone.com', Department: 'Digital Products', Country: 'Italy' },
+    { UserID: 'VSLD-000039', UserName: 'Vikram Sethi', UserEMailID: 'vikram.sethi@vodafone.com', Department: 'Digital Products', Country: 'India' }
+  ],
+  'GMT': [
+    { UserID: 'VSLD-000103', UserName: 'Hanah Brooks', UserEMailID: 'hanah.brooks@vodafone.com', Department: 'Executive Board', Country: 'India' },
+    { UserID: 'VSLD-000104', UserName: 'Alexander Wright', UserEMailID: 'alex.wright@vodafone.com', Department: 'IT Security', Country: 'UK' },
+    { UserID: 'VSLD-000030', UserName: 'Charlotte Evans', UserEMailID: 'charlotte.evans@vodafone.com', Department: 'Legal & Compliance', Country: 'UK' },
+    { UserID: 'VSLD-000101', UserName: 'David Miller', UserEMailID: 'david.miller@vodafone.com', Department: 'Supply Chain Management', Country: 'UK' },
+    { UserID: 'VSLD-000102', UserName: 'Elena Rossi', UserEMailID: 'elena.rossi@vodafone.com', Department: 'CARE', Country: 'Albania' }
+  ],
+  'Regular User': (typeof masterUsersData !== 'undefined' && Array.isArray(masterUsersData)) ? masterUsersData : [
+    { UserID: 'VSLD-000001', UserName: 'Abhay H S', UserEMailID: 'abhay.hs1@vodafone.com', Department: 'AIDA', Country: 'India' },
+    { UserID: 'VSLD-000002', UserName: 'Trevor Sile', UserEMailID: 'trevor.sile@vodafone.com', Department: 'CARE', Country: 'UK' },
+    { UserID: 'VSLD-000003', UserName: 'Mitin Rinis', UserEMailID: 'mitin.rinis@vodafone.com', Department: 'Finance Operations', Country: 'UK' }
+  ]
+};
+
 const LandingPage = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [role, setRole] = useState('Admin');
@@ -24,6 +60,10 @@ const LandingPage = () => {
   const [error, setError] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
   
+  // Two-step session authentication state
+  const [isSessionInitialized, setIsSessionInitialized] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+
   const { login, isDark, setIsDark } = useUserType();
   const navigate = useNavigate();
   const { scrollYProgress, scrollY } = useScroll();
@@ -63,16 +103,64 @@ const LandingPage = () => {
     return () => unsubscribe();
   }, [scrollYProgress]);
 
-  const handleLogin = (e) => {
+  // Automatically update selected user when role changes
+  useEffect(() => {
+    const list = ROLE_USERS[role] || [];
+    if (list.length > 0) {
+      setSelectedUserId(list[0].UserID);
+    } else {
+      setSelectedUserId('');
+    }
+  }, [role]);
+
+  // Step 1: Initialize Session and reveal User Profile dropdown
+  const handleInitializeSession = (e) => {
     if (e) e.preventDefault();
-    if (login(role, password)) {
-      navigate('/home');
+    if (password === '123456') {
+      setError('');
+      setIsSessionInitialized(true);
+      const list = ROLE_USERS[role] || [];
+      if (list.length > 0) {
+        setSelectedUserId(list[0].UserID);
+      }
     } else {
       setError('Invalid credentials. Access Denied.');
     }
   };
 
+  // Step 2: Finalize login and direct user to their respective default landing page
+  const handleLoginAsUser = (e) => {
+    if (e) e.preventDefault();
+    const list = ROLE_USERS[role] || [];
+    const chosenUser = list.find(u => u.UserID === selectedUserId) || list[0];
+    
+    if (chosenUser) {
+      const success = login ? login(role, password, chosenUser) : true;
+      if (success) {
+        // Resolve default landing route per role
+        const targetRoute = (ROLE_DEFAULT_ROUTES && ROLE_DEFAULT_ROUTES[role]) || (
+          role === 'Regular User' ? '/my-space' :
+          role === 'Gamification Engine Manager' ? '/gamification' :
+          role === 'GMT' ? '/analytics' : '/home'
+        );
+        navigate(targetRoute);
+      } else {
+        setError('Authentication failed. Please verify credentials.');
+      }
+    } else {
+      setError('Please select a valid user profile.');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowLoginModal(false);
+    setIsSessionInitialized(false);
+    setError('');
+  };
+
   const roles = ['Admin', 'Campaign Creator', 'Campaign Manager', 'Gamification Engine Manager', 'Regular User', 'GMT'];
+  const currentRoleUsers = ROLE_USERS[role] || [];
+  const activeUserObj = currentRoleUsers.find(u => u.UserID === selectedUserId) || currentRoleUsers[0];
 
   return (
     <div className="w-full bg-slate-50 dark:bg-[#030403] relative selection:bg-[#E60000] selection:text-white font-sans transition-colors duration-500 overflow-x-hidden select-none">
@@ -276,9 +364,9 @@ const LandingPage = () => {
                     </div>
 
                     <h1 className="text-6xl lg:text-5xl font-extrabold tracking-tighter transition-colors leading-none mt-4">
-                      <span className="text-slate-900 text-white dark:text-black">VOIS</span>
+                      <span className="text-white dark:text-black">VOIS</span>
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E60000] to-[#990099]">Shield</span>
-                      <span className="text-slate-900 text-white dark:text-black">.</span>
+                      <span className="text-white dark:text-black">.</span>
                     </h1>
                   </div>
 
@@ -306,7 +394,7 @@ const LandingPage = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 perspective-[1000px]">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowLoginModal(false)}
+              onClick={handleCloseModal}
               className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm cursor-pointer"
             />
 
@@ -317,57 +405,131 @@ const LandingPage = () => {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="w-full max-w-sm p-8 rounded-2xl bg-white dark:bg-[#0B1121] border border-black/10 dark:border-white/10 shadow-2xl relative z-10"
             >
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-[#E60000] transition-colors">
+              <button onClick={handleCloseModal} className="absolute top-6 right-6 text-slate-400 hover:text-[#E60000] transition-colors">
                 <X className="w-5 h-5" />
               </button>
               
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Developer Access</h3>
-                <p className="text-xs text-slate-500 mt-1">Select a workspace role to preview the dashboard.</p>
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {isSessionInitialized ? 'Select User Profile' : 'Developer Access'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {isSessionInitialized 
+                    ? `Session initialized for ${role}. Choose which identity to assume:`
+                    : 'Select a workspace role to preview the dashboard.'}
+                </p>
               </div>
 
-              <form className="space-y-5">
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clearance Level</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <UserCircle className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+              {!isSessionInitialized ? (
+                /* ── STEP 1: CLEARANCE LEVEL & PASSCODE ── */
+                <form className="space-y-5" onSubmit={handleInitializeSession}>
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clearance Level</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <UserCircle className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+                      </div>
+                      <select 
+                        value={role} onChange={(e) => setRole(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all appearance-none cursor-pointer text-sm"
+                      >
+                        {roles.map(r => <option key={r} value={r} className="dark:bg-[#0B1121]">{r}</option>)}
+                      </select>
                     </div>
-                    <select 
-                      value={role} onChange={(e) => setRole(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all appearance-none cursor-pointer text-sm"
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Passcode</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+                      </div>
+                      <input 
+                        type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                        className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-12 pr-4 py-3.5 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all placeholder-slate-400 dark:placeholder-slate-600 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {error && <p className="text-[#ff4d4d] text-xs font-medium bg-[#ff4d4d]/10 py-2 px-3 rounded-lg border border-[#ff4d4d]/20">{error}</p>}
+
+                  <div className="w-full flex justify-center">
+                    <button 
+                      type="submit" 
+                      className="w-full h-10 mt-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black font-bold text-[10px] tracking-wide hover:bg-gradient-to-r hover:from-[#E60000] hover:to-[#990099] hover:text-white hover:shadow-[0_10px_30px_rgba(230,0,0,0.3)] transition-all duration-300 flex items-center justify-center gap-2 group cursor-pointer"
                     >
-                      {roles.map(r => <option key={r} value={r} className="dark:bg-[#0B1121]">{r}</option>)}
-                    </select>
+                      <span className="truncate">INITIALIZE SESSION</span>
+                      <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
+                    </button>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Passcode</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+                </form>
+              ) : (
+                /* ── STEP 2: USER PROFILE IDENTITY DROPDOWN & LOGIN ── */
+                <form className="space-y-4" onSubmit={handleLoginAsUser}>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        {role} User Identity
+                      </label>
+                      <span className="text-[10px] font-bold text-[#E60000]">
+                        {currentRoleUsers.length} Active {currentRoleUsers.length === 1 ? 'Profile' : 'Profiles'}
+                      </span>
                     </div>
-                    <input 
-                      type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-                      className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-12 pr-4 py-3.5 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all placeholder-slate-400 dark:placeholder-slate-600 text-sm"
-                    />
+
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <UserCircle className="h-5 w-5 text-slate-400 group-focus-within:text-[#E60000] transition-colors" />
+                      </div>
+                      <select 
+                        value={selectedUserId} 
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-xl pl-11 pr-9 py-3 text-slate-900 dark:text-white outline-none focus:border-[#E60000] shadow-sm transition-all appearance-none cursor-pointer text-xs font-semibold"
+                      >
+                        {currentRoleUsers.map((u) => (
+                          <option key={u.UserID} value={u.UserID} className="dark:bg-[#0B1121]">
+                            {u.UserName} ({u.UserEMailID})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {error && <p className="text-[#ff4d4d] text-xs font-medium bg-[#ff4d4d]/10 py-2 px-3 rounded-lg border border-[#ff4d4d]/20">{error}</p>}
+                  {/* Profile Summary Card Preview */}
+                  {activeUserObj && (
+                    <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/[0.04] border border-black/5 dark:border-white/5 flex items-center justify-between text-xs">
+                      <div className="flex flex-col text-left">
+                        <span className="font-bold text-slate-900 dark:text-white">{activeUserObj.UserName}</span>
+                        <span className="text-[10px] text-slate-500">{activeUserObj.Department} &bull; {activeUserObj.Country}</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-[#E60000]">{activeUserObj.UserID}</span>
+                    </div>
+                  )}
 
-                <div className="w-full flex justify-center">
-  <button 
-    type="button" 
-    onClick={handleLogin} 
-    className="w-full h-10 mt-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-black font-bold text-[10px] tracking-wide hover:bg-gradient-to-r hover:from-[#E60000] hover:to-[#990099] hover:text-white hover:shadow-[0_10px_30px_rgba(230,0,0,0.3)] transition-all duration-300 flex items-center justify-center gap-2 group"
-  >
-    <span className="truncate">INITIALIZE SESSION</span>
-    <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
-  </button>
-</div>
-              </form>
+                  {error && <p className="text-[#ff4d4d] text-xs font-medium bg-[#ff4d4d]/10 py-2 px-3 rounded-lg border border-[#ff4d4d]/20">{error}</p>}
+
+                  <div className="w-full flex flex-col gap-2 pt-2">
+                    <button 
+                      type="submit" 
+                      className="w-full h-10 rounded-xl bg-[#E60000] hover:bg-[#cc0000] text-white font-bold text-[10px] tracking-wide shadow-lg shadow-[#E60000]/25 transition-all duration-300 flex items-center justify-center gap-2 group cursor-pointer"
+                    >
+                      <span className="truncate">LOGIN AS {activeUserObj ? activeUserObj.UserName.toUpperCase() : 'USER'}</span>
+                      <ArrowRight className="w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsSessionInitialized(false)}
+                      className="w-full text-center text-[10px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 mt-1 transition-colors cursor-pointer"
+                    >
+                      &larr; Back to Clearance Level
+                    </button>
+                  </div>
+                </form>
+              )}
+
             </motion.div>
           </div>
         )}

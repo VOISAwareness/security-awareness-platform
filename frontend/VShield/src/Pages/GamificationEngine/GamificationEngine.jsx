@@ -23,19 +23,22 @@ const VarGamificationGalleryItemsScale = 1.15;
 const VarOverallRoundednessScale = 0.85;
 
 const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
   
   .font-voda-exb {
     font-family: 'Vodafone ExB', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
     font-weight: 900;
   }
-
-  /* Universal Roundedness Scaler */
-  .rounded-2xl { border-radius: ${Math.round(16 * VarOverallRoundednessScale)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(12 * VarOverallRoundednessScale)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(8 * VarOverallRoundednessScale)}px !important; }
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .rounded-3xl { border-radius: ${Math.round(24 * VarOverallRoundednessScale)}px !important; }
+  .rounded-2xl { border-radius: ${Math.round(18 * VarOverallRoundednessScale)}px !important; }
+  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallRoundednessScale)}px !important; }
+  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
+
 
 // Helper to format today's date matching "01-Aug-2026" / "1-Aug-26" pattern
 const getFormattedTodayDate = () => {
@@ -237,7 +240,7 @@ const GamificationEngine = () => {
               : 'bg-[#06080D] text-white border-black/10'
           }`}
         >
-          <span className="text-xs sm:text-[12.5px] font-voda-exb tracking-wider uppercase">
+          <span className="text-xs sm:text-[12.5px] font-voda font-bold tracking-wider uppercase">
             GAMIFICATION ENGINE
           </span>
         </div>
