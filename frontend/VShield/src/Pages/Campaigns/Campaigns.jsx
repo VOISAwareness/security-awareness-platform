@@ -348,7 +348,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
     if (confirmSendId === camp.campaignId) {
       return (
         <span className="flex items-center gap-1.5 font-bold">
-          <span className="text-slate-700 dark:text-slate-300">Send test email?</span>
+          <span className="text-slate-700 dark:text-slate-300">Send this campaign?</span>
           <button
             type="button"
             onClick={() => handleSend(camp)}
@@ -371,9 +371,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
         type="button"
         onClick={() => setConfirmSendId(camp.campaignId)}
         className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black font-bold cursor-pointer"
-        title="Send the real email to the campaign's recipient list (sandbox delivers only to verified addresses)"
+        title="Send this campaign to its recipient list (sandbox delivers only to verified addresses)"
       >
-        <Send className="w-3 h-3" /> Send test
+        <Send className="w-3 h-3" /> Send
       </button>
     );
   };

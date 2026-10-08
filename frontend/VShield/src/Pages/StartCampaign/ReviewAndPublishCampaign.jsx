@@ -372,7 +372,7 @@ const ReviewAndPublishCampaign = () => {
       console.error(e);
       publishLockRef.current = false;
       setIsPublishing(false);
-      setPublishError(e?.message || 'Could not publish this campaign. Please try again.');
+      setPublishError(e?.message || 'Could not submit this campaign for approval. Please try again.');
       setPublishProblems(Array.isArray(e?.problems) ? e.problems : []);
     }
   };
@@ -1004,7 +1004,7 @@ const ReviewAndPublishCampaign = () => {
               className="px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <Send className="w-3 h-3 stroke-[2.5]" />
-              <span>{isPublishing ? 'PUBLISHING...' : 'PUBLISH CAMPAIGN'}</span>
+              <span>{isPublishing ? 'SUBMITTING...' : 'SUBMIT FOR APPROVAL'}</span>
             </button>
           </div>
         </div>
@@ -1172,10 +1172,10 @@ const ReviewAndPublishCampaign = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-voda font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    Campaign Launched!
+                    Submitted for Approval
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    Your phishing simulation campaign <strong>"{campaignTitle}"</strong> has been successfully scheduled and published.
+                    Your phishing simulation campaign <strong>"{campaignTitle}"</strong> has been submitted and is now awaiting approval. An approver must review and approve it before it can be sent.
                   </p>
                 </div>
                 <button
@@ -1205,7 +1205,7 @@ const ReviewAndPublishCampaign = () => {
               </div>
               <div className="flex flex-col text-left leading-tight flex-1 min-w-0">
                 <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                  Publish Failed
+                  Submission Failed
                 </span>
                 <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
                   {publishError}
