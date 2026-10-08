@@ -120,7 +120,16 @@ export const api = {
       });
     },
   },
-  gamificationRules: { list: () => request('/gamification-rules') },
+  gamificationRules: {
+    list: () => request('/gamification-rules'),
+    // eventOperation is the rule's name, e.g. "Clicked". actor is recorded as
+    // ModifiedBy so the Gamification Engine shows who changed it last.
+    update: (eventOperation, points, actor) =>
+      request(`/gamification-rules/${encodeURIComponent(eventOperation)}`, {
+        method: 'PUT',
+        body: { PointsAssigned: points, ModifiedBy: actor },
+      }),
+  },
   training: {
     paths: () => request('/training/paths'),
     videos: () => request('/training/videos'),

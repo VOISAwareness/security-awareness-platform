@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { api } from '../../services/api';
+import { actorFor } from '../../services/identity';
+import { eventName } from '../../services/gamificationPoints';
+import { useGamificationRules } from '../../services/useGamificationRules';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check,
@@ -8,7 +13,8 @@ import {
   AlertTriangle,
   ShieldCheck,
   GraduationCap,
-  Award
+  Award,
+  ArrowLeft
 } from 'lucide-react';
 import gamificationJsonData from './GamificationData.json';
 
@@ -108,19 +114,24 @@ const BASE_RULES_CONFIG = [
   }
 ];
 
-// Reads PointsAssigned and LastModifiedOn from GamificationData.json
-const INITIAL_GAMIFICATION_DATA = BASE_RULES_CONFIG.map((item) => {
-  const jsonRow = (gamificationJsonData || []).find(
-    (row) => row?.EventOperation?.trim().toLowerCase() === item.id.toLowerCase()
-  );
+// Merge rule rows (PointsAssigned, LastModifiedOn, ModifiedBy) into the cards.
+// The saved rules come from the API; the bundled JSON only fills the cards
+// until it answers.
+const buildElements = (rows) =>
+  BASE_RULES_CONFIG.map((item) => {
+    const jsonRow = (rows || []).find(
+      (row) => row?.EventOperation?.trim().toLowerCase() === item.id.toLowerCase()
+    );
 
-  return {
-    ...item,
-    currentPoints: jsonRow && jsonRow.PointsAssigned !== undefined ? Number(jsonRow.PointsAssigned) : item.currentPoints,
-    lastModified: jsonRow && jsonRow.LastModifiedOn ? jsonRow.LastModifiedOn : item.lastModified,
-    modifiedBy: jsonRow ? jsonRow.ModifiedBy : ''
-  };
-});
+    return {
+      ...item,
+      currentPoints: jsonRow && jsonRow.PointsAssigned !== undefined ? Number(jsonRow.PointsAssigned) : item.currentPoints,
+      lastModified: jsonRow && jsonRow.LastModifiedOn ? jsonRow.LastModifiedOn : item.lastModified,
+      modifiedBy: jsonRow ? jsonRow.ModifiedBy : ''
+    };
+  });
+
+const INITIAL_GAMIFICATION_DATA = buildElements(gamificationJsonData);
 
 // =========================================================================
 // 🌟 2-SECOND TODDLE ANIMATED LOGO BADGE (INITIAL + ON HOVER)
@@ -161,8 +172,14 @@ const AnimatedLogoBadge = ({ icon: Icon, tagBg, isDark, animTriggerKey }) => {
 };
 
 const GamificationEngine = () => {
-  const { isDark } = useUserType?.() || { isDark: false };
+  const { isDark, user } = useUserType?.() || { isDark: false };
   const [elements, setElements] = useState(INITIAL_GAMIFICATION_DATA);
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Set when another screen (the campaign wizard) sent the user here.
+  const returnTo = location.state?.returnTo || null;
+  const { rows: savedRules, error: loadError } = useGamificationRules();
+  const [savingId, setSavingId] = useState(null);
 
   // Per-card hover animation trigger counters (Initial value 0 triggers 2-second animation on mount)
   const [hoverKeys, setHoverKeys] = useState(() =>
@@ -175,6 +192,23 @@ const GamificationEngine = () => {
   );
 
   const [toastMessage, setToastMessage] = useState('');
+  const [toastIsError, setToastIsError] = useState(false);
+
+  const showToast = (message, isError = false) => {
+    setToastIsError(isError);
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(''), isError ? 4000 : 2500);
+  };
+
+  // Replace the bundled defaults with the saved rules once they load. Runs
+  // only when the API answers, so it never overwrites what is being typed.
+  useEffect(() => {
+    if (!savedRules) return;
+    const next = buildElements(savedRules);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the API response
+    setElements(next);
+    setDraftInputs(next.reduce((acc, item) => ({ ...acc, [item.id]: item.currentPoints }), {}));
+  }, [savedRules]);
 
   // Trigger animation once per hover
   const handleCardMouseEnter = (id) => {
@@ -200,23 +234,38 @@ const GamificationEngine = () => {
     }));
   };
 
-  // Commit Update Action: Updates points and stamps the Last Modified On date
-  const handleUpdate = (id) => {
-    const val = Number(draftInputs[id]);
-    const cleanVal = isNaN(val) ? 0 : val;
-    const updatedDate = getFormattedTodayDate();
-
-    setElements((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, currentPoints: cleanVal, lastModified: updatedDate }
-          : item
-      )
-    );
-
+  // Save the new points for one rule. The server stamps the date and who
+  // changed it; the card shows what was actually saved.
+  const handleUpdate = async (id) => {
     const target = elements.find((e) => e.id === id);
-    setToastMessage(`Updated ${target?.title} to ${cleanVal > 0 ? `+${cleanVal}` : cleanVal} points`);
-    setTimeout(() => setToastMessage(''), 2500);
+    const val = Number(draftInputs[id]);
+    if (draftInputs[id] === '' || !Number.isInteger(val)) {
+      showToast(`Enter a whole number of points for ${target?.title}`, true);
+      return;
+    }
+
+    setSavingId(id);
+    try {
+      const saved = await api.gamificationRules.update(eventName(id), val, actorFor(user));
+      const points = Number(saved?.PointsAssigned ?? val);
+      setElements((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                currentPoints: points,
+                lastModified: saved?.LastModifiedOn || getFormattedTodayDate(),
+                modifiedBy: saved?.ModifiedBy || item.modifiedBy
+              }
+            : item
+        )
+      );
+      showToast(`Updated ${target?.title} to ${points > 0 ? `+${points}` : points} points`);
+    } catch (e) {
+      showToast(e?.message || `Could not update ${target?.title}`, true);
+    } finally {
+      setSavingId(null);
+    }
   };
 
   // Inner L-Container background color matching theme
@@ -234,7 +283,7 @@ const GamificationEngine = () => {
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "GAMIFICATION ENGINE" ───────────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] px-5 rounded-xl border flex items-center justify-start transition-colors duration-300 shadow-sm select-none ${
+          className={`w-full h-[40px] px-5 rounded-xl border flex items-center justify-between transition-colors duration-300 shadow-sm select-none ${
             isDark
               ? 'bg-white text-[#0B1121] border-slate-200'
               : 'bg-[#06080D] text-white border-black/10'
@@ -243,7 +292,25 @@ const GamificationEngine = () => {
           <span className="text-xs sm:text-[12.5px] font-voda font-bold tracking-wider uppercase">
             GAMIFICATION ENGINE
           </span>
+          {returnTo && (
+            <button
+              type="button"
+              onClick={() => navigate(returnTo)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors ${
+                isDark ? 'bg-[#0B1121] text-white hover:bg-black' : 'bg-white text-[#06080D] hover:bg-slate-100'
+              }`}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to campaign
+            </button>
+          )}
         </div>
+
+        {loadError && (
+          <div className="w-full px-4 py-2 rounded-xl text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-400/20">
+            Could not load the saved scores ({loadError.message}). Showing the default scores; updates may not save.
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* ── 2. LARGE WRAPPER CONTAINER (WHITE IN LIGHT / BLACK IN DARK) ────────── */}
@@ -378,13 +445,14 @@ const GamificationEngine = () => {
                     <button
                       type="button"
                       onClick={() => handleUpdate(item.id)}
-                      className={`w-full max-w-[120px] h-8 sm:h-10 md:h-6 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-98 flex items-center justify-center ${
+                      disabled={savingId === item.id}
+                      className={`w-full max-w-[120px] h-8 sm:h-10 md:h-6 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-98 flex items-center justify-center disabled:opacity-60 disabled:cursor-wait ${
                         isDark
                           ? 'bg-[#32353E] hover:bg-[#3D404A] text-white border border-white/10'
                           : 'bg-[#373A40] hover:bg-[#25272B] text-white'
                       }`}
                     >
-                      UPDATE
+                      {savingId === item.id ? 'SAVING…' : 'UPDATE'}
                     </button>
                   </div>
 
@@ -403,9 +471,11 @@ const GamificationEngine = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#22C55E] text-white text-xs font-voda-exb shadow-xl flex items-center gap-2"
+              className={`fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl text-white text-xs font-voda-exb shadow-xl flex items-center gap-2 ${
+                toastIsError ? 'bg-[#E11D48]' : 'bg-[#22C55E]'
+              }`}
             >
-              <Check className="w-4 h-4 stroke-[3]" />
+              {toastIsError ? <AlertTriangle className="w-4 h-4" /> : <Check className="w-4 h-4 stroke-[3]" />}
               {toastMessage}
             </motion.div>
           )}

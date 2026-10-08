@@ -29,6 +29,8 @@ import trainingVideosJson from '../Training/TrainingVideos.json';
 import trainingQuizJson from '../Training/TrainingQuiz.json';
 import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+import { useGamificationRules } from '../../services/useGamificationRules';
+import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
 import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
@@ -122,6 +124,8 @@ const ReviewAndPublishCampaign = () => {
   // Server-backed draft from previous steps (null until it has loaded, so every
   // derived value below falls back to its original default in the meantime).
   const { draft: serverDraft, flush, campaignId } = useCampaignDraft();
+  // Live gamification scores, as last saved in the Gamification Engine.
+  const gamificationRules = useGamificationRules();
   const draft = serverDraft || EMPTY_DRAFT;
   const activeCampaignId = campaignId || draft.campaignId || '';
 
@@ -673,26 +677,16 @@ const ReviewAndPublishCampaign = () => {
                       </h4>
                     </div>
 
-                    {/* Points Pills 2x3 Grid */}
+                    {/* Points Pills 2x3 Grid — live scores from the Gamification Engine */}
                     <div className="grid grid-cols-2 gap-x-2.5 gap-y-2 w-full max-w-[70%] z-10 my-1">
-                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
-                        Opened: 0
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
-                        Clicked: -30
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
-                        Compromised: 0
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
-                        Reported: -30
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
-                        Trained: 0
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
-                        Evaluated: -30
-                      </span>
+                      {GAMIFICATION_EVENTS.map((name) => (
+                        <span
+                          key={name}
+                          className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs"
+                        >
+                          {name}: {gamificationRules.loading ? '…' : formatPoints(gamificationRules.points[name])}
+                        </span>
+                      ))}
                     </div>
 
                     {/* 3D Asset pinned in bottom right */}

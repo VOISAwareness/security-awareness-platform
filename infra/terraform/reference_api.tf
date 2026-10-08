@@ -162,6 +162,7 @@ locals {
     "PUT /user-lists/{id}",
     "DELETE /user-lists/{id}",
     "GET /gamification-rules",
+    "PUT /gamification-rules/{id}",
     "GET /training/paths",
     "GET /training/videos",
     "GET /training/quizzes",

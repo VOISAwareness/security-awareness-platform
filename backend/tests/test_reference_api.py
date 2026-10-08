@@ -115,3 +115,82 @@ def test_cover_content_types_are_images_only(mod):
     assert "text/html" not in mod.COVER_CONTENT_TYPES
     assert "application/octet-stream" not in mod.COVER_CONTENT_TYPES
     assert "image/png" in mod.COVER_CONTENT_TYPES
+
+
+# --- parse_points (PUT /gamification-rules/{id}) -------------------------
+
+
+@pytest.mark.parametrize("value, expected", [(80, 80), (-30, -30), ("45", 45), (" -50 ", -50), (0, 0), (30.0, 30)])
+def test_parse_points_accepts_whole_numbers(mod, value, expected):
+    assert mod.parse_points(value) == (expected, None)
+
+
+@pytest.mark.parametrize("value", [None, "", "ten", 12.5, True, "NaN", "Infinity", [], {}])
+def test_parse_points_rejects_non_whole_numbers(mod, value):
+    points, problem = mod.parse_points(value)
+    assert points is None
+    assert "whole number" in problem
+
+
+def test_parse_points_enforces_the_limit(mod):
+    assert mod.parse_points(mod.POINTS_LIMIT) == (mod.POINTS_LIMIT, None)
+    points, problem = mod.parse_points(mod.POINTS_LIMIT + 1)
+    assert points is None and "between" in problem
+
+
+def _call(mod, monkeypatch, fake, rule, body):
+    import json
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(mod, "table", lambda name: fake)
+    event = {
+        "routeKey": "PUT /gamification-rules/{id}",
+        "pathParameters": {"id": rule},
+        "body": json.dumps(body),
+    }
+    resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
+    return resp["statusCode"], json.loads(resp["body"])
+
+
+class _FakeRules:
+    def __init__(self, existing):
+        self.existing = existing
+        self.calls = []
+
+    def update_item(self, **kwargs):
+        from botocore.exceptions import ClientError
+
+        self.calls.append(kwargs)
+        if kwargs["Key"]["EventOperation"] not in self.existing:
+            raise ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "UpdateItem")
+        values = kwargs["ExpressionAttributeValues"]
+        return {
+            "Attributes": {
+                "EventOperation": kwargs["Key"]["EventOperation"],
+                "PointsAssigned": values[":points"],
+                "ModifiedBy": values[":by"],
+                "LastModifiedOn": values[":on"],
+            }
+        }
+
+
+def test_update_rule_saves_points_and_who_changed_them(mod, monkeypatch):
+    fake = _FakeRules({"Clicked"})
+    status, body = _call(mod, monkeypatch, fake, "Clicked", {"PointsAssigned": -40, "ModifiedBy": "a@x.com"})
+    assert status == 200
+    assert body["data"]["PointsAssigned"] == -40
+    assert body["data"]["ModifiedBy"] == "a@x.com"
+    assert fake.calls[0]["ConditionExpression"] == "attribute_exists(EventOperation)"
+
+
+def test_update_unknown_rule_is_404_not_a_new_rule(mod, monkeypatch):
+    status, body = _call(mod, monkeypatch, _FakeRules({"Clicked"}), "Bogus", {"PointsAssigned": 5})
+    assert status == 404
+    assert "Bogus" in body["error"]["message"]
+
+
+def test_update_rejects_bad_points_before_writing(mod, monkeypatch):
+    fake = _FakeRules({"Clicked"})
+    status, _ = _call(mod, monkeypatch, fake, "Clicked", {"PointsAssigned": "lots"})
+    assert status == 400
+    assert fake.calls == []
