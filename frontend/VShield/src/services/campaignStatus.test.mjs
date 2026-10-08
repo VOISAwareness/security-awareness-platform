@@ -66,11 +66,37 @@ test('a real workflow status is preserved', () => {
 test('derivePhase only applies once a campaign can actually run', () => {
   assert.equal(derivePhase({ status: 'DRAFT', startTime: future() }), null);
   assert.equal(derivePhase({ status: 'PENDING_APPROVAL', startTime: past() }), null);
+  assert.equal(derivePhase({ status: 'REJECTED', startTime: past() }), null);
   assert.equal(derivePhase({ status: 'APPROVED', startTime: future() }), 'Upcoming');
   assert.equal(derivePhase({ status: 'SENT', startTime: past(), endTime: future() }), 'Live');
   assert.equal(derivePhase({ status: 'SENT', startTime: past(), endTime: past() }), 'Completed');
   // Sent but undated: finished is the honest reading, not "live".
   assert.equal(derivePhase({ status: 'SENT' }), 'Completed');
+});
+
+test('an approved campaign stays Scheduled regardless of its dates', () => {
+  // Waiting to be sent — never Ongoing/Historical just because dates lapsed.
+  assert.equal(derivePhase({ status: 'APPROVED', startTime: past() }), 'Upcoming');
+  assert.equal(derivePhase({ status: 'APPROVED', startTime: past(), endTime: past() }), 'Upcoming');
+});
+
+test('a sent campaign leaves Scheduled even with a future start time', () => {
+  // The bug fix: sent means the scheduled wait is over, so a future start
+  // time no longer parks it in Scheduled (Upcoming).
+  assert.equal(derivePhase({ status: 'SENT', startTime: future(), endTime: future() }), 'Live');
+  assert.equal(derivePhase({ status: 'SENDING', startTime: future() }), 'Live');
+});
+
+test('auto-end-after-sending finishes a campaign the moment it is sent', () => {
+  assert.equal(
+    derivePhase({ status: 'SENT', endTime: future(), autoEndPostSending: true }),
+    'Completed'
+  );
+  // Without auto-end, a future end keeps it Ongoing.
+  assert.equal(
+    derivePhase({ status: 'SENT', endTime: future(), autoEndPostSending: false }),
+    'Live'
+  );
 });
 
 test('parseDate handles all three date shapes in play', () => {
