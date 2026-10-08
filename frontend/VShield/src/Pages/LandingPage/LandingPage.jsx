@@ -12,6 +12,7 @@ import AnimatedShackleGif from '../../assets/v-shield-animated-shackle.gif';
 import masterUsersData from '../../MasterUserData.json';
 // IMPORT PART 2 SECTION
 import LandingPagePart2 from './LandingPagePart2';
+import { SUPPORT_EMAIL, DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ HERO & KNOW MORE SCALE CONTROL VARIABLE (0.9 = 90%, 1.0 = 100%, etc.)
@@ -25,7 +26,7 @@ const ROLE_USERS = {
     { UserID: 'VSLD-000053', UserName: 'Jack Roberts', UserEMailID: 'jack.roberts@vodafone.com', Department: 'Cyber Security', Country: 'UK' }
   ],
   'Campaign Manager': [
-    { UserID: 'VSLD-000001', UserName: 'Abhay H S', UserEMailID: 'abhay.hs1@vodafone.com', Department: 'AIDA', Country: 'India' },
+    { UserID: 'VSLD-000001', UserName: DEMO_USER.name, UserEMailID: DEMO_USER.email, Department: 'AIDA', Country: 'India' },
     { UserID: 'VSLD-000002', UserName: 'Trevor Sile', UserEMailID: 'trevor.sile@vodafone.com', Department: 'CARE', Country: 'UK' },
     { UserID: 'VSLD-000003', UserName: 'Mitin Rinis', UserEMailID: 'mitin.rinis@vodafone.com', Department: 'Finance Operations', Country: 'UK' }
   ],
@@ -47,7 +48,7 @@ const ROLE_USERS = {
     { UserID: 'VSLD-000102', UserName: 'Elena Rossi', UserEMailID: 'elena.rossi@vodafone.com', Department: 'CARE', Country: 'Albania' }
   ],
   'Regular User': (typeof masterUsersData !== 'undefined' && Array.isArray(masterUsersData)) ? masterUsersData : [
-    { UserID: 'VSLD-000001', UserName: 'Abhay H S', UserEMailID: 'abhay.hs1@vodafone.com', Department: 'AIDA', Country: 'India' },
+    { UserID: 'VSLD-000001', UserName: DEMO_USER.name, UserEMailID: DEMO_USER.email, Department: 'AIDA', Country: 'India' },
     { UserID: 'VSLD-000002', UserName: 'Trevor Sile', UserEMailID: 'trevor.sile@vodafone.com', Department: 'CARE', Country: 'UK' },
     { UserID: 'VSLD-000003', UserName: 'Mitin Rinis', UserEMailID: 'mitin.rinis@vodafone.com', Department: 'Finance Operations', Country: 'UK' }
   ]
@@ -186,7 +187,7 @@ const LandingPage = () => {
         
         <div className="flex items-center gap-6">
           <span className="hidden md:block text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-            Contact: <a href="mailto:abhay.hs1@vodafone.com" className="hover:text-[#E60000] transition-colors">abhay.hs1@vodafone.com</a>
+            Contact: <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-[#E60000] transition-colors">{SUPPORT_EMAIL}</a>
           </span>
           
           <div className="flex items-center bg-black/5 dark:bg-white/5 p-1 rounded-full border border-black/5 dark:border-white/10 relative w-14 h-7">
@@ -343,7 +344,7 @@ const LandingPage = () => {
                     </p>
 
                     <a
-                      href="mailto:abhay.hs1@vodafone.com"
+                      href={`mailto:${SUPPORT_EMAIL}`}
                       className="inline-flex items-center justify-center px-6 py-2.5 rounded-md bg-white dark:bg-[#0B1121] text-black dark:text-white font-extrabold text-xs uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors shadow-md"
                     >
                       CONTACT US

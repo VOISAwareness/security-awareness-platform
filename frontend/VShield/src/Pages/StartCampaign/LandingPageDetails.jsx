@@ -40,6 +40,7 @@ import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
 import createNewOneImg from '../../assets/CreateNewOneStartNewCampaign.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -550,8 +551,8 @@ const LandingPageDetails = () => {
       html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: #ffffff; }
     </style></head><body>${
       (sourceHtml || '')
-        .replace(/{{userName}}/g, draft.userName || 'Abhay H S')
-        .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
+        .replace(/{{userName}}/g, draft.userName || DEMO_USER.name)
+        .replace(/{{email}}/g, DEMO_USER.email)
         .replace(/{{department}}/g, 'AI & Data Analytics')
         .replace(/{{phishLink}}/g, '#training')
     }</body></html>`;

@@ -19,6 +19,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
 import { api } from "../../services/api";
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🖼️ IMAGE RESOLVER — eagerly import every asset once, then look up by filename
@@ -1124,8 +1125,8 @@ const Scenarios = () => {
                           className="bg-white p-5 rounded-xl shadow-xs border border-slate-200"
                           dangerouslySetInnerHTML={{
                             __html: previewEmailHtml
-                              .replace(/{{userName}}/g, 'Abhay H S')
-                              .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
+                              .replace(/{{userName}}/g, DEMO_USER.name)
+                              .replace(/{{email}}/g, DEMO_USER.email)
                               .replace(/{{department}}/g, 'AI & Data Analytics')
                               .replace(/{{phishLink}}/g, '#training')
                           }}

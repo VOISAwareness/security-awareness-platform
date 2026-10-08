@@ -11,6 +11,7 @@ import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -689,8 +690,8 @@ const ChooseAScenario = () => {
                   className="bg-white p-5 rounded-xl shadow-xs border border-slate-200"
                   dangerouslySetInnerHTML={{
                     __html: previewEmailHtml
-                      .replace(/{{userName}}/g, 'Abhay H S')
-                      .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
+                      .replace(/{{userName}}/g, DEMO_USER.name)
+                      .replace(/{{email}}/g, DEMO_USER.email)
                       .replace(/{{department}}/g, 'AI & Data Analytics')
                       .replace(/{{phishLink}}/g, '#training')
                   }}

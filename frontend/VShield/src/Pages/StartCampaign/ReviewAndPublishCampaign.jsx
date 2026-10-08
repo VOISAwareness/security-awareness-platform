@@ -29,6 +29,7 @@ import trainingVideosJson from '../Training/TrainingVideos.json';
 import trainingQuizJson from '../Training/TrainingQuiz.json';
 import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -376,8 +377,8 @@ const ReviewAndPublishCampaign = () => {
   const getRenderablePreviewHtml = () => {
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>* { box-sizing: border-box; } html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: #ffffff; }</style></head><body>${
       (landingPageContent || '')
-        .replace(/{{userName}}/g, draft.userName || 'Abhay H S')
-        .replace(/{{userEmailID}}/g, 'abhay.hs1@vodafone.com')
+        .replace(/{{userName}}/g, draft.userName || DEMO_USER.name)
+        .replace(/{{userEmailID}}/g, DEMO_USER.email)
         .replace(/{{department}}/g, 'AI & Data Analytics')
         .replace(/{{phishLink}}/g, '#training')
     }</body></html>`;
@@ -1039,8 +1040,8 @@ const ReviewAndPublishCampaign = () => {
                     className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 text-slate-900"
                     dangerouslySetInnerHTML={{
                       __html: (emailBody || '')
-                        .replace(/{{userName}}/g, 'Abhay H S')
-                        .replace(/{{userEmailID}}/g, 'abhay.hs1@vodafone.com')
+                        .replace(/{{userName}}/g, DEMO_USER.name)
+                        .replace(/{{userEmailID}}/g, DEMO_USER.email)
                         .replace(/{{department}}/g, 'AI & Data Analytics')
                         .replace(/{{phishLink}}/g, '#training')
                     }}

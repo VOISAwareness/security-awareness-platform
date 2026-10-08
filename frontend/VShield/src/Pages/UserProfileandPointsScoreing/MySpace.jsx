@@ -22,6 +22,7 @@ import {
 // Card Background Texture Assets
 import MySpaceCardBgLight from '../../assets/MySpaceCardBgLightMode.png';
 import MySpaceCardBgDark from '../../assets/MySpaceCardBgDarkMode.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -828,7 +829,7 @@ const VerticalAccordionContainer = ({ isDark }) => {
 // 4. MAIN MY SPACE PAGE COMPONENT
 // ==========================================
 const MySpace = () => {
-  const { isDark } = useUserType?.() || { isDark: false };
+  const { isDark, user } = useUserType?.() || { isDark: false };
 
   return (
     <>
@@ -869,8 +870,8 @@ const MySpace = () => {
           <div className="w-full lg:w-[310px] xl:w-[300px] flex-shrink-0 flex flex-col">
             <DraggableIdBadge
               isDark={isDark}
-              userName="ABHAY H S"
-              email="abhay.hs1@vodafone.com"
+              userName={(user?.UserName || DEMO_USER.name).toUpperCase()}
+              email={user?.UserEMailID || DEMO_USER.email}
               tower="AI & Data Analytics Tower (AIDA)"
             />
           </div>

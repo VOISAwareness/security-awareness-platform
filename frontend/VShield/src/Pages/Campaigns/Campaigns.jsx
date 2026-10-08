@@ -27,6 +27,7 @@ import ScheduledImg from '../../assets/CampaignsAssets/ScheduledCampaignsImage.p
 import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage.png';
 import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
 import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
+import { DEMO_USER } from '../../appConfig';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -931,8 +932,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
                   className="bg-white text-slate-900 p-6 rounded-xl shadow-xs border border-slate-200/80 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:mb-2 [&_p]:mb-2.5 [&_p]:leading-relaxed [&_a]:text-[#E60000] [&_a]:underline [&_a]:font-semibold"
                   dangerouslySetInnerHTML={{
                     __html: String(previewEmailHtml)
-                      .replace(/{{userName}}/g, 'Abhay H S')
-                      .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
+                      .replace(/{{userName}}/g, DEMO_USER.name)
+                      .replace(/{{email}}/g, DEMO_USER.email)
                       .replace(/{{department}}/g, 'AI & Data Analytics')
                       .replace(/{{phishLink}}/g, '#simulated-phish-link')
                   }}
