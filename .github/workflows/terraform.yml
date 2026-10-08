@@ -1,0 +1,103 @@
+name: Terraform
+
+# Run Terraform from GitHub instead of a laptop or Codespace:
+#   Actions -> Terraform -> Run workflow (branch: main)
+#     plan  - show what would change; changes nothing
+#     apply - plan again, then apply that exact plan
+# An apply that would destroy anything stops unless "allow_destroy" is ticked
+# (AGENTS.md §2: confirm 0 to destroy). The role it runs as is defined in
+# infra/terraform/github_actions_terraform.tf.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'plan = show changes only; apply = plan, then apply'
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
+      allow_destroy:
+        description: 'Let the apply delete resources (leave unticked unless a destroy is intended)'
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+# One run at a time; the S3 state lock would reject a second one anyway.
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/terraform
+    env:
+      TF_IN_AUTOMATION: "1"
+      TF_INPUT: "0"
+
+    steps:
+      - name: Only from main
+        working-directory: .
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run this workflow from main: it applies what has been merged, nothing else."
+            exit 1
+          fi
+
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::798299234472:role/GitHubActionsTerraformRole
+          aws-region: ap-south-1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false -no-color
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        id: plan
+        run: |
+          terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+          terraform show -json tfplan > plan.json
+
+          adds=$(jq '[.resource_changes[]? | select(.change.actions | index("create"))] | length' plan.json)
+          changes=$(jq '[.resource_changes[]? | select(.change.actions == ["update"])] | length' plan.json)
+          destroys=$(jq '[.resource_changes[]? | select(.change.actions | index("delete"))] | length' plan.json)
+          echo "destroys=$destroys" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Plan: $adds to add, $changes to change, $destroys to destroy"
+            echo
+            echo '```'
+            grep -vE 'Refreshing state|Reading\.\.\.|Read complete' plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stop if the plan destroys anything
+        if: inputs.action == 'apply' && steps.plan.outputs.destroys != '0' && inputs.allow_destroy != true
+        run: |
+          echo "::error::The plan would destroy ${{ steps.plan.outputs.destroys }} resource(s). Nothing was applied. Read the plan, and re-run with allow_destroy ticked only if that is intended."
+          exit 1
+
+      - name: Terraform apply
+        if: inputs.action == 'apply'
+        run: terraform apply -input=false -no-color tfplan

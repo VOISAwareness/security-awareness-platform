@@ -52,7 +52,8 @@ backend/                 Lambda functions, one dir each (lambda_function.py)
 frontend/VShield/        React app (Vite)
 infra/terraform/         IaC: tables, bucket, HTTP API (imported)
 docs/                    Architecture + CICD diagrams (being corrected)
-.github/workflows/       deploy-lambda.yml (deploy), ci.yml (lint+test)
+.github/workflows/       deploy-lambda.yml (deploy), ci.yml (lint+test),
+                         terraform.yml (plan/apply button)
 AGENTS.md                This file
 ```
 
@@ -91,6 +92,11 @@ AGENTS.md                This file
   workflow_dispatch): OIDC assume-role → zip → `aws lambda update-function-code`
   for each function. It deploys **code only**; env/config/tables are Terraform.
 - Merging to `main` therefore deploys. Keep `main` green.
+- **`terraform.yml`** (Actions → Terraform → Run workflow, `main` only) runs
+  `terraform plan` or `apply` for `infra/terraform/` as `GitHubActionsTerraformRole`.
+  `apply` re-plans and refuses any destroy unless `allow_destroy` is ticked; the
+  role itself can never delete the bucket, tables or API. Changes to its own
+  role (`github_actions_terraform.tf`) are applied from a terminal.
 
 ## 7. Data model & contracts
 
