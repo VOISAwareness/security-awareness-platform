@@ -306,6 +306,98 @@ def personalize_template(
 
 
 # ---------------------------------------------------------------------------
+# Inline email body (how the app saves campaigns)
+# ---------------------------------------------------------------------------
+#
+# Campaigns created through the wizard store their HTML inline on the campaign
+# record as `emailBody`, with a ready-made anchor whose href is a link
+# placeholder. Unlike the legacy S3 template, the anchor is already present, so
+# the phishing link placeholder is replaced with the tracking URL in place — no
+# anchor is injected. The recipient-name placeholder is substituted too.
+
+INLINE_LINK_PLACEHOLDERS = (
+    "{{phishLink}}",
+    "{{PHISH_LINK}}",
+    "{{phishingLink}}",
+    "{{trackingUrl}}",
+    "{{TRACKING_URL}}",
+)
+
+INLINE_NAME_PLACEHOLDERS = (
+    "{{userName}}",
+    "{{USER_NAME}}",
+    "{{UserName}}",
+    "@UserName",
+    "@userName",
+)
+
+
+def _replace_all(text, placeholders, value):
+    """Replace every placeholder in `placeholders` with `value`."""
+    for placeholder in placeholders:
+        text = text.replace(placeholder, value)
+    return text
+
+
+def render_inline_body(email_body, user_name, tracking_url):
+    """
+    Render an inline campaign `emailBody` for sending.
+
+    The body must contain at least one link placeholder; it is replaced with
+    the tracking URL (HTML-escaped for an href context). The recipient-name
+    placeholder, if present, is replaced with the escaped name. No anchor tag
+    is injected — the body already carries its own anchor.
+    """
+    if not isinstance(email_body, str) or not email_body.strip():
+        raise ValueError("Campaign emailBody is empty")
+
+    has_link_placeholder = any(
+        placeholder in email_body
+        for placeholder in INLINE_LINK_PLACEHOLDERS
+    )
+
+    if not has_link_placeholder:
+        raise ValueError(
+            "Email body has no link placeholder; expected one of: "
+            + ", ".join(INLINE_LINK_PLACEHOLDERS)
+        )
+
+    safe_url = escape(tracking_url, quote=True)
+    safe_user_name = escape(user_name, quote=True)
+
+    rendered_html = _replace_all(
+        email_body,
+        INLINE_LINK_PLACEHOLDERS,
+        safe_url
+    )
+
+    rendered_html = _replace_all(
+        rendered_html,
+        INLINE_NAME_PLACEHOLDERS,
+        safe_user_name
+    )
+
+    if safe_url not in rendered_html:
+        raise ValueError(
+            "Tracking URL is missing from the rendered email body"
+        )
+
+    return rendered_html
+
+
+def render_subject(subject, user_name):
+    """
+    Substitute the recipient-name placeholder in a plain-text subject line.
+
+    The subject is not HTML, so the raw name is used (no escaping).
+    """
+    if not isinstance(subject, str) or not subject.strip():
+        return "Security Awareness Notification"
+
+    return _replace_all(subject, INLINE_NAME_PLACEHOLDERS, user_name)
+
+
+# ---------------------------------------------------------------------------
 # Failure-state helpers
 # ---------------------------------------------------------------------------
 
@@ -448,6 +540,8 @@ def lambda_handler(event, context):
                 }
             )
 
+        email_body = campaign.get("emailBody")
+
         template_bucket = campaign.get(
             "templateBucket"
         )
@@ -456,31 +550,44 @@ def lambda_handler(event, context):
             "templateKey"
         )
 
-        if not template_bucket or not template_key:
+        # A send needs either the inline emailBody (how the wizard saves
+        # campaigns) or a legacy S3 template. Inline bodies are preferred;
+        # the S3 path stays for templates created before inline bodies.
+        has_s3_template = bool(template_bucket and template_key)
+
+        has_inline_body = (
+            isinstance(email_body, str)
+            and email_body.strip() != ""
+        )
+
+        if not has_s3_template and not has_inline_body:
             return build_response(
                 400,
                 {
                     "message": (
-                        "Campaign template configuration "
-                        "is missing"
+                        "Campaign has no email body or "
+                        "template to send"
                     ),
                     "campaignId": campaign_id
                 }
             )
 
-        # Load and validate the template BEFORE locking the campaign.
-        template_response = s3_client.get_object(
-            Bucket=template_bucket,
-            Key=template_key
-        )
+        template_html = None
 
-        template_html = (
-            template_response["Body"]
-            .read()
-            .decode("utf-8")
-        )
+        if has_s3_template:
+            # Load and validate the template BEFORE locking the campaign.
+            template_response = s3_client.get_object(
+                Bucket=template_bucket,
+                Key=template_key
+            )
 
-        validate_template(template_html)
+            template_html = (
+                template_response["Body"]
+                .read()
+                .decode("utf-8")
+            )
+
+            validate_template(template_html)
 
         # Generate the recipient-specific tracking information.
         recipient_id = (
@@ -511,12 +618,19 @@ def lambda_handler(event, context):
 
         user_name = "POC User"
 
-        personalized_html = personalize_template(
-            template_html=template_html,
-            user_name=user_name,
-            campaign_id=campaign_id,
-            tracking_url=tracking_url
-        )
+        if has_s3_template:
+            personalized_html = personalize_template(
+                template_html=template_html,
+                user_name=user_name,
+                campaign_id=campaign_id,
+                tracking_url=tracking_url
+            )
+        else:
+            personalized_html = render_inline_body(
+                email_body=email_body,
+                user_name=user_name,
+                tracking_url=tracking_url
+            )
 
         # Lock campaign only after all validation succeeds.
         sending_at = utc_timestamp()
@@ -568,10 +682,13 @@ def lambda_handler(event, context):
             )
         )
 
-        subject = campaign.get(
-            "subject",
-            "Security Awareness Notification"
+        raw_subject = (
+            campaign.get("emailSubject")
+            or campaign.get("subject")
+            or "Security Awareness Notification"
         )
+
+        subject = render_subject(raw_subject, user_name)
 
         parsed_tracking_url = urlparse(
             tracking_url

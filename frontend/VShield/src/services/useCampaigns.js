@@ -152,6 +152,13 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
     [runAction]
   );
 
+  // Send an APPROVED campaign. In the SES sandbox the Lambda delivers only to
+  // its configured verified recipient, so this is safe as a pipeline self-test.
+  const send = useCallback(
+    (campaignId) => runAction(campaignId, () => api.campaigns.send(campaignId, actor)),
+    [actor, runAction]
+  );
+
   return {
     campaigns,
     loading,
@@ -163,5 +170,6 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
     notify,
     reschedule,
     remove,
+    send,
   };
 }
