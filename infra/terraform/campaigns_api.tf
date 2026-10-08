@@ -5,6 +5,9 @@ data "archive_file" "campaigns_api" {
   type        = "zip"
   source_file = "${path.module}/../../backend/campaigns-api/lambda_function.py"
   output_path = "${path.module}/build/campaigns-api.zip"
+  # Same bytes on every machine (Codespace, GitHub Actions…), so the code hash
+  # only changes when the code does.
+  output_file_mode = "0644"
 }
 
 resource "aws_iam_role" "campaigns_api" {

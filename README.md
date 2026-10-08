@@ -138,7 +138,7 @@ scan) / S3 → CodePipeline → Development and Production.
 
 Figure 2 is **not yet implemented**. There is no Docker image, no ECR repository,
 no CodeBuild project and no CodePipeline. Delivery runs entirely on **GitHub
-Actions**, in two workflows:
+Actions**, in three workflows:
 
 ```
                     ┌──────────────────────────── ci.yml ─────────────────────────────┐
@@ -152,12 +152,23 @@ Actions**, in two workflows:
   backend/**    ──► │   → zip each function                                            │
                     │   → aws lambda update-function-code  ×5                          │
                     └─────────────────────────────────────────────────────────────────┘
+
+                    ┌──────────────────────── terraform.yml ──────────────────────────┐
+  Run workflow  ──► │ OIDC assume-role (main only)                                     │
+  (button, main)    │   → terraform init → validate → plan (summary on the run page)   │
+                    │   → apply: only if chosen, and stops if anything would be        │
+                    │     destroyed unless allow_destroy is ticked                     │
+                    └─────────────────────────────────────────────────────────────────┘
 ```
 
 Key characteristics of the current pipeline:
 
 - **No static AWS credentials.** `deploy-lambda.yml` assumes
-  `GitHubActionsLambdaDeployRole` via GitHub OIDC.
+  `GitHubActionsLambdaDeployRole` via GitHub OIDC; `terraform.yml` assumes
+  `GitHubActionsTerraformRole`, which only runs from `main` and cannot delete
+  the bucket, the tables or the API.
+- **Infrastructure runs from a button.** Actions → *Terraform* → *Run workflow*
+  plans or applies `infra/terraform/` with no AWS tools on anyone's machine.
 - **CI has no AWS access at all.** Tests must never call AWS; set dummy env
   (including `AWS_DEFAULT_REGION`) before importing a Lambda that builds boto3
   clients at import time.
@@ -173,7 +184,8 @@ Key characteristics of the current pipeline:
 1. Add static analysis (SonarQube or CodeQL) as a required check.
 2. Add a frontend deploy — S3 + CloudFront (or Amplify) — and an environment
    origin in the CORS allowlist to match.
-3. Run `terraform plan` on PRs and gate `apply` behind an approval.
+3. Run `terraform plan` automatically on PRs (with a separate read-only role)
+   and require a reviewer before `terraform.yml` applies.
 4. Promote through Development → SIT → UAT → Production rather than deploying
    straight from `main`.
 5. Retire the per-function `update-function-code` steps once all Lambdas are
@@ -350,7 +362,8 @@ serialises with a `DecimalEncoder` (DynamoDB numbers → JSON numbers) and sets
 security-awareness-platform
 ├── .github/workflows/
 │   ├── ci.yml                 # lint + test + build on every push/PR
-│   └── deploy-lambda.yml      # OIDC → zip → update-function-code (main only)
+│   ├── deploy-lambda.yml      # OIDC → zip → update-function-code (main only)
+│   └── terraform.yml          # Run workflow → terraform plan / apply (main only)
 ├── backend/                   # one directory per Lambda
 │   ├── approval/              # campaign workflow state machine
 │   ├── campaign-reader/
@@ -419,12 +432,23 @@ pytest backend/tests
 
 ### Infrastructure
 
+From GitHub, with nothing installed locally: **Actions → Terraform → Run
+workflow** on `main`, choose `plan` and read the summary, then run it again with
+`apply`. The apply stops if anything would be destroyed unless `allow_destroy`
+is ticked.
+
+From a terminal with the AWS CLI and Terraform (e.g. a Codespace):
+
 ```bash
-aws sso login --sso-session vshield-sso      # profile: vshield
+aws sso login --sso-session vshield-sso --use-device-code   # profile: vshield
 cd infra/terraform
 terraform init
 terraform plan                                # confirm 0 to destroy
 ```
+
+Changes to `infra/terraform/github_actions_terraform.tf` (the workflow's own
+role) must be applied from a terminal: the workflow can read that role but not
+change it.
 
 ---
 
