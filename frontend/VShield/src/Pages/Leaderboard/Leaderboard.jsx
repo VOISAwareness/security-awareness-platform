@@ -20,9 +20,10 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the live
 // points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
-// stat tiles, a podium stage that switches between top people and top
-// departments, and the paginated ranked list. The viewer is highlighted red in light mode and white
-// in dark mode.
+// the Top people / Top departments switch and head count in the top arm, the
+// open / click / report rates under the title capsule beside the podium, and
+// the paginated ranked list. The viewer is highlighted red in light mode and
+// white in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
 // in the rail. The ranked list is paged instead, sized to however many rows fit,
@@ -179,14 +180,8 @@ const ROW_H = 48;
 const ROW_GAP = 6;
 const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
 
-const compact = (n) => {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(n >= 1e5 ? 0 : 1)}k`;
-  return String(n);
-};
-
-// Department podium (average points per person) and the points total, worked
-// out from whichever board is showing.
+// Department podium (average points per person), worked out from whichever
+// board is showing.
 function boardInsights(board) {
   const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows];
   const byDept = {};
@@ -204,8 +199,7 @@ function boardInsights(board) {
       dept: `${d.n.toLocaleString()} ${d.n === 1 ? 'person' : 'people'}`, pts: d.avg.toLocaleString(), rep: `${d.rep}%`,
     }));
   const deptPodium = ranked.length >= 3 ? { first: ranked[0], second: ranked[1], third: ranked[2] } : null;
-  const points = all.reduce((sum, r) => sum + toNum(r.pts), 0);
-  return { deptPodium, points };
+  return { deptPodium };
 }
 
 const ordinalSuffix = (n) => {
@@ -370,23 +364,25 @@ const RankRow = ({ r, fill, you, accent }) => (
   </div>
 );
 
-// One figure in the sheet's top arm: label, big value, and a bar for rates.
+// One rate beside the podium: label and value on a line, a bar underneath.
 const StatTile = ({ label, value, rate, bg, ink }) => (
-  <div style={{ flex: 1, minWidth: 104, maxWidth: 190, padding: '11px 14px 12px', borderRadius: 14, background: bg, display: 'flex', flexDirection: 'column', gap: 5 }}>
-    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>{label}</span>
-    <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: ink, letterSpacing: '-0.01em' }}>{value}</span>
-    <span style={{ height: 4, borderRadius: 999, background: 'var(--track)', overflow: 'hidden', display: 'block', visibility: rate == null ? 'hidden' : 'visible' }}>
-      <span style={{ display: 'block', height: '100%', width: `${rate || 0}%`, background: ink, borderRadius: 999 }} />
+  <div style={{ flex: 1, minHeight: 0, padding: '0 14px', borderRadius: 14, background: bg, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{label}</span>
+      <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: ink, letterSpacing: '-0.01em' }}>{value}</span>
+    </div>
+    <span style={{ height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden', display: 'block' }}>
+      <span style={{ display: 'block', height: '100%', width: `${rate}%`, background: ink, borderRadius: 999 }} />
     </span>
   </div>
 );
 
-// People / Departments switch pinned to the top-left of the podium stage.
+// People / Departments switch for the podium, shown in the sheet's top arm.
 const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
 
 const StageSwitch = ({ value, onChange, sub, canDepts }) => (
-  <div style={{ position: 'absolute', top: 8, left: 24, zIndex: 1 }}>
-    <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 3, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+    <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 4, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
       {STAGES.map((st) => {
         const on = value === st.id;
         const disabled = st.id === 'depts' && !canDepts;
@@ -400,8 +396,8 @@ const StageSwitch = ({ value, onChange, sub, canDepts }) => (
             onClick={() => onChange(st.id)}
             className="lb-pg"
             style={{
-              height: 28, padding: '0 14px', borderRadius: 999, border: 'none', cursor: on ? 'default' : 'pointer',
-              fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap',
+              height: 34, padding: '0 18px', borderRadius: 999, border: 'none', cursor: on ? 'default' : 'pointer',
+              fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap',
               background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)',
               boxShadow: on ? '0 1px 3px rgba(15,23,42,0.14)' : 'none', transition: 'background .15s ease, color .15s ease',
             }}
@@ -411,7 +407,7 @@ const StageSwitch = ({ value, onChange, sub, canDepts }) => (
         );
       })}
     </div>
-    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', margin: '6px 0 0 6px' }}>{sub}</div>
+    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', margin: '7px 8px 0 0' }}>{sub}</div>
   </div>
 );
 
@@ -539,8 +535,8 @@ const Leaderboard = ({ onClose }) => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--panel': '#22252C', '--c-gold': '#2E240C', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-violet': '#A5B4FC', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--panel': '#F7F9FC', '--c-gold': '#FFF4D6', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-violet': '#5B47C9', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--panel': '#22252C', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-violet': '#A5B4FC', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--panel': '#F7F9FC', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-violet': '#5B47C9', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
 
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
@@ -716,14 +712,15 @@ const Leaderboard = ({ onClose }) => {
               <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
             </svg>
 
-            {/* top-right arm of the L: stat tiles + the big counter */}
-            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 28, padding: '0 24px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
-              <div style={{ flex: 1, display: 'flex', gap: 10, minWidth: 0 }}>
-                <StatTile label={`${scope.kpiPrefix}Opened`} value={scope.kpis.Opened} rate={pct(scope.kpis.Opened)} bg="var(--c-lav)" ink="var(--t-violet)" />
-                <StatTile label={`${scope.kpiPrefix}Clicked`} value={scope.kpis.Clicked} rate={pct(scope.kpis.Clicked)} bg="var(--c-peach)" ink="var(--t-red)" />
-                <StatTile label={`${scope.kpiPrefix}Reported`} value={scope.kpis.Reported} rate={pct(scope.kpis.Reported)} bg="var(--c-mint)" ink="var(--t-green)" />
-                <StatTile label="Points earned" value={compact(insights.points)} bg="var(--c-gold)" ink="var(--t-gold)" />
-              </div>
+            {/* top-right arm of the L: podium switch + the big head count */}
+            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 24, padding: '0 24px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+              <StageSwitch
+                value={podium.id}
+                onChange={setStage}
+                canDepts={Boolean(insights.deptPodium)}
+                sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
+              />
+              <span aria-hidden style={{ width: 1, height: 56, background: 'var(--hair)' }} />
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div className="lb-exb" style={{ fontSize: 46, lineHeight: 0.9, color: scope.accentCounter, letterSpacing: '-0.02em' }}>{scope.counter}</div>
                 <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 4 }}>{scope.counterLabel}</div>
@@ -733,28 +730,31 @@ const Leaderboard = ({ onClose }) => {
             {/* lower base of the L: podium, ranked list, footer */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
 
-              {/* podium stage, lit from below: top people, or top departments via the switch */}
-              <div style={{ flexShrink: 0, position: 'relative', padding: '6px 24px 4px', background: 'radial-gradient(40% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
-                <StageSwitch
-                  value={podium.id}
-                  onChange={setStage}
-                  canDepts={Boolean(insights.deptPodium)}
-                  sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
-                />
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={`${podium.id}-${view}-${campaignId}`}
-                    initial={reduce ? false : { opacity: 0, x: podium.id === 'depts' ? 24 : -24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
-                  >
-                    <Pedestal person={podium.board.second} place="second" reduce={reduce} />
-                    <Pedestal person={podium.board.first} place="first" reduce={reduce} />
-                    <Pedestal person={podium.board.third} place="third" reduce={reduce} />
-                  </motion.div>
-                </AnimatePresence>
+              {/* stage: this scope's rates under the title capsule (left), the podium (centre) */}
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-end', gap: 24, padding: '4px 24px 10px 16px' }}>
+                <div style={{ width: CAP_W - 17, flexShrink: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6 }}>
+                  <StatTile label={`${scope.kpiPrefix}Opened`} value={scope.kpis.Opened} rate={pct(scope.kpis.Opened)} bg="var(--c-lav)" ink="var(--t-violet)" />
+                  <StatTile label={`${scope.kpiPrefix}Clicked`} value={scope.kpis.Clicked} rate={pct(scope.kpis.Clicked)} bg="var(--c-peach)" ink="var(--t-red)" />
+                  <StatTile label={`${scope.kpiPrefix}Reported`} value={scope.kpis.Reported} rate={pct(scope.kpis.Reported)} bg="var(--c-mint)" ink="var(--t-green)" />
+                </div>
+
+                {/* podium, lit from below: top people, or top departments via the switch */}
+                <div style={{ flex: 1, minWidth: 0, background: 'radial-gradient(46% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={`${podium.id}-${view}-${campaignId}`}
+                      initial={reduce ? false : { opacity: 0, x: podium.id === 'depts' ? 24 : -24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
+                    >
+                      <Pedestal person={podium.board.second} place="second" reduce={reduce} />
+                      <Pedestal person={podium.board.first} place="first" reduce={reduce} />
+                      <Pedestal person={podium.board.third} place="third" reduce={reduce} />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
               </div>
 
               {/* column header */}
