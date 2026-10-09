@@ -121,8 +121,15 @@ function App() {
             {/* 🌟 Dashboard And Analytics Route */}
             <Route path="/analytics" element={<DashboardAndAnalytics />} />
 
-            {/* 🌟 Leaderboard Route (design prototype) */}
-            <Route path="/leaderboard" element={<Leaderboard />} />
+            {/* 🌟 Leaderboard Route (design prototype) — Regular Users open it from My Space instead */}
+            <Route
+              path="/leaderboard"
+              element={
+                <ProtectedRoute requiredScreen="leaderboard">
+                  <Leaderboard />
+                </ProtectedRoute>
+              }
+            />
             
             {/* 🌟 Start New Campaign Page Route */}
             <Route path="/start-campaign" element={<ChooseAScenario />} />

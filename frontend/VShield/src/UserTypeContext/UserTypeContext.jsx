@@ -4,6 +4,8 @@ const UserTypeContext = createContext();
 
 // EXACT STANDARDIZED PERMISSION MATRIX
 // 'home' is restricted to Admin, Campaign Creator, and Campaign Manager only
+// 'leaderboard' (nav item + /leaderboard page) is every role except Regular User;
+// everyone, Regular User included, can open it from the My Space LEADERBOARD button
 export const ROLE_PERMISSIONS = {
   'Admin': [
     'home',
@@ -18,6 +20,7 @@ export const ROLE_PERMISSIONS = {
     'requests-approvals',
     'gamification-engine',
     'analytics',
+    'leaderboard',
     'my-space',
     'my-training'
   ],
@@ -33,6 +36,7 @@ export const ROLE_PERMISSIONS = {
     'email-domains',
     'requests-approvals',
     'analytics',
+    'leaderboard',
     'my-space',
     'my-training'
   ],
@@ -48,11 +52,13 @@ export const ROLE_PERMISSIONS = {
     'email-domains',
     'requests-approvals',
     'analytics',
+    'leaderboard',
     'my-space',
     'my-training'
   ],
   'Gamification Engine Manager': [
     'gamification-engine',
+    'leaderboard',
     'my-space',
     'my-training'
   ],
@@ -62,6 +68,7 @@ export const ROLE_PERMISSIONS = {
   ],
   'GMT': [
     'analytics',
+    'leaderboard',
     'my-space',
     'my-training'
   ]

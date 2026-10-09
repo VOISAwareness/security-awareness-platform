@@ -312,7 +312,9 @@ const Pager = ({ page, pageCount, onPage }) => (
   </nav>
 );
 
-const Leaderboard = () => {
+// `onClose` is passed when the board is shown as a pop-up (LeaderboardModal);
+// it adds a close button to the top bar.
+const Leaderboard = ({ onClose }) => {
   const { isDark, user } = useUserType() || {};
   const reduce = useReducedMotion();
   const [view, setView] = useState('global'); // 'global' | 'campaign'
@@ -419,8 +421,19 @@ const Leaderboard = () => {
       <div className="lb-page" style={{ ...vars, '--accent': '#E60000', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* top black bar */}
-        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', padding: '0 18px', flexShrink: 0 }}>
+        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: onClose ? '0 8px 0 18px' : '0 18px', flexShrink: 0 }}>
           <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close leaderboard"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              Close
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          )}
         </div>
 
         {/* two-column workspace */}
