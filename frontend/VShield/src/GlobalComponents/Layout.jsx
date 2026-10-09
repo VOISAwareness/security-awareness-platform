@@ -227,7 +227,7 @@ const Layout = () => {
             
             <NavLink to="/gamification" label="GAMIFICATION ENGINE" icon={Sparkles} perm="gamification-engine" />
             <NavLink to="/analytics" label="DASHBOARD & ANALYTICS" icon={BarChart2} perm="analytics" />
-            <NavLink to="/leaderboard" label="LEADERBOARD" icon={Trophy} perm="always" />
+            <NavLink to="/leaderboard" label="LEADERBOARD" icon={Trophy} perm="leaderboard" />
             <NavLink to="/my-space" label="MY SPACE" icon={User} perm="always" />
             <NavLink to="/my-training" label="MY TRAINING" icon={GraduationCap} perm="always" />
           </nav>

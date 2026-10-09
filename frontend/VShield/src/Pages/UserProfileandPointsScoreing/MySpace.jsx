@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import MySpacePart2 from './MySpacePart2';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
@@ -23,6 +23,7 @@ import {
 import MySpaceCardBgLight from '../../assets/MySpaceCardBgLightMode.png';
 import MySpaceCardBgDark from '../../assets/MySpaceCardBgDarkMode.png';
 import { DEMO_USER } from '../../appConfig';
+import LeaderboardModal from '../Leaderboard/LeaderboardModal';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -61,7 +62,7 @@ const VODAFONE_FONT_STYLE = `
 // =========================================================================
 // 🌟 1. UNBREAKABLE ELASTIC LANYARD & SNAP-BACK ID BADGE (LOWERED BY 4PX)
 // =========================================================================
-const DraggableIdBadge = ({ isDark, userName, email, tower }) => {
+const DraggableIdBadge = ({ isDark, userName, email, tower, onOpenLeaderboard }) => {
   const cardBgImage = isDark ? MySpaceCardBgDark : MySpaceCardBgLight;
 
   const x = useMotionValue(180);
@@ -232,6 +233,7 @@ const DraggableIdBadge = ({ isDark, userName, email, tower }) => {
           <div className="w-full mt-2.5 z-10">
             <button
               type="button"
+              onClick={onOpenLeaderboard}
               className={`w-full py-1.5 px-3 rounded-lg border text-[10px] font-voda-exb uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 isDark
                   ? 'bg-white/20 border-white/20 text-white hover:bg-white/15'
@@ -830,10 +832,17 @@ const VerticalAccordionContainer = ({ isDark }) => {
 // ==========================================
 const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const closeLeaderboard = useCallback(() => setShowLeaderboard(false), []);
 
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
+
+      {/* LEADERBOARD button on the ID badge opens the board as a pop-up */}
+      <AnimatePresence>
+        {showLeaderboard && <LeaderboardModal key="leaderboard" onClose={closeLeaderboard} />}
+      </AnimatePresence>
 
       <div
         style={{ zoom: VarMySpaceScale }}
@@ -873,6 +882,7 @@ const MySpace = () => {
               userName={(user?.UserName || DEMO_USER.name).toUpperCase()}
               email={user?.UserEMailID || DEMO_USER.email}
               tower="AI & Data Analytics Tower (AIDA)"
+              onOpenLeaderboard={() => setShowLeaderboard(true)}
             />
           </div>
 
