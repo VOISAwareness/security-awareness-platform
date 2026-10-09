@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 
@@ -15,10 +15,13 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // from the gamification rules.
 //
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
-// the Global / By-campaign scope capsules with clay corner art, then the list
+// the Global / My Campaigns scope capsules with clay corner art, then the list
 // of ongoing campaigns) and a full-width right "sheet" with a 3-pedestal podium
-// on a stage and the scrollable ranked list. The viewer's row is highlighted in
-// place and, when outside the top 10, also pinned to the bottom of the sheet.
+// on a stage and the paginated ranked list.
+//
+// The page is locked to the viewport: nothing scrolls except the campaign list
+// in the rail. The ranked list is paged instead, sized to however many rows fit,
+// with the viewer's own position pinned bottom-left of the sheet.
 // =============================================================================
 
 const FONT_IMPORT = `
@@ -28,38 +31,46 @@ const FONT_IMPORT = `
   .lb-page { font-family: 'Inter', system-ui, sans-serif; }
   .lb-scroll::-webkit-scrollbar { width: 7px; }
   .lb-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,145,0.35); border-radius: 999px; }
+  .lb-pg:disabled { cursor: default; opacity: 0.4; }
 `;
 
 // --- sample data -------------------------------------------------------------
 
-const NAMES = [
-  ['Aditi Rao', 'Finance', 'AR'], ['David Kim', 'IT Security', 'DK'], ['Noura Ali', 'Operations', 'NA'],
-  ['Priya Nair', 'Finance', 'PN'], ['Marco Bellini', 'IT Security', 'MB'], ['Sara Nasser', 'Human Res.', 'SN'],
-  ['Liang Wei', 'Operations', 'LW'], ['Tom Okafor', 'Sales', 'TO'], ['Elena Petrova', 'Legal', 'EP'],
-  ['Omar Haddad', 'Finance', 'OH'], ['Mei Chen', 'IT', 'MC'], ['Yuki Tanaka', 'Sales', 'YT'],
-  ['Hassan Ali', 'Operations', 'HA'], ['Lena Fischer', 'Legal', 'LF'], ['Raj Patel', 'Finance', 'RP'],
-  ['Sofia Rossi', 'Marketing', 'SR'], ['Kwame Mensah', 'IT', 'KM'], ['Ana Silva', 'Human Res.', 'AS'],
-  ['Ivan Petrov', 'Operations', 'IP'], ['Chloe Dubois', 'Sales', 'CD'], ['Ben Carter', 'Legal', 'BC'],
-  ['Fatima Zahra', 'Finance', 'FZ'], ['Noah Weber', 'IT Security', 'NW'], ['Grace Lee', 'Marketing', 'GL'],
-];
+const FIRST = ['Aditi', 'David', 'Noura', 'Priya', 'Marco', 'Sara', 'Liang', 'Tom', 'Elena', 'Omar', 'Mei', 'Yuki',
+  'Hassan', 'Lena', 'Raj', 'Sofia', 'Kwame', 'Ana', 'Ivan', 'Chloe', 'Ben', 'Fatima', 'Noah', 'Grace'];
+const LAST = ['Rao', 'Kim', 'Ali', 'Nair', 'Bellini', 'Nasser', 'Wei', 'Okafor', 'Petrova', 'Haddad', 'Chen', 'Tanaka',
+  'Mensah', 'Fischer', 'Patel', 'Rossi', 'Silva', 'Dubois', 'Carter', 'Zahra', 'Weber', 'Lee', 'Novak', 'Iyer'];
+const DEPTS = ['Finance', 'IT Security', 'Operations', 'Human Res.', 'Sales', 'Legal', 'IT', 'Marketing'];
 
+// 24 x 24 distinct first/last pairs (5 is coprime with 24, so no repeats
+// until index 576).
+function person(i) {
+  const a = i % FIRST.length;
+  const b = Math.floor(i / FIRST.length);
+  const first = FIRST[a];
+  const last = LAST[(a + b * 5) % LAST.length];
+  return { name: `${first} ${last}`, dept: DEPTS[(i * 7 + b) % DEPTS.length], initials: `${first[0]}${last[0]}` };
+}
+
+// Every participant, ranked. Points fall off steeply at the top and flatten
+// out down the field, the way a real leaderboard does.
 function buildBoard(seed, total) {
-  const n = Math.min(total, 22);
   const all = [];
-  for (let rank = 1; rank <= n; rank += 1) {
-    const p = NAMES[(seed + rank - 1) % NAMES.length];
-    const pts = Math.max(60, 1480 - rank * 46 - (seed % 5) * 7);
-    const rep = Math.max(28, 97 - rank * 2 - (seed % 3));
-    const clk = Math.min(46, Math.round(2 + rank * 1.6));
-    all.push({ rank, name: p[0], dept: p[1], initials: p[2], pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%` });
+  for (let rank = 1; rank <= total; rank += 1) {
+    const t = total > 1 ? (rank - 1) / (total - 1) : 0;
+    const s = (1 - t) ** 1.6 * rank ** -0.08; // 1 at the top, 0 at the bottom
+    const p = person(rank - 1 + seed * 37);
+    const pts = Math.round(80 + 1400 * s - (seed % 5) * 7);
+    const rep = Math.round(27 + 70 * s);
+    const clk = Math.round(46 - 44 * s);
+    all.push({ rank, ...p, pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%` });
   }
-  return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), shown: n, total };
+  return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
 
 const GLOBAL = { total: 128, youRank: 12, board: buildBoard(0, 128) };
 
-const ONGOING_TOTAL = 50;
-const CAMPAIGNS = [
+const NAMED_CAMPAIGNS = [
   { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1, kpis: { Sent: '2,480', Opened: '61%', Clicked: '14%', Reported: '52%' } },
   { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2, kpis: { Sent: '1,860', Opened: '58%', Clicked: '11%', Reported: '49%' } },
   { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3, kpis: { Sent: '3,120', Opened: '66%', Clicked: '18%', Reported: '45%' } },
@@ -70,17 +81,75 @@ const CAMPAIGNS = [
   { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8, kpis: { Sent: '2,890', Opened: '64%', Clicked: '17%', Reported: '46%' } },
 ];
 
+const LURES = [
+  ['Password Expiry Warning', 'Credential theft'], ['Shared Document Request', 'Credential theft'],
+  ['Parcel Delivery Failed', 'Delivery lure'], ['Expense Claim Rejected', 'Finance lure'],
+  ['MFA Reset Required', 'Credential theft'], ['Annual Bonus Letter', 'HR lure'],
+  ['IT Asset Audit', 'IT lure'], ['Conference Invitation', 'Event lure'],
+  ['Salary Revision', 'HR lure'], ['Security Patch Install', 'IT lure'],
+  ['Wire Transfer Approval', 'Finance lure'], ['Holiday Calendar 2027', 'HR lure'],
+  ['OneDrive Storage Full', 'IT lure'], ['Customer Complaint Escalation', 'Business lure'],
+];
+const REGIONS = ['EMEA', 'APAC', 'Americas'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// 42 more so the rail has a realistic 50 ongoing campaigns to scroll through.
+const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_, k) => {
+  const [lure, type] = LURES[k % LURES.length];
+  const region = REGIONS[Math.floor(k / LURES.length)];
+  const started = new Date(Date.UTC(2026, 8, 22 - k));
+  const total = 600 + ((k * 397) % 2600);
+  return {
+    id: `CMP-${(((k + 1) * 2654435761) >>> 0).toString(16).slice(0, 6)}`,
+    name: `${lure} (${region})`,
+    type,
+    started: `${started.getUTCDate()} ${MONTHS[started.getUTCMonth()]}`,
+    total,
+    youRank: 4 + ((k * 11) % 26),
+    seed: 9 + k,
+    kpis: {
+      Sent: total.toLocaleString(),
+      Opened: `${50 + ((k * 7) % 18)}%`,
+      Clicked: `${8 + ((k * 5) % 12)}%`,
+      Reported: `${42 + ((k * 3) % 17)}%`,
+    },
+  };
+});
+
+const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
+
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
 const rowFill = (i) => ['var(--c-mint)', 'var(--c-lav)', 'var(--c-peach)'][i % 3];
 const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 
 const PLACE = {
-  first: { h: 118, num: 42, av: 64, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
-  second: { h: 86, num: 30, av: 52, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
-  third: { h: 66, num: 26, av: 52, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
+  first: { h: 84, num: 34, av: 56, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
+  second: { h: 60, num: 26, av: 46, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
+  third: { h: 44, num: 22, av: 46, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
 const COLS = '48px 1fr 150px 60px 80px';
+
+// Rows are a fixed height so the page size can be worked out from the space
+// the list actually has.
+const ROW_H = 44;
+const ROW_GAP = 6;
+const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
+
+// Page buttons with ellipses: 1 … 4 5 6 … 19
+function pageList(cur, count) {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i);
+  const keep = new Set([0, count - 1, cur - 1, cur, cur + 1]);
+  if (cur <= 2) [1, 2, 3].forEach((i) => keep.add(i));
+  if (cur >= count - 3) [count - 4, count - 3, count - 2].forEach((i) => keep.add(i));
+  const pages = [...keep].filter((i) => i >= 0 && i < count).sort((a, b) => a - b);
+  const out = [];
+  pages.forEach((p, idx) => {
+    if (idx > 0 && p - pages[idx - 1] > 1) out.push(`gap-${p}`);
+    out.push(p);
+  });
+  return out;
+}
 
 // --- presentational pieces (module scope) ------------------------------------
 
@@ -90,7 +159,7 @@ const Avatar = ({ initials, size = 32, ring, you }) => (
     style={{
       width: size, height: size, borderRadius: 999, background: '#fff',
       color: you ? '#E60000' : '#0F172A', fontWeight: 800,
-      fontSize: size >= 60 ? 19 : size >= 50 ? 16 : 10.5,
+      fontSize: size >= 54 ? 18 : size >= 44 ? 15 : 10,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       boxShadow: you ? 'inset 0 0 0 2px #E60000' : ring ? `inset 0 0 0 3px ${ring}` : '0 1px 2px rgba(15,23,42,0.1)',
     }}
@@ -106,25 +175,25 @@ const Chip = ({ kind, children }) => (
 );
 
 const SPARKLES = [
-  { top: -10, left: -16, s: 13, d: 0 },
-  { top: -16, right: -10, s: 10, d: 0.6 },
-  { bottom: -2, right: -18, s: 11, d: 1.2 },
+  { top: -10, left: -16, s: 12, d: 0 },
+  { top: -14, right: -10, s: 9, d: 0.6 },
+  { bottom: -2, right: -18, s: 10, d: 1.2 },
 ];
 
-const Pedestal = ({ person, place, reduce }) => {
+const Pedestal = ({ person: p, place, reduce }) => {
   const c = PLACE[place];
   const first = place === 'first';
   return (
     <motion.div
-      initial={reduce ? false : { y: 72, opacity: 0 }}
+      initial={reduce ? false : { y: 60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 150, damping: 17, delay: c.delay }}
       whileHover={{ y: -4 }}
-      style={{ flex: first ? '1.1' : '1', maxWidth: first ? 230 : 210, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+      style={{ flex: first ? '1.1' : '1', maxWidth: first ? 220 : 200, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
       {first && (
-        <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 2 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
+        <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 1 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
         </span>
       )}
       <span style={{ position: 'relative', display: 'flex' }}>
@@ -147,15 +216,17 @@ const Pedestal = ({ person, place, reduce }) => {
             <svg width={sp.s} height={sp.s} viewBox="0 0 24 24" fill={MEDAL.first}><path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" /></svg>
           </motion.span>
         ))}
-        <Avatar initials={person.initials} size={c.av} ring={c.medal} />
+        <Avatar initials={p.initials} size={c.av} ring={c.medal} />
       </span>
-      <div style={{ fontSize: first ? 14 : 12.5, fontWeight: 800, marginTop: 8, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{person.name}</div>
-      <div style={{ fontSize: 9.5, color: 'var(--muted)' }}>{person.dept}</div>
-      <div className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 24 : 17, fontWeight: 800, marginTop: 3, lineHeight: 1, color: 'var(--text)' }}>{person.pts}</div>
-      <div style={{ marginTop: 4 }}><Chip kind="good">{person.rep} reported</Chip></div>
+      <div style={{ fontSize: first ? 13.5 : 12, fontWeight: 800, marginTop: 6, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
+      <div style={{ fontSize: 9, color: 'var(--muted)' }}>{p.dept}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+        <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 20 : 15, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
+        <Chip kind="good">{p.rep} reported</Chip>
+      </div>
       <div
         style={{
-          width: '100%', height: c.h, marginTop: 10, background: c.fill,
+          width: '100%', height: c.h, marginTop: 8, background: c.fill,
           borderRadius: '14px 14px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: first ? 'inset 0 2px 0 rgba(255,255,255,0.6), 0 0 22px rgba(232,179,11,0.18)' : 'inset 0 2px 0 rgba(255,255,255,0.55)',
         }}
@@ -169,10 +240,11 @@ const Pedestal = ({ person, place, reduce }) => {
 const RankRow = ({ r, fill, you, accent }) => (
   <div
     style={{
+      height: ROW_H, flexShrink: 0,
       background: you ? 'var(--base)' : fill,
       border: you ? '1.5px solid #E60000' : '1px solid var(--hair)',
       borderRadius: 12, display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center',
-      padding: '9px 12px', boxShadow: you ? '0 4px 12px rgba(230,0,0,0.12)' : 'none',
+      padding: '0 12px', boxShadow: you ? '0 4px 12px rgba(230,0,0,0.12)' : 'none',
     }}
   >
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? '#E60000' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 8px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
@@ -180,7 +252,7 @@ const RankRow = ({ r, fill, you, accent }) => (
       <span className="lb-mono" style={{ fontSize: 11, fontWeight: you ? 800 : 700, color: you ? '#fff' : '#0F172A' }}>{r.rank}</span>
     </span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-      <Avatar initials={r.initials} size={32} you={you} />
+      <Avatar initials={r.initials} size={28} you={you} />
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <span style={{ fontWeight: 800, fontSize: 12, color: you ? '#0F172A' : 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {r.name}
@@ -200,11 +272,69 @@ const RankRow = ({ r, fill, you, accent }) => (
   </div>
 );
 
+const Chevron = ({ left }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points={left ? '15 6 9 12 15 18' : '9 6 15 12 9 18'} />
+  </svg>
+);
+
+const pagerBtn = (active) => ({
+  minWidth: 28, height: 28, padding: '0 6px', borderRadius: 8, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  fontSize: 11, fontWeight: 800,
+  border: active ? '1px solid #0F172A' : '1px solid var(--hair)',
+  background: active ? '#0F172A' : 'var(--base)',
+  color: active ? '#fff' : 'var(--text)',
+});
+
+const Pager = ({ page, pageCount, onPage }) => (
+  <nav aria-label="Leaderboard pages" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <button type="button" className="lb-pg" aria-label="Previous page" disabled={page === 0} onClick={() => onPage(page - 1)} style={pagerBtn(false)}>
+      <Chevron left />
+    </button>
+    {pageList(page, pageCount).map((p) => (typeof p === 'string' ? (
+      <span key={p} style={{ minWidth: 18, textAlign: 'center', fontSize: 11, fontWeight: 800, color: 'var(--muted)' }}>…</span>
+    ) : (
+      <button
+        key={p}
+        type="button"
+        className="lb-mono"
+        aria-current={p === page ? 'page' : undefined}
+        onClick={() => onPage(p)}
+        style={pagerBtn(p === page)}
+      >
+        {p + 1}
+      </button>
+    )))}
+    <button type="button" className="lb-pg" aria-label="Next page" disabled={page >= pageCount - 1} onClick={() => onPage(page + 1)} style={pagerBtn(false)}>
+      <Chevron />
+    </button>
+  </nav>
+);
+
 const Leaderboard = () => {
   const { isDark, user } = useUserType() || {};
   const reduce = useReducedMotion();
   const [view, setView] = useState('global'); // 'global' | 'campaign'
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(7);
+  const listRef = useRef(null);
+
+  // Fit the page size to the list's real height; re-run on any resize.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      const h = el.clientHeight;
+      setRowsPerPage(Math.max(1, Math.floor((h + ROW_GAP) / (ROW_H + ROW_GAP))));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const chooseView = (id) => { setView(id); setPage(0); };
+  const chooseCampaign = (id) => { setCampaignId(id); setPage(0); };
 
   const youName = (user && user.UserName) ? user.UserName : 'You';
   const youInitials = youName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'YOU';
@@ -230,8 +360,10 @@ const Leaderboard = () => {
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
-    const flat = [scope.board.podium.first, scope.board.podium.second, scope.board.podium.third, ...scope.board.rows];
-    const above = flat.find((r) => r.rank === scope.youRank - 1);
+    const { podium, rows } = scope.board;
+    const above = scope.youRank - 1 <= 3
+      ? [podium.first, podium.second, podium.third][scope.youRank - 2]
+      : rows[scope.youRank - 1 - FIRST_LIST_RANK];
     const youPts = toNum(youRow.pts);
     const abovePts = above ? toNum(above.pts) : youPts;
     return {
@@ -241,7 +373,18 @@ const Leaderboard = () => {
     };
   }, [scope, youRow]);
 
-  const inTopTen = scope.youRank <= 10;
+  // Pagination over ranks 4..N (1–3 are on the podium).
+  const listRows = scope.board.rows;
+  const pageCount = Math.max(1, Math.ceil(listRows.length / rowsPerPage));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageStart = safePage * rowsPerPage;
+  const pageRows = listRows.slice(pageStart, pageStart + rowsPerPage);
+  const firstShown = pageRows.length ? pageRows[0].rank : 0;
+  const lastShown = pageRows.length ? pageRows[pageRows.length - 1].rank : 0;
+
+  const youOnPodium = scope.youRank < FIRST_LIST_RANK;
+  const youPage = youOnPodium ? -1 : Math.floor((scope.youRank - FIRST_LIST_RANK) / rowsPerPage);
+  const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
     ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ground': 'linear-gradient(#2A2E37,#171A20)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
@@ -252,9 +395,9 @@ const Leaderboard = () => {
     return (
       <button
         type="button"
-        onClick={() => setView(id)}
+        onClick={() => chooseView(id)}
         style={{
-          position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', width: '100%',
+          position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', width: '100%', flexShrink: 0,
           borderRadius: 16, padding: '14px 14px 16px', marginBottom: 10, minHeight: 74,
           border: selected ? '1px solid transparent' : '1px solid var(--hair)',
           background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
@@ -272,7 +415,8 @@ const Leaderboard = () => {
     <>
       <style>{FONT_IMPORT}</style>
 
-      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', background: 'var(--bg)', color: 'var(--text)', width: '100%', minHeight: 'calc(100vh - 8px)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Fills <main> exactly; nothing inside lets the page itself scroll. */}
+      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* top black bar */}
         <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', padding: '0 18px', flexShrink: 0 }}>
@@ -286,7 +430,7 @@ const Leaderboard = () => {
           <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
             {/* Your standing — hero, on top */}
-            <div style={{ background: 'var(--cap-standing)', borderRadius: 16, padding: 16, marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
+            <div style={{ flexShrink: 0, background: 'var(--cap-standing)', borderRadius: 16, padding: 16, marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
@@ -314,7 +458,7 @@ const Leaderboard = () => {
                   <div style={{ height: 7, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${standing.fillPct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
                   </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 6 }}>{standing.toNext.toLocaleString()} pts to reach rank {standing.nextRank}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 6 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
                 </div>
               )}
             </div>
@@ -322,21 +466,22 @@ const Leaderboard = () => {
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, '#15803D')}
             {railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, '#4F46E5')}
 
+            {/* the only scrolling region on the page */}
             {view === 'campaign' && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
-                  Ongoing campaigns · {ONGOING_TOTAL}
+                <div style={{ flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
+                  Ongoing campaigns · {CAMPAIGNS.length}
                 </div>
-                <div className="lb-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+                <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
                   {CAMPAIGNS.map((c) => {
                     const sel = c.id === campaignId;
                     return (
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => setCampaignId(c.id)}
+                        onClick={() => chooseCampaign(c.id)}
                         style={{
-                          textAlign: 'left', cursor: 'pointer', borderRadius: 14, padding: '10px 12px',
+                          flexShrink: 0, textAlign: 'left', cursor: 'pointer', borderRadius: 14, padding: '10px 12px',
                           border: sel ? '1.5px solid #818CF8' : '1px solid var(--hair)',
                           background: sel ? 'var(--cap-camp)' : 'var(--rail)', color: 'var(--text)',
                           boxShadow: sel ? '0 4px 12px rgba(129,140,248,0.18)' : 'none',
@@ -350,16 +495,13 @@ const Leaderboard = () => {
                       </button>
                     );
                   })}
-                  <div style={{ textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: 'var(--muted)', padding: '6px 0 2px' }}>
-                    + {ONGOING_TOTAL - CAMPAIGNS.length} more campaigns
-                  </div>
                 </div>
               </div>
             )}
           </div>
 
           {/* RIGHT SHEET — colored capsule notched into a white L-base */}
-          <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--base)', border: '1px solid var(--hair)', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--base)', border: '1px solid var(--hair)', borderRadius: 16, overflow: 'hidden' }}>
 
             {/* capsule flush in the top-left corner (the L) */}
             <div style={{ position: 'absolute', top: 0, left: 0, width: 214, height: 112, zIndex: 5, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderBottomRightRadius: 24 }}>
@@ -392,43 +534,69 @@ const Leaderboard = () => {
             </div>
 
             {/* podium on a stage, lit from below */}
-            <div style={{ padding: '22px 24px 14px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+            <div style={{ flexShrink: 0, padding: '16px 24px 10px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
                 <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
                 <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
                 <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
               </div>
-              <div style={{ height: 14, borderRadius: 10, background: 'var(--ground)', boxShadow: '0 12px 22px rgba(15,23,42,0.14)', marginTop: -1 }} />
+              <div style={{ height: 12, borderRadius: 10, background: 'var(--ground)', boxShadow: '0 12px 22px rgba(15,23,42,0.14)', marginTop: -1 }} />
             </div>
 
             {/* column header */}
-            <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '4px 24px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
+            <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '4px 37px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
               <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'right' }}>Points</div>
             </div>
 
-            {/* scrollable ranked list */}
-            <div className="lb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 24px 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-              {scope.board.rows.map((r, i) => (
-                <RankRow
-                  key={r.rank}
-                  r={r.rank === scope.youRank ? youRow : r}
-                  fill={rowFill(i)}
-                  you={r.rank === scope.youRank}
-                  accent="var(--accent)"
-                />
-              ))}
-              <div style={{ textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: 'var(--muted)', padding: '8px 0 2px' }}>
-                Showing top {scope.board.shown} of {scope.board.total.toLocaleString()}
-              </div>
+            {/* ranked list — one page at a time, sized to fit */}
+            <div ref={listRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', margin: '0 24px' }}>
+              <motion.div
+                key={`${view}-${campaignId}-${safePage}`}
+                initial={reduce ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP }}
+              >
+                {pageRows.map((r, i) => (
+                  <RankRow
+                    key={r.rank}
+                    r={r.rank === scope.youRank ? youRow : r}
+                    fill={rowFill(pageStart + i)}
+                    you={r.rank === scope.youRank}
+                    accent="var(--accent)"
+                  />
+                ))}
+              </motion.div>
             </div>
 
-            {/* sticky "your position" — only when outside the top 10 */}
-            {!inTopTen && (
-              <div style={{ borderTop: '1px solid var(--hair)', padding: '10px 24px', background: 'var(--base)', flexShrink: 0 }}>
-                <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Your position</div>
-                <RankRow r={youRow} you accent="var(--accent)" />
+            {/* footer: your position (left) + pagination (right) */}
+            <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Your position</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1.5px solid #E60000', borderRadius: 999, padding: '3px 12px 3px 4px', minWidth: 0 }}>
+                  <span className="lb-mono" style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#E60000', borderRadius: 999, padding: '3px 8px' }}>{scope.youRank}</span>
+                  <Avatar initials={youRow.initials} size={22} you />
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.name}</span>
+                  <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{youRow.pts} pts</span>
+                </div>
+                <button
+                  type="button"
+                  className="lb-pg"
+                  disabled={youVisible}
+                  onClick={() => setPage(youPage)}
+                  style={{ ...pagerBtn(false), padding: '0 10px', fontSize: 10, whiteSpace: 'nowrap', color: youVisible ? 'var(--muted)' : '#E60000' }}
+                >
+                  {youOnPodium ? 'On the podium' : youVisible ? 'On this page' : 'Go to my rank'}
+                </button>
               </div>
-            )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                  Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()}
+                </span>
+                <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
+              </div>
+            </div>
 
           </div>
         </div>
