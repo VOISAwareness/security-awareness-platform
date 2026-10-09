@@ -43,7 +43,7 @@ function buildBoard(seed, total) {
   const n = Math.min(total, 22);
   const all = [];
   for (let rank = 1; rank <= n; rank += 1) {
-    const p = NAMES[(seed * 7 + rank * 3) % NAMES.length];
+    const p = NAMES[(seed + rank - 1) % NAMES.length];
     const pts = Math.max(60, 1480 - rank * 46 - (seed % 5) * 7);
     const rep = Math.max(28, 97 - rank * 2 - (seed % 3));
     const clk = Math.min(46, Math.round(2 + rank * 1.6));
@@ -360,7 +360,7 @@ const Leaderboard = () => {
                 />
               ))}
               <div style={{ textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: 'var(--muted)', padding: '8px 0 2px' }}>
-                Showing top {scope.board.shown} of {scope.total.toLocaleString()}
+                Showing top {scope.board.shown} of {scope.board.total.toLocaleString()}
               </div>
             </div>
 
