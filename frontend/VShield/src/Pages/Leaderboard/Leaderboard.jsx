@@ -4,9 +4,8 @@ import { useUserType } from '../../UserTypeContext/UserTypeContext';
 
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
-import StandingArt from '../../assets/CertificateImageStartANewCampaign.png';
-import ControllerArt from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
-import RocketArt from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
+import GlobalTrophy from '../../assets/LeaderboardAssets/GlobalTrophy.png';
+import CampaignTarget from '../../assets/LeaderboardAssets/CampaignTarget.png';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
@@ -229,11 +228,17 @@ const Leaderboard = () => {
     return { ...base, name: youDisplay, dept: 'IT Security', initials: youInitials };
   }, [scope, youDisplay, youInitials]);
 
-  // Points needed to climb one place — a small goal to make it feel like a game.
-  const toNext = useMemo(() => {
+  // Standing vs the person one place above — a small goal + progress bar.
+  const standing = useMemo(() => {
     const flat = [scope.board.podium.first, scope.board.podium.second, scope.board.podium.third, ...scope.board.rows];
     const above = flat.find((r) => r.rank === scope.youRank - 1);
-    return above ? Math.max(0, toNum(above.pts) - toNum(youRow.pts)) : 0;
+    const youPts = toNum(youRow.pts);
+    const abovePts = above ? toNum(above.pts) : youPts;
+    return {
+      toNext: above ? Math.max(0, abovePts - youPts) : 0,
+      fillPct: abovePts > 0 ? Math.min(100, Math.round((youPts / abovePts) * 100)) : 100,
+      nextRank: scope.youRank - 1,
+    };
   }, [scope, youRow]);
 
   const inTopTen = scope.youRank <= 10;
@@ -281,22 +286,41 @@ const Leaderboard = () => {
           <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
             {/* Your standing — hero, on top */}
-            <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--cap-standing)', borderRadius: 16, padding: 16, marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
-              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-                <span className="lb-exb" style={{ fontSize: 40, lineHeight: 1, color: 'var(--text)' }}>#{scope.youRank}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#15803D' }}>▲ 3 this week</span>
+            <div style={{ background: 'var(--cap-standing)', borderRadius: 16, padding: 16, marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>
+                  3 this week
+                </span>
               </div>
-              <div style={{ fontSize: 12.5, fontWeight: 800, marginTop: 10, color: 'var(--text)' }}>{youDisplay}</div>
-              <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.pts} pts · {youRow.rep} reported</div>
-              {toNext > 0 && (
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 8, maxWidth: 196 }}>▲ {toNext.toLocaleString()} pts to reach #{scope.youRank - 1}</div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginTop: 13 }}>
+                <div style={{ width: 58, height: 58, borderRadius: 999, flexShrink: 0, background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(184,134,11,0.35)' }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 999, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                    <span style={{ fontSize: 6.5, fontWeight: 800, letterSpacing: '0.12em', color: '#B07A12', marginBottom: 1 }}>RANK</span>
+                    <span className="lb-exb" style={{ fontSize: 21, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
+                  </div>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youDisplay}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.dept}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#B07A12', marginTop: 2 }}>{youRow.pts} pts · {youRow.rep} reported</div>
+                </div>
+              </div>
+
+              {standing.toNext > 0 && (
+                <div style={{ marginTop: 13 }}>
+                  <div style={{ height: 7, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${standing.fillPct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
+                  </div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 6 }}>{standing.toNext.toLocaleString()} pts to reach rank {standing.nextRank}</div>
+                </div>
               )}
-              <img src={StandingArt} alt="" aria-hidden style={{ position: 'absolute', bottom: -4, right: -4, width: 64, height: 64, objectFit: 'contain', pointerEvents: 'none' }} />
             </div>
 
-            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', ControllerArt, '#15803D')}
-            {railCapsule('campaign', 'By Campaign', 'Live ranking inside one campaign', RocketArt, '#4F46E5')}
+            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, '#15803D')}
+            {railCapsule('campaign', 'By Campaign', 'Live ranking inside one campaign', CampaignTarget, '#4F46E5')}
 
             {view === 'campaign' && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
