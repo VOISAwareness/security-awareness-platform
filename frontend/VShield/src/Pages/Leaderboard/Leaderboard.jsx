@@ -133,8 +133,10 @@ const COLS = '48px 1fr 150px 60px 80px';
 
 // L-shape sheet, built like Requests & Approvals: the colour capsule is its own
 // rounded tile and the white sheet wraps round it with a small even gap.
+// HERO_H is shared with the "Your standing" card so the two line up top and bottom.
+const HERO_H = 136;
 const CAP_W = 214;
-const CAP_H = 112;
+const CAP_H = HERO_H;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
@@ -448,7 +450,7 @@ const Leaderboard = ({ onClose }) => {
           <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
             {/* Your standing — hero, on top */}
-            <div style={{ flexShrink: 0, background: 'var(--cap-standing)', borderRadius: 16, padding: 16, marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
+            <div style={{ flexShrink: 0, height: HERO_H, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'var(--cap-standing)', borderRadius: L_R, padding: '13px 16px', marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
@@ -457,26 +459,26 @@ const Leaderboard = ({ onClose }) => {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginTop: 13 }}>
-                <div style={{ width: 58, height: 58, borderRadius: 999, flexShrink: 0, background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(184,134,11,0.35)' }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 999, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 999, flexShrink: 0, background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(184,134,11,0.35)' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 999, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                     <span style={{ fontSize: 6.5, fontWeight: 800, letterSpacing: '0.12em', color: '#B07A12', marginBottom: 1 }}>RANK</span>
-                    <span className="lb-exb" style={{ fontSize: 21, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
+                    <span className="lb-exb" style={{ fontSize: 19, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
                   </div>
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
                   <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.dept}</div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#B07A12', marginTop: 2 }}>{youRow.pts} pts · {youRow.rep} reported</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#B07A12', marginTop: 1 }}>{youRow.pts} pts · {youRow.rep} reported</div>
                 </div>
               </div>
 
               {standing.toNext > 0 && (
-                <div style={{ marginTop: 13 }}>
-                  <div style={{ height: 7, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
+                <div>
+                  <div style={{ height: 6, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${standing.fillPct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
                   </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 6 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 5 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
                 </div>
               )}
             </div>
@@ -522,7 +524,7 @@ const Leaderboard = ({ onClose }) => {
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
             {/* capsule: its own tile, set apart from the sheet by L_GAP */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
               {scope.live && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A' }} />
@@ -560,7 +562,7 @@ const Leaderboard = ({ onClose }) => {
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
 
               {/* podium, lit from below */}
-              <div style={{ flexShrink: 0, padding: '12px 24px 6px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+              <div style={{ flexShrink: 0, padding: '4px 24px 4px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
                   <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
                   <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
