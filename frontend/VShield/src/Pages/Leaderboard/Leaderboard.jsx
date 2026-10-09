@@ -17,7 +17,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the list
 // of ongoing campaigns) and a full-width right "sheet" with a 3-pedestal podium
-// on a stage and the paginated ranked list.
+// and the paginated ranked list. The viewer is highlighted red in light mode and
+// white in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
 // in the rail. The ranked list is paged instead, sized to however many rows fit,
@@ -130,6 +131,14 @@ const PLACE = {
 const NUMERAL = { first: '1', second: '2', third: '3' };
 const COLS = '48px 1fr 150px 60px 80px';
 
+// L-shape sheet, built like Requests & Approvals: the colour capsule is its own
+// rounded tile and the white sheet wraps round it with a small even gap.
+const CAP_W = 214;
+const CAP_H = 112;
+const L_GAP = 7;
+const L_R = 16;
+const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
+
 // Rows are a fixed height so the page size can be worked out from the space
 // the list actually has.
 const ROW_H = 44;
@@ -158,10 +167,10 @@ const Avatar = ({ initials, size = 32, ring, you }) => (
     className="lb-mono"
     style={{
       width: size, height: size, borderRadius: 999, background: '#fff',
-      color: you ? '#E60000' : '#0F172A', fontWeight: 800,
+      color: you ? 'var(--you-avatar)' : '#0F172A', fontWeight: 800,
       fontSize: size >= 54 ? 18 : size >= 44 ? 15 : 10,
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      boxShadow: you ? 'inset 0 0 0 2px #E60000' : ring ? `inset 0 0 0 3px ${ring}` : '0 1px 2px rgba(15,23,42,0.1)',
+      boxShadow: you ? 'inset 0 0 0 2px var(--you)' : ring ? `inset 0 0 0 3px ${ring}` : '0 1px 2px rgba(15,23,42,0.1)',
     }}
   >
     {initials}
@@ -242,23 +251,20 @@ const RankRow = ({ r, fill, you, accent }) => (
     style={{
       height: ROW_H, flexShrink: 0,
       background: you ? 'var(--base)' : fill,
-      border: you ? '1.5px solid #E60000' : '1px solid var(--hair)',
+      border: you ? '1.5px solid var(--you)' : '1px solid var(--hair)',
       borderRadius: 12, display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center',
-      padding: '0 12px', boxShadow: you ? '0 4px 12px rgba(230,0,0,0.12)' : 'none',
+      padding: '0 12px', boxShadow: you ? 'var(--you-glow)' : 'none',
     }}
   >
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? '#E60000' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 8px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? 'var(--you)' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 8px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
       {!you && <span style={{ width: 6, height: 6, borderRadius: 999, background: accent }} />}
-      <span className="lb-mono" style={{ fontSize: 11, fontWeight: you ? 800 : 700, color: you ? '#fff' : '#0F172A' }}>{r.rank}</span>
+      <span className="lb-mono" style={{ fontSize: 11, fontWeight: you ? 800 : 700, color: you ? 'var(--you-ink)' : '#0F172A' }}>{r.rank}</span>
     </span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
       <Avatar initials={r.initials} size={28} you={you} />
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <span style={{ fontWeight: 800, fontSize: 12, color: you ? '#0F172A' : 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {r.name}
-          {you && <span style={{ fontSize: 7.5, fontWeight: 800, color: '#fff', background: '#E60000', padding: '2px 6px', borderRadius: 999, letterSpacing: '0.06em', marginLeft: 6 }}>YOU</span>}
-        </span>
-        <span style={{ fontSize: 9, color: you ? '#64748B' : 'var(--muted)' }}>{r.dept}</span>
+        <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+        <span style={{ fontSize: 9, color: 'var(--muted)' }}>{r.dept}</span>
       </span>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -267,8 +273,8 @@ const RankRow = ({ r, fill, you, accent }) => (
       </span>
       <span className="lb-mono" style={{ fontSize: 10, fontWeight: 700, color: '#15803D', width: 30, textAlign: 'right' }}>{r.rep}</span>
     </div>
-    <div className="lb-mono" style={{ fontSize: 10.5, fontWeight: 700, color: you ? '#E60000' : '#C2410C', textAlign: 'center' }}>{r.clk}</div>
-    <div className="lb-mono" style={{ fontSize: 14, fontWeight: 800, color: you ? '#0F172A' : 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
+    <div className="lb-mono" style={{ fontSize: 10.5, fontWeight: 700, color: '#C2410C', textAlign: 'center' }}>{r.clk}</div>
+    <div className="lb-mono" style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
   </div>
 );
 
@@ -282,9 +288,9 @@ const pagerBtn = (active) => ({
   minWidth: 28, height: 28, padding: '0 6px', borderRadius: 8, cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   fontSize: 11, fontWeight: 800,
-  border: active ? '1px solid #0F172A' : '1px solid var(--hair)',
-  background: active ? '#0F172A' : 'var(--base)',
-  color: active ? '#fff' : 'var(--text)',
+  border: active ? '1px solid var(--ink)' : '1px solid var(--hair)',
+  background: active ? 'var(--ink)' : 'var(--base)',
+  color: active ? 'var(--ink-on)' : 'var(--text)',
 });
 
 const Pager = ({ page, pageCount, onPage }) => (
@@ -340,7 +346,6 @@ const Leaderboard = ({ onClose }) => {
 
   const youName = (user && user.UserName) ? user.UserName : 'You';
   const youInitials = youName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'YOU';
-  const youDisplay = youName === 'You' ? 'You' : `You · ${youName.split(' ')[0]}`;
 
   const campaign = useMemo(() => CAMPAIGNS.find((c) => c.id === campaignId) || CAMPAIGNS[0], [campaignId]);
 
@@ -357,8 +362,8 @@ const Leaderboard = ({ onClose }) => {
 
   const youRow = useMemo(() => {
     const base = scope.board.rows.find((r) => r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
-    return { ...base, name: youDisplay, dept: 'IT Security', initials: youInitials };
-  }, [scope, youDisplay, youInitials]);
+    return { ...base, name: youName, dept: 'IT Security', initials: youInitials };
+  }, [scope, youName, youInitials]);
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
@@ -389,8 +394,8 @@ const Leaderboard = ({ onClose }) => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ground': 'linear-gradient(#2A2E37,#171A20)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ground': 'linear-gradient(#E9EEF5,#D4DCE7)', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
 
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
@@ -460,7 +465,7 @@ const Leaderboard = ({ onClose }) => {
                   </div>
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youDisplay}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
                   <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.dept}</div>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: '#B07A12', marginTop: 2 }}>{youRow.pts} pts · {youRow.rep} reported</div>
                 </div>
@@ -485,7 +490,7 @@ const Leaderboard = ({ onClose }) => {
                 <div style={{ flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
                   Ongoing campaigns · {CAMPAIGNS.length}
                 </div>
-                <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+                <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px 12px 0' }}>
                   {CAMPAIGNS.map((c) => {
                     const sel = c.id === campaignId;
                     return (
@@ -500,9 +505,9 @@ const Leaderboard = ({ onClose }) => {
                           boxShadow: sel ? '0 4px 12px rgba(129,140,248,0.18)' : 'none',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', flexShrink: 0 }} />
-                          <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', flexShrink: 0, marginTop: 4 }} />
+                          <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.25 }}>{c.name}</span>
                         </div>
                         <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 3 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
                       </button>
@@ -513,11 +518,11 @@ const Leaderboard = ({ onClose }) => {
             )}
           </div>
 
-          {/* RIGHT SHEET — colored capsule notched into a white L-base */}
-          <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--base)', border: '1px solid var(--hair)', borderRadius: 16, overflow: 'hidden' }}>
+          {/* RIGHT SHEET — standalone colour capsule; the white sheet wraps round it in an L */}
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
-            {/* capsule flush in the top-left corner (the L) */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: 214, height: 112, zIndex: 5, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderBottomRightRadius: 24 }}>
+            {/* capsule: its own tile, set apart from the sheet by L_GAP */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
               {scope.live && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A' }} />
@@ -528,8 +533,13 @@ const Leaderboard = ({ onClose }) => {
               <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', lineHeight: 1.3, maxWidth: 182 }}>{scope.sub}</div>
             </div>
 
-            {/* arm: KPI chips + the big counter, right of the capsule */}
-            <div style={{ height: 112, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px 0 230px', borderBottom: '1px solid var(--hair)' }}>
+            {/* concave fillet joining the arm to the base, following the capsule's corner */}
+            <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
+              <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
+            </svg>
+
+            {/* top-right arm of the L: KPI chips + the big counter */}
+            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
               {scope.kpis && (
                 <div style={{ display: 'flex', gap: 10 }}>
                   {Object.entries(scope.kpis).map(([k, v]) => (
@@ -546,71 +556,74 @@ const Leaderboard = ({ onClose }) => {
               </div>
             </div>
 
-            {/* podium on a stage, lit from below */}
-            <div style={{ flexShrink: 0, padding: '16px 24px 10px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
-                <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
-                <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
-                <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
-              </div>
-              <div style={{ height: 12, borderRadius: 10, background: 'var(--ground)', boxShadow: '0 12px 22px rgba(15,23,42,0.14)', marginTop: -1 }} />
-            </div>
+            {/* lower base of the L: podium, ranked list, footer */}
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
 
-            {/* column header */}
-            <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '4px 37px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
-              <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'right' }}>Points</div>
-            </div>
-
-            {/* ranked list — one page at a time, sized to fit */}
-            <div ref={listRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', margin: '0 24px' }}>
-              <motion.div
-                key={`${view}-${campaignId}-${safePage}`}
-                initial={reduce ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
-                style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP }}
-              >
-                {pageRows.map((r, i) => (
-                  <RankRow
-                    key={r.rank}
-                    r={r.rank === scope.youRank ? youRow : r}
-                    fill={rowFill(pageStart + i)}
-                    you={r.rank === scope.youRank}
-                    accent="var(--accent)"
-                  />
-                ))}
-              </motion.div>
-            </div>
-
-            {/* footer: your position (left) + pagination (right) */}
-            <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Your position</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1.5px solid #E60000', borderRadius: 999, padding: '3px 12px 3px 4px', minWidth: 0 }}>
-                  <span className="lb-mono" style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#E60000', borderRadius: 999, padding: '3px 8px' }}>{scope.youRank}</span>
-                  <Avatar initials={youRow.initials} size={22} you />
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.name}</span>
-                  <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{youRow.pts} pts</span>
+              {/* podium, lit from below */}
+              <div style={{ flexShrink: 0, padding: '12px 24px 6px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
+                  <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
+                  <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
+                  <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
                 </div>
-                <button
-                  type="button"
-                  className="lb-pg"
-                  disabled={youVisible}
-                  onClick={() => setPage(youPage)}
-                  style={{ ...pagerBtn(false), padding: '0 10px', fontSize: 10, whiteSpace: 'nowrap', color: youVisible ? 'var(--muted)' : '#E60000' }}
+              </div>
+
+              {/* column header */}
+              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '4px 37px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
+                <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'right' }}>Points</div>
+              </div>
+
+              {/* ranked list — one page at a time, sized to fit */}
+              <div ref={listRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', margin: '0 24px' }}>
+                <motion.div
+                  key={`${view}-${campaignId}-${safePage}`}
+                  initial={reduce ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP }}
                 >
-                  {youOnPodium ? 'On the podium' : youVisible ? 'On this page' : 'Go to my rank'}
-                </button>
+                  {pageRows.map((r, i) => (
+                    <RankRow
+                      key={r.rank}
+                      r={r.rank === scope.youRank ? youRow : r}
+                      fill={rowFill(pageStart + i)}
+                      you={r.rank === scope.youRank}
+                      accent="var(--accent)"
+                    />
+                  ))}
+                </motion.div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                  Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()}
-                </span>
-                <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
+              {/* footer: your position (left) + pagination (right) */}
+              <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Your position</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1.5px solid var(--you)', borderRadius: 999, padding: '3px 12px 3px 4px', minWidth: 0 }}>
+                    <span className="lb-mono" style={{ fontSize: 11, fontWeight: 800, color: 'var(--you-ink)', background: 'var(--you)', borderRadius: 999, padding: '3px 8px' }}>{scope.youRank}</span>
+                    <Avatar initials={youRow.initials} size={22} you />
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.name}</span>
+                    <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{youRow.pts} pts</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="lb-pg"
+                    disabled={youVisible}
+                    onClick={() => setPage(youPage)}
+                    style={{ ...pagerBtn(false), padding: '0 10px', fontSize: 10, whiteSpace: 'nowrap', color: youVisible ? 'var(--muted)' : 'var(--you)' }}
+                  >
+                    {youOnPodium ? 'On the podium' : youVisible ? 'On this page' : 'Go to my rank'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()}
+                  </span>
+                  <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
+                </div>
               </div>
+
             </div>
-
           </div>
         </div>
       </div>
