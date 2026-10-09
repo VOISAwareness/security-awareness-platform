@@ -21,8 +21,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // the Global / My Campaigns scope capsules with clay corner art, then the live
 // points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
 // the title capsule (with the head count), the Top people / Top departments
-// switch in the top arm centred over the podium, the open / click / report
-// rates under the capsule beside the podium, and the paginated ranked list. The viewer is highlighted red in light mode and
+// switch at the top of the arm, the podium centred under it (rising into the
+// arm), and the paginated ranked list. Campaign rates live on the dashboard. The viewer is highlighted red in light mode and
 // white in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
@@ -99,14 +99,14 @@ function buildBoard(seed, total) {
 const GLOBAL = { total: 128, youRank: 12, board: buildBoard(0, 128) };
 
 const NAMED_CAMPAIGNS = [
-  { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1, kpis: { Opened: '61%', Clicked: '14%', Reported: '52%' } },
-  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2, kpis: { Opened: '58%', Clicked: '11%', Reported: '49%' } },
-  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3, kpis: { Opened: '66%', Clicked: '18%', Reported: '45%' } },
-  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR lure', started: '2 Oct', total: 980, youRank: 4, seed: 4, kpis: { Opened: '54%', Clicked: '9%', Reported: '57%' } },
-  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT lure', started: '1 Oct', total: 2240, youRank: 13, seed: 5, kpis: { Opened: '63%', Clicked: '15%', Reported: '50%' } },
-  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance lure', started: '29 Sep', total: 1440, youRank: 18, seed: 6, kpis: { Opened: '60%', Clicked: '13%', Reported: '48%' } },
-  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR lure', started: '27 Sep', total: 1710, youRank: 9, seed: 7, kpis: { Opened: '55%', Clicked: '10%', Reported: '53%' } },
-  { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8, kpis: { Opened: '64%', Clicked: '17%', Reported: '46%' } },
+  { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1 },
+  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2 },
+  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3 },
+  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR lure', started: '2 Oct', total: 980, youRank: 4, seed: 4 },
+  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT lure', started: '1 Oct', total: 2240, youRank: 13, seed: 5 },
+  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance lure', started: '29 Sep', total: 1440, youRank: 18, seed: 6 },
+  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR lure', started: '27 Sep', total: 1710, youRank: 9, seed: 7 },
+  { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8 },
 ];
 
 const LURES = [
@@ -135,19 +135,12 @@ const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_,
     total,
     youRank: 4 + ((k * 11) % 26),
     seed: 9 + k,
-    kpis: {
-      Opened: `${50 + ((k * 7) % 18)}%`,
-      Clicked: `${8 + ((k * 5) % 12)}%`,
-      Reported: `${42 + ((k * 3) % 17)}%`,
-    },
   };
 });
 
 const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
 
 const pct = (s) => parseInt(s, 10) || 0;
-const avgKpi = (key) => `${Math.round(CAMPAIGNS.reduce((sum, c) => sum + pct(c.kpis[key]), 0) / CAMPAIGNS.length)}%`;
-const GLOBAL_KPIS = { Opened: avgKpi('Opened'), Clicked: avgKpi('Clicked'), Reported: avgKpi('Reported') };
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
 const rowFill = (i) => ['var(--c-mint)', 'var(--c-lav)', 'var(--c-peach)'][i % 3];
@@ -173,6 +166,7 @@ const CAP_H = HERO_H;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
+const STAGE_RAISE = 50; // the podium rises this far into the arm, under the switch
 
 // Rows are a fixed height so the page size can be worked out from the space
 // the list actually has.
@@ -364,20 +358,7 @@ const RankRow = ({ r, fill, you, accent }) => (
   </div>
 );
 
-// One rate beside the podium: label and value on a line, a bar underneath.
-const StatTile = ({ label, value, rate, bg, ink }) => (
-  <div style={{ flex: 1, minHeight: 0, padding: '0 14px', borderRadius: 14, background: bg, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{label}</span>
-      <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: ink, letterSpacing: '-0.01em' }}>{value}</span>
-    </div>
-    <span style={{ height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden', display: 'block' }}>
-      <span style={{ display: 'block', height: '100%', width: `${rate}%`, background: ink, borderRadius: 999 }} />
-    </span>
-  </div>
-);
-
-// People / Departments switch for the podium, centred in the sheet's top arm.
+// People / Departments switch for the podium, at the top of the sheet's arm.
 const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
 
 const StageSwitch = ({ value, onChange, sub, canDepts }) => (
@@ -486,12 +467,12 @@ const Leaderboard = ({ onClose }) => {
 
   const scope = useMemo(() => {
     if (view === 'global') {
-      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false, kpis: GLOBAL_KPIS, kpiPrefix: 'Avg. ' };
+      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
     }
     return {
       board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
       counter: campaign.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
-      sub: `${campaign.type} · started ${campaign.started}`, live: true, kpis: campaign.kpis, kpiPrefix: '',
+      sub: `${campaign.type} · started ${campaign.started}`, live: true,
     };
   }, [view, campaign]);
 
@@ -535,8 +516,8 @@ const Leaderboard = ({ onClose }) => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-violet': '#A5B4FC', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-violet': '#5B47C9', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
 
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
@@ -717,44 +698,38 @@ const Leaderboard = ({ onClose }) => {
               <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
             </svg>
 
-            {/* top-right arm of the L: the podium switch, centred over the podium */}
-            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
-              <StageSwitch
-                value={podium.id}
-                onChange={setStage}
-                canDepts={Boolean(insights.deptPodium)}
-                sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
-              />
+            {/* top-right arm of the L: the podium switch, on the sheet's centre line */}
+            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '18px 24px 0', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+              {/* the arm starts CAP_W + L_GAP in, so pull back by half that to centre on the whole sheet */}
+              <div style={{ transform: `translateX(-${(CAP_W + L_GAP) / 2}px)` }}>
+                <StageSwitch
+                  value={podium.id}
+                  onChange={setStage}
+                  canDepts={Boolean(insights.deptPodium)}
+                  sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
+                />
+              </div>
             </div>
 
             {/* lower base of the L: podium, ranked list, footer */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
 
-              {/* stage: this scope's rates under the title capsule (left), the podium (centre) */}
-              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-end', gap: 24, padding: '4px 24px 10px 16px' }}>
-                <div style={{ width: CAP_W - 17, flexShrink: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6 }}>
-                  <StatTile label={`${scope.kpiPrefix}Opened`} value={scope.kpis.Opened} rate={pct(scope.kpis.Opened)} bg="var(--c-lav)" ink="var(--t-violet)" />
-                  <StatTile label={`${scope.kpiPrefix}Clicked`} value={scope.kpis.Clicked} rate={pct(scope.kpis.Clicked)} bg="var(--c-peach)" ink="var(--t-red)" />
-                  <StatTile label={`${scope.kpiPrefix}Reported`} value={scope.kpis.Reported} rate={pct(scope.kpis.Reported)} bg="var(--c-mint)" ink="var(--t-green)" />
-                </div>
-
-                {/* podium, lit from below: top people, or top departments via the switch */}
-                <div style={{ flex: 1, minWidth: 0, background: 'radial-gradient(46% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                      key={`${podium.id}-${view}-${campaignId}`}
-                      initial={reduce ? false : { opacity: 0, x: podium.id === 'depts' ? 24 : -24 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                      style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
-                    >
-                      <Pedestal person={podium.board.second} place="second" reduce={reduce} />
-                      <Pedestal person={podium.board.first} place="first" reduce={reduce} />
-                      <Pedestal person={podium.board.third} place="third" reduce={reduce} />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+              {/* podium, centred on the sheet and lit from below: top people, or top departments via the switch */}
+              <div style={{ flexShrink: 0, marginTop: -STAGE_RAISE, padding: '0 24px 10px', background: 'radial-gradient(34% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={`${podium.id}-${view}-${campaignId}`}
+                    initial={reduce ? false : { opacity: 0, x: podium.id === 'depts' ? 24 : -24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
+                  >
+                    <Pedestal person={podium.board.second} place="second" reduce={reduce} />
+                    <Pedestal person={podium.board.first} place="first" reduce={reduce} />
+                    <Pedestal person={podium.board.third} place="third" reduce={reduce} />
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               {/* column header */}
@@ -784,7 +759,7 @@ const Leaderboard = ({ onClose }) => {
               </div>
 
               {/* footer: the viewer's rank + their pill, which jumps to their page (left); pagination (right) */}
-              <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)' }}>
+              <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: 'var(--you)', whiteSpace: 'nowrap' }}>
                     {scope.youRank}<span style={{ fontSize: 13, marginLeft: 1 }}>{ordinalSuffix(scope.youRank)}</span>
