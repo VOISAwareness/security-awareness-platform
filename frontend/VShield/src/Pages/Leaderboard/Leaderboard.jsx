@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick } from 'lucide-react';
+import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
@@ -20,9 +20,9 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the live
 // points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
-// the Top people / Top departments switch and head count in the top arm, the
-// open / click / report rates under the title capsule beside the podium, and
-// the paginated ranked list. The viewer is highlighted red in light mode and
+// the title capsule (with the head count), the Top people / Top departments
+// switch in the top arm centred over the podium, the open / click / report
+// rates under the capsule beside the podium, and the paginated ranked list. The viewer is highlighted red in light mode and
 // white in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
@@ -377,11 +377,11 @@ const StatTile = ({ label, value, rate, bg, ink }) => (
   </div>
 );
 
-// People / Departments switch for the podium, shown in the sheet's top arm.
+// People / Departments switch for the podium, centred in the sheet's top arm.
 const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
 
 const StageSwitch = ({ value, onChange, sub, canDepts }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
     <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 4, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
       {STAGES.map((st) => {
         const on = value === st.id;
@@ -407,7 +407,7 @@ const StageSwitch = ({ value, onChange, sub, canDepts }) => (
         );
       })}
     </div>
-    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', margin: '7px 8px 0 0' }}>{sub}</div>
+    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 7 }}>{sub}</div>
   </div>
 );
 
@@ -486,12 +486,12 @@ const Leaderboard = ({ onClose }) => {
 
   const scope = useMemo(() => {
     if (view === 'global') {
-      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'Participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', accentCounter: '#8ED973', live: false, kpis: GLOBAL_KPIS, kpiPrefix: 'Avg. ' };
+      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false, kpis: GLOBAL_KPIS, kpiPrefix: 'Avg. ' };
     }
     return {
       board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
-      counter: campaign.total.toLocaleString(), counterLabel: 'Recipients', title: campaign.name,
-      sub: `${campaign.type} · started ${campaign.started}`, accentCounter: '#818CF8', live: true, kpis: campaign.kpis, kpiPrefix: '',
+      counter: campaign.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
+      sub: `${campaign.type} · started ${campaign.started}`, live: true, kpis: campaign.kpis, kpiPrefix: '',
     };
   }, [view, campaign]);
 
@@ -535,8 +535,8 @@ const Leaderboard = ({ onClose }) => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--panel': '#22252C', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-violet': '#A5B4FC', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--panel': '#F7F9FC', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-violet': '#5B47C9', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-violet': '#A5B4FC', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-violet': '#5B47C9', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
 
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
@@ -705,6 +705,11 @@ const Leaderboard = ({ onClose }) => {
               )}
               <div style={{ fontSize: view === 'global' ? 19 : 16, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{scope.title}</div>
               <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{scope.sub}</div>
+              <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 2, padding: '4px 10px', borderRadius: 999, background: 'var(--chip)', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>
+                <Users size={13} strokeWidth={2.4} />
+                <span className="lb-mono" style={{ fontWeight: 800, color: 'var(--text)' }}>{scope.counter}</span>
+                {scope.counterLabel}
+              </span>
             </div>
 
             {/* concave fillet joining the arm to the base, following the capsule's corner */}
@@ -712,19 +717,14 @@ const Leaderboard = ({ onClose }) => {
               <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
             </svg>
 
-            {/* top-right arm of the L: podium switch + the big head count */}
-            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 24, padding: '0 24px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+            {/* top-right arm of the L: the podium switch, centred over the podium */}
+            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
               <StageSwitch
                 value={podium.id}
                 onChange={setStage}
                 canDepts={Boolean(insights.deptPodium)}
                 sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
               />
-              <span aria-hidden style={{ width: 1, height: 56, background: 'var(--hair)' }} />
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div className="lb-exb" style={{ fontSize: 46, lineHeight: 0.9, color: scope.accentCounter, letterSpacing: '-0.02em' }}>{scope.counter}</div>
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 4 }}>{scope.counterLabel}</div>
-              </div>
             </div>
 
             {/* lower base of the L: podium, ranked list, footer */}
@@ -809,7 +809,7 @@ const Leaderboard = ({ onClose }) => {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()}
+                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()} {scope.counterLabel}
                   </span>
                   <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
                 </div>
