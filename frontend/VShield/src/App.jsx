@@ -30,6 +30,9 @@ import DashboardAndAnalytics from './Pages/DashboardAndAnalytics/DashboardAndAna
 import Campaigns from './Pages/Campaigns/Campaigns';
 import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApprovals';
 
+// 🌟 Leaderboard (design prototype — sample data, not yet wired)
+import Leaderboard from './Pages/Leaderboard/Leaderboard';
+
 // 🌟 Import Start New Campaign Page
 import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
 import DetailsAndSettings from './Pages/StartCampaign/DetailsAndSettings';
@@ -117,6 +120,9 @@ function App() {
 
             {/* 🌟 Dashboard And Analytics Route */}
             <Route path="/analytics" element={<DashboardAndAnalytics />} />
+
+            {/* 🌟 Leaderboard Route (design prototype) */}
+            <Route path="/leaderboard" element={<Leaderboard />} />
             
             {/* 🌟 Start New Campaign Page Route */}
             <Route path="/start-campaign" element={<ChooseAScenario />} />

@@ -14,10 +14,11 @@ import {
   AtSign, 
   MessagesSquare, 
   Sparkles, 
-  BarChart2, 
-  User, 
-  GraduationCap, 
-  LogOut 
+  BarChart2,
+  Trophy,
+  User,
+  GraduationCap,
+  LogOut
 } from 'lucide-react';
 
 import TopHeaderSection from './TopHeaderSection';
@@ -226,6 +227,7 @@ const Layout = () => {
             
             <NavLink to="/gamification" label="GAMIFICATION ENGINE" icon={Sparkles} perm="gamification-engine" />
             <NavLink to="/analytics" label="DASHBOARD & ANALYTICS" icon={BarChart2} perm="analytics" />
+            <NavLink to="/leaderboard" label="LEADERBOARD" icon={Trophy} perm="always" />
             <NavLink to="/my-space" label="MY SPACE" icon={User} perm="always" />
             <NavLink to="/my-training" label="MY TRAINING" icon={GraduationCap} perm="always" />
           </nav>
