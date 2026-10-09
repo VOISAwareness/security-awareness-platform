@@ -2,19 +2,24 @@ import { useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 
+// Clay-model corner artwork, reused from the existing asset set so the
+// leaderboard reads like the Campaigns / Requests & Approvals screens.
+import StandingArt from '../../assets/CertificateImageStartANewCampaign.png';
+import ControllerArt from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+import RocketArt from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
+
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
 //
-// Front-end only for now: the rows are SAMPLE data so the layout + motion can
-// be reviewed. Real figures come later from the S3 event store projected into
-// DynamoDB (global + per-campaign). Keyed by email, shown by name; scores from
-// the gamification rules.
+// SAMPLE data for layout + motion review; real figures come later from the S3
+// event store projected into DynamoDB. Keyed by email, shown by name; scores
+// from the gamification rules.
 //
-// Layout follows Requests & Approvals: a left rail (scope + the list of
-// ongoing campaigns) and a full-width right "sheet" holding a 3-pedestal
-// podium on a stage and the scrollable ranked list. The viewer's own row is
-// highlighted in place; when they sit outside the top 10 it is also pinned to
-// the bottom of the sheet so they always see where they stand.
+// Layout follows Requests & Approvals: a left rail (your standing on top, then
+// the Global / By-campaign scope capsules with clay corner art, then the list
+// of ongoing campaigns) and a full-width right "sheet" with a 3-pedestal podium
+// on a stage and the scrollable ranked list. The viewer's row is highlighted in
+// place and, when outside the top 10, also pinned to the bottom of the sheet.
 // =============================================================================
 
 const FONT_IMPORT = `
@@ -52,13 +57,7 @@ function buildBoard(seed, total) {
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), shown: n, total };
 }
 
-const GLOBAL = {
-  title: 'Global Leaderboard',
-  sub: 'Everyone ranked across every campaign · all time',
-  total: 128,
-  youRank: 12,
-  board: buildBoard(0, 128),
-};
+const GLOBAL = { total: 128, youRank: 12, board: buildBoard(0, 128) };
 
 const ONGOING_TOTAL = 50;
 const CAMPAIGNS = [
@@ -74,6 +73,7 @@ const CAMPAIGNS = [
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
 const rowFill = (i) => ['var(--c-mint)', 'var(--c-lav)', 'var(--c-peach)'][i % 3];
+const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 
 const PLACE = {
   first: { h: 118, num: 42, av: 64, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
@@ -81,7 +81,6 @@ const PLACE = {
   third: { h: 66, num: 26, av: 52, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
-
 const COLS = '48px 1fr 150px 60px 80px';
 
 // --- presentational pieces (module scope) ------------------------------------
@@ -106,6 +105,12 @@ const Chip = ({ kind, children }) => (
     {children}
   </span>
 );
+
+const SPARKLES = [
+  { top: -10, left: -16, s: 13, d: 0 },
+  { top: -16, right: -10, s: 10, d: 0.6 },
+  { bottom: -2, right: -18, s: 11, d: 1.2 },
+];
 
 const Pedestal = ({ person, place, reduce }) => {
   const c = PLACE[place];
@@ -132,6 +137,17 @@ const Pedestal = ({ person, place, reduce }) => {
             style={{ position: 'absolute', inset: -6, borderRadius: 999, border: `2px solid ${MEDAL.first}` }}
           />
         )}
+        {first && !reduce && SPARKLES.map((sp, i) => (
+          <motion.span
+            key={i}
+            aria-hidden
+            animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut', delay: sp.d }}
+            style={{ position: 'absolute', top: sp.top, left: sp.left, right: sp.right, bottom: sp.bottom, lineHeight: 0 }}
+          >
+            <svg width={sp.s} height={sp.s} viewBox="0 0 24 24" fill={MEDAL.first}><path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" /></svg>
+          </motion.span>
+        ))}
         <Avatar initials={person.initials} size={c.av} ring={c.medal} />
       </span>
       <div style={{ fontSize: first ? 14 : 12.5, fontWeight: 800, marginTop: 8, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{person.name}</div>
@@ -199,7 +215,7 @@ const Leaderboard = () => {
 
   const scope = useMemo(() => {
     if (view === 'global') {
-      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'Participants', title: 'Global Leaderboard', sub: GLOBAL.sub, accentCounter: '#8ED973', live: false, kpis: null };
+      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'Participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', accentCounter: '#8ED973', live: false, kpis: null };
     }
     return {
       board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
@@ -208,34 +224,44 @@ const Leaderboard = () => {
     };
   }, [view, campaign]);
 
-  // The viewer's own row, synthesised at their rank from the board's shape.
   const youRow = useMemo(() => {
-    const base = scope.board.rows.find((r) => r.rank === scope.youRank)
-      || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
+    const base = scope.board.rows.find((r) => r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
     return { ...base, name: youDisplay, dept: 'IT Security', initials: youInitials };
   }, [scope, youDisplay, youInitials]);
+
+  // Points needed to climb one place — a small goal to make it feel like a game.
+  const toNext = useMemo(() => {
+    const flat = [scope.board.podium.first, scope.board.podium.second, scope.board.podium.third, ...scope.board.rows];
+    const above = flat.find((r) => r.rank === scope.youRank - 1);
+    return above ? Math.max(0, toNum(above.pts) - toNum(youRow.pts)) : 0;
+  }, [scope, youRow]);
 
   const inTopTen = scope.youRank <= 10;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ground': 'linear-gradient(#2A2E37,#171A20)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ground': 'linear-gradient(#E9EEF5,#D4DCE7)', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ground': 'linear-gradient(#2A2E37,#171A20)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ground': 'linear-gradient(#E9EEF5,#D4DCE7)', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
 
-  const railCapsule = (id, label, sub, selected) => (
-    <button
-      type="button"
-      onClick={() => setView(id)}
-      style={{
-        textAlign: 'left', cursor: 'pointer', width: '100%', borderRadius: 16, padding: 14, marginBottom: 10,
-        border: selected ? '1px solid transparent' : '1px solid var(--hair)',
-        background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
-        boxShadow: selected ? '0 6px 16px rgba(15,23,42,0.08)' : 'none', color: 'var(--text)',
-      }}
-    >
-      <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, lineHeight: 1.35 }}>{sub}</div>
-    </button>
-  );
+  const railCapsule = (id, label, sub, art, activeColor) => {
+    const selected = view === id;
+    return (
+      <button
+        type="button"
+        onClick={() => setView(id)}
+        style={{
+          position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', width: '100%',
+          borderRadius: 16, padding: '14px 14px 16px', marginBottom: 10, minHeight: 74,
+          border: selected ? '1px solid transparent' : '1px solid var(--hair)',
+          background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
+          boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
+        }}
+      >
+        <div style={{ fontSize: 14.5, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
+        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, lineHeight: 1.35, maxWidth: 180 }}>{sub}</div>
+        <img src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: 52, height: 52, objectFit: 'contain', opacity: selected ? 0.95 : 0.78, pointerEvents: 'none' }} />
+      </button>
+    );
+  };
 
   return (
     <>
@@ -244,7 +270,7 @@ const Leaderboard = () => {
       <div className="lb-page" style={{ ...vars, '--accent': '#E60000', background: 'var(--bg)', color: 'var(--text)', width: '100%', minHeight: 'calc(100vh - 8px)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* top black bar */}
-        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', flexShrink: 0 }}>
+        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', padding: '0 18px', flexShrink: 0 }}>
           <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
         </div>
 
@@ -252,21 +278,27 @@ const Leaderboard = () => {
         <div style={{ flex: 1, display: 'flex', gap: 12, minHeight: 0 }}>
 
           {/* LEFT RAIL */}
-          <div style={{ width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', view === 'global')}
-            {railCapsule('campaign', 'By Campaign', 'Live ranking inside one campaign', view === 'campaign')}
+          <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
-            {view === 'global' ? (
-              <div style={{ background: 'var(--cap-global)', borderRadius: 16, padding: 16, marginTop: 2 }}>
-                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Your standing</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-                  <span className="lb-exb" style={{ fontSize: 34, lineHeight: 1, color: 'var(--text)' }}>#{GLOBAL.youRank}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#15803D' }}>▲ 3 this week</span>
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 800, marginTop: 10, color: 'var(--text)' }}>{youDisplay}</div>
-                <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.pts} pts · {youRow.rep} reported</div>
+            {/* Your standing — hero, on top */}
+            <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--cap-standing)', borderRadius: 16, padding: 16, marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+                <span className="lb-exb" style={{ fontSize: 40, lineHeight: 1, color: 'var(--text)' }}>#{scope.youRank}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#15803D' }}>▲ 3 this week</span>
               </div>
-            ) : (
+              <div style={{ fontSize: 12.5, fontWeight: 800, marginTop: 10, color: 'var(--text)' }}>{youDisplay}</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.pts} pts · {youRow.rep} reported</div>
+              {toNext > 0 && (
+                <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 8, maxWidth: 196 }}>▲ {toNext.toLocaleString()} pts to reach #{scope.youRank - 1}</div>
+              )}
+              <img src={StandingArt} alt="" aria-hidden style={{ position: 'absolute', bottom: -4, right: -4, width: 64, height: 64, objectFit: 'contain', pointerEvents: 'none' }} />
+            </div>
+
+            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', ControllerArt, '#15803D')}
+            {railCapsule('campaign', 'By Campaign', 'Live ranking inside one campaign', RocketArt, '#4F46E5')}
+
+            {view === 'campaign' && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
                   Ongoing campaigns · {ONGOING_TOTAL}
@@ -332,14 +364,13 @@ const Leaderboard = () => {
               </div>
             </div>
 
-            {/* podium on a stage */}
-            <div style={{ padding: '22px 24px 14px' }}>
+            {/* podium on a stage, lit from below */}
+            <div style={{ padding: '22px 24px 14px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
                 <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
                 <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
                 <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
               </div>
-              {/* the ground / stage the pedestals stand on */}
               <div style={{ height: 14, borderRadius: 10, background: 'var(--ground)', boxShadow: '0 12px 22px rgba(15,23,42,0.14)', marginTop: -1 }} />
             </div>
 
