@@ -22,7 +22,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
 // the title capsule (with the head count), the Top people / Top departments
 // switch at the top of the arm, the podium centred under it (rising into the
-// arm), and the paginated ranked list. Campaign rates live on the dashboard. The viewer is highlighted red in light mode and
+// arm), and the paginated ranked list. The switch flips the whole board between
+// people and departments. Campaign rates live on the dashboard. The viewer is highlighted red in light mode and
 // white in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
@@ -67,7 +68,11 @@ const FIRST = ['Aditi', 'David', 'Noura', 'Priya', 'Marco', 'Sara', 'Liang', 'To
   'Hassan', 'Lena', 'Raj', 'Sofia', 'Kwame', 'Ana', 'Ivan', 'Chloe', 'Ben', 'Fatima', 'Noah', 'Grace'];
 const LAST = ['Rao', 'Kim', 'Ali', 'Nair', 'Bellini', 'Nasser', 'Wei', 'Okafor', 'Petrova', 'Haddad', 'Chen', 'Tanaka',
   'Mensah', 'Fischer', 'Patel', 'Rossi', 'Silva', 'Dubois', 'Carter', 'Zahra', 'Weber', 'Lee', 'Novak', 'Iyer'];
-const DEPTS = ['Finance', 'IT Security', 'Operations', 'Human Res.', 'Sales', 'Legal', 'IT', 'Marketing'];
+const DEPTS = [
+  'Finance', 'IT Security', 'Operations', 'Human Res.', 'Sales', 'Legal', 'IT', 'Marketing',
+  'Procurement', 'Customer Care', 'Engineering', 'Data & AI', 'Risk & Compliance', 'Facilities', 'Strategy', 'Network Ops',
+];
+const YOU_DEPT = 'IT Security'; // sample: the signed-in person's department
 
 // 24 x 24 distinct first/last pairs (5 is coprime with 24, so no repeats
 // until index 576).
@@ -152,7 +157,10 @@ const PLACE = {
   third: { w: 160, h: 40, num: 22, av: 50, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
-const DEPT_CODE = { Finance: 'FIN', 'IT Security': 'SEC', Operations: 'OPS', 'Human Res.': 'HR', Sales: 'SAL', Legal: 'LEG', IT: 'IT', Marketing: 'MKT' };
+const DEPT_CODE = {
+  Finance: 'FIN', 'IT Security': 'SEC', Operations: 'OPS', 'Human Res.': 'HR', Sales: 'SAL', Legal: 'LEG', IT: 'IT', Marketing: 'MKT',
+  Procurement: 'PRC', 'Customer Care': 'CC', Engineering: 'ENG', 'Data & AI': 'DAI', 'Risk & Compliance': 'RSK', Facilities: 'FAC', Strategy: 'STR', 'Network Ops': 'NET',
+};
 // Rank | Person | Reported rate | Clicked | This week | Points
 const COLS = '60px minmax(200px, 1.3fr) minmax(170px, 1fr) 76px 84px 96px';
 const ROW_PAD = 14; // row side padding; the column header lines up with it
@@ -174,26 +182,38 @@ const ROW_H = 48;
 const ROW_GAP = 6;
 const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
 
-// Department podium (average points per person), worked out from whichever
-// board is showing.
+// Department board, worked out from whichever people board is showing: every
+// department ranked by average points per person (so team size doesn't decide
+// it), in the same row shape as people so the podium and list can show either.
 function boardInsights(board) {
   const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows];
   const byDept = {};
   all.forEach((r) => {
-    const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, rep: 0, n: 0 });
+    const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, rep: 0, clk: 0, n: 0 });
     d.pts += toNum(r.pts);
     d.rep += pct(r.rep);
+    d.clk += pct(r.clk);
     d.n += 1;
   });
   const ranked = Object.entries(byDept)
-    .map(([dept, d]) => ({ dept, avg: Math.round(d.pts / d.n), rep: Math.round(d.rep / d.n), n: d.n }))
+    .map(([dept, d]) => ({ dept, avg: Math.round(d.pts / d.n), rep: Math.round(d.rep / d.n), clk: Math.round(d.clk / d.n), n: d.n }))
     .sort((a, b) => b.avg - a.avg || a.dept.localeCompare(b.dept))
-    .map((d) => ({
-      name: d.dept, initials: DEPT_CODE[d.dept] || d.dept.slice(0, 3).toUpperCase(),
-      dept: `${d.n.toLocaleString()} ${d.n === 1 ? 'person' : 'people'}`, pts: d.avg.toLocaleString(), rep: `${d.rep}%`,
+    .map((d, i) => ({
+      rank: i + 1,
+      name: d.dept,
+      initials: DEPT_CODE[d.dept] || d.dept.slice(0, 3).toUpperCase(),
+      dept: `${d.n.toLocaleString()} ${d.n === 1 ? 'person' : 'people'}`,
+      pts: d.avg.toLocaleString(),
+      rep: `${d.rep}%`,
+      clk: `${d.clk}%`,
+      move: ((d.dept.length * 7 + d.n * 3 + all.length) % 7) - 3, // sample week-on-week movement
     }));
-  const deptPodium = ranked.length >= 3 ? { first: ranked[0], second: ranked[1], third: ranked[2] } : null;
-  return { deptPodium };
+  return {
+    deptPodium: ranked.length >= 3 ? { first: ranked[0], second: ranked[1], third: ranked[2] } : null,
+    deptRows: ranked.slice(3),
+    deptTotal: ranked.length,
+    youDept: ranked.find((d) => d.name === YOU_DEPT) || null,
+  };
 }
 
 const ordinalSuffix = (n) => {
@@ -478,7 +498,7 @@ const Leaderboard = ({ onClose }) => {
 
   const youRow = useMemo(() => {
     const base = scope.board.rows.find((r) => r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
-    return { ...base, name: youName, dept: 'IT Security', initials: youInitials, move: 3 };
+    return { ...base, name: youName, dept: YOU_DEPT, initials: youInitials, move: 3 };
   }, [scope, youName, youInitials]);
 
   const insights = useMemo(() => boardInsights(scope.board), [scope]);
@@ -502,8 +522,14 @@ const Leaderboard = ({ onClose }) => {
     };
   }, [scope, youRow]);
 
+  // The ranked list follows the switch: people, or departments. Either way the
+  // viewer is pinned in the footer (their own row, or their department's).
+  const list = podium.id === 'depts'
+    ? { rows: insights.deptRows, total: insights.deptTotal, noun: 'departments', you: insights.youDept, youRank: insights.youDept ? insights.youDept.rank : 0, units: 'avg pts' }
+    : { rows: scope.board.rows, total: scope.board.total, noun: scope.counterLabel, you: youRow, youRank: scope.youRank, units: 'pts' };
+
   // Pagination over ranks 4..N (1–3 are on the podium).
-  const listRows = scope.board.rows;
+  const listRows = list.rows;
   const pageCount = Math.max(1, Math.ceil(listRows.length / rowsPerPage));
   const safePage = Math.min(page, pageCount - 1);
   const pageStart = safePage * rowsPerPage;
@@ -511,8 +537,8 @@ const Leaderboard = ({ onClose }) => {
   const firstShown = pageRows.length ? pageRows[0].rank : 0;
   const lastShown = pageRows.length ? pageRows[pageRows.length - 1].rank : 0;
 
-  const youOnPodium = scope.youRank < FIRST_LIST_RANK;
-  const youPage = youOnPodium ? -1 : Math.floor((scope.youRank - FIRST_LIST_RANK) / rowsPerPage);
+  const youOnPodium = list.youRank < FIRST_LIST_RANK;
+  const youPage = youOnPodium ? -1 : Math.floor((list.youRank - FIRST_LIST_RANK) / rowsPerPage);
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
@@ -704,7 +730,7 @@ const Leaderboard = ({ onClose }) => {
               <div style={{ transform: `translateX(-${(CAP_W + L_GAP) / 2}px)` }}>
                 <StageSwitch
                   value={podium.id}
-                  onChange={setStage}
+                  onChange={(id) => { setStage(id); setPage(0); }}
                   canDepts={Boolean(insights.deptPodium)}
                   sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
                 />
@@ -734,13 +760,18 @@ const Leaderboard = ({ onClose }) => {
 
               {/* column header */}
               <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
-                <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'center' }}>This week</div><div style={{ textAlign: 'right' }}>Points</div>
+                <div>Rank</div>
+                <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
+                <div>Reported rate</div>
+                <div style={{ textAlign: 'center' }}>Clicked</div>
+                <div style={{ textAlign: 'center' }}>This week</div>
+                <div style={{ textAlign: 'right' }}>{podium.id === 'depts' ? 'Avg. points' : 'Points'}</div>
               </div>
 
               {/* ranked list — one page at a time, sized to fit */}
               <div ref={listRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', margin: '0 24px' }}>
                 <motion.div
-                  key={`${view}-${campaignId}-${safePage}`}
+                  key={`${podium.id}-${view}-${campaignId}-${safePage}`}
                   initial={reduce ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -749,9 +780,9 @@ const Leaderboard = ({ onClose }) => {
                   {pageRows.map((r, i) => (
                     <RankRow
                       key={r.rank}
-                      r={r.rank === scope.youRank ? youRow : r}
+                      r={r.rank === list.youRank ? list.you : r}
                       fill={rowFill(pageStart + i)}
-                      you={r.rank === scope.youRank}
+                      you={r.rank === list.youRank}
                       accent="var(--accent)"
                     />
                   ))}
@@ -761,30 +792,35 @@ const Leaderboard = ({ onClose }) => {
               {/* footer: the viewer's rank + their pill, which jumps to their page (left); pagination (right) */}
               <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: 'var(--you)', whiteSpace: 'nowrap' }}>
-                    {scope.youRank}<span style={{ fontSize: 13, marginLeft: 1 }}>{ordinalSuffix(scope.youRank)}</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="lb-me"
-                    aria-disabled={youVisible}
-                    aria-label={youVisible ? `${youRow.name}, ${scope.youRank}${ordinalSuffix(scope.youRank)}` : `${youRow.name}, ${scope.youRank}${ordinalSuffix(scope.youRank)}. Go to my rank`}
-                    title={youVisible ? undefined : 'Go to my rank'}
-                    onClick={() => { if (!youVisible) setPage(youPage); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, border: '1.5px solid var(--you)', borderRadius: 999, padding: youVisible ? '4px 16px 4px 4px' : '4px 10px 4px 4px', background: 'var(--base)', color: 'var(--text)', cursor: youVisible ? 'default' : 'pointer' }}
-                  >
-                    <Avatar initials={youRow.initials} size={26} you />
-                    <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.name}</span>
-                    <span className="lb-mono" style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}>{youRow.pts} pts</span>
-                    {!youVisible && (
-                      <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
-                    )}
-                  </button>
+                  {list.you && (
+                    <>
+                      <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: 'var(--you)', whiteSpace: 'nowrap' }}>
+                        {list.youRank}<span style={{ fontSize: 13, marginLeft: 1 }}>{ordinalSuffix(list.youRank)}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="lb-me"
+                        aria-disabled={youVisible}
+                        aria-label={`${list.you?.name}, ${list.youRank}${ordinalSuffix(list.youRank)}${youVisible ? '' : `. Go to my ${podium.id === 'depts' ? "department's " : ''}rank`}`}
+                        title={youVisible ? undefined : `Go to my ${podium.id === 'depts' ? "department's " : ''}rank`}
+                        onClick={() => { if (!youVisible) setPage(youPage); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, border: '1.5px solid var(--you)', borderRadius: 999, padding: youVisible ? '4px 16px 4px 4px' : '4px 10px 4px 4px', background: 'var(--base)', color: 'var(--text)', cursor: youVisible ? 'default' : 'pointer' }}
+                      >
+                        <Avatar initials={list.you?.initials} size={26} you />
+                        <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
+                        <span className="lb-mono" style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} {list.units}</span>
+                        {!youVisible && (
+                          <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
+                        )}
+                      </button>
+                
+                    </>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()} {scope.counterLabel}
+                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {list.total.toLocaleString()} {list.noun}
                   </span>
                   <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
                 </div>
