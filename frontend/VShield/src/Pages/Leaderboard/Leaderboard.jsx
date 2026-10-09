@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
@@ -20,8 +20,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the live
 // points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
-// stat tiles, a stage with two podiums (top departments, top people), and the
-// paginated ranked list. The viewer is highlighted red in light mode and white
+// stat tiles, a podium stage that switches between top people and top
+// departments, and the paginated ranked list. The viewer is highlighted red in light mode and white
 // in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
@@ -46,15 +46,6 @@ const FONT_IMPORT = `
   .lb-cap:hover .lb-art { transform: translateY(-4px) rotate(-6deg) scale(1.08); }
   .lb-cap[aria-pressed="true"] .lb-art { animation: lb-float 3.2s ease-in-out infinite; }
   @keyframes lb-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
-
-  /* Stage: department podium beside the people podium; departments drop out
-     when the sheet is too narrow for both */
-  .lb-sheet { container-type: inline-size; }
-  .lb-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: end; column-gap: 16px; }
-  @container (max-width: 900px) {
-    .lb-stage { grid-template-columns: minmax(0, 1fr); }
-    .lb-side { display: none !important; }
-  }
 
   /* Viewer's own pill in the footer: click to jump to their page */
   .lb-me { transition: box-shadow .15s ease, transform .15s ease; }
@@ -165,12 +156,6 @@ const PLACE = {
   first: { w: 184, h: 76, num: 34, av: 60, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
   second: { w: 160, h: 54, num: 26, av: 50, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
   third: { w: 160, h: 40, num: 22, av: 50, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
-};
-// The department podium is a smaller version of the people one.
-const PLACE_SM = {
-  first: { w: 124, h: 46, num: 24, av: 46, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.32 },
-  second: { w: 112, h: 32, num: 19, av: 40, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.14 },
-  third: { w: 112, h: 24, num: 17, av: 40, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.22 },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
 const DEPT_CODE = { Finance: 'FIN', 'IT Security': 'SEC', Operations: 'OPS', 'Human Res.': 'HR', Sales: 'SAL', Legal: 'LEG', IT: 'IT', Marketing: 'MKT' };
@@ -283,10 +268,10 @@ const SPARKLES = [
   { bottom: -2, right: -18, s: 10, d: 1.2 },
 ];
 
-const Pedestal = ({ person: p, place, reduce, small }) => {
-  const c = (small ? PLACE_SM : PLACE)[place];
+const Pedestal = ({ person: p, place, reduce }) => {
+  const c = PLACE[place];
   const first = place === 'first';
-  const flair = first && !small && !reduce; // pulse ring + sparkles on the people champion only
+  const flair = first && !reduce; // pulse ring + sparkles on the champion
   return (
     <motion.div
       initial={reduce ? false : { y: 60, opacity: 0 }}
@@ -297,7 +282,7 @@ const Pedestal = ({ person: p, place, reduce, small }) => {
     >
       {first && (
         <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 1 }}>
-          <svg width={small ? 16 : 20} height={small ? 16 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
         </span>
       )}
       <span style={{ position: 'relative', display: 'flex' }}>
@@ -322,10 +307,10 @@ const Pedestal = ({ person: p, place, reduce, small }) => {
         ))}
         <Avatar initials={p.initials} size={c.av} ring={c.medal} />
       </span>
-      <div style={{ fontSize: small ? (first ? 13.5 : 12.5) : (first ? 16 : 14.5), fontWeight: 800, marginTop: 7, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
-      <div style={{ fontSize: small ? 10.5 : 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
-      <div style={{ display: 'flex', flexDirection: small ? 'column' : 'row', alignItems: 'center', gap: small ? 4 : 6, marginTop: 5 }}>
-        <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: small ? (first ? 17 : 14) : (first ? 22 : 17), fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
+      <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 7, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+        <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 22 : 17, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
         <Chip kind="good">{p.rep} reported</Chip>
       </div>
       <div
@@ -396,11 +381,37 @@ const StatTile = ({ label, value, rate, bg, ink }) => (
   </div>
 );
 
-// Small heading pinned to the top-left of a podium on the stage.
-const StageLabel = ({ title, sub }) => (
-  <div style={{ position: 'absolute', top: 4, left: 0, pointerEvents: 'none' }}>
-    <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)' }}>{title}</div>
-    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{sub}</div>
+// People / Departments switch pinned to the top-left of the podium stage.
+const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
+
+const StageSwitch = ({ value, onChange, sub, canDepts }) => (
+  <div style={{ position: 'absolute', top: 8, left: 24, zIndex: 1 }}>
+    <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 3, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
+      {STAGES.map((st) => {
+        const on = value === st.id;
+        const disabled = st.id === 'depts' && !canDepts;
+        return (
+          <button
+            key={st.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            disabled={disabled}
+            onClick={() => onChange(st.id)}
+            className="lb-pg"
+            style={{
+              height: 28, padding: '0 14px', borderRadius: 999, border: 'none', cursor: on ? 'default' : 'pointer',
+              fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap',
+              background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)',
+              boxShadow: on ? '0 1px 3px rgba(15,23,42,0.14)' : 'none', transition: 'background .15s ease, color .15s ease',
+            }}
+          >
+            {st.label}
+          </button>
+        );
+      })}
+    </div>
+    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', margin: '6px 0 0 6px' }}>{sub}</div>
   </div>
 );
 
@@ -453,6 +464,7 @@ const Leaderboard = ({ onClose }) => {
   const [view, setView] = useState('global'); // 'global' | 'campaign'
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
+  const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
   const [rowsPerPage, setRowsPerPage] = useState(7);
   const listRef = useRef(null);
 
@@ -493,6 +505,10 @@ const Leaderboard = ({ onClose }) => {
   }, [scope, youName, youInitials]);
 
   const insights = useMemo(() => boardInsights(scope.board), [scope]);
+  // Which podium the stage shows; falls back to people if departments can't be ranked.
+  const podium = stage === 'depts' && insights.deptPodium
+    ? { id: 'depts', board: insights.deptPodium }
+    : { id: 'people', board: scope.board.podium };
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
@@ -544,7 +560,7 @@ const Leaderboard = ({ onClose }) => {
       >
         <div style={{ position: 'relative', fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
         <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
-        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -6, right: -4, width: 76, height: 76, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
+        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: 0, right: 2, width: 60, height: 60, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
       </button>
     );
   };
@@ -715,25 +731,30 @@ const Leaderboard = ({ onClose }) => {
             </div>
 
             {/* lower base of the L: podium, ranked list, footer */}
-            <div className="lb-sheet" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
 
-              {/* stage, lit from below: top departments (left) and top people (right) */}
-              <div className="lb-stage" style={{ flexShrink: 0, padding: '6px 24px 4px', background: 'radial-gradient(34% 92% at 62% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
-                {insights.deptPodium && (
-                  <div className="lb-side" style={{ position: 'relative', alignSelf: 'stretch', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 14, paddingTop: 34 }}>
-                    <StageLabel title="Top departments" sub="Average points per person" />
-                    <Pedestal small person={insights.deptPodium.second} place="second" reduce={reduce} />
-                    <Pedestal small person={insights.deptPodium.first} place="first" reduce={reduce} />
-                    <Pedestal small person={insights.deptPodium.third} place="third" reduce={reduce} />
-                  </div>
-                )}
-
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}>
-                  <StageLabel title="Top people" sub={view === 'global' ? 'Across every campaign' : 'In this campaign'} />
-                  <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
-                  <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
-                  <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
-                </div>
+              {/* podium stage, lit from below: top people, or top departments via the switch */}
+              <div style={{ flexShrink: 0, position: 'relative', padding: '6px 24px 4px', background: 'radial-gradient(40% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+                <StageSwitch
+                  value={podium.id}
+                  onChange={setStage}
+                  canDepts={Boolean(insights.deptPodium)}
+                  sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
+                />
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={`${podium.id}-${view}-${campaignId}`}
+                    initial={reduce ? false : { opacity: 0, x: podium.id === 'depts' ? 24 : -24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
+                  >
+                    <Pedestal person={podium.board.second} place="second" reduce={reduce} />
+                    <Pedestal person={podium.board.first} place="first" reduce={reduce} />
+                    <Pedestal person={podium.board.third} place="third" reduce={reduce} />
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               {/* column header */}
