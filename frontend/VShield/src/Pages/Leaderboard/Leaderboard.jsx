@@ -1,226 +1,171 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
 //
-// Front-end only for now: the rows below are SAMPLE data so the layout and
-// motion can be reviewed. The real numbers come later from the S3 event store
-// projected into DynamoDB (global + per-campaign leaderboards). Keyed by email,
-// shown by name; scores come from the gamification rules.
+// Front-end only for now: the rows are SAMPLE data so the layout + motion can
+// be reviewed. Real figures come later from the S3 event store projected into
+// DynamoDB (global + per-campaign). Keyed by email, shown by name; scores from
+// the gamification rules.
 //
-// Visual language matches Requests & Approvals: a top-left colour capsule, a
-// concave fillet into a top-right arm with a big font-voda-exb counter, and a
-// continuous lower L-base holding a 3-pedestal podium (#2 · #1 · #3) and the
-// ranked list of pastel "clay" cards with the white "·dot· rank" pill.
+// Layout follows Requests & Approvals: a left rail (scope + the list of
+// ongoing campaigns) and a full-width right "sheet" holding a 3-pedestal
+// podium on a stage and the scrollable ranked list. The viewer's own row is
+// highlighted in place; when they sit outside the top 10 it is also pinned to
+// the bottom of the sheet so they always see where they stand.
 // =============================================================================
 
-const LB_STYLE = `
+const FONT_IMPORT = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap');
-
   .lb-exb  { font-family: 'Montserrat', sans-serif; font-weight: 900; }
   .lb-mono { font-family: 'JetBrains Mono', monospace; }
-
-  .lb-page { font-family: 'Inter', system-ui, sans-serif; color: var(--text); background: var(--bg); }
-
-  /* podium motion */
-  .ped, .champ { position: relative; overflow: hidden; transform-origin: bottom; }
-  .ped { animation: lbRise 0.75s cubic-bezier(0.16,1,0.3,1) both; }
-  .ped-2 { animation-delay: 0.10s; }
-  .ped-3 { animation-delay: 0.10s; }
-  .champ { animation: lbRise 0.75s cubic-bezier(0.16,1,0.3,1) 0.26s both, lbGlow 3s ease-in-out 1.4s infinite; }
-  .lb-sheen { position: absolute; top: 0; left: 0; width: 45%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.65), transparent); transform: skewX(-18deg) translateX(-200%); animation: lbSheen 3.6s ease-in-out 1.5s infinite; pointer-events: none; }
-  .lb-pop { animation: lbPop 0.6s cubic-bezier(0.16,1,0.3,1) both; }
-  @keyframes lbRise { 0% { transform: translateY(44px); opacity: 0; } 100% { transform: none; opacity: 1; } }
-  @keyframes lbGlow { 0%,100% { box-shadow: inset 0 2px 0 rgba(255,255,255,0.65), 0 0 0 0 rgba(232,179,11,0); } 50% { box-shadow: inset 0 2px 0 rgba(255,255,255,0.65), 0 0 26px 3px rgba(232,179,11,0.42); } }
-  @keyframes lbSheen { 0% { transform: skewX(-18deg) translateX(-200%); } 55%,100% { transform: skewX(-18deg) translateX(460%); } }
-  @keyframes lbPop { 0% { opacity: 0; transform: translateY(12px) scale(0.92); } 100% { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) { .ped, .champ, .lb-sheen, .lb-pop { animation: none !important; } }
+  .lb-page { font-family: 'Inter', system-ui, sans-serif; }
+  .lb-scroll::-webkit-scrollbar { width: 7px; }
+  .lb-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,145,0.35); border-radius: 999px; }
 `;
 
 // --- sample data -------------------------------------------------------------
 
+const NAMES = [
+  ['Aditi Rao', 'Finance', 'AR'], ['David Kim', 'IT Security', 'DK'], ['Noura Ali', 'Operations', 'NA'],
+  ['Priya Nair', 'Finance', 'PN'], ['Marco Bellini', 'IT Security', 'MB'], ['Sara Nasser', 'Human Res.', 'SN'],
+  ['Liang Wei', 'Operations', 'LW'], ['Tom Okafor', 'Sales', 'TO'], ['Elena Petrova', 'Legal', 'EP'],
+  ['Omar Haddad', 'Finance', 'OH'], ['Mei Chen', 'IT', 'MC'], ['Yuki Tanaka', 'Sales', 'YT'],
+  ['Hassan Ali', 'Operations', 'HA'], ['Lena Fischer', 'Legal', 'LF'], ['Raj Patel', 'Finance', 'RP'],
+  ['Sofia Rossi', 'Marketing', 'SR'], ['Kwame Mensah', 'IT', 'KM'], ['Ana Silva', 'Human Res.', 'AS'],
+  ['Ivan Petrov', 'Operations', 'IP'], ['Chloe Dubois', 'Sales', 'CD'], ['Ben Carter', 'Legal', 'BC'],
+  ['Fatima Zahra', 'Finance', 'FZ'], ['Noah Weber', 'IT Security', 'NW'], ['Grace Lee', 'Marketing', 'GL'],
+];
+
+function buildBoard(seed, total) {
+  const n = Math.min(total, 22);
+  const all = [];
+  for (let rank = 1; rank <= n; rank += 1) {
+    const p = NAMES[(seed * 7 + rank * 3) % NAMES.length];
+    const pts = Math.max(60, 1480 - rank * 46 - (seed % 5) * 7);
+    const rep = Math.max(28, 97 - rank * 2 - (seed % 3));
+    const clk = Math.min(46, Math.round(2 + rank * 1.6));
+    all.push({ rank, name: p[0], dept: p[1], initials: p[2], pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%` });
+  }
+  return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), shown: n, total };
+}
+
 const GLOBAL = {
-  capsuleTitle: ['Global', 'Leaderboard'],
-  capsuleSub: 'Everyone ranked across every campaign, all time.',
-  counter: '128',
-  counterLabel: ['Total', 'Participants'],
-  championLabel: 'Champion',
-  podium: {
-    first: { initials: 'AR', name: 'Aditi Rao', dept: 'Finance', pts: '1,320', rep: '94%', clk: '2%' },
-    second: { initials: 'DK', name: 'David Kim', dept: 'IT Security', pts: '1,265', rep: '91%' },
-    third: { initials: 'NA', name: 'Noura Ali', dept: 'Operations', pts: '1,210', rep: '89%' },
-  },
-  rows: [
-    { rank: 4, name: 'Priya Nair', dept: 'Finance', initials: 'PN', pts: '1,180', rep: '88%', clk: '4%' },
-    { rank: 5, name: 'Marco Bellini', dept: 'IT Security', initials: 'MB', pts: '1,125', rep: '83%', clk: '6%' },
-    { rank: 6, name: 'Sara Nasser', dept: 'Human Res.', initials: 'SN', pts: '1,090', rep: '80%', clk: '7%' },
-    { rank: 7, name: 'Liang Wei', dept: 'Operations', initials: 'LW', pts: '1,030', rep: '76%', clk: '9%' },
-    { rank: 8, name: 'Tom Okafor', dept: 'Sales', initials: 'TO', pts: '980', rep: '71%', clk: '11%' },
-    { rank: 9, name: 'Elena Petrova', dept: 'Legal', initials: 'EP', pts: '920', rep: '68%', clk: '12%' },
-    { rank: 10, name: 'Omar Haddad', dept: 'Finance', initials: 'OH', pts: '870', rep: '63%', clk: '15%' },
-    { rank: 11, name: 'Mei Chen', dept: 'IT', initials: 'MC', pts: '820', rep: '60%', clk: '17%' },
-  ],
-  you: { rank: 12, name: 'You · Satyajit', dept: 'IT Security', initials: 'SP', pts: '790', rep: '58%', clk: '18%' },
-  kpis: null,
+  title: 'Global Leaderboard',
+  sub: 'Everyone ranked across every campaign · all time',
+  total: 128,
+  youRank: 12,
+  board: buildBoard(0, 128),
 };
 
-const CAMPAIGN = {
-  capsuleTitle: ['Q4 Credential Harvest Drill'],
-  capsuleSub: 'Credential theft · started 6 Oct',
-  live: true,
-  counter: '2,480',
-  counterLabel: ['Ranked', 'Recipients'],
-  championLabel: 'Top reporter',
-  kpis: [
-    { label: 'Sent', value: '2,480', tone: 'neutral' },
-    { label: 'Opened', value: '61%', tone: 'amber' },
-    { label: 'Clicked', value: '14%', tone: 'red' },
-    { label: 'Reported', value: '52%', tone: 'green' },
-  ],
-  podium: {
-    first: { initials: 'NA', name: 'Noura Ali', dept: 'Operations', pts: '480', rep: '96%', clk: '3%' },
-    second: { initials: 'PN', name: 'Priya Nair', dept: 'Finance', pts: '455', rep: '92%' },
-    third: { initials: 'DK', name: 'David Kim', dept: 'IT Security', pts: '440', rep: '90%' },
-  },
-  rows: [
-    { rank: 4, name: 'Aditi Rao', dept: 'Finance', initials: 'AR', pts: '420', rep: '88%', clk: '6%' },
-    { rank: 5, name: 'Sara Nasser', dept: 'Human Res.', initials: 'SN', pts: '400', rep: '85%', clk: '7%' },
-    { rank: 6, name: 'Marco Bellini', dept: 'IT', initials: 'MB', pts: '380', rep: '82%', clk: '8%' },
-    { rank: 7, name: 'Liang Wei', dept: 'Operations', initials: 'LW', pts: '355', rep: '78%', clk: '10%' },
-    { rank: 8, name: 'Elena Petrova', dept: 'Legal', initials: 'EP', pts: '330', rep: '74%', clk: '12%' },
-    { rank: 9, name: 'Tom Okafor', dept: 'Sales', initials: 'TO', pts: '300', rep: '70%', clk: '14%' },
-    { rank: 10, name: 'Omar Haddad', dept: 'Finance', initials: 'OH', pts: '275', rep: '66%', clk: '16%' },
-  ],
-  you: { rank: 15, name: 'You · Satyajit', dept: 'IT Security', initials: 'SP', pts: '180', rep: '44%', clk: '22%' },
-};
+const ONGOING_TOTAL = 50;
+const CAMPAIGNS = [
+  { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1, kpis: { Sent: '2,480', Opened: '61%', Clicked: '14%', Reported: '52%' } },
+  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2, kpis: { Sent: '1,860', Opened: '58%', Clicked: '11%', Reported: '49%' } },
+  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3, kpis: { Sent: '3,120', Opened: '66%', Clicked: '18%', Reported: '45%' } },
+  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR lure', started: '2 Oct', total: 980, youRank: 4, seed: 4, kpis: { Sent: '980', Opened: '54%', Clicked: '9%', Reported: '57%' } },
+  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT lure', started: '1 Oct', total: 2240, youRank: 13, seed: 5, kpis: { Sent: '2,240', Opened: '63%', Clicked: '15%', Reported: '50%' } },
+  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance lure', started: '29 Sep', total: 1440, youRank: 18, seed: 6, kpis: { Sent: '1,440', Opened: '60%', Clicked: '13%', Reported: '48%' } },
+  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR lure', started: '27 Sep', total: 1710, youRank: 9, seed: 7, kpis: { Sent: '1,710', Opened: '55%', Clicked: '10%', Reported: '53%' } },
+  { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8, kpis: { Sent: '2,890', Opened: '64%', Clicked: '17%', Reported: '46%' } },
+];
 
-// medal colours (constant across light/dark — they read on both pastel and clay)
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
-const CLAY = { first: 'var(--c-peach)', second: 'var(--c-lav)', third: 'var(--c-mint)' };
+const rowFill = (i) => ['var(--c-mint)', 'var(--c-lav)', 'var(--c-peach)'][i % 3];
 
-// pastel cycle used for the ranked-list cards
-const rowFill = (i) => [CLAY.third, CLAY.second, CLAY.first][i % 3];
-
-const KPI_TONE = {
-  neutral: { bg: 'var(--kpi-neutral)', fg: 'var(--text)' },
-  amber: { bg: '#FFF0D6', fg: '#B45309' },
-  red: { bg: '#FEE2E2', fg: '#E60000' },
-  green: { bg: '#D8F3DC', fg: '#15803D' },
+const PLACE = {
+  first: { h: 118, num: 42, av: 64, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
+  second: { h: 86, num: 30, av: 52, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
+  third: { h: 66, num: 26, av: 52, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
 };
+const NUMERAL = { first: '1', second: '2', third: '3' };
 
-const COLS = '52px 1fr 150px 64px 84px';
+const COLS = '48px 1fr 150px 60px 80px';
 
-// --- presentational pieces (module scope so they are not re-created each render)
+// --- presentational pieces (module scope) ------------------------------------
 
-const Chip = ({ kind, children }) => (
-  <span
-    style={{
-      fontSize: 8,
-      fontWeight: 700,
-      padding: '2px 7px',
-      borderRadius: 999,
-      color: kind === 'good' ? '#15803D' : '#E60000',
-      background: kind === 'good' ? '#DCFCE7' : '#FEE2E2',
-    }}
-  >
-    {children}
-  </span>
-);
-
-const Avatar = ({ initials, size = 32, ring }) => (
+const Avatar = ({ initials, size = 32, ring, you }) => (
   <span
     className="lb-mono"
     style={{
-      width: size,
-      height: size,
-      borderRadius: 999,
-      background: '#fff',
-      color: '#0F172A',
-      fontWeight: 800,
-      fontSize: size >= 60 ? 20 : size >= 56 ? 17 : 10.5,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-      boxShadow: ring ? `inset 0 0 0 ${size >= 60 ? 4 : 3}px ${ring}` : '0 1px 2px rgba(15,23,42,0.1)',
+      width: size, height: size, borderRadius: 999, background: '#fff',
+      color: you ? '#E60000' : '#0F172A', fontWeight: 800,
+      fontSize: size >= 60 ? 19 : size >= 50 ? 16 : 10.5,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      boxShadow: you ? 'inset 0 0 0 2px #E60000' : ring ? `inset 0 0 0 3px ${ring}` : '0 1px 2px rgba(15,23,42,0.1)',
     }}
   >
     {initials}
   </span>
 );
 
-const PodiumColumn = ({ person, place, height, pedClass, medal, fill, big, showChips, championLabel, popDelay }) => (
-  <div style={{ flex: place === 'first' ? '1.15' : '1', maxWidth: place === 'first' ? 250 : 230, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-    {place === 'first' && (
-      <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 2 }}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
-      </span>
-    )}
-    <span className="lb-pop" style={{ animationDelay: `${popDelay}s` }}>
-      <Avatar initials={person.initials} size={place === 'first' ? 68 : 56} ring={medal} />
-    </span>
-    <div style={{ fontSize: place === 'first' ? 15 : 13, fontWeight: 800, marginTop: place === 'first' ? 9 : 8, textAlign: 'center', lineHeight: 1.15 }}>{person.name}</div>
-    <div style={{ fontSize: place === 'first' ? 10 : 9.5, color: 'var(--muted)' }}>{person.dept}</div>
-    {big ? (
-      <div className="lb-exb" style={{ fontSize: 28, marginTop: 4, lineHeight: 1 }}>{person.pts}</div>
-    ) : (
-      <div className="lb-mono" style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>{person.pts}</div>
-    )}
-    {showChips ? (
-      <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
-        <Chip kind="good">{person.rep} reported</Chip>
-        <Chip kind="bad">{person.clk} clicked</Chip>
-      </div>
-    ) : (
-      <div style={{ marginTop: 4 }}><Chip kind="good">{person.rep} reported</Chip></div>
-    )}
-    <div
-      className={pedClass}
-      style={{
-        width: '100%',
-        height,
-        marginTop: 10,
-        background: fill,
-        borderRadius: place === 'first' ? '16px 16px 0 0' : '14px 14px 0 0',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.6)',
-      }}
-    >
-      {place === 'first' && <span className="lb-sheen" />}
-      <span className="lb-exb" style={{ fontSize: place === 'first' ? 68 : place === 'second' ? 46 : 40, color: medal, lineHeight: 1 }}>
-        {place === 'first' ? '1' : place === 'second' ? '2' : '3'}
-      </span>
-      {place === 'first' && (
-        <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#A9811A' }}>{championLabel}</span>
-      )}
-    </div>
-  </div>
+const Chip = ({ kind, children }) => (
+  <span style={{ fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, color: kind === 'good' ? '#15803D' : '#E60000', background: kind === 'good' ? '#DCFCE7' : '#FEE2E2' }}>
+    {children}
+  </span>
 );
 
-const Row = ({ r, fill, you }) => (
+const Pedestal = ({ person, place, reduce }) => {
+  const c = PLACE[place];
+  const first = place === 'first';
+  return (
+    <motion.div
+      initial={reduce ? false : { y: 72, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 150, damping: 17, delay: c.delay }}
+      whileHover={{ y: -4 }}
+      style={{ flex: first ? '1.1' : '1', maxWidth: first ? 230 : 210, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+    >
+      {first && (
+        <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 2 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
+        </span>
+      )}
+      <span style={{ position: 'relative', display: 'flex' }}>
+        {first && !reduce && (
+          <motion.span
+            aria-hidden
+            animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
+            transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}
+            style={{ position: 'absolute', inset: -6, borderRadius: 999, border: `2px solid ${MEDAL.first}` }}
+          />
+        )}
+        <Avatar initials={person.initials} size={c.av} ring={c.medal} />
+      </span>
+      <div style={{ fontSize: first ? 14 : 12.5, fontWeight: 800, marginTop: 8, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{person.name}</div>
+      <div style={{ fontSize: 9.5, color: 'var(--muted)' }}>{person.dept}</div>
+      <div className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 24 : 17, fontWeight: 800, marginTop: 3, lineHeight: 1, color: 'var(--text)' }}>{person.pts}</div>
+      <div style={{ marginTop: 4 }}><Chip kind="good">{person.rep} reported</Chip></div>
+      <div
+        style={{
+          width: '100%', height: c.h, marginTop: 10, background: c.fill,
+          borderRadius: '14px 14px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: first ? 'inset 0 2px 0 rgba(255,255,255,0.6), 0 0 22px rgba(232,179,11,0.18)' : 'inset 0 2px 0 rgba(255,255,255,0.55)',
+        }}
+      >
+        <span className="lb-exb" style={{ fontSize: c.num, color: c.medal, lineHeight: 1, opacity: 0.9 }}>{NUMERAL[place]}</span>
+      </div>
+    </motion.div>
+  );
+};
+
+const RankRow = ({ r, fill, you, accent }) => (
   <div
     style={{
       background: you ? 'var(--base)' : fill,
       border: you ? '1.5px solid #E60000' : '1px solid var(--hair)',
-      borderRadius: 12,
-      display: 'grid',
-      gridTemplateColumns: COLS,
-      gap: 12,
-      alignItems: 'center',
-      padding: '9px 12px',
-      boxShadow: you ? '0 4px 12px rgba(230,0,0,0.12)' : 'none',
+      borderRadius: 12, display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center',
+      padding: '9px 12px', boxShadow: you ? '0 4px 12px rgba(230,0,0,0.12)' : 'none',
     }}
   >
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? '#E60000' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 8px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
-      {!you && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--accent)' }} />}
+      {!you && <span style={{ width: 6, height: 6, borderRadius: 999, background: accent }} />}
       <span className="lb-mono" style={{ fontSize: 11, fontWeight: you ? 800 : 700, color: you ? '#fff' : '#0F172A' }}>{r.rank}</span>
     </span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-      <span className="lb-mono" style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', color: you ? '#E60000' : '#0F172A', fontWeight: 800, fontSize: 10.5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: you ? 'inset 0 0 0 2px #E60000' : '0 1px 2px rgba(15,23,42,0.08)' }}>{r.initials}</span>
+      <Avatar initials={r.initials} size={32} you={you} />
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <span style={{ fontWeight: 800, fontSize: 12, color: you ? '#0F172A' : 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {r.name}
@@ -233,188 +178,200 @@ const Row = ({ r, fill, you }) => (
       <span style={{ flex: 1, height: 7, borderRadius: 999, background: you ? 'var(--track)' : 'rgba(255,255,255,0.7)', overflow: 'hidden', display: 'block' }}>
         <span style={{ display: 'block', height: '100%', width: r.rep, background: '#16A34A', borderRadius: 999 }} />
       </span>
-      <span className="lb-mono" style={{ fontSize: 10, fontWeight: 700, color: '#15803D', width: 32, textAlign: 'right' }}>{r.rep}</span>
+      <span className="lb-mono" style={{ fontSize: 10, fontWeight: 700, color: '#15803D', width: 30, textAlign: 'right' }}>{r.rep}</span>
     </div>
     <div className="lb-mono" style={{ fontSize: 10.5, fontWeight: 700, color: you ? '#E60000' : '#C2410C', textAlign: 'center' }}>{r.clk}</div>
     <div className="lb-mono" style={{ fontSize: 14, fontWeight: 800, color: you ? '#0F172A' : 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
   </div>
 );
 
-const SegBtn = ({ id, active, onSelect, children }) => (
-  <button
-    type="button"
-    onClick={() => onSelect(id)}
-    style={{
-      fontSize: 9.5,
-      fontWeight: 700,
-      padding: '5px 12px',
-      borderRadius: 999,
-      border: 'none',
-      cursor: 'pointer',
-      background: active ? '#fff' : 'transparent',
-      color: active ? '#000' : '#fff',
-    }}
-  >
-    {children}
-  </button>
-);
-
 const Leaderboard = () => {
-  const { isDark } = useUserType() || {};
-  const [view, setView] = useState('global');
-  const [query, setQuery] = useState('');
+  const { isDark, user } = useUserType() || {};
+  const reduce = useReducedMotion();
+  const [view, setView] = useState('global'); // 'global' | 'campaign'
+  const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
 
-  const d = view === 'global' ? GLOBAL : CAMPAIGN;
+  const youName = (user && user.UserName) ? user.UserName : 'You';
+  const youInitials = youName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'YOU';
+  const youDisplay = youName === 'You' ? 'You' : `You · ${youName.split(' ')[0]}`;
 
-  const vars = useMemo(
-    () =>
-      isDark
-        ? {
-            '--bg': '#0E0F13',
-            '--base': '#1C1E24',
-            '--text': '#F1F5F9',
-            '--muted': '#9AA6B2',
-            '--hair': 'rgba(255,255,255,0.08)',
-            '--track': 'rgba(255,255,255,0.12)',
-            '--c-mint': '#0D271E',
-            '--c-lav': '#22193E',
-            '--c-peach': '#2E200C',
-            '--capsule': view === 'global' ? '#143024' : '#1E2250',
-            '--capsule-sub': view === 'global' ? '#8ED973' : '#A5B4FC',
-            '--kpi-neutral': '#23262E',
-          }
-        : {
-            '--bg': '#F1F4F8',
-            '--base': '#FFFFFF',
-            '--text': '#0F172A',
-            '--muted': '#64748B',
-            '--hair': 'rgba(15,23,42,0.06)',
-            '--track': '#EEF2F6',
-            '--c-mint': '#CEFBEA',
-            '--c-lav': '#ECE8FF',
-            '--c-peach': '#FFEFCE',
-            '--capsule': view === 'global' ? '#D8F3DC' : '#E0E7FF',
-            '--capsule-sub': view === 'global' ? '#15692F' : '#3F3D91',
-            '--kpi-neutral': '#F1F5F9',
-          },
-    [isDark, view]
+  const campaign = useMemo(() => CAMPAIGNS.find((c) => c.id === campaignId) || CAMPAIGNS[0], [campaignId]);
+
+  const scope = useMemo(() => {
+    if (view === 'global') {
+      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'Participants', title: 'Global Leaderboard', sub: GLOBAL.sub, accentCounter: '#8ED973', live: false, kpis: null };
+    }
+    return {
+      board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
+      counter: campaign.total.toLocaleString(), counterLabel: 'Recipients', title: campaign.name,
+      sub: `${campaign.type} · started ${campaign.started}`, accentCounter: '#818CF8', live: true, kpis: campaign.kpis,
+    };
+  }, [view, campaign]);
+
+  // The viewer's own row, synthesised at their rank from the board's shape.
+  const youRow = useMemo(() => {
+    const base = scope.board.rows.find((r) => r.rank === scope.youRank)
+      || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
+    return { ...base, name: youDisplay, dept: 'IT Security', initials: youInitials };
+  }, [scope, youDisplay, youInitials]);
+
+  const inTopTen = scope.youRank <= 10;
+
+  const vars = isDark
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ground': 'linear-gradient(#2A2E37,#171A20)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ground': 'linear-gradient(#E9EEF5,#D4DCE7)', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF' };
+
+  const railCapsule = (id, label, sub, selected) => (
+    <button
+      type="button"
+      onClick={() => setView(id)}
+      style={{
+        textAlign: 'left', cursor: 'pointer', width: '100%', borderRadius: 16, padding: 14, marginBottom: 10,
+        border: selected ? '1px solid transparent' : '1px solid var(--hair)',
+        background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
+        boxShadow: selected ? '0 6px 16px rgba(15,23,42,0.08)' : 'none', color: 'var(--text)',
+      }}
+    >
+      <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{label}</div>
+      <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, lineHeight: 1.35 }}>{sub}</div>
+    </button>
   );
-
-  const filteredRows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return d.rows;
-    return d.rows.filter(
-      (r) => r.name.toLowerCase().includes(q) || r.dept.toLowerCase().includes(q)
-    );
-  }, [d.rows, query]);
 
   return (
     <>
-      <style>{LB_STYLE}</style>
+      <style>{FONT_IMPORT}</style>
 
-      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', width: '100%', minHeight: 'calc(100vh - 40px)', padding: 18 }}>
-        <div style={{ maxWidth: 1300, margin: '0 auto' }}>
+      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', background: 'var(--bg)', color: 'var(--text)', width: '100%', minHeight: 'calc(100vh - 8px)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* thin top title bar */}
-          <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', marginBottom: 14 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
-            <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.12)', padding: 3, borderRadius: 999 }}>
-              <SegBtn id="global" active={view === 'global'} onSelect={setView}>Global</SegBtn>
-              <SegBtn id="campaign" active={view === 'campaign'} onSelect={setView}>By campaign</SegBtn>
-            </div>
+        {/* top black bar */}
+        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', flexShrink: 0 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
+        </div>
+
+        {/* two-column workspace */}
+        <div style={{ flex: 1, display: 'flex', gap: 12, minHeight: 0 }}>
+
+          {/* LEFT RAIL */}
+          <div style={{ width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', view === 'global')}
+            {railCapsule('campaign', 'By Campaign', 'Live ranking inside one campaign', view === 'campaign')}
+
+            {view === 'global' ? (
+              <div style={{ background: 'var(--cap-global)', borderRadius: 16, padding: 16, marginTop: 2 }}>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Your standing</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+                  <span className="lb-exb" style={{ fontSize: 34, lineHeight: 1, color: 'var(--text)' }}>#{GLOBAL.youRank}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#15803D' }}>▲ 3 this week</span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 800, marginTop: 10, color: 'var(--text)' }}>{youDisplay}</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.pts} pts · {youRow.rep} reported</div>
+              </div>
+            ) : (
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
+                  Ongoing campaigns · {ONGOING_TOTAL}
+                </div>
+                <div className="lb-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+                  {CAMPAIGNS.map((c) => {
+                    const sel = c.id === campaignId;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCampaignId(c.id)}
+                        style={{
+                          textAlign: 'left', cursor: 'pointer', borderRadius: 14, padding: '10px 12px',
+                          border: sel ? '1.5px solid #818CF8' : '1px solid var(--hair)',
+                          background: sel ? 'var(--cap-camp)' : 'var(--rail)', color: 'var(--text)',
+                          boxShadow: sel ? '0 4px 12px rgba(129,140,248,0.18)' : 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', flexShrink: 0 }} />
+                          <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 3 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
+                      </button>
+                    );
+                  })}
+                  <div style={{ textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: 'var(--muted)', padding: '6px 0 2px' }}>
+                    + {ONGOING_TOTAL - CAMPAIGNS.length} more campaigns
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ===================== THE L-SHAPE ===================== */}
-          <div style={{ position: 'relative' }}>
+          {/* RIGHT SHEET */}
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', border: '1px solid var(--hair)', borderRadius: 18, overflow: 'hidden' }}>
 
-            {/* top-left capsule */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: 208, height: 132, background: 'var(--capsule)', borderRadius: 16, padding: 14, zIndex: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 2px 6px rgba(15,23,42,0.06)' }}>
-              <div>
-                {d.live && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', display: 'inline-block' }} />
-                    <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--capsule-sub)' }}>Live now</span>
+            {/* header strip */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 20px', borderBottom: '1px solid var(--hair)', flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)' }}>{scope.title}</span>
+                  {scope.live && <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '0.08em', color: '#fff', background: '#16A34A', padding: '3px 8px', borderRadius: 999 }}>LIVE</span>}
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{scope.sub}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {scope.kpis && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {Object.entries(scope.kpis).map(([k, v]) => (
+                      <div key={k} style={{ textAlign: 'center', minWidth: 52 }}>
+                        <div style={{ fontSize: 7.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>{k}</div>
+                        <div className="lb-mono" style={{ fontSize: 15, fontWeight: 800, color: k === 'Clicked' ? '#E60000' : k === 'Reported' ? '#15803D' : 'var(--text)' }}>{v}</div>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <div style={{ fontSize: d.capsuleTitle.length > 1 ? 16 : 14, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>
-                  {d.capsuleTitle.map((line, i) => (
-                    <React.Fragment key={i}>{line}{i < d.capsuleTitle.length - 1 && <br />}</React.Fragment>
-                  ))}
-                </div>
-              </div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--capsule-sub)', lineHeight: 1.3, maxWidth: 160 }}>{d.capsuleSub}</div>
-            </div>
-
-            {/* concave fillet */}
-            <div style={{ position: 'absolute', top: 116, left: 198, width: 16, height: 16, zIndex: 20, overflow: 'hidden' }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill="var(--base)" /></svg>
-            </div>
-
-            {/* top-right arm */}
-            <div style={{ width: 'calc(100% - 214px)', marginLeft: 'auto', height: 132, background: 'var(--base)', borderTopLeftRadius: 16, borderTopRightRadius: 16, border: '1px solid var(--hair)', borderBottom: 'none', position: 'relative', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px', gap: 16 }}>
-              {view === 'global' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 300, maxWidth: '52%' }}>
-                  <label style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 11, color: '#94A3B8', display: 'flex' }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                    </span>
-                    <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person" aria-label="Find a person" style={{ width: '100%', height: 30, padding: '0 12px 0 31px', borderRadius: 10, border: '1px solid var(--hair)', background: 'var(--track)', fontSize: 10, fontWeight: 700, color: 'var(--text)', outline: 'none' }} />
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 7, height: 26, padding: '0 11px', borderRadius: 10, border: '1px solid var(--hair)', background: 'var(--track)', width: 200 }}>
-                    <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94A3B8', fontWeight: 800 }}>Sort</span>
-                    <select aria-label="Sort by" style={{ border: 'none', background: 'transparent', fontSize: 9.5, fontWeight: 800, color: 'var(--text)', outline: 'none', flex: 1 }}>
-                      <option>Points</option>
-                      <option>Reported rate</option>
-                      <option>Click rate</option>
-                    </select>
-                  </label>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, auto)', gap: 8 }}>
-                  {d.kpis.map((k) => (
-                    <div key={k.label} style={{ background: KPI_TONE[k.tone].bg, borderRadius: 12, padding: '9px 13px', minWidth: 64 }}>
-                      <div style={{ fontSize: 7.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: k.tone === 'neutral' ? 'var(--muted)' : KPI_TONE[k.tone].fg, fontWeight: 800 }}>{k.label}</div>
-                      <div className="lb-mono" style={{ fontSize: 18, fontWeight: 800, marginTop: 2, color: KPI_TONE[k.tone].fg }}>{k.value}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ textAlign: 'right' }}>
-                <div className="lb-exb" style={{ fontSize: view === 'global' ? 52 : 50, lineHeight: 0.9, color: view === 'global' ? '#8ED973' : '#818CF8', letterSpacing: '-0.02em' }}>{d.counter}</div>
-                <div style={{ fontSize: view === 'global' ? 13 : 12, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.1, marginTop: 3 }}>
-                  {d.counterLabel[0]}<br />{d.counterLabel[1]}
+                <div style={{ textAlign: 'right' }}>
+                  <div className="lb-exb" style={{ fontSize: 40, lineHeight: 0.9, color: scope.accentCounter, letterSpacing: '-0.02em' }}>{scope.counter}</div>
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>{scope.counterLabel}</div>
                 </div>
               </div>
             </div>
 
-            {/* lower L-base */}
-            <div style={{ width: '100%', background: 'var(--base)', borderRadius: '0 0 16px 16px', border: '1px solid var(--hair)', borderTop: 'none', position: 'relative', zIndex: 10, padding: 18 }}>
-
-              {/* podium */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 14, padding: '4px 0 6px' }}>
-                <PodiumColumn person={d.podium.second} place="second" height={94} pedClass="ped ped-2" medal={MEDAL.second} fill={CLAY.second} popDelay={0.18} />
-                <PodiumColumn person={d.podium.first} place="first" height={134} pedClass="champ" medal={MEDAL.first} fill={CLAY.first} big showChips championLabel={d.championLabel} popDelay={0.32} />
-                <PodiumColumn person={d.podium.third} place="third" height={74} pedClass="ped ped-3" medal={MEDAL.third} fill={CLAY.third} popDelay={0.24} />
+            {/* podium on a stage */}
+            <div style={{ padding: '22px 24px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
+                <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
+                <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
+                <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
               </div>
-
-              <div style={{ height: 1, background: 'var(--hair)', margin: '4px 2px 12px' }} />
-
-              {/* ranked list */}
-              <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '0 10px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94A3B8', fontWeight: 800 }}>
-                <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'right' }}>Points</div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {filteredRows.map((r, i) => (
-                  <Row key={r.rank} r={r} fill={rowFill(i)} />
-                ))}
-                {filteredRows.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>No one matches that search.</div>
-                )}
-                <Row r={d.you} you />
-              </div>
-
+              {/* the ground / stage the pedestals stand on */}
+              <div style={{ height: 14, borderRadius: 10, background: 'var(--ground)', boxShadow: '0 12px 22px rgba(15,23,42,0.14)', marginTop: -1 }} />
             </div>
+
+            {/* column header */}
+            <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '4px 24px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
+              <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'right' }}>Points</div>
+            </div>
+
+            {/* scrollable ranked list */}
+            <div className="lb-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 24px 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {scope.board.rows.map((r, i) => (
+                <RankRow
+                  key={r.rank}
+                  r={r.rank === scope.youRank ? youRow : r}
+                  fill={rowFill(i)}
+                  you={r.rank === scope.youRank}
+                  accent="var(--accent)"
+                />
+              ))}
+              <div style={{ textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: 'var(--muted)', padding: '8px 0 2px' }}>
+                Showing top {scope.board.shown} of {scope.total.toLocaleString()}
+              </div>
+            </div>
+
+            {/* sticky "your position" — only when outside the top 10 */}
+            {!inTopTen && (
+              <div style={{ borderTop: '1px solid var(--hair)', padding: '10px 24px', background: 'var(--base)', flexShrink: 0 }}>
+                <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Your position</div>
+                <RankRow r={youRow} you accent="var(--accent)" />
+              </div>
+            )}
+
           </div>
         </div>
       </div>
