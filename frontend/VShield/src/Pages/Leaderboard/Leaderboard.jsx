@@ -5,7 +5,7 @@ import { useUserType } from '../../UserTypeContext/UserTypeContext';
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
 import GlobalTrophy from '../../assets/LeaderboardAssets/GlobalTrophy.png';
-import CampaignTarget from '../../assets/LeaderboardAssets/CampaignTarget.png';
+import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
@@ -320,7 +320,7 @@ const Leaderboard = () => {
             </div>
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, '#15803D')}
-            {railCapsule('campaign', 'By Campaign', 'Live ranking inside one campaign', CampaignTarget, '#4F46E5')}
+            {railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, '#4F46E5')}
 
             {view === 'campaign' && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -358,33 +358,36 @@ const Leaderboard = () => {
             )}
           </div>
 
-          {/* RIGHT SHEET */}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', border: '1px solid var(--hair)', borderRadius: 18, overflow: 'hidden' }}>
+          {/* RIGHT SHEET — colored capsule notched into a white L-base */}
+          <div style={{ flex: 1, minWidth: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--base)', border: '1px solid var(--hair)', borderRadius: 16, overflow: 'hidden' }}>
 
-            {/* header strip */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 20px', borderBottom: '1px solid var(--hair)', flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)' }}>{scope.title}</span>
-                  {scope.live && <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '0.08em', color: '#fff', background: '#16A34A', padding: '3px 8px', borderRadius: 999 }}>LIVE</span>}
+            {/* capsule flush in the top-left corner (the L) */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: 214, height: 112, zIndex: 5, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderBottomRightRadius: 24 }}>
+              {scope.live && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A' }} />
+                  <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#15803D' }}>Live now</span>
                 </div>
-                <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{scope.sub}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                {scope.kpis && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {Object.entries(scope.kpis).map(([k, v]) => (
-                      <div key={k} style={{ textAlign: 'center', minWidth: 52 }}>
-                        <div style={{ fontSize: 7.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>{k}</div>
-                        <div className="lb-mono" style={{ fontSize: 15, fontWeight: 800, color: k === 'Clicked' ? '#E60000' : k === 'Reported' ? '#15803D' : 'var(--text)' }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div style={{ textAlign: 'right' }}>
-                  <div className="lb-exb" style={{ fontSize: 40, lineHeight: 0.9, color: scope.accentCounter, letterSpacing: '-0.02em' }}>{scope.counter}</div>
-                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>{scope.counterLabel}</div>
+              )}
+              <div style={{ fontSize: view === 'global' ? 17 : 13.5, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{scope.title}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', lineHeight: 1.3, maxWidth: 182 }}>{scope.sub}</div>
+            </div>
+
+            {/* arm: KPI chips + the big counter, right of the capsule */}
+            <div style={{ height: 112, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px 0 230px', borderBottom: '1px solid var(--hair)' }}>
+              {scope.kpis && (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {Object.entries(scope.kpis).map(([k, v]) => (
+                    <div key={k} style={{ textAlign: 'center', minWidth: 48 }}>
+                      <div style={{ fontSize: 7.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>{k}</div>
+                      <div className="lb-mono" style={{ fontSize: 16, fontWeight: 800, color: k === 'Clicked' ? '#E60000' : k === 'Reported' ? '#15803D' : 'var(--text)' }}>{v}</div>
+                    </div>
+                  ))}
                 </div>
+              )}
+              <div style={{ textAlign: 'right' }}>
+                <div className="lb-exb" style={{ fontSize: 44, lineHeight: 0.9, color: scope.accentCounter, letterSpacing: '-0.02em' }}>{scope.counter}</div>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>{scope.counterLabel}</div>
               </div>
             </div>
 
