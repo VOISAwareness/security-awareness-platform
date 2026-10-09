@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useGamificationRules } from '../../services/useGamificationRules';
+import { formatPoints } from '../../services/gamificationPoints';
 
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
@@ -15,9 +18,11 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // from the gamification rules.
 //
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
-// the Global / My Campaigns scope capsules with clay corner art, then the list
-// of ongoing campaigns) and a full-width right "sheet" with a 3-pedestal podium
-// and the paginated ranked list. The viewer is highlighted red in light mode and
+// the Global / My Campaigns scope capsules with clay corner art, then the live
+// points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
+// the title capsule (with the head count), the Top people / Top departments
+// switch at the top of the arm, the podium centred under it (rising into the
+// arm), and the paginated ranked list. Campaign rates live on the dashboard. The viewer is highlighted red in light mode and
 // white in dark mode.
 //
 // The page is locked to the viewport: nothing scrolls except the campaign list
@@ -33,6 +38,27 @@ const FONT_IMPORT = `
   .lb-scroll::-webkit-scrollbar { width: 7px; }
   .lb-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,145,0.35); border-radius: 999px; }
   .lb-pg:disabled { cursor: default; opacity: 0.4; }
+
+  /* Scope capsules: clay corner art, as on Campaigns / Requests & Approvals */
+  .lb-cap { transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease; }
+  .lb-cap:hover { transform: translateY(-1px) scale(1.012); }
+  .lb-cap:active { transform: scale(.98); }
+  .lb-cap .lb-art { transition: transform .35s cubic-bezier(.16,1,.3,1); }
+  .lb-cap:hover .lb-art { transform: translateY(-4px) rotate(-6deg) scale(1.08); }
+  .lb-cap[aria-pressed="true"] .lb-art { animation: lb-float 3.2s ease-in-out infinite; }
+  @keyframes lb-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+
+  /* Viewer's own pill in the footer: click to jump to their page */
+  .lb-me { transition: box-shadow .15s ease, transform .15s ease; }
+  .lb-me[aria-disabled="false"]:hover { box-shadow: var(--you-glow); transform: translateY(-1px); }
+
+  /* Points rules: drop the one-line descriptions when the rail runs short */
+  .lb-rules { container-type: size; }
+  @container (max-height: 360px) { .lb-rule-desc { display: none !important; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lb-cap, .lb-cap *, .lb-me { animation: none !important; transition: none !important; }
+  }
 `;
 
 // --- sample data -------------------------------------------------------------
@@ -64,7 +90,8 @@ function buildBoard(seed, total) {
     const pts = Math.round(80 + 1400 * s - (seed % 5) * 7);
     const rep = Math.round(27 + 70 * s);
     const clk = Math.round(46 - 44 * s);
-    all.push({ rank, ...p, pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%` });
+    const move = ((rank * 13 + seed * 7) % 9) - 3; // places gained (+) or lost (-) this week
+    all.push({ rank, ...p, pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%`, move });
   }
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
@@ -72,14 +99,14 @@ function buildBoard(seed, total) {
 const GLOBAL = { total: 128, youRank: 12, board: buildBoard(0, 128) };
 
 const NAMED_CAMPAIGNS = [
-  { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1, kpis: { Sent: '2,480', Opened: '61%', Clicked: '14%', Reported: '52%' } },
-  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2, kpis: { Sent: '1,860', Opened: '58%', Clicked: '11%', Reported: '49%' } },
-  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3, kpis: { Sent: '3,120', Opened: '66%', Clicked: '18%', Reported: '45%' } },
-  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR lure', started: '2 Oct', total: 980, youRank: 4, seed: 4, kpis: { Sent: '980', Opened: '54%', Clicked: '9%', Reported: '57%' } },
-  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT lure', started: '1 Oct', total: 2240, youRank: 13, seed: 5, kpis: { Sent: '2,240', Opened: '63%', Clicked: '15%', Reported: '50%' } },
-  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance lure', started: '29 Sep', total: 1440, youRank: 18, seed: 6, kpis: { Sent: '1,440', Opened: '60%', Clicked: '13%', Reported: '48%' } },
-  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR lure', started: '27 Sep', total: 1710, youRank: 9, seed: 7, kpis: { Sent: '1,710', Opened: '55%', Clicked: '10%', Reported: '53%' } },
-  { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8, kpis: { Sent: '2,890', Opened: '64%', Clicked: '17%', Reported: '46%' } },
+  { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1 },
+  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2 },
+  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3 },
+  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR lure', started: '2 Oct', total: 980, youRank: 4, seed: 4 },
+  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT lure', started: '1 Oct', total: 2240, youRank: 13, seed: 5 },
+  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance lure', started: '29 Sep', total: 1440, youRank: 18, seed: 6 },
+  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR lure', started: '27 Sep', total: 1710, youRank: 9, seed: 7 },
+  { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8 },
 ];
 
 const LURES = [
@@ -108,44 +135,82 @@ const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_,
     total,
     youRank: 4 + ((k * 11) % 26),
     seed: 9 + k,
-    kpis: {
-      Sent: total.toLocaleString(),
-      Opened: `${50 + ((k * 7) % 18)}%`,
-      Clicked: `${8 + ((k * 5) % 12)}%`,
-      Reported: `${42 + ((k * 3) % 17)}%`,
-    },
   };
 });
 
 const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
+
+const pct = (s) => parseInt(s, 10) || 0;
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
 const rowFill = (i) => ['var(--c-mint)', 'var(--c-lav)', 'var(--c-peach)'][i % 3];
 const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 
 const PLACE = {
-  first: { h: 84, num: 34, av: 56, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
-  second: { h: 60, num: 26, av: 46, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
-  third: { h: 44, num: 22, av: 46, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
+  first: { w: 184, h: 76, num: 34, av: 60, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
+  second: { w: 160, h: 54, num: 26, av: 50, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
+  third: { w: 160, h: 40, num: 22, av: 50, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
-const COLS = '48px 1fr 150px 60px 80px';
+const DEPT_CODE = { Finance: 'FIN', 'IT Security': 'SEC', Operations: 'OPS', 'Human Res.': 'HR', Sales: 'SAL', Legal: 'LEG', IT: 'IT', Marketing: 'MKT' };
+// Rank | Person | Reported rate | Clicked | This week | Points
+const COLS = '60px minmax(200px, 1.3fr) minmax(170px, 1fr) 76px 84px 96px';
+const ROW_PAD = 14; // row side padding; the column header lines up with it
 
 // L-shape sheet, built like Requests & Approvals: the colour capsule is its own
 // rounded tile and the white sheet wraps round it with a small even gap.
 // HERO_H is shared with the "Your standing" card so the two line up top and bottom.
 const HERO_H = 136;
-const CAP_W = 214;
+const CAP_W = 224;
 const CAP_H = HERO_H;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
+const STAGE_RAISE = 50; // the podium rises this far into the arm, under the switch
 
 // Rows are a fixed height so the page size can be worked out from the space
 // the list actually has.
-const ROW_H = 44;
+const ROW_H = 48;
 const ROW_GAP = 6;
 const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
+
+// Department podium (average points per person), worked out from whichever
+// board is showing.
+function boardInsights(board) {
+  const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows];
+  const byDept = {};
+  all.forEach((r) => {
+    const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, rep: 0, n: 0 });
+    d.pts += toNum(r.pts);
+    d.rep += pct(r.rep);
+    d.n += 1;
+  });
+  const ranked = Object.entries(byDept)
+    .map(([dept, d]) => ({ dept, avg: Math.round(d.pts / d.n), rep: Math.round(d.rep / d.n), n: d.n }))
+    .sort((a, b) => b.avg - a.avg || a.dept.localeCompare(b.dept))
+    .map((d) => ({
+      name: d.dept, initials: DEPT_CODE[d.dept] || d.dept.slice(0, 3).toUpperCase(),
+      dept: `${d.n.toLocaleString()} ${d.n === 1 ? 'person' : 'people'}`, pts: d.avg.toLocaleString(), rep: `${d.rep}%`,
+    }));
+  const deptPodium = ranked.length >= 3 ? { first: ranked[0], second: ranked[1], third: ranked[2] } : null;
+  return { deptPodium };
+}
+
+const ordinalSuffix = (n) => {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return 'th';
+  return { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th';
+};
+
+// How each tracked event scores, in the order a person meets them.
+const RULES = [
+  { event: 'Reported', label: 'Report a phishing email', desc: 'Flag a suspicious email', Icon: Flag },
+  { event: 'Trained', label: 'Complete a training', desc: 'Finish an assigned module', Icon: GraduationCap },
+  { event: 'Evaluated', label: 'Pass an evaluation', desc: 'Pass the follow-up quiz', Icon: ClipboardCheck },
+  { event: 'Opened', label: 'Open a simulation', desc: 'Opening a simulated email', Icon: MailOpen },
+  { event: 'Clicked', label: 'Click a simulated link', desc: 'A link inside a simulation', Icon: MousePointerClick },
+  { event: 'Compromised', label: 'Submit your details', desc: 'On a fake login page', Icon: KeyRound },
+];
 
 // Page buttons with ellipses: 1 … 4 5 6 … 19
 function pageList(cur, count) {
@@ -170,7 +235,7 @@ const Avatar = ({ initials, size = 32, ring, you }) => (
     style={{
       width: size, height: size, borderRadius: 999, background: '#fff',
       color: you ? 'var(--you-avatar)' : '#0F172A', fontWeight: 800,
-      fontSize: size >= 54 ? 18 : size >= 44 ? 15 : 10,
+      fontSize: (size >= 58 ? 19 : size >= 48 ? 16 : size >= 30 ? 11.5 : 9.5) * (String(initials).length > 2 ? 0.8 : 1),
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       boxShadow: you ? 'inset 0 0 0 2px var(--you)' : ring ? `inset 0 0 0 3px ${ring}` : '0 1px 2px rgba(15,23,42,0.1)',
     }}
@@ -180,7 +245,7 @@ const Avatar = ({ initials, size = 32, ring, you }) => (
 );
 
 const Chip = ({ kind, children }) => (
-  <span style={{ fontSize: 8, fontWeight: 700, padding: '2px 7px', borderRadius: 999, color: kind === 'good' ? '#15803D' : '#E60000', background: kind === 'good' ? '#DCFCE7' : '#FEE2E2' }}>
+  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: kind === 'good' ? '#15803D' : '#E60000', background: kind === 'good' ? '#DCFCE7' : '#FEE2E2' }}>
     {children}
   </span>
 );
@@ -194,13 +259,14 @@ const SPARKLES = [
 const Pedestal = ({ person: p, place, reduce }) => {
   const c = PLACE[place];
   const first = place === 'first';
+  const flair = first && !reduce; // pulse ring + sparkles on the champion
   return (
     <motion.div
       initial={reduce ? false : { y: 60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 150, damping: 17, delay: c.delay }}
       whileHover={{ y: -4 }}
-      style={{ flex: first ? '1.1' : '1', maxWidth: first ? 220 : 200, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+      style={{ width: c.w, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
       {first && (
         <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 1 }}>
@@ -208,7 +274,7 @@ const Pedestal = ({ person: p, place, reduce }) => {
         </span>
       )}
       <span style={{ position: 'relative', display: 'flex' }}>
-        {first && !reduce && (
+        {flair && (
           <motion.span
             aria-hidden
             animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
@@ -216,7 +282,7 @@ const Pedestal = ({ person: p, place, reduce }) => {
             style={{ position: 'absolute', inset: -6, borderRadius: 999, border: `2px solid ${MEDAL.first}` }}
           />
         )}
-        {first && !reduce && SPARKLES.map((sp, i) => (
+        {flair && SPARKLES.map((sp, i) => (
           <motion.span
             key={i}
             aria-hidden
@@ -229,10 +295,10 @@ const Pedestal = ({ person: p, place, reduce }) => {
         ))}
         <Avatar initials={p.initials} size={c.av} ring={c.medal} />
       </span>
-      <div style={{ fontSize: first ? 13.5 : 12, fontWeight: 800, marginTop: 6, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
-      <div style={{ fontSize: 9, color: 'var(--muted)' }}>{p.dept}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-        <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 20 : 15, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
+      <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 7, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+        <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 22 : 17, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
         <Chip kind="good">{p.rep} reported</Chip>
       </div>
       <div
@@ -248,6 +314,17 @@ const Pedestal = ({ person: p, place, reduce }) => {
   );
 };
 
+const Move = ({ n }) => {
+  if (!n) return <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)' }}>—</span>;
+  const up = n > 0;
+  return (
+    <span className="lb-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11.5, fontWeight: 800, color: up ? 'var(--t-green)' : 'var(--t-red)' }}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><polyline points={up ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} /></svg>
+      {Math.abs(n)}
+    </span>
+  );
+};
+
 const RankRow = ({ r, fill, you, accent }) => (
   <div
     style={{
@@ -255,28 +332,63 @@ const RankRow = ({ r, fill, you, accent }) => (
       background: you ? 'var(--base)' : fill,
       border: you ? '1.5px solid var(--you)' : '1px solid var(--hair)',
       borderRadius: 12, display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center',
-      padding: '0 12px', boxShadow: you ? 'var(--you-glow)' : 'none',
+      padding: `0 ${ROW_PAD}px`, boxShadow: you ? 'var(--you-glow)' : 'none',
     }}
   >
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? 'var(--you)' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 8px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? 'var(--you)' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 9px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
       {!you && <span style={{ width: 6, height: 6, borderRadius: 999, background: accent }} />}
-      <span className="lb-mono" style={{ fontSize: 11, fontWeight: you ? 800 : 700, color: you ? 'var(--you-ink)' : '#0F172A' }}>{r.rank}</span>
+      <span className="lb-mono" style={{ fontSize: 12, fontWeight: 800, color: you ? 'var(--you-ink)' : '#0F172A' }}>{r.rank}</span>
     </span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-      <Avatar initials={r.initials} size={28} you={you} />
-      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-        <span style={{ fontSize: 9, color: 'var(--muted)' }}>{r.dept}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+      <Avatar initials={r.initials} size={32} you={you} />
+      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 1 }}>
+        <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{r.dept}</span>
       </span>
     </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ flex: 1, height: 7, borderRadius: 999, background: you ? 'var(--track)' : 'rgba(255,255,255,0.7)', overflow: 'hidden', display: 'block' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ flex: 1, height: 8, borderRadius: 999, background: you ? 'var(--track)' : 'rgba(255,255,255,0.7)', overflow: 'hidden', display: 'block' }}>
         <span style={{ display: 'block', height: '100%', width: r.rep, background: '#16A34A', borderRadius: 999 }} />
       </span>
-      <span className="lb-mono" style={{ fontSize: 10, fontWeight: 700, color: '#15803D', width: 30, textAlign: 'right' }}>{r.rep}</span>
+      <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-green)', width: 34, textAlign: 'right' }}>{r.rep}</span>
     </div>
-    <div className="lb-mono" style={{ fontSize: 10.5, fontWeight: 700, color: '#C2410C', textAlign: 'center' }}>{r.clk}</div>
-    <div className="lb-mono" style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
+    <div className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-red)', textAlign: 'center' }}>{r.clk}</div>
+    <div style={{ textAlign: 'center' }}><Move n={r.move} /></div>
+    <div className="lb-mono" style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
+  </div>
+);
+
+// People / Departments switch for the podium, at the top of the sheet's arm.
+const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
+
+const StageSwitch = ({ value, onChange, sub, canDepts }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 4, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
+      {STAGES.map((st) => {
+        const on = value === st.id;
+        const disabled = st.id === 'depts' && !canDepts;
+        return (
+          <button
+            key={st.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            disabled={disabled}
+            onClick={() => onChange(st.id)}
+            className="lb-pg"
+            style={{
+              height: 34, padding: '0 18px', borderRadius: 999, border: 'none', cursor: on ? 'default' : 'pointer',
+              fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap',
+              background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)',
+              boxShadow: on ? '0 1px 3px rgba(15,23,42,0.14)' : 'none', transition: 'background .15s ease, color .15s ease',
+            }}
+          >
+            {st.label}
+          </button>
+        );
+      })}
+    </div>
+    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 7 }}>{sub}</div>
   </div>
 );
 
@@ -325,9 +437,11 @@ const Pager = ({ page, pageCount, onPage }) => (
 const Leaderboard = ({ onClose }) => {
   const { isDark, user } = useUserType() || {};
   const reduce = useReducedMotion();
+  const rules = useGamificationRules();
   const [view, setView] = useState('global'); // 'global' | 'campaign'
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
+  const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
   const [rowsPerPage, setRowsPerPage] = useState(7);
   const listRef = useRef(null);
 
@@ -353,19 +467,25 @@ const Leaderboard = ({ onClose }) => {
 
   const scope = useMemo(() => {
     if (view === 'global') {
-      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'Participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', accentCounter: '#8ED973', live: false, kpis: null };
+      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
     }
     return {
       board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
-      counter: campaign.total.toLocaleString(), counterLabel: 'Recipients', title: campaign.name,
-      sub: `${campaign.type} · started ${campaign.started}`, accentCounter: '#818CF8', live: true, kpis: campaign.kpis,
+      counter: campaign.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
+      sub: `${campaign.type} · started ${campaign.started}`, live: true,
     };
   }, [view, campaign]);
 
   const youRow = useMemo(() => {
     const base = scope.board.rows.find((r) => r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
-    return { ...base, name: youName, dept: 'IT Security', initials: youInitials };
+    return { ...base, name: youName, dept: 'IT Security', initials: youInitials, move: 3 };
   }, [scope, youName, youInitials]);
+
+  const insights = useMemo(() => boardInsights(scope.board), [scope]);
+  // Which podium the stage shows; falls back to people if departments can't be ranked.
+  const podium = stage === 'depts' && insights.deptPodium
+    ? { id: 'depts', board: insights.deptPodium }
+    : { id: 'people', board: scope.board.podium };
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
@@ -396,26 +516,28 @@ const Leaderboard = ({ onClose }) => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
 
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
     return (
       <button
         type="button"
+        className="lb-cap"
+        aria-pressed={selected}
         onClick={() => chooseView(id)}
         style={{
           position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', width: '100%', flexShrink: 0,
-          borderRadius: 16, padding: '14px 14px 16px', marginBottom: 10, minHeight: 74,
+          borderRadius: L_R, padding: '16px 16px 18px', marginBottom: 10, minHeight: 96,
           border: selected ? '1px solid transparent' : '1px solid var(--hair)',
           background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
           boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
         }}
       >
-        <div style={{ fontSize: 14.5, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
-        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, lineHeight: 1.35, maxWidth: 180 }}>{sub}</div>
-        <img src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: 52, height: 52, objectFit: 'contain', opacity: selected ? 0.95 : 0.78, pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
+        <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
+        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: 0, right: 2, width: 60, height: 60, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
       </button>
     );
   };
@@ -455,7 +577,7 @@ const Leaderboard = ({ onClose }) => {
                 <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>
-                  3 this week
+                  {youRow.move} this week
                 </span>
               </div>
 
@@ -467,9 +589,9 @@ const Leaderboard = ({ onClose }) => {
                   </div>
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>{youRow.dept}</div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#B07A12', marginTop: 1 }}>{youRow.pts} pts · {youRow.rep} reported</div>
+                  <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{youRow.dept}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts · {youRow.rep} reported</div>
                 </div>
               </div>
 
@@ -478,18 +600,49 @@ const Leaderboard = ({ onClose }) => {
                   <div style={{ height: 6, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${standing.fillPct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
                   </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#B07A12', marginTop: 5 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--t-gold)', marginTop: 5 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
                 </div>
               )}
             </div>
 
-            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, '#15803D')}
-            {railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, '#4F46E5')}
+            {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
+            {railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
+
+            {/* Global view: how points are earned, read live from the Gamification Engine */}
+            {view === 'global' && (
+              <div className="lb-rules" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
+                <div style={{ flexShrink: 0, fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>How to earn points</div>
+                <div style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
+                  {rules.error ? 'Live rules unavailable right now' : 'Live from the Gamification Engine'}
+                </div>
+                <div style={{ flex: 1, minHeight: 0, maxHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  {RULES.map((rule) => {
+                    const v = rules.points[rule.event];
+                    const tone = v > 0 ? 'var(--t-green)' : v < 0 ? 'var(--t-red)' : 'var(--muted)';
+                    const tint = v > 0 ? 'var(--c-mint)' : v < 0 ? 'var(--c-peach)' : 'var(--track)';
+                    return (
+                      <div key={rule.event} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid var(--hair)' }}>
+                        <span style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, background: tint, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <rule.Icon size={16} strokeWidth={2.3} />
+                        </span>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rule.label}</div>
+                          <div className="lb-rule-desc" style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{rule.desc}</div>
+                        </div>
+                        <span className="lb-mono" style={{ flexShrink: 0, minWidth: 48, textAlign: 'center', fontSize: 12.5, fontWeight: 800, color: tone, background: tint, borderRadius: 999, padding: '4px 8px' }}>
+                          {rules.loading ? '…' : formatPoints(v)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* the only scrolling region on the page */}
             {view === 'campaign' && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
+                <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
                   Ongoing campaigns · {CAMPAIGNS.length}
                 </div>
                 <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px 12px 0' }}>
@@ -509,9 +662,9 @@ const Leaderboard = ({ onClose }) => {
                       >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                           <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', flexShrink: 0, marginTop: 4 }} />
-                          <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.25 }}>{c.name}</span>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.25 }}>{c.name}</span>
                         </div>
-                        <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 3 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
+                        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, paddingLeft: 13 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
                       </button>
                     );
                   })}
@@ -528,11 +681,16 @@ const Leaderboard = ({ onClose }) => {
               {scope.live && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A' }} />
-                  <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#15803D' }}>Live now</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--t-green)' }}>Live now</span>
                 </div>
               )}
-              <div style={{ fontSize: view === 'global' ? 17 : 13.5, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{scope.title}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', lineHeight: 1.3, maxWidth: 182 }}>{scope.sub}</div>
+              <div style={{ fontSize: view === 'global' ? 19 : 16, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{scope.title}</div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{scope.sub}</div>
+              <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 2, padding: '4px 10px', borderRadius: 999, background: 'var(--chip)', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>
+                <Users size={13} strokeWidth={2.4} />
+                <span className="lb-mono" style={{ fontWeight: 800, color: 'var(--text)' }}>{scope.counter}</span>
+                {scope.counterLabel}
+              </span>
             </div>
 
             {/* concave fillet joining the arm to the base, following the capsule's corner */}
@@ -540,39 +698,43 @@ const Leaderboard = ({ onClose }) => {
               <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
             </svg>
 
-            {/* top-right arm of the L: KPI chips + the big counter */}
-            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 18, padding: '0 22px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
-              {scope.kpis && (
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {Object.entries(scope.kpis).map(([k, v]) => (
-                    <div key={k} style={{ textAlign: 'center', minWidth: 48 }}>
-                      <div style={{ fontSize: 7.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>{k}</div>
-                      <div className="lb-mono" style={{ fontSize: 16, fontWeight: 800, color: k === 'Clicked' ? '#E60000' : k === 'Reported' ? '#15803D' : 'var(--text)' }}>{v}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ textAlign: 'right' }}>
-                <div className="lb-exb" style={{ fontSize: 44, lineHeight: 0.9, color: scope.accentCounter, letterSpacing: '-0.02em' }}>{scope.counter}</div>
-                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>{scope.counterLabel}</div>
+            {/* top-right arm of the L: the podium switch, on the sheet's centre line */}
+            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '18px 24px 0', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+              {/* the arm starts CAP_W + L_GAP in, so pull back by half that to centre on the whole sheet */}
+              <div style={{ transform: `translateX(-${(CAP_W + L_GAP) / 2}px)` }}>
+                <StageSwitch
+                  value={podium.id}
+                  onChange={setStage}
+                  canDepts={Boolean(insights.deptPodium)}
+                  sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
+                />
               </div>
             </div>
 
             {/* lower base of the L: podium, ranked list, footer */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px`, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
 
-              {/* podium, lit from below */}
-              <div style={{ flexShrink: 0, padding: '4px 24px 4px', background: 'radial-gradient(68% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 56 }}>
-                  <Pedestal person={scope.board.podium.second} place="second" reduce={reduce} />
-                  <Pedestal person={scope.board.podium.first} place="first" reduce={reduce} />
-                  <Pedestal person={scope.board.podium.third} place="third" reduce={reduce} />
-                </div>
+              {/* podium, centred on the sheet and lit from below: top people, or top departments via the switch */}
+              <div style={{ flexShrink: 0, marginTop: -STAGE_RAISE, padding: '0 24px 10px', background: 'radial-gradient(34% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={`${podium.id}-${view}-${campaignId}`}
+                    initial={reduce ? false : { opacity: 0, x: podium.id === 'depts' ? 24 : -24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
+                  >
+                    <Pedestal person={podium.board.second} place="second" reduce={reduce} />
+                    <Pedestal person={podium.board.first} place="first" reduce={reduce} />
+                    <Pedestal person={podium.board.third} place="third" reduce={reduce} />
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               {/* column header */}
-              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '4px 37px 8px', fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
-                <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'right' }}>Points</div>
+              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
+                <div>Rank</div><div>Person</div><div>Reported rate</div><div style={{ textAlign: 'center' }}>Clicked</div><div style={{ textAlign: 'center' }}>This week</div><div style={{ textAlign: 'right' }}>Points</div>
               </div>
 
               {/* ranked list — one page at a time, sized to fit */}
@@ -596,30 +758,33 @@ const Leaderboard = ({ onClose }) => {
                 </motion.div>
               </div>
 
-              {/* footer: your position (left) + pagination (right) */}
-              <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Your position</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1.5px solid var(--you)', borderRadius: 999, padding: '3px 12px 3px 4px', minWidth: 0 }}>
-                    <span className="lb-mono" style={{ fontSize: 11, fontWeight: 800, color: 'var(--you-ink)', background: 'var(--you)', borderRadius: 999, padding: '3px 8px' }}>{scope.youRank}</span>
-                    <Avatar initials={youRow.initials} size={22} you />
-                    <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.name}</span>
-                    <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{youRow.pts} pts</span>
-                  </div>
+              {/* footer: the viewer's rank + their pill, which jumps to their page (left); pagination (right) */}
+              <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: 'var(--you)', whiteSpace: 'nowrap' }}>
+                    {scope.youRank}<span style={{ fontSize: 13, marginLeft: 1 }}>{ordinalSuffix(scope.youRank)}</span>
+                  </span>
                   <button
                     type="button"
-                    className="lb-pg"
-                    disabled={youVisible}
-                    onClick={() => setPage(youPage)}
-                    style={{ ...pagerBtn(false), padding: '0 10px', fontSize: 10, whiteSpace: 'nowrap', color: youVisible ? 'var(--muted)' : 'var(--you)' }}
+                    className="lb-me"
+                    aria-disabled={youVisible}
+                    aria-label={youVisible ? `${youRow.name}, ${scope.youRank}${ordinalSuffix(scope.youRank)}` : `${youRow.name}, ${scope.youRank}${ordinalSuffix(scope.youRank)}. Go to my rank`}
+                    title={youVisible ? undefined : 'Go to my rank'}
+                    onClick={() => { if (!youVisible) setPage(youPage); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, border: '1.5px solid var(--you)', borderRadius: 999, padding: youVisible ? '4px 16px 4px 4px' : '4px 10px 4px 4px', background: 'var(--base)', color: 'var(--text)', cursor: youVisible ? 'default' : 'pointer' }}
                   >
-                    {youOnPodium ? 'On the podium' : youVisible ? 'On this page' : 'Go to my rank'}
+                    <Avatar initials={youRow.initials} size={26} you />
+                    <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.name}</span>
+                    <span className="lb-mono" style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}>{youRow.pts} pts</span>
+                    {!youVisible && (
+                      <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
+                    )}
                   </button>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {scope.board.total.toLocaleString()} {scope.counterLabel}
                   </span>
                   <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
                 </div>
