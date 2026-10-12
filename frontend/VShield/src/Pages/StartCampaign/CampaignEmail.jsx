@@ -24,12 +24,15 @@ import {
   Minimize2,
   Search,
   AlertTriangle,
+  FileText,
   X
 } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { IN_WIZARD } from '../../services/campaignWizard';
+import { TOP_COUNT, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
+import DraftDialog from '../../GlobalComponents/DraftDialog';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
@@ -156,6 +159,37 @@ const CampaignEmail = () => {
     .filter(Boolean)
   )
  );
+
+ // Email bodies offered beside "fx": every template's body, most used first.
+ // The bundled scenarios stand in until the API answers, and if it cannot.
+ const [libraryScenarios, setLibraryScenarios] = useState(null);
+ const [libraryCampaigns, setLibraryCampaigns] = useState([]);
+
+ useEffect(() => {
+  let active = true;
+  api.scenarios
+   .list()
+   .then((rows) => {
+    if (active && Array.isArray(rows) && rows.length) setLibraryScenarios(rows);
+   })
+   .catch(() => {
+    /* keep the bundled scenarios */
+   });
+  api.campaigns
+   .list()
+   .then((rows) => {
+    if (active && Array.isArray(rows)) setLibraryCampaigns(rows);
+   })
+   .catch(() => {
+    /* no usage counts: the bodies are still offered, in template order */
+   });
+  return () => {
+   active = false;
+  };
+ }, []);
+
+ const libraryTemplates = libraryScenarios || scenariosJsonData?.scenarios || [];
+ const bodyLibrary = emailBodyOptions(libraryTemplates, libraryCampaigns);
 
  // Recipient lists come from the API, so a list uploaded on the User Lists screen
  // is immediately targetable here. UserDLsData.json stays as the fallback while
@@ -286,6 +320,11 @@ const CampaignEmail = () => {
  const [isEditorExpanded, setIsEditorExpanded] = useState(false);
  const [showSubjectFxMenu, setShowSubjectFxMenu] = useState(false);
  const [showEditorFxMenu, setShowEditorFxMenu] = useState(false);
+ const [showBodyMenu, setShowBodyMenu] = useState(false);
+ // The editor's body when the library menu opened, to mark the one in use.
+ const [bodyAtMenuOpen, setBodyAtMenuOpen] = useState('');
+ // A library body waiting on "Replace the email body?".
+ const [pendingBody, setPendingBody] = useState(null);
 
  const activeHtmlRef = useRef('');
  const editorCanvasRef = useRef(null);
@@ -294,6 +333,7 @@ const CampaignEmail = () => {
  const savedSelectionRef = useRef(null);
 
  const editorFxRef = useRef(null);
+ const bodyMenuRef = useRef(null);
  const subjectFxRef = useRef(null);
  const userListDropdownRef = useRef(null);
  const singleUserDropdownRef = useRef(null);
@@ -323,6 +363,9 @@ const CampaignEmail = () => {
   const handleClickOutside = (e) => {
    if (editorFxRef.current && !editorFxRef.current.contains(e.target)) {
     setShowEditorFxMenu(false);
+   }
+   if (bodyMenuRef.current && !bodyMenuRef.current.contains(e.target)) {
+    setShowBodyMenu(false);
    }
    if (subjectFxRef.current && !subjectFxRef.current.contains(e.target)) {
     setShowSubjectFxMenu(false);
@@ -517,6 +560,38 @@ const CampaignEmail = () => {
    setEmailSubject(updated);
    update({ emailSubject: updated });
   }
+ };
+
+ // What the editor holds right now, in either mode.
+ const currentBodyHtml = () => {
+  if (rawHtmlMode) return rawHtmlCode;
+  return editorCanvasRef.current ? editorCanvasRef.current.innerHTML : activeHtmlRef.current;
+ };
+
+ // Copy a library body into this campaign. The template it came from is
+ // never written; `emailBodySourceId` only feeds the "most used" ranking.
+ const applyEmailBody = (option) => {
+  activeHtmlRef.current = option.html;
+  setRawHtmlCode(option.html);
+  if (!rawHtmlMode && editorCanvasRef.current) editorCanvasRef.current.innerHTML = option.html;
+  savedSelectionRef.current = null;
+  update({ emailBody: option.html, emailBodySourceId: option.id });
+  setPendingBody(null);
+ };
+
+ // Ask first only when the editor holds the user's own work: an empty editor,
+ // or one showing another template's body unchanged, loses nothing.
+ const chooseEmailBody = (option) => {
+  setShowBodyMenu(false);
+  const current = currentBodyHtml();
+  if (sameBody(current, option.html)) return;
+  const hasContent = Boolean(bodySnippet(current)) || /<(img|table)\b/i.test(current);
+  const isTemplateBody = libraryTemplates.some((t) => sameBody(t.emailBody, current));
+  if (hasContent && !isTemplateBody) {
+   setPendingBody(option);
+   return;
+  }
+  applyEmailBody(option);
  };
 
  // Toggle HTML Code view
@@ -919,6 +994,71 @@ const CampaignEmail = () => {
           </span>
          </button>
         ))}
+       </div>
+      )}
+     </div>
+
+     {/* 🌟 Email body library, right of "fx": start from a template's body */}
+     <div ref={bodyMenuRef} className="relative z-50">
+      <button
+       type="button"
+       onMouseDown={(e) => e.preventDefault()}
+       onClick={() => {
+        setBodyAtMenuOpen(currentBodyHtml());
+        setShowBodyMenu((open) => !open);
+       }}
+       aria-haspopup="menu"
+       aria-expanded={showBodyMenu}
+       className="px-1.5 py-0 rounded-2xl bg-white dark:bg-black hover:brightness-110 text-black dark:text-white text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
+       title="Use an email body from the library"
+      >
+       <FileText className="w-2.5 h-2.5" />
+       <span>Email Body</span>
+       <ChevronDown className="w-2.5 h-2.5" />
+      </button>
+
+      {showBodyMenu && (
+       <div
+        role="menu"
+        aria-label="Email bodies"
+        // Opens leftwards, over the editor: rightwards the card clips it.
+        style={{ position: 'absolute', top: '100%', right: 0, zIndex: 9999 }}
+        className="mt-1 w-72 max-h-64 overflow-y-auto rounded-xl bg-[#1A1C23] border border-white/20 p-1 shadow-2xl flex flex-col gap-0.5 text-left"
+       >
+        <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 px-2 py-0.5 font-bold">
+         {bodyLibrary.limited
+          ? `Top ${TOP_COUNT} most used · ${bodyLibrary.total} in library`
+          : 'Email bodies · most used first'}
+        </span>
+        {bodyLibrary.options.length === 0 && (
+         <span className="px-2 py-2 text-[9px] text-slate-400">No email bodies in the library yet.</span>
+        )}
+        {bodyLibrary.options.map((option) => {
+         const inEditor = sameBody(option.html, bodyAtMenuOpen);
+         return (
+          <button
+           key={option.id}
+           type="button"
+           role="menuitem"
+           onMouseDown={(e) => e.preventDefault()}
+           onClick={() => chooseEmailBody(option)}
+           className={`p-1.5 px-2 rounded-lg text-left flex flex-col gap-0.5 cursor-pointer transition-colors ${
+            inEditor ? 'bg-white/10' : 'hover:bg-white/10'
+           }`}
+          >
+           <span className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1 min-w-0">
+             {inEditor && <Check className="w-2.5 h-2.5 text-[#8ED973] flex-shrink-0" />}
+             <span className="text-[9.5px] font-bold text-white truncate">{option.name}</span>
+            </span>
+            <span className="text-[8px] font-mono-tech text-slate-400 flex-shrink-0">
+             {option.uses ? `${option.uses} ${option.uses === 1 ? 'campaign' : 'campaigns'}` : 'Not used yet'}
+            </span>
+           </span>
+           <span className="text-[8px] text-slate-400 truncate">{option.snippet}</span>
+          </button>
+         );
+        })}
        </div>
       )}
      </div>
@@ -1667,6 +1807,21 @@ const CampaignEmail = () => {
       </div>,
       document.body
      )}
+
+    {/* Picking a library body over the user's own edits asks first. */}
+    <DraftDialog
+     open={Boolean(pendingBody)}
+     isDark={isDark}
+     tone="warning"
+     zIndex={2147483647}
+     title="Replace the email body?"
+     body="The editor has your own changes. Using this body replaces them, and they are not kept. The template itself is not changed."
+     detail={pendingBody ? `Email body: ${pendingBody.name}` : ''}
+     primaryLabel="Replace"
+     onPrimary={() => pendingBody && applyEmailBody(pendingBody)}
+     secondaryLabel="Keep mine"
+     onSecondary={() => setPendingBody(null)}
+    />
    </div>
   </>
  );
