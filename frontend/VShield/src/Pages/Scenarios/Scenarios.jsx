@@ -5,7 +5,7 @@ import {
   ChevronDown,
   SlidersHorizontal,
   Pencil,
-  Copy,
+  RotateCcw,
   Trash2,
   Check,
   X,
@@ -19,12 +19,15 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
 import { api } from "../../services/api";
+import { currentActor } from "../../services/identity";
+import { DELETE_KINDS, cardActions } from "../../services/scenarioOwnership";
 import { DEMO_USER } from '../../appConfig';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import { draftSummary, isMeaningfulDraft } from '../../services/scenarioDraft';
 import {
   inProgressScenarioDraft,
   listScenarioDrafts,
+  removeEditDrafts,
   removeScenarioDraft,
   scenarioDraftToOffer,
   setActiveScenarioDraftId,
@@ -112,6 +115,14 @@ const INTENSITY_COLORS = {
   yellow: '#f5b942',
   red: '#e60000',
   green: '#22c55e'
+};
+
+// The ownership badge's dot (scenarioOwnership.js cardActions().badge).
+const OWNERSHIP_DOT = {
+  shared: '#22C55E',
+  mine: '#64748B',
+  myCopy: '#8B5CF6',
+  myRevision: '#F59E0B',
 };
 
 // =========================================================================
@@ -596,7 +607,8 @@ const Scenarios = () => {
       ...info,
       id: d.id,
       code: info.scenarioId,
-      title: info.name,
+      // An unfinished edit is named by the scenario it edits.
+      title: info.editing ? `Editing: ${info.editing.name}` : info.name,
       inProgress: d.id === inProgress?.id,
       theme: DIFFICULTY_THEMES[THEME_CYCLE[i % THEME_CYCLE.length]],
       image: uploaded ? '' : info.cover || draftArt,
@@ -636,6 +648,12 @@ const Scenarios = () => {
 
   const [rawScenarios, setRawScenarios] = useState([]);
   const [scenariosLoading, setScenariosLoading] = useState(true);
+  // Who is looking: the list holds what they may see (their own copies and
+  // pending edits standing in for what they replace), and Edit / Delete act as
+  // them. Client-asserted until sign-in exists (identity.js).
+  const [viewer] = useState(() => currentActor());
+  // Bumped after a delete, to read the list again.
+  const [listVersion, setListVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -651,7 +669,7 @@ const Scenarios = () => {
       );
     };
     api.scenarios
-      .list()
+      .list({ viewer })
       .then(apply)
       // Falling back to the bundled data keeps the screen usable if the API is
       // unreachable, which is also how ChooseAScenario behaves.
@@ -662,11 +680,14 @@ const Scenarios = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [viewer, listVersion]);
 
   // Keep the original index for a stable key: ids are not guaranteed unique.
+  // `_row` is the row as the API sent it, for the editor (the display defaults
+  // below must never be saved back).
   const scenariosList = rawScenarios.map((s, idx) => ({
     ...s,
+    _row: s,
     _key: `${s.id}-${idx}`,
     difficulty: s.difficulty || 'Medium',
     CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
@@ -697,22 +718,39 @@ const Scenarios = () => {
   
 
   // ---------------------------------------------------
-  // Card actions — wire these up to your real edit/clone/delete flows
+  // Card actions, per who owns the scenario (scenarioOwnership.js):
+  // Edit opens the editor on it (a template or someone else's shared scenario
+  // is saved as the viewer's own copy; their own shared one as a pending edit);
+  // Delete / Reset to original / Discard changes remove the viewer's own row
+  // after an inline "Yes / No".
   // ---------------------------------------------------
+  const [confirmKey, setConfirmKey] = useState(null);
+  const [busyKey, setBusyKey] = useState(null);
+  const [cardError, setCardError] = useState(null); // { key, message }
+
+  // An unfinished edit of this scenario, if any, is reopened by the editor.
   const handleEdit = (scenario) => {
-    // TODO: navigate to your scenario editor, e.g.
-    // navigate(`/scenarios/${scenario.id}/edit`);
-    console.log('Edit', scenario);
+    navigate(`/new-scenario?edit=${encodeURIComponent(scenario.scenarioId)}`, {
+      state: { row: scenario._row, from: 'all' },
+    });
   };
 
-  const handleClone = (scenario) => {
-    // TODO: duplicate this scenario in your data source
-    console.log('Clone', scenario);
-  };
-
-  const handleDelete = (scenario) => {
-    // TODO: confirm + delete this scenario from your data source
-    console.log('Delete', scenario);
+  const handleDelete = async (scenario) => {
+    setConfirmKey(null);
+    setCardError(null);
+    setBusyKey(scenario._key);
+    try {
+      await api.scenarios.remove(scenario.scenarioId, viewer);
+      // An unfinished edit of it has nothing left to save onto.
+      removeEditDrafts(scenario.scenarioId);
+      setDrafts(readDrafts());
+      setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
+      setListVersion((v) => v + 1);
+    } catch (error) {
+      setCardError({ key: scenario._key, message: error?.message || "Couldn't remove this scenario." });
+    } finally {
+      setBusyKey(null);
+    }
   };
 
   return (
@@ -910,21 +948,20 @@ const Scenarios = () => {
               ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                   {filteredScenarios.map((scenario, cardIndex) => {
-                    console.log("scenario")
-                    console.log(scenario.CoverImageID)
                     const dotColor = INTENSITY_COLORS[scenario.intensityColor] || INTENSITY_COLORS.yellow;
                     const themeKey = THEME_CYCLE[cardIndex % THEME_CYCLE.length];
-                    console.log("themeKey====")
-                    console.log(themeKey)
                     const theme = DIFFICULTY_THEMES[themeKey];
                     const resolvedImageSrc = getScenarioImage(scenario.CoverImageID);
-                    console.log(scenario.CoverImageID)
-                    console.log("resolvedImageSrc")
-                    console.log(resolvedImageSrc)
+                    const actions = cardActions(scenario._row, viewer);
+                    const removal = actions.deleteKind ? DELETE_KINDS[actions.deleteKind] : null;
+                    const confirming = confirmKey === scenario._key;
+                    const error = cardError?.key === scenario._key ? cardError.message : '';
 
                     return (
   <div
     key={scenario._key}
+    data-scenario-id={scenario.scenarioId}
+    data-ownership={actions.ownership}
     style={{
       backgroundColor: isDark ? theme.bgDark : theme.bgLight,
       borderColor: isDark ? theme.borderDark : theme.border,
@@ -985,6 +1022,20 @@ const Scenarios = () => {
     {/* ================================================= */}
     <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%]">
 
+      {/* Whose it is, for this viewer (none on a template) */}
+      {actions.badge && (
+        <span
+          title={actions.badgeHint}
+          className="self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-white/70 dark:bg-black/40 text-slate-700 dark:text-slate-300 cursor-help"
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: OWNERSHIP_DOT[actions.ownership] || OWNERSHIP_DOT.mine }}
+          />
+          {actions.badge}
+        </span>
+      )}
+
       {/* Title */}
       <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight">
         {scenario.scenarioName}
@@ -1022,14 +1073,53 @@ const Scenarios = () => {
     )}
 
     {/* ================================================= */}
-    {/* BOTTOM ACTIONS — EDIT + DELETE */}
+    {/* BOTTOM ACTIONS — EDIT + DELETE (per ownership)    */}
     {/* ================================================= */}
-    <div className="absolute left-4 bottom-4 flex items-center gap-1.5 z-20">
-
+    {error && (
+      <div
+        role="alert"
+        className="absolute left-4 right-4 bottom-[46px] z-20 flex items-start gap-1.5 px-2 py-1 rounded-lg bg-white/90 dark:bg-black/60 text-[9.5px] font-bold text-[#E60000] dark:text-[#FF8A8A] shadow-2xs"
+      >
+        <span className="flex-1 leading-snug">{error}</span>
+        <button
+          type="button"
+          onClick={() => setCardError(null)}
+          aria-label="Dismiss"
+          className="flex-shrink-0 cursor-pointer text-slate-500 hover:text-slate-900 dark:hover:text-white"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    )}
+    {/* Wraps rather than run past the card on a narrow one (the card clips). */}
+    <div className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto">
+      {busyKey === scenario._key ? (
+        <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">Working…</span>
+      ) : confirming && removal ? (
+        <>
+          <span className="text-slate-800 dark:text-slate-200">{removal.confirm}</span>
+          <button
+            type="button"
+            onClick={() => handleDelete(scenario)}
+            className="h-[26px] px-2 rounded-lg bg-[#e60000] hover:bg-[#ff2020] text-white cursor-pointer shadow-2xs whitespace-nowrap"
+          >
+            {removal.yes}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmKey(null)}
+            className="h-[26px] px-2 rounded-lg border bg-white/90 dark:bg-black/40 border-black/10 dark:border-white/15 text-slate-800 dark:text-slate-200 cursor-pointer"
+          >
+            No
+          </button>
+        </>
+      ) : (
+        <>
       {/* Edit */}
       <button
         type="button"
         onClick={() => handleEdit(scenario)}
+        title={actions.editMode === 'copy' ? 'Edit your own copy (only you see it)' : undefined}
         className={`
           h-[26px]
           px-2
@@ -1052,31 +1142,65 @@ const Scenarios = () => {
         Edit
       </button>
 
-      {/* Delete */}
-      <button
-        type="button"
-        onClick={() => handleDelete(scenario)}
-        className="
-          h-[26px]
-          px-2
-          rounded-lg
-          bg-[#e60000]
-          hover:bg-[#ff2020]
-          text-white
-          text-[9.5px]
-          font-bold
-          flex
-          items-center
-          justify-center
-          gap-1
-          transition-colors
-          cursor-pointer
-        "
-      >
-        <Trash2 className="w-3 h-3" />
-        Delete
-      </button>
+      {/* Delete / Reset to original / Discard changes — own rows only */}
+      {removal && (
+        <button
+          type="button"
+          onClick={() => {
+            setCardError(null);
+            setConfirmKey(scenario._key);
+          }}
+          className="
+            h-[26px]
+            px-2
+            rounded-lg
+            bg-[#e60000]
+            hover:bg-[#ff2020]
+            text-white
+            text-[9.5px]
+            font-bold
+            flex
+            items-center
+            justify-center
+            gap-1
+            transition-colors
+            cursor-pointer
+            whitespace-nowrap
+          "
+        >
+          {actions.deleteKind === 'delete' ? <Trash2 className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />}
+          {removal.label}
+        </button>
+      )}
 
+      {/* A shared scenario of one's own stays: a sent campaign used it. */}
+      {actions.deleteBlocked && (
+        <button
+          type="button"
+          aria-disabled="true"
+          title={actions.deleteBlocked}
+          onClick={(e) => e.preventDefault()}
+          className="
+            h-[26px]
+            px-2
+            rounded-lg
+            bg-[#e60000]/35
+            text-white/90
+            text-[9.5px]
+            font-bold
+            flex
+            items-center
+            justify-center
+            gap-1
+            cursor-not-allowed
+          "
+        >
+          <Trash2 className="w-3 h-3" />
+          Delete
+        </button>
+      )}
+        </>
+      )}
     </div>
   </div>
 );
@@ -1263,8 +1387,12 @@ const Scenarios = () => {
       <DraftDialog
         open={resumePromptOpen && Boolean(inProgressInfo)}
         isDark={isDark}
-        title="Continue your scenario?"
-        body={`You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.${
+        title={inProgressInfo?.editing ? `Continue editing ${inProgressInfo.editing.name}?` : 'Continue your scenario?'}
+        body={`${
+          inProgressInfo?.editing
+            ? 'You have unsaved changes to this scenario. Pick up where you left off, or start a new scenario. Your changes stay under Scenarios → Drafts either way.'
+            : 'You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.'
+        }${
           inProgressInfo?.needsCoverReattach
             ? ' Its uploaded cover image could not be kept and will need to be attached again.'
             : ''

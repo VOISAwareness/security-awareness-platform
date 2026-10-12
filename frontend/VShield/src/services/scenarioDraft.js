@@ -8,8 +8,15 @@
  * landing page, training path or cover) was copied into formData when chosen, so
  * saving or restoring a draft never reads back into, or writes to, a template.
  *
- * Stored shape of one draft: { version, savedAt, activeTab, formData }. Where
- * drafts are kept, and how many, is scenarioDraftList.js's business.
+ * Stored shape of one draft: { version, savedAt, activeTab, formData, edit? }.
+ * Where drafts are kept, and how many, is scenarioDraftList.js's business.
+ *
+ * An EDIT draft (Scenarios → Edit) also records what it edits:
+ *   edit: { scenarioId, mode, name, ownership?, baseline? }
+ * mode is how Save stores it (scenarioOwnership.js: 'copy' | 'revision' |
+ * 'update'), name the scenario's name when the edit began, and baseline a
+ * fingerprint of the form as it opened, so an edit only becomes a draft once
+ * something in it actually changed.
  */
 
 // The one-draft-per-person key used before drafts were listed; now only read,
@@ -58,6 +65,12 @@ const isBlobLike = (value) =>
 
 const isBlobUrl = (value) => typeof value === 'string' && value.startsWith('blob:');
 
+// A presigned S3 link (an uploaded cover the API handed back signed): it stops
+// working within the hour, and the draft keeps the cover's key instead.
+const isPresignedUrl = (value) => typeof value === 'string' && /^https?:\/\/[^?\s]+\?\S*X-Amz-/.test(value);
+
+const EDIT_MODES = new Set(['copy', 'revision', 'update']);
+
 const clampStep = (step) => {
   const n = Number.parseInt(step, 10);
   if (!Number.isFinite(n) || n < 0) return 0;
@@ -66,12 +79,13 @@ const clampStep = (step) => {
 
 /**
  * Deep copy that keeps only what JSON can carry and a reload can use. Drops
- * Files/Blobs, blob: URLs (dead after a reload), functions, class instances
+ * Files/Blobs, blob: URLs (dead after a reload), presigned links (dead within
+ * the hour), functions, class instances
  * (DOM nodes, Dates) and cycles. Returns undefined for a dropped value.
  */
 function sanitize(value, seen) {
   if (value === null) return null;
-  if (typeof value === 'string') return isBlobUrl(value) ? undefined : value;
+  if (typeof value === 'string') return isBlobUrl(value) || isPresignedUrl(value) ? undefined : value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
   if (typeof value === 'boolean') return value;
   if (typeof value !== 'object' || isBlobLike(value) || seen.has(value)) return undefined;
@@ -108,13 +122,33 @@ export function toDraftFormData(formData = {}) {
   return out;
 }
 
-export function buildDraft(formData, activeTab, now = new Date()) {
-  return {
-    version: SCENARIO_DRAFT_VERSION,
-    savedAt: now.toISOString(),
-    activeTab: clampStep(activeTab),
-    formData: toDraftFormData(formData),
-  };
+/** What an edit draft records about the scenario it edits, or null if `raw` is not one. */
+export function parseEdit(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const scenarioId = typeof raw.scenarioId === 'string' ? raw.scenarioId.trim() : '';
+  if (!scenarioId || !EDIT_MODES.has(raw.mode)) return null;
+  const edit = { scenarioId, mode: raw.mode, name: typeof raw.name === 'string' ? raw.name.trim() : '' };
+  if (typeof raw.ownership === 'string' && raw.ownership) edit.ownership = raw.ownership;
+  if (typeof raw.baseline === 'string' && raw.baseline) edit.baseline = raw.baseline;
+  return edit;
+}
+
+// `edit` only when there is one, so a new scenario's draft keeps its shape.
+const withEdit = (draft, raw) => {
+  const edit = parseEdit(raw);
+  return edit ? { ...draft, edit } : draft;
+};
+
+export function buildDraft(formData, activeTab, now = new Date(), edit = null) {
+  return withEdit(
+    {
+      version: SCENARIO_DRAFT_VERSION,
+      savedAt: now.toISOString(),
+      activeTab: clampStep(activeTab),
+      formData: toDraftFormData(formData),
+    },
+    edit
+  );
 }
 
 /** A stored value back into a draft, or null if it is missing, foreign or from another schema. */
@@ -122,17 +156,26 @@ export function parseDraft(raw) {
   if (!raw || typeof raw !== 'object') return null;
   if (raw.version !== SCENARIO_DRAFT_VERSION) return null;
   if (!raw.formData || typeof raw.formData !== 'object' || Array.isArray(raw.formData)) return null;
-  return {
-    version: raw.version,
-    savedAt: typeof raw.savedAt === 'string' ? raw.savedAt : '',
-    activeTab: clampStep(raw.activeTab),
-    formData: raw.formData,
-  };
+  return withEdit(
+    {
+      version: raw.version,
+      savedAt: typeof raw.savedAt === 'string' ? raw.savedAt : '',
+      activeTab: clampStep(raw.activeTab),
+      formData: raw.formData,
+    },
+    raw.edit
+  );
 }
 
-/** True when the draft holds work worth offering back ("Continue your scenario?"). */
+/**
+ * True when the draft holds work worth offering back ("Continue your scenario?").
+ * An edit counts once its form differs from the scenario as it opened (going
+ * through the steps alone is not work); a new scenario once anything is filled
+ * in beyond the defaults, or the author got past the first step.
+ */
 export function isMeaningfulDraft(draft, defaults = {}) {
   if (!draft || !draft.formData) return false;
+  if (draft.edit) return !draft.edit.baseline || formFingerprint(draft.formData) !== draft.edit.baseline;
   if (clampStep(draft.activeTab) > 0) return true;
   return MEANINGFUL_FIELDS.some((field) => {
     const value = draft.formData[field];
@@ -149,6 +192,7 @@ export function isMeaningfulDraft(draft, defaults = {}) {
  * is not saved), so it is cleared and flagged for the author to attach again.
  */
 export function fromDraft(draft) {
+  const edit = parseEdit(draft?.edit);
   const form = { ...(draft?.formData || {}), coverImage: null };
 
   if (form.coverImageSource === 'upload') {
@@ -163,7 +207,8 @@ export function fromDraft(draft) {
     }
   }
 
-  return { formData: form, activeTab: clampStep(draft?.activeTab) };
+  const restored = { formData: form, activeTab: clampStep(draft?.activeTab) };
+  return edit ? { ...restored, edit } : restored;
 }
 
 // The content of a draft in a comparable form: keys sorted, and empty values
@@ -183,6 +228,21 @@ function contentKey(formData, activeTab) {
 }
 
 /**
+ * A short fingerprint of a form's content (as contentKey reads it), so an edit
+ * draft can tell whether anything changed since the scenario was opened
+ * without storing the whole original. FNV-1a, 32 bits.
+ */
+export function formFingerprint(formData) {
+  const text = contentKey(formData, 0);
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${text.length.toString(36)}-${hash.toString(36)}`;
+}
+
+/**
  * Does `draft` hold exactly what is already `stored` (same form, same step)?
  * Also true when it is the stored draft as a resume reads it back (fromDraft),
  * so opening a draft and leaving it untouched is not mistaken for new work.
@@ -199,7 +259,7 @@ export function sameDraftContent(draft, stored) {
 export function draftSummary(draft) {
   const form = draft?.formData || {};
   const step = clampStep(draft?.activeTab);
-  return {
+  const summary = {
     name: String(form.scenarioName || '').trim() || 'Untitled scenario',
     scenarioId: String(form.scenarioId || '').trim(),
     description: String(form.description || '').trim(),
@@ -216,6 +276,11 @@ export function draftSummary(draft) {
       (form.coverImageSource === 'upload' && !form.coverImageKey) ||
       Boolean(form.coverImageReattach),
   };
+  // An edit: which scenario it edits, named as it was when the edit began.
+  const edit = parseEdit(draft?.edit);
+  return edit
+    ? { ...summary, editing: { scenarioId: edit.scenarioId, mode: edit.mode, name: edit.name || summary.name } }
+    : summary;
 }
 
 /**

@@ -253,8 +253,10 @@ const ChooseAScenario = () => {
       setScenariosList(list);
       setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
     };
+    // What this person may use: their own copies and pending edits stand in
+    // for the scenarios they replace.
     api.scenarios
-      .list()
+      .list({ viewer: currentActor() })
       .then(apply)
       .catch((e) => {
         console.error('Failed to load scenarios', e);

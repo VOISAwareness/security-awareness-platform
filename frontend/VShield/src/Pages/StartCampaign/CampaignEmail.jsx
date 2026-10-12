@@ -30,6 +30,7 @@ import {
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { currentActor } from '../../services/identity';
 import { IN_WIZARD } from '../../services/campaignWizard';
 import { TOP_COUNT, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
@@ -170,7 +171,7 @@ const CampaignEmail = () => {
  useEffect(() => {
   let active = true;
   api.scenarios
-   .list()
+   .list({ viewer: currentActor() })
    .then((rows) => {
     if (active && Array.isArray(rows) && rows.length) setLibraryScenarios(rows);
    })

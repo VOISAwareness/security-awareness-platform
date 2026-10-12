@@ -15,13 +15,16 @@
  *  - the question is asked about each draft once (resumePrompt.js): either
  *    answer counts, and only work saved after it asks again. So a draft opened
  *    and left untouched is not written again (its savedAt stays the same);
- *  - after a successful publish the draft is removed and saving stops.
+ *  - after a successful publish the draft is removed and saving stops;
+ *  - an edit of a saved scenario (Scenarios → Edit) is saved the same way,
+ *    recording what it edits (`edit`), from its first actual change.
  *
  * Which draft the editor opens on is decided before its first render by
  * scenarioEditorOpening() (an explicit ?draft=<id> opens that one directly), so
  * the form can start from it.
  *
- * Only the author's own new scenario is stored here; templates are never written.
+ * Only the author's own work is stored here, in this browser; nothing is
+ * written to a template or to the scenario being edited until Save.
  * The pure rules (what is stripped, what counts as work) live in scenarioDraft.js.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -43,15 +46,17 @@ const SAVE_DEBOUNCE_MS = 400;
  * @param activeTab the wizard's current step (0-3)
  * @param defaults  pre-filled values that are not the author's work
  * @param opening   scenarioEditorOpening()'s result, computed once by the page
+ * @param edit      for an edit, what it edits ({ scenarioId, mode, name, ownership,
+ *                  baseline }, see scenarioDraft.js); null for a new scenario
  * @returns draftId    the draft this editor saves to
  *          offer      summary of the scenario in progress awaiting Continue / Start new, or null
- *          resume()   accept the offer; returns { formData, activeTab } to apply
+ *          resume()   accept the offer; returns { formData, activeTab, edit? } to apply
  *          startNew() keep that draft (Scenarios → Drafts) and carry on with a new one
  *                     (also what closing the dialog does)
  *          clear()    remove this draft and stop saving (after a successful publish)
  *          saveFailed true when the browser refused the last save (storage full)
  */
-export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
+export function useScenarioDraft({ formData, activeTab, defaults, opening, edit = null }) {
   // Resolved once: signing out unmounts this page, and the final flush must
   // still land under the person who did the work.
   const [actor] = useState(() => currentActor());
@@ -71,6 +76,11 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
   useEffect(() => {
     defaultsRef.current = defaults;
   }, [defaults]);
+  // Likewise the edit record, which only the flush reads.
+  const editRef = useRef(edit);
+  useEffect(() => {
+    editRef.current = edit;
+  }, [edit]);
 
   // A draft opened directly (from Scenarios → Drafts) is now the one in progress.
   useEffect(() => {
@@ -86,7 +96,7 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
     pendingRef.current = null;
     if (!pending || stoppedRef.current) return;
 
-    const draft = buildDraft(pending.formData, pending.activeTab);
+    const draft = buildDraft(pending.formData, pending.activeTab, new Date(), editRef.current);
     if (isMeaningfulDraft(draft, defaultsRef.current)) {
       // Nothing changed since it was saved (a draft just opened): writing it
       // again would only move its savedAt, and with it bring back "Continue

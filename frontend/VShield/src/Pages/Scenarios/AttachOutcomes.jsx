@@ -1093,6 +1093,10 @@ const AttachOutcomesTab = ({
       coverImageThumbnail: '',
 
       coverImageReattach: '',
+
+      // An edited scenario's stored cover goes too (scenarioMapper's
+      // toEditFormData); a new scenario never has one here.
+      CoverImageID: '',
     }));
 
   };

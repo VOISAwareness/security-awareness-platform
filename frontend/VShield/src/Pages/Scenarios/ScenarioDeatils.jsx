@@ -3,12 +3,17 @@ import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
 import { api } from "../../services/api";
-import { catalogueCoverName, landingPageChoice, toStoredScenario } from "../../services/scenarioMapper";
-import { fromDraft, reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
+import { catalogueCoverName, landingPageChoice, toEditFormData, toStoredScenario } from "../../services/scenarioMapper";
+import { formFingerprint, fromDraft, reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
 import { scenarioEditorOpening } from "../../services/scenarioDraftList";
 import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
+import { currentActor } from "../../services/identity";
+import { editContext, editNote, idLockHint, retryOnExisting, savedAudience, toSavePayload } from "../../services/scenarioOwnership";
 import DraftDialog from '../../GlobalComponents/DraftDialog';
+import PageLoading from '../../GlobalComponents/PageLoading';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
+import trainingPathsJson from '../Training/TrainingPath.json';
+import trainingQuizzesJson from '../Training/TrainingQuiz.json';
 import RenderEditorWorkspace from './RenderEditorWorkspace';
 import { DEFAULT_EMAIL_BODY, SCENARIO_DRAFT_DEFAULTS } from "./scenarioDraftDefaults";
 import AttachOutcomesTab from "./AttachOutcomes";
@@ -85,21 +90,30 @@ const FX_PARAMETERS = [
 // ============================================================
 // REUSABLE INPUT (dark bg updated for contrast against tinted L-shape)
 // ============================================================
-const FormInput = ({ label, value, onChange, placeholder = 'Type here', disabled = false }) => {
+// `disabled` shows the value read-only (the scenario ID while editing), with
+// `hint` saying why on hover.
+const FormInput = ({ label, value, onChange, placeholder = 'Type here', disabled = false, hint = '' }) => {
   return (
     <div className="flex flex-col gap-0.5">
       <label className="text-[12.5px] mb-2 font-bold text-slate-900 dark:text-white leading-none">
         {label} <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
       </label>
-      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900">
+      <div
+        title={hint || undefined}
+        className={`w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative ${
+          disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'
+        }`}
+      >
             <input
         type="text"
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
+        readOnly={disabled}
+        aria-readonly={disabled || undefined}
         className="
-          w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400
+          w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400 disabled:cursor-not-allowed
         "
       />
            </div>
@@ -117,6 +131,12 @@ const FormSelect = ({
   onChange,
   options = [],
 }) => {
+  // A stored scenario can carry a value these options don't offer ("Credential
+  // theft"); it is listed too, so editing shows it instead of "Select".
+  const shown =
+    value && !options.some((option) => option.value === value)
+      ? [...options, { value, label: value }]
+      : options;
   return (
     <div className="flex flex-col gap-0.5">
       <label className="text-[12.5px] mb-2 font-bold text-slate-900 dark:text-white leading-none">
@@ -136,7 +156,7 @@ const FormSelect = ({
       >
         <option value="">Select</option>
 
-        {options.map((option) => (
+        {shown.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -204,14 +224,14 @@ const FormTextarea = ({
 // NewScenario's main return, so it no longer carries its own
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
-const ScenarioTabs = ({ activeTab, onTabChange }) => {
+const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
   const { isDark } = useUserType?.() || { isDark: false };
 
   const steps = [
     { id: 0, titleLine1: 'Scenario', titleLine2: 'Details' },
     { id: 1, titleLine1: 'Email', titleLine2: 'Details' },
     { id: 2, titleLine1: 'Attach', titleLine2: 'Outcomes' },
-    { id: 3, titleLine1: 'Review &', titleLine2: 'Publish' },
+    { id: 3, titleLine1: 'Review &', titleLine2: editing ? 'Save' : 'Publish' },
   ];
 
   return (
@@ -325,6 +345,8 @@ const ScenarioDetailsTab = ({
   goNext,
   goBack,
   setErrorMsg,
+  // While editing, the scenario's ID can't change; this says why.
+  idLockedHint = '',
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
 
@@ -527,6 +549,8 @@ const ScenarioDetailsTab = ({
                   )
                 }
                 placeholder="SC-001"
+                disabled={Boolean(idLockedHint)}
+                hint={idLockedHint}
               />
 
               <FormInput
@@ -828,6 +852,28 @@ const ColorField = ({
 };
 
 // ============================================================
+// EDITING A SAVED SCENARIO
+// ============================================================
+// The wizard's form for a stored scenario, with the cover, landing page and
+// training path picked again from the catalogues the wizard offers.
+const editPrefill = (row) =>
+  toEditFormData(row, {
+    coverImages: imageCatalogue,
+    landingPages: initialLandingCatalogues?.landingPages || [],
+    trainingPaths: trainingPathsJson,
+    trainingQuizzes: trainingQuizzesJson,
+  });
+
+// Opened by address (a reload before the first change, or a link): the row as
+// this person sees it, annotated with its ownership; a row the list doesn't
+// carry (say one their own copy stands in for) is read directly.
+async function loadScenarioToEdit(scenarioId, viewer) {
+  const rows = await api.scenarios.list({ viewer }).catch(() => []);
+  const listed = Array.isArray(rows) ? rows.find((r) => String(r?.scenarioId) === scenarioId) : null;
+  return listed || api.scenarios.get(scenarioId);
+}
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 const ScenarioDeatils = () => {
@@ -837,20 +883,32 @@ const ScenarioDeatils = () => {
 
   // Which draft this editor works on, decided before the first render so the
   // form can start from it: ?draft=<id> (Scenarios → Drafts) opens that draft;
-  // otherwise a new one, with the scenario in progress offered back first unless
-  // the author just chose "Start new" or was already asked about it.
+  // ?edit=<scenarioId> (Scenarios → Edit) opens the unfinished edit of that
+  // scenario, or starts one; otherwise a new one, with the scenario in progress
+  // offered back first unless the author just chose "Start new" or was already
+  // asked about it.
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [viewer] = useState(() => currentActor());
   const [draftOpening] = useState(() =>
     scenarioEditorOpening({
       requestedId: searchParams.get('draft') || '',
       startFresh: Boolean(location.state?.startFresh),
+      editId: searchParams.get('edit') || '',
       defaults: SCENARIO_DRAFT_DEFAULTS,
     })
   );
   const [openedDraft] = useState(() =>
     draftOpening.resume ? fromDraft(draftOpening.resume) : null
   );
+  // A new edit (nothing saved for it yet): the scenario to edit, handed over by
+  // the Scenarios list, or fetched below when the editor was reloaded or linked.
+  const [editRequest] = useState(() => {
+    const scenarioId = searchParams.get('edit') || '';
+    if (!scenarioId || draftOpening.resume) return null;
+    const row = location.state?.row;
+    return { scenarioId, row: row && String(row.scenarioId) === scenarioId ? row : null };
+  });
   // Which Scenarios tab opened the editor, for BACK on the first step. Read
   // before the address is rewritten (below), which drops the history state.
   const [openedFrom] = useState(() => (location.state?.from === 'drafts' ? 'drafts' : 'all'));
@@ -864,6 +922,8 @@ const ScenarioDeatils = () => {
  const navigate = useNavigate();
    const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
+  // Saved, but the new cover of a copy / revision could not be added after it.
+  const [coverWarning, setCoverWarning] = useState('');
 
   // ==========================================================
 // AUTO DISMISS VALIDATION TOAST
@@ -967,7 +1027,52 @@ useEffect(() => {
     outcomeSource: '',
     // A draft opened from Scenarios → Drafts.
     ...(openedDraft?.formData || {}),
+    // Or the scenario being edited, as the Scenarios list handed it over.
+    ...(editRequest?.row ? editPrefill(editRequest.row) : {}),
   }));
+
+  // ==========================================================
+  // EDIT MODE (Scenarios → Edit)
+  // `edit` = { scenarioId, mode, name, ownership, baseline }: what is being
+  // edited and how Save stores it (scenarioOwnership.js) — a copy of a template
+  // or of someone else's shared scenario, a pending revision of the author's
+  // own shared one, or an update of their own. Null for a new scenario.
+  // baseline fingerprints the form as it opened, so the edit only becomes a
+  // draft (Scenarios → Drafts) once something in it changes.
+  // ==========================================================
+  const [edit, setEdit] = useState(() => {
+    if (openedDraft?.edit) return openedDraft.edit;
+    if (!editRequest?.row) return null;
+    return { ...editContext(editRequest.row, viewer), baseline: formFingerprint(formData) };
+  });
+  const [editLoading, setEditLoading] = useState(() => Boolean(editRequest && !editRequest.row));
+  const [openError, setOpenError] = useState('');
+
+  // The blank form, kept to lay a fetched scenario over (the form is covered
+  // while it loads, so nothing typed can be lost).
+  const [blankForm] = useState(formData);
+  useEffect(() => {
+    if (!editRequest || editRequest.row) return undefined;
+    let active = true;
+    loadScenarioToEdit(editRequest.scenarioId, viewer)
+      .then((row) => {
+        if (!active) return;
+        const next = { ...blankForm, ...editPrefill(row) };
+        setFormData(next);
+        setEdit({ ...editContext(row, viewer), baseline: formFingerprint(next) });
+      })
+      .catch((error) => {
+        if (active) {
+          setOpenError(`Couldn't open ${editRequest.scenarioId} for editing: ${error?.message || 'not found'}.`);
+        }
+      })
+      .finally(() => {
+        if (active) setEditLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [editRequest, blankForm, viewer]);
 
   // ==========================================================
   // DRAFT SAVE / RESUME
@@ -980,16 +1085,27 @@ useEffect(() => {
     activeTab,
     defaults: SCENARIO_DRAFT_DEFAULTS,
     opening: draftOpening,
+    edit,
   });
 
   // Keep the draft in the address (?draft=<id>), so a reload reopens the same
-  // scenario. Replacing the history entry also drops a "Start new" flag.
+  // scenario. Replacing the history entry also drops a "Start new" flag. An
+  // edit keeps ?edit=<scenarioId> too, for a reload before its first change.
   const editingDraftId = scenarioDraft.offer ? '' : scenarioDraft.draftId;
+  const editingScenarioId = edit?.scenarioId || editRequest?.scenarioId || '';
   useEffect(() => {
-    if (editingDraftId && searchParams.get('draft') !== editingDraftId) {
-      setSearchParams({ draft: editingDraftId }, { replace: true, state: null });
+    if (!editingDraftId) return;
+    if (
+      searchParams.get('draft') === editingDraftId &&
+      (searchParams.get('edit') || '') === editingScenarioId
+    ) {
+      return;
     }
-  }, [editingDraftId, searchParams, setSearchParams]);
+    setSearchParams(
+      editingScenarioId ? { edit: editingScenarioId, draft: editingDraftId } : { draft: editingDraftId },
+      { replace: true, state: null }
+    );
+  }, [editingDraftId, editingScenarioId, searchParams, setSearchParams]);
 
   const handleContinueDraft = () => {
     const restored = scenarioDraft.resume();
@@ -1001,6 +1117,8 @@ useEffect(() => {
       ...restored.formData,
     }));
     setActiveTab(restored.activeTab);
+    // The scenario in progress may be an unfinished edit.
+    setEdit(restored.edit || null);
   };
 
   // "Start new" keeps the saved draft (Scenarios → Drafts) and carries on with a
@@ -1010,6 +1128,7 @@ useEffect(() => {
   const { startNew: handleStartNewDraft } = scenarioDraft;
 
   const draftOffer = scenarioDraft.offer;
+  const offeredEdit = draftOffer?.editing || null;
   const draftSavedAt = draftOffer?.savedAt
     ? new Date(draftOffer.savedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -1048,6 +1167,14 @@ useEffect(() => {
     // The same id Publish will send, so the key's folder matches the scenario.
     const scenarioId = formData.scenarioId;
     if (!scenarioId?.trim()) {
+      coverUploadRef.current = null;
+      return;
+    }
+
+    // A copy or revision is saved as a NEW scenario, whose id the API assigns.
+    // Its cover is uploaded under that id after Save creates it, never into the
+    // folder of the scenario it was made from (the id shown here).
+    if (edit && edit.mode !== 'update') {
       coverUploadRef.current = null;
       return;
     }
@@ -1220,6 +1347,7 @@ const handlePublishScenario = async () => {
   setIsPublishing(true);
   setErrorMsg('');
   setSaveError('');
+  setCoverWarning('');
 
   try {
     // Link the landing page the author attached. A catalogue pick is linked by
@@ -1241,6 +1369,11 @@ const handlePublishScenario = async () => {
       }
     }
 
+    if (edit) {
+      await saveEdit(landingPageId);
+      return;
+    }
+
     let coverImageId = '';
     if (formData.coverImageSource === 'upload') {
       coverImageId = await resolveUploadedCoverKey();
@@ -1251,9 +1384,12 @@ const handlePublishScenario = async () => {
       coverImageId = catalogueCoverName(chosen?.image);
     }
 
-    await api.scenarios.create(
-      toStoredScenario(formData, { coverImageId, landingPageId })
-    );
+    // A new scenario is its author's: private to them until a campaign using
+    // it is sent (client-asserted until sign-in exists; see identity.js).
+    await api.scenarios.create({
+      ...toStoredScenario(formData, { coverImageId, landingPageId }),
+      createdBy: viewer,
+    });
     // Published: the saved draft is done with. Cleared now rather than on
     // "Return to Dashboard", so closing the tab here can't offer it back.
     scenarioDraft.clear();
@@ -1261,14 +1397,82 @@ const handlePublishScenario = async () => {
   } catch (error) {
     // Never show the success modal on failure — the author would leave
     // believing the scenario was saved when nothing was written.
-    console.error('Failed to publish scenario:', error);
+    console.error(edit ? 'Failed to save scenario changes:' : 'Failed to publish scenario:', error);
     setSaveError(
-      error?.message || 'Could not publish the scenario. Please try again.'
+      error?.message ||
+        (edit ? 'Could not save your changes. Please try again.' : 'Could not publish the scenario. Please try again.')
     );
   } finally {
     setIsPublishing(false);
   }
 };
+
+  // ==========================================================
+  // SAVE CHANGES (edit mode)
+  // copy / revision: POST a new scenario the API names (copyOf / revisionOf);
+  // update: PUT the author's own row. A new cover for a copy or revision is
+  // uploaded under the new row's id once it exists, then saved onto it.
+  // ==========================================================
+  const saveEdit = async (landingPageId) => {
+    let coverImageId; // undefined keeps the cover the scenario already has
+    let newCover = null;
+    if (formData.coverImageSource === 'upload') {
+      if (edit.mode === 'update') {
+        coverImageId = (await resolveUploadedCoverKey()) || undefined;
+      } else if (formData.coverImage) {
+        newCover = formData.coverImage;
+      } else if (formData.coverImageKey) {
+        coverImageId = formData.coverImageKey;
+      }
+    } else if (formData.selectedCatalogueImageId) {
+      const chosen = imageCatalogue.find(
+        (img) => img.id === formData.selectedCatalogueImageId
+      );
+      coverImageId = catalogueCoverName(chosen?.image) || undefined;
+    }
+
+    let plan = toSavePayload(formData, {
+      mode: edit.mode,
+      row: { scenarioId: edit.scenarioId },
+      viewer,
+      coverImageId,
+      landingPageId,
+    });
+    const send = (request) =>
+      request.method === 'PUT'
+        ? api.scenarios.update(request.id, request.body, viewer)
+        : api.scenarios.create(request.body);
+
+    let saved;
+    try {
+      saved = await send(plan);
+    } catch (error) {
+      // They already have a copy (or a pending edit) of it: save onto that one.
+      const retry = retryOnExisting(plan, error, viewer);
+      if (!retry) throw error;
+      plan = retry;
+      saved = await send(plan);
+    }
+    // Saved: the edit draft is done with.
+    scenarioDraft.clear();
+
+    const savedId = plan.method === 'PUT' ? plan.id : String(saved?.scenarioId || '');
+    if (newCover && savedId) {
+      try {
+        const key = await api.scenarios.uploadCover({
+          scenarioId: savedId,
+          file: withUniqueCoverName(newCover),
+        });
+        await api.scenarios.update(savedId, { CoverImageID: key }, viewer);
+      } catch (error) {
+        console.error('Saved, but the new cover was not:', error);
+        setCoverWarning(
+          `The new cover image couldn't be added (${error?.message || 'upload failed'}). Edit your version to add it again.`
+        );
+      }
+    }
+    setPublishSuccessModal(true);
+  };
 
   return (
     <>
@@ -1339,9 +1543,26 @@ const handlePublishScenario = async () => {
             dark:text-white
             tracking-tight
           ">
-            Campaign Launched!
+            {edit ? 'Saved' : 'Campaign Launched!'}
           </h3>
 
+          {edit ? (
+            <p className="
+              text-xs
+              text-slate-600
+              dark:text-slate-300
+              mt-1
+              leading-relaxed
+            ">
+              Your changes to
+              <strong>
+                {" "}
+                "{formData.scenarioName || edit.name || 'this scenario'}"
+              </strong>
+              {" "}
+              are saved. {savedAudience(edit)}
+            </p>
+          ) : (
           <p className="
             text-xs
             text-slate-600
@@ -1357,6 +1578,12 @@ const handlePublishScenario = async () => {
             {" "}
             has been successfully scheduled and published.
           </p>
+          )}
+          {coverWarning && (
+            <p role="alert" className="mt-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-snug">
+              {coverWarning}
+            </p>
+          )}
         </div>
 
         {/* Return Button */}
@@ -1398,8 +1625,12 @@ const handlePublishScenario = async () => {
       <DraftDialog
         open={Boolean(draftOffer)}
         isDark={isDark}
-        title="Continue your scenario?"
-        body={`You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.${
+        title={offeredEdit ? `Continue editing ${offeredEdit.name}?` : 'Continue your scenario?'}
+        body={`${
+          offeredEdit
+            ? 'You have unsaved changes to this scenario. Pick up where you left off, or start a new scenario. Your changes stay under Scenarios → Drafts either way.'
+            : 'You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.'
+        }${
           draftOffer?.needsCoverReattach
             ? ' Its uploaded cover image could not be kept and will need to be attached again.'
             : ''
@@ -1425,7 +1656,7 @@ const handlePublishScenario = async () => {
       {/* ====================================================
     TOP-RIGHT VALIDATION TOAST
 ==================================================== */}
-{(saveError || errorMsg) &&
+{(saveError || openError || errorMsg) &&
   typeof document !== 'undefined' &&
   createPortal(
     <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
@@ -1438,18 +1669,18 @@ const handlePublishScenario = async () => {
       {/* Error Message */}
       <div className="flex flex-col text-left leading-tight flex-1">
         <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-          {saveError ? 'Scenario Not Saved' : 'Input Required'}
+          {saveError ? 'Scenario Not Saved' : openError ? 'Scenario Not Opened' : 'Input Required'}
         </span>
 
         <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-          {saveError || errorMsg}
+          {saveError || openError || errorMsg}
         </span>
       </div>
 
       {/* Close Button */}
       <button
         type="button"
-        onClick={() => { setErrorMsg(''); setSaveError(''); }}
+        onClick={() => { setErrorMsg(''); setSaveError(''); setOpenError(''); }}
         className="p-1 rounded text-slate-400 hover:text-black cursor-pointer flex-shrink-0"
       >
         <X className="w-3.5 h-3.5" />
@@ -1500,9 +1731,17 @@ const handlePublishScenario = async () => {
             }
           `}
         >
-          <span className="text-[13px] font-bold tracking-tight uppercase">
-            CREATE NEW SCENARIO
-          </span>
+          <div className="flex items-baseline gap-3 min-w-0">
+            <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
+              {edit ? 'EDIT SCENARIO' : 'CREATE NEW SCENARIO'}
+            </span>
+            {/* What Save will do with this edit (a copy, a pending revision...). */}
+            {edit && (
+              <span className="text-[10.5px] font-semibold normal-case opacity-75 truncate">
+                {edit.name ? `${edit.name} · ` : ''}{editNote(edit)}
+              </span>
+            )}
+          </div>
           {scenarioDraft.saveFailed && (
             <span
               role="status"
@@ -1522,6 +1761,7 @@ const handlePublishScenario = async () => {
         ==================================================== */}
         <div
           className={`
+            relative
             w-full
             rounded-2xl
             border
@@ -1535,9 +1775,13 @@ const handlePublishScenario = async () => {
             }
           `}
         >
+          {/* The scenario to edit is on its way from the server. */}
+          <PageLoading show={editLoading} isDark={isDark} />
+
           <ScenarioTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            editing={Boolean(edit)}
           />
 
           <div
@@ -1558,6 +1802,7 @@ const handlePublishScenario = async () => {
                 goNext={goNext}
                 goBack={goBack}
                 setErrorMsg={setErrorMsg}
+                idLockedHint={edit ? idLockHint(edit) : ''}
               />
             )}
 
@@ -1645,8 +1890,8 @@ const handlePublishScenario = async () => {
   type="button"
   onClick={goNext}
   disabled={activeTab === 3 && isPublishing}
-  className="
-    w-[90px]
+  className={`
+    ${edit && activeTab === 3 ? 'min-w-[90px] px-3' : 'w-[90px]'}
     h-[24px]
     rounded-3xl
     bg-[#8ED973]
@@ -1667,12 +1912,12 @@ const handlePublishScenario = async () => {
     justify-center
     disabled:opacity-50
     disabled:cursor-not-allowed
-  "
+  `}
 >
   {activeTab === 3
     ? isPublishing
-      ? 'PUBLISHING...'
-      : 'PUBLISH'
+      ? (edit ? 'SAVING...' : 'PUBLISHING...')
+      : (edit ? 'SAVE CHANGES' : 'PUBLISH')
     : 'NEXT'}
 </button>
 </div>
