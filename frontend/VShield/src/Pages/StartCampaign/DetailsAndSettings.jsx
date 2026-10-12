@@ -12,7 +12,7 @@ import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -271,8 +271,6 @@ const DetailsAndSettings = () => {
               Start New Campaign
             </h1>
           </div>
-          {/* The campaign is on its way from the server. */}
-          <HeaderLoading show={draftLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}
@@ -283,6 +281,9 @@ const DetailsAndSettings = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
+          {/* The campaign is on its way from the server. */}
+          <PageLoading show={draftLoading} isDark={isDark} />
+
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${

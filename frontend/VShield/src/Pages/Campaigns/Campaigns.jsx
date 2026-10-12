@@ -30,7 +30,7 @@ import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage
 import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
 import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
 import { DEMO_USER } from '../../appConfig';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -462,14 +462,18 @@ const Campaigns = ({ isDark: propIsDark }) => {
               Campaigns
             </h1>
           </div>
-          <HeaderLoading show={loading} isDark={isDark} />
         </div>
 
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
+        {/* Grows to the foot of the page so the loading state is centred in
+            it, and is hidden while loading (it has no card behind it). */}
         <div 
           style={{ gap: `${VarSectionGap}px` }}
-          className="w-full flex flex-col lg:flex-row items-start"
+          className={`relative grow w-full flex flex-col lg:flex-row items-start ${loading ? 'invisible' : ''}`}
         >
+          {/* The campaigns are on their way from the server. */}
+          <PageLoading show={loading} isDark={isDark} surface="page" />
+
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 3 SWITCHER CAPSULES + MINI CALENDAR CARD                 */}
           {/* ========================================================================= */}

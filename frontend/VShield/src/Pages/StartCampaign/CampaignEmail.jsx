@@ -37,7 +37,7 @@ import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -1159,8 +1159,6 @@ const CampaignEmail = () => {
        Start New Campaign
       </h1>
      </div>
-     {/* The campaign is on its way from the server. */}
-     <HeaderLoading show={draftLoading} isDark={isDark} />
     </div>
 
     {/* ========================================================================= */}
@@ -1171,6 +1169,9 @@ const CampaignEmail = () => {
       isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
      }`}
     >
+     {/* The campaign is on its way from the server. */}
+     <PageLoading show={draftLoading} isDark={isDark} />
+
      {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
      <div
       className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
