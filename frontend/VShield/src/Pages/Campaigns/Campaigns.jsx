@@ -18,7 +18,7 @@ import {
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
 import { setActiveCampaignId } from '../../services/useCampaignDraft';
-import { IN_WIZARD, routeForStep } from '../../services/campaignWizard';
+import { IN_WIZARD, hasProgress, routeForStep } from '../../services/campaignWizard';
 import { DESIGN_STATUS, toDesignCampaign } from '../../services/campaignDesign';
 import { PHASE } from '../../services/campaignStatus';
 import { actorFor } from '../../services/identity';
@@ -223,11 +223,14 @@ const Campaigns = ({ isDark: propIsDark }) => {
         else if (c.phase === PHASE.LIVE) ongoing.push(c);
         else scheduled.push(c);
       } else if (
-        c.CampaignStatus === DESIGN_STATUS.DRAFTED ||
+        (c.CampaignStatus === DESIGN_STATUS.DRAFTED && hasProgress(c)) ||
         c.CampaignStatus === DESIGN_STATUS.FAILED
       ) {
         // Drafts are personal work in progress. Rows created before createdBy
-        // was recorded have no owner, so everyone still sees those.
+        // was recorded have no owner, so everyone still sees those. An empty
+        // draft (opened but never given a template, title or step) is not work
+        // in progress: older versions saved one on every visit to Start New
+        // Campaign, and it would only show as "Untitled campaign".
         const owner = String(c.CreatedBy || '').toLowerCase();
         if (!owner || owner === actor) drafts.push(c);
       }
