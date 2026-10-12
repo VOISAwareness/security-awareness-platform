@@ -37,6 +37,7 @@ import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { IN_WIZARD } from '../../services/campaignWizard';
+import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
@@ -838,14 +839,16 @@ const LandingPageDetails = () => {
       {/* 🌟 Inset Canvas Container (Framed on Left, Right & Bottom by outer container) */}
       <div className="flex-1 min-h-0 mx-2.5 mb-2.5 rounded-xl border border-white/20 dark:border-black/15 overflow-hidden bg-white dark:bg-[#15161A] flex flex-col shadow-inner">
         {rawHtmlMode ? (
-          <textarea
+          <HtmlCodeEditor
             value={rawHtmlCode}
-            onChange={(e) => {
-              setRawHtmlCode(e.target.value);
-              activeHtmlRef.current = e.target.value;
-              update({ landingPageContent: e.target.value });
+            onChange={(code) => {
+              setRawHtmlCode(code);
+              activeHtmlRef.current = code;
+              update({ landingPageContent: code });
             }}
-            className="w-full h-full p-3 font-mono-tech text-xs bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed"
+            fontSize={12}
+            className="rounded-none"
+            ariaLabel="Landing page HTML"
             placeholder="Design Canvas"
           />
         ) : (

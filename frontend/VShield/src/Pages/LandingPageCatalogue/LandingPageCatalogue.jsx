@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import LandingPageCatalogues from './LandingPageCatalogues.json';
 import { api } from '../../services/api';
+import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS
@@ -814,13 +815,15 @@ const LandingPageCatalogue = () => {
         {/* Main White Bordered Canvas Area */}
         <div className="flex-1 min-h-0 mx-2.5 mb-2.5 rounded-xl border border-white/20 overflow-hidden bg-white flex flex-col shadow-inner">
           {rawHtmlMode ? (
-            <textarea
+            <HtmlCodeEditor
               value={rawHtmlCode}
-              onChange={(e) => {
-                setRawHtmlCode(e.target.value);
-                activeHtmlRef.current = e.target.value;
+              onChange={(code) => {
+                setRawHtmlCode(code);
+                activeHtmlRef.current = code;
               }}
-              className="w-full h-full p-4 rounded-xl font-mono-tech text-xs bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed"
+              fontSize={12}
+              className="rounded-xl"
+              ariaLabel="Landing page HTML"
               placeholder="Enter custom HTML code here..."
             />
           ) : (

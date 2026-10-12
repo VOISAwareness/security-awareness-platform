@@ -33,6 +33,7 @@ import {
   X
 } from "lucide-react";
 import { createPortal } from "react-dom";
+import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 
 const FX_PARAMETERS = [
   { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
@@ -328,9 +329,7 @@ const LandingPageRichTextEditor = ({
     setRawHtmlMode(false);
   };
 
-  const handleRawHtmlChange = (event) => {
-    const updatedHtml = event.target.value;
-
+  const handleRawHtmlCode = (updatedHtml) => {
     setRawHtmlCode(updatedHtml);
     emitChange(updatedHtml);
   };
@@ -759,12 +758,11 @@ const LandingPageRichTextEditor = ({
           >
             <div className="w-full h-full overflow-y-auto">
               {rawHtmlMode ? (
-                <textarea
+                <HtmlCodeEditor
                   value={rawHtmlCode}
                   disabled={disabled}
-                  onChange={handleRawHtmlChange}
-                  spellCheck={false}
-                  className="w-full h-full p-2.5 font-mono text-[10.5px] bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed rounded-lg disabled:cursor-not-allowed disabled:opacity-70"
+                  onChange={handleRawHtmlCode}
+                  ariaLabel="Landing page HTML"
                   placeholder="Write email HTML code here..."
                 />
               ) : (
@@ -844,15 +842,16 @@ const LandingPageRichTextEditor = ({
             `}
           >
             {rawHtmlMode ? (
-              <textarea
+              <HtmlCodeEditor
                 value={rawHtmlCode}
                 disabled={disabled}
-                onChange={handleRawHtmlChange}
-                spellCheck={false}
-                className="h-full w-full resize-none bg-[#0f172a] p-4 font-mono text-xs leading-6 text-emerald-400 outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                onChange={handleRawHtmlCode}
+                fontSize={12}
+                className="rounded-none"
                 style={{
                   minHeight: expanded ? "calc(100vh - 82px)" : `${minHeight}px`
                 }}
+                ariaLabel="Landing page HTML"
                 placeholder="Enter HTML source code here..."
               />
             ) : (
