@@ -979,21 +979,10 @@ useEffect(() => {
     setActiveTab(restored.activeTab);
   };
 
-  // DraftDialog also routes Esc and backdrop clicks to its secondary action,
-  // but here that action deletes the saved draft. Only the button itself
-  // (which passes its click event) may do that; Esc and the backdrop leave the
-  // dialog open, so discarding work is always an explicit choice. Memoised
-  // because the dialog re-binds its Esc listener (and refocuses) when it changes.
-  const { startNew: startNewDraft } = scenarioDraft;
-  const handleStartNewDraft = useCallback(
-    (event) => {
-      if (event?.type !== 'click') {
-        return;
-      }
-      startNewDraft();
-    },
-    [startNewDraft]
-  );
+  // "Start new" deletes the saved draft, so only its button may do that: the
+  // dialog's Esc / backdrop dismissal is a no-op here and the dialog stays open.
+  const { startNew: handleStartNewDraft } = scenarioDraft;
+  const keepDraftDialogOpen = useCallback(() => {}, []);
 
   const draftOffer = scenarioDraft.offer;
   const draftSavedAt = draftOffer?.savedAt
@@ -1387,6 +1376,7 @@ const handlePublishScenario = async () => {
         onPrimary={handleContinueDraft}
         secondaryLabel="Start new"
         onSecondary={handleStartNewDraft}
+        onDismiss={keepDraftDialogOpen}
       />
       <style>{VODAFONE_FONT_STYLE}</style>
       {/* ====================================================

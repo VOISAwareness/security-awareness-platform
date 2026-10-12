@@ -6,7 +6,8 @@ import { VarLayoutScale } from './Layout';
 // A small two-choice dialog for draft decisions: "Continue where you left off /
 // Start a new one", or "Replace your edits with this template? / Keep them".
 // Portalled to <body>, so it re-applies the app shell's zoom to match the page.
-// Esc and the backdrop both pick the secondary (safe) action.
+// Esc and the backdrop call `onDismiss`, which defaults to the secondary action;
+// pass a no-op when the secondary action discards work, so only the button can.
 const DraftDialog = ({
   open,
   isDark = false,
@@ -17,6 +18,7 @@ const DraftDialog = ({
   onPrimary,
   secondaryLabel,
   onSecondary,
+  onDismiss = onSecondary, // Esc / backdrop
   tone = 'default', // 'default' | 'warning'
 }) => {
   const primaryRef = useRef(null);
@@ -24,12 +26,12 @@ const DraftDialog = ({
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') onSecondary?.();
+      if (e.key === 'Escape') onDismiss?.();
     };
     window.addEventListener('keydown', onKey);
     primaryRef.current?.focus();
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onSecondary]);
+  }, [open, onDismiss]);
 
   if (!open || typeof document === 'undefined') return null;
 
@@ -38,7 +40,7 @@ const DraftDialog = ({
   return createPortal(
     <div
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onSecondary?.();
+        if (e.target === e.currentTarget) onDismiss?.();
       }}
       style={{
         position: 'fixed', top: 0, left: 0, zIndex: 9500,
