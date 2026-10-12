@@ -30,6 +30,7 @@ import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage
 import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
 import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
 import { DEMO_USER } from '../../appConfig';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -458,6 +459,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
               Campaigns
             </h1>
           </div>
+          <HeaderLoading show={loading} isDark={isDark} />
         </div>
 
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}

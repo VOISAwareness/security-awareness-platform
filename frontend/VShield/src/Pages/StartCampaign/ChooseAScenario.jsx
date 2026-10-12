@@ -31,6 +31,7 @@ import DraftCards from '../../GlobalComponents/DraftCards';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -230,6 +231,7 @@ const ChooseAScenario = () => {
 
   // Scenarios come from the API (bundled JSON is only an offline fallback).
   const [scenariosList, setScenariosList] = useState([]);
+  const [scenariosLoading, setScenariosLoading] = useState(true);
 
   // Selected State — seeded from the saved draft once it arrives; falls back to
   // the first scenario once the list has loaded.
@@ -259,6 +261,7 @@ const ChooseAScenario = () => {
     let active = true;
     const apply = (rows) => {
       if (!active) return;
+      setScenariosLoading(false);
       const list = normaliseScenarios(rows);
       setScenariosList(list);
       setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
@@ -393,8 +396,12 @@ const ChooseAScenario = () => {
               Start New Campaign
             </h1>
           </div>
-          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-            -- Start a new campaign
+          <div className="flex items-center gap-3">
+            <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
+              -- Start a new campaign
+            </div>
+            {/* The templates and this person's draft are both on their way. */}
+            <HeaderLoading show={scenariosLoading || loading} isDark={isDark} />
           </div>
         </div>
 
