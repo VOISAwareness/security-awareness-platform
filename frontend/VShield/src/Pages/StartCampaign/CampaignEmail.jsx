@@ -36,6 +36,7 @@ import DraftDialog from '../../GlobalComponents/DraftDialog';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
+import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -1100,14 +1101,14 @@ const CampaignEmail = () => {
    >
     <div className="w-full h-full overflow-y-auto">
      {rawHtmlMode ? (
-      <textarea
+      <HtmlCodeEditor
        value={rawHtmlCode}
-       onChange={(e) => {
-        setRawHtmlCode(e.target.value);
-        activeHtmlRef.current = e.target.value;
-        update({ emailBody: e.target.value });
+       onChange={(code) => {
+        setRawHtmlCode(code);
+        activeHtmlRef.current = code;
+        update({ emailBody: code });
        }}
-       className="w-full h-full p-2.5 font-mono-tech text-[10.5px] bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed rounded-lg"
+       ariaLabel="Email body HTML"
        placeholder="Design Canvas"
       />
      ) : (
