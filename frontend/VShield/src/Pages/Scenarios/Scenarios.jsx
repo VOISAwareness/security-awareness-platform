@@ -34,7 +34,7 @@ import DraftCards from '../../GlobalComponents/DraftCards';
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
 import { SCENARIO_DRAFT_DEFAULTS } from './scenarioDraftDefaults';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🖼️ IMAGE RESOLVER — eagerly import every asset once, then look up by filename
@@ -735,7 +735,18 @@ const Scenarios = () => {
               Scenario
             </h1>
           </div>
-          <HeaderLoading show={scenariosLoading} isDark={isDark} />
+          {/* All scenarios | Drafts */}
+          <ViewTabs
+            variant="header"
+            ariaLabel="Scenarios view"
+            isDark={isDark}
+            value={view}
+            onChange={setView}
+            tabs={[
+              { id: 'all', label: 'All scenarios' },
+              { id: 'drafts', label: 'Drafts', count: drafts.length },
+            ]}
+          />
         </div>
 
         {/* ================================================= */}
@@ -745,28 +756,17 @@ const Scenarios = () => {
             grid's <main> carried its own separate background) */}
         {/* ================================================= */}
         <div
-          className={`w-full flex-1 min-h-0 rounded-xl border transition-colors duration-300 overflow-hidden p-4 sm:p-5 flex flex-col gap-3 ${
+          className={`relative w-full flex-1 min-h-0 rounded-xl border transition-colors duration-300 overflow-hidden p-4 sm:p-5 flex flex-col gap-3 ${
             isDark ? 'bg-[#15161a] border-white/10 shadow-xl' : 'bg-white border-slate-200 shadow-sm'
           }`}
         >
+        {/* The scenarios are on their way from the server. */}
+        <PageLoading show={scenariosLoading} isDark={isDark} />
 
         {/* ================================================= */}
         {/* TOOLBAR */}
         {/* ================================================= */}
         <div className="flex items-center justify-end gap-2.5 flex-shrink-0">
-          {/* All scenarios | Drafts */}
-          <ViewTabs
-            ariaLabel="Scenarios view"
-            className="mr-auto -mt-2"
-            isDark={isDark}
-            value={view}
-            onChange={setView}
-            tabs={[
-              { id: 'all', label: 'All scenarios' },
-              { id: 'drafts', label: 'Drafts', count: drafts.length },
-            ]}
-          />
-
           <Link to="/new-scenario">
             <button
               type="button"

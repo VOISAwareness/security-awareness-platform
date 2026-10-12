@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { Search, Trash2, Edit3 } from 'lucide-react';
 import { api } from '../../services/api';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -159,9 +159,6 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
           <h1 className="text-[15px] font-voda-exb tracking-normal text-white dark:text-black">
             USER LISTS
           </h1>
-
-          {/* The lists are on their way from the server. */}
-          <HeaderLoading show={listsLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}
@@ -186,10 +183,13 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
         {/* ── 3. BIG WHITE CONTAINER DIV ─────────────────────────────────────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex flex-col gap-3 overflow-hidden shadow-xs ${
+          className={`relative w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex flex-col gap-3 overflow-hidden shadow-xs ${
             isDark ? 'bg-[#15161A] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
+          {/* The lists are on their way from the server. */}
+          <PageLoading show={listsLoading} isDark={isDark} />
+
           {/* ── TOP SECTION: 3 CARDS ROW (BULK UPLOAD + ADD DL + USER LISTS DETAILS) ── */}
           <div className="flex flex-col lg:flex-row gap-3 flex-shrink-0 items-stretch">
             

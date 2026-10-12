@@ -24,7 +24,7 @@ import RejectedImg from '../../assets/RequestAndApprovalsAssets/RejectedCampaign
 import MegaphoneImg from '../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
 import ExpiredImg from '../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
 import MyApprovedImg from '../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 
 // =========================================================================
@@ -267,14 +267,18 @@ const RequestAndApprovals = () => {
               Requests & Approvals
             </h1>
           </div>
-          <HeaderLoading show={loading} isDark={isDark} />
         </div>
 
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
+        {/* Grows to the foot of the page so the loading state is centred in
+            it, and is hidden while loading (it has no card behind it). */}
         <div 
           style={{ gap: `${VarSectionGap}px` }}
-          className="w-full flex flex-col lg:flex-row items-start"
+          className={`relative grow w-full flex flex-col lg:flex-row items-start ${loading ? 'invisible' : ''}`}
         >
+          {/* The campaigns are on their way from the server. */}
+          <PageLoading show={loading} isDark={isDark} surface="page" />
+
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 5 SWITCHER CAPSULES WITH HOVER POP ANIMATION              */}
           {/* ========================================================================= */}
