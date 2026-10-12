@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
 import { setActiveCampaignId } from '../../services/useCampaignDraft';
+import { IN_WIZARD, routeForStep } from '../../services/campaignWizard';
 import { toDesignCampaign } from '../../services/campaignDesign';
 import { actorFor } from '../../services/identity';
 
@@ -135,10 +136,11 @@ const RequestAndApprovals = () => {
     if (done) setRejectingCampaign(null);
   };
 
-  // Creator only: open a campaign that came back with a notification in the wizard.
+  // Creator only: open a campaign that came back with a notification in the
+  // wizard, on the step it was last saved on (Details for older campaigns).
   const handleEditCampaign = (camp) => {
     setActiveCampaignId(camp.campaignId);
-    navigate('/start-campaign/details');
+    navigate(routeForStep(camp.wizardStep, 2), IN_WIZARD);
   };
 
   // Creator only: an expired request goes back to DRAFT with its new start

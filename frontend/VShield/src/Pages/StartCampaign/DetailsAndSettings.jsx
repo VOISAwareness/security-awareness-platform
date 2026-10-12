@@ -6,6 +6,7 @@ import { Check, Calendar, AlertTriangle, X } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { IN_WIZARD } from '../../services/campaignWizard';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
@@ -85,7 +86,7 @@ const DetailsAndSettings = () => {
   // Read the saved draft from step 1 — server-backed now, so it arrives
   // asynchronously and is null until then. Edits made in the meantime are safe:
   // flush() waits for the load before saving.
-  const { draft, update, flush } = useCampaignDraft();
+  const { draft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
 
   // Live gamification scores, as last saved in the Gamification Engine.
   const gamificationRules = useGamificationRules();
@@ -194,7 +195,7 @@ const DetailsAndSettings = () => {
       autoEndPostSending
     });
     await flush();
-    navigate('/start-campaign/email');
+    navigate('/start-campaign/email', IN_WIZARD);
   };
 
   // Save what has been typed, then open the Gamification Engine with a way
@@ -212,6 +213,8 @@ const DetailsAndSettings = () => {
     navigate('/gamification', { state: { returnTo: '/start-campaign/details' } });
   };
 
+  // Step 1 does not record itself on mount (it may be about to offer
+  // "Continue your campaign?"), so going back to it is recorded here.
   const handleGoBack = async () => {
     persistChanges({
       campaignTitle: campaignTitle.trim(),
@@ -219,10 +222,11 @@ const DetailsAndSettings = () => {
       startTime,
       endTime,
       isTestCampaign,
-      autoEndPostSending
+      autoEndPostSending,
+      wizardStep: 1
     });
     await flush();
-    navigate('/start-campaign');
+    navigate('/start-campaign', IN_WIZARD);
   };
 
   const stepsList = CAMPAIGN_STEPS || [

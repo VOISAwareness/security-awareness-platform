@@ -95,24 +95,12 @@ const EmailDetailsTab = ({
   const [showSubjectFxMenu, setShowSubjectFxMenu] =
     useState(false);
 
-  const [draft, setDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem(
-        'voisshield_active_campaign_draft'
-      );
-
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
-
   const matchedScenario = (
     scenariosJsonData?.scenarios || []
   ).find(
     (scenario) =>
       scenario.scenarioId ===
-      (formData?.scenarioId || draft.scenarioId)
+      formData?.scenarioId
   );
 
   const availableSenderEmails = Array.from(
@@ -131,44 +119,17 @@ formData?.emailSubject ?? '';
 
   const emailBody =
     formData?.emailBody ||
-    draft.emailBody ||
     matchedScenario?.emailBody ||
     '';
 
-  const persistChanges = (fields) => {
-    try {
-      const current = localStorage.getItem(
-        'voisshield_active_campaign_draft'
-      );
-
-      const updated = {
-        ...(current ? JSON.parse(current) : {}),
-        ...fields,
-      };
-
-      localStorage.setItem(
-        'voisshield_active_campaign_draft',
-        JSON.stringify(updated)
-      );
-
-      setDraft(updated);
-    } catch (error) {
-      console.error(
-        'Unable to save email draft:',
-        error
-      );
-    }
-  };
-
+  // Sender, subject and body live in the scenario's own formData, which the
+  // wizard saves as this user's scenario draft. (They used to be mirrored into
+  // the campaign wizard's draft key, which the two screens then fought over.)
   const updateField = (field, value) => {
     setFormData((previous) => ({
       ...previous,
       [field]: value,
     }));
-
-    persistChanges({
-      [field]: value,
-    });
   };
 
  const handleEmailIdChange = (event) => {

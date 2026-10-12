@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { IN_WIZARD } from '../../services/campaignWizard';
 import {
   Check,
   ExternalLink,
@@ -126,7 +127,7 @@ const AddTrainingPath = () => {
   }, [userContext.isDark]);
 
   // Server-backed draft from prior steps (loads asynchronously).
-  const { draft: serverDraft, update, flush } = useCampaignDraft();
+  const { draft: serverDraft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
   const draft = serverDraft || {};
 
   // Strict Start Fresh Detection
@@ -206,14 +207,14 @@ const AddTrainingPath = () => {
       trainingPathName: activePath.TrainingPathName
     });
     await flush().catch(() => {});
-    navigate('/start-campaign/review');
+    navigate('/start-campaign/review', IN_WIZARD);
   };
 
   // Back does not persist anything new — the selection is saved on click — but
   // any debounced save still pending must land before we leave.
   const handleGoBack = async () => {
     await flush().catch(() => {});
-    navigate('/start-campaign/landing-page');
+    navigate('/start-campaign/landing-page', IN_WIZARD);
   };
 
   const stepsList = CAMPAIGN_STEPS || [

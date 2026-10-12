@@ -12,8 +12,8 @@
  * "Finance Workers"). Those are passed through untouched rather than forced onto
  * a slug that would misdescribe them.
  *
- * Option lists mirror ScenarioDeatils.jsx (type :676, targetAudience :701,
- * motivator :753, difficulty :792) — keep them in step.
+ * Option lists mirror the Type, Target Audience, Motivator and Difficulty
+ * selects in ScenarioDeatils.jsx (ScenarioDetailsTab) — keep them in step.
  */
 
 const TYPE_LABELS = {
