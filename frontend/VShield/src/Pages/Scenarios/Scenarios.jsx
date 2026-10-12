@@ -20,6 +20,15 @@ import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
 import { api } from "../../services/api";
 import { DEMO_USER } from '../../appConfig';
+import DraftDialog from '../../GlobalComponents/DraftDialog';
+import { draftSummary, isMeaningfulDraft } from '../../services/scenarioDraft';
+import {
+  inProgressScenarioDraft,
+  listScenarioDrafts,
+  removeScenarioDraft,
+} from '../../services/scenarioDraftList';
+import ScenarioDraftCards from './ScenarioDraftCards';
+import { SCENARIO_DRAFT_DEFAULTS } from './scenarioDraftDefaults';
 
 // =========================================================================
 // 🖼️ IMAGE RESOLVER — eagerly import every asset once, then look up by filename
@@ -527,6 +536,34 @@ const Scenarios = () => {
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
   const navigate = useNavigate();
+
+  // ---------------------------------------------------
+  // Drafts: the author's unpublished scenarios (saved by the editor as they
+  // work). Coming back here with one in progress asks, like Start New Campaign,
+  // whether to pick it up or start a new one; either way it stays under Drafts.
+  // ---------------------------------------------------
+  const [view, setView] = useState('all'); // 'all' | 'drafts'
+  const readDrafts = () =>
+    listScenarioDrafts().filter((d) => isMeaningfulDraft(d, SCENARIO_DRAFT_DEFAULTS));
+  const [drafts, setDrafts] = useState(readDrafts);
+  const [inProgress, setInProgress] = useState(() => inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
+  const [resumePromptOpen, setResumePromptOpen] = useState(() => Boolean(inProgress));
+  const inProgressInfo = inProgress ? draftSummary(inProgress.draft) : null;
+
+  const continueDraft = (id) => navigate(`/new-scenario?draft=${encodeURIComponent(id)}`);
+  const startNewScenario = () => navigate('/new-scenario', { state: { startFresh: true } });
+  const deleteDraft = (id) => {
+    removeScenarioDraft(id);
+    setDrafts(readDrafts());
+    setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
+  };
+  const visibleDrafts = search.trim()
+    ? drafts.filter((d) => {
+        const info = draftSummary(d);
+        const text = search.trim().toLowerCase();
+        return [info.name, info.scenarioId, info.description].some((v) => v.toLowerCase().includes(text));
+      })
+    : drafts;
   const userContext = useUserType?.() || {};
 
   // Theme check
@@ -671,6 +708,57 @@ const Scenarios = () => {
         {/* TOOLBAR */}
         {/* ================================================= */}
         <div className="flex items-center justify-end gap-2.5 flex-shrink-0">
+          {/* All scenarios | Drafts */}
+          <div
+            role="tablist"
+            aria-label="Scenarios view"
+            className={`mr-auto -mt-2 h-[30px] p-0.5 flex items-center gap-0.5 rounded-lg border shadow-sm ${
+              isDark ? 'bg-[#15161a] border-white/10' : 'bg-white border-slate-200'
+            }`}
+          >
+            {[
+              { id: 'all', label: 'All scenarios' },
+              { id: 'drafts', label: 'Drafts', count: drafts.length },
+            ].map((tab) => {
+              const selected = view === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setView(tab.id)}
+                  className={`h-full px-3 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors ${
+                    selected
+                      ? isDark
+                        ? 'bg-white text-[#0B1121]'
+                        : 'bg-[#06080D] text-white'
+                      : isDark
+                      ? 'text-white/60 hover:text-white'
+                      : 'text-slate-600 hover:text-black'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count !== undefined && (
+                    <span
+                      className={`min-w-[16px] h-[16px] px-1 rounded-full text-[9px] flex items-center justify-center ${
+                        selected
+                          ? isDark
+                            ? 'bg-[#0B1121]/10'
+                            : 'bg-white/20'
+                          : isDark
+                          ? 'bg-white/10'
+                          : 'bg-slate-200'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           <Link to="/new-scenario">
             <button
               type="button"
@@ -795,7 +883,15 @@ const Scenarios = () => {
           {/* ================================================= */}
           <div className="flex-1 min-w-0 flex flex-col">
             <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
-              {filteredScenarios.length === 0 ? (
+              {view === 'drafts' ? (
+                <ScenarioDraftCards
+                  drafts={visibleDrafts}
+                  inProgressId={inProgress?.id || ''}
+                  isDark={isDark}
+                  onContinue={continueDraft}
+                  onDelete={deleteDraft}
+                />
+              ) : filteredScenarios.length === 0 ? (
                 <div
                   className={`h-[250px] flex items-center justify-center font-bold text-sm ${
                     isDark ? "text-white" : "text-[#0B1121]"
@@ -1136,20 +1232,50 @@ const Scenarios = () => {
                   </div>
                 )}
           {/* ================================================= */}
-          {/* FILTER PANEL */}
+          {/* FILTER PANEL (templates only) */}
           {/* ================================================= */}
-          <ScenarioFilters
-            selectedCampaignTypes={selectedCampaignTypes}
-            setSelectedCampaignTypes={setSelectedCampaignTypes}
-            selectedEmotions={selectedEmotions}
-            setSelectedEmotions={setSelectedEmotions}
-            selectedAudiences={selectedAudiences}
-            setSelectedAudiences={setSelectedAudiences}
-            isDark={isDark}
-          />
+          {view === 'all' && (
+            <ScenarioFilters
+              selectedCampaignTypes={selectedCampaignTypes}
+              setSelectedCampaignTypes={setSelectedCampaignTypes}
+              selectedEmotions={selectedEmotions}
+              setSelectedEmotions={setSelectedEmotions}
+              selectedAudiences={selectedAudiences}
+              setSelectedAudiences={setSelectedAudiences}
+              isDark={isDark}
+            />
+          )}
         </div>
         </div>
       </div>
+
+      {/* A scenario in progress: pick it up, or start a new one. Esc or a
+          click outside just closes this (the draft stays under Drafts). */}
+      <DraftDialog
+        open={resumePromptOpen && Boolean(inProgressInfo)}
+        isDark={isDark}
+        title="Continue your scenario?"
+        body={`You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.${
+          inProgressInfo?.needsCoverReattach
+            ? ' Its uploaded cover image could not be kept and will need to be attached again.'
+            : ''
+        }`}
+        detail={
+          inProgressInfo ? (
+            <>
+              <span className="block">{inProgressInfo.name}</span>
+              <span className="block mt-0.5 font-medium opacity-80">
+                Saved at step {inProgressInfo.step} of {inProgressInfo.stepCount}: {inProgressInfo.stepName}
+              </span>
+            </>
+          ) : null
+        }
+        primaryLabel="Continue"
+        onPrimary={() => continueDraft(inProgress.id)}
+        secondaryLabel="Start new"
+        onSecondary={startNewScenario}
+        onDismiss={() => setResumePromptOpen(false)}
+      />
     </>
   );
 };
