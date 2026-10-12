@@ -24,6 +24,7 @@ import videoBottomAsset from '../../assets/VideoImageStartACampaign.png';
 import quizBottomAsset from '../../assets/QuizImageStartANewCampaign.png';
 import certBottomAsset from '../../assets/CertificateImageStartANewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -127,7 +128,7 @@ const AddTrainingPath = () => {
   }, [userContext.isDark]);
 
   // Server-backed draft from prior steps (loads asynchronously).
-  const { draft: serverDraft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
+  const { draft: serverDraft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
   const draft = serverDraft || {};
 
   // Strict Start Fresh Detection
@@ -301,9 +302,8 @@ const AddTrainingPath = () => {
               Start New Campaign
             </h1>
           </div>
-          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-            -- Start a new campaign
-          </div>
+          {/* The campaign is on its way from the server. */}
+          <HeaderLoading show={draftLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}

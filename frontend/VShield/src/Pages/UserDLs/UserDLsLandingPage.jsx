@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { Search, Trash2, Edit3 } from 'lucide-react';
 import { api } from '../../services/api';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -82,6 +83,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
 
   // Initial Mock Lists matching canvas
   const [lists, setLists] = useState([]);
+  const [listsLoading, setListsLoading] = useState(true);
 
   // Normalise a backend user-list row into the shape this screen renders.
   // SAVED lists carry name/type; SYNCED distribution lists carry dlName/dlId.
@@ -106,6 +108,9 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
       .catch((err) => {
         console.error('Failed to load user lists', err);
         if (active) setLists([]);
+      })
+      .finally(() => {
+        if (active) setListsLoading(false);
       });
     return () => {
       active = false;
@@ -155,9 +160,8 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
             USER LISTS
           </h1>
 
-          <div className="text-[13px] font-voda-exb text-white/80 dark:text-black/80">
-            -- Add New User Lists and DLs
-          </div>
+          {/* The lists are on their way from the server. */}
+          <HeaderLoading show={listsLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}

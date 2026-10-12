@@ -410,13 +410,8 @@ const ChooseAScenario = () => {
               Start New Campaign
             </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-              -- Start a new campaign
-            </div>
-            {/* The templates and this person's draft are both on their way. */}
-            <HeaderLoading show={scenariosLoading || loading} isDark={isDark} />
-          </div>
+          {/* The templates and this person's draft are both on their way. */}
+          <HeaderLoading show={scenariosLoading || loading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}
