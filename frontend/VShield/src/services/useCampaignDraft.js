@@ -16,6 +16,12 @@
  * `useCampaignDraft({ step })` also records the step on the draft
  * (`wizardStep`, a plain field the campaigns-api PUT merges like any other), so
  * re-entering the wizard can offer to continue there.
+ *
+ * `useCampaignDraft({ lazy: true })` is step 1 (Start New Campaign): with no
+ * campaign in progress it creates nothing on arrival. The page works on an
+ * unsaved blank draft (`{}`, no campaignId) and the first save — picking a
+ * template or Start fresh — creates the campaign. "Start new" likewise only
+ * clears the way. So looking at the page never leaves an empty draft behind.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -146,7 +152,7 @@ async function openPointerDraft(id) {
   return item;
 }
 
-export function useCampaignDraft({ step } = {}) {
+export function useCampaignDraft({ step, lazy = false } = {}) {
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -178,9 +184,11 @@ export function useCampaignDraft({ step } = {}) {
     } catch {
       /* load failure is reported via `error`; fall through to the id check */
     }
-    // Self-heal: if the initial load failed we still hold the user's edits, so
-    // recover a usable draft rather than discarding their work. Retry the
-    // pointer first — creating blindly would orphan an existing draft.
+    // Nothing to save: never create a draft just for that.
+    if (Object.keys(pendingRef.current).length === 0) return null;
+    // No draft yet — step 1 before its first save (lazy), or the initial load
+    // failed while the user's edits are in hand. Retry the pointer first
+    // (creating blindly would orphan an existing draft), then create one.
     if (!idRef.current) {
       try {
         let item = await openPointerDraft(getActiveCampaignId());
@@ -248,6 +256,13 @@ export function useCampaignDraft({ step } = {}) {
       pendingRef.current = {};
       idRef.current = '';
       setActiveCampaignId('');
+      if (lazy) {
+        // The next save creates the new campaign; nothing is stored until then.
+        setDraft({});
+        setError(null);
+        setLoading(false);
+        return null;
+      }
       try {
         const item = await api.campaigns.create(newDraftFields(1));
         setActiveCampaignId(item.campaignId);
@@ -273,9 +288,10 @@ export function useCampaignDraft({ step } = {}) {
     // Edits made while the new draft is created wait for it, as on mount.
     readyRef.current = pending;
     return pending;
-  }, [flush]);
+  }, [flush, lazy]);
 
-  // Load the draft once at mount; create one if there is no active pointer.
+  // Load the draft once at mount; create one if there is no active pointer
+  // (lazy: start from an unsaved blank draft instead).
   useEffect(() => {
     let active = true;
 
@@ -290,6 +306,15 @@ export function useCampaignDraft({ step } = {}) {
             id = '';
             setActiveCampaignId('');
           }
+        }
+
+        if (!id && lazy) {
+          // Nothing saved until the first choice; flush() creates it then.
+          if (active) {
+            setCampaignId('');
+            setDraft({});
+          }
+          return;
         }
 
         if (!id) {
@@ -324,7 +349,7 @@ export function useCampaignDraft({ step } = {}) {
     return () => {
       active = false;
     };
-  }, [update]);
+  }, [update, lazy]);
 
   // Never leave unsaved edits behind when a step unmounts: send them through
   // the shared queue (the next step's load waits for it), and if that fails,

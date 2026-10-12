@@ -135,13 +135,16 @@ const ChooseAScenario = () => {
 
   // The wizard draft now lives on the server; `draft` is null until it loads.
   // Writes made before then are safe: flush() waits for the load.
-  const { draft, loading, update, flush, startNew, campaignId } = useCampaignDraft();
+  // Lazy: nothing is saved until a template or Start fresh is picked, so
+  // opening this page never leaves an empty draft behind.
+  const { draft, loading, update, flush, startNew, campaignId } = useCampaignDraft({ lazy: true });
 
   // ---------------------------------------------------------------------------
-  // Drafts: this person's unfinished campaigns, as under Campaigns → Drafts,
-  // next to the scenarios (the same "All scenarios | Drafts" switch as the
-  // Scenarios page). The blank draft this visit opened has no progress, so it
-  // is not listed.
+  // Create new | Drafts: start a campaign from a template or Start fresh, or
+  // carry on with one of this person's unfinished campaigns (as listed under
+  // Campaigns → Drafts). Same switch as the Scenarios page. Drafts with no
+  // progress (left by older versions, which saved a blank draft on arrival)
+  // are not listed.
   // ---------------------------------------------------------------------------
   const [view, setView] = useState('all'); // 'all' | 'drafts'
   const {
@@ -185,7 +188,8 @@ const ChooseAScenario = () => {
     setDraftsError('');
     try {
       await removeCampaign(id);
-      // The draft this page was working on is gone: carry on with a new one.
+      // The draft this page was working on is gone: carry on with a fresh,
+      // not-yet-saved one (it is created by the next choice).
       if (id === campaignId) await startNew();
     } catch (e) {
       setDraftsError(e?.message || 'Could not delete that draft.');
@@ -462,7 +466,7 @@ const ChooseAScenario = () => {
             })}
           </div>
 
-          {/* ── All scenarios | Drafts (same switch as the Scenarios page) ── */}
+          {/* ── Create new | Drafts (same switch as the Scenarios page) ── */}
           <div className="px-4 sm:px-3 pt-3 flex items-center gap-2.5 flex-shrink-0">
             <ViewTabs
               ariaLabel="Start new campaign view"
@@ -471,7 +475,7 @@ const ChooseAScenario = () => {
               value={view}
               onChange={setView}
               tabs={[
-                { id: 'all', label: 'All scenarios' },
+                { id: 'all', label: 'Create new' },
                 { id: 'drafts', label: 'Drafts', count: draftItems.length },
               ]}
             />
