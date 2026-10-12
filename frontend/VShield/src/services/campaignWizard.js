@@ -197,6 +197,8 @@ export function templatePatch(scenario, draft = {}, previous = null) {
     landingPageAttachedByUser: false,
     trainingPathName: '',
     trainingPathAttachedByUser: false,
+    // The new template's body replaces any body picked from the library.
+    emailBodySourceId: '',
   };
 
   if (!scenario || scenario.scenarioId === START_FRESH_ID) {

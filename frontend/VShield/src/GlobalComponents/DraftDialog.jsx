@@ -20,6 +20,7 @@ const DraftDialog = ({
   onSecondary,
   onDismiss = onSecondary, // Esc / backdrop
   tone = 'default', // 'default' | 'warning'
+  zIndex = 9500, // raise it to show above a full-screen layer
 }) => {
   const primaryRef = useRef(null);
 
@@ -43,7 +44,7 @@ const DraftDialog = ({
         if (e.target === e.currentTarget) onDismiss?.();
       }}
       style={{
-        position: 'fixed', top: 0, left: 0, zIndex: 9500,
+        position: 'fixed', top: 0, left: 0, zIndex,
         zoom: VarLayoutScale, width: `${100 / VarLayoutScale}vw`, height: `${100 / VarLayoutScale}vh`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
         background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)',
