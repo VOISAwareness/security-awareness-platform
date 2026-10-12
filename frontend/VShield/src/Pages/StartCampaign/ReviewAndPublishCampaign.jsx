@@ -33,6 +33,7 @@ import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamap
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
 import { DEMO_USER } from '../../appConfig';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -124,7 +125,7 @@ const ReviewAndPublishCampaign = () => {
 
   // Server-backed draft from previous steps (null until it has loaded, so every
   // derived value below falls back to its original default in the meantime).
-  const { draft: serverDraft, flush, campaignId } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
+  const { draft: serverDraft, flush, campaignId, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
   // Live gamification scores, as last saved in the Gamification Engine.
   const gamificationRules = useGamificationRules();
   const draft = serverDraft || EMPTY_DRAFT;
@@ -421,9 +422,8 @@ const ReviewAndPublishCampaign = () => {
               Start New Campaign
             </h1>
           </div>
-          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-            -- Start a new campaign
-          </div>
+          {/* The campaign is on its way from the server. */}
+          <HeaderLoading show={draftLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}

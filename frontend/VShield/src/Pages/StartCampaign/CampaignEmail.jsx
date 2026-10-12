@@ -37,6 +37,7 @@ import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -138,7 +139,7 @@ const CampaignEmail = () => {
 
  // Server-backed draft shared by every wizard step. It loads asynchronously, so
  // `serverDraft` is null on the first renders and `draft` stands in as empty.
- const { draft: serverDraft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
+ const { draft: serverDraft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
  const draft = serverDraft || {};
 
  // Check if originated from "Start Fresh"
@@ -1158,9 +1159,8 @@ const CampaignEmail = () => {
        Start New Campaign
       </h1>
      </div>
-     <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-      -- Start a new campaign
-     </div>
+     {/* The campaign is on its way from the server. */}
+     <HeaderLoading show={draftLoading} isDark={isDark} />
     </div>
 
     {/* ========================================================================= */}

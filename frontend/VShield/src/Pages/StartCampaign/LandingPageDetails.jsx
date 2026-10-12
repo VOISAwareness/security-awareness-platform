@@ -43,6 +43,7 @@ import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalog
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
 import createNewOneImg from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -143,7 +144,7 @@ const LandingPageDetails = () => {
 
   // Server-backed draft shared by every wizard step. It loads asynchronously, so
   // `serverDraft` is null on the first renders and `draft` stands in as empty.
-  const { draft: serverDraft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
+  const { draft: serverDraft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
   const draft = serverDraft || {};
 
   // Strict Start Fresh Detection
@@ -896,9 +897,8 @@ const LandingPageDetails = () => {
               Start New Campaign
             </h1>
           </div>
-          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-            -- Start a new campaign
-          </div>
+          {/* The campaign is on its way from the server. */}
+          <HeaderLoading show={draftLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}

@@ -12,6 +12,7 @@ import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -88,7 +89,7 @@ const DetailsAndSettings = () => {
   // Read the saved draft from step 1 — server-backed now, so it arrives
   // asynchronously and is null until then. Edits made in the meantime are safe:
   // flush() waits for the load before saving.
-  const { draft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
+  const { draft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
 
   // Live gamification scores, as last saved in the Gamification Engine.
   const gamificationRules = useGamificationRules();
@@ -270,9 +271,8 @@ const DetailsAndSettings = () => {
               Start New Campaign
             </h1>
           </div>
-          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-            -- Start a new campaign
-          </div>
+          {/* The campaign is on its way from the server. */}
+          <HeaderLoading show={draftLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}
