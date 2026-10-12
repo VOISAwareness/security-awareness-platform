@@ -9,12 +9,16 @@ import {
 } from 'lucide-react';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { api } from '../../services/api';
-import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { setActiveCampaignId, useCampaignDraft } from '../../services/useCampaignDraft';
+import { useCampaigns } from '../../services/useCampaigns';
+import { currentActor } from '../../services/identity';
 import {
   IN_WIZARD,
   START_FRESH_ID,
   draftLabel,
   hasEditsBeyondScenario,
+  hasProgress,
+  isOwnDraft,
   isSameScenario,
   routeForStep,
   savedStep,
@@ -23,6 +27,8 @@ import {
   templatePatch
 } from '../../services/campaignWizard';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
+import DraftCards from '../../GlobalComponents/DraftCards';
+import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
 
@@ -128,7 +134,62 @@ const ChooseAScenario = () => {
 
   // The wizard draft now lives on the server; `draft` is null until it loads.
   // Writes made before then are safe: flush() waits for the load.
-  const { draft, loading, update, flush, startNew } = useCampaignDraft();
+  const { draft, loading, update, flush, startNew, campaignId } = useCampaignDraft();
+
+  // ---------------------------------------------------------------------------
+  // Drafts: this person's unfinished campaigns, as under Campaigns → Drafts,
+  // next to the scenarios (the same "All scenarios | Drafts" switch as the
+  // Scenarios page). The blank draft this visit opened has no progress, so it
+  // is not listed.
+  // ---------------------------------------------------------------------------
+  const [view, setView] = useState('all'); // 'all' | 'drafts'
+  const {
+    campaigns: draftCampaigns,
+    loading: draftsLoading,
+    pendingAction: draftAction,
+    remove: removeCampaign,
+  } = useCampaigns({ status: 'DRAFT' });
+  const [draftsError, setDraftsError] = useState('');
+  const actorEmail = currentActor();
+  const myDrafts = draftCampaigns.filter(
+    (c) => c.status === 'DRAFT' && isOwnDraft(c, actorEmail) && hasProgress(c)
+  );
+  const draftItems = myDrafts.map((c) => {
+    const step = savedStep(c);
+    return {
+      id: c.campaignId,
+      code: c.campaignId,
+      title: draftLabel(c),
+      description:
+        String(c.campaignDescription || '').trim() ||
+        (c.scenarioName ? `Template: ${c.scenarioName}` : ''),
+      savedAt: c.updatedAt || c.createdAt,
+      step,
+      stepCount: 6,
+      stepName: stepName(step),
+      cover: '',
+      inProgress: c.campaignId === campaignId,
+      busy: draftAction === c.campaignId,
+    };
+  });
+
+  // Open a draft on the step it was saved on, as Campaigns → Drafts does.
+  const continueCampaignDraft = (id) => {
+    const camp = myDrafts.find((c) => c.campaignId === id);
+    setActiveCampaignId(id);
+    navigate(routeForStep(savedStep(camp)), IN_WIZARD);
+  };
+
+  const deleteCampaignDraft = async (id) => {
+    setDraftsError('');
+    try {
+      await removeCampaign(id);
+      // The draft this page was working on is gone: carry on with a new one.
+      if (id === campaignId) await startNew();
+    } catch (e) {
+      setDraftsError(e?.message || 'Could not delete that draft.');
+    }
+  };
 
   // Theme check
   const [isDark, setIsDark] = useState(() => {
@@ -394,7 +455,26 @@ const ChooseAScenario = () => {
             })}
           </div>
 
+          {/* ── All scenarios | Drafts (same switch as the Scenarios page) ── */}
+          <div className="px-4 sm:px-3 pt-3 flex items-center gap-2.5 flex-shrink-0">
+            <ViewTabs
+              ariaLabel="Start new campaign view"
+              className="mr-auto"
+              isDark={isDark}
+              value={view}
+              onChange={setView}
+              tabs={[
+                { id: 'all', label: 'All scenarios' },
+                { id: 'drafts', label: 'Drafts', count: draftItems.length },
+              ]}
+            />
+            {view === 'drafts' && draftsError && (
+              <span role="alert" className="text-[10px] font-bold text-[#E60000]">{draftsError}</span>
+            )}
+          </div>
+
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
+          {view === 'all' ? (
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
@@ -558,6 +638,18 @@ const ChooseAScenario = () => {
               );
             })}
           </div>
+          ) : (
+            <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
+              <DraftCards
+                items={draftItems}
+                loading={draftsLoading}
+                isDark={isDark}
+                onContinue={continueCampaignDraft}
+                onDelete={deleteCampaignDraft}
+                emptyText="A campaign you start and leave before submitting is kept here."
+              />
+            </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
