@@ -18,6 +18,7 @@ import {
   isMeaningfulDraft,
   parseDraft,
   reusableCoverKey,
+  sameDraftContent,
   toDraftFormData,
   uniqueCoverFileName,
   withUniqueCoverName,
@@ -172,6 +173,39 @@ test('a catalogue cover restores untouched', () => {
   const { formData } = fromDraft(saved);
   assert.equal(formData.coverImagePreview, 'src/Pages/Scenarios/CovImg-002.png');
   assert.equal(formData.selectedCatalogueImageId, 2);
+});
+
+test('an opened draft left untouched is the same content; any edit or step change is not', () => {
+  const saved = parseDraft(JSON.parse(JSON.stringify(
+    buildDraft({ ...blankForm, scenarioName: 'Lure', coverImagePreview: 'blob:http://localhost/1' }, 1, new Date(0))
+  )));
+  // As the editor holds it after opening: the blank form, then the draft over it
+  // (key order differs, the blob: preview is gone, the File slot is back).
+  const reopened = { ...fromDraft(saved).formData, ...blankForm, ...fromDraft(saved).formData };
+  assert.equal(sameDraftContent(buildDraft(reopened, 1, new Date(5000)), saved), true);
+  assert.equal(sameDraftContent(buildDraft({ ...reopened, scenarioName: 'Lure 2' }, 1), saved), false);
+  assert.equal(sameDraftContent(buildDraft({ ...reopened, description: 'new' }, 1), saved), false);
+  assert.equal(sameDraftContent(buildDraft({ ...reopened, scenarioName: '' }, 1), saved), false);
+  assert.equal(sameDraftContent(buildDraft(reopened, 2), saved), false);
+  assert.equal(sameDraftContent(buildDraft(reopened, 1), null), false);
+});
+
+test('an opened draft whose cover is restored (thumbnail or "attach again") is unchanged too', () => {
+  const uploaded = buildDraft({
+    ...blankForm,
+    scenarioName: 'Lure',
+    coverImageSource: 'upload',
+    coverImageName: 'cover.png',
+    coverImagePreview: 'blob:http://localhost/1',
+    coverImageKey: 'uploads/scenario-covers/SC-9/abc-cover.png',
+    coverImageKeyScenarioId: 'SC-9',
+    coverImageThumbnail: 'data:image/jpeg;base64,AAAA',
+  }, 2);
+  const restored = fromDraft(uploaded);
+  assert.equal(sameDraftContent(buildDraft(restored.formData, restored.activeTab), uploaded), true);
+  const lost = buildDraft({ ...blankForm, scenarioName: 'Lure', coverImageSource: 'upload', coverImageName: 'cover.png' }, 2);
+  const back = fromDraft(lost);
+  assert.equal(sameDraftContent(buildDraft(back.formData, back.activeTab), lost), true);
 });
 
 test('draftSummary names the scenario and the saved step', () => {

@@ -166,6 +166,35 @@ export function fromDraft(draft) {
   return { formData: form, activeTab: clampStep(draft?.activeTab) };
 }
 
+// The content of a draft in a comparable form: keys sorted, and empty values
+// ('' / null) left out, since a field that is missing reads back as the blank
+// form's empty value anyway.
+function contentKey(formData, activeTab) {
+  const compact = (value) => {
+    if (Array.isArray(value)) return value.map(compact);
+    if (!value || typeof value !== 'object') return value;
+    const out = {};
+    for (const k of Object.keys(value).sort()) {
+      if (value[k] !== '' && value[k] !== null) out[k] = compact(value[k]);
+    }
+    return out;
+  };
+  return JSON.stringify([clampStep(activeTab), compact(toDraftFormData(formData))]);
+}
+
+/**
+ * Does `draft` hold exactly what is already `stored` (same form, same step)?
+ * Also true when it is the stored draft as a resume reads it back (fromDraft),
+ * so opening a draft and leaving it untouched is not mistaken for new work.
+ */
+export function sameDraftContent(draft, stored) {
+  if (!draft || !stored) return false;
+  const next = contentKey(draft.formData, draft.activeTab);
+  if (next === contentKey(stored.formData, stored.activeTab)) return true;
+  const restored = fromDraft(stored);
+  return next === contentKey(restored.formData, restored.activeTab);
+}
+
 /** What the resume prompt and the Drafts list show about a saved draft. */
 export function draftSummary(draft) {
   const form = draft?.formData || {};

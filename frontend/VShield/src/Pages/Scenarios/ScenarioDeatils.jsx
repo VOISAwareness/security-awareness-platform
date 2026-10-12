@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
@@ -838,7 +838,7 @@ const ScenarioDeatils = () => {
   // Which draft this editor works on, decided before the first render so the
   // form can start from it: ?draft=<id> (Scenarios → Drafts) opens that draft;
   // otherwise a new one, with the scenario in progress offered back first unless
-  // the author just chose "Start new".
+  // the author just chose "Start new" or was already asked about it.
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [draftOpening] = useState(() =>
@@ -1004,10 +1004,10 @@ useEffect(() => {
   };
 
   // "Start new" keeps the saved draft (Scenarios → Drafts) and carries on with a
-  // new one. Like the campaign wizard, only the buttons decide: Esc and the
-  // backdrop leave the dialog open.
+  // new one. Like the campaign wizard, closing the dialog (Esc or a click
+  // outside) does the same: the author was asked, the draft stays under
+  // Drafts, and the editor starts fresh.
   const { startNew: handleStartNewDraft } = scenarioDraft;
-  const keepDraftDialogOpen = useCallback(() => {}, []);
 
   const draftOffer = scenarioDraft.offer;
   const draftSavedAt = draftOffer?.savedAt
@@ -1419,7 +1419,7 @@ const handlePublishScenario = async () => {
         onPrimary={handleContinueDraft}
         secondaryLabel="Start new"
         onSecondary={handleStartNewDraft}
-        onDismiss={keepDraftDialogOpen}
+        onDismiss={handleStartNewDraft}
       />
       <style>{VODAFONE_FONT_STYLE}</style>
       {/* ====================================================

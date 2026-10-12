@@ -10,8 +10,11 @@
  *  - coming back, the scenario in progress is offered back ("Continue your
  *    scenario?"), and nothing is written until the author decides, so the
  *    blank form can never overwrite it;
- *  - "Start new" leaves that draft as it is (Scenarios → Drafts) and starts a
- *    new one, like campaigns;
+ *  - "Start new" (or closing that dialog) leaves that draft as it is
+ *    (Scenarios → Drafts) and starts a new one, like campaigns;
+ *  - the question is asked about each draft once (resumePrompt.js): either
+ *    answer counts, and only work saved after it asks again. So a draft opened
+ *    and left untouched is not written again (its savedAt stays the same);
  *  - after a successful publish the draft is removed and saving stops.
  *
  * Which draft the editor opens on is decided before its first render by
@@ -24,8 +27,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentActor } from './identity.js';
-import { buildDraft, draftSummary, fromDraft, isMeaningfulDraft } from './scenarioDraft.js';
+import { markAsked, scenarioDraftVersion } from './resumePrompt.js';
+import { buildDraft, draftSummary, fromDraft, isMeaningfulDraft, sameDraftContent } from './scenarioDraft.js';
 import {
+  getScenarioDraft,
   removeScenarioDraft,
   saveScenarioDraft,
   setActiveScenarioDraftId,
@@ -42,6 +47,7 @@ const SAVE_DEBOUNCE_MS = 400;
  *          offer      summary of the scenario in progress awaiting Continue / Start new, or null
  *          resume()   accept the offer; returns { formData, activeTab } to apply
  *          startNew() keep that draft (Scenarios → Drafts) and carry on with a new one
+ *                     (also what closing the dialog does)
  *          clear()    remove this draft and stop saving (after a successful publish)
  *          saveFailed true when the browser refused the last save (storage full)
  */
@@ -82,6 +88,13 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
 
     const draft = buildDraft(pending.formData, pending.activeTab);
     if (isMeaningfulDraft(draft, defaultsRef.current)) {
+      // Nothing changed since it was saved (a draft just opened): writing it
+      // again would only move its savedAt, and with it bring back "Continue
+      // your scenario?" for work that is not new.
+      if (sameDraftContent(draft, getScenarioDraft(idRef.current, actor))) {
+        setSaveFailed(false);
+        return;
+      }
       const saved = saveScenarioDraft(idRef.current, draft, actor);
       if (saved) setActiveScenarioDraftId(idRef.current, actor);
       setSaveFailed(!saved);
@@ -115,21 +128,28 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
     };
   }, [flush]);
 
+  // Either answer means the author was asked about this draft, as it is now.
+  const answered = useCallback(() => {
+    if (offer) markAsked('scenario', offer.id, scenarioDraftVersion(offer.draft), actor);
+  }, [offer, actor]);
+
   const resume = useCallback(() => {
     if (!offer) return null;
+    answered();
     idRef.current = offer.id;
     setDraftId(offer.id);
     setActiveScenarioDraftId(offer.id, actor);
     setOffer(null);
     return fromDraft(offer.draft);
-  }, [offer, actor]);
+  }, [offer, actor, answered]);
 
   // The offered draft is left exactly as it is; this editor saves to its own
   // new draft from the first real edit.
   const startNew = useCallback(() => {
+    answered();
     setActiveScenarioDraftId('', actor);
     setOffer(null);
-  }, [actor]);
+  }, [actor, answered]);
 
   const clear = useCallback(() => {
     stoppedRef.current = true;

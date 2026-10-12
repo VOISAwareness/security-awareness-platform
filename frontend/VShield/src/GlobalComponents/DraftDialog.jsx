@@ -23,16 +23,23 @@ const DraftDialog = ({
   zIndex = 9500, // raise it to show above a full-screen layer
 }) => {
   const primaryRef = useRef(null);
+  // The latest onDismiss, read by the Esc listener. Callers may pass a new
+  // function every render; the listener (and the focus on the primary button)
+  // is only set up when the dialog opens, so a re-render never moves focus.
+  const dismissRef = useRef(onDismiss);
+  useEffect(() => {
+    dismissRef.current = onDismiss;
+  }, [onDismiss]);
 
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') onDismiss?.();
+      if (e.key === 'Escape') dismissRef.current?.();
     };
     window.addEventListener('keydown', onKey);
     primaryRef.current?.focus();
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onDismiss]);
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 

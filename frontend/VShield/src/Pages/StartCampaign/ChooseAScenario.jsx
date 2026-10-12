@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -12,6 +12,7 @@ import { api } from '../../services/api';
 import { setActiveCampaignId, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
+import { campaignDraftVersion, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
   IN_WIZARD,
   START_FRESH_ID,
@@ -299,23 +300,30 @@ const ChooseAScenario = () => {
   });
 
   // Coming back to the wizard from outside it: offer to continue the user's own
-  // saved campaign rather than silently dropping them on step 1.
-  const offerResume = !fromWizard && !loading && shouldOfferResume(draft);
+  // saved campaign rather than silently dropping them on step 1. Asked once per
+  // campaign: after any answer it is simply a draft (Campaigns -> Drafts), and
+  // only changes saved since then (a newer updatedAt) ask again.
+  const resumeVersion = campaignDraftVersion(draft);
+  const offerResume =
+    !fromWizard &&
+    !loading &&
+    shouldOfferResume(draft) &&
+    !wasAsked('campaign', draft.campaignId, resumeVersion);
   const resumeStep = savedStep(draft);
+  const markResumeAnswered = () => markAsked('campaign', draft?.campaignId, resumeVersion);
 
-  // Answered once per visit: either choice replaces this history entry with an
-  // in-wizard one, so browser Back never asks again.
+  // Either choice also replaces this history entry with an in-wizard one, so
+  // browser Back never asks again.
   const handleContinue = () => {
+    markResumeAnswered();
     navigate(routeForStep(resumeStep), { replace: true, ...IN_WIZARD });
   };
 
-  // Esc / backdrop on "Continue your campaign?" do nothing: only the buttons
-  // decide, so a stray key press never moves the user off their campaign.
-  const ignoreDismiss = useCallback(() => {}, []);
-
   // The saved campaign is left exactly as it is (still a DRAFT, listed under
-  // Campaigns -> Drafts); this user simply gets a brand-new one.
+  // Campaigns -> Drafts); this user simply gets a brand-new one. Closing
+  // "Continue your campaign?" (Esc or a click outside) does the same.
   const handleStartNew = async () => {
+    markResumeAnswered();
     navigate(location.pathname, { replace: true, ...IN_WIZARD });
     pickScenario(scenariosList[0]?.scenarioId || '');
     await startNew();
@@ -865,7 +873,7 @@ const ChooseAScenario = () => {
         onPrimary={handleContinue}
         secondaryLabel="Start new"
         onSecondary={handleStartNew}
-        onDismiss={ignoreDismiss}
+        onDismiss={handleStartNew}
       />
 
       <DraftDialog
