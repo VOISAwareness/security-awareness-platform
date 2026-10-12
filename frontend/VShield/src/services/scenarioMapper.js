@@ -72,6 +72,27 @@ export function catalogueCoverName(image) {
 }
 
 /**
+ * Which landing page the new scenario links to, from the Attach Outcomes step:
+ *  - a catalogue pick is linked by its id and never edited (it is a shared template);
+ *  - a page the author designed ("Design a new one") or built becomes a NEW
+ *    landing page at publish, so the caller creates it from `html`;
+ *  - otherwise whatever id the form already carries (possibly none).
+ */
+export function landingPageChoice(formData = {}) {
+  if (formData.landingPageSource === 'catalogue' && formData.selectedLandingCatalogueImageId) {
+    return { kind: 'catalogue', id: String(formData.selectedLandingCatalogueImageId) };
+  }
+  const html =
+    formData.landingPageSource === 'builder'
+      ? formData.landingPageContent
+      : formData.outcomeSource === 'custom'
+        ? formData.outcomeRichText
+        : '';
+  if (typeof html === 'string' && html.trim()) return { kind: 'custom', html };
+  return { kind: 'none', id: formData.landingPageId || '' };
+}
+
+/**
  * Build the record to POST/PUT. `coverImageId` is resolved by the caller: either
  * the S3 key returned by an upload, or a catalogue filename.
  *

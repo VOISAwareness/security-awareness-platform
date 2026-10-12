@@ -106,6 +106,28 @@ function newDraftFields(step) {
   return { createdBy: currentActor(), wizardStep: step || 1 };
 }
 
+// One automatic draft creation at a time per person. React StrictMode (dev) runs
+// the mount effect twice, and the second run starts before the first has a
+// campaignId, so each would otherwise POST its own empty DRAFT row. Callers that
+// overlap share the one request.
+const draftCreations = new Map(); // actor -> promise of the created draft
+
+function createDraftOnce(step) {
+  const actor = currentActor();
+  const inFlight = draftCreations.get(actor);
+  if (inFlight) return inFlight;
+  const pending = api.campaigns.create(newDraftFields(step));
+  draftCreations.set(actor, pending);
+  pending
+    .finally(() => {
+      if (draftCreations.get(actor) === pending) draftCreations.delete(actor);
+    })
+    .catch(() => {
+      /* the caller handles the failure */
+    });
+  return pending;
+}
+
 /**
  * The draft a pointer refers to, or null when it cannot be opened here: deleted,
  * already submitted or sent, or someone else's campaign.
@@ -163,7 +185,7 @@ export function useCampaignDraft({ step } = {}) {
       try {
         let item = await openPointerDraft(getActiveCampaignId());
         if (!item) {
-          item = await api.campaigns.create(newDraftFields(stepRef.current));
+          item = await createDraftOnce(stepRef.current);
           setActiveCampaignId(item.campaignId);
         }
         idRef.current = item.campaignId;
@@ -271,7 +293,7 @@ export function useCampaignDraft({ step } = {}) {
         }
 
         if (!id) {
-          item = await api.campaigns.create(newDraftFields(stepRef.current));
+          item = await createDraftOnce(stepRef.current);
           id = item.campaignId;
           setActiveCampaignId(id);
         }
