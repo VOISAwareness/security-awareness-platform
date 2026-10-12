@@ -17,6 +17,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useCampaignDraft, clearActiveCampaign } from '../../services/useCampaignDraft';
+import { IN_WIZARD } from '../../services/campaignWizard';
 import { api } from '../../services/api';
 import { actorFor } from '../../services/identity';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
@@ -123,7 +124,7 @@ const ReviewAndPublishCampaign = () => {
 
   // Server-backed draft from previous steps (null until it has loaded, so every
   // derived value below falls back to its original default in the meantime).
-  const { draft: serverDraft, flush, campaignId } = useCampaignDraft();
+  const { draft: serverDraft, flush, campaignId } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
   // Live gamification scores, as last saved in the Gamification Engine.
   const gamificationRules = useGamificationRules();
   const draft = serverDraft || EMPTY_DRAFT;
@@ -254,19 +255,28 @@ const ReviewAndPublishCampaign = () => {
       users: []
     };
 
-  // Landing Page
-  const landingCatalogues = (() => {
-    try {
-      const stored = localStorage.getItem('voisshield_landing_pages');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      return initialLandingCatalogues?.landingPages || [];
-    } catch {
-      return initialLandingCatalogues?.landingPages || [];
-    }
-  })();
+  // Landing Page — the campaign carries its own copy (name + content) from step
+  // 4; the catalogue only fills gaps in older drafts. It is read from the same
+  // API step 4 picks from, not the old browser-wide 'voisshield_landing_pages'
+  // cache, which nothing writes any more and could hold a stale copy.
+  const [landingCatalogues, setLandingCatalogues] = useState(
+    () => initialLandingCatalogues?.landingPages || []
+  );
+
+  useEffect(() => {
+    let active = true;
+    api.landingPages
+      .list()
+      .then((rows) => {
+        if (active && Array.isArray(rows) && rows.length > 0) setLandingCatalogues(rows);
+      })
+      .catch(() => {
+        /* keep the bundled fallback */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const landingPageId = draft.landingPageId || matchedScenario?.landingPageId || 'LP-001';
   const matchedLanding = landingCatalogues.find(
@@ -992,7 +1002,7 @@ const ReviewAndPublishCampaign = () => {
           >
             <button
               type="button"
-              onClick={() => navigate('/start-campaign/training')}
+              onClick={() => navigate('/start-campaign/training', IN_WIZARD)}
               className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center tracking-wider"
             >
               BACK
@@ -1182,7 +1192,7 @@ const ReviewAndPublishCampaign = () => {
                   type="button"
                   onClick={() => {
                     clearActiveCampaign();
-                    navigate('/start-campaign');
+                    navigate('/start-campaign', IN_WIZARD);
                   }}
                   className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                 >

@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
 import { api } from "../../services/api";
 import { catalogueCoverName, toStoredScenario } from "../../services/scenarioMapper";
+import { reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
+import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
+import DraftDialog from '../../GlobalComponents/DraftDialog';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import RenderEditorWorkspace from './RenderEditorWorkspace';
 import scenariosJsonData from "./ScenariosData.json";
@@ -65,6 +68,15 @@ const VODAFONE_FONT_STYLE = `
     border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important;
   }
 `;
+
+// The email body a new scenario starts with. It is a template, not the
+// author's work, so on its own it never makes a draft worth resuming.
+const DEFAULT_EMAIL_BODY =
+  scenariosJsonData?.scenarios?.find(
+    (scenario) => scenario.scenarioId === 'SC-001'
+  )?.emailBody || '';
+
+const DRAFT_DEFAULTS = { emailBody: DEFAULT_EMAIL_BODY };
 
 const FX_PARAMETERS = [
   { label: '@UserName', code: '{{userName}}', desc: 'Target user full name' },
@@ -324,7 +336,6 @@ const ScenarioDetailsTab = ({
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
 
-  const subjectInputRef = useRef(null);
   const subjectFxRef = useRef(null);
   const editorFxRef = useRef(null);
   const userListDropdownRef = useRef(null);
@@ -332,67 +343,6 @@ const ScenarioDetailsTab = ({
 
   const [showSubjectFxMenu, setShowSubjectFxMenu] = useState(false);
   const [showEditorFxMenu, setShowEditorFxMenu] = useState(false);
-
-  const [draft, setDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem(
-        "voisshield_active_campaign_draft"
-      );
-
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const matchedScenario =
-    (scenariosJsonData?.scenarios || []).find(
-      (s) => s.scenarioId === draft.scenarioId
-    ) || scenariosJsonData?.scenarios?.[0];
-
-  const availableSenderEmails = Array.from(
-    new Set(
-      (scenariosJsonData?.scenarios || [])
-        .map((s) => s.senderEmailId)
-        .filter(Boolean)
-    )
-  );
-
-  const [senderEmailId, setSenderEmailId] = useState(
-    draft.senderEmailId ||
-      matchedScenario?.senderEmailId ||
-      availableSenderEmails[0] ||
-      ""
-  );
-
-  const [emailSubject, setEmailSubject] = useState(
-    draft.emailSubject ||
-      matchedScenario?.emailSubject ||
-      ""
-  );
-
-  // =========================================================
-  // SAVE CHANGES TO LOCAL STORAGE
-  // =========================================================
-  const persistChanges = (fields) => {
-    try {
-      const current = localStorage.getItem(
-        "voisshield_active_campaign_draft"
-      );
-
-      const updated = {
-        ...(current ? JSON.parse(current) : {}),
-        ...fields,
-      };
-
-      localStorage.setItem(
-        "voisshield_active_campaign_draft",
-        JSON.stringify(updated)
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   // =========================================================
   // UPDATE FORM FIELD
@@ -402,55 +352,6 @@ const ScenarioDetailsTab = ({
       ...previous,
       [field]: value,
     }));
-  };
-
-  // =========================================================
-  // INSERT FX INTO SUBJECT
-  // =========================================================
-  const insertFxToSubject = (param) => {
-    setShowSubjectFxMenu(false);
-
-    const input = subjectInputRef.current;
-
-    if (input) {
-      const start =
-        input.selectionStart ?? emailSubject.length;
-
-      const end =
-        input.selectionEnd ?? emailSubject.length;
-
-      const before = emailSubject.substring(0, start);
-      const after = emailSubject.substring(end);
-
-      const updated = `${before}${param.label} ${after}`;
-
-      setEmailSubject(updated);
-
-      persistChanges({
-        emailSubject: updated,
-      });
-
-      setTimeout(() => {
-        input.focus();
-
-        input.setSelectionRange(
-          start + param.label.length + 1,
-          start + param.label.length + 1
-        );
-      }, 0);
-    } else {
-      setEmailSubject((previous) => {
-        const updated = previous
-          ? `${previous} ${param.label}`
-          : param.label;
-
-        persistChanges({
-          emailSubject: updated,
-        });
-
-        return updated;
-      });
-    }
   };
 
   // =========================================================
@@ -989,10 +890,7 @@ useEffect(() => {
     emailId: '',
     senderName: '',
     emailSubject: '',
-    emailBody:
-  scenariosJsonData?.scenarios?.find(
-    (scenario) => scenario.scenarioId === 'SC-001'
-  )?.emailBody || '',
+    emailBody: DEFAULT_EMAIL_BODY,
 
     // Attachments
     coverImageSource: '',
@@ -1009,6 +907,15 @@ useEffect(() => {
     coverImage: null,
     coverImageName: '',
     coverImagePreview: '',
+    // An upload goes to storage as soon as it is chosen (the File itself can't
+    // be kept in a saved draft). Its key, the scenario id it was uploaded for,
+    // and a small data-URL thumbnail are what the draft keeps instead.
+    coverImageKey: '',
+    coverImageKeyScenarioId: '',
+    coverImageThumbnail: '',
+    // Set on resume when an upload never reached storage: the file's name, so
+    // the Attach Outcomes step can ask for it again.
+    coverImageReattach: '',
 
     // --------------------------------------------------------
     // Landing Page
@@ -1047,6 +954,130 @@ useEffect(() => {
     outcomeRichText: '',
     outcomeSource: '',
   });
+
+  // ==========================================================
+  // DRAFT SAVE / RESUME
+  // The form above is saved per user as the author works, so leaving the page
+  // (or the browser dropping the tab) no longer loses it. On the next visit a
+  // saved draft is offered back before anything is overwritten.
+  // ==========================================================
+  const scenarioDraft = useScenarioDraft({
+    formData,
+    activeTab,
+    defaults: DRAFT_DEFAULTS,
+  });
+
+  const handleContinueDraft = () => {
+    const restored = scenarioDraft.resume();
+    if (!restored) {
+      return;
+    }
+    setFormData((previous) => ({
+      ...previous,
+      ...restored.formData,
+    }));
+    setActiveTab(restored.activeTab);
+  };
+
+  // "Start new" deletes the saved draft, so only its button may do that: the
+  // dialog's Esc / backdrop dismissal is a no-op here and the dialog stays open.
+  const { startNew: handleStartNewDraft } = scenarioDraft;
+  const keepDraftDialogOpen = useCallback(() => {}, []);
+
+  const draftOffer = scenarioDraft.offer;
+  const draftSavedAt = draftOffer?.savedAt
+    ? new Date(draftOffer.savedAt).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : '';
+
+  // ==========================================================
+  // COVER IMAGE UPLOAD (as soon as it is chosen)
+  // A File cannot be saved in a draft, so upload it now and keep only the
+  // returned key. If this fails (offline, no scenario id yet) the File stays in
+  // memory and Publish uploads it exactly as before.
+  // ==========================================================
+  const coverUploadRef = useRef(null);
+
+  const handleCoverFileChosen = (file) => {
+    if (!file) {
+      return;
+    }
+
+    // Results are applied only if this file is still the chosen cover.
+    makeCoverThumbnail(file).then((thumbnail) => {
+      if (thumbnail) {
+        setFormData((previous) =>
+          previous.coverImage === file
+            ? { ...previous, coverImageThumbnail: thumbnail }
+            : previous
+        );
+      }
+    });
+
+    // The same id Publish will send, so the key's folder matches the scenario.
+    const scenarioId = formData.scenarioId;
+    if (!scenarioId?.trim()) {
+      coverUploadRef.current = null;
+      return;
+    }
+
+    const promise = api.scenarios.uploadCover({
+      scenarioId,
+      file: withUniqueCoverName(file),
+    });
+    coverUploadRef.current = { file, scenarioId, promise };
+
+    promise
+      .then((key) => {
+        setFormData((previous) =>
+          previous.coverImage === file
+            ? {
+                ...previous,
+                coverImageKey: key || '',
+                coverImageKeyScenarioId: key ? scenarioId : '',
+              }
+            : previous
+        );
+      })
+      .catch((error) => {
+        console.warn('Cover upload deferred to publish:', error?.message || error);
+      });
+  };
+
+  // Publish reuses an earlier upload when it was made for this scenario id,
+  // waits for one still in flight, and only otherwise uploads the File now.
+  const resolveUploadedCoverKey = async () => {
+    const reusable = reusableCoverKey(formData);
+    if (reusable) {
+      return reusable;
+    }
+
+    const pending = coverUploadRef.current;
+    if (
+      pending &&
+      formData.coverImage &&
+      pending.file === formData.coverImage &&
+      pending.scenarioId === formData.scenarioId
+    ) {
+      const key = await pending.promise.catch(() => '');
+      if (key) {
+        return key;
+      }
+    }
+
+    if (formData.coverImage) {
+      return api.scenarios.uploadCover({
+        scenarioId: formData.scenarioId,
+        file: withUniqueCoverName(formData.coverImage),
+      });
+    }
+
+    // Resumed draft whose scenario id changed since the upload: the File is
+    // gone, so keep the earlier key rather than drop the cover.
+    return formData.coverImageKey || '';
+  };
 
   // ==========================================================
 // TAB NAVIGATION + VALIDATION
@@ -1170,11 +1201,8 @@ const handlePublishScenario = async () => {
     }
 
     let coverImageId = '';
-    if (formData.coverImageSource === 'upload' && formData.coverImage) {
-      coverImageId = await api.scenarios.uploadCover({
-        scenarioId: formData.scenarioId,
-        file: formData.coverImage,
-      });
+    if (formData.coverImageSource === 'upload') {
+      coverImageId = await resolveUploadedCoverKey();
     } else if (formData.selectedCatalogueImageId) {
       const chosen = imageCatalogue.find(
         (img) => img.id === formData.selectedCatalogueImageId
@@ -1185,6 +1213,9 @@ const handlePublishScenario = async () => {
     await api.scenarios.create(
       toStoredScenario(formData, { coverImageId, landingPageId })
     );
+    // Published: the saved draft is done with. Cleared now rather than on
+    // "Return to Dashboard", so closing the tab here can't offer it back.
+    scenarioDraft.clear();
     setPublishSuccessModal(true);
   } catch (error) {
     // Never show the success modal on failure — the author would leave
@@ -1291,10 +1322,7 @@ const handlePublishScenario = async () => {
         <button
           type="button"
           onClick={() => {
-            localStorage.removeItem(
-              'voisshield_active_campaign_draft'
-            );
-
+            // The scenario draft was already cleared when the publish succeeded.
             setPublishSuccessModal(false);
 
             navigate('/create-scenario');
@@ -1323,6 +1351,33 @@ const handlePublishScenario = async () => {
     </div>,
     document.body
   )}
+      {/* ====================================================
+          RESUME A SAVED DRAFT
+      ==================================================== */}
+      <DraftDialog
+        open={Boolean(draftOffer)}
+        isDark={isDark}
+        title="Continue your scenario?"
+        body={
+          draftOffer
+            ? `You have an unpublished scenario${
+                draftSavedAt ? ` saved ${draftSavedAt}` : ''
+              }. Continue where you left off, or start a new one (this discards the saved draft).${
+                draftOffer.needsCoverReattach
+                  ? ' Your uploaded cover image could not be kept and will need to be attached again.'
+                  : ''
+              }`
+            : ''
+        }
+        detail={
+          draftOffer ? `${draftOffer.name} · ${draftOffer.stepName}` : ''
+        }
+        primaryLabel="Continue"
+        onPrimary={handleContinueDraft}
+        secondaryLabel="Start new"
+        onSecondary={handleStartNewDraft}
+        onDismiss={keepDraftDialogOpen}
+      />
       <style>{VODAFONE_FONT_STYLE}</style>
       {/* ====================================================
     TOP-RIGHT VALIDATION TOAST
@@ -1473,6 +1528,7 @@ const handlePublishScenario = async () => {
                 setFormData={setFormData}
                 goNext={goNext}
                 goBack={goBack}
+                onCoverFileChosen={handleCoverFileChosen}
               />
             )}
 

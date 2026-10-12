@@ -36,6 +36,7 @@ import {
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { IN_WIZARD } from '../../services/campaignWizard';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
@@ -141,7 +142,7 @@ const LandingPageDetails = () => {
 
   // Server-backed draft shared by every wizard step. It loads asynchronously, so
   // `serverDraft` is null on the first renders and `draft` stands in as empty.
-  const { draft: serverDraft, update, flush } = useCampaignDraft();
+  const { draft: serverDraft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
   const draft = serverDraft || {};
 
   // Strict Start Fresh Detection
@@ -517,7 +518,7 @@ const LandingPageDetails = () => {
     });
     // Make sure the debounced save has landed before the next step reads the draft.
     await flush();
-    navigate('/start-campaign/training');
+    navigate('/start-campaign/training', IN_WIZARD);
   };
 
   const handleGoBack = async () => {
@@ -528,7 +529,7 @@ const LandingPageDetails = () => {
       landingPageContent: finalHtml
     });
     await flush();
-    navigate('/start-campaign/email');
+    navigate('/start-campaign/email', IN_WIZARD);
   };
 
   const stepsList = CAMPAIGN_STEPS || [

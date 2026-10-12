@@ -18,6 +18,7 @@ import {
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
 import { setActiveCampaignId } from '../../services/useCampaignDraft';
+import { IN_WIZARD, routeForStep } from '../../services/campaignWizard';
 import { DESIGN_STATUS, toDesignCampaign } from '../../services/campaignDesign';
 import { PHASE } from '../../services/campaignStatus';
 import { actorFor } from '../../services/identity';
@@ -234,11 +235,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
     return { ongoing, scheduled, historical, drafts };
   }, [campaignsList, actor]);
 
-  // Reopen the draft on its details step (not step 1, which reads as starting
-  // over); "Go back" from there still reaches the scenario choice.
+  // Reopen the draft on the step it was last saved on. Drafts saved before the
+  // step was recorded open on Details (not step 1, which reads as starting
+  // over). Arriving from here never triggers "Continue your campaign?".
   const handleResume = (camp) => {
     setActiveCampaignId(camp.campaignId);
-    navigate('/start-campaign/details');
+    navigate(routeForStep(camp.wizardStep, 2), IN_WIZARD);
   };
 
   const handleDelete = async (camp) => {

@@ -6,6 +6,7 @@ import { Check, Calendar, AlertTriangle, X } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
@@ -85,7 +86,7 @@ const DetailsAndSettings = () => {
   // Read the saved draft from step 1 — server-backed now, so it arrives
   // asynchronously and is null until then. Edits made in the meantime are safe:
   // flush() waits for the load before saving.
-  const { draft, update, flush } = useCampaignDraft();
+  const { draft, update, flush } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
 
   // Live gamification scores, as last saved in the Gamification Engine.
   const gamificationRules = useGamificationRules();
@@ -115,28 +116,30 @@ const DetailsAndSettings = () => {
     if (!draft || seededRef.current) return;
     seededRef.current = true;
 
-    // Prevent scenario names and descriptions from populating here (Start Fresh or Scenario Chosen -> Always empty by default)
-    const allScenarioTitles = new Set([
+    // Prevent scenario names and descriptions from populating here (Start Fresh or Scenario Chosen -> Always empty by default).
+    // Text the user typed here is flagged (…SetByUser) and always shows, even
+    // when it happens to match a scenario's wording.
+    const allScenarioTitles = [
       'Start Fresh',
       draft.scenarioName,
       ...(scenariosJsonData?.scenarios || []).map((s) => s.scenarioName)
-    ].filter(Boolean));
+    ];
 
-    const allScenarioDescs = new Set([
+    const allScenarioDescs = [
       draft.description,
       ...(scenariosJsonData?.scenarios || []).map((s) => s.description)
-    ].filter(Boolean));
+    ];
 
     const touched = touchedRef.current;
 
     if (!touched.campaignTitle) {
       setCampaignTitle(
-        draft.campaignTitle && !allScenarioTitles.has(draft.campaignTitle) ? draft.campaignTitle : ''
+        detailsFieldValue(draft.campaignTitle, draft.campaignTitleSetByUser, allScenarioTitles)
       );
     }
     if (!touched.campaignDescription) {
       setCampaignDescription(
-        draft.campaignDescription && !allScenarioDescs.has(draft.campaignDescription) ? draft.campaignDescription : ''
+        detailsFieldValue(draft.campaignDescription, draft.campaignDescriptionSetByUser, allScenarioDescs)
       );
     }
     if (!touched.startTime) setStartTime(draft.startTime || '');
@@ -165,6 +168,32 @@ const DetailsAndSettings = () => {
     update(fields);
   };
 
+  // What Back / Gamification / Proceed save. Until the draft has seeded the form
+  // only fields the user touched are written (the rest are still placeholders),
+  // and an empty title / description box that is merely hiding the template's
+  // wording never blanks the saved value. Text kept here is the user's own.
+  const detailsPatch = () => {
+    const touched = touchedRef.current;
+    const seeded = seededRef.current;
+    const patch = {};
+    const put = (field, value) => {
+      if (seeded || touched[field]) patch[field] = value;
+    };
+    put('startTime', startTime);
+    put('endTime', endTime);
+    put('isTestCampaign', isTestCampaign);
+    put('autoEndPostSending', autoEndPostSending);
+    if (campaignTitle.trim() || touched.campaignTitle) {
+      patch.campaignTitle = campaignTitle.trim();
+      patch.campaignTitleSetByUser = true;
+    }
+    if (campaignDescription.trim() || touched.campaignDescription) {
+      patch.campaignDescription = campaignDescription.trim();
+      patch.campaignDescriptionSetByUser = true;
+    }
+    return patch;
+  };
+
   // Strict Validation: Title, Description, Start Time, and End Time (or Auto End checkbox)
   const handleProceed = async () => {
     if (!campaignTitle.trim()) {
@@ -185,44 +214,25 @@ const DetailsAndSettings = () => {
     }
 
     setErrorMsg('');
-    persistChanges({
-      campaignTitle: campaignTitle.trim(),
-      campaignDescription: campaignDescription.trim(),
-      startTime,
-      endTime,
-      isTestCampaign,
-      autoEndPostSending
-    });
+    persistChanges(detailsPatch());
     await flush();
-    navigate('/start-campaign/email');
+    navigate('/start-campaign/email', IN_WIZARD);
   };
 
   // Save what has been typed, then open the Gamification Engine with a way
   // back here; the card re-reads the scores when this step mounts again.
   const handleOpenGamification = async () => {
-    persistChanges({
-      campaignTitle: campaignTitle.trim(),
-      campaignDescription: campaignDescription.trim(),
-      startTime,
-      endTime,
-      isTestCampaign,
-      autoEndPostSending
-    });
+    persistChanges(detailsPatch());
     await flush();
     navigate('/gamification', { state: { returnTo: '/start-campaign/details' } });
   };
 
+  // Step 1 does not record itself on mount (it may be about to offer
+  // "Continue your campaign?"), so going back to it is recorded here.
   const handleGoBack = async () => {
-    persistChanges({
-      campaignTitle: campaignTitle.trim(),
-      campaignDescription: campaignDescription.trim(),
-      startTime,
-      endTime,
-      isTestCampaign,
-      autoEndPostSending
-    });
+    persistChanges({ ...detailsPatch(), wizardStep: 1 });
     await flush();
-    navigate('/start-campaign');
+    navigate('/start-campaign', IN_WIZARD);
   };
 
   const stepsList = CAMPAIGN_STEPS || [
@@ -375,7 +385,7 @@ const DetailsAndSettings = () => {
                         markTouched('campaignTitle');
                         setCampaignTitle(e.target.value);
                         setErrorMsg('');
-                        persistChanges({ campaignTitle: e.target.value });
+                        persistChanges({ campaignTitle: e.target.value, campaignTitleSetByUser: true });
                       }}
                       placeholder="Type Here"
                       className="w-full bg-transparent text-[11.5px] font-medium outline-none placeholder-slate-400 resize-none text-left align-top leading-normal"
@@ -404,7 +414,10 @@ const DetailsAndSettings = () => {
                           markTouched('campaignDescription');
                           setCampaignDescription(e.target.value);
                           setErrorMsg('');
-                          persistChanges({ campaignDescription: e.target.value });
+                          persistChanges({
+                            campaignDescription: e.target.value,
+                            campaignDescriptionSetByUser: true
+                          });
                         }}
                         placeholder="Type Here"
                         className="w-full h-full bg-transparent text-[11.5px] font-medium outline-none resize-none leading-relaxed placeholder-slate-400"

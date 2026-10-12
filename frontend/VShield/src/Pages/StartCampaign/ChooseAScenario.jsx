@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
   ExternalLink,
@@ -10,6 +10,19 @@ import {
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import {
+  IN_WIZARD,
+  START_FRESH_ID,
+  draftLabel,
+  hasEditsBeyondScenario,
+  isSameScenario,
+  routeForStep,
+  savedStep,
+  shouldOfferResume,
+  stepName,
+  templatePatch
+} from '../../services/campaignWizard';
+import DraftDialog from '../../GlobalComponents/DraftDialog';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
 
@@ -44,6 +57,9 @@ export const CAMPAIGN_STEPS = [
   { id: 'training', step: 5, titleLine1: 'Add Training', titleLine2: 'Path', path: '/start-campaign/training' },
   { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish', path: '/start-campaign/review' }
 ];
+
+// "Start Complete Fresh" goes through the same path as a scenario card.
+const START_FRESH = { scenarioId: START_FRESH_ID, scenarioName: 'Start Fresh' };
 
 // Difficulty colors exact to canvas design
 const DIFFICULTY_THEMES = {
@@ -106,11 +122,13 @@ const getScenarioImage = (coverImageId) => {
 
 const ChooseAScenario = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromWizard = Boolean(location.state?.fromWizard);
   const userContext = useUserType?.() || {};
 
   // The wizard draft now lives on the server; `draft` is null until it loads.
   // Writes made before then are safe: flush() waits for the load.
-  const { draft, update, flush } = useCampaignDraft();
+  const { draft, loading, update, flush, startNew } = useCampaignDraft();
 
   // Theme check
   const [isDark, setIsDark] = useState(() => {
@@ -199,73 +217,92 @@ const ChooseAScenario = () => {
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
 
-  // Auto-fill campaign draft & navigate to step 2
-  const handleUseScenario = async (scenario) => {
-    pickScenario(scenario.scenarioId);
+  const findScenario = (scenarioId) =>
+    scenariosList.find((s) => s.scenarioId === scenarioId) || null;
 
+  // Coming back to the wizard from outside it: offer to continue the user's own
+  // saved campaign rather than silently dropping them on step 1.
+  const offerResume = !fromWizard && !loading && shouldOfferResume(draft);
+  const resumeStep = savedStep(draft);
+
+  // Answered once per visit: either choice replaces this history entry with an
+  // in-wizard one, so browser Back never asks again.
+  const handleContinue = () => {
+    navigate(routeForStep(resumeStep), { replace: true, ...IN_WIZARD });
+  };
+
+  // Esc / backdrop on "Continue your campaign?" do nothing: only the buttons
+  // decide, so a stray key press never moves the user off their campaign.
+  const ignoreDismiss = useCallback(() => {}, []);
+
+  // The saved campaign is left exactly as it is (still a DRAFT, listed under
+  // Campaigns -> Drafts); this user simply gets a brand-new one.
+  const handleStartNew = async () => {
+    navigate(location.pathname, { replace: true, ...IN_WIZARD });
+    pickScenario(scenariosList[0]?.scenarioId || '');
+    await startNew();
+  };
+
+  // A template the user asked for while the draft already holds their own email,
+  // landing page or training edits; confirmed in the "Replace your edits?" dialog.
+  const [replaceTarget, setReplaceTarget] = useState(null);
+
+  const goToDetails = async (fields) => {
     try {
-      update({
-        isStartFresh: false,
-        scenarioId: scenario.scenarioId,
-        scenarioName: scenario.scenarioName,
-        campaignTitle: draft?.campaignTitle || scenario.scenarioName,
-        campaignDescription: draft?.campaignDescription || scenario.description,
-        campaignType: scenario.campaignType,
-        targetAudience: scenario.targetAudience,
-        difficulty: scenario.difficulty,
-        motivator: scenario.motivator,
-        senderEmailId: scenario.senderEmailId,
-        senderName: scenario.senderName,
-        emailSubject: scenario.emailSubject,
-        emailBody: scenario.emailBody || '',
-        landingPageId: scenario.landingPageId || 'LP-001',
-        trainingId: scenario.trainingId || 'TP-001',
-        CoverImageID: scenario.CoverImageID
-      });
-
+      update({ ...fields, wizardStep: 2 });
       await flush();
     } catch (e) {
       console.error(e);
     }
 
     if (detailModalItem) setDetailModalItem(null);
-    navigate('/start-campaign/details');
+    // Mark this visit to step 1 as in-wizard too, so browser Back from step 2
+    // lands here without the "Continue your campaign?" question.
+    if (!fromWizard) navigate(location.pathname, { replace: true, ...IN_WIZARD });
+    navigate('/start-campaign/details', IN_WIZARD);
+  };
+
+  // Copy the template into the user's own campaign. Templates are read-only
+  // here: only the campaign draft is ever written.
+  const applyTemplate = (scenario) =>
+    goToDetails(templatePatch(scenario, draft || {}, findScenario(draft?.scenarioId)));
+
+  // "Use This" / "Let's Go". Picking the scenario the campaign already uses keeps
+  // every edit; switching to another one replaces the email, landing page and
+  // training, so it asks first when the user has changed any of them.
+  const handleUseScenario = async (scenario) => {
+    // Until the draft is known nothing can be compared, so nothing is applied.
+    if (!scenario || loading) return;
+    pickScenario(scenario.scenarioId);
+
+    if (isSameScenario(draft, scenario.scenarioId)) {
+      await goToDetails({});
+      return;
+    }
+    if (hasEditsBeyondScenario(draft, findScenario(draft?.scenarioId))) {
+      setReplaceTarget(scenario);
+      return;
+    }
+    await applyTemplate(scenario);
   };
 
   // Start from scratch / Start Fresh (Blank canvas: clears all template defaults)
-  const handleStartFresh = async () => {
-    pickScenario('start-fresh');
+  const handleStartFresh = () => handleUseScenario(START_FRESH);
 
-    try {
-      update({
-        isStartFresh: true,
-        scenarioId: 'start-fresh',
-        scenarioName: 'Start Fresh',
-        campaignTitle: '',
-        campaignDescription: '',
-        campaignType: 'Custom',
-        targetAudience: 'All Employees',
-        difficulty: 'Medium',
-        motivator: '',
-        senderEmailId: '',
-        senderName: '',
-        emailSubject: '',
-        emailBody: '',
-        landingPageId: '',
-        trainingId: '',
-        CoverImageID: ''
-      });
+  const handleConfirmReplace = async () => {
+    const scenario = replaceTarget;
+    setReplaceTarget(null);
+    await applyTemplate(scenario);
+  };
 
-      await flush();
-    } catch (e) {
-      console.error(e);
-    }
-
-    navigate('/start-campaign/details');
+  // Nothing is written; the highlight goes back to the campaign's scenario.
+  const handleKeepEdits = () => {
+    setReplaceTarget(null);
+    pickScenario(draft?.scenarioId || scenariosList[0]?.scenarioId || '');
   };
 
   const handleNextStep = async () => {
-    if (selectedScenarioId === 'start-fresh') {
+    if (selectedScenarioId === START_FRESH_ID) {
       await handleStartFresh();
       return;
     }
@@ -362,12 +399,12 @@ const ChooseAScenario = () => {
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
-              onClick={() => pickScenario('start-fresh')}
+              onClick={() => pickScenario(START_FRESH_ID)}
               className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px] h-[270px] shadow-2xs hover:shadow-md ${
                 isDark 
                   ? 'bg-white text-black border-slate-200' 
                   : 'bg-black text-white border-black/20'
-              } ${selectedScenarioId === 'start-fresh' ? 'ring-1 ring-[#e66565]' : ''}`}
+              } ${selectedScenarioId === START_FRESH_ID ? 'ring-1 ring-[#e66565]' : ''}`}
             >
               {/* Top Bar: "No Template Needed" Badge with Green Dot */}
               <div className="flex items-center justify-between mb-1.5 z-10">
@@ -701,6 +738,43 @@ const ChooseAScenario = () => {
           </div>
         )}
       </div>
+
+      <DraftDialog
+        open={offerResume}
+        isDark={isDark}
+        title="Continue your campaign?"
+        body="You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way."
+        detail={
+          <>
+            <span className="block">{draftLabel(draft)}</span>
+            <span className="block mt-0.5 font-medium opacity-80">
+              Saved at step {resumeStep} of 6: {stepName(resumeStep)}
+            </span>
+          </>
+        }
+        primaryLabel="Continue"
+        onPrimary={handleContinue}
+        secondaryLabel="Start new"
+        onSecondary={handleStartNew}
+        onDismiss={ignoreDismiss}
+      />
+
+      <DraftDialog
+        open={Boolean(replaceTarget)}
+        isDark={isDark}
+        tone="warning"
+        title="Replace your edits?"
+        body="Your campaign's email, landing page and training will be replaced by the ones in this template. Your schedule and recipient list stay as they are, and the template itself is not changed."
+        detail={
+          replaceTarget?.scenarioId === START_FRESH_ID
+            ? 'Start fresh: blank email, landing page and training'
+            : `Template: ${replaceTarget?.scenarioName || replaceTarget?.scenarioId || ''}`
+        }
+        primaryLabel="Replace with template"
+        onPrimary={handleConfirmReplace}
+        secondaryLabel="Keep my edits"
+        onSecondary={handleKeepEdits}
+      />
     </>
   );
 };

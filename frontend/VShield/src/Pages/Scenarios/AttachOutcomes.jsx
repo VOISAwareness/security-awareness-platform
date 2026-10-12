@@ -844,6 +844,9 @@ const LandingPageSelectedPreview = ({
 const AttachOutcomesTab = ({
   formData,
   setFormData,
+  // Called with a newly chosen cover File so the wizard can upload it at once
+  // (a File can't be kept in the saved draft; its storage key can).
+  onCoverFileChosen,
 }) => {
 
   const { isDark } =
@@ -998,6 +1001,15 @@ const AttachOutcomesTab = ({
       coverImagePreview: image.image,
 
       selectedCatalogueImageId: image.id,
+
+      // A catalogue cover replaces any earlier upload.
+      coverImageKey: '',
+
+      coverImageKeyScenarioId: '',
+
+      coverImageThumbnail: '',
+
+      coverImageReattach: '',
     }));
 
     setIsImageCatalogueOpen(false);
@@ -1022,6 +1034,14 @@ const AttachOutcomesTab = ({
       coverImagePreview: '',
 
       selectedCatalogueImageId: null,
+
+      coverImageKey: '',
+
+      coverImageKeyScenarioId: '',
+
+      coverImageThumbnail: '',
+
+      coverImageReattach: '',
     }));
 
   };
@@ -2494,7 +2514,19 @@ const handleLandingPageImageSelect = (item) => {
       coverImageName: file.name,
 
       coverImagePreview: previewUrl,
+
+      // Filled in by onCoverFileChosen once this file is uploaded.
+      coverImageKey: '',
+
+      coverImageKeyScenarioId: '',
+
+      coverImageThumbnail: '',
+
+      coverImageReattach: '',
     }));
+
+
+    onCoverFileChosen?.(file);
 
   };
 
@@ -2701,7 +2733,7 @@ const handleLandingPageImageSelect = (item) => {
             "
           >
 
-            {formData.coverImagePreview ? (
+            {formData.coverImagePreview || formData.coverImageKey ? (
 
               <PreviewCardShell
                 onRedo={handleRedoCoverImage}
@@ -2709,27 +2741,69 @@ const handleLandingPageImageSelect = (item) => {
                 isDark={isDark}
               >
 
-                <img
-                  src={formData.coverImagePreview}
-                  alt="Preview"
-                  className="
-                    w-full
-                    h-[150px]
-                    object-contain
-                    p-2
-                  "
-                />
+                {formData.coverImagePreview ? (
+
+                  <img
+                    src={formData.coverImagePreview}
+                    alt="Preview"
+                    className="
+                      w-full
+                      h-[150px]
+                      object-contain
+                      p-2
+                    "
+                  />
+
+                ) : (
+
+                  /* Uploaded, but no thumbnail was saved with the draft */
+                  <div className="w-full h-[150px] flex items-center justify-center">
+                    <ImageIcon
+                      className={`w-8 h-8 ${
+                        isDark ? 'text-white/40' : 'text-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                )}
 
               </PreviewCardShell>
 
             ) : (
 
-              <CoverImageDropzone
-                onClick={() =>
-                  setIsImageCatalogueOpen(true)
-                }
-                isDark={isDark}
-              />
+              <>
+
+                <CoverImageDropzone
+                  onClick={() =>
+                    setIsImageCatalogueOpen(true)
+                  }
+                  isDark={isDark}
+                />
+
+
+                {/* A resumed draft whose upload never reached storage */}
+                {formData.coverImageReattach && (
+
+                  <p
+                    className={`
+                      text-[8px]
+                      font-semibold
+                      text-center
+                      ${
+                        isDark
+                          ? 'text-amber-200'
+                          : 'text-amber-700'
+                      }
+                    `}
+                  >
+                    Please attach your cover image again
+                    ({formData.coverImageReattach}): it was not
+                    uploaded before you left.
+                  </p>
+
+                )}
+
+              </>
 
             )}
 
