@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { Check, Calendar, AlertTriangle, X } from 'lucide-react';
+import { Check, AlertTriangle, X } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
+import { isAfter } from '../../services/calendarDates';
+import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
@@ -210,6 +212,10 @@ const DetailsAndSettings = () => {
     }
     if (!endTime.trim() && !autoEndPostSending) {
       setErrorMsg('Please specify an End Time or check "Auto End post sending out all emails"');
+      return;
+    }
+    if (endTime.trim() && !isAfter(endTime, startTime)) {
+      setErrorMsg('The End Time must be after the Start Time');
       return;
     }
 
@@ -567,25 +573,20 @@ const DetailsAndSettings = () => {
                       <label className="text-[12.5px] mb-2 font-bold text-slate-800 dark:text-slate-200">
                         Start Time <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
                       </label>
-                      <div
-                        className={`w-full h-9 px-4 mb-2 rounded-xl flex items-center justify-between shadow-2xs ${
-                          isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
-                        }`}
-                      >
-                        <input
-                          type="datetime-local"
-                          value={startTime}
-                          onChange={(e) => {
-                            markTouched('startTime');
-                            setStartTime(e.target.value);
-                            setErrorMsg('');
-                            persistChanges({ startTime: e.target.value });
-                          }}
-                          placeholder="Enter Date Time"
-                          className="w-full bg-transparent text-[10.5px] font-normal outline-none cursor-pointer"
-                        />
-                        <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-400 flex-shrink-0 pointer-events-none" />
-                      </div>
+                      <DateTimeField
+                        value={startTime}
+                        onChange={(next) => {
+                          markTouched('startTime');
+                          setStartTime(next);
+                          setErrorMsg('');
+                          persistChanges({ startTime: next });
+                        }}
+                        disablePast
+                        isDark={isDark}
+                        ariaLabel="Start time"
+                        placeholder="Select start date & time"
+                        className="mb-2"
+                      />
                     </div>
 
                     {/* End Time Field */}
@@ -593,25 +594,21 @@ const DetailsAndSettings = () => {
                       <label className="text-[12.5px] mb-2 font-bold text-slate-800 dark:text-slate-200">
                         End Time {!autoEndPostSending && <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>}
                       </label>
-                      <div
-                        className={`w-full h-9 px-4 mb-2 rounded-xl flex items-center justify-between shadow-2xs ${
-                          isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
-                        }`}
-                      >
-                        <input
-                          type="datetime-local"
-                          value={endTime}
-                          onChange={(e) => {
-                            markTouched('endTime');
-                            setEndTime(e.target.value);
-                            setErrorMsg('');
-                            persistChanges({ endTime: e.target.value });
-                          }}
-                          placeholder="Enter Date Time"
-                          className="w-full bg-transparent text-[10.5px] font-normal outline-none cursor-pointer"
-                        />
-                        <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-400 flex-shrink-0 pointer-events-none" />
-                      </div>
+                      <DateTimeField
+                        value={endTime}
+                        onChange={(next) => {
+                          markTouched('endTime');
+                          setEndTime(next);
+                          setErrorMsg('');
+                          persistChanges({ endTime: next });
+                        }}
+                        disablePast
+                        min={startTime}
+                        isDark={isDark}
+                        ariaLabel="End time"
+                        placeholder="Select end date & time"
+                        className="mb-2"
+                      />
                     </div>
 
                     {/* Auto End Checkbox */}
