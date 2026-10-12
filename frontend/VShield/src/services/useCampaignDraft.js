@@ -32,6 +32,39 @@ const SAVE_DEBOUNCE_MS = 800;
 // Resolved on every call: whoever is signed in now, not at import time.
 const pointerKey = () => scopedKey(POINTER_BASE);
 
+// --- Saves shared by every hook instance ------------------------------------
+//
+// Each wizard step mounts its own useCampaignDraft, and moving between steps
+// unmounts one while the next one loads. Two rules keep the next step from
+// reading a draft that is missing what was just typed:
+//  1. PUTs for one campaign go out one after another. campaigns-api merges a
+//     PUT into what it reads, so two in flight at once can land out of order
+//     and the older one wins.
+//  2. A hook waits for that campaign's queued PUTs before it GETs the draft.
+// A save that failed after its step unmounted is kept here too, and the next
+// step to open that campaign re-applies it rather than losing the edit.
+const saveQueues = new Map(); // campaignId -> promise settling after its last queued PUT
+const unsavedPatches = new Map(); // campaignId -> fields an unmounted step could not save
+
+function queueSave(id, patch) {
+  const previous = saveQueues.get(id) || Promise.resolve();
+  const save = previous.then(() => api.campaigns.update(id, patch));
+  const settled = save.catch(() => {});
+  saveQueues.set(id, settled);
+  settled.then(() => {
+    if (saveQueues.get(id) === settled) saveQueues.delete(id);
+  });
+  return save;
+}
+
+const savesSettled = (id) => saveQueues.get(id) || Promise.resolve();
+
+function takeUnsaved(id) {
+  const patch = unsavedPatches.get(id);
+  unsavedPatches.delete(id);
+  return patch || null;
+}
+
 export function getActiveCampaignId() {
   return readString(pointerKey());
 }
@@ -79,6 +112,7 @@ function newDraftFields(step) {
  */
 async function openPointerDraft(id) {
   if (!id) return null;
+  await savesSettled(id);
   const item = await api.campaigns.get(id).catch(() => null);
   if (!item) return null;
   // REJECTED counts as openable: the whole point of a rejection is that the
@@ -148,8 +182,9 @@ export function useCampaignDraft({ step } = {}) {
     // Only clear once we know we can actually send it.
     pendingRef.current = {};
     try {
-      const saved = await api.campaigns.update(idRef.current, patch);
-      setDraft(saved);
+      const saved = await queueSave(idRef.current, patch);
+      // Edits made while this PUT was in flight are not in `saved` yet.
+      setDraft({ ...saved, ...pendingRef.current });
       return saved;
     } catch (e) {
       // Put the patch back so a transient failure does not lose the edit.
@@ -248,8 +283,11 @@ export function useCampaignDraft({ step } = {}) {
           // Remember the step the user is on, so re-entering the wizard can
           // offer to continue there. Only once the draft has loaded: an update()
           // before then would hand the steps a half-empty draft to seed from.
+          // An edit the previous step failed to save rides along with it.
           const step = stepRef.current;
-          if (step && toStep(item?.wizardStep) !== step) update({ wizardStep: step });
+          const carried = { ...takeUnsaved(id) };
+          if (step && toStep(item?.wizardStep) !== step) carried.wizardStep = step;
+          if (Object.keys(carried).length) update(carried);
         }
       } catch (e) {
         console.error('Could not open campaign draft', e);
@@ -266,15 +304,19 @@ export function useCampaignDraft({ step } = {}) {
     };
   }, [update]);
 
-  // Never leave unsaved edits behind when a step unmounts.
+  // Never leave unsaved edits behind when a step unmounts: send them through
+  // the shared queue (the next step's load waits for it), and if that fails,
+  // park them for the next step to re-apply.
   useEffect(() => () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      const patch = pendingRef.current;
-      if (idRef.current && Object.keys(patch).length) {
-        api.campaigns.update(idRef.current, patch).catch(() => {});
-      }
-    }
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const id = idRef.current;
+    const patch = pendingRef.current;
+    if (!id || Object.keys(patch).length === 0) return;
+    pendingRef.current = {};
+    queueSave(id, patch).catch(() => {
+      // Newer fields win over anything parked earlier.
+      unsavedPatches.set(id, { ...unsavedPatches.get(id), ...patch });
+    });
   }, []);
 
   return {

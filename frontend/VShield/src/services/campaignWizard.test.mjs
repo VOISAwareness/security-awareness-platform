@@ -12,6 +12,8 @@ import {
   draftLabel,
   isOwnDraft,
   isCreatedBy,
+  isOwnText,
+  detailsFieldValue,
   isSameScenario,
   scenarioContent,
   hasEditsBeyondScenario,
@@ -144,26 +146,80 @@ test('the template is copied, never mutated', () => {
   assert.equal(JSON.stringify(PHISH), before);
 });
 
-test('the user’s own title survives a template switch; a template title does not', () => {
-  const typed = templatePatch(PARCEL, { campaignTitle: 'Q3 drill', campaignDescription: 'Mine' }, PHISH);
-  assert.equal(typed.campaignTitle, 'Q3 drill');
-  assert.equal(typed.campaignDescription, 'Mine');
+test('the user’s own title and description are never in a template patch', () => {
+  // Typed on step 2 (flagged), even when the wording matches a scenario's.
+  const flagged = templatePatch(
+    PARCEL,
+    { campaignTitle: 'Password Expiry', campaignTitleSetByUser: true, campaignDescription: 'Mine', campaignDescriptionSetByUser: true },
+    PHISH
+  );
+  assert.equal('campaignTitle' in flagged, false);
+  assert.equal('campaignDescription' in flagged, false);
 
+  // Older drafts (no flag): anything other than the previous template's wording.
+  const legacy = templatePatch(PARCEL, { campaignTitle: 'Q3 drill', campaignDescription: 'Mine' }, PHISH);
+  assert.equal('campaignTitle' in legacy, false);
+  assert.equal('campaignDescription' in legacy, false);
+
+  // Previous template unknown: keep whatever is there.
+  assert.equal('campaignTitle' in templatePatch(PARCEL, { campaignTitle: 'Password Expiry' }, null), false);
+});
+
+test('a title the previous template filled in follows the new template, never blank', () => {
   const auto = templatePatch(PARCEL, fromTemplate(PHISH), PHISH);
   assert.equal(auto.campaignTitle, 'Parcel Delivery');
   assert.equal(auto.campaignDescription, 'Courier lure');
+  // A template without a name keeps the old wording rather than blanking it.
+  const unnamed = templatePatch({ scenarioId: 'SC-009' }, fromTemplate(PHISH), PHISH);
+  assert.equal(unnamed.campaignTitle, 'Password Expiry');
 });
 
-test('Start fresh blanks the content but keeps the user’s own title', () => {
-  const patch = templatePatch({ scenarioId: START_FRESH_ID }, { campaignTitle: 'Q3 drill' }, PHISH);
+test('Start fresh blanks the template content but never the user’s title / description', () => {
+  const typed = { ...fromTemplate(PHISH), campaignTitle: 'Q3 drill', campaignTitleSetByUser: true, campaignDescription: 'Mine', campaignDescriptionSetByUser: true };
+  const patch = templatePatch({ scenarioId: START_FRESH_ID }, typed, PHISH);
   assert.equal(patch.isStartFresh, true);
   assert.equal(patch.scenarioId, START_FRESH_ID);
-  assert.equal(patch.campaignTitle, 'Q3 drill');
+  assert.equal('campaignTitle' in patch, false);
+  assert.equal('campaignDescription' in patch, false);
+  assert.equal(patch.emailBody, '');
   assert.deepEqual(scenarioContent(null), {
     senderEmailId: '', senderName: '', emailSubject: '', emailBody: '', landingPageId: '', trainingId: '',
   });
-  assert.equal(patch.emailBody, '');
-  assert.equal(templatePatch(null, fromTemplate(PHISH), PHISH).campaignTitle, '');
+  // Only the previous template's own wording is cleared.
+  const auto = templatePatch(null, fromTemplate(PHISH), PHISH);
+  assert.equal(auto.campaignTitle, '');
+  assert.equal(auto.campaignDescription, '');
+});
+
+test('Start fresh -> type details -> come back -> Start fresh again re-applies nothing', () => {
+  const draft = {
+    ...fromTemplate({ scenarioId: START_FRESH_ID }),
+    campaignTitle: 'Q3 drill',
+    campaignTitleSetByUser: true,
+    campaignDescription: 'Quarterly drill',
+    campaignDescriptionSetByUser: true,
+    wizardStep: 2,
+  };
+  assert.equal(isSameScenario(draft, START_FRESH_ID), true);
+  assert.equal(isSameScenario({ scenarioId: START_FRESH_ID }, START_FRESH_ID), true);
+});
+
+test('isOwnText', () => {
+  assert.equal(isOwnText('', true, 'X'), false);
+  assert.equal(isOwnText('Password Expiry', true, 'Password Expiry'), true);
+  assert.equal(isOwnText('Password Expiry', undefined, 'Password Expiry'), false);
+  assert.equal(isOwnText('Q3 drill', undefined, 'Password Expiry'), true);
+});
+
+test('step 2 shows typed text, and hides only unflagged template wording', () => {
+  const names = ['Start Fresh', 'Password Expiry', 'Parcel Delivery'];
+  assert.equal(detailsFieldValue('Password Expiry', true, names), 'Password Expiry');
+  assert.equal(detailsFieldValue('Password Expiry', undefined, names), '');
+  assert.equal(detailsFieldValue(' Parcel Delivery ', false, names), '');
+  assert.equal(detailsFieldValue('Q3 drill', undefined, names), 'Q3 drill');
+  assert.equal(detailsFieldValue('', true, names), '');
+  assert.equal(detailsFieldValue(undefined, undefined, names), '');
+  assert.equal(detailsFieldValue('Anything', undefined, [undefined, '']), 'Anything');
 });
 
 test('no edits: a fresh draft, or one still exactly as its template left it', () => {

@@ -155,19 +155,42 @@ export function hasEditsBeyondScenario(draft, previous = null) {
   );
 }
 
-// A title / description the previous template filled in is not the user's own.
-const ownValue = (value, fromTemplate) =>
-  norm(value) && norm(value) !== norm(fromTemplate) ? value : '';
+/**
+ * Is this title / description the user's own? Step 2 flags what the user typed
+ * (`campaignTitleSetByUser` / `campaignDescriptionSetByUser`). Drafts saved
+ * before the flag existed fall back to: anything other than the wording the
+ * previous template filled in.
+ */
+export function isOwnText(value, setByUser, fromTemplate) {
+  return norm(value) !== '' && (setByUser === true || norm(value) !== norm(fromTemplate));
+}
 
 /**
- * The patch that copies `scenario` (or Start fresh) into the draft. The user's
- * own title and description are kept; the email, landing page and training are
- * the template's. Copies of the previous template's landing page and training
- * are dropped so steps 4 and 5 load the new template's.
+ * What step 2 shows in its Title / Description box. Text the user typed always
+ * shows. Unflagged text that is only a scenario's own name / description (the
+ * template's wording) is hidden, so the box starts empty as designed.
+ */
+export function detailsFieldValue(value, setByUser, templateTexts = []) {
+  const text = String(value ?? '');
+  if (!norm(text)) return '';
+  if (setByUser === true) return text;
+  return templateTexts.some((t) => norm(t) && norm(t) === norm(text)) ? '' : text;
+}
+
+/**
+ * The patch that copies `scenario` (or Start fresh) into the draft. The email,
+ * landing page and training become the template's; copies of the previous
+ * template's landing page and training are dropped so steps 4 and 5 load the
+ * new template's. The user's own title and description are never touched;
+ * only wording the previous template filled in follows the new choice.
  */
 export function templatePatch(scenario, draft = {}, previous = null) {
-  const title = ownValue(draft?.campaignTitle, previous?.scenarioName);
-  const description = ownValue(draft?.campaignDescription, previous?.description);
+  const ownTitle = isOwnText(draft?.campaignTitle, draft?.campaignTitleSetByUser, previous?.scenarioName);
+  const ownDescription = isOwnText(
+    draft?.campaignDescription,
+    draft?.campaignDescriptionSetByUser,
+    previous?.description
+  );
   const reset = {
     landingPageName: '',
     landingPageContent: '',
@@ -181,8 +204,9 @@ export function templatePatch(scenario, draft = {}, previous = null) {
       isStartFresh: true,
       scenarioId: START_FRESH_ID,
       scenarioName: 'Start Fresh',
-      campaignTitle: title,
-      campaignDescription: description,
+      // Only the previous template's wording is cleared, never the user's.
+      ...(ownTitle ? {} : { campaignTitle: '' }),
+      ...(ownDescription ? {} : { campaignDescription: '' }),
       campaignType: 'Custom',
       targetAudience: 'All Employees',
       difficulty: 'Medium',
@@ -197,8 +221,8 @@ export function templatePatch(scenario, draft = {}, previous = null) {
     isStartFresh: false,
     scenarioId: scenario.scenarioId,
     scenarioName: scenario.scenarioName,
-    campaignTitle: title || scenario.scenarioName,
-    campaignDescription: description || scenario.description,
+    ...(ownTitle ? {} : { campaignTitle: scenario.scenarioName || draft?.campaignTitle || '' }),
+    ...(ownDescription ? {} : { campaignDescription: scenario.description || draft?.campaignDescription || '' }),
     campaignType: scenario.campaignType,
     targetAudience: scenario.targetAudience,
     difficulty: scenario.difficulty,
