@@ -24,6 +24,7 @@ import RejectedImg from '../../assets/RequestAndApprovalsAssets/RejectedCampaign
 import MegaphoneImg from '../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
 import ExpiredImg from '../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
 import MyApprovedImg from '../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 
 // =========================================================================
@@ -266,6 +267,7 @@ const RequestAndApprovals = () => {
               Requests & Approvals
             </h1>
           </div>
+          <HeaderLoading show={loading} isDark={isDark} />
         </div>
 
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}

@@ -29,6 +29,7 @@ import {
 } from '../../services/scenarioDraftList';
 import ScenarioDraftCards from './ScenarioDraftCards';
 import { SCENARIO_DRAFT_DEFAULTS } from './scenarioDraftDefaults';
+import HeaderLoading from '../../GlobalComponents/HeaderLoading';
 
 // =========================================================================
 // 🖼️ IMAGE RESOLVER — eagerly import every asset once, then look up by filename
@@ -592,11 +593,13 @@ const Scenarios = () => {
   }, [userContext.isDark]);
 
   const [rawScenarios, setRawScenarios] = useState([]);
+  const [scenariosLoading, setScenariosLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     const apply = (rows) => {
       if (!active) return;
+      setScenariosLoading(false);
       // A DynamoDB scan is unordered and the cover fallback below is
       // index-based, so pin the order before it reaches the grid.
       setRawScenarios(
@@ -690,6 +693,7 @@ const Scenarios = () => {
               Scenario
             </h1>
           </div>
+          <HeaderLoading show={scenariosLoading} isDark={isDark} />
         </div>
 
         {/* ================================================= */}
