@@ -28,6 +28,7 @@ import {
 } from '../../services/campaignWizard';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import DraftCards from '../../GlobalComponents/DraftCards';
+import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
@@ -158,25 +159,6 @@ const ChooseAScenario = () => {
   const myDrafts = draftCampaigns.filter(
     (c) => c.status === 'DRAFT' && isOwnDraft(c, actorEmail) && hasProgress(c)
   );
-  const draftItems = myDrafts.map((c) => {
-    const step = savedStep(c);
-    return {
-      id: c.campaignId,
-      code: c.campaignId,
-      title: draftLabel(c),
-      description:
-        String(c.campaignDescription || '').trim() ||
-        (c.scenarioName ? `Template: ${c.scenarioName}` : ''),
-      savedAt: c.updatedAt || c.createdAt,
-      step,
-      stepCount: 6,
-      stepName: stepName(step),
-      cover: '',
-      inProgress: c.campaignId === campaignId,
-      busy: draftAction === c.campaignId,
-    };
-  });
-
   // Open a draft on the step it was saved on, as Campaigns → Drafts does.
   const continueCampaignDraft = (id) => {
     const camp = myDrafts.find((c) => c.campaignId === id);
@@ -287,6 +269,34 @@ const ChooseAScenario = () => {
 
   const findScenario = (scenarioId) =>
     scenariosList.find((s) => s.scenarioId === scenarioId) || null;
+
+  // A draft card looks like the card of the template it came from: that
+  // template's colour and art (Start fresh: the Start fresh art).
+  const draftItems = myDrafts.map((c) => {
+    const step = savedStep(c);
+    const fresh = Boolean(c.isStartFresh) || c.scenarioId === START_FRESH_ID;
+    const template = fresh ? null : findScenario(c.scenarioId);
+    return {
+      id: c.campaignId,
+      code: c.campaignId,
+      title: draftLabel(c),
+      description:
+        String(c.campaignDescription || '').trim() ||
+        (c.scenarioName ? `Template: ${c.scenarioName}` : ''),
+      savedAt: c.updatedAt || c.createdAt,
+      step,
+      stepCount: 6,
+      stepName: stepName(step),
+      inProgress: c.campaignId === campaignId,
+      busy: draftAction === c.campaignId,
+      theme: template ? DIFFICULTY_THEMES[template.difficulty] || DIFFICULTY_THEMES.Low : NEUTRAL_DRAFT_THEME,
+      image: template
+        ? getScenarioImage(template.CoverImageID)
+        : fresh
+        ? chooseAScenarioStartFresh || '/assets/ChooseAScenarioStartFresh.png'
+        : '',
+    };
+  });
 
   // Coming back to the wizard from outside it: offer to continue the user's own
   // saved campaign rather than silently dropping them on step 1.
@@ -653,6 +663,7 @@ const ChooseAScenario = () => {
             <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
               <DraftCards
                 items={draftItems}
+                cardClassName="w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px]"
                 loading={draftsLoading}
                 isDark={isDark}
                 onContinue={continueCampaignDraft}

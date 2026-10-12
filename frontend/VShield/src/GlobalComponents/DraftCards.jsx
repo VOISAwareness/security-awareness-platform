@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { FilePenLine, Trash2 } from 'lucide-react';
+import { ArrowRight, FilePenLine, Trash2 } from 'lucide-react';
 
-// "Oct 1, 9:00 AM" on the card (one line, so the id beside it keeps its
-// room); the full date and time on hover.
+import { NEUTRAL_DRAFT_THEME } from './draftTheme';
+
+// "Oct 1, 9:00 AM" on the card (one line, beside the id); full date on hover.
 const savedShort = (iso) =>
   iso
     ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -10,11 +11,16 @@ const savedShort = (iso) =>
 const savedFull = (iso) =>
   iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
 
-// The Drafts view shared by Scenarios and Start New Campaign: one card per
-// unfinished item, newest first, each with Continue and Delete (after a
-// "Delete this draft?" check). Pages map their drafts onto `items`:
+// The Drafts view shared by Scenarios and Start New Campaign. Each card is laid
+// out like the template cards beside it — same size, same pastel theme, the
+// template's art in the corner, the action at the bottom left — so the two
+// tabs read as one system. Pages map their drafts onto `items`:
 //   { id, code, title, description, savedAt, step, stepCount, stepName,
-//     cover, inProgress, busy }
+//     inProgress, busy, theme, image, photo }
+// `theme` is one of the page's template themes (NEUTRAL_DRAFT_THEME when the
+// draft has none); `image` is template art for the corner, `photo` an
+// uploaded picture shown framed instead. `cardClassName` carries the page's
+// card widths so drafts line up with its templates.
 const DraftCards = ({
   items,
   isDark,
@@ -22,6 +28,7 @@ const DraftCards = ({
   onDelete,
   loading = false,
   emptyText = 'Anything you start and leave unfinished is kept here.',
+  cardClassName = 'w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] min-w-[230px] max-w-[320px]',
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
@@ -50,101 +57,86 @@ const DraftCards = ({
   return (
     <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
       {items.map((info) => {
-        const { inProgress } = info;
+        const theme = info.theme || NEUTRAL_DRAFT_THEME;
         return (
           <div
             key={info.id}
             data-draft-id={info.id}
-            className={`relative rounded-3xl border overflow-hidden select-none w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] min-w-[230px] max-w-[320px] h-[270px] p-4 shadow-2xs hover:shadow-md transition-shadow ${
-              isDark ? 'bg-[#1C1E24] border-white/10' : 'bg-[#F1F5F9] border-slate-200'
-            }`}
+            style={{
+              backgroundColor: isDark ? theme.bgDark : theme.bgLight,
+              borderColor: isDark ? theme.borderDark : theme.border,
+            }}
+            className={`relative p-4 rounded-3xl border transition-all duration-150 flex flex-col justify-between overflow-hidden select-none h-[270px] shadow-2xs hover:shadow-md ${cardClassName}`}
           >
-            {/* ID + saved time */}
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/80 dark:bg-black/50 shadow-2xs text-slate-900 dark:text-white min-w-0">
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-slate-400" />
+            {/* Top bar: id pill (left) + when it was saved (right) */}
+            <div className="flex items-center justify-between gap-2 mb-1.5 z-10">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 shadow-2xs text-slate-900 dark:text-white min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
                 <span className="truncate" title={info.code || undefined}>{info.code || 'No ID yet'}</span>
               </div>
               {info.savedAt && (
                 <span
                   title={`Saved ${savedFull(info.savedAt)}`}
-                  className="text-[9.5px] font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap flex-shrink-0"
+                  className="text-[10px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap flex-shrink-0"
                 >
-                  Saved {savedShort(info.savedAt)}
+                  Saved: {savedShort(info.savedAt)}
                 </span>
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5 text-left">
+            {/* Title, description, where it was left */}
+            <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%] flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300">
+                <span className="px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-white/70 dark:bg-black/40 text-slate-700 dark:text-slate-300">
                   Draft
                 </span>
-                {inProgress && (
-                  <span className="px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-[#E60000]/10 text-[#E60000]">
-                    In progress
-                  </span>
-                )}
+                {inProgressChip(info.inProgress)}
               </div>
               <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight line-clamp-2">
                 {info.title}
               </h3>
               {info.description && (
-                <p className="text-[9.5px] leading-[1.25] text-slate-700 dark:text-white/70 line-clamp-3 max-w-[70%]">
+                <p className="text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-4 leading-relaxed">
+                  <strong className="text-slate-900 dark:text-white">Description: </strong>
                   {info.description}
                 </p>
               )}
-
-              {/* Where it was left */}
-              <div className="mt-1 max-w-[70%]">
-                <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200">
-                  Step {info.step} of {info.stepCount}: {info.stepName}
-                </div>
-                <div className="mt-1 flex gap-1" aria-hidden="true">
-                  {Array.from({ length: info.stepCount }, (_, i) => (
-                    <span
-                      key={i}
-                      className={`h-1 flex-1 rounded-full ${
-                        i < info.step ? 'bg-[#8ED973]' : isDark ? 'bg-white/10' : 'bg-slate-300'
-                      }`}
-                    />
-                  ))}
-                </div>
+              <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                Step {info.step} of {info.stepCount}: {info.stepName}
+              </div>
+              <div className="flex gap-1 max-w-[150px]" aria-hidden="true">
+                {Array.from({ length: info.stepCount }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1 flex-1 rounded-full ${
+                      i < info.step ? 'bg-slate-900 dark:bg-white' : 'bg-black/10 dark:bg-white/15'
+                    }`}
+                  />
+                ))}
               </div>
             </div>
 
-            {info.cover && (
-              <img
-                src={info.cover}
-                alt=""
-                className="absolute right-4 bottom-14 w-[92px] h-[68px] rounded-xl object-cover shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            )}
-
-            {/* Continue / Delete */}
-            <div className="absolute left-4 right-4 bottom-4 flex items-center gap-1.5 text-[9.5px] font-bold">
+            {/* Bottom left: Continue → (as "Use This →") and Delete */}
+            <div className="pt-2 z-10 flex items-center gap-1.5 text-[11px] font-bold">
               {info.busy ? (
-                <span className="text-slate-500">Working…</span>
+                <span className="text-slate-600 dark:text-slate-300">Working…</span>
               ) : confirmDeleteId === info.id ? (
                 <>
-                  <span className="text-slate-700 dark:text-slate-300">Delete this draft?</span>
+                  <span className="text-slate-800 dark:text-slate-200">Delete this draft?</span>
                   <button
                     type="button"
                     onClick={() => {
                       setConfirmDeleteId(null);
                       onDelete(info.id);
                     }}
-                    className="h-[26px] px-2.5 rounded-lg bg-[#E60000] hover:bg-[#ff2020] text-white cursor-pointer"
+                    className="px-3 py-1 rounded-lg bg-[#E60000] hover:bg-[#ff2020] text-white cursor-pointer shadow-2xs"
                   >
                     Yes, delete
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(null)}
-                    className="h-[26px] px-2.5 rounded-lg bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    className="px-3 py-1 rounded-lg border bg-white/90 dark:bg-black/40 border-black/10 dark:border-white/15 text-slate-800 dark:text-slate-200 cursor-pointer"
                   >
                     No
                   </button>
@@ -154,25 +146,63 @@ const DraftCards = ({
                   <button
                     type="button"
                     onClick={() => onContinue(info.id)}
-                    className="h-[26px] px-2.5 rounded-lg flex items-center gap-1 bg-black text-white dark:bg-white dark:text-black cursor-pointer"
+                    className={`px-3.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${theme.btnBg} ${theme.btnBorder} ${theme.btnText}`}
                   >
-                    <FilePenLine className="w-3 h-3" /> Continue
+                    <span>Continue</span>
+                    <ArrowRight className="w-3 h-3 stroke-[2.5]" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(info.id)}
-                    className="h-[26px] px-2.5 rounded-lg flex items-center gap-1 bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 text-[#E60000] cursor-pointer"
+                    aria-label={`Delete draft ${info.title}`}
+                    title="Delete draft"
+                    className="h-[26px] px-2 rounded-lg bg-[#e60000] hover:bg-[#ff2020] text-white flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >
-                    <Trash2 className="w-3 h-3" /> Delete
+                    <Trash2 className="w-3 h-3" />
+                    Delete
                   </button>
                 </>
               )}
             </div>
+
+            {/* Bottom right: the template's art, as on the template cards */}
+            {info.image && !info.photo && (
+              <div className="absolute -right-[10%] -bottom-[10%] w-[135px] h-[135px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+                <img
+                  src={info.image}
+                  alt=""
+                  className="w-full h-full object-contain filter drop-shadow-md"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            {/* An uploaded cover is a photo: framed, not cropped by the corner. */}
+            {info.photo && (
+              <img
+                src={info.photo}
+                alt=""
+                className="absolute right-4 bottom-4 w-[96px] h-[70px] rounded-xl object-cover shadow-sm pointer-events-none"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            )}
           </div>
         );
       })}
     </div>
   );
 };
+
+function inProgressChip(show) {
+  if (!show) return null;
+  return (
+    <span className="px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-[#E60000]/10 text-[#E60000]">
+      In progress
+    </span>
+  );
+}
 
 export default DraftCards;

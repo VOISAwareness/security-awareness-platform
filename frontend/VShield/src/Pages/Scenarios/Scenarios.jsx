@@ -26,8 +26,10 @@ import {
   inProgressScenarioDraft,
   listScenarioDrafts,
   removeScenarioDraft,
+  setActiveScenarioDraftId,
 } from '../../services/scenarioDraftList';
 import DraftCards from '../../GlobalComponents/DraftCards';
+import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
 import { SCENARIO_DRAFT_DEFAULTS } from './scenarioDraftDefaults';
 import HeaderLoading from '../../GlobalComponents/HeaderLoading';
@@ -562,20 +564,32 @@ const Scenarios = () => {
 
   const continueDraft = (id, from = 'drafts') =>
     navigate(`/new-scenario?draft=${encodeURIComponent(id)}`, { state: { from } });
-  const startNewScenario = () => navigate('/new-scenario', { state: { startFresh: true } });
+  // "Start new" files the scenario in progress under Drafts for good: it is no
+  // longer the one in progress, so coming back here does not ask about it again.
+  const startNewScenario = () => {
+    setActiveScenarioDraftId('');
+    navigate('/new-scenario', { state: { startFresh: true } });
+  };
   const deleteDraft = (id) => {
     removeScenarioDraft(id);
     setDrafts(readDrafts());
     setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
   };
-  const draftItems = drafts.map((d) => {
+  // Drafts take the same rotating card colours as the templates, and show
+  // their cover: catalogue art in the corner, an uploaded photo framed, and
+  // the "new design" art while no cover has been picked yet.
+  const draftItems = drafts.map((d, i) => {
     const info = draftSummary(d);
+    const uploaded = d.formData?.coverImageSource === 'upload';
     return {
       ...info,
       id: d.id,
       code: info.scenarioId,
       title: info.name,
       inProgress: d.id === inProgress?.id,
+      theme: DIFFICULTY_THEMES[THEME_CYCLE[i % THEME_CYCLE.length]],
+      image: uploaded ? '' : info.cover || draftArt,
+      photo: uploaded ? info.cover : '',
     };
   });
   const searchText = search.trim().toLowerCase();
