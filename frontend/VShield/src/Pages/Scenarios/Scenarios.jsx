@@ -14,7 +14,7 @@ import {
   ArrowRight,
   ArrowLeft,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
@@ -27,7 +27,8 @@ import {
   listScenarioDrafts,
   removeScenarioDraft,
 } from '../../services/scenarioDraftList';
-import ScenarioDraftCards from './ScenarioDraftCards';
+import DraftCards from '../../GlobalComponents/DraftCards';
+import ViewTabs from '../../GlobalComponents/ViewTabs';
 import { SCENARIO_DRAFT_DEFAULTS } from './scenarioDraftDefaults';
 
 // =========================================================================
@@ -542,28 +543,44 @@ const Scenarios = () => {
   // work). Coming back here with one in progress asks, like Start New Campaign,
   // whether to pick it up or start a new one; either way it stays under Drafts.
   // ---------------------------------------------------
-  const [view, setView] = useState('all'); // 'all' | 'drafts'
+  // Coming back from the editor (its Back button) lands on the tab it was
+  // opened from, without asking again about the scenario just left.
+  const location = useLocation();
+  const [arrival] = useState(() => location.state || {});
+  const [view, setView] = useState(arrival.view === 'drafts' ? 'drafts' : 'all'); // 'all' | 'drafts'
+  // Used once: a reload of this page should ask again as usual.
+  useEffect(() => {
+    if (location.state) navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
   const readDrafts = () =>
     listScenarioDrafts().filter((d) => isMeaningfulDraft(d, SCENARIO_DRAFT_DEFAULTS));
   const [drafts, setDrafts] = useState(readDrafts);
   const [inProgress, setInProgress] = useState(() => inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
-  const [resumePromptOpen, setResumePromptOpen] = useState(() => Boolean(inProgress));
+  const [resumePromptOpen, setResumePromptOpen] = useState(() => Boolean(inProgress) && !arrival.fromEditor);
   const inProgressInfo = inProgress ? draftSummary(inProgress.draft) : null;
 
-  const continueDraft = (id) => navigate(`/new-scenario?draft=${encodeURIComponent(id)}`);
+  const continueDraft = (id, from = 'drafts') =>
+    navigate(`/new-scenario?draft=${encodeURIComponent(id)}`, { state: { from } });
   const startNewScenario = () => navigate('/new-scenario', { state: { startFresh: true } });
   const deleteDraft = (id) => {
     removeScenarioDraft(id);
     setDrafts(readDrafts());
     setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
   };
-  const visibleDrafts = search.trim()
-    ? drafts.filter((d) => {
-        const info = draftSummary(d);
-        const text = search.trim().toLowerCase();
-        return [info.name, info.scenarioId, info.description].some((v) => v.toLowerCase().includes(text));
-      })
-    : drafts;
+  const draftItems = drafts.map((d) => {
+    const info = draftSummary(d);
+    return {
+      ...info,
+      id: d.id,
+      code: info.scenarioId,
+      title: info.name,
+      inProgress: d.id === inProgress?.id,
+    };
+  });
+  const searchText = search.trim().toLowerCase();
+  const visibleDrafts = searchText
+    ? draftItems.filter((d) => [d.title, d.code, d.description].some((v) => v.toLowerCase().includes(searchText)))
+    : draftItems;
   const userContext = useUserType?.() || {};
 
   // Theme check
@@ -709,55 +726,17 @@ const Scenarios = () => {
         {/* ================================================= */}
         <div className="flex items-center justify-end gap-2.5 flex-shrink-0">
           {/* All scenarios | Drafts */}
-          <div
-            role="tablist"
-            aria-label="Scenarios view"
-            className={`mr-auto -mt-2 h-[30px] p-0.5 flex items-center gap-0.5 rounded-lg border shadow-sm ${
-              isDark ? 'bg-[#15161a] border-white/10' : 'bg-white border-slate-200'
-            }`}
-          >
-            {[
+          <ViewTabs
+            ariaLabel="Scenarios view"
+            className="mr-auto -mt-2"
+            isDark={isDark}
+            value={view}
+            onChange={setView}
+            tabs={[
               { id: 'all', label: 'All scenarios' },
               { id: 'drafts', label: 'Drafts', count: drafts.length },
-            ].map((tab) => {
-              const selected = view === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  onClick={() => setView(tab.id)}
-                  className={`h-full px-3 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors ${
-                    selected
-                      ? isDark
-                        ? 'bg-white text-[#0B1121]'
-                        : 'bg-[#06080D] text-white'
-                      : isDark
-                      ? 'text-white/60 hover:text-white'
-                      : 'text-slate-600 hover:text-black'
-                  }`}
-                >
-                  {tab.label}
-                  {tab.count !== undefined && (
-                    <span
-                      className={`min-w-[16px] h-[16px] px-1 rounded-full text-[9px] flex items-center justify-center ${
-                        selected
-                          ? isDark
-                            ? 'bg-[#0B1121]/10'
-                            : 'bg-white/20'
-                          : isDark
-                          ? 'bg-white/10'
-                          : 'bg-slate-200'
-                      }`}
-                    >
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+            ]}
+          />
 
           <Link to="/new-scenario">
             <button
@@ -884,12 +863,12 @@ const Scenarios = () => {
           <div className="flex-1 min-w-0 flex flex-col">
             <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
               {view === 'drafts' ? (
-                <ScenarioDraftCards
-                  drafts={visibleDrafts}
-                  inProgressId={inProgress?.id || ''}
+                <DraftCards
+                  items={visibleDrafts}
                   isDark={isDark}
-                  onContinue={continueDraft}
+                  onContinue={(id) => continueDraft(id)}
                   onDelete={deleteDraft}
+                  emptyText="A scenario you start and leave before publishing is kept here."
                 />
               ) : filteredScenarios.length === 0 ? (
                 <div
@@ -1271,7 +1250,7 @@ const Scenarios = () => {
           ) : null
         }
         primaryLabel="Continue"
-        onPrimary={() => continueDraft(inProgress.id)}
+        onPrimary={() => continueDraft(inProgress.id, 'all')}
         secondaryLabel="Start new"
         onSecondary={startNewScenario}
         onDismiss={() => setResumePromptOpen(false)}

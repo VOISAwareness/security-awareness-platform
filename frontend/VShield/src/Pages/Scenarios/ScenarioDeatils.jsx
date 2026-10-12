@@ -851,6 +851,9 @@ const ScenarioDeatils = () => {
   const [openedDraft] = useState(() =>
     draftOpening.resume ? fromDraft(draftOpening.resume) : null
   );
+  // Which Scenarios tab opened the editor, for BACK on the first step. Read
+  // before the address is rewritten (below), which drops the history state.
+  const [openedFrom] = useState(() => (location.state?.from === 'drafts' ? 'drafts' : 'all'));
 
   const [activeTab, setActiveTab] = useState(openedDraft?.activeTab ?? 0);
   const [errorMsg, setErrorMsg] = useState('');
@@ -1195,10 +1198,15 @@ const goNext = () => {
   setActiveTab((previous) => previous + 1);
 };
 
+  // BACK on the first step leaves the editor for the Scenarios tab it was
+  // opened from. Work so far is already saved (the draft flushes on unmount)
+  // and stays under Scenarios → Drafts, so arriving there asks nothing.
   const goBack = () => {
     if (activeTab > 0) {
       setActiveTab((previous) => previous - 1);
+      return;
     }
+    navigate('/create-scenario', { state: { view: openedFrom, fromEditor: true } });
   };
 
   // ==========================================================
@@ -1605,7 +1613,7 @@ const handlePublishScenario = async () => {
   <button
     type="button"
     onClick={goBack}
-    disabled={activeTab === 0}
+    title={activeTab === 0 ? 'Back to Scenarios' : 'Previous step'}
     className={`
       w-[90px]
       h-[24px]
@@ -1620,26 +1628,13 @@ const handlePublishScenario = async () => {
       items-center
       justify-center
 
-      ${
-        activeTab === 0
-          ? `
-            bg-[#000000]
-            dark:bg-[#ffffff]
-            text-white
-            dark:text-black
-            opacity-40
-            cursor-not-allowed
-          `
-          : `
-            bg-[#000000]
-            dark:bg-[#ffffff]
-            hover:bg-black/80
-            dark:hover:bg-white/80
-            text-white
-            dark:text-black
-            cursor-pointer
-          `
-      }
+      bg-[#000000]
+      dark:bg-[#ffffff]
+      hover:bg-black/80
+      dark:hover:bg-white/80
+      text-white
+      dark:text-black
+      cursor-pointer
     `}
   >
     BACK
