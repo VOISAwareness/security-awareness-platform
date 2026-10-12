@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -230,6 +230,10 @@ const ChooseAScenario = () => {
   const handleContinue = () => {
     navigate(routeForStep(resumeStep), { replace: true, ...IN_WIZARD });
   };
+
+  // Esc / backdrop on "Continue your campaign?" do nothing: only the buttons
+  // decide, so a stray key press never moves the user off their campaign.
+  const ignoreDismiss = useCallback(() => {}, []);
 
   // The saved campaign is left exactly as it is (still a DRAFT, listed under
   // Campaigns -> Drafts); this user simply gets a brand-new one.
@@ -752,6 +756,7 @@ const ChooseAScenario = () => {
         onPrimary={handleContinue}
         secondaryLabel="Start new"
         onSecondary={handleStartNew}
+        onDismiss={ignoreDismiss}
       />
 
       <DraftDialog
