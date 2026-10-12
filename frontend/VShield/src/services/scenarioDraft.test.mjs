@@ -177,7 +177,17 @@ test('a catalogue cover restores untouched', () => {
 test('draftSummary names the scenario and the saved step', () => {
   assert.deepEqual(
     draftSummary(buildDraft({ ...blankForm, scenarioName: ' Benefits lure ' }, 1, new Date(0))),
-    { name: 'Benefits lure', stepName: 'Email Details', savedAt: '1970-01-01T00:00:00.000Z', needsCoverReattach: false },
+    {
+      name: 'Benefits lure',
+      scenarioId: '',
+      description: '',
+      step: 2,
+      stepCount: 4,
+      stepName: 'Email Details',
+      savedAt: '1970-01-01T00:00:00.000Z',
+      cover: '',
+      needsCoverReattach: false,
+    },
   );
   assert.equal(draftSummary(buildDraft(blankForm, 3)).name, 'Untitled scenario');
   assert.equal(draftSummary(buildDraft(blankForm, 3)).stepName, 'Review & Publish');

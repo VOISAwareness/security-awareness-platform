@@ -2,53 +2,60 @@
  * useScenarioDraft — save/resume for the "Create new scenario" wizard.
  *
  * The wizard keeps its whole form in React state, so leaving the page (or the
- * browser discarding the tab) used to lose everything before Publish. This keeps
- * the serialisable part of that form, plus the current step, in localStorage
- * under a per-user key (`voisshield_scenario_draft:<email>`):
+ * browser discarding the tab) used to lose everything before Publish. Each
+ * scenario being written is saved as its own draft, per user, in this browser
+ * (scenarioDraftList.js):
  *  - writes are debounced (the rich-text editors change formData on every
  *    keystroke) and flushed when the page unmounts, is hidden or is unloaded;
- *  - a saved draft is offered back on the next visit, and nothing is written
- *    until the author decides, so the blank form can never overwrite it;
+ *  - coming back, the scenario in progress is offered back ("Continue your
+ *    scenario?"), and nothing is written until the author decides, so the
+ *    blank form can never overwrite it;
+ *  - "Start new" leaves that draft as it is (Scenarios → Drafts) and starts a
+ *    new one, like campaigns;
  *  - after a successful publish the draft is removed and saving stops.
+ *
+ * Which draft the editor opens on is decided before its first render by
+ * scenarioEditorOpening() (an explicit ?draft=<id> opens that one directly), so
+ * the form can start from it.
  *
  * Only the author's own new scenario is stored here; templates are never written.
  * The pure rules (what is stripped, what counts as work) live in scenarioDraft.js.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { readJSON, removeKey, scopedKey, writeJSON } from './draftStore.js';
+import { currentActor } from './identity.js';
+import { buildDraft, draftSummary, fromDraft, isMeaningfulDraft } from './scenarioDraft.js';
 import {
-  SCENARIO_DRAFT_KEY,
-  buildDraft,
-  draftSummary,
-  fromDraft,
-  isMeaningfulDraft,
-  parseDraft,
-} from './scenarioDraft.js';
+  removeScenarioDraft,
+  saveScenarioDraft,
+  setActiveScenarioDraftId,
+} from './scenarioDraftList.js';
 
 const SAVE_DEBOUNCE_MS = 400;
-
-function readSavedDraft(key, defaults) {
-  const saved = parseDraft(readJSON(key));
-  return saved && isMeaningfulDraft(saved, defaults) ? saved : null;
-}
 
 /**
  * @param formData  the wizard's form state
  * @param activeTab the wizard's current step (0-3)
  * @param defaults  pre-filled values that are not the author's work
- * @returns offer      summary of a saved draft awaiting Continue / Start new, or null
+ * @param opening   scenarioEditorOpening()'s result, computed once by the page
+ * @returns draftId    the draft this editor saves to
+ *          offer      summary of the scenario in progress awaiting Continue / Start new, or null
  *          resume()   accept the offer; returns { formData, activeTab } to apply
- *          startNew() discard the saved draft and keep the blank form
- *          clear()    remove the draft and stop saving (after a successful publish)
+ *          startNew() keep that draft (Scenarios → Drafts) and carry on with a new one
+ *          clear()    remove this draft and stop saving (after a successful publish)
+ *          saveFailed true when the browser refused the last save (storage full)
  */
-export function useScenarioDraft({ formData, activeTab, defaults }) {
+export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
   // Resolved once: signing out unmounts this page, and the final flush must
   // still land under the person who did the work.
-  const [key] = useState(() => scopedKey(SCENARIO_DRAFT_KEY));
-  const [offer, setOffer] = useState(() => readSavedDraft(key, defaults));
+  const [actor] = useState(() => currentActor());
+  const [draftId, setDraftId] = useState(opening.id);
+  const [offer, setOffer] = useState(opening.offer); // { id, draft } | null
+  const [saveFailed, setSaveFailed] = useState(false);
 
-  // The latest unsaved state, the debounce timer, and the after-publish stop.
+  // The draft written to, the latest unsaved state, the debounce timer, and
+  // the after-publish stop.
+  const idRef = useRef(opening.id);
   const pendingRef = useRef(null);
   const timerRef = useRef(null);
   const stoppedRef = useRef(false);
@@ -58,6 +65,11 @@ export function useScenarioDraft({ formData, activeTab, defaults }) {
   useEffect(() => {
     defaultsRef.current = defaults;
   }, [defaults]);
+
+  // A draft opened directly (from Scenarios → Drafts) is now the one in progress.
+  useEffect(() => {
+    if (opening.resume) setActiveScenarioDraftId(opening.id, actor);
+  }, [opening, actor]);
 
   const flush = useCallback(() => {
     if (timerRef.current) {
@@ -69,12 +81,18 @@ export function useScenarioDraft({ formData, activeTab, defaults }) {
     if (!pending || stoppedRef.current) return;
 
     const draft = buildDraft(pending.formData, pending.activeTab);
-    // A form emptied back to blank leaves nothing worth offering next time.
-    if (isMeaningfulDraft(draft, defaultsRef.current)) writeJSON(key, draft);
-    else removeKey(key);
-  }, [key]);
+    if (isMeaningfulDraft(draft, defaultsRef.current)) {
+      const saved = saveScenarioDraft(idRef.current, draft, actor);
+      if (saved) setActiveScenarioDraftId(idRef.current, actor);
+      setSaveFailed(!saved);
+    } else {
+      // A form emptied back to blank leaves nothing worth keeping.
+      removeScenarioDraft(idRef.current, actor);
+      setSaveFailed(false);
+    }
+  }, [actor]);
 
-  // Autosave, paused while a saved draft is on offer.
+  // Autosave, paused while the scenario in progress is on offer.
   useEffect(() => {
     if (offer || stoppedRef.current) return;
     pendingRef.current = { formData, activeTab };
@@ -98,14 +116,20 @@ export function useScenarioDraft({ formData, activeTab, defaults }) {
   }, [flush]);
 
   const resume = useCallback(() => {
+    if (!offer) return null;
+    idRef.current = offer.id;
+    setDraftId(offer.id);
+    setActiveScenarioDraftId(offer.id, actor);
     setOffer(null);
-    return offer ? fromDraft(offer) : null;
-  }, [offer]);
+    return fromDraft(offer.draft);
+  }, [offer, actor]);
 
+  // The offered draft is left exactly as it is; this editor saves to its own
+  // new draft from the first real edit.
   const startNew = useCallback(() => {
-    removeKey(key);
+    setActiveScenarioDraftId('', actor);
     setOffer(null);
-  }, [key]);
+  }, [actor]);
 
   const clear = useCallback(() => {
     stoppedRef.current = true;
@@ -114,15 +138,17 @@ export function useScenarioDraft({ formData, activeTab, defaults }) {
       timerRef.current = null;
     }
     pendingRef.current = null;
-    removeKey(key);
+    removeScenarioDraft(idRef.current, actor);
     setOffer(null);
-  }, [key]);
+  }, [actor]);
 
   return {
-    offer: offer ? draftSummary(offer) : null,
+    draftId,
+    offer: offer ? draftSummary(offer.draft) : null,
     resume,
     startNew,
     clear,
+    saveFailed,
   };
 }
 

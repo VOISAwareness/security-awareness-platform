@@ -8,9 +8,12 @@
  * landing page, training path or cover) was copied into formData when chosen, so
  * saving or restoring a draft never reads back into, or writes to, a template.
  *
- * Stored shape: { version, savedAt, activeTab, formData }.
+ * Stored shape of one draft: { version, savedAt, activeTab, formData }. Where
+ * drafts are kept, and how many, is scenarioDraftList.js's business.
  */
 
+// The one-draft-per-person key used before drafts were listed; now only read,
+// to move such a draft into scenarioDraftList.js's list.
 export const SCENARIO_DRAFT_KEY = 'voisshield_scenario_draft';
 export const SCENARIO_DRAFT_VERSION = 1;
 
@@ -163,13 +166,23 @@ export function fromDraft(draft) {
   return { formData: form, activeTab: clampStep(draft?.activeTab) };
 }
 
-/** What the resume prompt shows about a saved draft. */
+/** What the resume prompt and the Drafts list show about a saved draft. */
 export function draftSummary(draft) {
   const form = draft?.formData || {};
+  const step = clampStep(draft?.activeTab);
   return {
     name: String(form.scenarioName || '').trim() || 'Untitled scenario',
-    stepName: SCENARIO_STEPS[clampStep(draft?.activeTab)],
+    scenarioId: String(form.scenarioId || '').trim(),
+    description: String(form.description || '').trim(),
+    step: step + 1,
+    stepCount: SCENARIO_STEPS.length,
+    stepName: SCENARIO_STEPS[step],
     savedAt: draft?.savedAt || '',
+    // A small picture for the Drafts card: an uploaded cover's thumbnail, or
+    // the catalogue cover picked.
+    cover:
+      form.coverImageThumbnail ||
+      (form.coverImageSource === 'catalogue' ? form.coverImagePreview || '' : ''),
     needsCoverReattach:
       (form.coverImageSource === 'upload' && !form.coverImageKey) ||
       Boolean(form.coverImageReattach),

@@ -4,16 +4,17 @@ import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
 import { api } from "../../services/api";
 import { catalogueCoverName, landingPageChoice, toStoredScenario } from "../../services/scenarioMapper";
-import { reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
+import { fromDraft, reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
+import { scenarioEditorOpening } from "../../services/scenarioDraftList";
 import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import RenderEditorWorkspace from './RenderEditorWorkspace';
-import scenariosJsonData from "./ScenariosData.json";
+import { DEFAULT_EMAIL_BODY, SCENARIO_DRAFT_DEFAULTS } from "./scenarioDraftDefaults";
 import AttachOutcomesTab from "./AttachOutcomes";
 import EmailDetailsTab from "./EmailDetailsTab";
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   ChevronRight,
@@ -68,15 +69,6 @@ const VODAFONE_FONT_STYLE = `
     border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important;
   }
 `;
-
-// The email body a new scenario starts with. It is a template, not the
-// author's work, so on its own it never makes a draft worth resuming.
-const DEFAULT_EMAIL_BODY =
-  scenariosJsonData?.scenarios?.find(
-    (scenario) => scenario.scenarioId === 'SC-001'
-  )?.emailBody || '';
-
-const DRAFT_DEFAULTS = { emailBody: DEFAULT_EMAIL_BODY };
 
 const FX_PARAMETERS = [
   { label: '@UserName', code: '{{userName}}', desc: 'Target user full name' },
@@ -843,7 +835,24 @@ const ScenarioDeatils = () => {
     isDark: false,
   };
 
-  const [activeTab, setActiveTab] = useState(0);
+  // Which draft this editor works on, decided before the first render so the
+  // form can start from it: ?draft=<id> (Scenarios → Drafts) opens that draft;
+  // otherwise a new one, with the scenario in progress offered back first unless
+  // the author just chose "Start new".
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [draftOpening] = useState(() =>
+    scenarioEditorOpening({
+      requestedId: searchParams.get('draft') || '',
+      startFresh: Boolean(location.state?.startFresh),
+      defaults: SCENARIO_DRAFT_DEFAULTS,
+    })
+  );
+  const [openedDraft] = useState(() =>
+    draftOpening.resume ? fromDraft(draftOpening.resume) : null
+  );
+
+  const [activeTab, setActiveTab] = useState(openedDraft?.activeTab ?? 0);
   const [errorMsg, setErrorMsg] = useState('');
   // Kept separate from errorMsg on purpose. A validation hint is transient and
   // self-dismisses; a failed save means nothing was written, so it has to stay
@@ -871,7 +880,7 @@ useEffect(() => {
   // ==========================================================
   // FORM DATA
   // ==========================================================
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
 
     // --------------------------------------------------------
     // Scenario Details
@@ -953,7 +962,9 @@ useEffect(() => {
     outcomeDescription: '',
     outcomeRichText: '',
     outcomeSource: '',
-  });
+    // A draft opened from Scenarios → Drafts.
+    ...(openedDraft?.formData || {}),
+  }));
 
   // ==========================================================
   // DRAFT SAVE / RESUME
@@ -964,8 +975,18 @@ useEffect(() => {
   const scenarioDraft = useScenarioDraft({
     formData,
     activeTab,
-    defaults: DRAFT_DEFAULTS,
+    defaults: SCENARIO_DRAFT_DEFAULTS,
+    opening: draftOpening,
   });
+
+  // Keep the draft in the address (?draft=<id>), so a reload reopens the same
+  // scenario. Replacing the history entry also drops a "Start new" flag.
+  const editingDraftId = scenarioDraft.offer ? '' : scenarioDraft.draftId;
+  useEffect(() => {
+    if (editingDraftId && searchParams.get('draft') !== editingDraftId) {
+      setSearchParams({ draft: editingDraftId }, { replace: true, state: null });
+    }
+  }, [editingDraftId, searchParams, setSearchParams]);
 
   const handleContinueDraft = () => {
     const restored = scenarioDraft.resume();
@@ -979,8 +1000,9 @@ useEffect(() => {
     setActiveTab(restored.activeTab);
   };
 
-  // "Start new" deletes the saved draft, so only its button may do that: the
-  // dialog's Esc / backdrop dismissal is a no-op here and the dialog stays open.
+  // "Start new" keeps the saved draft (Scenarios → Drafts) and carries on with a
+  // new one. Like the campaign wizard, only the buttons decide: Esc and the
+  // backdrop leave the dialog open.
   const { startNew: handleStartNewDraft } = scenarioDraft;
   const keepDraftDialogOpen = useCallback(() => {}, []);
 
@@ -1369,19 +1391,21 @@ const handlePublishScenario = async () => {
         open={Boolean(draftOffer)}
         isDark={isDark}
         title="Continue your scenario?"
-        body={
-          draftOffer
-            ? `You have an unpublished scenario${
-                draftSavedAt ? ` saved ${draftSavedAt}` : ''
-              }. Continue where you left off, or start a new one (this discards the saved draft).${
-                draftOffer.needsCoverReattach
-                  ? ' Your uploaded cover image could not be kept and will need to be attached again.'
-                  : ''
-              }`
+        body={`You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.${
+          draftOffer?.needsCoverReattach
+            ? ' Its uploaded cover image could not be kept and will need to be attached again.'
             : ''
-        }
+        }`}
         detail={
-          draftOffer ? `${draftOffer.name} · ${draftOffer.stepName}` : ''
+          draftOffer ? (
+            <>
+              <span className="block">{draftOffer.name}</span>
+              <span className="block mt-0.5 font-medium opacity-80">
+                Saved at step {draftOffer.step} of {draftOffer.stepCount}: {draftOffer.stepName}
+                {draftSavedAt ? ` · ${draftSavedAt}` : ''}
+              </span>
+            </>
+          ) : null
         }
         primaryLabel="Continue"
         onPrimary={handleContinueDraft}
@@ -1471,6 +1495,14 @@ const handlePublishScenario = async () => {
           <span className="text-[13px] font-bold tracking-tight uppercase">
             CREATE NEW SCENARIO
           </span>
+          {scenarioDraft.saveFailed && (
+            <span
+              role="status"
+              className="ml-auto text-[10px] font-bold normal-case px-2.5 py-1 rounded-full bg-amber-100 text-amber-900"
+            >
+              This browser's storage is full, so this draft isn't being saved. Delete old ones under Scenarios → Drafts.
+            </span>
+          )}
         </div>
 
 
