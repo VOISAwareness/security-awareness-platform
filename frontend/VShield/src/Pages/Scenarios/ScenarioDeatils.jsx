@@ -3,7 +3,7 @@ import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
 import { api } from "../../services/api";
-import { catalogueCoverName, toStoredScenario } from "../../services/scenarioMapper";
+import { catalogueCoverName, landingPageChoice, toStoredScenario } from "../../services/scenarioMapper";
 import { reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
 import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
 import DraftDialog from '../../GlobalComponents/DraftDialog';
@@ -999,6 +999,10 @@ useEffect(() => {
   // memory and Publish uploads it exactly as before.
   // ==========================================================
   const coverUploadRef = useRef(null);
+  // The landing page created from the author's own design at publish, kept so a
+  // retried publish (say the scenario ID was taken) links it instead of adding
+  // a duplicate page to the catalogue.
+  const createdLandingRef = useRef(null);
 
   const handleCoverFileChosen = (file) => {
     if (!file) {
@@ -1188,16 +1192,23 @@ const handlePublishScenario = async () => {
   setSaveError('');
 
   try {
-    // A custom-built landing page is a real landing page: save it to the
-    // catalogue and keep its id, rather than discarding the author's work.
-    let landingPageId = formData.landingPageId;
-    if (formData.landingPageSource === 'builder' && formData.landingPageContent) {
-      const page = await api.landingPages.create({
-        LandingPageName: `${formData.scenarioName || formData.scenarioId} landing page`,
-        LandingPageDescription: `Created with scenario ${formData.scenarioId}.`,
-        LandingPageContent: formData.landingPageContent,
-      });
-      landingPageId = page?.LandingPageID || landingPageId;
+    // Link the landing page the author attached. A catalogue pick is linked by
+    // its id and never edited (it is a shared template); a page they designed
+    // or built is saved as a NEW landing page, rather than discarding their work.
+    const landing = landingPageChoice(formData);
+    let landingPageId = landing.id || '';
+    if (landing.kind === 'custom') {
+      if (createdLandingRef.current?.html === landing.html) {
+        landingPageId = createdLandingRef.current.id;
+      } else {
+        const page = await api.landingPages.create({
+          LandingPageName: `${formData.scenarioName || formData.scenarioId} landing page`,
+          LandingPageDescription: `Created with scenario ${formData.scenarioId}.`,
+          LandingPageContent: landing.html,
+        });
+        landingPageId = page?.LandingPageID || '';
+        if (landingPageId) createdLandingRef.current = { html: landing.html, id: landingPageId };
+      }
     }
 
     let coverImageId = '';

@@ -13,6 +13,7 @@ import test from 'node:test';
 import {
   STORED_FIELDS,
   catalogueCoverName,
+  landingPageChoice,
   toStoredScenario,
   toWizardFormData,
 } from './scenarioMapper.js';
@@ -122,4 +123,28 @@ test('catalogueCoverName reduces a bundler path to a filename', () => {
   assert.equal(catalogueCoverName('src/Pages/Scenarios/CovImg-001.png'), 'CovImg-001.png');
   assert.equal(catalogueCoverName('CovImg-002.png'), 'CovImg-002.png');
   assert.equal(catalogueCoverName(undefined), '');
+});
+
+test('landingPageChoice links a catalogue pick by its id (the template is never edited)', () => {
+  assert.deepEqual(
+    landingPageChoice({ landingPageSource: 'catalogue', selectedLandingCatalogueImageId: 'LP-007', landingPageContent: '<p>x</p>' }),
+    { kind: 'catalogue', id: 'LP-007' }
+  );
+});
+
+test('landingPageChoice turns a designed or built page into a new page to create', () => {
+  assert.deepEqual(
+    landingPageChoice({ outcomeSource: 'custom', outcomeRichText: '<h1>Mine</h1>' }),
+    { kind: 'custom', html: '<h1>Mine</h1>' }
+  );
+  assert.deepEqual(
+    landingPageChoice({ landingPageSource: 'builder', landingPageContent: '<div>Built</div>' }),
+    { kind: 'custom', html: '<div>Built</div>' }
+  );
+});
+
+test('landingPageChoice falls back to the carried id, ignoring blank designs', () => {
+  assert.deepEqual(landingPageChoice({ outcomeSource: 'custom', outcomeRichText: '   ' }), { kind: 'none', id: '' });
+  assert.deepEqual(landingPageChoice({ landingPageId: 'LP-002' }), { kind: 'none', id: 'LP-002' });
+  assert.deepEqual(landingPageChoice(), { kind: 'none', id: '' });
 });
