@@ -14,7 +14,7 @@
  */
 import { readJSON, readString, removeKey, scopedKey, writeJSON, writeString } from './draftStore.js';
 import { SCENARIO_DRAFT_KEY, isMeaningfulDraft, parseDraft } from './scenarioDraft.js';
-import { scenarioDraftVersion, wasAsked } from './resumePrompt.js';
+import { scenarioContentVersion, wasAsked } from './resumePrompt.js';
 
 export const SCENARIO_DRAFTS_KEY = 'voisshield_scenario_drafts';
 export const ACTIVE_SCENARIO_DRAFT_KEY = 'voisshield_active_scenario_draft';
@@ -107,13 +107,13 @@ export function inProgressScenarioDraft(defaults = {}, actor) {
 
 /**
  * The scenario in progress, if "Continue your scenario?" has not asked about
- * it yet: never, or not since it last changed (see resumePrompt.js). Once
+ * it yet: never, or not since its form last changed (see resumePrompt.js). Once
  * answered it is simply a draft under Scenarios → Drafts. -> { id, draft } | null
  */
 export function scenarioDraftToOffer(defaults = {}, actor) {
   const current = inProgressScenarioDraft(defaults, actor);
   if (!current) return null;
-  return wasAsked('scenario', current.id, scenarioDraftVersion(current.draft), actor) ? null : current;
+  return wasAsked('scenario', current.id, scenarioContentVersion(current.draft), actor) ? null : current;
 }
 
 /**

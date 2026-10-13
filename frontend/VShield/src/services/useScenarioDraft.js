@@ -13,8 +13,9 @@
  *  - "Start new" (or closing that dialog) leaves that draft as it is
  *    (Scenarios → Drafts) and starts a new one, like campaigns;
  *  - the question is asked about each draft once (resumePrompt.js): either
- *    answer counts, and only work saved after it asks again. So a draft opened
- *    and left untouched is not written again (its savedAt stays the same);
+ *    answer counts, and only a change to the form asks again (moving between
+ *    tabs does not). A draft opened and left untouched is not written again,
+ *    so its savedAt stays the same too;
  *  - after a successful publish the draft is removed and saving stops.
  *
  * Which draft the editor opens on is decided before its first render by
@@ -27,7 +28,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentActor } from './identity.js';
-import { markAsked, scenarioDraftVersion } from './resumePrompt.js';
+import { markAsked, scenarioContentVersion } from './resumePrompt.js';
 import { buildDraft, draftSummary, fromDraft, isMeaningfulDraft, sameDraftContent } from './scenarioDraft.js';
 import {
   getScenarioDraft,
@@ -130,7 +131,7 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening }) {
 
   // Either answer means the author was asked about this draft, as it is now.
   const answered = useCallback(() => {
-    if (offer) markAsked('scenario', offer.id, scenarioDraftVersion(offer.draft), actor);
+    if (offer) markAsked('scenario', offer.id, scenarioContentVersion(offer.draft), actor);
   }, [offer, actor]);
 
   const resume = useCallback(() => {

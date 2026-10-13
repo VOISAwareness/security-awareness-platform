@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildDraft } from './scenarioDraft.js';
-import { markAsked } from './resumePrompt.js';
+import { markAsked, scenarioContentVersion } from './resumePrompt.js';
 import {
   getActiveScenarioDraftId,
   getScenarioDraft,
@@ -159,17 +159,20 @@ test('asked once: an answered draft is not offered again until it changes', () =
   saveScenarioDraft('SD-2', first, A);
   setActiveScenarioDraftId('SD-2', A);
   assert.equal(scenarioDraftToOffer(DEFAULTS, A).id, 'SD-2');
-  markAsked('scenario', 'SD-2', first.savedAt, A);
+  markAsked('scenario', 'SD-2', scenarioContentVersion(first), A);
   assert.equal(scenarioDraftToOffer(DEFAULTS, A), null);
   assert.equal(scenarioEditorOpening({ defaults: DEFAULTS }, A).offer, null);
   // Still the one in progress (Drafts marks it so), just not asked about.
   assert.equal(inProgressScenarioDraft(DEFAULTS, A).id, 'SD-2');
+  // Saved again on another tab, same form: still answered.
+  saveScenarioDraft('SD-2', draft('In progress', '2026-10-02T11:00:00Z', 2), A);
+  assert.equal(scenarioDraftToOffer(DEFAULTS, A), null);
   // New work on it: asked once more.
   saveScenarioDraft('SD-2', draft('In progress, edited', '2026-10-03T10:00:00Z'), A);
   assert.equal(scenarioEditorOpening({ defaults: DEFAULTS }, A).offer.id, 'SD-2');
   // Another person's answers do not count.
   saveScenarioDraft('SD-7', first, B);
   setActiveScenarioDraftId('SD-7', B);
-  markAsked('scenario', 'SD-7', first.savedAt, A);
+  markAsked('scenario', 'SD-7', scenarioContentVersion(first), A);
   assert.equal(scenarioDraftToOffer(DEFAULTS, B).id, 'SD-7');
 });
