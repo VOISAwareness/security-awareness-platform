@@ -347,8 +347,36 @@ const CampaignEmail = () => {
  const subjectInputRef = useRef(null);
  const savedSelectionRef = useRef(null);
 
- const editorFxRef = useRef(null);
- const bodyMenuRef = useRef(null);
+ // The editor toolbar's menus are drawn outside its scrolling tool strip,
+ // under their button: where (`left` / `right` in the toolbar) and in which of
+ // the two editors (inline, or expanded) it was opened.
+ const [fxMenuAt, setFxMenuAt] = useState(null);
+ const [bodyMenuAt, setBodyMenuAt] = useState(null);
+ const toolbarMenuAnchor = (button, expanded, menuWidth) => {
+  const bar = button.closest('[data-editor-toolbar]');
+  const anchor = button.parentElement;
+  if (!bar || !anchor) return { expanded, left: 0, right: 0 };
+  const barBox = bar.getBoundingClientRect();
+  const box = anchor.getBoundingClientRect();
+  // The page is zoomed: measure in the toolbar's own pixels.
+  const scale = bar.offsetWidth ? barBox.width / bar.offsetWidth : 1;
+  const room = Math.max(0, bar.offsetWidth - menuWidth);
+  return {
+   expanded,
+   left: Math.min(Math.max(0, (box.left - barBox.left) / scale), room),
+   right: Math.min(Math.max(0, (barBox.right - box.right) / scale), room)
+  };
+ };
+ const closeToolbarMenus = () => {
+  setShowEditorFxMenu(false);
+  setShowBodyMenu(false);
+ };
+ // A mouse wheel scrolls the tool strip sideways while it is too narrow.
+ const scrollToolsWithWheel = (e) => {
+  const strip = e.currentTarget;
+  if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+  strip.scrollLeft += e.deltaY;
+ };
  const subjectFxRef = useRef(null);
  const userListDropdownRef = useRef(null);
  const singleUserDropdownRef = useRef(null);
@@ -376,10 +404,11 @@ const CampaignEmail = () => {
  // Click outside listeners to close menus
  useEffect(() => {
   const handleClickOutside = (e) => {
-   if (editorFxRef.current && !editorFxRef.current.contains(e.target)) {
+   // The toolbar menus: their button or the menu itself (in either editor).
+   if (!e.target.closest?.('[data-editor-menu="fx"]')) {
     setShowEditorFxMenu(false);
    }
-   if (bodyMenuRef.current && !bodyMenuRef.current.contains(e.target)) {
+   if (!e.target.closest?.('[data-editor-menu="body"]')) {
     setShowBodyMenu(false);
    }
    if (subjectFxRef.current && !subjectFxRef.current.contains(e.target)) {
@@ -846,8 +875,19 @@ const CampaignEmail = () => {
    expanded ? 'h-[calc(100vh-80px)]' : 'h-[220px]'
   }`}>
    {/* 🌟 Single-Line Dark Header Toolbar (Seamless with Container) */}
-   <div className="w-full h-8 px-2 flex items-center justify-between text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 rounded-t-xl relative z-30 flex-nowrap">
-    <div className="flex items-center gap-1 text-xs flex-nowrap">
+   <div
+    data-editor-toolbar
+    className="w-full h-8 px-2 flex items-center gap-1.5 text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 rounded-t-xl relative z-30 flex-nowrap"
+   >
+    {/* The tools scroll sideways when the editor is narrower than they are
+        (a mouse wheel scrolls them too); HTML and expand stay on the right. */}
+    <div
+     data-editor-tools
+     onScroll={closeToolbarMenus}
+     onWheel={scrollToolsWithWheel}
+     className="flex-1 min-w-0 h-full flex items-center overflow-x-auto overflow-y-hidden [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 dark:[&::-webkit-scrollbar-thumb]:bg-black/25"
+    >
+    <div className="flex items-center gap-1 text-xs flex-nowrap w-max pr-1">
      {/* Format Block */}
      <select
       onMouseDown={() => saveSelection()}
@@ -1009,14 +1049,18 @@ const CampaignEmail = () => {
      </button>
 
      {/* 🌟 Rich Editor "fx" Dropdown */}
-     <div ref={editorFxRef} className="relative z-50">
+     <div data-editor-menu="fx" className="relative flex-shrink-0">
       <button
        type="button"
        onMouseDown={(e) => {
         e.preventDefault();
         saveSelection();
        }}
-       onClick={() => setShowEditorFxMenu(!showEditorFxMenu)}
+       onClick={(e) => {
+        setFxMenuAt(toolbarMenuAnchor(e.currentTarget, expanded, 208));
+        setShowBodyMenu(false);
+        setShowEditorFxMenu(!showEditorFxMenu);
+       }}
        className="px-1.5 py-0 rounded-2xl bg-white dark:bg-black hover:brightness-110 text-black dark:text-white font-mono-tech text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer"
        title="Insert Dynamic Placeholder"
       >
@@ -1024,9 +1068,38 @@ const CampaignEmail = () => {
        <ChevronDown className="w-2.5 h-2.5" />
       </button>
 
-      {showEditorFxMenu && (
+     </div>
+
+     {/* 🌟 Email body library, right of "fx": start from a template's body */}
+     <div data-editor-menu="body" className="relative flex-shrink-0">
+      <button
+       type="button"
+       onMouseDown={(e) => e.preventDefault()}
+       onClick={(e) => {
+        setBodyMenuAt(toolbarMenuAnchor(e.currentTarget, expanded, 288));
+        setShowEditorFxMenu(false);
+        setBodyAtMenuOpen(currentBodyHtml());
+        setShowBodyMenu((open) => !open);
+       }}
+       aria-haspopup="menu"
+       aria-expanded={showBodyMenu}
+       className="px-1.5 py-0 rounded-2xl bg-white dark:bg-black hover:brightness-110 text-black dark:text-white text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
+       title="Use an email body from the library"
+      >
+       <FileText className="w-2.5 h-2.5" />
+       <span>Email Body</span>
+       <ChevronDown className="w-2.5 h-2.5" />
+      </button>
+
+     </div>
+    </div>
+    </div>
+
+    {/* Menus of the tools above, drawn here so the scrolling strip does not clip them */}
+    {showEditorFxMenu && fxMenuAt?.expanded === expanded && (
        <div
-        style={{ position: 'absolute', top: '100%', left: 0, zIndex: 9999 }}
+        data-editor-menu="fx"
+        style={{ position: 'absolute', top: '100%', left: fxMenuAt.left, zIndex: 9999 }}
         className="mt-1 w-52 max-h-48 overflow-y-auto rounded-xl bg-[#1A1C23] border border-white/20 p-1 shadow-2xl flex flex-col gap-0.5 text-left"
        >
         <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 px-2 py-0.5 font-bold">
@@ -1050,33 +1123,14 @@ const CampaignEmail = () => {
         ))}
        </div>
       )}
-     </div>
 
-     {/* 🌟 Email body library, right of "fx": start from a template's body */}
-     <div ref={bodyMenuRef} className="relative z-50">
-      <button
-       type="button"
-       onMouseDown={(e) => e.preventDefault()}
-       onClick={() => {
-        setBodyAtMenuOpen(currentBodyHtml());
-        setShowBodyMenu((open) => !open);
-       }}
-       aria-haspopup="menu"
-       aria-expanded={showBodyMenu}
-       className="px-1.5 py-0 rounded-2xl bg-white dark:bg-black hover:brightness-110 text-black dark:text-white text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
-       title="Use an email body from the library"
-      >
-       <FileText className="w-2.5 h-2.5" />
-       <span>Email Body</span>
-       <ChevronDown className="w-2.5 h-2.5" />
-      </button>
-
-      {showBodyMenu && (
+    {showBodyMenu && bodyMenuAt?.expanded === expanded && (
        <div
         role="menu"
         aria-label="Email bodies"
+        data-editor-menu="body"
         // Opens leftwards, over the editor: rightwards the card clips it.
-        style={{ position: 'absolute', top: '100%', right: 0, zIndex: 9999 }}
+        style={{ position: 'absolute', top: '100%', right: bodyMenuAt.right, zIndex: 9999 }}
         className="mt-1 w-72 max-h-64 overflow-y-auto rounded-xl bg-[#1A1C23] border border-white/20 p-1 shadow-2xl flex flex-col gap-0.5 text-left"
        >
         <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 px-2 py-0.5 font-bold">
@@ -1115,8 +1169,6 @@ const CampaignEmail = () => {
         })}
        </div>
       )}
-     </div>
-    </div>
 
     {/* Right side: HTML Code Toggle & Expand */}
     <div className="flex items-center gap-1 flex-shrink-0">
