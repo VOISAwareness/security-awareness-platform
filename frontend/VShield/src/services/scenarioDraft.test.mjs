@@ -13,6 +13,7 @@ import {
   SCENARIO_DRAFT_KEY,
   SCENARIO_DRAFT_VERSION,
   buildDraft,
+  draftFingerprint,
   draftSummary,
   formFingerprint,
   fromDraft,
@@ -222,11 +223,27 @@ test('draftSummary names the scenario and the saved step', () => {
       stepName: 'Email Details',
       savedAt: '1970-01-01T00:00:00.000Z',
       cover: '',
+      coverSource: '',
       needsCoverReattach: false,
     },
   );
   assert.equal(draftSummary(buildDraft(blankForm, 3)).name, 'Untitled scenario');
   assert.equal(draftSummary(buildDraft(blankForm, 3)).stepName, 'Review & Publish');
+  // Says how the card shows its cover: an upload framed, catalogue art in the corner.
+  const uploaded = { ...blankForm, coverImageSource: 'upload', coverImageKey: 'k', coverImageThumbnail: 'data:image/jpeg;base64,AA' };
+  assert.deepEqual(
+    [draftSummary(buildDraft(uploaded, 2)).cover, draftSummary(buildDraft(uploaded, 2)).coverSource],
+    ['data:image/jpeg;base64,AA', 'upload'],
+  );
+});
+
+test('draftFingerprint follows the content and the step, not when it was saved', () => {
+  const a = buildDraft({ ...blankForm, scenarioName: 'Lure' }, 1, new Date(0));
+  const later = buildDraft({ ...blankForm, scenarioName: 'Lure' }, 1, new Date(5000));
+  assert.equal(draftFingerprint(a), draftFingerprint(later));
+  assert.notEqual(draftFingerprint(a), draftFingerprint(buildDraft({ ...blankForm, scenarioName: 'Lure' }, 2)));
+  assert.notEqual(draftFingerprint(a), draftFingerprint(buildDraft({ ...blankForm, scenarioName: 'Lure 2' }, 1)));
+  assert.equal(draftFingerprint(null), draftFingerprint({ activeTab: 0, formData: {} }));
 });
 
 test('Publish reuses an uploaded key only for the same scenario id', () => {
