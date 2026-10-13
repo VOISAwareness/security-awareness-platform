@@ -442,6 +442,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
     );
   };
 
+  // The page is covered only for its first load, while there is nothing to
+  // show yet. A refetch (Retry) keeps the page and its error banner visible;
+  // the Retry icon spins instead.
+  const coverLoading = loading && !error && campaigns.length === 0;
+
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
@@ -469,10 +474,10 @@ const Campaigns = ({ isDark: propIsDark }) => {
             it, and is hidden while loading (it has no card behind it). */}
         <div 
           style={{ gap: `${VarSectionGap}px` }}
-          className={`relative grow w-full flex flex-col lg:flex-row items-start ${loading ? 'invisible' : ''}`}
+          className={`relative grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? 'invisible' : ''}`}
         >
           {/* The campaigns are on their way from the server. */}
-          <PageLoading show={loading} isDark={isDark} surface="page" />
+          <PageLoading show={coverLoading} isDark={isDark} surface="page" />
 
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 3 SWITCHER CAPSULES + MINI CALENDAR CARD                 */}
@@ -773,7 +778,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
                   }}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
                 >
-                  <RefreshCw className="w-3 h-3" /> Retry
+                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Retry
                 </button>
               </div>
             )}

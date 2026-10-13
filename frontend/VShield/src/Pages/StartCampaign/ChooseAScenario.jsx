@@ -432,8 +432,9 @@ const ChooseAScenario = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          {/* The templates and this person's draft are both on their way. */}
-          <PageLoading show={scenariosLoading || loading} isDark={isDark} />
+          {/* Covered while the view's own data is on its way: the templates and
+              this person's draft (Create new), or their saved campaigns (Drafts). */}
+          <PageLoading show={view === 'all' ? scenariosLoading || loading : draftsLoading} isDark={isDark} />
 
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
