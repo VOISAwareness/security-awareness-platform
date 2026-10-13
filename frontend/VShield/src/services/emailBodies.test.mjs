@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { LARGE_LIBRARY, TOP_COUNT, bodySnippet, bodyUsage, emailBodyOptions, sameBody } from './emailBodies.js';
+import { LARGE_LIBRARY, TOP_COUNT, bodyKey, bodySnippet, bodyUsage, emailBodyOptions, sameBody } from './emailBodies.js';
 
 const sc = (id, body, name = `Scenario ${id}`) => ({ scenarioId: id, scenarioName: name, emailBody: body });
 
@@ -14,6 +14,31 @@ test('snippet: text only, entities decoded, trimmed to length', () => {
 test('sameBody ignores whitespace differences only', () => {
   assert.equal(sameBody('<p>Hi</p>\n  <p>there</p>', '<p>Hi</p> <p>there</p>'), true);
   assert.equal(sameBody('<p>Hi</p>', '<p>Hello</p>'), false);
+});
+
+test('sameBody: a full page and the same page as the editor shows it (no wrappers)', () => {
+  const page =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head><body style="margin:0"><div style="max-width:600px"><p>Hi @UserName</p></div></body></html>';
+  const inEditor = '<meta charset="UTF-8"><div style="max-width:600px"><p>Hi @UserName</p></div>';
+  assert.equal(sameBody(page, inEditor), true);
+  assert.equal(sameBody(page, inEditor.replace('Hi', 'Hello')), false);
+});
+
+test('sameBody: the HTML view\'s indentation is not a change, text is', () => {
+  const flat = '<div><p>Reset your password</p><p>IT Desk</p></div>';
+  const indented = '<div>\n  <p>\n    Reset your password\n  </p>\n  <p>IT Desk</p>\n</div>\n';
+  assert.equal(sameBody(flat, indented), true);
+  assert.equal(sameBody(flat, indented.replace('IT Desk', 'IT Team')), false);
+  assert.equal(sameBody('<p>a b</p>', '<p>ab</p>'), false);
+  assert.equal(bodyKey(null), '');
+});
+
+test('options: the same body stored as a page and as a fragment is offered once', () => {
+  const { options } = emailBodyOptions([
+    sc('SC-1', '<!DOCTYPE html><html><body><p>Same</p></body></html>'),
+    sc('SC-2', '<p>Same</p>'),
+  ]);
+  assert.equal(options.length, 1);
 });
 
 test('usage counts campaigns past DRAFT, by picked body first, else scenario', () => {
@@ -60,4 +85,11 @@ test(`up to ${LARGE_LIBRARY} bodies all show; past that only the top ${TOP_COUNT
   assert.equal(big.total, LARGE_LIBRARY + 21);
   assert.equal(big.options.length, TOP_COUNT);
   assert.deepEqual(big.options.slice(0, 3).map((o) => o.id), ['SC-77', 'SC-120', 'SC-1']);
+});
+
+test('options: a caller can say when two bodies are the same', () => {
+  const { options } = emailBodyOptions([sc('SC-1', '<p class=a>Same</p>'), sc('SC-2', '<p class="a">Same</p>')], [], {
+    keyOf: (html) => html.replace(/class=(\w+)/, 'class="$1"'),
+  });
+  assert.equal(options.length, 1);
 });
