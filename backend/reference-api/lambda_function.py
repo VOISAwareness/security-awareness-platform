@@ -12,11 +12,13 @@ import json
 import os
 import re
 import uuid
+import zlib
 from datetime import UTC, datetime
 from urllib.parse import unquote, urlsplit
 
 import boto3
 from boto3.dynamodb.conditions import Key
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 TABLE_PREFIX = os.environ["TABLE_PREFIX"]
@@ -583,6 +585,322 @@ def publish_revisions(rows, sent_ids, context=None):
     return [changed.get(str(row.get("scenarioId")), row) for row in rows]
 
 
+# --- scenario drafts ------------------------------------------------------
+#
+# The scenario editor's autosave: each person's unpublished scenarios, kept on
+# the server so a draft follows them to any browser. One row per
+# (owner, draftId). The form is stored zlib-compressed in `body` (its HTML
+# shrinks several-fold), so a save costs a few write units on the table's small
+# provisioned capacity; `summary` (what the Drafts tab shows) is a JSON string
+# the list returns without the form. `rev` counts saves: a save names the rev
+# it started from and is refused (409) once the row has moved on, so two windows
+# on one draft never silently overwrite each other.
+#
+# `owner` is client-asserted, like `viewer` and `actor` above, until sign-in
+# exists: it keeps honest users apart but is not a security boundary.
+
+DRAFT_ROUTES = frozenset(
+    {
+        "GET /scenario-drafts",
+        "GET /scenario-drafts/{id}",
+        "PUT /scenario-drafts/{id}",
+        "DELETE /scenario-drafts/{id}",
+    }
+)
+# The editor's ids: "SD-" + base36 time + random, or the fixed "SD-saved-before".
+DRAFT_ID_RE = re.compile(r"SD-[A-Za-z0-9_-]{1,64}")
+DRAFT_VERSION = 1
+DRAFT_LAST_STEP = 3  # the editor's four steps, 0-3
+# Before compression. Well past any real form; bounds the work one request can ask for.
+MAX_DRAFT_FORM_BYTES = 4 * 1024 * 1024
+# The Drafts card: names, the step, a small cover picture. Every list returns it.
+MAX_DRAFT_SUMMARY_BYTES = 48 * 1024
+MAX_SAVE_ID_LENGTH = 64
+MAX_SAVED_AT_LENGTH = 40
+THROTTLED_CODES = frozenset(
+    {"ProvisionedThroughputExceededException", "ThrottlingException", "RequestLimitExceeded"}
+)
+# What the Drafts list returns of each row: everything but the form and the owner.
+DRAFT_LISTING_ATTRS = ("draftId", "rev", "savedAt", "updatedAt", "version", "activeTab", "summary")
+DRAFT_VERSION_ATTRS = ("rev", "savedAt", "updatedAt", "saveId")
+
+_drafts_dynamodb = None
+
+
+def drafts_table():
+    """The drafts table, through a client that gives up quickly when DynamoDB
+    throttles (the table runs on a small provisioned capacity): the browser
+    keeps its copy and saves again later, which beats retrying into the Lambda
+    timeout. Built on first use, so no other route pays for it."""
+    global _drafts_dynamodb
+    if _drafts_dynamodb is None:
+        _drafts_dynamodb = boto3.resource(
+            "dynamodb", config=Config(retries={"mode": "standard", "max_attempts": 2})
+        )
+    return _drafts_dynamodb.Table(f"{TABLE_PREFIX}-scenario-drafts")
+
+
+def projection(attrs):
+    """ProjectionExpression kwargs for `attrs`, every name aliased (several,
+    like `owner`, are DynamoDB reserved words)."""
+    names = {f"#a{i}": attr for i, attr in enumerate(attrs)}
+    return {"ProjectionExpression": ", ".join(names), "ExpressionAttributeNames": names}
+
+
+def compact_json(value):
+    return json.dumps(value, cls=DecimalEncoder, separators=(",", ":"), ensure_ascii=False)
+
+
+def is_draft_id(value):
+    return isinstance(value, str) and DRAFT_ID_RE.fullmatch(value) is not None
+
+
+def draft_step(value):
+    """The editor step a draft was on, kept within the editor's four steps."""
+    if isinstance(value, bool):
+        return 0
+    try:
+        step = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    return min(max(step, 0), DRAFT_LAST_STEP)
+
+
+def draft_form_bytes(form_data, edit):
+    """A draft's form and edit as stored before compression: compact JSON."""
+    return compact_json({"formData": form_data, "edit": edit}).encode("utf-8")
+
+
+def pack_draft_form(raw):
+    """The stored `body`: draft_form_bytes, zlib-compressed."""
+    return zlib.compress(raw, 6)
+
+
+def unpack_draft_form(stored):
+    """A stored `body` back into {formData, edit}. boto3 returns binary
+    attributes wrapped in a Binary, whose bytes are in `.value`."""
+    if stored is None:
+        return {"formData": {}, "edit": None}
+    data = json.loads(zlib.decompress(bytes(getattr(stored, "value", stored))).decode("utf-8"))
+    return {"formData": data.get("formData") or {}, "edit": data.get("edit")}
+
+
+def draft_summary_json(summary):
+    """The Drafts-card summary as stored, a JSON string; its cover picture is
+    dropped if that is what makes it too large. None when still too large."""
+    summary = dict(summary)
+    text = compact_json(summary)
+    if len(text.encode("utf-8")) > MAX_DRAFT_SUMMARY_BYTES:
+        summary.pop("cover", None)
+        text = compact_json(summary)
+    return text if len(text.encode("utf-8")) <= MAX_DRAFT_SUMMARY_BYTES else None
+
+
+def parse_draft_save(body):
+    """A PUT /scenario-drafts/{id} body, checked: (fields, None) or (None, problem)."""
+    if not isinstance(body, dict):
+        return None, "Body must be a JSON object"
+    owner = parse_identity(body.get("owner"))
+    if not owner:
+        return None, "owner is required"
+    base_rev = body.get("baseRev", 0)
+    if isinstance(base_rev, bool) or not isinstance(base_rev, int) or base_rev < 0:
+        return None, "baseRev must be a whole number, 0 or more"
+    save_id = body.get("saveId") or ""
+    if not isinstance(save_id, str) or len(save_id) > MAX_SAVE_ID_LENGTH:
+        return None, f"saveId must be text of at most {MAX_SAVE_ID_LENGTH} characters"
+    draft = body.get("draft")
+    if not isinstance(draft, dict):
+        return None, "draft is required"
+    version = draft.get("version")
+    if isinstance(version, bool) or version != DRAFT_VERSION:
+        return None, f"draft.version must be {DRAFT_VERSION}"
+    form_data = draft.get("formData")
+    if not isinstance(form_data, dict):
+        return None, "draft.formData must be an object"
+    edit = draft.get("edit")
+    if edit is not None and not isinstance(edit, dict):
+        return None, "draft.edit must be an object"
+    summary = body.get("summary")
+    if summary is None:
+        summary = {}
+    if not isinstance(summary, dict):
+        return None, "summary must be an object"
+    saved_at = draft.get("savedAt")
+    if not isinstance(saved_at, str) or len(saved_at) > MAX_SAVED_AT_LENGTH:
+        saved_at = ""
+    return {
+        "owner": owner,
+        "baseRev": base_rev,
+        "saveId": save_id,
+        "savedAt": saved_at,
+        "activeTab": draft_step(draft.get("activeTab")),
+        "formData": form_data,
+        "edit": edit,
+        "summary": summary,
+    }, None
+
+
+def draft_listing(row):
+    """What the Drafts list shows of a stored row: never the form."""
+    try:
+        summary = json.loads(row.get("summary") or "{}")
+    except (TypeError, ValueError):
+        summary = {}
+    return {
+        "draftId": row.get("draftId"),
+        "rev": row.get("rev", 0),
+        "savedAt": row.get("savedAt", ""),
+        "updatedAt": row.get("updatedAt", ""),
+        "version": row.get("version", DRAFT_VERSION),
+        "activeTab": draft_step(row.get("activeTab")),
+        "summary": summary if isinstance(summary, dict) else {},
+    }
+
+
+def draft_version_info(row):
+    """Which save a row holds (a 409 tells the client), or None for no row."""
+    if not row:
+        return None
+    return {attr: row.get(attr, 0 if attr == "rev" else "") for attr in DRAFT_VERSION_ATTRS}
+
+
+def newest_drafts_first(listings):
+    return sorted(
+        listings,
+        key=lambda d: (str(d.get("savedAt") or ""), str(d.get("updatedAt") or "")),
+        reverse=True,
+    )
+
+
+def save_scenario_draft(draft_id, body, context):
+    fields, problem = parse_draft_save(body)
+    if problem:
+        return err(400, problem)
+    summary = draft_summary_json(fields["summary"])
+    if summary is None:
+        return err(400, f"summary is too large (limit {MAX_DRAFT_SUMMARY_BYTES // 1024} KB)")
+    raw = draft_form_bytes(fields["formData"], fields["edit"])
+    if len(raw) > MAX_DRAFT_FORM_BYTES:
+        log(context, "Scenario draft too large", draftId=draft_id, bytes=len(raw))
+        return size_error(len(raw))
+    packed = pack_draft_form(raw)
+
+    now = datetime.now(UTC).isoformat()
+    base_rev = fields["baseRev"]
+    item = {
+        "owner": fields["owner"],
+        "draftId": draft_id,
+        "rev": base_rev + 1,
+        "saveId": fields["saveId"],
+        "savedAt": fields["savedAt"] or now,
+        "updatedAt": now,
+        "version": DRAFT_VERSION,
+        "activeTab": fields["activeTab"],
+        "summary": summary,
+    }
+    size = len(compact_json(item).encode("utf-8")) + len(packed)
+    if size > MAX_ITEM_BYTES:
+        log(context, "Scenario draft too large", draftId=draft_id, bytes=size)
+        return size_error(size)
+    item["body"] = packed
+
+    if base_rev == 0:
+        condition = {"ConditionExpression": "attribute_not_exists(draftId)"}
+    else:
+        condition = {
+            "ConditionExpression": "#rev = :base",
+            "ExpressionAttributeNames": {"#rev": "rev"},
+            "ExpressionAttributeValues": {":base": base_rev},
+        }
+    tbl = drafts_table()
+    try:
+        tbl.put_item(Item=item, **condition)
+    except ClientError as e:
+        if not conditional_failed(e):
+            raise
+        current = tbl.get_item(
+            Key={"owner": fields["owner"], "draftId": draft_id},
+            ConsistentRead=True,
+            **projection(DRAFT_VERSION_ATTRS),
+        ).get("Item")
+        log(
+            context,
+            "Scenario draft save conflict",
+            draftId=draft_id,
+            baseRev=base_rev,
+            currentRev=int(current.get("rev", 0)) if current else None,
+        )
+        return err(
+            409,
+            "This draft was changed somewhere else since this save began",
+            code="DRAFT_CONFLICT",
+            current=draft_version_info(current),
+        )
+    return ok({key: item[key] for key in ("draftId", "rev", "savedAt", "updatedAt", "saveId")})
+
+
+def scenario_drafts(route, event, params, context):
+    """GET (list / one), PUT and DELETE /scenario-drafts; see the notes above."""
+    try:
+        if route == "PUT /scenario-drafts/{id}":
+            draft_id = params.get("id", "")
+            if not is_draft_id(draft_id):
+                return err(400, "Not a draft id")
+            try:
+                body = parse_body(event)
+            except ValueError:
+                return err(400, "Body must be valid JSON")
+            return save_scenario_draft(draft_id, body, context)
+
+        owner = parse_identity((event.get("queryStringParameters") or {}).get("owner"))
+        if not owner:
+            return err(400, "owner is required")
+
+        if route == "GET /scenario-drafts":
+            tbl = drafts_table()
+            rows = []
+            kwargs = {
+                "KeyConditionExpression": Key("owner").eq(owner),
+                "ConsistentRead": True,
+                **projection(DRAFT_LISTING_ATTRS),
+            }
+            while True:
+                resp = tbl.query(**kwargs)
+                rows.extend(resp.get("Items", []))
+                if not resp.get("LastEvaluatedKey"):
+                    break
+                kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+            listings = newest_drafts_first([draft_listing(row) for row in rows])
+            return ok(listings, count=len(listings))
+
+        draft_id = params.get("id", "")
+        if not is_draft_id(draft_id):
+            return err(400, "Not a draft id")
+        key = {"owner": owner, "draftId": draft_id}
+
+        if route == "GET /scenario-drafts/{id}":
+            row = drafts_table().get_item(Key=key, ConsistentRead=True).get("Item")
+            if not row:
+                return err(404, "Draft not found")
+            return ok({**draft_listing(row), **unpack_draft_form(row.get("body"))})
+
+        # DELETE: done whether or not there was a row, so a retried delete is fine.
+        drafts_table().delete_item(Key=key)
+        return respond(204, {"data": None})
+
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code not in THROTTLED_CODES:
+            raise
+        log(context, "Scenario drafts throttled", route=route, code=code)
+        return err(
+            503,
+            "Drafts are busy right now; your work is kept in this browser and saved shortly",
+            code="BUSY",
+        )
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /sender-identities": "sender-identities",
@@ -611,6 +929,9 @@ def lambda_handler(event, context):
     params = event.get("pathParameters") or {}
 
     try:
+        if route in DRAFT_ROUTES:
+            return scenario_drafts(route, event, params, context)
+
         if route == "GET /scenarios":
             items = scan_all("scenarios")
             # Without a viewer every row comes back as before (older clients),

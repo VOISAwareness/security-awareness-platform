@@ -181,3 +181,31 @@ resource "aws_dynamodb_table" "campaigns_catalog" {
     projection_type = "ALL"
   }
 }
+
+# scenario-drafts — each person's unpublished scenarios (the scenario editor's
+# autosave), so a draft follows them to any browser. PK owner (their email),
+# SK draftId; reference-api serves it.
+#
+# PROVISIONED, unlike the tables above: DynamoDB's always-free allowance is 25
+# provisioned read and 25 write units, and none of this project's tables use
+# any of it, so 5 + 5 costs nothing where on-demand would bill every autosave. The Lambda
+# stores the form compressed, which keeps a save to a few write units, and
+# answers 503 (the browser keeps its copy and retries) if this is ever
+# outgrown. No autoscaling, no point-in-time recovery: both cost money.
+resource "aws_dynamodb_table" "scenario_drafts" {
+  name           = "${var.name_prefix}-scenario-drafts"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 5
+  write_capacity = 5
+  hash_key       = "owner"
+  range_key      = "draftId"
+
+  attribute {
+    name = "owner"
+    type = "S"
+  }
+  attribute {
+    name = "draftId"
+    type = "S"
+  }
+}
