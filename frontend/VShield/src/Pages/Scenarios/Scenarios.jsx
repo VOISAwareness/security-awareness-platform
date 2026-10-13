@@ -32,7 +32,7 @@ import {
   scenarioDraftToOffer,
   setActiveScenarioDraftId,
 } from '../../services/scenarioDraftList';
-import { markAsked, scenarioDraftVersion } from '../../services/resumePrompt';
+import { markAsked, scenarioContentVersion } from '../../services/resumePrompt';
 import DraftCards from '../../GlobalComponents/DraftCards';
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
@@ -559,7 +559,7 @@ const Scenarios = () => {
   // work). Coming back here with one in progress asks, like Start New Campaign,
   // whether to pick it up or start a new one; either way it stays under Drafts.
   // It is asked once per draft: any answer, or closing the question, counts,
-  // and only work saved since then asks again (resumePrompt.js).
+  // and only a change to it since then asks again (resumePrompt.js).
   // ---------------------------------------------------
   // Coming back from the editor (its Back button) lands on the tab it was
   // opened from, without asking about the scenario just left.
@@ -580,7 +580,7 @@ const Scenarios = () => {
   const inProgressInfo = inProgress ? draftSummary(inProgress.draft) : null;
   // Whatever the answer, this draft (as it is now) has been asked about.
   const answerResumePrompt = () => {
-    if (inProgress) markAsked('scenario', inProgress.id, scenarioDraftVersion(inProgress.draft));
+    if (inProgress) markAsked('scenario', inProgress.id, scenarioContentVersion(inProgress.draft));
     setResumePromptOpen(false);
   };
 
