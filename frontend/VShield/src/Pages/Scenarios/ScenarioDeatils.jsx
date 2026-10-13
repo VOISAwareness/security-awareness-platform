@@ -6,6 +6,7 @@ import { api } from "../../services/api";
 import { catalogueCoverName, landingPageChoice, toEditFormData, toStoredScenario } from "../../services/scenarioMapper";
 import { formFingerprint, fromDraft, reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
 import { scenarioEditorOpening } from "../../services/scenarioDraftList";
+import { loadScenarioEditorOpening, openingNeedsServer } from "../../services/scenarioDraftSync";
 import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
 import { currentActor } from "../../services/identity";
 import {
@@ -904,28 +905,22 @@ async function checkEditTarget(edit, viewer) {
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-const ScenarioDeatils = () => {
+// `opening`: which draft this editor works on (scenarioEditorOpening's
+// result), resolved before its first render so the form can start from it
+// (see ScenarioDeatils below).
+const ScenarioEditor = ({ opening }) => {
   const { isDark } = useUserType?.() || {
     isDark: false,
   };
 
-  // Which draft this editor works on, decided before the first render so the
-  // form can start from it: ?draft=<id> (Scenarios → Drafts) opens that draft;
-  // ?edit=<scenarioId> (Scenarios → Edit) opens the unfinished edit of that
-  // scenario, or starts one; otherwise a new one, with the scenario in progress
-  // offered back first unless the author just chose "Start new" or was already
-  // asked about it.
+  // ?draft=<id> (Scenarios → Drafts) opens that draft; ?edit=<scenarioId>
+  // (Scenarios → Edit) opens the unfinished edit of that scenario, or starts
+  // one; otherwise a new one, with the scenario in progress offered back first
+  // unless the author just chose "Start new" or was already asked about it.
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [viewer] = useState(() => currentActor());
-  const [draftOpening] = useState(() =>
-    scenarioEditorOpening({
-      requestedId: searchParams.get('draft') || '',
-      startFresh: Boolean(location.state?.startFresh),
-      editId: searchParams.get('edit') || '',
-      defaults: SCENARIO_DRAFT_DEFAULTS,
-    })
-  );
+  const [draftOpening] = useState(opening);
   const [openedDraft] = useState(() =>
     draftOpening.resume ? fromDraft(draftOpening.resume) : null
   );
@@ -1870,11 +1865,31 @@ const handlePublishScenario = async () => {
                 role="status"
                 className="text-[10px] font-bold normal-case px-2.5 py-1 rounded-full bg-amber-100 text-amber-900"
               >
-                This browser's storage is full, so this draft isn't being saved. Delete old ones under Scenarios → Drafts.
+                {scenarioDraft.saveFailedMessage ||
+                  "This browser's storage is full, so this draft isn't being saved. Delete old ones under Scenarios → Drafts."}
               </span>
             )}
           </div>
         </div>
+
+        {/* This work was kept as a draft of its own: someone else's save of the
+            same draft (another window or device) reached the server first. */}
+        {scenarioDraft.conflictNotice && (
+          <div
+            role="status"
+            className="w-full flex items-center justify-between gap-3 px-4 py-2 rounded-xl border text-[11px] font-semibold leading-snug bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/25"
+          >
+            <span>{scenarioDraft.conflictNotice}</span>
+            <button
+              type="button"
+              onClick={scenarioDraft.dismissConflictNotice}
+              aria-label="Dismiss"
+              className="p-0.5 rounded opacity-70 hover:opacity-100 cursor-pointer flex-shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* What changed about the scenario since this edit began. */}
         {edit && editNotice && (
@@ -2098,6 +2113,72 @@ const handlePublishScenario = async () => {
       </div>
     </>
   );
+};
+
+// The editor's frame while the draft it opens on is read from the server.
+const OpeningLoading = ({ isDark, editing }) => (
+  <div
+    style={{ zoom: VarScenarioScale }}
+    className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
+  >
+    <div
+      className={`w-full h-[38px] px-5 rounded-xl border flex items-center shadow-sm ${
+        isDark ? 'bg-white text-[#0B1121] border-slate-200' : 'bg-[#06080D] text-white border-black/10'
+      }`}
+    >
+      <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
+        {editing ? 'EDIT SCENARIO' : 'CREATE NEW SCENARIO'}
+      </span>
+    </div>
+    <div
+      className={`relative w-full min-h-[420px] rounded-2xl border overflow-hidden shadow-xs ${
+        isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
+      }`}
+    >
+      <PageLoading show isDark={isDark} />
+    </div>
+  </div>
+);
+
+// ============================================================
+// WHICH DRAFT THE EDITOR OPENS ON
+// Drafts are kept on the server (scenarioDraftSync.js), so the draft to open
+// may have to be read first. When this browser holds all it takes (a copy of
+// the draft, or nothing to offer back) the editor opens at once; otherwise a
+// short loading state shows while it is read. Either way the editor starts
+// from the resolved opening, as before.
+// ============================================================
+const ScenarioDeatils = () => {
+  const { isDark } = useUserType?.() || {
+    isDark: false,
+  };
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [request] = useState(() => ({
+    requestedId: searchParams.get('draft') || '',
+    startFresh: Boolean(location.state?.startFresh),
+    editId: searchParams.get('edit') || '',
+    editChecked: Boolean(location.state?.editChecked),
+    defaults: SCENARIO_DRAFT_DEFAULTS,
+  }));
+  const [actor] = useState(() => currentActor());
+  const [opening, setOpening] = useState(() =>
+    openingNeedsServer(request, actor) ? null : scenarioEditorOpening(request, actor)
+  );
+
+  useEffect(() => {
+    if (opening) return undefined;
+    let active = true;
+    loadScenarioEditorOpening(request, actor, api).then((resolved) => {
+      if (active) setOpening(resolved);
+    });
+    return () => {
+      active = false;
+    };
+  }, [opening, request, actor]);
+
+  if (!opening) return <OpeningLoading isDark={isDark} editing={Boolean(request.editId)} />;
+  return <ScenarioEditor opening={opening} />;
 };
 
 export default ScenarioDeatils;

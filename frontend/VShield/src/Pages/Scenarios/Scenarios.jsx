@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   Plus,
   Search,
@@ -23,16 +23,18 @@ import { currentActor } from "../../services/identity";
 import { DELETE_KINDS, cardActions, scenariosForViewer } from "../../services/scenarioOwnership";
 import { DEMO_USER } from '../../appConfig';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
-import { draftSummary, isMeaningfulDraft } from '../../services/scenarioDraft';
+import { setActiveScenarioDraftId } from '../../services/scenarioDraftList';
 import {
-  inProgressScenarioDraft,
-  listScenarioDrafts,
-  removeEditDrafts,
-  removeScenarioDraft,
-  scenarioDraftToOffer,
-  setActiveScenarioDraftId,
-} from '../../services/scenarioDraftList';
-import { markAsked, markDeferred, scenarioContentVersion } from '../../services/resumePrompt';
+  canSyncDrafts,
+  deleteScenarioDraftEverywhere,
+  inProgressAmong,
+  keptScenarioDrafts,
+  loadScenarioDraftsTab,
+  removeEditDraftsEverywhere,
+  resolveInProgress,
+  scenarioDraftsUnavailable,
+} from '../../services/scenarioDraftSync';
+import { markAsked, markDeferred, wasAsked } from '../../services/resumePrompt';
 import DraftCards from '../../GlobalComponents/DraftCards';
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
@@ -560,14 +562,21 @@ const Scenarios = () => {
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
   const navigate = useNavigate();
 
+  // Who is looking: the list holds what they may see (their own copies and
+  // pending edits standing in for what they replace), and Edit / Delete act as
+  // them. Client-asserted until sign-in exists (identity.js).
+  const [viewer] = useState(() => currentActor());
+
   // ---------------------------------------------------
   // Drafts: the author's unpublished scenarios (saved by the editor as they
-  // work). Coming back here with one in progress asks, like Start New Campaign,
-  // whether to pick it up or start a new one; either way it stays under Drafts.
-  // It is asked once per draft: Continue or Start new answers it, and only a
-  // change to it since then asks again. Closing it is "not now": not asked
-  // again here, but asked once more when a new scenario is started
-  // (resumePrompt.js).
+  // work, on the server, so they are listed in any browser; see
+  // scenarioDraftSync.js). Coming back here with one in progress asks, like
+  // Start New Campaign, whether to pick it up or start a new one; either way it
+  // stays under Drafts. It is asked once per draft: Continue or Start new
+  // answers it, and only a change to it since then asks again. Closing it is
+  // "not now": not asked again here, but asked once more when a new scenario
+  // is started (resumePrompt.js). Which one is in progress, and what was
+  // asked, is remembered in this browser.
   // ---------------------------------------------------
   // Coming back from the editor (its Back button) lands on the tab it was
   // opened from, without asking about the scenario just left.
@@ -585,23 +594,52 @@ const Scenarios = () => {
   useEffect(() => {
     if (location.state) navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, navigate]);
-  const readDrafts = () =>
-    listScenarioDrafts().filter((d) => isMeaningfulDraft(d, SCENARIO_DRAFT_DEFAULTS));
-  const [drafts, setDrafts] = useState(readDrafts);
-  const [inProgress, setInProgress] = useState(() => inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
-  const [resumePromptOpen, setResumePromptOpen] = useState(
-    () => !arrival.fromEditor && Boolean(scenarioDraftToOffer(SCENARIO_DRAFT_DEFAULTS))
-  );
-  const inProgressInfo = inProgress ? draftSummary(inProgress.draft) : null;
+  // The drafts kept in this browser show at once; the server's list (read
+  // once a visit) is merged in when it arrives, and anything still waiting in
+  // this browser is then sent. Without the server, this browser's drafts are
+  // what is listed.
+  const [drafts, setDrafts] = useState(() => keptScenarioDrafts(viewer, SCENARIO_DRAFT_DEFAULTS));
+  const [draftsLoading, setDraftsLoading] = useState(() => canSyncDrafts(viewer) && !scenarioDraftsUnavailable());
+  // The server's list was read on this visit (so Edit need not read it again).
+  const [draftsListed, setDraftsListed] = useState(false);
+  // The one in progress: { id, summary, version } (version: its content, as
+  // "Continue your scenario?" remembers it).
+  const [inProgress, setInProgress] = useState(() => inProgressAmong(drafts, viewer, SCENARIO_DRAFT_DEFAULTS));
+  const notAskedYet = (found) => Boolean(found?.version) && !wasAsked('scenario', found.id, found.version);
+  const [resumePromptOpen, setResumePromptOpen] = useState(() => !arrival.fromEditor && notAskedYet(inProgress));
+  // Asked about on arrival only: decided once, from this browser's drafts when
+  // the one in progress is among them, else once the server's list is in.
+  const promptDecidedRef = useRef(Boolean(arrival.fromEditor || inProgress));
+  useEffect(() => {
+    let active = true;
+    const apply = async ({ items, ok }) => {
+      const found = await resolveInProgress(items, viewer, api, SCENARIO_DRAFT_DEFAULTS);
+      if (!active) return;
+      setDrafts(items);
+      setInProgress(found);
+      setDraftsLoading(false);
+      setDraftsListed(ok);
+      if (!promptDecidedRef.current) {
+        promptDecidedRef.current = true;
+        if (notAskedYet(found)) setResumePromptOpen(true);
+      }
+    };
+    const { listed, sent } = loadScenarioDraftsTab({ api, actor: viewer, defaults: SCENARIO_DRAFT_DEFAULTS });
+    listed.then(apply).then(() => sent).then(apply);
+    return () => {
+      active = false;
+    };
+  }, [viewer]);
+  const inProgressInfo = inProgress ? inProgress.summary : null;
   // Whatever the answer, this draft (as it is now) has been asked about.
   const answerResumePrompt = () => {
-    if (inProgress) markAsked('scenario', inProgress.id, scenarioContentVersion(inProgress.draft));
+    if (inProgress) markAsked('scenario', inProgress.id, inProgress.version);
     setResumePromptOpen(false);
   };
   // Closed without an answer ("not now"): not asked again on the way back
   // here, but the editor asks again once a new scenario is started.
   const notNowResumePrompt = () => {
-    if (inProgress) markDeferred('scenario', inProgress.id, scenarioContentVersion(inProgress.draft));
+    if (inProgress) markDeferred('scenario', inProgress.id, inProgress.version);
     setResumePromptOpen(false);
   };
 
@@ -613,17 +651,19 @@ const Scenarios = () => {
     setActiveScenarioDraftId('');
     navigate('/new-scenario', { state: { startFresh: true } });
   };
+  // Gone at once here; the server is told now, or at the next visit.
   const deleteDraft = (id) => {
-    removeScenarioDraft(id);
-    setDrafts(readDrafts());
-    setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
+    const item = drafts.find((d) => d.id === id);
+    deleteScenarioDraftEverywhere(api, id, viewer, { listed: Boolean(item?.listed) });
+    setDrafts((list) => list.filter((d) => d.id !== id));
+    if (inProgress?.id === id) setInProgress(null);
   };
   // Drafts take the same rotating card colours as the templates, and show
   // their cover: catalogue art in the corner, an uploaded photo framed, and
   // the "new design" art while no cover has been picked yet.
   const draftItems = drafts.map((d, i) => {
-    const info = draftSummary(d);
-    const uploaded = d.formData?.coverImageSource === 'upload';
+    const info = d.summary;
+    const uploaded = info.coverSource === 'upload';
     return {
       ...info,
       id: d.id,
@@ -669,10 +709,6 @@ const Scenarios = () => {
 
   const [rawScenarios, setRawScenarios] = useState([]);
   const [scenariosLoading, setScenariosLoading] = useState(true);
-  // Who is looking: the list holds what they may see (their own copies and
-  // pending edits standing in for what they replace), and Edit / Delete act as
-  // them. Client-asserted until sign-in exists (identity.js).
-  const [viewer] = useState(() => currentActor());
   // Bumped after a delete, to read the list again.
   const [listVersion, setListVersion] = useState(0);
   // Card actions in flight, keyed by scenarioId (never by list position: the
@@ -737,7 +773,7 @@ const Scenarios = () => {
   // "Editing: <name>", not also here. It is back in this list once the edit is
   // saved or its draft deleted.
   const editingIds = useMemo(
-    () => new Set(drafts.map((d) => d.edit?.scenarioId).filter(Boolean).map(String)),
+    () => new Set(drafts.map((d) => d.summary?.editing?.scenarioId).filter(Boolean).map(String)),
     [drafts]
   );
 
@@ -770,9 +806,11 @@ const Scenarios = () => {
   // after an inline "Yes / No".
   // ---------------------------------------------------
   // An unfinished edit of this scenario, if any, is reopened by the editor.
+  // A scenario with one on the server is listed under Drafts instead, so when
+  // the server's list was read here, the editor need not look for one there.
   const handleEdit = (scenario) => {
     navigate(`/new-scenario?edit=${encodeURIComponent(scenario.scenarioId)}`, {
-      state: { row: scenario._row, from: 'all' },
+      state: { row: scenario._row, from: 'all', editChecked: draftsListed },
     });
   };
 
@@ -783,10 +821,12 @@ const Scenarios = () => {
     setBusyIds((busy) => ({ ...busy, [id]: true }));
     try {
       await api.scenarios.remove(id, viewer);
-      // An unfinished edit of it has nothing left to save onto.
-      removeEditDrafts(id);
-      setDrafts(readDrafts());
-      setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
+      // An unfinished edit of it has nothing left to save onto: deleted here
+      // and on the server (which keeps no link between the two).
+      removeEditDraftsEverywhere(api, id, drafts, viewer);
+      const editsIt = (d) => String(d.summary?.editing?.scenarioId || '') === id;
+      setDrafts((list) => list.filter((d) => !editsIt(d)));
+      if (inProgress && drafts.some((d) => d.id === inProgress.id && editsIt(d))) setInProgress(null);
       setListVersion((v) => v + 1);
     } catch (error) {
       setCardError({ id, message: error?.message || "Couldn't remove this scenario." });
@@ -844,9 +884,10 @@ const Scenarios = () => {
             isDark ? 'bg-[#15161a] border-white/10 shadow-xl' : 'bg-white border-slate-200 shadow-sm'
           }`}
         >
-        {/* The scenarios are on their way from the server. Drafts are kept in
-            this browser, so the Drafts view never waits for them. */}
-        <PageLoading show={scenariosLoading && view === 'all'} isDark={isDark} />
+        {/* The scenarios, or the drafts, are on their way from the server
+            (a scenario with an unfinished edit is listed under Drafts only, so
+            the scenarios wait for the drafts too). */}
+        <PageLoading show={view === 'all' ? scenariosLoading || draftsLoading : draftsLoading} isDark={isDark} />
 
         {/* ================================================= */}
         {/* TOOLBAR */}
