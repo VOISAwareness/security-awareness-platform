@@ -13,6 +13,7 @@ import os
 import re
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import unquote, urlsplit
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -49,14 +50,27 @@ def ok(data, **extra):
     return respond(200, {"data": data, **extra})
 
 
-def err(status, message):
-    return respond(status, {"error": {"message": message}})
+def err(status, message, **extra):
+    return respond(status, {"error": {"message": message, **extra}})
 
 
-def scan_all(name):
-    """Return every item in a (small) reference table, following pagination."""
+def log(context, message, **fields):
+    """One structured log line. Never pass emails, bodies or tokens."""
+    print(
+        json.dumps(
+            {"message": message, "requestId": getattr(context, "aws_request_id", None), **fields}
+        )
+    )
+
+
+def conditional_failed(e):
+    return e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
+
+
+def scan_all(name, **scan_kwargs):
+    """Return every item in a (small) table, following pagination."""
     tbl = table(name)
-    items, kwargs = [], {}
+    items, kwargs = [], dict(scan_kwargs)
     while True:
         resp = tbl.scan(**kwargs)
         items.extend(resp.get("Items", []))
@@ -169,7 +183,9 @@ def delete_s3_prefix(bucket, prefix):
 def sign_cover(item):
     """Uploaded covers live in a private bucket, so a bare URL would 403. Swap
     the stored key for a presigned GET. CoverImageID stays a string, so the
-    response shape is unchanged and the UI's existing resolver handles it."""
+    response shape is unchanged and the UI's existing resolver handles it.
+    The stored key rides along as coverImageKey (response only), so an editor
+    can save the row back without persisting a URL that expires in an hour."""
     key = (item or {}).get("CoverImageID", "")
     if not UPLOAD_BUCKET or not str(key).startswith("uploads/"):
         return item
@@ -179,14 +195,352 @@ def sign_cover(item):
         Params={"Bucket": UPLOAD_BUCKET, "Key": key},
         ExpiresIn=3600,
     )
+    signed["coverImageKey"] = key
     return signed
+
+
+def cover_key_from_url(value):
+    """Undo sign_cover for a cover sent back by the browser: a presigned
+    uploads/ URL becomes its S3 key again, so a saved row never holds a link
+    that stops working an hour later. Anything else (keys, catalogue names,
+    plain links) passes through untouched."""
+    if not isinstance(value, str):
+        return value
+    parts = urlsplit(value.strip())
+    if parts.scheme not in ("http", "https") or "X-Amz-" not in parts.query:
+        return value
+    path = unquote(parts.path)
+    start = path.find("/uploads/")
+    return path[start + 1 :] if start >= 0 else value
+
+
+# --- scenario ownership -------------------------------------------------
+# Identity is CLIENT-ASSERTED until sign-in (Entra ID) exists: the browser
+# names the viewer (GET ?viewer=), the author (POST createdBy) and the actor
+# (PUT body / DELETE ?actor=). These rules keep honest users out of each
+# other's way; they are NOT a security boundary -- anyone can claim any address.
+#
+# Row kinds (scenario_kind):
+#   template  no createdBy: the fixed seed scenarios, visible to everyone.
+#   own       a user's scenario. Private until a SENT campaign uses it, then
+#             shared with everyone and frozen -- edits go through a revision.
+#   copy      copyOf=X: its owner's private stand-in for template / shared X.
+#   revision  revisionOf=S: its owner's pending edit of their own shared S,
+#             published onto S once a campaign that used it has been SENT.
+# The handler only does I/O; every rule lives in the pure helpers below.
+
+# Kept from the original when a revision's content is published onto it.
+PUBLISH_KEPT_FIELDS = frozenset(
+    {"scenarioId", "createdBy", "CreatedOn", "copyOf", "revisionOf", "publishedAt"}
+)
+# A PUT can't change who owns a row or where it came from.
+PUT_LOCKED_FIELDS = frozenset({"scenarioId", "createdBy", "copyOf", "revisionOf", "publishedAt"})
+# Response-only annotations (and PUT's actor): dropped from every body.
+NEVER_STORED_FIELDS = frozenset({"ownership", "isShared", "replaces", "coverImageKey", "actor"})
+
+
+def parse_identity(value):
+    """A client-asserted email (viewer, actor, createdBy) in comparable form:
+    trimmed and lower-cased; '' when absent or not a string."""
+    return value.strip().lower() if isinstance(value, str) else ""
+
+
+def campaign_scenario_refs(campaign_rows):
+    """(referenced, sent): ids of scenarios any campaign references, in any
+    status, and the subset a SENT campaign used -- what makes a user's scenario
+    shared and a revision publishable. Reads legacy rows too (CampaignStatus,
+    ScenarioID) and any status casing."""
+    referenced, sent = set(), set()
+    for row in campaign_rows:
+        ids = {str(row[attr]) for attr in ("scenarioId", "ScenarioID") if row.get(attr)}
+        referenced |= ids
+        status = row.get("status") or row.get("CampaignStatus") or ""
+        if str(status).strip().upper() == "SENT":
+            sent |= ids
+    return referenced, sent
+
+
+def sent_scenario_ids(campaign_rows):
+    return campaign_scenario_refs(campaign_rows)[1]
+
+
+def next_scenario_id(rows, referenced_ids):
+    """The next SC-00N id, past every id a row OR a campaign has ever used.
+    "Sent" is tracked by id, so a reissued id would inherit an old campaign's
+    history: a new scenario born shared, a new revision published unreviewed.
+    So an id stays retired after its row is deleted if any campaign used it."""
+    used = [*rows, *({"scenarioId": sid} for sid in referenced_ids)]
+    return next_sequence_id(used, "scenarioId", "SC")
+
+
+def sequence_order(scenario_id):
+    """Sort key putting SC-999 before SC-1000 (API ids grow with age)."""
+    m = re.match(r"^SC-(\d+)$", str(scenario_id))
+    return (0, int(m.group(1)), "") if m else (1, 0, str(scenario_id))
+
+
+def scenario_kind(row):
+    if row.get("copyOf"):
+        return "copy"
+    if row.get("revisionOf"):
+        return "revision"
+    return "own" if parse_identity(row.get("createdBy")) else "template"
+
+
+def is_shared(row, sent_ids):
+    """A user's own scenario is shared once a SENT campaign has used it."""
+    return scenario_kind(row) == "own" and str(row.get("scenarioId")) in sent_ids
+
+
+def visible_scenarios(rows, sent_ids, viewer):
+    """The rows `viewer` may see, each annotated (response only) with
+    ownership, isShared and replaces. The viewer's copy stands in for the
+    template / shared scenario it copies, and their pending revision for their
+    own shared scenario -- for them alone. Published revisions are hidden."""
+    viewer = parse_identity(viewer)
+
+    def mine(row):
+        return bool(viewer) and parse_identity(row.get("createdBy")) == viewer
+
+    copied, revised = set(), set()
+    for row in rows:
+        if mine(row) and not row.get("publishedAt"):
+            kind = scenario_kind(row)
+            if kind == "copy":
+                copied.add(str(row["copyOf"]))
+            elif kind == "revision":
+                revised.add(str(row["revisionOf"]))
+
+    visible = []
+    for row in rows:
+        kind, sid = scenario_kind(row), str(row.get("scenarioId"))
+        shared, replaces = is_shared(row, sent_ids), None
+        if kind == "template":
+            if sid in copied:
+                continue
+            ownership = "template"
+        elif kind == "own" and mine(row):
+            if sid in revised:
+                continue
+            ownership = "mine"
+        elif kind == "own":
+            if not shared or sid in copied:
+                continue
+            ownership = "shared"
+        else:
+            if not mine(row) or row.get("publishedAt"):
+                continue
+            ownership = "myCopy" if kind == "copy" else "myRevision"
+            replaces = str(row["copyOf"] if kind == "copy" else row["revisionOf"])
+        visible.append({**row, "ownership": ownership, "isShared": shared, "replaces": replaces})
+    return visible
+
+
+def publishable_revisions(rows, sent_ids):
+    """Revisions due for lazy publish: unpublished, used by a SENT campaign,
+    and by the same author as the original they revise. Returns
+    (revision, original, merged_original) tuples, where merged_original is the
+    original with the revision's content but its own identity fields. Oldest
+    first, so if two revisions of one original are due, the newest lands last."""
+    by_id = {str(row.get("scenarioId")): row for row in rows}
+    plan = []
+    for rev in sorted(rows, key=lambda row: sequence_order(row.get("scenarioId"))):
+        if scenario_kind(rev) != "revision" or rev.get("publishedAt"):
+            continue
+        if str(rev.get("scenarioId")) not in sent_ids:
+            continue
+        original = by_id.get(str(rev["revisionOf"]))
+        if not original or scenario_kind(original) != "own":
+            continue
+        if parse_identity(rev.get("createdBy")) != parse_identity(original.get("createdBy")):
+            continue
+        content = {
+            k: v
+            for k, v in rev.items()
+            if k not in PUBLISH_KEPT_FIELDS and k not in NEVER_STORED_FIELDS
+        }
+        plan.append((rev, original, {**original, **content}))
+    return plan
+
+
+def clean_scenario_input(body):
+    """A POST body as it may be stored: response-only fields and publishedAt
+    dropped (only the lazy publish sets it), createdBy lower-cased,
+    copyOf/revisionOf as plain ids, a presigned cover URL back to its key."""
+    item = {
+        k: v for k, v in body.items() if k not in NEVER_STORED_FIELDS and k != "publishedAt"
+    }
+    author = parse_identity(item.pop("createdBy", None))
+    if author:
+        item["createdBy"] = author
+    for attr in ("copyOf", "revisionOf"):
+        ref = item.pop(attr, None)
+        ref = "" if ref is None else str(ref).strip()
+        if ref:
+            item[attr] = ref
+    if "CoverImageID" in item:
+        item["CoverImageID"] = cover_key_from_url(item["CoverImageID"])
+    return item
+
+
+def scenario_update(existing, body):
+    """The row a PUT stores: the body merged over the existing row, minus
+    actor, response-only annotations and the fields that fix ownership."""
+    updates = {
+        k: v
+        for k, v in body.items()
+        if k not in NEVER_STORED_FIELDS and k not in PUT_LOCKED_FIELDS
+    }
+    if "CoverImageID" in updates:
+        updates["CoverImageID"] = cover_key_from_url(updates["CoverImageID"])
+    return {**existing, **updates}
+
+
+def create_refusal(item, rows, referenced_ids, sent_ids):
+    """Why a POST of `item` (already cleaned) can't go ahead, as an error
+    response, or None."""
+    copy_of, revision_of = item.get("copyOf"), item.get("revisionOf")
+    if not copy_of and not revision_of:
+        # A typed id an old campaign used would inherit its history (see
+        # next_scenario_id). A copy's or revision's id is the API's, so it
+        # never gets here.
+        if str(item.get("scenarioId") or "") in referenced_ids:
+            return err(409, "That scenario ID was used by an earlier campaign; choose another")
+        return None
+    if copy_of and revision_of:
+        return err(400, "A scenario can be a copy or a revision, not both")
+    author = item.get("createdBy")
+    if not author:
+        return err(400, "createdBy is required for a copy or a revision")
+    target_id = copy_of or revision_of
+    target = next((r for r in rows if str(r.get("scenarioId")) == target_id), None)
+    shared = bool(target) and is_shared(target, sent_ids)
+    owner = parse_identity((target or {}).get("createdBy"))
+    if copy_of:
+        if not target or not (
+            scenario_kind(target) == "template" or (shared and owner != author)
+        ):
+            return err(400, "copyOf must be a template or someone else's shared scenario")
+        kind, link, noun = "copy", "copyOf", "a copy"
+    else:
+        if not shared or owner != author:
+            return err(400, "revisionOf must be one of your own shared scenarios")
+        kind, link, noun = "revision", "revisionOf", "a pending revision"
+    # A revision a SENT campaign used is published by the next list even if
+    # not stamped yet, so it doesn't block the next one.
+    existing = next(
+        (
+            r
+            for r in rows
+            if scenario_kind(r) == kind
+            and str(r.get(link)) == target_id
+            and parse_identity(r.get("createdBy")) == author
+            and not r.get("publishedAt")
+            and not (kind == "revision" and str(r.get("scenarioId")) in sent_ids)
+        ),
+        None,
+    )
+    if existing:
+        return err(
+            409,
+            f"You already have {noun} of {target_id}",
+            existingId=existing.get("scenarioId"),
+        )
+    return None
+
+
+def modify_refusal(row, actor, sent_ids, action):
+    """Why `actor` can't PUT (action "edit") or DELETE ("delete") this row, as
+    an error response, or None when they can. A copy a SENT campaign used, or
+    a private scenario an unsent campaign uses, may still be deleted: campaigns
+    keep their own copy of the content, and next_scenario_id / create_refusal
+    never hand the id out again."""
+    actor = parse_identity(actor)
+    if not actor:
+        return err(400, "actor is required")
+    kind = scenario_kind(row)
+    if kind == "template":
+        if action == "edit":
+            return err(403, "Templates can't be edited. Make a copy instead.")
+        return err(403, "Templates can't be deleted")
+    if parse_identity(row.get("createdBy")) != actor:
+        return err(403, f"Only the scenario's creator can {action} it")
+    # A revision a SENT campaign used is published (or about to be by the next
+    # list): it backs the original's content and the campaign's history.
+    if kind == "revision" and (row.get("publishedAt") or str(row.get("scenarioId")) in sent_ids):
+        return err(409, "Published revisions are kept for campaign history")
+    if is_shared(row, sent_ids):
+        if action == "edit":
+            return err(
+                409,
+                "This scenario is shared (a sent campaign used it), so editing it "
+                "creates a revision instead",
+            )
+        return err(409, "Shared scenarios can't be deleted")
+    return None
+
+
+def load_campaign_refs():
+    """One projected scan of the campaigns table: (referenced, sent) ids."""
+    return campaign_scenario_refs(
+        scan_all(
+            "campaigns",
+            ProjectionExpression="#s, CampaignStatus, scenarioId, ScenarioID",
+            ExpressionAttributeNames={"#s": "status"},
+        )
+    )
+
+
+def publish_revisions(rows, sent_ids, context=None):
+    """Lazy publish (see publishable_revisions): write each sent revision's
+    content onto its original, then stamp the revision with publishedAt.
+    Idempotent -- a stamped revision is never picked again -- and best effort:
+    a failed write leaves the revision pending for the next list rather than
+    failing this one. Returns the rows as they now stand."""
+    plan = publishable_revisions(rows, sent_ids)
+    if not plan:
+        return rows
+    tbl = table("scenarios")
+    changed = {}
+    for revision, original, merged in plan:
+        rev_id, orig_id = revision["scenarioId"], original["scenarioId"]
+        try:
+            # Only onto the original as read: still there, same owner.
+            tbl.put_item(
+                Item=merged,
+                ConditionExpression="attribute_exists(scenarioId) AND createdBy = :by",
+                ExpressionAttributeValues={":by": original["createdBy"]},
+            )
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code")
+            log(context, "Revision publish skipped", revisionId=rev_id, scenarioId=orig_id, code=code)
+            continue
+        changed[str(orig_id)] = merged
+        published_at = datetime.now(UTC).isoformat()
+        try:
+            # Stamped last, so a failure in between just republishes next time.
+            tbl.update_item(
+                Key={"scenarioId": rev_id},
+                UpdateExpression="SET publishedAt = :at",
+                ConditionExpression="attribute_exists(scenarioId) AND attribute_not_exists(publishedAt)",
+                ExpressionAttributeValues={":at": published_at},
+            )
+        except ClientError as e:
+            # A conditional failure means another request stamped it first:
+            # published either way. Anything else retries on the next list.
+            if not conditional_failed(e):
+                code = e.response.get("Error", {}).get("Code")
+                log(context, "Revision stamp failed", revisionId=rev_id, scenarioId=orig_id, code=code)
+                continue
+        changed[str(rev_id)] = {**revision, "publishedAt": published_at}
+        log(context, "Scenario revision published", revisionId=rev_id, scenarioId=orig_id)
+    return [changed.get(str(row.get("scenarioId")), row) for row in rows]
 
 
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /sender-identities": "sender-identities",
     "GET /users": "users",
-    "GET /scenarios": "scenarios",
     "GET /landing-pages": "landing-pages",
     "GET /user-lists": "user-lists",
     "GET /gamification-rules": "gamification-rules",
@@ -211,11 +565,19 @@ def lambda_handler(event, context):
     params = event.get("pathParameters") or {}
 
     try:
+        if route == "GET /scenarios":
+            items = scan_all("scenarios")
+            # Without a viewer every row comes back as before (older clients).
+            viewer = parse_identity((event.get("queryStringParameters") or {}).get("viewer"))
+            if viewer:
+                _, sent_ids = load_campaign_refs()
+                items = publish_revisions(items, sent_ids, context)
+                items = visible_scenarios(items, sent_ids, viewer)
+            items = [sign_cover(i) for i in items]
+            return ok(items, count=len(items))
+
         if route in LIST_ROUTES:
-            name = LIST_ROUTES[route]
-            items = scan_all(name)
-            if name == "scenarios":
-                items = [sign_cover(i) for i in items]
+            items = scan_all(LIST_ROUTES[route])
             return ok(items, count=len(items))
 
         if route in GET_BY_ID:
@@ -326,14 +688,24 @@ def lambda_handler(event, context):
             body = parse_body(event)
             if not body.get("scenarioName"):
                 return err(400, "scenarioName is required")
-            item = dict(body)
-            # The wizard's first step asks the author to type an id, so the
-            # SC-00N sequence is only a fallback for when one wasn't supplied.
-            item["scenarioId"] = body.get("scenarioId") or next_sequence_id(
-                scan_all("scenarios"), "scenarioId", "SC"
-            )
+            item = clean_scenario_input(body)
             now = datetime.now(UTC)
-            item.setdefault("CreatedOn", f"{now.day}-{now.strftime('%b-%y')}")
+            created_on = f"{now.day}-{now.strftime('%b-%y')}"
+            rows = scan_all("scenarios")
+            referenced, sent_ids = load_campaign_refs()
+            refusal = create_refusal(item, rows, referenced, sent_ids)
+            if refusal:
+                return refusal
+            if item.get("copyOf") or item.get("revisionOf"):
+                # A copy or revision is a new row the API names itself: an id
+                # or date carried over from the row it was made from must not stick.
+                item["scenarioId"] = next_scenario_id(rows, referenced)
+                item["CreatedOn"] = created_on
+            elif not item.get("scenarioId"):
+                # The wizard's first step asks the author to type an id, so the
+                # SC-00N sequence is only a fallback for when one wasn't supplied.
+                item["scenarioId"] = next_scenario_id(rows, referenced)
+            item.setdefault("CreatedOn", created_on)
             for field in (
                 "description",
                 "emailBody",
@@ -365,15 +737,46 @@ def lambda_handler(event, context):
             existing = get_one("scenarios", {"scenarioId": params["id"]})
             if not existing:
                 return err(404, "Scenario not found")
-            merged = {**existing, **body, "scenarioId": params["id"]}
+            _, sent_ids = load_campaign_refs()
+            refusal = modify_refusal(existing, body.get("actor"), sent_ids, "edit")
+            if refusal:
+                return refusal
+            merged = scenario_update(existing, body)
             oversize = too_large(merged)
             if oversize:
                 return size_error(oversize)
-            table("scenarios").put_item(Item=merged)
+            try:
+                # Not onto a row deleted or published since it was read.
+                table("scenarios").put_item(
+                    Item=merged,
+                    ConditionExpression="attribute_exists(scenarioId) AND attribute_not_exists(publishedAt)",
+                )
+            except ClientError as e:
+                if conditional_failed(e):
+                    return err(409, "Scenario changed while saving. Reload and try again.")
+                raise
             return ok(merged)
 
         if route == "DELETE /scenarios/{id}":
-            table("scenarios").delete_item(Key={"scenarioId": params["id"]})
+            existing = get_one("scenarios", {"scenarioId": params["id"]})
+            if not existing:
+                # Already gone. Covers under this id are left alone: they may
+                # belong to a scenario still being authored.
+                return respond(204, {"data": None})
+            actor = (event.get("queryStringParameters") or {}).get("actor")
+            _, sent_ids = load_campaign_refs()
+            refusal = modify_refusal(existing, actor, sent_ids, "delete")
+            if refusal:
+                return refusal
+            try:
+                table("scenarios").delete_item(
+                    Key={"scenarioId": params["id"]},
+                    ConditionExpression="attribute_not_exists(publishedAt)",
+                )
+            except ClientError as e:
+                if conditional_failed(e):
+                    return err(409, "Published revisions are kept for campaign history")
+                raise
             if UPLOAD_BUCKET:
                 delete_s3_prefix(
                     UPLOAD_BUCKET,
