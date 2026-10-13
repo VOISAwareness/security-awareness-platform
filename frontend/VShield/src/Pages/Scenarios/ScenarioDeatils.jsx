@@ -54,6 +54,7 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Info,
 } from 'lucide-react';
 
 // ============================================================
@@ -1844,25 +1845,35 @@ const handlePublishScenario = async () => {
             }
           `}
         >
-          <div className="flex items-baseline gap-3 min-w-0">
-            <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
-              {edit || editRequest ? 'EDIT SCENARIO' : 'CREATE NEW SCENARIO'}
-            </span>
-            {/* What Save will do with this edit (a copy, a pending revision...). */}
+          <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
+            {edit || editRequest ? 'EDIT SCENARIO' : 'CREATE NEW SCENARIO'}
+          </span>
+          <div className="flex items-center justify-end gap-2 min-w-0 ml-4">
+            {/* What Save will do with this edit (a copy, a pending revision...),
+                on the right in its own colour so it is seen. */}
             {edit && (
-              <span className="text-[10.5px] font-semibold normal-case opacity-75 truncate">
-                {edit.name ? `${edit.name} · ` : ''}{editNote(edit)}
+              <span
+                role="note"
+                title={`${edit.name ? `${edit.name}: ` : ''}${editNote(edit)}`}
+                className="inline-flex items-center gap-1.5 min-w-0 max-w-[620px] px-3 py-1 rounded-full bg-[#FFE19C] text-[#3D2A0A] text-[10.5px] font-semibold normal-case shadow-2xs"
+              >
+                <Info className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
+                <span className="truncate">
+                  {edit.name && <strong className="font-extrabold">{edit.name}</strong>}
+                  {edit.name ? ' · ' : ''}
+                  {editNote(edit)}
+                </span>
+              </span>
+            )}
+            {scenarioDraft.saveFailed && (
+              <span
+                role="status"
+                className="text-[10px] font-bold normal-case px-2.5 py-1 rounded-full bg-amber-100 text-amber-900"
+              >
+                This browser's storage is full, so this draft isn't being saved. Delete old ones under Scenarios → Drafts.
               </span>
             )}
           </div>
-          {scenarioDraft.saveFailed && (
-            <span
-              role="status"
-              className="ml-auto text-[10px] font-bold normal-case px-2.5 py-1 rounded-full bg-amber-100 text-amber-900"
-            >
-              This browser's storage is full, so this draft isn't being saved. Delete old ones under Scenarios → Drafts.
-            </span>
-          )}
         </div>
 
         {/* What changed about the scenario since this edit began. */}
