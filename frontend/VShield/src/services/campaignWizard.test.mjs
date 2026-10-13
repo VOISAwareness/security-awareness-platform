@@ -19,6 +19,8 @@ import {
   hasEditsBeyondScenario,
   templatePatch,
   templatePick,
+  lastSaved,
+  latestSavedFirst,
 } from './campaignWizard.js';
 
 const PHISH = {
@@ -335,4 +337,19 @@ test('templatePick: a campaign only opened from a template is reused, not kept',
     templatePick({ draft: { ...opened, savedAsDraft: true }, scenarioId: PARCEL.scenarioId, previous: PHISH }),
     'new'
   );
+});
+
+test('latestSavedFirst: the draft saved most recently first, by update then creation', () => {
+  const drafts = [
+    { campaignId: 'A', createdAt: '2026-10-01T09:00:01Z', updatedAt: '2026-10-01T09:00:04Z' },
+    { campaignId: 'B', createdAt: '2026-10-01T09:00:02Z', updatedAt: '2026-10-01T09:00:02Z' },
+    { campaignId: 'C', createdAt: '2026-10-01T09:00:03Z' },
+    { campaignId: 'D' },
+  ];
+  assert.deepEqual(latestSavedFirst(drafts).map((d) => d.campaignId), ['A', 'C', 'B', 'D']);
+  assert.equal(drafts[0].campaignId, 'A'); // not sorted in place
+  assert.deepEqual(latestSavedFirst().map((d) => d.campaignId), []);
+  // The Campaigns screen's shape (LastModified / CreationDate) too.
+  assert.equal(lastSaved({ LastModified: '2026-10-02T00:00:00Z', CreationDate: '2026-10-01T00:00:00Z' }), '2026-10-02T00:00:00Z');
+  assert.equal(lastSaved(null), '');
 });

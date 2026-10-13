@@ -98,6 +98,16 @@ export function shouldOfferResume(draft) {
   return Boolean(draft) && isEditable(draft.status || 'DRAFT') && hasProgress(draft);
 }
 
+/** When a campaign was last saved: updated, else created ('' if neither is known). */
+export function lastSaved(campaign) {
+  return String(campaign?.updatedAt || campaign?.LastModified || campaign?.createdAt || campaign?.CreationDate || '');
+}
+
+/** Drafts, the one saved most recently first (a copy; the list is not changed). */
+export function latestSavedFirst(drafts = []) {
+  return [...drafts].sort((a, b) => lastSaved(b).localeCompare(lastSaved(a)));
+}
+
 /** Title for the resume prompt: the campaign title, else the scenario name. */
 export function draftLabel(draft) {
   return (

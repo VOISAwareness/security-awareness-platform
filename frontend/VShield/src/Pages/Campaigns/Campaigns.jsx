@@ -18,7 +18,7 @@ import {
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
 import { openCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD, hasProgress, routeForStep } from '../../services/campaignWizard';
+import { IN_WIZARD, hasProgress, lastSaved, routeForStep } from '../../services/campaignWizard';
 import { DESIGN_STATUS, toDesignCampaign } from '../../services/campaignDesign';
 import { PHASE } from '../../services/campaignStatus';
 import { actorFor } from '../../services/identity';
@@ -149,7 +149,10 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('Shortest Expiring Date');
+  // Until a sort is picked, Drafts shows the one saved most recently first and
+  // the other tabs the one expiring soonest; a pick then applies to every tab.
+  const [sortChoice, setSortBy] = useState(null);
+  const sortBy = sortChoice || (activeTab === 'drafts' ? 'Latest Updated' : 'Shortest Expiring Date');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Modals
@@ -300,6 +303,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
       const createdA = new Date(a.CreationDate || 0).getTime();
       const createdB = new Date(b.CreationDate || 0).getTime();
 
+      if (sortBy === 'Latest Updated') return lastSaved(b).localeCompare(lastSaved(a));
       if (sortBy === 'Shortest Expiring Date') return dateA - dateB;
       if (sortBy === 'Latest Created Date') return createdB - createdA;
       if (sortBy === 'Oldest Created Date') return createdA - createdB;
@@ -736,13 +740,13 @@ const Campaigns = ({ isDark: propIsDark }) => {
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
                     className="w-full h-6 px-2.5 rounded-lg bg-[#EEF2F6] dark:bg-[#12141A] text-slate-700 dark:text-slate-300 text-[8px] font-bold flex items-center justify-between border border-black/5 dark:border-white/5 cursor-pointer shadow-2xs"
                   >
-                    <span className="truncate">Sort By: {sortBy.split(' ')[0]}</span>
+                    <span className="truncate">Sort By: {sortBy.split(' ').slice(0, 2).join(' ')}</span>
                     <ChevronDown className="w-3 h-3 text-slate-500 shrink-0 ml-1" />
                   </button>
 
                   {showSortDropdown && (
                     <div className="absolute top-7 left-0 w-44 bg-white dark:bg-[#161820] rounded-md shadow-2xl border border-black/10 dark:border-white/10 py-1 z-[100] flex flex-col">
-                      {['Shortest Expiring Date', 'Latest Created Date', 'Oldest Created Date'].map((option) => (
+                      {['Latest Updated', 'Shortest Expiring Date', 'Latest Created Date', 'Oldest Created Date'].map((option) => (
                         <button
                           key={option}
                           type="button"
