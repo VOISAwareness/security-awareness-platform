@@ -41,6 +41,47 @@ def utc_timestamp():
     return datetime.now(UTC).isoformat()
 
 
+# A test campaign is sent only to the email IDs its author added one by one
+# (testRecipientEmails) instead of a recipient list; the wizard allows this many.
+MAX_TEST_RECIPIENTS = 10
+
+
+def is_test_campaign(campaign):
+    """The wizard's "test campaign" tick (a real boolean, or "true" as text)."""
+    value = campaign.get("isTestCampaign")
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return value is True
+
+
+def uses_test_recipients(campaign):
+    """
+    A test campaign with its own email IDs (testRecipientEmails, written by the
+    wizard's email step). Test campaigns saved before that field existed have
+    none and keep their recipient list.
+    """
+    return is_test_campaign(campaign) and isinstance(
+        campaign.get("testRecipientEmails"), list | tuple
+    )
+
+
+def check_test_recipients(campaign):
+    """What blocks a test campaign's recipients: none added, or too many."""
+    raw = campaign.get("testRecipientEmails")
+    emails = {
+        str(e or "").strip().lower()
+        for e in (raw if isinstance(raw, list | tuple) else [])
+        if "@" in str(e or "")
+    }
+    if not emails:
+        return ["Test email IDs are required for a test campaign"]
+    if len(emails) > MAX_TEST_RECIPIENTS:
+        return [
+            f"A test campaign can have at most {MAX_TEST_RECIPIENTS} test email IDs"
+        ]
+    return []
+
+
 # Fields a campaign must carry before it can leave DRAFT. The wizard's Review &
 # Publish step performs NO validation of its own — every missing value silently
 # falls back to a demo default — so this is the only place it is enforced.
@@ -60,7 +101,10 @@ def validate_for_submit(campaign):
         ("selectedListId", "Recipient List"),
         ("trainingId", "Training Path"),
     ):
-        if missing(field):
+        # A test campaign has its own email IDs instead of a recipient list.
+        if field == "selectedListId" and uses_test_recipients(campaign):
+            problems.extend(check_test_recipients(campaign))
+        elif missing(field):
             problems.append(f"{label} is required")
 
     # End time may be omitted only when the campaign auto-ends after sending.

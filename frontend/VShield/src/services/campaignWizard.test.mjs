@@ -110,6 +110,8 @@ test('hasProgress: the user\'s own work', () => {
   assert.equal(hasProgress({ ...opened, startTime: '2026-11-02T10:00' }), true);
   assert.equal(hasProgress({ ...opened, endTime: '2026-11-03T10:00' }), true);
   assert.equal(hasProgress({ ...opened, selectedListId: 'UL-1' }), true);
+  assert.equal(hasProgress({ ...opened, testRecipientEmails: ['me@x.com'] }), true);
+  assert.equal(hasProgress({ ...opened, testRecipientEmails: [] }), false);
   assert.equal(hasProgress({ ...opened, isTestCampaign: true }), true);
   assert.equal(hasProgress({ ...opened, autoEndPostSending: false }), true);
   assert.equal(hasProgress({ ...opened, landingPageContent: '<div/>' }), true);
