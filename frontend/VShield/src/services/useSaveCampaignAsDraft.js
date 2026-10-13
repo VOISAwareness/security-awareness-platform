@@ -28,7 +28,9 @@ export function useSaveCampaignAsDraft({ draft, update, flush, onError }) {
     if (saving) return;
     setSaving(true);
     try {
-      if (update && Object.keys(fields).length) update(fields);
+      // Kept on purpose: listed under Drafts even if nothing in it is the
+      // user's yet (see hasProgress).
+      if (update) update({ ...fields, savedAsDraft: true });
       const saved = await flush();
       const row = { ...(draft || {}), ...fields, ...(saved || {}) };
       parkCampaignDraft(row);

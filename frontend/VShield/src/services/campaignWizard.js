@@ -66,17 +66,33 @@ export function savedStep(draft, fallback = 2) {
   return toStep(draft?.wizardStep) || toStep(fallback) || 1;
 }
 
-/** Has the user done anything in this draft that would be lost by starting over? */
+const norm = (v) => String(v ?? '').trim();
+
+/**
+ * Has the user put anything of their own into this draft, so that it is worth
+ * offering back ("Continue your campaign?") and listing under Drafts?
+ *
+ * A campaign only opened from a template (or Start fresh) holds nothing but
+ * what the template filled in, so it is neither, and the next template simply
+ * reuses it (templatePick). The user's own work starts with a title or
+ * description they typed, a schedule, the test-campaign or auto-end ticks
+ * changed, anything from step 3 on (getting past step 2 takes a title,
+ * description and start time), or "Save as draft".
+ */
 export function hasProgress(draft) {
   if (!draft) return false;
-  return (
-    (toStep(draft.wizardStep) || 1) > 1 ||
-    Boolean(draft.scenarioId) ||
-    String(draft.campaignTitle || '').trim() !== ''
-  );
+  if ((toStep(draft.wizardStep) || 1) > 2) return true;
+  if (draft.savedAsDraft === true) return true;
+  if (draft.campaignTitleSetByUser === true || draft.campaignDescriptionSetByUser === true) return true;
+  // Older drafts did not flag typed text: a title other than the template's name is the user's.
+  const title = norm(draft.campaignTitle);
+  if (title && title !== norm(draft.scenarioName)) return true;
+  if (norm(draft.startTime) || norm(draft.endTime) || norm(draft.selectedListId)) return true;
+  if (draft.isTestCampaign === true || draft.autoEndPostSending === false) return true;
+  return Boolean(norm(draft.landingPageContent) || draft.landingPageAttachedByUser || draft.trainingPathAttachedByUser);
 }
 
-/** Offer "Continue your campaign?" only for an editable draft with progress. */
+/** Offer "Continue your campaign?" only for an editable draft with the user's own work in it. */
 export function shouldOfferResume(draft) {
   return Boolean(draft) && isEditable(draft.status || 'DRAFT') && hasProgress(draft);
 }
@@ -140,7 +156,6 @@ export function scenarioContent(scenario) {
   };
 }
 
-const norm = (v) => String(v ?? '').trim();
 
 /**
  * Would replacing this draft's template lose the user's own work in steps 3-5?
@@ -173,10 +188,14 @@ export function hasEditsBeyondScenario(draft, previous = null) {
  *  'same'    already this campaign's template: carry on, every edit kept
  *  'confirm' another template over the user's own edits: ask first
  *  'apply'   another template with nothing of the user's to lose (also when
- *            nothing is in progress: it fills the new, blank campaign)
+ *            nothing is in progress: it fills the new, blank campaign, or the
+ *            one only opened from a template, which it reuses)
  */
 export function templatePick({ editing = false, draft, scenarioId, previous = null }) {
-  if (!draft?.campaignId || !shouldOfferResume(draft)) return 'apply';
+  if (!draft?.campaignId) return 'apply';
+  // Reused only when nothing in it is the user's, their email, landing page and
+  // training included.
+  if (!shouldOfferResume(draft) && !hasEditsBeyondScenario(draft, previous)) return 'apply';
   if (!editing) return 'new';
   if (isSameScenario(draft, scenarioId)) return 'same';
   if (hasEditsBeyondScenario(draft, previous)) return 'confirm';
