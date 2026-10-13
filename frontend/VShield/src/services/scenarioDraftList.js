@@ -14,6 +14,7 @@
  */
 import { readJSON, readString, removeKey, scopedKey, writeJSON, writeString } from './draftStore.js';
 import { SCENARIO_DRAFT_KEY, isMeaningfulDraft, parseDraft } from './scenarioDraft.js';
+import { scenarioContentVersion, wasAsked } from './resumePrompt.js';
 
 export const SCENARIO_DRAFTS_KEY = 'voisshield_scenario_drafts';
 export const ACTIVE_SCENARIO_DRAFT_KEY = 'voisshield_active_scenario_draft';
@@ -105,12 +106,24 @@ export function inProgressScenarioDraft(defaults = {}, actor) {
 }
 
 /**
+ * The scenario in progress, if "Continue your scenario?" has not asked about
+ * it yet: never, or not since its form last changed (see resumePrompt.js). Once
+ * answered it is simply a draft under Scenarios → Drafts. -> { id, draft } | null
+ */
+export function scenarioDraftToOffer(defaults = {}, actor) {
+  const current = inProgressScenarioDraft(defaults, actor);
+  if (!current) return null;
+  return wasAsked('scenario', current.id, scenarioContentVersion(current.draft), actor) ? null : current;
+}
+
+/**
  * Which draft the scenario editor opens on, decided once before its first
  * render:
  *  - ?draft=<id> naming a saved draft opens it directly ({ resume });
  *  - otherwise the editor works on a new draft (the requested id when one was
  *    given, so a reload keeps it), and — unless the author just chose "Start
- *    new" — the scenario in progress is offered back first ({ offer }).
+ *    new", or was already asked about it — the scenario in progress is offered
+ *    back first ({ offer }).
  * -> { id, resume: draft | null, offer: { id, draft } | null }
  */
 export function scenarioEditorOpening({ requestedId = '', startFresh = false, defaults = {} } = {}, actor) {
@@ -118,5 +131,5 @@ export function scenarioEditorOpening({ requestedId = '', startFresh = false, de
   if (requested) return { id: requestedId, resume: requested, offer: null };
   const id = requestedId || newDraftId();
   if (startFresh) return { id, resume: null, offer: null };
-  return { id, resume: null, offer: inProgressScenarioDraft(defaults, actor) };
+  return { id, resume: null, offer: scenarioDraftToOffer(defaults, actor) };
 }

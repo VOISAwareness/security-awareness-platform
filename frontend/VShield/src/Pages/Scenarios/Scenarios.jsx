@@ -26,8 +26,10 @@ import {
   inProgressScenarioDraft,
   listScenarioDrafts,
   removeScenarioDraft,
+  scenarioDraftToOffer,
   setActiveScenarioDraftId,
 } from '../../services/scenarioDraftList';
+import { markAsked, scenarioContentVersion } from '../../services/resumePrompt';
 import DraftCards from '../../GlobalComponents/DraftCards';
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
@@ -545,13 +547,15 @@ const Scenarios = () => {
   // Drafts: the author's unpublished scenarios (saved by the editor as they
   // work). Coming back here with one in progress asks, like Start New Campaign,
   // whether to pick it up or start a new one; either way it stays under Drafts.
+  // It is asked once per draft: any answer, or closing the question, counts,
+  // and only a change to it since then asks again (resumePrompt.js).
   // ---------------------------------------------------
   // Coming back from the editor (its Back button) lands on the tab it was
-  // opened from, without asking again about the scenario just left.
+  // opened from, without asking about the scenario just left.
   const location = useLocation();
   const [arrival] = useState(() => location.state || {});
   const [view, setView] = useState(arrival.view === 'drafts' ? 'drafts' : 'all'); // 'all' | 'drafts'
-  // Used once: a reload of this page should ask again as usual.
+  // Used once: a reload of this page is an ordinary visit again.
   useEffect(() => {
     if (location.state) navigate(location.pathname, { replace: true, state: null });
   }, [location.state, location.pathname, navigate]);
@@ -559,8 +563,15 @@ const Scenarios = () => {
     listScenarioDrafts().filter((d) => isMeaningfulDraft(d, SCENARIO_DRAFT_DEFAULTS));
   const [drafts, setDrafts] = useState(readDrafts);
   const [inProgress, setInProgress] = useState(() => inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
-  const [resumePromptOpen, setResumePromptOpen] = useState(() => Boolean(inProgress) && !arrival.fromEditor);
+  const [resumePromptOpen, setResumePromptOpen] = useState(
+    () => !arrival.fromEditor && Boolean(scenarioDraftToOffer(SCENARIO_DRAFT_DEFAULTS))
+  );
   const inProgressInfo = inProgress ? draftSummary(inProgress.draft) : null;
+  // Whatever the answer, this draft (as it is now) has been asked about.
+  const answerResumePrompt = () => {
+    if (inProgress) markAsked('scenario', inProgress.id, scenarioContentVersion(inProgress.draft));
+    setResumePromptOpen(false);
+  };
 
   const continueDraft = (id, from = 'drafts') =>
     navigate(`/new-scenario?draft=${encodeURIComponent(id)}`, { state: { from } });
@@ -1247,7 +1258,8 @@ const Scenarios = () => {
       </div>
 
       {/* A scenario in progress: pick it up, or start a new one. Esc or a
-          click outside just closes this (the draft stays under Drafts). */}
+          click outside just closes this (the draft stays under Drafts, and
+          is not asked about again until it changes). */}
       <DraftDialog
         open={resumePromptOpen && Boolean(inProgressInfo)}
         isDark={isDark}
@@ -1268,10 +1280,16 @@ const Scenarios = () => {
           ) : null
         }
         primaryLabel="Continue"
-        onPrimary={() => continueDraft(inProgress.id, 'all')}
+        onPrimary={() => {
+          answerResumePrompt();
+          continueDraft(inProgress.id, 'all');
+        }}
         secondaryLabel="Start new"
-        onSecondary={startNewScenario}
-        onDismiss={() => setResumePromptOpen(false)}
+        onSecondary={() => {
+          answerResumePrompt();
+          startNewScenario();
+        }}
+        onDismiss={answerResumePrompt}
       />
     </>
   );
