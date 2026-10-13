@@ -12,6 +12,7 @@ import { api } from '../../services/api';
 import { setActiveCampaignId, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
+import { scenariosForViewer } from '../../services/scenarioOwnership';
 import { campaignDraftVersion, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
   IN_WIZARD,
@@ -249,7 +250,8 @@ const ChooseAScenario = () => {
     const apply = (rows) => {
       if (!active) return;
       setScenariosLoading(false);
-      const list = normaliseScenarios(rows);
+      // An older API sends every row, unannotated: keep what this person may see.
+      const list = normaliseScenarios(scenariosForViewer(rows, currentActor()));
       setScenariosList(list);
       setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
     };

@@ -20,7 +20,7 @@ import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
 import { api } from "../../services/api";
 import { currentActor } from "../../services/identity";
-import { DELETE_KINDS, cardActions } from "../../services/scenarioOwnership";
+import { DELETE_KINDS, cardActions, scenariosForViewer } from "../../services/scenarioOwnership";
 import { DEMO_USER } from '../../appConfig';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import { draftSummary, isMeaningfulDraft } from '../../services/scenarioDraft';
@@ -654,19 +654,32 @@ const Scenarios = () => {
   const [viewer] = useState(() => currentActor());
   // Bumped after a delete, to read the list again.
   const [listVersion, setListVersion] = useState(0);
+  // Card actions in flight, keyed by scenarioId (never by list position: the
+  // list reloads after every delete, and a position may then hold another
+  // scenario). An open "Yes / No" confirmation, the deletes under way, and a
+  // refused one's message.
+  const [confirmId, setConfirmId] = useState(null);
+  const [busyIds, setBusyIds] = useState({});
+  const [cardError, setCardError] = useState(null); // { id, message }
 
   useEffect(() => {
     let active = true;
     const apply = (rows) => {
       if (!active) return;
       setScenariosLoading(false);
+      // An older API sends every row, unannotated: keep what this person may see.
+      const visible = scenariosForViewer(rows, viewer);
       // A DynamoDB scan is unordered and the cover fallback below is
       // index-based, so pin the order before it reaches the grid.
       setRawScenarios(
-        [...(rows || [])].sort((a, b) =>
+        [...visible].sort((a, b) =>
           String(a.scenarioId || '').localeCompare(String(b.scenarioId || ''))
         )
       );
+      // A confirmation or message about a scenario no longer listed goes with it.
+      const listed = (id) => visible.some((row) => String(row?.scenarioId) === id);
+      setConfirmId((id) => (id && listed(id) ? id : null));
+      setCardError((error) => (error && listed(error.id) ? error : null));
     };
     api.scenarios
       .list({ viewer })
@@ -682,13 +695,15 @@ const Scenarios = () => {
     };
   }, [viewer, listVersion]);
 
-  // Keep the original index for a stable key: ids are not guaranteed unique.
-  // `_row` is the row as the API sent it, for the editor (the display defaults
-  // below must never be saved back).
+  // Cards are keyed by scenarioId (the table's key), so a card, and anything
+  // open on it, stays with its scenario when the list reloads; the index only
+  // stands in for a row without one (bundled fallback data). `_row` is the row
+  // as the API sent it, for the editor (the display defaults below must never
+  // be saved back).
   const scenariosList = rawScenarios.map((s, idx) => ({
     ...s,
     _row: s,
-    _key: `${s.id}-${idx}`,
+    _key: s.scenarioId ? `sc:${s.scenarioId}` : `row:${idx}`,
     difficulty: s.difficulty || 'Medium',
     CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
     CoverImageID: s.CoverImageID || `CovImg-${String(idx + 1).padStart(3, '0')}.png`
@@ -724,10 +739,6 @@ const Scenarios = () => {
   // Delete / Reset to original / Discard changes remove the viewer's own row
   // after an inline "Yes / No".
   // ---------------------------------------------------
-  const [confirmKey, setConfirmKey] = useState(null);
-  const [busyKey, setBusyKey] = useState(null);
-  const [cardError, setCardError] = useState(null); // { key, message }
-
   // An unfinished edit of this scenario, if any, is reopened by the editor.
   const handleEdit = (scenario) => {
     navigate(`/new-scenario?edit=${encodeURIComponent(scenario.scenarioId)}`, {
@@ -736,20 +747,25 @@ const Scenarios = () => {
   };
 
   const handleDelete = async (scenario) => {
-    setConfirmKey(null);
+    const id = String(scenario.scenarioId);
+    setConfirmId(null);
     setCardError(null);
-    setBusyKey(scenario._key);
+    setBusyIds((busy) => ({ ...busy, [id]: true }));
     try {
-      await api.scenarios.remove(scenario.scenarioId, viewer);
+      await api.scenarios.remove(id, viewer);
       // An unfinished edit of it has nothing left to save onto.
-      removeEditDrafts(scenario.scenarioId);
+      removeEditDrafts(id);
       setDrafts(readDrafts());
       setInProgress(inProgressScenarioDraft(SCENARIO_DRAFT_DEFAULTS));
       setListVersion((v) => v + 1);
     } catch (error) {
-      setCardError({ key: scenario._key, message: error?.message || "Couldn't remove this scenario." });
+      setCardError({ id, message: error?.message || "Couldn't remove this scenario." });
     } finally {
-      setBusyKey(null);
+      setBusyIds((busy) => {
+        const rest = { ...busy };
+        delete rest[id];
+        return rest;
+      });
     }
   };
 
@@ -954,8 +970,8 @@ const Scenarios = () => {
                     const resolvedImageSrc = getScenarioImage(scenario.CoverImageID);
                     const actions = cardActions(scenario._row, viewer);
                     const removal = actions.deleteKind ? DELETE_KINDS[actions.deleteKind] : null;
-                    const confirming = confirmKey === scenario._key;
-                    const error = cardError?.key === scenario._key ? cardError.message : '';
+                    const confirming = confirmId === scenario.scenarioId;
+                    const error = cardError?.id === scenario.scenarioId ? cardError.message : '';
 
                     return (
   <div
@@ -1093,7 +1109,7 @@ const Scenarios = () => {
     )}
     {/* Wraps rather than run past the card on a narrow one (the card clips). */}
     <div className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto">
-      {busyKey === scenario._key ? (
+      {busyIds[scenario.scenarioId] ? (
         <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">Working…</span>
       ) : confirming && removal ? (
         <>
@@ -1107,7 +1123,7 @@ const Scenarios = () => {
           </button>
           <button
             type="button"
-            onClick={() => setConfirmKey(null)}
+            onClick={() => setConfirmId(null)}
             className="h-[26px] px-2 rounded-lg border bg-white/90 dark:bg-black/40 border-black/10 dark:border-white/15 text-slate-800 dark:text-slate-200 cursor-pointer"
           >
             No
@@ -1148,7 +1164,7 @@ const Scenarios = () => {
           type="button"
           onClick={() => {
             setCardError(null);
-            setConfirmKey(scenario._key);
+            setConfirmId(scenario.scenarioId);
           }}
           className="
             h-[26px]

@@ -8,7 +8,19 @@ import { formFingerprint, fromDraft, reusableCoverKey, withUniqueCoverName } fro
 import { scenarioEditorOpening } from "../../services/scenarioDraftList";
 import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
 import { currentActor } from "../../services/identity";
-import { editContext, editNote, idLockHint, retryOnExisting, savedAudience, toSavePayload } from "../../services/scenarioOwnership";
+import {
+  canOpenForEdit,
+  conflictMessage,
+  editContext,
+  editNote,
+  existingVersionId,
+  idLockHint,
+  refreshEdit,
+  refreshNotice,
+  rowToEdit,
+  savedAudience,
+  toSavePayload,
+} from "../../services/scenarioOwnership";
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
@@ -865,12 +877,26 @@ const editPrefill = (row) =>
   });
 
 // Opened by address (a reload before the first change, or a link): the row as
-// this person sees it, annotated with its ownership; a row the list doesn't
-// carry (say one their own copy stands in for) is read directly.
+// this person's list holds it, annotated with its ownership. When they have
+// their own version of it (a copy, or a pending edit, stands in for it), that
+// version is what they edit, never the original again. Only a row their list
+// doesn't hold at all is read directly, and only opened if they could see it.
 async function loadScenarioToEdit(scenarioId, viewer) {
-  const rows = await api.scenarios.list({ viewer }).catch(() => []);
-  const listed = Array.isArray(rows) ? rows.find((r) => String(r?.scenarioId) === scenarioId) : null;
-  return listed || api.scenarios.get(scenarioId);
+  const rows = await api.scenarios.list({ viewer }).catch(() => null);
+  const listed = rowToEdit(rows, scenarioId, viewer);
+  if (listed) return listed;
+  const row = await api.scenarios.get(scenarioId);
+  if (!canOpenForEdit(row, viewer)) throw new Error("it isn't one of the scenarios you can see");
+  return row;
+}
+
+// An edit checked against the person's list as it is now (an edit draft can
+// be days old; see refreshEdit), or null when the list can't be read, in which
+// case the edit is saved as it stands.
+async function checkEditTarget(edit, viewer) {
+  if (!edit) return null;
+  const rows = await api.scenarios.list({ viewer }).catch(() => null);
+  return Array.isArray(rows) ? refreshEdit(edit, rows, viewer) : null;
 }
 
 // ============================================================
@@ -1046,7 +1072,12 @@ useEffect(() => {
     return { ...editContext(editRequest.row, viewer), baseline: formFingerprint(formData) };
   });
   const [editLoading, setEditLoading] = useState(() => Boolean(editRequest && !editRequest.row));
+  // Set when the scenario can't be opened for editing: the editor then shows
+  // only that, never a blank "Create new" form a Publish could save as new.
   const [openError, setOpenError] = useState('');
+  // What changed about the scenario since this edit began (shared meanwhile,
+  // replaced by the person's own version, gone), from refreshEdit.
+  const [editNotice, setEditNotice] = useState('');
 
   // The blank form, kept to lay a fetched scenario over (the form is covered
   // while it loads, so nothing typed can be lost).
@@ -1062,9 +1093,7 @@ useEffect(() => {
         setEdit({ ...editContext(row, viewer), baseline: formFingerprint(next) });
       })
       .catch((error) => {
-        if (active) {
-          setOpenError(`Couldn't open ${editRequest.scenarioId} for editing: ${error?.message || 'not found'}.`);
-        }
+        if (active) setOpenError(`${editRequest.scenarioId}: ${error?.message || 'not found'}.`);
       })
       .finally(() => {
         if (active) setEditLoading(false);
@@ -1073,6 +1102,22 @@ useEffect(() => {
       active = false;
     };
   }, [editRequest, blankForm, viewer]);
+
+  // An edit draft reopened is checked against the list as it is now, so Save
+  // uses the right mode (a scenario shared meanwhile takes a pending revision)
+  // and the author hears what changed.
+  useEffect(() => {
+    if (!openedDraft?.edit) return undefined;
+    let active = true;
+    checkEditTarget(openedDraft.edit, viewer).then((checked) => {
+      if (!active || !checked) return;
+      setEdit(checked.edit);
+      setEditNotice(refreshNotice(checked));
+    });
+    return () => {
+      active = false;
+    };
+  }, [openedDraft, viewer]);
 
   // ==========================================================
   // DRAFT SAVE / RESUME
@@ -1117,8 +1162,13 @@ useEffect(() => {
       ...restored.formData,
     }));
     setActiveTab(restored.activeTab);
-    // The scenario in progress may be an unfinished edit.
+    // The scenario in progress may be an unfinished edit: checked as above.
     setEdit(restored.edit || null);
+    checkEditTarget(restored.edit, viewer).then((checked) => {
+      if (!checked) return;
+      setEdit(checked.edit);
+      setEditNotice(refreshNotice(checked));
+    });
   };
 
   // "Start new" keeps the saved draft (Scenarios → Drafts) and carries on with a
@@ -1413,11 +1463,13 @@ const handlePublishScenario = async () => {
   // update: PUT the author's own row. A new cover for a copy or revision is
   // uploaded under the new row's id once it exists, then saved onto it.
   // ==========================================================
-  const saveEdit = async (landingPageId) => {
+  // The request for `target` ({ scenarioId, mode }), and a new cover still to
+  // upload once a copy / revision exists.
+  const planEditSave = async (target, landingPageId) => {
     let coverImageId; // undefined keeps the cover the scenario already has
     let newCover = null;
     if (formData.coverImageSource === 'upload') {
-      if (edit.mode === 'update') {
+      if (target.mode === 'update') {
         coverImageId = (await resolveUploadedCoverKey()) || undefined;
       } else if (formData.coverImage) {
         newCover = formData.coverImage;
@@ -1430,33 +1482,69 @@ const handlePublishScenario = async () => {
       );
       coverImageId = catalogueCoverName(chosen?.image) || undefined;
     }
-
-    let plan = toSavePayload(formData, {
-      mode: edit.mode,
-      row: { scenarioId: edit.scenarioId },
+    const request = toSavePayload(formData, {
+      mode: target.mode,
+      row: { scenarioId: target.scenarioId },
       viewer,
       coverImageId,
       landingPageId,
     });
-    const send = (request) =>
-      request.method === 'PUT'
-        ? api.scenarios.update(request.id, request.body, viewer)
-        : api.scenarios.create(request.body);
+    return { request, newCover };
+  };
 
+  const sendEditRequest = (request) =>
+    request.method === 'PUT'
+      ? api.scenarios.update(request.id, request.body, viewer)
+      : api.scenarios.create(request.body);
+
+  // The edit, as the list now has it; null when the list can't be read.
+  const recheckEdit = async (target) => {
+    const checked = await checkEditTarget(target, viewer);
+    if (checked) {
+      setEdit(checked.edit);
+      setEditNotice(refreshNotice(checked));
+    }
+    return checked;
+  };
+
+  const saveEdit = async (landingPageId) => {
+    // The scenario may have changed since this edit began: shared by a sent
+    // campaign (saved as a pending revision now), or replaced by the person's
+    // own version made elsewhere, or gone (refused, nothing written).
+    let target = edit;
+    const checked = await recheckEdit(edit);
+    if (checked) {
+      if (checked.change === 'replaced' || checked.change === 'gone') {
+        throw new Error(refreshNotice(checked));
+      }
+      target = checked.edit;
+    }
+
+    let { request, newCover } = await planEditSave(target, landingPageId);
     let saved;
     try {
-      saved = await send(plan);
+      saved = await sendEditRequest(request);
     } catch (error) {
-      // They already have a copy (or a pending edit) of it: save onto that one.
-      const retry = retryOnExisting(plan, error, viewer);
-      if (!retry) throw error;
-      plan = retry;
-      saved = await send(plan);
+      // They already have their own version of it, which may hold changes of
+      // its own: this edit is never written over it.
+      const existingId = existingVersionId(request, error);
+      if (existingId) {
+        setEditNotice(conflictMessage(existingId));
+        throw new Error(conflictMessage(existingId), { cause: error });
+      }
+      // Shared since the check above (a PUT the API refuses with 409): save
+      // it as a pending revision instead, and say so.
+      if (request.method !== 'PUT' || error?.status !== 409) throw error;
+      const again = await recheckEdit(target);
+      if (again?.change !== 'nowShared') throw error;
+      target = again.edit;
+      ({ request, newCover } = await planEditSave(target, landingPageId));
+      saved = await sendEditRequest(request);
     }
     // Saved: the edit draft is done with.
     scenarioDraft.clear();
 
-    const savedId = plan.method === 'PUT' ? plan.id : String(saved?.scenarioId || '');
+    const savedId = request.method === 'PUT' ? request.id : String(saved?.scenarioId || '');
     if (newCover && savedId) {
       try {
         const key = await api.scenarios.uploadCover({
@@ -1579,6 +1667,11 @@ const handlePublishScenario = async () => {
             has been successfully scheduled and published.
           </p>
           )}
+          {editNotice && (
+            <p className="mt-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-snug">
+              {editNotice}
+            </p>
+          )}
           {coverWarning && (
             <p role="alert" className="mt-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-snug">
               {coverWarning}
@@ -1656,7 +1749,7 @@ const handlePublishScenario = async () => {
       {/* ====================================================
     TOP-RIGHT VALIDATION TOAST
 ==================================================== */}
-{(saveError || openError || errorMsg) &&
+{(saveError || errorMsg) &&
   typeof document !== 'undefined' &&
   createPortal(
     <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
@@ -1669,18 +1762,18 @@ const handlePublishScenario = async () => {
       {/* Error Message */}
       <div className="flex flex-col text-left leading-tight flex-1">
         <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-          {saveError ? 'Scenario Not Saved' : openError ? 'Scenario Not Opened' : 'Input Required'}
+          {saveError ? 'Scenario Not Saved' : 'Input Required'}
         </span>
 
         <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-          {saveError || openError || errorMsg}
+          {saveError || errorMsg}
         </span>
       </div>
 
       {/* Close Button */}
       <button
         type="button"
-        onClick={() => { setErrorMsg(''); setSaveError(''); setOpenError(''); }}
+        onClick={() => { setErrorMsg(''); setSaveError(''); }}
         className="p-1 rounded text-slate-400 hover:text-black cursor-pointer flex-shrink-0"
       >
         <X className="w-3.5 h-3.5" />
@@ -1733,7 +1826,7 @@ const handlePublishScenario = async () => {
         >
           <div className="flex items-baseline gap-3 min-w-0">
             <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
-              {edit ? 'EDIT SCENARIO' : 'CREATE NEW SCENARIO'}
+              {edit || editRequest ? 'EDIT SCENARIO' : 'CREATE NEW SCENARIO'}
             </span>
             {/* What Save will do with this edit (a copy, a pending revision...). */}
             {edit && (
@@ -1751,6 +1844,16 @@ const handlePublishScenario = async () => {
             </span>
           )}
         </div>
+
+        {/* What changed about the scenario since this edit began. */}
+        {edit && editNotice && (
+          <div
+            role="status"
+            className="w-full px-4 py-2 rounded-xl border text-[11px] font-semibold leading-snug bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/25"
+          >
+            {editNotice}
+          </div>
+        )}
 
 
         {/* ====================================================
@@ -1778,6 +1881,30 @@ const handlePublishScenario = async () => {
           {/* The scenario to edit is on its way from the server. */}
           <PageLoading show={editLoading} isDark={isDark} />
 
+          {openError ? (
+            // Not openable: say so, with the way back. The wizard is not
+            // shown, so nothing here can be published as a new scenario.
+            <div
+              role="alert"
+              className="w-full min-h-[400px] flex flex-col items-center justify-center gap-2 p-8 text-center"
+            >
+              <AlertTriangle className="w-8 h-8 text-[#E60000]" strokeWidth={2.2} />
+              <h2 className={`text-[15px] font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                This scenario can't be opened for editing
+              </h2>
+              <p className={`max-w-md text-[11.5px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                {openError}
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/create-scenario', { state: { view: openedFrom, fromEditor: true } })}
+                className="mt-2 h-8 px-4 rounded-lg text-[11px] font-bold uppercase tracking-wide cursor-pointer bg-[#06080D] text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-slate-200"
+              >
+                Back to Scenarios
+              </button>
+            </div>
+          ) : (
+          <>
           <ScenarioTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -1922,6 +2049,8 @@ const handlePublishScenario = async () => {
 </button>
 </div>
           </div>
+          </>
+          )}
         </div>
 
 
