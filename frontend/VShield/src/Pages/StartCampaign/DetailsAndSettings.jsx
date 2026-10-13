@@ -13,6 +13,8 @@ import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamap
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
+import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -233,6 +235,9 @@ const DetailsAndSettings = () => {
     await flush();
     navigate('/gamification', { state: { returnTo: '/start-campaign/details' } });
   };
+
+  // Save what has been typed and leave the campaign under Drafts.
+  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft, update, flush, onError: setErrorMsg });
 
   // Step 1 does not record itself on mount (it may be about to offer
   // "Continue your campaign?"), so going back to it is recorded here.
@@ -633,6 +638,7 @@ const DetailsAndSettings = () => {
 
                   {/* Buttons: Back (#000000) & Next (#8ED973) */}
                   <div className="flex items-center justify-end gap-2.5 pt-2 -mt-2 border-black/5 dark:border-white/10">
+                    <SaveDraftButton onClick={() => saveAsDraft(detailsPatch())} busy={savingDraft} disabled={draftLoading} />
                     <button
                       type="button"
                       onClick={handleGoBack}

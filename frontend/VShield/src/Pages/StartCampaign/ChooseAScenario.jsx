@@ -35,6 +35,8 @@ import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
+import { parkCampaignDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -149,7 +151,21 @@ const ChooseAScenario = () => {
   // progress (left by older versions, which saved a blank draft on arrival)
   // are not listed.
   // ---------------------------------------------------------------------------
-  const [view, setView] = useState('all'); // 'all' | 'drafts'
+  // "Save as draft" on a later step lands here on the Drafts tab, saying so.
+  const [view, setView] = useState(() => (location.state?.view === 'drafts' ? 'drafts' : 'all')); // 'all' | 'drafts'
+  const [savedNotice, setSavedNotice] = useState(() => location.state?.savedDraft || '');
+  // Used once: a reload is an ordinary visit again (and, like the other
+  // in-wizard arrivals, browser Back does not ask "Continue your campaign?").
+  useEffect(() => {
+    if (location.state?.view || location.state?.savedDraft) {
+      navigate(location.pathname, { replace: true, ...IN_WIZARD });
+    }
+  }, [location.state, location.pathname, navigate]);
+  useEffect(() => {
+    if (!savedNotice) return undefined;
+    const timer = setTimeout(() => setSavedNotice(''), 6000);
+    return () => clearTimeout(timer);
+  }, [savedNotice]);
   const {
     campaigns: draftCampaigns,
     loading: draftsLoading,
@@ -353,6 +369,25 @@ const ChooseAScenario = () => {
     if (chosen) await goToDetails(templatePatch(chosen, {}, null));
   };
 
+  // "Save as draft" here (back on step 1 with a campaign in progress): leave
+  // it under Drafts, no longer in progress, and start clean.
+  const campaignInProgress = Boolean(draftId) && shouldOfferResume(draft);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const handleSaveAsDraft = async () => {
+    const row = draft;
+    setSavingDraft(true);
+    try {
+      await flush().catch(() => {});
+      parkCampaignDraft(row);
+      await startNew();
+      pickScenario(scenariosList[0]?.scenarioId || '');
+      setView('drafts');
+      setSavedNotice(draftLabel(row));
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   // "Not now": nothing is written, the page stays as it is, and a template
   // chosen after it is not applied.
   const handleNotNow = () => {
@@ -537,6 +572,7 @@ const ChooseAScenario = () => {
 
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
           {view === 'all' ? (
+          <>
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
@@ -700,8 +736,25 @@ const ChooseAScenario = () => {
               );
             })}
           </div>
+          {campaignInProgress && (
+            <div className="flex items-center justify-end gap-2.5 px-4 -mt-2 mb-3 flex-shrink-0">
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
+                In progress: {draftLabel(draft)}
+              </span>
+              <SaveDraftButton onClick={handleSaveAsDraft} busy={savingDraft} />
+            </div>
+          )}
+          </>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
+              {savedNotice && (
+                <span
+                  role="status"
+                  className="mb-2 self-start px-3 py-1.5 rounded-lg text-[10.5px] font-bold bg-[#8ED973]/15 text-[#2F7A17] dark:text-[#A6E88E]"
+                >
+                  Saved to Drafts: {savedNotice}. Continue it any time from its card.
+                </span>
+              )}
               {draftsError && (
                 <span role="alert" className="mb-2 text-[10px] font-bold text-[#E60000]">{draftsError}</span>
               )}

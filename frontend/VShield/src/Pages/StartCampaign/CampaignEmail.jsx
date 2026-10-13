@@ -40,6 +40,8 @@ import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
+import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -714,21 +716,26 @@ const CampaignEmail = () => {
   navigate('/start-campaign/landing-page', IN_WIZARD);
  };
 
+ // What Back and Save as draft save from this step.
+ const emailPatch = () => ({
+  senderEmailId: senderEmailId.trim(),
+  senderName: senderName.trim(),
+  emailSubject: emailSubject.trim(),
+  emailBody: rawHtmlMode ? rawHtmlCode : activeHtmlRef.current,
+  selectedListId: currentSelectedList?.id || '',
+  selectedListName: currentSelectedList?.name || '',
+  isListLoaded,
+  selectedSingleUserEmail: selectedSingleUser?.UserEMailID
+ });
+
  const handleGoBack = async () => {
-  const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
-  update({
-   senderEmailId: senderEmailId.trim(),
-   senderName: senderName.trim(),
-   emailSubject: emailSubject.trim(),
-   emailBody: finalHtml,
-   selectedListId: currentSelectedList?.id || '',
-   selectedListName: currentSelectedList?.name || '',
-   isListLoaded,
-   selectedSingleUserEmail: selectedSingleUser?.UserEMailID
-  });
+  update(emailPatch());
   await flush();
   navigate('/start-campaign/details', IN_WIZARD);
  };
+
+ // Save what is on this step and leave the campaign under Drafts.
+ const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, update, flush, onError: setErrorMsg });
 
  const stepsList = CAMPAIGN_STEPS || [
   { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario' },
@@ -1742,6 +1749,7 @@ const CampaignEmail = () => {
 
          {/* Bottom-Right Aligned Action Buttons */}
          <div className="flex items-center justify-end gap-2.5 pt-3 -mt-2 -mb-2 border-black/5 dark:border-white/10">
+          <SaveDraftButton onClick={() => saveAsDraft(emailPatch())} busy={savingDraft} disabled={draftLoading} />
           <button
            type="button"
            onClick={handleGoBack}

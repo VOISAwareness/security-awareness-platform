@@ -568,6 +568,13 @@ const Scenarios = () => {
   const location = useLocation();
   const [arrival] = useState(() => location.state || {});
   const [view, setView] = useState(arrival.view === 'drafts' ? 'drafts' : 'all'); // 'all' | 'drafts'
+  // "Save as draft" in the editor lands here on Drafts, saying so.
+  const [savedNotice, setSavedNotice] = useState(arrival.savedDraft || '');
+  useEffect(() => {
+    if (!savedNotice) return undefined;
+    const timer = setTimeout(() => setSavedNotice(''), 6000);
+    return () => clearTimeout(timer);
+  }, [savedNotice]);
   // Used once: a reload of this page is an ordinary visit again.
   useEffect(() => {
     if (location.state) navigate(location.pathname, { replace: true, state: null });
@@ -955,6 +962,15 @@ const Scenarios = () => {
           <div className="flex-1 min-w-0 flex flex-col">
             <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
               {view === 'drafts' ? (
+                <>
+                {savedNotice && (
+                  <span
+                    role="status"
+                    className="mx-4 mt-3 self-start px-3 py-1.5 rounded-lg text-[10.5px] font-bold bg-[#8ED973]/15 text-[#2F7A17] dark:text-[#A6E88E]"
+                  >
+                    Saved to Drafts: {savedNotice}. Continue it any time from its card.
+                  </span>
+                )}
                 <DraftCards
                   items={visibleDrafts}
                   isDark={isDark}
@@ -962,6 +978,7 @@ const Scenarios = () => {
                   onDelete={deleteDraft}
                   emptyText="A scenario you start and leave before publishing is kept here."
                 />
+                </>
               ) : filteredScenarios.length === 0 ? (
                 <div
                   className={`h-[250px] flex items-center justify-center font-bold text-sm ${
