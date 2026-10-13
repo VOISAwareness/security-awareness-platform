@@ -88,6 +88,7 @@ export function hasProgress(draft) {
   const title = norm(draft.campaignTitle);
   if (title && title !== norm(draft.scenarioName)) return true;
   if (norm(draft.startTime) || norm(draft.endTime) || norm(draft.selectedListId)) return true;
+  if (Array.isArray(draft.testRecipientEmails) && draft.testRecipientEmails.length) return true;
   if (draft.isTestCampaign === true || draft.autoEndPostSending === false) return true;
   return Boolean(norm(draft.landingPageContent) || draft.landingPageAttachedByUser || draft.trainingPathAttachedByUser);
 }

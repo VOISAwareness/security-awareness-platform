@@ -42,6 +42,13 @@ import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
 import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
+import {
+ MAX_TEST_RECIPIENTS,
+ addTestRecipient,
+ isTestCampaign,
+ removeTestRecipient,
+ testRecipientEmails
+} from '../../services/testRecipients';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -418,6 +425,33 @@ const CampaignEmail = () => {
 
  const [errorMsg, setErrorMsg] = useState('');
 
+ // A test campaign (ticked on Details & settings) is sent only to email IDs
+ // added here one by one, from the user directory or typed: no recipient list.
+ const testMode = isTestCampaign(draft);
+ const [testEmailsEdit, setTestEmails] = useState(undefined);
+ const testEmails = testEmailsEdit !== undefined ? testEmailsEdit : testRecipientEmails(draft);
+ const [typedTestEmail, setTypedTestEmail] = useState('');
+ const addTestEmail = (value) => {
+  const { list, error } = addTestRecipient(testEmails, value);
+  if (error) {
+   setErrorMsg(error);
+   return false;
+  }
+  setErrorMsg('');
+  setTestEmails(list);
+  update({ testRecipientEmails: list });
+  return true;
+ };
+ const removeTestEmail = (email) => {
+  const list = removeTestRecipient(testEmails, email);
+  setTestEmails(list);
+  update({ testRecipientEmails: list });
+ };
+ // Saved with the step: always for a test campaign (it then goes only to these
+ // email IDs), otherwise only when some were added before the tick was cleared.
+ const testEmailsPatch = () =>
+  testMode || testEmails.length ? { testRecipientEmails: testEmails } : {};
+
  // Auto-dismiss top right toaster after 4 seconds
  useEffect(() => {
   if (errorMsg) {
@@ -694,7 +728,12 @@ const CampaignEmail = () => {
    setErrorMsg('Please specify an Email Subject');
    return;
   }
-  if (!selectedListId || !isListLoaded) {
+  if (testMode) {
+   if (!testEmails.length) {
+    setErrorMsg('Please add at least one test email ID to proceed');
+    return;
+   }
+  } else if (!selectedListId || !isListLoaded) {
    setErrorMsg('Please select and load a Recipient List to proceed');
    return;
   }
@@ -708,7 +747,8 @@ const CampaignEmail = () => {
    selectedListId: currentSelectedList?.id || '',
    selectedListName: currentSelectedList?.name || '',
    isListLoaded,
-   selectedSingleUserEmail: selectedSingleUser?.UserEMailID
+   selectedSingleUserEmail: selectedSingleUser?.UserEMailID,
+   ...testEmailsPatch()
   });
 
   // Make sure the debounced save has landed before the next step reads the draft.
@@ -725,7 +765,8 @@ const CampaignEmail = () => {
   selectedListId: currentSelectedList?.id || '',
   selectedListName: currentSelectedList?.name || '',
   isListLoaded,
-  selectedSingleUserEmail: selectedSingleUser?.UserEMailID
+  selectedSingleUserEmail: selectedSingleUser?.UserEMailID,
+  ...testEmailsPatch()
  });
 
  const handleGoBack = async () => {
@@ -1441,7 +1482,9 @@ const CampaignEmail = () => {
           </h3>
          </div>
          <p className="text-[8.5px] font-medium leading-snug opacity-80 mt-1">
-          Attach the target audience list here. The DLs and bulk files uploaded in User List will be available here
+          {testMode
+           ? 'Test campaign: add the email IDs to send it to, one by one. No recipient list is used.'
+           : 'Attach the target audience list here. The DLs and bulk files uploaded in User List will be available here'}
          </p>
         </div>
 
@@ -1457,7 +1500,20 @@ const CampaignEmail = () => {
          style={{ backgroundColor: lCardBg }}
          className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1 z-50 -ml-2 relative overflow-visible"
         >
+         {testMode && (
+          <div className="flex items-center justify-between">
+           <label className="text-[12.5px] mt-2 font-bold text-slate-900 dark:text-white leading-none">
+            Test Recipient Ids
+           </label>
+           <span className="inline-flex items-center px-2.5 py-0.5 mt-1 rounded-full bg-[#FFD6DE] text-slate-900 text-[9px] font-bold">
+            Test campaign
+           </span>
+          </div>
+         )}
+
          {/* Recipient IDs Header & Load Button */}
+         {!testMode && (
+         <>
          <div className="flex items-center justify-between">
           <label className="text-[12.5px] mt-2 font-bold text-slate-900 dark:text-white leading-none">
            Recipient Ids
@@ -1543,8 +1599,11 @@ const CampaignEmail = () => {
            OR
           </span>
          </div>
+         </>
+         )}
 
-         {/* Dropdown 2: Single Master User Email Dropdown */}
+         {/* Dropdown 2: Single Master User Email Dropdown (a test campaign adds
+             each pick to its email IDs) */}
          <div ref={singleUserDropdownRef} className="relative z-40">
           <div
            onClick={() => {
@@ -1555,8 +1614,8 @@ const CampaignEmail = () => {
             isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
            }`}
           >
-           <span className="text-[10px] font-medium truncate pr-2">
-            {selectedSingleUser ? selectedSingleUser.UserEMailID : 'Add email IDs one by one'}
+           <span className={`text-[10px] font-medium truncate pr-2 ${testMode ? 'text-slate-400' : ''}`}>
+            {!testMode && selectedSingleUser ? selectedSingleUser.UserEMailID : 'Add email IDs one by one'}
            </span>
            <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
           </div>
@@ -1586,12 +1645,15 @@ const CampaignEmail = () => {
             {/* List of Users */}
             <div className="flex flex-col gap-1 max-h-80 overflow-y-auto pr-1">
              {filteredMasterUsers.map((user) => {
-              const isSelected = selectedSingleUser?.UserID === user.UserID;
+              const isSelected = testMode
+               ? testEmails.some((e) => e.toLowerCase() === String(user.UserEMailID).toLowerCase())
+               : selectedSingleUser?.UserID === user.UserID;
               return (
                <div
                 key={user.UserID}
                 onClick={() => {
-                 setSelectedSingleUser(user);
+                 if (testMode) addTestEmail(user.UserEMailID);
+                 else setSelectedSingleUser(user);
                  setIsSingleUserDropdownOpen(false);
                 }}
                 className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-all ${
@@ -1627,6 +1689,42 @@ const CampaignEmail = () => {
            </div>
           )}
          </div>
+
+         {/* A test campaign: or type any email ID */}
+         {testMode && (
+          <>
+           <div className="flex items-center justify-center -my-0.5 mt-0.5">
+            <span className="text-[8.5px] font-black tracking-wider text-slate-400 uppercase">
+             OR
+            </span>
+           </div>
+           <form
+            className="flex items-center gap-1.5 mt-2"
+            onSubmit={(e) => {
+             e.preventDefault();
+             if (addTestEmail(typedTestEmail)) setTypedTestEmail('');
+            }}
+           >
+            <input
+             type="text"
+             inputMode="email"
+             aria-label="Type an email ID"
+             value={typedTestEmail}
+             onChange={(e) => setTypedTestEmail(e.target.value)}
+             placeholder="Type an email ID and press Add"
+             className={`flex-1 min-w-0 h-7 px-3 rounded-xl text-[10px] font-medium outline-none shadow-2xs placeholder-slate-400 ${
+              isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+             }`}
+            />
+            <button
+             type="submit"
+             className="h-7 px-3 rounded-xl bg-black dark:bg-white hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black text-[9px] font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+            >
+             Add
+            </button>
+           </form>
+          </>
+         )}
         </div>
 
         {/* 🌟 4. Continuous Bottom Base */}
@@ -1638,6 +1736,51 @@ const CampaignEmail = () => {
          <div className={`w-full flex-1 rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between shadow-xs ${
           isDark ? 'bg-[#15161A] border-white/10 text-white' : 'bg-white border-slate-200/90 text-slate-900'
          }`}>
+          {testMode ? (
+           <>
+            <div className="flex items-center justify-between">
+             <h4 className="text-[12.5px] font-bold text-slate-900 dark:text-white leading-none">
+              Test Recipients
+             </h4>
+             <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400">
+              {testEmails.length} of {MAX_TEST_RECIPIENTS}
+             </span>
+            </div>
+            {testEmails.length === 0 ? (
+             <div className="w-full flex-1 flex items-center justify-center min-h-[220px]">
+              <span className="text-[12.5px] font-bold text-[#F4A7B5] dark:text-[#FFB3C1] select-none text-center max-w-[340px]">
+               Add at least one email ID. This test campaign is sent only to these addresses.
+              </span>
+             </div>
+            ) : (
+             <ul aria-label="Test recipients" className="w-full flex-1 min-h-[220px] mt-3 flex flex-wrap gap-2 content-start">
+              {testEmails.map((email) => {
+               const person = masterUsersData.find((u) => String(u.UserEMailID).toLowerCase() === email.toLowerCase());
+               return (
+                <li
+                 key={email}
+                 className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full bg-[#FFD6DE] text-slate-900 shadow-2xs"
+                >
+                 <span className="flex flex-col leading-tight">
+                  <span className="text-[10px] font-bold">{email}</span>
+                  {person?.UserName && <span className="text-[8.5px] opacity-75">{person.UserName}</span>}
+                 </span>
+                 <button
+                  type="button"
+                  aria-label={`Remove ${email}`}
+                  onClick={() => removeTestEmail(email)}
+                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 cursor-pointer"
+                 >
+                  <X className="w-3 h-3" />
+                 </button>
+                </li>
+               );
+              })}
+             </ul>
+            )}
+           </>
+          ) : (
+          <>
           <h4 className="text-[12.5px] font-bold text-slate-900 dark:text-white leading-none">
            Recipient List Details
           </h4>
@@ -1744,6 +1887,8 @@ const CampaignEmail = () => {
              </div>
             </div>
            </>
+          )}
+          </>
           )}
          </div>
 

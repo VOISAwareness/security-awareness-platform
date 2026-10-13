@@ -36,6 +36,7 @@ import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
 import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
+import { testRecipientEmails, usesTestRecipients } from '../../services/testRecipients';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -814,7 +815,36 @@ const ReviewAndPublishCampaign = () => {
                     <Eye className="w-3.5 h-3.5 text-white/80" />
                   </div>
 
-                  {/* Recipient List Box */}
+                  {/* A test campaign goes only to its own email IDs (step 3). */}
+                  {usesTestRecipients(draft) ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[12px] font-bold text-slate-900 dark:text-white">
+                        Test Recipients
+                      </label>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#FFD6DE] text-slate-900 text-[8.5px] font-bold">
+                        Test campaign
+                      </span>
+                    </div>
+                    <div
+                      className={`w-full p-2.5 rounded-xl shadow-2xs flex flex-col gap-1 ${
+                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                      }`}
+                    >
+                      <h5 className="text-[10.5px] font-bold leading-tight">
+                        {testRecipientEmails(draft).length} email ID{testRecipientEmails(draft).length === 1 ? '' : 's'}, no recipient list
+                      </h5>
+                      <ul aria-label="Test recipients" className="max-h-[30px] overflow-y-auto pt-1 border-t border-slate-100 dark:border-white/5">
+                        {testRecipientEmails(draft).map((email) => (
+                          <li key={email} className="text-[8.5px] font-mono-tech text-slate-600 dark:text-slate-300 truncate">
+                            {email}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  ) : (
+                  /* Recipient List Box */
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <label className="text-[12px] font-bold text-slate-900 dark:text-white">
@@ -857,6 +887,7 @@ const ReviewAndPublishCampaign = () => {
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
 

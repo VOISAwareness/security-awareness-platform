@@ -427,6 +427,44 @@ def render_subject(subject, user_name):
 DEFAULT_RECIPIENT_NAME = "POC User"
 
 
+def is_test_campaign(campaign):
+    """The wizard's "test campaign" tick (a real boolean, or "true" as text)."""
+    value = campaign.get("isTestCampaign")
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return value is True
+
+
+def uses_test_recipients(campaign):
+    """
+    A test campaign with its own email IDs (testRecipientEmails, written by the
+    wizard's email step). Test campaigns saved before that field existed have
+    none and keep going to their recipient list.
+    """
+    return is_test_campaign(campaign) and isinstance(
+        campaign.get("testRecipientEmails"), list | tuple
+    )
+
+
+def recipients_for_test_campaign(campaign):
+    """
+    [{email, name}] for the addresses a test campaign's author added one by one
+    (testRecipientEmails), blanks and repeats dropped.
+    """
+    raw = campaign.get("testRecipientEmails")
+    if not isinstance(raw, list | tuple):
+        return []
+    recipients = []
+    seen = set()
+    for value in raw:
+        email = str(value or "").strip()
+        if "@" not in email or email.lower() in seen:
+            continue
+        seen.add(email.lower())
+        recipients.append({"email": email, "name": DEFAULT_RECIPIENT_NAME})
+    return recipients
+
+
 def query_list_members(list_id):
     """Return [{email, name}] for every member of a recipient list."""
     recipients = []
@@ -455,11 +493,18 @@ def resolve_recipients(campaign):
     """
     Decide who a campaign is sent to.
 
-    Priority: the selected recipient list's members -> a single chosen user ->
-    the configured verified recipient (a bare smoke test with no audience).
+    A test campaign goes only to the email IDs added to it one by one, never
+    to a recipient list or the fallbacks below (none added: no recipients);
+    one saved before it had its own email IDs keeps its list.
+    Otherwise, priority: the selected recipient list's members -> a single
+    chosen user -> the configured verified recipient (a bare smoke test with
+    no audience).
     Raises ValueError when a list is selected but the members table is not
     configured, so the caller returns 400 before locking the campaign.
     """
+    if uses_test_recipients(campaign):
+        return recipients_for_test_campaign(campaign)
+
     list_id = campaign.get("selectedListId")
     single_email = campaign.get("selectedSingleUserEmail")
 
@@ -683,10 +728,11 @@ def lambda_handler(event, context):
                 }
             )
 
-        # Resolve who to send to: the selected recipient list's members (the
-        # uploaded DL), a single chosen user, or the configured verified
-        # recipient. A missing members table for a list-based campaign raises
-        # ValueError -> 400 below, before anything is locked.
+        # Resolve who to send to: a test campaign's own email IDs, else the
+        # selected recipient list's members (the uploaded DL), a single chosen
+        # user, or the configured verified recipient. A missing members table
+        # for a list-based campaign raises ValueError -> 400 below, before
+        # anything is locked.
         recipients = resolve_recipients(campaign)
 
         if not recipients:
@@ -695,7 +741,8 @@ def lambda_handler(event, context):
                 {
                     "message": (
                         "Campaign has no recipients. Attach a recipient "
-                        "list or a single user before sending."
+                        "list or a single user (for a test campaign, add "
+                        "test email IDs) before sending."
                     ),
                     "campaignId": campaign_id
                 }

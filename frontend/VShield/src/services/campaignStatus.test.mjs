@@ -163,6 +163,26 @@ test('singular wording for a single recipient', () => {
   assert.equal(c.selectedListName, '1 individually selected recipient');
 });
 
+test('a test campaign says it goes to its own email IDs, not a list picked earlier', () => {
+  const c = normalizeCampaign({
+    campaignId: 'X',
+    isTestCampaign: true,
+    selectedListId: 'ul-002',
+    selectedListName: 'Batch 02',
+    recipientCount: 58,
+    testRecipientEmails: ['me@x.com', 'two@x.com'],
+  });
+  assert.deepEqual(c.recipientEmails, ['me@x.com', 'two@x.com']);
+  assert.equal(c.selectedListId, '');
+  assert.equal(c.selectedListName, '2 test recipients');
+  assert.equal(c.recipientCount, 2);
+  assert.equal(normalizeCampaign({ campaignId: 'Y', isTestCampaign: true, testRecipientEmails: ['me@x.com'] }).selectedListName, '1 test recipient');
+  // A test campaign saved before it had its own email IDs keeps its list.
+  assert.equal(normalizeCampaign({ campaignId: 'W', isTestCampaign: true, selectedListId: 'ul-002', selectedListName: 'Batch 02' }).selectedListName, 'Batch 02');
+  // Not a test campaign: its test email IDs are not who receives it.
+  assert.equal(normalizeCampaign({ campaignId: 'Z', selectedListName: 'Batch 02', selectedListId: 'ul-002', testRecipientEmails: ['me@x.com'] }).selectedListName, 'Batch 02');
+});
+
 test('no recipients at all leaves the fields alone', () => {
   const c = normalizeCampaign({ campaignId: 'X' });
   assert.deepEqual(c.recipientEmails, []);

@@ -177,3 +177,47 @@ def test_resolve_recipients_prefers_list_over_single(mod, monkeypatch):
         {"selectedListId": "ul-001", "selectedSingleUserEmail": "single@example.com"}
     )
     assert out == [{"email": "list@example.com", "name": "POC User"}]
+
+
+# --- test campaigns: only the email IDs added one by one --------------------
+
+def test_test_campaign_goes_only_to_its_own_emails(mod, monkeypatch):
+    # A list is attached too, and the members table is there: still not used.
+    fake = FakeMembersTable([([{"email": "list@example.com"}], None)])
+    monkeypatch.setattr(mod, "members_table", fake)
+    out = mod.resolve_recipients(
+        {
+            "isTestCampaign": True,
+            "testRecipientEmails": ["me@example.com", " Me@Example.com ", "", "two@example.com"],
+            "selectedListId": "ul-001",
+            "selectedSingleUserEmail": "single@example.com",
+        }
+    )
+    assert out == [
+        {"email": "me@example.com", "name": "POC User"},
+        {"email": "two@example.com", "name": "POC User"},
+    ]
+    assert fake._i == 0
+
+
+def test_test_campaign_without_emails_has_no_recipients(mod, monkeypatch):
+    monkeypatch.setattr(mod, "members_table", None)
+    assert mod.resolve_recipients({"isTestCampaign": True, "testRecipientEmails": []}) == []
+    assert mod.resolve_recipients({"isTestCampaign": True, "testRecipientEmails": ["not-an-email"]}) == []
+    # Never the configured fallback recipient either.
+    assert mod.resolve_recipients({"isTestCampaign": "true", "testRecipientEmails": []}) == []
+
+
+def test_test_campaign_saved_before_test_emails_keeps_its_list(mod, monkeypatch):
+    fake = FakeMembersTable([([{"email": "list@example.com"}], None)])
+    monkeypatch.setattr(mod, "members_table", fake)
+    out = mod.resolve_recipients({"isTestCampaign": True, "selectedListId": "ul-001"})
+    assert out == [{"email": "list@example.com", "name": "POC User"}]
+
+
+def test_not_a_test_campaign_ignores_test_emails(mod, monkeypatch):
+    monkeypatch.setattr(mod, "members_table", None)
+    out = mod.resolve_recipients(
+        {"isTestCampaign": False, "testRecipientEmails": ["me@example.com"], "selectedSingleUserEmail": "one@example.com"}
+    )
+    assert out == [{"email": "one@example.com", "name": "POC User"}]

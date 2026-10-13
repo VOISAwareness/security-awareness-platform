@@ -22,6 +22,7 @@
  *   - the bundled dummy JSON:      CampaignTitle, EmailSubject, SenderEmailID
  * Screens read the normalized shape so none of them has to know this.
  */
+import { testRecipientEmails, usesTestRecipients } from './testRecipients.js';
 
 export const STATUS = {
   DRAFT: 'DRAFT',
@@ -313,6 +314,18 @@ export function normalizeCampaign(raw) {
     normalized.selectedListName =
       normalized.selectedListName || `${n} individually selected recipient${n === 1 ? '' : 's'}`;
     if (normalized.recipientCount == null) normalized.recipientCount = n;
+  }
+
+  // A test campaign is sent only to the email IDs added to it one by one, even
+  // if a recipient list was picked before it was ticked as a test (one saved
+  // before it had its own email IDs keeps its list).
+  if (usesTestRecipients(raw)) {
+    const emails = testRecipientEmails(raw);
+    const n = emails.length;
+    normalized.recipientEmails = emails;
+    normalized.selectedListId = '';
+    normalized.selectedListName = `${n} test recipient${n === 1 ? '' : 's'}`;
+    normalized.recipientCount = n;
   }
 
   normalized.phase = derivePhase(normalized);

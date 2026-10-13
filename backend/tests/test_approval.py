@@ -157,3 +157,50 @@ def test_approve_still_works(mod, monkeypatch):
     status, body, _ = call(mod, monkeypatch, pending(), "approve", {"actor": "m@x.com"})
     assert status == 200
     assert body["currentStatus"] == "APPROVED"
+
+
+# --- submit checks: a test campaign has its own email IDs, not a list --------
+
+READY = {
+    "campaignTitle": "T",
+    "campaignDescription": "D",
+    "startTime": "2026-11-02T10:00",
+    "senderEmailId": "it@example.com",
+    "emailSubject": "S",
+    "trainingId": "TP-1",
+    "autoEndPostSending": True,
+    "landingPageId": "LP-1",
+}
+
+
+def test_regular_campaign_still_needs_a_recipient_list(mod):
+    assert mod.validate_for_submit(dict(READY)) == ["Recipient List is required"]
+    assert mod.validate_for_submit({**READY, "selectedListId": "UL-1"}) == []
+
+
+def test_test_campaign_needs_its_email_ids_not_a_list(mod):
+    test = {**READY, "isTestCampaign": True, "testRecipientEmails": []}
+    assert mod.validate_for_submit(test) == ["Test email IDs are required for a test campaign"]
+    assert mod.validate_for_submit({**test, "selectedListId": "UL-1"}) == [
+        "Test email IDs are required for a test campaign"
+    ]
+    assert mod.validate_for_submit({**test, "testRecipientEmails": ["", "x"]}) == [
+        "Test email IDs are required for a test campaign"
+    ]
+    assert mod.validate_for_submit({**test, "testRecipientEmails": ["me@example.com"]}) == []
+    assert mod.validate_for_submit({**test, "isTestCampaign": "true", "testRecipientEmails": ["me@example.com"]}) == []
+
+
+def test_test_campaign_is_capped(mod):
+    emails = [f"u{i}@example.com" for i in range(mod.MAX_TEST_RECIPIENTS + 1)]
+    problems = mod.validate_for_submit({**READY, "isTestCampaign": True, "testRecipientEmails": emails})
+    assert problems == [f"A test campaign can have at most {mod.MAX_TEST_RECIPIENTS} test email IDs"]
+    # Repeats count once.
+    same = ["me@example.com"] * (mod.MAX_TEST_RECIPIENTS + 5)
+    assert mod.validate_for_submit({**READY, "isTestCampaign": True, "testRecipientEmails": same}) == []
+
+
+def test_test_campaign_saved_before_test_emails_keeps_list_rules(mod):
+    old = {**READY, "isTestCampaign": True}
+    assert mod.validate_for_submit(old) == ["Recipient List is required"]
+    assert mod.validate_for_submit({**old, "selectedListId": "UL-1"}) == []
