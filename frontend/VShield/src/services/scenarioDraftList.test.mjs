@@ -220,7 +220,7 @@ test('an unfinished edit in progress is offered like any draft, asked once', () 
   saveScenarioDraft('SD-2', e, A);
   setActiveScenarioDraftId('SD-2', A);
   assert.equal(scenarioDraftToOffer(DEFAULTS, A).draft.edit.name, 'Password expiry');
-  markAsked('scenario', 'SD-2', e.savedAt, A);
+  markAsked('scenario', 'SD-2', scenarioContentVersion(e), A);
   assert.equal(scenarioDraftToOffer(DEFAULTS, A), null);
 });
 
