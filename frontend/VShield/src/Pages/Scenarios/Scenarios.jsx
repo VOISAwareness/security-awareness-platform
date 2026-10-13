@@ -1100,6 +1100,15 @@ const Scenarios = () => {
     {/* ================================================= */}
     {/* BOTTOM ACTIONS — EDIT + DELETE (per ownership)    */}
     {/* ================================================= */}
+    {/* Deleting a shared scenario takes it away from everyone: say so first. */}
+    {confirming && removal?.warning && !error && (
+      <div
+        role="note"
+        className="absolute left-4 right-4 bottom-[46px] z-20 px-2 py-1 rounded-lg bg-amber-50 dark:bg-[#2B2210] text-[9.5px] font-bold leading-snug text-amber-800 dark:text-amber-200 shadow-2xs"
+      >
+        {removal.warning}
+      </div>
+    )}
     {error && (
       <div
         role="alert"
@@ -1193,37 +1202,15 @@ const Scenarios = () => {
             whitespace-nowrap
           "
         >
-          {actions.deleteKind === 'delete' ? <Trash2 className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />}
+          {actions.deleteKind === 'delete' || actions.deleteKind === 'deleteShared' ? (
+            <Trash2 className="w-3 h-3" />
+          ) : (
+            <RotateCcw className="w-3 h-3" />
+          )}
           {removal.label}
         </button>
       )}
 
-      {/* A shared scenario of one's own stays: a sent campaign used it. */}
-      {actions.deleteBlocked && (
-        <button
-          type="button"
-          aria-disabled="true"
-          title={actions.deleteBlocked}
-          onClick={(e) => e.preventDefault()}
-          className="
-            h-[26px]
-            px-2
-            rounded-lg
-            bg-[#e60000]/35
-            text-white/90
-            text-[9.5px]
-            font-bold
-            flex
-            items-center
-            justify-center
-            gap-1
-            cursor-not-allowed
-          "
-        >
-          <Trash2 className="w-3 h-3" />
-          Delete
-        </button>
-      )}
         </>
       )}
     </div>

@@ -554,9 +554,63 @@ def test_shared_own_scenario_cannot_be_edited_directly(mod):
     assert status == 409 and "revision" in error["message"]
 
 
-def test_shared_own_scenario_cannot_be_deleted(mod):
-    status, error = modify(mod, "B1", BOB, "delete")
-    assert status == 409 and "Shared" in error["message"]
+def test_shared_own_scenario_may_be_deleted_by_its_owner(mod):
+    assert modify(mod, "B1", BOB, "delete") is None
+    assert modify(mod, "B1", CAROL, "delete")[0] == 403
+
+
+@pytest.mark.parametrize("action", ["edit", "delete"])
+def test_a_deleted_scenario_is_404(mod, action):
+    rows = [{**r, "deletedAt": "2026-10-13T00:00:00+00:00"} if r["scenarioId"] == "B1" else r for r in WORLD]
+    assert modify(mod, "B1", BOB, action, rows=rows)[0] == 404
+
+
+DELETED_B1 = [
+    {**r, "deletedAt": "2026-10-13T00:00:00+00:00", "deletedBy": BOB} if r["scenarioId"] == "B1" else r
+    for r in WORLD
+] + [sc("B1R", BOB, revisionOf="B1")]
+
+
+@pytest.mark.parametrize("viewer", [ALICE, BOB, CAROL])
+def test_deleted_scenarios_and_their_pending_revisions_are_hidden(mod, viewer):
+    ids = {r["scenarioId"] for r in mod.visible_scenarios(DELETED_B1, SENT, viewer)}
+    assert "B1" not in ids and "B1R" not in ids
+
+
+def test_copies_of_a_deleted_scenario_stay_with_their_owner(mod):
+    rows = {r["scenarioId"]: r for r in mod.visible_scenarios(DELETED_B1, SENT, CAROL)}
+    assert rows["CC1"]["ownership"] == "myCopy"
+
+
+def test_a_revision_of_a_deleted_scenario_is_never_published(mod):
+    assert mod.publishable_revisions(DELETED_B1, SENT | {"B1R"}) == []
+
+
+@pytest.mark.parametrize("link", ["copyOf", "revisionOf"])
+def test_a_deleted_scenario_cannot_be_copied_or_revised(mod, link):
+    item = mod.clean_scenario_input({"scenarioName": "x", "createdBy": CAROL if link == "copyOf" else BOB, link: "B1"})
+    status, _ = refusal(mod.create_refusal(item, DELETED_B1, set(), SENT))
+    assert status == 400
+
+
+def test_revisions_discarded_with_a_deleted_scenario(mod):
+    rows = WORLD + [sc("A2S", ALICE, revisionOf="A2")]
+    ids = [r["scenarioId"] for r in mod.revisions_to_discard(rows, "A2", SENT | {"A2S"})]
+    assert ids == ["A2R"], "the sent one stays for campaign history"
+    assert mod.revisions_to_discard(WORLD, "A3", SENT) == [], "published revisions stay"
+
+
+def test_the_deleted_mark_is_never_taken_from_a_body(mod):
+    item = mod.clean_scenario_input({"scenarioName": "x", "deletedAt": "now", "deletedBy": ALICE})
+    assert "deletedAt" not in item and "deletedBy" not in item
+    merged = mod.scenario_update(sc("A1", ALICE), {"deletedAt": "now", "deletedBy": BOB, "scenarioName": "y"})
+    assert "deletedAt" not in merged and "deletedBy" not in merged and merged["scenarioName"] == "y"
+
+
+def test_deleted_scenario_keeps_identity_and_marks_who(mod):
+    marked = mod.deleted_scenario(sc("B1", BOB), "BOB@x.com", "2026-10-13T00:00:00+00:00")
+    assert marked["scenarioId"] == "B1" and marked["createdBy"] == BOB
+    assert marked["deletedAt"] == "2026-10-13T00:00:00+00:00" and marked["deletedBy"] == BOB
 
 
 @pytest.mark.parametrize("action", ["edit", "delete"])
@@ -577,8 +631,11 @@ CONDITIONS = {
     "attribute_exists(scenarioId) AND attribute_not_exists(publishedAt)": (
         lambda cur, vals: cur is not None and "publishedAt" not in cur
     ),
-    "attribute_exists(scenarioId) AND createdBy = :by": (
-        lambda cur, vals: cur is not None and cur.get("createdBy") == vals[":by"]
+    "attribute_exists(scenarioId) AND createdBy = :by AND attribute_not_exists(deletedAt)": (
+        lambda cur, vals: cur is not None and cur.get("createdBy") == vals[":by"] and "deletedAt" not in cur
+    ),
+    "attribute_exists(scenarioId) AND attribute_not_exists(deletedAt)": (
+        lambda cur, vals: cur is not None and "deletedAt" not in cur
     ),
     "attribute_not_exists(publishedAt)": lambda cur, vals: cur is None or "publishedAt" not in cur,
 }
@@ -862,7 +919,7 @@ def test_delete_by_owner(mod, world, monkeypatch, sid, actor):
         ("A1", None, 400),
         ("T1", {"actor": ALICE}, 403),
         ("A1", {"actor": BOB}, 403),
-        ("B1", {"actor": BOB}, 409),
+        ("B1", {"actor": CAROL}, 403),
         ("A3R", {"actor": ALICE}, 409),
     ],
 )
@@ -871,6 +928,36 @@ def test_delete_refusals_keep_the_row(mod, world, sid, query, expected):
     assert status == expected
     assert sid in world["scenarios"].rows
     assert world["scenarios"].writes == []
+
+
+def test_owner_deletes_a_shared_scenario(mod, world, monkeypatch):
+    cleaned = []
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", "bucket")
+    monkeypatch.setattr(mod, "delete_s3_prefix", lambda bucket, prefix: cleaned.append(prefix))
+    monkeypatch.setattr(mod, "sign_cover", lambda item: item)
+    world["scenarios"].rows["B1R"] = sc("B1R", BOB, revisionOf="B1")
+    status, _ = call(mod, "DELETE /scenarios/{id}", "B1", query={"actor": BOB})
+    assert status == 204
+    row = world["scenarios"].rows["B1"]
+    assert row["deletedAt"] and row["deletedBy"] == BOB, "kept, marked deleted"
+    assert "B1R" not in world["scenarios"].rows, "its pending revision goes with it"
+    assert cleaned == [], "its cover stays for the campaigns that used it"
+    for viewer in (ALICE, BOB, CAROL):
+        _, body = call(mod, "GET /scenarios", query={"viewer": viewer})
+        assert "B1" not in {r["scenarioId"] for r in body["data"]}
+    _, body = call(mod, "GET /scenarios")
+    assert "B1" not in {r["scenarioId"] for r in body["data"]}, "no list shows it"
+    status, body = call(mod, "GET /scenarios/{id}", "B1")
+    assert status == 200 and body["data"]["deletedAt"], "campaign references still resolve"
+    # Gone for good: deleting again is a no-op, editing it is 404, copying it 400.
+    writes = list(world["scenarios"].writes)
+    assert call(mod, "DELETE /scenarios/{id}", "B1", query={"actor": BOB})[0] == 204
+    assert world["scenarios"].writes == writes
+    assert call(mod, "PUT /scenarios/{id}", "B1", body={"actor": BOB, "scenarioName": "x"})[0] == 404
+    assert call(mod, "POST /scenarios", body={"scenarioName": "c", "createdBy": CAROL, "copyOf": "B1"})[0] == 400
+    # Carol's copy of it is hers to keep.
+    _, body = call(mod, "GET /scenarios", query={"viewer": CAROL})
+    assert "CC1" in {r["scenarioId"] for r in body["data"]}
 
 
 def test_delete_of_a_missing_row_is_204_and_touches_nothing(mod, world, monkeypatch):

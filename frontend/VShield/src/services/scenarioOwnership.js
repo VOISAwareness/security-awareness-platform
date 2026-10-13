@@ -131,22 +131,26 @@ const standsInFor = (row) => (row?.replaces ? ` of ${row.replaces}` : '');
 /** What the card's destructive button does, and how it asks first. */
 export const DELETE_KINDS = {
   delete: { label: 'Delete', confirm: 'Delete this scenario?', yes: 'Yes, delete' },
+  // A shared scenario of one's own: others use it, so the question says so.
+  deleteShared: {
+    label: 'Delete',
+    confirm: 'Delete for everyone?',
+    yes: 'Yes, delete',
+    warning: "Others won't be able to use this scenario any more. Campaigns already sent keep their own copy.",
+  },
   reset: { label: 'Reset to original', confirm: 'Reset to original?', yes: 'Yes, reset' },
   discard: { label: 'Discard changes', confirm: 'Discard your changes?', yes: 'Yes, discard' },
 };
 
-export const SHARED_NO_DELETE = "Shared scenarios can't be deleted: a sent campaign used this one.";
-
 /**
  * The card's buttons and badge for this viewer:
- *   { ownership, canEdit, editMode, canDelete, deleteKind, deleteBlocked, badge, badgeHint }
+ *   { ownership, canEdit, editMode, canDelete, deleteKind, badge, badgeHint }
  * editMode: 'copy' (POST copyOf), 'revision' (POST revisionOf) or 'update' (PUT).
- * deleteKind: a DELETE_KINDS key, or null. deleteBlocked: why Delete is shown
- * but unavailable (a shared own scenario), else ''.
+ * deleteKind: a DELETE_KINDS key, or null.
  */
 export function cardActions(row, viewer) {
   const ownership = ownershipOf(row, viewer);
-  const base = { ownership, canEdit: true, canDelete: false, deleteKind: null, deleteBlocked: '' };
+  const base = { ownership, canEdit: true, canDelete: false, deleteKind: null };
   switch (ownership) {
     case 'shared':
       return {
@@ -160,10 +164,11 @@ export function cardActions(row, viewer) {
         return {
           ...base,
           editMode: 'revision',
-          deleteBlocked: SHARED_NO_DELETE,
+          canDelete: true,
+          deleteKind: 'deleteShared',
           badge: 'Shared',
           badgeHint:
-            'Everyone can use this: a sent campaign used it. Your edits stay with you until a campaign using them is sent.',
+            'Everyone can use this: a sent campaign used it. Your edits stay with you until a campaign using them is sent. Deleting it removes it for everyone.',
         };
       }
       return {
