@@ -245,19 +245,38 @@ def parse_identity(value):
     return value.strip().lower() if isinstance(value, str) else ""
 
 
-def sent_scenario_ids(campaign_rows):
-    """Ids of scenarios used by a SENT campaign -- what makes a user's scenario
+def campaign_scenario_refs(campaign_rows):
+    """(referenced, sent): ids of scenarios any campaign references, in any
+    status, and the subset a SENT campaign used -- what makes a user's scenario
     shared and a revision publishable. Reads legacy rows too (CampaignStatus,
     ScenarioID) and any status casing."""
-    sent = set()
+    referenced, sent = set(), set()
     for row in campaign_rows:
+        ids = {str(row[attr]) for attr in ("scenarioId", "ScenarioID") if row.get(attr)}
+        referenced |= ids
         status = row.get("status") or row.get("CampaignStatus") or ""
-        if str(status).strip().upper() != "SENT":
-            continue
-        for attr in ("scenarioId", "ScenarioID"):
-            if row.get(attr):
-                sent.add(str(row[attr]))
-    return sent
+        if str(status).strip().upper() == "SENT":
+            sent |= ids
+    return referenced, sent
+
+
+def sent_scenario_ids(campaign_rows):
+    return campaign_scenario_refs(campaign_rows)[1]
+
+
+def next_scenario_id(rows, referenced_ids):
+    """The next SC-00N id, past every id a row OR a campaign has ever used.
+    "Sent" is tracked by id, so a reissued id would inherit an old campaign's
+    history: a new scenario born shared, a new revision published unreviewed.
+    So an id stays retired after its row is deleted if any campaign used it."""
+    used = [*rows, *({"scenarioId": sid} for sid in referenced_ids)]
+    return next_sequence_id(used, "scenarioId", "SC")
+
+
+def sequence_order(scenario_id):
+    """Sort key putting SC-999 before SC-1000 (API ids grow with age)."""
+    m = re.match(r"^SC-(\d+)$", str(scenario_id))
+    return (0, int(m.group(1)), "") if m else (1, 0, str(scenario_id))
 
 
 def scenario_kind(row):
@@ -321,10 +340,11 @@ def publishable_revisions(rows, sent_ids):
     """Revisions due for lazy publish: unpublished, used by a SENT campaign,
     and by the same author as the original they revise. Returns
     (revision, original, merged_original) tuples, where merged_original is the
-    original with the revision's content but its own identity fields."""
+    original with the revision's content but its own identity fields. Oldest
+    first, so if two revisions of one original are due, the newest lands last."""
     by_id = {str(row.get("scenarioId")): row for row in rows}
     plan = []
-    for rev in sorted(rows, key=lambda row: str(row.get("scenarioId"))):
+    for rev in sorted(rows, key=lambda row: sequence_order(row.get("scenarioId"))):
         if scenario_kind(rev) != "revision" or rev.get("publishedAt"):
             continue
         if str(rev.get("scenarioId")) not in sent_ids:
@@ -376,11 +396,16 @@ def scenario_update(existing, body):
     return {**existing, **updates}
 
 
-def create_refusal(item, rows, sent_ids):
+def create_refusal(item, rows, referenced_ids, sent_ids):
     """Why a POST of `item` (already cleaned) can't go ahead, as an error
-    response, or None. Only copies and revisions have rules to check."""
+    response, or None."""
     copy_of, revision_of = item.get("copyOf"), item.get("revisionOf")
     if not copy_of and not revision_of:
+        # A typed id an old campaign used would inherit its history (see
+        # next_scenario_id). A copy's or revision's id is the API's, so it
+        # never gets here.
+        if str(item.get("scenarioId") or "") in referenced_ids:
+            return err(409, "That scenario ID was used by an earlier campaign; choose another")
         return None
     if copy_of and revision_of:
         return err(400, "A scenario can be a copy or a revision, not both")
@@ -401,6 +426,8 @@ def create_refusal(item, rows, sent_ids):
         if not shared or owner != author:
             return err(400, "revisionOf must be one of your own shared scenarios")
         kind, link, noun = "revision", "revisionOf", "a pending revision"
+    # A revision a SENT campaign used is published by the next list even if
+    # not stamped yet, so it doesn't block the next one.
     existing = next(
         (
             r
@@ -409,6 +436,7 @@ def create_refusal(item, rows, sent_ids):
             and str(r.get(link)) == target_id
             and parse_identity(r.get("createdBy")) == author
             and not r.get("publishedAt")
+            and not (kind == "revision" and str(r.get("scenarioId")) in sent_ids)
         ),
         None,
     )
@@ -423,7 +451,10 @@ def create_refusal(item, rows, sent_ids):
 
 def modify_refusal(row, actor, sent_ids, action):
     """Why `actor` can't PUT (action "edit") or DELETE ("delete") this row, as
-    an error response, or None when they can."""
+    an error response, or None when they can. A copy a SENT campaign used, or
+    a private scenario an unsent campaign uses, may still be deleted: campaigns
+    keep their own copy of the content, and next_scenario_id / create_refusal
+    never hand the id out again."""
     actor = parse_identity(actor)
     if not actor:
         return err(400, "actor is required")
@@ -449,9 +480,9 @@ def modify_refusal(row, actor, sent_ids, action):
     return None
 
 
-def load_sent_ids():
-    """One projected scan of the campaigns table, reduced to sent_scenario_ids."""
-    return sent_scenario_ids(
+def load_campaign_refs():
+    """One projected scan of the campaigns table: (referenced, sent) ids."""
+    return campaign_scenario_refs(
         scan_all(
             "campaigns",
             ProjectionExpression="#s, CampaignStatus, scenarioId, ScenarioID",
@@ -539,7 +570,7 @@ def lambda_handler(event, context):
             # Without a viewer every row comes back as before (older clients).
             viewer = parse_identity((event.get("queryStringParameters") or {}).get("viewer"))
             if viewer:
-                sent_ids = load_sent_ids()
+                _, sent_ids = load_campaign_refs()
                 items = publish_revisions(items, sent_ids, context)
                 items = visible_scenarios(items, sent_ids, viewer)
             items = [sign_cover(i) for i in items]
@@ -660,21 +691,20 @@ def lambda_handler(event, context):
             item = clean_scenario_input(body)
             now = datetime.now(UTC)
             created_on = f"{now.day}-{now.strftime('%b-%y')}"
+            rows = scan_all("scenarios")
+            referenced, sent_ids = load_campaign_refs()
+            refusal = create_refusal(item, rows, referenced, sent_ids)
+            if refusal:
+                return refusal
             if item.get("copyOf") or item.get("revisionOf"):
-                rows = scan_all("scenarios")
-                refusal = create_refusal(item, rows, load_sent_ids())
-                if refusal:
-                    return refusal
                 # A copy or revision is a new row the API names itself: an id
                 # or date carried over from the row it was made from must not stick.
-                item["scenarioId"] = next_sequence_id(rows, "scenarioId", "SC")
+                item["scenarioId"] = next_scenario_id(rows, referenced)
                 item["CreatedOn"] = created_on
-            else:
+            elif not item.get("scenarioId"):
                 # The wizard's first step asks the author to type an id, so the
                 # SC-00N sequence is only a fallback for when one wasn't supplied.
-                item["scenarioId"] = item.get("scenarioId") or next_sequence_id(
-                    scan_all("scenarios"), "scenarioId", "SC"
-                )
+                item["scenarioId"] = next_scenario_id(rows, referenced)
             item.setdefault("CreatedOn", created_on)
             for field in (
                 "description",
@@ -707,7 +737,8 @@ def lambda_handler(event, context):
             existing = get_one("scenarios", {"scenarioId": params["id"]})
             if not existing:
                 return err(404, "Scenario not found")
-            refusal = modify_refusal(existing, body.get("actor"), load_sent_ids(), "edit")
+            _, sent_ids = load_campaign_refs()
+            refusal = modify_refusal(existing, body.get("actor"), sent_ids, "edit")
             if refusal:
                 return refusal
             merged = scenario_update(existing, body)
@@ -733,7 +764,8 @@ def lambda_handler(event, context):
                 # belong to a scenario still being authored.
                 return respond(204, {"data": None})
             actor = (event.get("queryStringParameters") or {}).get("actor")
-            refusal = modify_refusal(existing, actor, load_sent_ids(), "delete")
+            _, sent_ids = load_campaign_refs()
+            refusal = modify_refusal(existing, actor, sent_ids, "delete")
             if refusal:
                 return refusal
             try:
