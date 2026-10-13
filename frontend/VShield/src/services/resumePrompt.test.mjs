@@ -9,6 +9,7 @@ import {
   contentFingerprint,
   markAsked,
   markDeferred,
+  markDraftOnly,
   scenarioContentVersion,
   wasAsked,
   wasDeferred,
@@ -55,6 +56,24 @@ test('"not now" holds for the version put off, and for that person only', () => 
   assert.equal(wasDeferred('campaign', 'CMP-1', 'v2', B), false);
   assert.equal(wasDeferred('nope', 'CMP-1', 'v2', A), false);
   assert.equal(wasDeferred('campaign', '', 'v2', A), false);
+});
+
+test('saved as a draft or opened from Drafts: never asked about, whatever changes', () => {
+  assert.equal(markDraftOnly('campaign', 'CMP-7', A), true);
+  assert.equal(wasAsked('campaign', 'CMP-7', 'v1', A), true);
+  assert.equal(wasAsked('campaign', 'CMP-7', ['v9', 'v8'], A), true);
+  assert.equal(wasDeferred('campaign', 'CMP-7', 'v1', A), false);
+  // Later answers about it keep it to Drafts.
+  markAsked('campaign', 'CMP-7', 'v2', A);
+  assert.equal(wasAsked('campaign', 'CMP-7', 'v3', A), true);
+  markDeferred('campaign', 'CMP-7', 'v4', A);
+  assert.equal(wasAsked('campaign', 'CMP-7', 'v5', A), true);
+  // Per person, kind and id.
+  assert.equal(wasAsked('campaign', 'CMP-7', 'v1', B), false);
+  assert.equal(wasAsked('scenario', 'CMP-7', 'v1', A), false);
+  assert.equal(wasAsked('campaign', 'CMP-8', 'v1', A), false);
+  assert.equal(markDraftOnly('nope', 'CMP-7', A), false);
+  assert.equal(markDraftOnly('campaign', '', A), false);
 });
 
 test('a newer version is asked about again, once', () => {

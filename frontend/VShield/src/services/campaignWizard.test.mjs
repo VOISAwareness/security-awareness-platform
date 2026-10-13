@@ -18,6 +18,7 @@ import {
   scenarioContent,
   hasEditsBeyondScenario,
   templatePatch,
+  templatePick,
 } from './campaignWizard.js';
 
 const PHISH = {
@@ -251,4 +252,30 @@ test('edits: a later step reached, or template content changed', () => {
 test('edits: a template that can no longer be found counts any content', () => {
   assert.equal(hasEditsBeyondScenario(fromTemplate(PHISH), null), true);
   assert.equal(hasEditsBeyondScenario({ scenarioId: 'SC-404' }, null), false);
+});
+
+test('templatePick: a template starts a new campaign unless back from step 2', () => {
+  const inProgress = fromTemplate(PHISH, { campaignId: 'CMP-1', status: 'DRAFT', wizardStep: 2 });
+  const pick = (over) => templatePick({ draft: inProgress, scenarioId: PARCEL.scenarioId, previous: PHISH, ...over });
+  // Arrived from anywhere else: always a new campaign, even the same template.
+  assert.equal(pick({}), 'new');
+  assert.equal(pick({ scenarioId: PHISH.scenarioId }), 'new');
+  assert.equal(pick({ scenarioId: START_FRESH_ID }), 'new');
+  // Nothing in progress: the template fills the new, blank campaign.
+  assert.equal(templatePick({ draft: {}, scenarioId: PARCEL.scenarioId }), 'apply');
+  assert.equal(templatePick({ draft: null, scenarioId: PARCEL.scenarioId }), 'apply');
+  assert.equal(templatePick({ draft: { campaignId: 'CMP-2', status: 'DRAFT' }, scenarioId: PARCEL.scenarioId }), 'apply');
+  assert.equal(templatePick({ editing: true, draft: {}, scenarioId: PARCEL.scenarioId }), 'apply');
+  // Submitted or sent: not in progress here.
+  assert.equal(pick({ draft: { ...inProgress, status: 'PENDING_APPROVAL' } }), 'apply');
+});
+
+test('templatePick: back from step 2 the template changes this campaign', () => {
+  const inProgress = fromTemplate(PHISH, { campaignId: 'CMP-1', status: 'DRAFT', wizardStep: 1 });
+  const pick = (over) =>
+    templatePick({ editing: true, draft: inProgress, scenarioId: PARCEL.scenarioId, previous: PHISH, ...over });
+  assert.equal(pick({ scenarioId: PHISH.scenarioId }), 'same');
+  assert.equal(pick({}), 'apply');
+  assert.equal(pick({ draft: { ...inProgress, emailSubject: 'Mine' } }), 'confirm');
+  assert.equal(pick({ draft: { ...inProgress, wizardStep: 3 } }), 'confirm');
 });

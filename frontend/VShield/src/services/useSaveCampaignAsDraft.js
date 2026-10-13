@@ -3,22 +3,14 @@
  * leave the campaign under Drafts and open the Drafts tab.
  *
  * Saved this way the campaign is parked, not in progress: it is no longer the
- * one Start New Campaign continues (the next template choice starts a new
- * campaign), and coming back does not ask "Continue your campaign?" about it.
- * It is picked up again from Drafts -> Continue.
+ * one Start New Campaign continues, and "Continue your campaign?" never asks
+ * about it (parkCampaignDraft). It is picked up again from Drafts -> Continue.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { draftLabel } from './campaignWizard.js';
-import { campaignContentVersions, markAsked } from './resumePrompt.js';
-import { setActiveCampaignId } from './useCampaignDraft';
-
-/** Park a saved campaign: answered as it is now, and no longer in progress. */
-export function parkCampaignDraft(row) {
-  if (row?.campaignId) markAsked('campaign', row.campaignId, campaignContentVersions(row));
-  setActiveCampaignId('');
-}
+import { parkCampaignDraft } from './useCampaignDraft';
 
 /**
  * @param draft   the step's server draft (useCampaignDraft)

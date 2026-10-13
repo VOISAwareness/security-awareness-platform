@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
-import { setActiveCampaignId } from '../../services/useCampaignDraft';
+import { openCampaignDraft } from '../../services/useCampaignDraft';
 import { IN_WIZARD, routeForStep } from '../../services/campaignWizard';
 import { toDesignCampaign } from '../../services/campaignDesign';
 import { actorFor } from '../../services/identity';
@@ -140,7 +140,7 @@ const RequestAndApprovals = () => {
   // Creator only: open a campaign that came back with a notification in the
   // wizard, on the step it was last saved on (Details for older campaigns).
   const handleEditCampaign = (camp) => {
-    setActiveCampaignId(camp.campaignId);
+    openCampaignDraft(camp.campaignId);
     navigate(routeForStep(camp.wizardStep, 2), IN_WIZARD);
   };
 

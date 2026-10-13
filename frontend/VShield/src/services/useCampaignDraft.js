@@ -30,6 +30,7 @@ import { isEditable } from './campaignStatus';
 import { isCreatedBy, isOwnDraft, toStep } from './campaignWizard';
 import { readString, removeKey, scopedKey, writeString } from './draftStore';
 import { currentActor } from './identity';
+import { markDraftOnly } from './resumePrompt';
 
 const POINTER_BASE = 'voisshield_active_campaign_id';
 const LEGACY_DRAFT_KEY = 'voisshield_active_campaign_draft';
@@ -86,6 +87,26 @@ export function clearActiveCampaign() {
 }
 
 /**
+ * "Save as draft": leave the campaign under Drafts. It is no longer the one in
+ * progress, and "Continue your campaign?" never asks about it: it is picked up
+ * from Drafts.
+ */
+export function parkCampaignDraft(row) {
+  if (row?.campaignId) markDraftOnly('campaign', row.campaignId);
+  setActiveCampaignId('');
+}
+
+/**
+ * Open a campaign from Drafts (or a request sent back): it becomes the one in
+ * progress, and like a saved one it is never asked about, since Drafts is where
+ * it is picked up.
+ */
+export function openCampaignDraft(id) {
+  if (id) markDraftOnly('campaign', id);
+  setActiveCampaignId(id);
+}
+
+/**
  * One-time move from the old browser-wide pointer to the per-user one. The old
  * pointer is adopted only by the person recorded as the draft's creator; anyone
  * else just drops it (the draft itself stays in Campaigns -> Drafts). If the
@@ -137,11 +158,22 @@ function createDraftOnce(step) {
 /**
  * The draft a pointer refers to, or null when it cannot be opened here: deleted,
  * already submitted or sent, or someone else's campaign.
+ *
+ * Any other failure to read it (offline, a server error, the page left while
+ * the request was in flight) says nothing about the draft, so it is thrown
+ * rather than read as "gone": the pointer is kept, and the campaign is neither
+ * replaced by a blank one nor dropped from "Continue your campaign?".
  */
 async function openPointerDraft(id) {
   if (!id) return null;
   await savesSettled(id);
-  const item = await api.campaigns.get(id).catch(() => null);
+  let item;
+  try {
+    item = await api.campaigns.get(id);
+  } catch (e) {
+    if (e?.status === 404) return null;
+    throw e;
+  }
   if (!item) return null;
   // REJECTED counts as openable: the whole point of a rejection is that the
   // owner reworks it, and the backend allows editing it (see EDITABLE_STATUSES

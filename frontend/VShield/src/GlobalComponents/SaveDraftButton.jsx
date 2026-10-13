@@ -1,8 +1,8 @@
 import { Save } from 'lucide-react';
 
-// "Save as draft", next to BACK / NEXT on every step of Start New Campaign and
-// of the scenario editor: save the work as it is and leave it under Drafts,
-// to pick up later. One component so every step's button looks the same.
+// "Save as draft", next to BACK / NEXT on Start New Campaign steps 2-6 and on
+// every step of the scenario editor: save the work as it is and leave it under
+// Drafts, to pick up later. One component so every step's button looks the same.
 const SaveDraftButton = ({ onClick, disabled = false, busy = false, title }) => (
   <button
     type="button"

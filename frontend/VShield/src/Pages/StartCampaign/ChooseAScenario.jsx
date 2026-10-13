@@ -9,24 +9,24 @@ import {
 } from 'lucide-react';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { api } from '../../services/api';
-import { setActiveCampaignId, useCampaignDraft } from '../../services/useCampaignDraft';
+import { openCampaignDraft, parkCampaignDraft, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
 import { scenariosForViewer } from '../../services/scenarioOwnership';
-import { campaignContentVersions, markAsked, markDeferred, wasAsked, wasDeferred } from '../../services/resumePrompt';
+import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
+  BACK_TO_STEP_1,
   IN_WIZARD,
   START_FRESH_ID,
   draftLabel,
-  hasEditsBeyondScenario,
   hasProgress,
   isOwnDraft,
-  isSameScenario,
   routeForStep,
   savedStep,
   shouldOfferResume,
   stepName,
-  templatePatch
+  templatePatch,
+  templatePick
 } from '../../services/campaignWizard';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import DraftCards from '../../GlobalComponents/DraftCards';
@@ -35,8 +35,6 @@ import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
-import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
-import { parkCampaignDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -136,13 +134,16 @@ const ChooseAScenario = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromWizard = Boolean(location.state?.fromWizard);
+  // Back from step 2: still working on the campaign in progress (a template
+  // picked here changes it). Arriving any other way, a template starts a new one.
+  const editingCampaign = Boolean(location.state?.editingCampaign);
   const userContext = useUserType?.() || {};
 
   // The wizard draft now lives on the server; `draft` is null until it loads.
   // Writes made before then are safe: flush() waits for the load.
   // Lazy: nothing is saved until a template or Start fresh is picked, so
   // opening this page never leaves an empty draft behind.
-  const { draft, loading, update, flush, startNew, campaignId } = useCampaignDraft({ lazy: true });
+  const { draft, loading, error: draftError, update, flush, startNew, campaignId } = useCampaignDraft({ lazy: true });
 
   // ---------------------------------------------------------------------------
   // Create new | Drafts: start a campaign from a template or Start fresh, or
@@ -180,7 +181,7 @@ const ChooseAScenario = () => {
   // Open a draft on the step it was saved on, as Campaigns → Drafts does.
   const continueCampaignDraft = (id) => {
     const camp = myDrafts.find((c) => c.campaignId === id);
-    setActiveCampaignId(id);
+    openCampaignDraft(id);
     navigate(routeForStep(savedStep(camp)), IN_WIZARD);
   };
 
@@ -237,8 +238,8 @@ const ChooseAScenario = () => {
   const [scenariosList, setScenariosList] = useState([]);
   const [scenariosLoading, setScenariosLoading] = useState(true);
 
-  // Selected State — seeded from the saved draft once it arrives; falls back to
-  // the first scenario once the list has loaded.
+  // Selected State — back from step 2, seeded from the campaign being worked on
+  // once it arrives; otherwise the first scenario once the list has loaded.
   const [selectedScenarioId, setSelectedScenarioId] = useState('');
 
   // Seed from the draft exactly once. Set the moment the user picks a card too,
@@ -254,12 +255,13 @@ const ChooseAScenario = () => {
     if (!draft || scenarioSeededRef.current) return;
     scenarioSeededRef.current = true;
     // Same defaulting as before: only a saved scenarioId wins; otherwise the
-    // "first scenario in the list" fallback below stands.
-    if (draft.scenarioId) {
+    // "first scenario in the list" fallback below stands. A campaign that is
+    // not being worked on here is not what a template click continues.
+    if (editingCampaign && draft.scenarioId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time seed of local state from the async draft
       setSelectedScenarioId(draft.scenarioId);
     }
-  }, [draft]);
+  }, [draft, editingCampaign]);
 
   useEffect(() => {
     let active = true;
@@ -320,21 +322,17 @@ const ChooseAScenario = () => {
   });
 
   // Coming back to the wizard from outside it: offer to continue the user's own
-  // saved campaign rather than silently dropping them on step 1. Asked once per
-  // campaign: after any answer it is simply a draft (Campaigns -> Drafts), and
-  // only a change to its content since then asks again (moving between steps
-  // is not a change; see resumePrompt.js).
+  // campaign, left part-way, rather than silently dropping them on step 1.
+  // Asked once per campaign: after any answer it is simply a draft (Campaigns
+  // -> Drafts), and only a change to its content since then asks again (moving
+  // between steps is not a change; see resumePrompt.js). A campaign saved with
+  // "Save as draft" or opened from Drafts is never asked about.
   // Closing the question (✕, Esc or a click outside) is "not now": the
-  // campaign stays as it is and is not asked about again here, but choosing a
-  // template or Start fresh asks once more (`startChoice`) before anything is
-  // written, since that choice would otherwise land on the campaign in progress.
+  // campaign stays as it is under Drafts and is not asked about again. Picking
+  // a template afterwards does not ask either: it starts a new campaign.
   const resumeVersions = useMemo(() => campaignContentVersions(draft), [draft]);
   const draftId = draft?.campaignId || '';
-  const [, setAskedTick] = useState(0); // re-read the answers after "not now"
   const askedBefore = Boolean(draftId) && wasAsked('campaign', draftId, resumeVersions);
-  const putOff =
-    Boolean(draftId) && shouldOfferResume(draft) && wasDeferred('campaign', draftId, resumeVersions);
-  const [startChoice, setStartChoice] = useState(null); // the template chosen after "not now"
   const offerResume = !fromWizard && !loading && shouldOfferResume(draft) && !askedBefore;
   const resumeStep = savedStep(draft);
   const markResumeAnswered = () => markAsked('campaign', draftId, resumeVersions);
@@ -343,61 +341,28 @@ const ChooseAScenario = () => {
   // remember it as it is now, so a later edit to that page is a change.
   const currentVersion = resumeVersions[0];
   useEffect(() => {
-    if (!askedBefore) return;
-    if (putOff) markDeferred('campaign', draftId, currentVersion);
-    else markAsked('campaign', draftId, currentVersion);
-  }, [askedBefore, putOff, draftId, currentVersion]);
+    if (askedBefore) markAsked('campaign', draftId, currentVersion);
+  }, [askedBefore, draftId, currentVersion]);
 
   // Either choice also replaces this history entry with an in-wizard one, so
   // browser Back never asks again.
   const handleContinue = () => {
     markResumeAnswered();
-    setStartChoice(null);
     navigate(routeForStep(resumeStep), { replace: true, ...IN_WIZARD });
   };
 
   // The saved campaign is left exactly as it is (still a DRAFT, listed under
-  // Campaigns -> Drafts); this user simply gets a brand-new one. Asked again
-  // because a template was chosen after "not now", that choice starts it.
+  // Campaigns -> Drafts); this user simply gets a brand-new one.
   const handleStartNew = async () => {
-    const chosen = startChoice;
     markResumeAnswered();
-    setStartChoice(null);
     navigate(location.pathname, { replace: true, ...IN_WIZARD });
-    pickScenario(chosen?.scenarioId || scenariosList[0]?.scenarioId || '');
+    pickScenario(scenariosList[0]?.scenarioId || '');
     await startNew();
-    if (chosen) await goToDetails(templatePatch(chosen, {}, null));
   };
 
-  // "Save as draft" here (back on step 1 with a campaign in progress): leave
-  // it under Drafts, no longer in progress, and start clean.
-  const campaignInProgress = Boolean(draftId) && shouldOfferResume(draft);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const handleSaveAsDraft = async () => {
-    const row = draft;
-    setSavingDraft(true);
-    try {
-      await flush().catch(() => {});
-      parkCampaignDraft(row);
-      await startNew();
-      pickScenario(scenariosList[0]?.scenarioId || '');
-      setView('drafts');
-      setSavedNotice(draftLabel(row));
-    } finally {
-      setSavingDraft(false);
-    }
-  };
-
-  // "Not now": nothing is written, the page stays as it is, and a template
-  // chosen after it is not applied.
+  // "Not now": nothing is written and the page stays as it is.
   const handleNotNow = () => {
-    if (startChoice) {
-      setStartChoice(null);
-      pickScenario(draft?.scenarioId || scenariosList[0]?.scenarioId || '');
-      return;
-    }
-    markDeferred('campaign', draftId, resumeVersions);
-    setAskedTick((t) => t + 1);
+    markResumeAnswered();
     navigate(location.pathname, { replace: true, ...IN_WIZARD });
   };
 
@@ -414,9 +379,9 @@ const ChooseAScenario = () => {
     }
 
     if (detailModalItem) setDetailModalItem(null);
-    // Mark this visit to step 1 as in-wizard too, so browser Back from step 2
-    // lands here without the "Continue your campaign?" question.
-    if (!fromWizard) navigate(location.pathname, { replace: true, ...IN_WIZARD });
+    // Browser Back from step 2 lands here as the Back button does: no "Continue
+    // your campaign?" question, and still working on this campaign.
+    if (!editingCampaign) navigate(location.pathname, { replace: true, ...BACK_TO_STEP_1 });
     navigate('/start-campaign/details', IN_WIZARD);
   };
 
@@ -425,24 +390,35 @@ const ChooseAScenario = () => {
   const applyTemplate = (scenario) =>
     goToDetails(templatePatch(scenario, draft || {}, findScenario(draft?.scenarioId)));
 
-  // "Use This" / "Let's Go". Picking the scenario the campaign already uses keeps
-  // every edit; switching to another one replaces the email, landing page and
-  // training, so it asks first when the user has changed any of them.
+  // "Use This" / "Let's Go" starts a new campaign from the template; a
+  // campaign in progress is left as it is under Drafts. Back from step 2 it
+  // changes the campaign being worked on instead: picking its own scenario
+  // keeps every edit, and switching to another one replaces the email, landing
+  // page and training, so it asks first when the user has changed any of them.
   const handleUseScenario = async (scenario) => {
     // Until the draft is known nothing can be compared, so nothing is applied.
     if (!scenario || loading) return;
     pickScenario(scenario.scenarioId);
-    // After "not now" this choice would land on the campaign in progress: ask.
-    if (putOff) {
-      setStartChoice(scenario);
+    const pick = templatePick({
+      editing: editingCampaign,
+      draft,
+      scenarioId: scenario.scenarioId,
+      previous: findScenario(draft?.scenarioId),
+    });
+    // A campaign in progress that could not be read right now is not
+    // continued either: the template still starts a new one.
+    const unread = !editingCampaign && !draft && Boolean(draftError);
+    if (pick === 'new' || unread) {
+      parkCampaignDraft(draft);
+      await startNew();
+      await goToDetails(templatePatch(scenario, {}, null));
       return;
     }
-
-    if (isSameScenario(draft, scenario.scenarioId)) {
+    if (pick === 'same') {
       await goToDetails({});
       return;
     }
-    if (hasEditsBeyondScenario(draft, findScenario(draft?.scenarioId))) {
+    if (pick === 'confirm') {
       setReplaceTarget(scenario);
       return;
     }
@@ -736,14 +712,6 @@ const ChooseAScenario = () => {
               );
             })}
           </div>
-          {campaignInProgress && (
-            <div className="flex items-center justify-end gap-2.5 px-4 -mt-2 mb-3 flex-shrink-0">
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
-                In progress: {draftLabel(draft)}
-              </span>
-              <SaveDraftButton onClick={handleSaveAsDraft} busy={savingDraft} />
-            </div>
-          )}
           </>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
@@ -951,14 +919,10 @@ const ChooseAScenario = () => {
       </div>
 
       <DraftDialog
-        open={offerResume || Boolean(startChoice)}
+        open={offerResume}
         isDark={isDark}
         title="Continue your campaign?"
-        body={
-          startChoice
-            ? 'You still have a campaign in progress. Continue it, or start a new campaign with the template you just chose. Your saved campaign stays under Campaigns → Drafts either way.'
-            : 'You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way.'
-        }
+        body="You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way."
         detail={
           <>
             <span className="block">{draftLabel(draft)}</span>

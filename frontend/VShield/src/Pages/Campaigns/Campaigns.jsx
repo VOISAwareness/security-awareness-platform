@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
-import { setActiveCampaignId } from '../../services/useCampaignDraft';
+import { openCampaignDraft } from '../../services/useCampaignDraft';
 import { IN_WIZARD, hasProgress, routeForStep } from '../../services/campaignWizard';
 import { DESIGN_STATUS, toDesignCampaign } from '../../services/campaignDesign';
 import { PHASE } from '../../services/campaignStatus';
@@ -241,9 +241,10 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
   // Reopen the draft on the step it was last saved on. Drafts saved before the
   // step was recorded open on Details (not step 1, which reads as starting
-  // over). Arriving from here never triggers "Continue your campaign?".
+  // over). A draft opened from here is never asked about ("Continue your
+  // campaign?"): Drafts is where it is picked up.
   const handleResume = (camp) => {
-    setActiveCampaignId(camp.campaignId);
+    openCampaignDraft(camp.campaignId);
     navigate(routeForStep(camp.wizardStep, 2), IN_WIZARD);
   };
 
