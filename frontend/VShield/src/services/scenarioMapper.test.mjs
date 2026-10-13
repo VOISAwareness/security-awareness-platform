@@ -13,7 +13,9 @@ import test from 'node:test';
 import {
   STORED_FIELDS,
   catalogueCoverName,
+  coverKeyFromUrl,
   landingPageChoice,
+  toEditFormData,
   toStoredScenario,
   toWizardFormData,
 } from './scenarioMapper.js';
@@ -147,4 +149,88 @@ test('landingPageChoice falls back to the carried id, ignoring blank designs', (
   assert.deepEqual(landingPageChoice({ outcomeSource: 'custom', outcomeRichText: '   ' }), { kind: 'none', id: '' });
   assert.deepEqual(landingPageChoice({ landingPageId: 'LP-002' }), { kind: 'none', id: 'LP-002' });
   assert.deepEqual(landingPageChoice(), { kind: 'none', id: '' });
+});
+
+// --- editing a stored scenario ---------------------------------------------------
+
+const CATALOGUES = {
+  coverImages: [
+    { id: 1, title: 'Password Verification', image: 'src/Pages/Scenarios/CovImg-001.png' },
+    { id: 4, title: 'Microsoft Login', image: 'src/Pages/Scenarios/CovImg-004.png' },
+  ],
+  landingPages: [{ LandingPageID: 'LP-002', LandingPageName: 'Red Flag', LandingPageContent: '<h2>Red</h2>' }],
+  trainingPaths: [
+    {
+      TrainingPathID: 'TP-00002',
+      TrainingPathName: 'BEC Defense',
+      Description: 'Wire fraud',
+      Duration: '20 min',
+      TrainingVideoAttached: ['TV-1', 'TV-2', 'TV-3'],
+      TrainingQuizAttached: ['TQ-1'],
+      TrainingCertificateAttached: ['TC-1'],
+    },
+  ],
+  trainingQuizzes: [{ TrainingQuizID: 'TQ-1', TrainingCompletionThreshold: 75, QuizData: { q1: {}, q2: {} } }],
+};
+const stored = (fields = {}) => ({ ...toStoredScenario(fullForm), CoverImageID: 'CovImg-004.png', ...fields });
+
+test('coverKeyFromUrl turns a presigned uploads URL back into its key', () => {
+  const key = 'uploads/scenario-covers/SC-1/a b.png';
+  assert.equal(
+    coverKeyFromUrl('https://bucket.s3.ap-south-1.amazonaws.com/uploads/scenario-covers/SC-1/a%20b.png?X-Amz-Signature=x'),
+    key
+  );
+  assert.equal(coverKeyFromUrl('https://s3.ap-south-1.amazonaws.com/bucket/uploads/x/y.png?X-Amz-Date=1'), 'uploads/x/y.png');
+  for (const same of ['CovImg-001.png', 'uploads/x/y.png', 'https://example.com/a.png', 'https://b.s3.amazonaws.com/other/a.png?X-Amz-S=1', '', undefined]) {
+    assert.equal(coverKeyFromUrl(same), same);
+  }
+});
+
+test('editing prefills the wizard, with the selections it can show again', () => {
+  const form = toEditFormData(stored(), CATALOGUES);
+  assert.equal(form.scenarioId, 'SC-500');
+  assert.equal(form.type, 'phishing');
+  assert.equal(form.emailSubject, 'Confirm your selection');
+  assert.deepEqual(
+    [form.coverImageSource, form.selectedCatalogueImageId, form.coverImagePreview, form.CoverImageID],
+    ['catalogue', 4, 'src/Pages/Scenarios/CovImg-004.png', 'CovImg-004.png']
+  );
+  assert.deepEqual(
+    [form.landingPageSource, form.selectedLandingCatalogueImageId, form.landingPageContent, form.landingPageId],
+    ['catalogue', 'LP-002', '<h2>Red</h2>', 'LP-002']
+  );
+  assert.deepEqual(
+    [form.trainingSource, form.trainingPathCode, form.trainingPathVideos, form.trainingPathCertificate],
+    ['training-path', 'TP-00002', 3, true]
+  );
+  assert.equal(form.selectedTrainingPath.title, 'BEC Defense');
+  assert.deepEqual(
+    [form.selectedTrainingPath.resolvedVideos.length, form.selectedTrainingPath.questionCount, form.selectedTrainingPath.passingScore],
+    [3, 2, 75]
+  );
+  // Saving it untouched writes back what was stored.
+  const again = toStoredScenario(form, { landingPageId: landingPageChoice(form).id || undefined, coverImageId: catalogueCoverName(CATALOGUES.coverImages[1].image) });
+  assert.deepEqual(again, toStoredScenario(fullForm, { coverImageId: 'CovImg-004.png' }));
+});
+
+test('an uploaded cover is held by its key, never the presigned URL', () => {
+  const key = 'uploads/scenario-covers/SC-500/k-cover.png';
+  const signed = `https://bucket.s3.amazonaws.com/${key}?X-Amz-Signature=abc`;
+  for (const row of [stored({ CoverImageID: signed, coverImageKey: key }), stored({ CoverImageID: signed }), stored({ CoverImageID: key })]) {
+    const form = toEditFormData(row, CATALOGUES);
+    assert.deepEqual(
+      [form.CoverImageID, form.coverImageSource, form.coverImageKey, form.coverImageKeyScenarioId, form.coverImageName],
+      [key, 'upload', key, 'SC-500', 'k-cover.png']
+    );
+    assert.equal(toStoredScenario(form).CoverImageID, key);
+  }
+  assert.equal(toEditFormData(stored({ CoverImageID: signed, coverImageKey: key })).coverImagePreview, signed);
+});
+
+test('selections it cannot find are kept by id, not dropped', () => {
+  const form = toEditFormData(stored({ CoverImageID: 'https://cdn.example.com/c.png', landingPageId: 'LP-900', trainingId: 'TP-404' }), CATALOGUES);
+  assert.deepEqual([form.coverImageSource, form.landingPageSource, form.trainingSource], [undefined, undefined, undefined]);
+  const record = toStoredScenario(form);
+  assert.deepEqual([record.CoverImageID, record.landingPageId, record.trainingId], ['https://cdn.example.com/c.png', 'LP-900', 'TP-404']);
+  assert.equal(toEditFormData({}).CoverImageID, '');
 });

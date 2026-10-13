@@ -6,7 +6,9 @@
  * Per signed-in person, in this browser (see draftStore.js):
  *   voisshield_scenario_drafts:<email>        { version: 2, drafts: { [draftId]: draft } }
  *   voisshield_active_scenario_draft:<email>  the draftId they were last working on
- * Each draft is scenarioDraft.js's shape ({ version, savedAt, activeTab, formData }).
+ * Each draft is scenarioDraft.js's shape ({ version, savedAt, activeTab, formData, edit? }).
+ * An edit of a saved scenario (Scenarios → Edit) is a draft too, one per
+ * scenario: its `edit` names the scenario, and Edit on it again reopens it.
  * The one-draft key used before (voisshield_scenario_draft:<email>) is moved in
  * on first read and becomes the active draft.
  *
@@ -67,6 +69,26 @@ export function getScenarioDraft(id, actor) {
   return readAll(actor)[id] || null;
 }
 
+/**
+ * The unfinished edit of this scenario, if there is one: { id, draft } or null
+ * (the newest, should there ever be two).
+ */
+export function findEditDraft(scenarioId, actor) {
+  const sid = String(scenarioId || '').trim();
+  if (!sid) return null;
+  const found = listScenarioDrafts(actor).find((d) => d.edit?.scenarioId === sid);
+  return found ? { id: found.id, draft: getScenarioDraft(found.id, actor) } : null;
+}
+
+/** Remove every unfinished edit of this scenario (it was deleted: nothing left to save onto). */
+export function removeEditDrafts(scenarioId, actor) {
+  const sid = String(scenarioId || '').trim();
+  if (!sid) return;
+  for (const d of listScenarioDrafts(actor)) {
+    if (d.edit?.scenarioId === sid) removeScenarioDraft(d.id, actor);
+  }
+}
+
 /** Add or replace one draft. False when storage refused it (full, or blocked). */
 export function saveScenarioDraft(id, draft, actor) {
   if (!id || !draft) return false;
@@ -120,16 +142,24 @@ export function scenarioDraftToOffer(defaults = {}, actor) {
  * Which draft the scenario editor opens on, decided once before its first
  * render:
  *  - ?draft=<id> naming a saved draft opens it directly ({ resume });
+ *  - ?edit=<scenarioId> (Scenarios → Edit) opens the unfinished edit of that
+ *    scenario when there is one, else starts a new edit; either way nothing
+ *    else is offered, since the author chose what to work on;
  *  - otherwise the editor works on a new draft (the requested id when one was
  *    given, so a reload keeps it), and — unless the author just chose "Start
  *    new", or was already asked about it — the scenario in progress is offered
  *    back first ({ offer }).
  * -> { id, resume: draft | null, offer: { id, draft } | null }
  */
-export function scenarioEditorOpening({ requestedId = '', startFresh = false, defaults = {} } = {}, actor) {
+export function scenarioEditorOpening(
+  { requestedId = '', startFresh = false, editId = '', defaults = {} } = {},
+  actor
+) {
   const requested = requestedId ? getScenarioDraft(requestedId, actor) : null;
   if (requested) return { id: requestedId, resume: requested, offer: null };
+  const editing = editId ? findEditDraft(editId, actor) : null;
+  if (editing?.draft) return { id: editing.id, resume: editing.draft, offer: null };
   const id = requestedId || newDraftId();
-  if (startFresh) return { id, resume: null, offer: null };
+  if (startFresh || editId) return { id, resume: null, offer: null };
   return { id, resume: null, offer: scenarioDraftToOffer(defaults, actor) };
 }

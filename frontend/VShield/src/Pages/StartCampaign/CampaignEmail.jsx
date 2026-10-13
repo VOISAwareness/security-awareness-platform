@@ -30,6 +30,8 @@ import {
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
+import { currentActor } from '../../services/identity';
+import { scenariosForViewer } from '../../services/scenarioOwnership';
 import { IN_WIZARD } from '../../services/campaignWizard';
 import { TOP_COUNT, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
@@ -170,9 +172,11 @@ const CampaignEmail = () => {
  useEffect(() => {
   let active = true;
   api.scenarios
-   .list()
+   .list({ viewer: currentActor() })
    .then((rows) => {
-    if (active && Array.isArray(rows) && rows.length) setLibraryScenarios(rows);
+    // An older API sends every row, unannotated: keep what this person may see.
+    const visible = scenariosForViewer(rows, currentActor());
+    if (active && visible.length) setLibraryScenarios(visible);
    })
    .catch(() => {
     /* keep the bundled scenarios */

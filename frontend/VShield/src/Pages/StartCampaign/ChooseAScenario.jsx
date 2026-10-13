@@ -12,6 +12,7 @@ import { api } from '../../services/api';
 import { setActiveCampaignId, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
+import { scenariosForViewer } from '../../services/scenarioOwnership';
 import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
   IN_WIZARD,
@@ -249,12 +250,15 @@ const ChooseAScenario = () => {
     const apply = (rows) => {
       if (!active) return;
       setScenariosLoading(false);
-      const list = normaliseScenarios(rows);
+      // An older API sends every row, unannotated: keep what this person may see.
+      const list = normaliseScenarios(scenariosForViewer(rows, currentActor()));
       setScenariosList(list);
       setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
     };
+    // What this person may use: their own copies and pending edits stand in
+    // for the scenarios they replace.
     api.scenarios
-      .list()
+      .list({ viewer: currentActor() })
       .then(apply)
       .catch((e) => {
         console.error('Failed to load scenarios', e);

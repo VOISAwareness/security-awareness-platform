@@ -4,11 +4,13 @@ import assert from 'node:assert/strict';
 import { buildDraft } from './scenarioDraft.js';
 import { markAsked, scenarioContentVersion } from './resumePrompt.js';
 import {
+  findEditDraft,
   getActiveScenarioDraftId,
   getScenarioDraft,
   inProgressScenarioDraft,
   listScenarioDrafts,
   newDraftId,
+  removeEditDrafts,
   removeScenarioDraft,
   saveScenarioDraft,
   scenarioDraftToOffer,
@@ -175,4 +177,61 @@ test('asked once: an answered draft is not offered again until it changes', () =
   setActiveScenarioDraftId('SD-7', B);
   markAsked('scenario', 'SD-7', scenarioContentVersion(first), A);
   assert.equal(scenarioDraftToOffer(DEFAULTS, B).id, 'SD-7');
+});
+
+// --- edit drafts ---------------------------------------------------------------------
+const editDraft = (scenarioId, name, savedAt, mode = 'copy') =>
+  buildDraft({ scenarioId, scenarioName: name, emailSubject: 'changed' }, 1, new Date(savedAt), { scenarioId, mode, name, baseline: 'x' });
+
+test('an unfinished edit is found by the scenario it edits, per person', () => {
+  saveScenarioDraft('SD-1', draft('New one', '2026-10-01T10:00:00Z'), A);
+  saveScenarioDraft('SD-2', editDraft('SC-101', 'Password expiry', '2026-10-02T10:00:00Z'), A);
+  saveScenarioDraft('SD-3', editDraft('SC-101', 'Password expiry', '2026-10-03T10:00:00Z'), B);
+  const found = findEditDraft(' SC-101 ', A);
+  assert.equal(found.id, 'SD-2');
+  assert.equal(found.draft.edit.mode, 'copy');
+  assert.equal(findEditDraft('SC-102', A), null);
+  assert.equal(findEditDraft('', A), null);
+  assert.equal(listScenarioDrafts(A).find((d) => d.id === 'SD-2').edit.scenarioId, 'SC-101');
+});
+
+test('editor opening: ?edit=<id> reopens that unfinished edit, no question asked', () => {
+  saveScenarioDraft('SD-2', editDraft('SC-101', 'Password expiry', '2026-10-02T10:00:00Z'), A);
+  saveScenarioDraft('SD-9', draft('In progress', '2026-10-05T10:00:00Z'), A);
+  setActiveScenarioDraftId('SD-9', A);
+  const o = scenarioEditorOpening({ editId: 'SC-101', requestedId: 'SD-new', defaults: DEFAULTS }, A);
+  assert.deepEqual([o.id, o.resume.edit.scenarioId, o.offer], ['SD-2', 'SC-101', null]);
+});
+
+test('editor opening: ?edit=<id> with no edit yet starts one, offering nothing', () => {
+  saveScenarioDraft('SD-9', draft('In progress', '2026-10-05T10:00:00Z'), A);
+  setActiveScenarioDraftId('SD-9', A);
+  const o = scenarioEditorOpening({ editId: 'SC-102', defaults: DEFAULTS }, A);
+  assert.match(o.id, /^SD-/);
+  assert.notEqual(o.id, 'SD-9');
+  assert.deepEqual([o.resume, o.offer], [null, null]);
+  // Reload before the first change: the same draft id, still nothing offered.
+  const again = scenarioEditorOpening({ editId: 'SC-102', requestedId: 'SD-keep', defaults: DEFAULTS }, A);
+  assert.deepEqual([again.id, again.resume, again.offer], ['SD-keep', null, null]);
+});
+
+test('an unfinished edit in progress is offered like any draft, asked once', () => {
+  const e = editDraft('SC-101', 'Password expiry', '2026-10-02T10:00:00Z');
+  saveScenarioDraft('SD-2', e, A);
+  setActiveScenarioDraftId('SD-2', A);
+  assert.equal(scenarioDraftToOffer(DEFAULTS, A).draft.edit.name, 'Password expiry');
+  markAsked('scenario', 'SD-2', scenarioContentVersion(e), A);
+  assert.equal(scenarioDraftToOffer(DEFAULTS, A), null);
+});
+
+test('deleting a scenario drops its unfinished edits only', () => {
+  saveScenarioDraft('SD-1', draft('New one', '2026-10-01T10:00:00Z'), A);
+  saveScenarioDraft('SD-2', editDraft('SC-905', 'My copy', '2026-10-02T10:00:00Z', 'update'), A);
+  saveScenarioDraft('SD-3', editDraft('SC-906', 'Other', '2026-10-03T10:00:00Z', 'update'), A);
+  setActiveScenarioDraftId('SD-2', A);
+  removeEditDrafts('SC-905', A);
+  assert.deepEqual(listScenarioDrafts(A).map((d) => d.id), ['SD-3', 'SD-1']);
+  assert.equal(getActiveScenarioDraftId(A), '');
+  removeEditDrafts('', A);
+  assert.equal(listScenarioDrafts(A).length, 2);
 });

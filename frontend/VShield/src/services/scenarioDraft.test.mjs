@@ -14,9 +14,11 @@ import {
   SCENARIO_DRAFT_VERSION,
   buildDraft,
   draftSummary,
+  formFingerprint,
   fromDraft,
   isMeaningfulDraft,
   parseDraft,
+  parseEdit,
   reusableCoverKey,
   sameDraftContent,
   toDraftFormData,
@@ -255,4 +257,75 @@ test('every cover upload gets its own file name, so it can never overwrite one',
   assert.match(renamed.name, /-cover\.png$/);
   assert.equal(renamed.type, 'image/png');
   assert.equal(renamed.size, file.size);
+});
+
+// --- edit drafts (Scenarios → Edit) -------------------------------------------------
+
+const opened = { ...blankForm, scenarioId: 'SC-101', scenarioName: 'Password expiry', emailSubject: 'Expiring', CoverImageID: 'CovImg-001.png' };
+const editOf = (form = opened, extra = {}) => ({
+  scenarioId: 'SC-101',
+  mode: 'copy',
+  name: 'Password expiry',
+  ownership: 'template',
+  baseline: formFingerprint(form),
+  ...extra,
+});
+
+test('an edit draft records what it edits, and keeps it through storage', () => {
+  const draft = buildDraft({ ...opened, emailSubject: 'Changed' }, 1, new Date(0), editOf());
+  assert.deepEqual(Object.keys(draft.edit), ['scenarioId', 'mode', 'name', 'ownership', 'baseline']);
+  const back = parseDraft(JSON.parse(JSON.stringify(draft)));
+  assert.deepEqual(back.edit, draft.edit);
+  assert.deepEqual(fromDraft(back).edit, draft.edit);
+  // A new scenario's draft keeps exactly its old shape.
+  assert.equal('edit' in buildDraft(opened, 0), false);
+  assert.equal('edit' in fromDraft(buildDraft(opened, 0)), false);
+});
+
+test('parseEdit accepts only a scenario id with a known mode', () => {
+  assert.equal(parseEdit(null), null);
+  assert.equal(parseEdit({ scenarioId: ' ', mode: 'copy' }), null);
+  assert.equal(parseEdit({ scenarioId: 'SC-1', mode: 'publish' }), null);
+  assert.deepEqual(parseEdit({ scenarioId: ' SC-1 ', mode: 'update', name: 7, baseline: 3 }), { scenarioId: 'SC-1', mode: 'update', name: '' });
+  for (const mode of ['copy', 'revision', 'update']) assert.equal(parseEdit({ scenarioId: 'SC-1', mode }).mode, mode);
+  const bad = parseDraft({ version: SCENARIO_DRAFT_VERSION, formData: { a: 1 }, edit: { scenarioId: 'SC-1', mode: 'nope' } });
+  assert.equal('edit' in bad, false);
+});
+
+test('an edit is worth keeping once something in it changed, not for stepping through', () => {
+  assert.equal(isMeaningfulDraft(buildDraft(opened, 0, new Date(), editOf()), DEFAULTS), false);
+  assert.equal(isMeaningfulDraft(buildDraft(opened, 3, new Date(), editOf()), DEFAULTS), false);
+  assert.equal(isMeaningfulDraft(buildDraft({ ...opened, emailSubject: 'Changed' }, 0, new Date(), editOf()), DEFAULTS), true);
+  assert.equal(isMeaningfulDraft(buildDraft({ ...opened, coverImageSource: 'catalogue' }, 0, new Date(), editOf()), DEFAULTS), true);
+  // Changed back to how it opened: nothing left to keep.
+  assert.equal(isMeaningfulDraft(buildDraft({ ...opened, emailSubject: 'Expiring' }, 2, new Date(), editOf()), DEFAULTS), false);
+  // No baseline recorded: any edit draft counts.
+  assert.equal(isMeaningfulDraft(buildDraft(opened, 0, new Date(), editOf(opened, { baseline: '' })), DEFAULTS), true);
+  // A stored and reloaded draft still compares equal to its baseline.
+  const reloaded = parseDraft(JSON.parse(JSON.stringify(buildDraft(opened, 1, new Date(), editOf()))));
+  assert.equal(isMeaningfulDraft({ ...reloaded, formData: fromDraft(reloaded).formData }, DEFAULTS), false);
+});
+
+test('the fingerprint reads content, not blanks, key order or session-only state', () => {
+  const a = formFingerprint({ scenarioName: 'X', emailSubject: 'S', description: '' });
+  assert.equal(formFingerprint({ emailSubject: 'S', scenarioName: 'X', coverImage: null, notes: null }), a);
+  assert.notEqual(formFingerprint({ scenarioName: 'X', emailSubject: 'S2' }), a);
+  assert.match(a, /^[0-9a-z]+-[0-9a-z]+$/);
+});
+
+test('a presigned link is never saved in a draft (it dies within the hour)', () => {
+  const signed = 'https://bucket.s3.ap-south-1.amazonaws.com/uploads/scenario-covers/SC-1/c.png?X-Amz-Signature=abc';
+  const out = toDraftFormData({ ...opened, coverImagePreview: signed, CoverImageID: 'uploads/scenario-covers/SC-1/c.png', link: 'https://example.com/a?b=1' });
+  assert.equal('coverImagePreview' in out, false);
+  assert.equal(out.CoverImageID, 'uploads/scenario-covers/SC-1/c.png');
+  assert.equal(out.link, 'https://example.com/a?b=1');
+});
+
+test('the Drafts card and the prompt know an edit by the scenario it edits', () => {
+  const info = draftSummary(buildDraft({ ...opened, scenarioName: 'Renamed' }, 1, new Date(0), editOf()));
+  assert.equal(info.name, 'Renamed');
+  assert.deepEqual(info.editing, { scenarioId: 'SC-101', mode: 'copy', name: 'Password expiry' });
+  const unnamed = draftSummary(buildDraft(opened, 1, new Date(0), editOf(opened, { name: '' })));
+  assert.equal(unnamed.editing.name, 'Password expiry');
+  assert.equal('editing' in draftSummary(buildDraft(opened, 1)), false);
 });

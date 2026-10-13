@@ -62,13 +62,22 @@ export const api = {
   },
   // Read-only reference data (used by later screens).
   users: { list: () => request('/users') },
+  // Ownership (scenarioOwnership.js): `viewer` asks for what that person may
+  // see, each row annotated with its `ownership`; `actor` says who is changing
+  // a row. Both are client-asserted until sign-in exists (identity.js), so they
+  // keep honest users apart but are not a security boundary.
   scenarios: {
-    list: () => request('/scenarios'),
+    list: ({ viewer } = {}) =>
+      request(`/scenarios${viewer ? `?viewer=${encodeURIComponent(viewer)}` : ''}`),
     get: (id) => request(`/scenarios/${encodeURIComponent(id)}`),
+    // A copy or revision carries createdBy and copyOf / revisionOf.
     create: (item) => request('/scenarios', { method: 'POST', body: item }),
-    update: (id, patch) =>
-      request(`/scenarios/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
-    remove: (id) => request(`/scenarios/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    update: (id, patch, actor) =>
+      request(`/scenarios/${encodeURIComponent(id)}`, { method: 'PUT', body: { ...patch, actor } }),
+    remove: (id, actor) =>
+      request(`/scenarios/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}`, {
+        method: 'DELETE',
+      }),
 
     // Presign, then PUT the image straight to S3. Returns the key to store as
     // CoverImageID; the API hands back a presigned GET for it on later reads.
