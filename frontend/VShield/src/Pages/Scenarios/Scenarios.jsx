@@ -727,12 +727,21 @@ const Scenarios = () => {
   // ---------------------------------------------------
   // Search (matches id, title, or type)
   // ---------------------------------------------------
+  // A scenario with unsaved changes shows in one place only: under Drafts as
+  // "Editing: <name>", not also here. It is back in this list once the edit is
+  // saved or its draft deleted.
+  const editingIds = useMemo(
+    () => new Set(drafts.map((d) => d.edit?.scenarioId).filter(Boolean).map(String)),
+    [drafts]
+  );
+
   const filteredScenarios = useMemo(() => {
-    if (!search.trim()) return scenariosList;
+    const listed = scenariosList.filter((scenario) => !editingIds.has(String(scenario.scenarioId)));
+    if (!search.trim()) return listed;
 
     const searchText = search.toLowerCase();
 
-    return scenariosList.filter(
+    return listed.filter(
       (scenario) =>
         scenario.title?.toLowerCase().includes(searchText) ||
         scenario.id?.toLowerCase().includes(searchText) ||
@@ -743,7 +752,7 @@ const Scenarios = () => {
         scenario.CreatedOn?.toLowerCase().includes(searchText) ||
         scenario.CoverImageID?.toLowerCase().includes(searchText)
     );
-  }, [search, scenariosList]);
+  }, [search, scenariosList, editingIds]);
 
   
 
