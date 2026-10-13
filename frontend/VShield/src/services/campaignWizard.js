@@ -24,6 +24,14 @@ export const START_FRESH_ID = 'start-fresh';
  */
 export const IN_WIZARD = { state: { fromWizard: true } };
 
+/**
+ * navigate() options for going back from step 2 to step 1 (also the history
+ * entry browser Back returns to): the user is still working on the same
+ * campaign, so a template picked there changes that campaign. Anywhere else a
+ * template on step 1 starts a new campaign (see templatePick).
+ */
+export const BACK_TO_STEP_1 = { state: { fromWizard: true, editingCampaign: true } };
+
 export const WIZARD_STEPS = [
   { step: 1, name: 'Choose a scenario', path: '/start-campaign' },
   { step: 2, name: 'Details & settings', path: '/start-campaign/details' },
@@ -153,6 +161,26 @@ export function hasEditsBeyondScenario(draft, previous = null) {
   return TEMPLATE_CONTENT_FIELDS.some((k) =>
     base ? norm(draft[k]) !== norm(base[k]) : norm(draft[k]) !== ''
   );
+}
+
+/**
+ * What picking a template (or Start fresh) on step 1 does, given the campaign
+ * in progress (`draft`) and the template it was built from (`previous`):
+ *  'new'     start a new campaign from the template, leaving the one in
+ *            progress as it is under Drafts. Always, unless the user came
+ *            back from step 2 (`editing`): still working on this campaign,
+ *            the template changes it, as one of:
+ *  'same'    already this campaign's template: carry on, every edit kept
+ *  'confirm' another template over the user's own edits: ask first
+ *  'apply'   another template with nothing of the user's to lose (also when
+ *            nothing is in progress: it fills the new, blank campaign)
+ */
+export function templatePick({ editing = false, draft, scenarioId, previous = null }) {
+  if (!draft?.campaignId || !shouldOfferResume(draft)) return 'apply';
+  if (!editing) return 'new';
+  if (isSameScenario(draft, scenarioId)) return 'same';
+  if (hasEditsBeyondScenario(draft, previous)) return 'confirm';
+  return 'apply';
 }
 
 /**

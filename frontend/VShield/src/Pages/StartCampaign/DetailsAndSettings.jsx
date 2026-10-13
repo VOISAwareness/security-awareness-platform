@@ -6,7 +6,7 @@ import { Check, AlertTriangle, X } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
+import { BACK_TO_STEP_1, IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
 import { isAfter } from '../../services/calendarDates';
 import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
@@ -240,11 +240,13 @@ const DetailsAndSettings = () => {
   const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft, update, flush, onError: setErrorMsg });
 
   // Step 1 does not record itself on mount (it may be about to offer
-  // "Continue your campaign?"), so going back to it is recorded here.
+  // "Continue your campaign?"), so going back to it is recorded here. Back on
+  // step 1 this is still the campaign being worked on: a template picked there
+  // changes it rather than starting a new one.
   const handleGoBack = async () => {
     persistChanges({ ...detailsPatch(), wizardStep: 1 });
     await flush();
-    navigate('/start-campaign', IN_WIZARD);
+    navigate('/start-campaign', BACK_TO_STEP_1);
   };
 
   const stepsList = CAMPAIGN_STEPS || [

@@ -9,8 +9,12 @@
  *
  * Closing the dialog (its ✕, Esc or a click outside) means "not now": the item
  * is remembered as asked, so coming back does not ask again, but it is still
- * the one in progress (`deferred`), so the question comes back as soon as the
- * user starts something new (wasDeferred) and Continue / Start new decide.
+ * the one in progress (`deferred`), so the scenario editor asks once more as
+ * soon as the user starts something new (wasDeferred) and Continue / Start new
+ * decide.
+ *
+ * A campaign saved with "Save as draft", or opened from Drafts, is never asked
+ * about (markDraftOnly): it is picked up from Drafts, whatever changes in it.
  *
  * A version is a fingerprint of the item's CONTENT only, never of where the
  * user is in it: moving between steps or tabs saves the step / tab and a new
@@ -22,7 +26,7 @@
  *             tab it was on, not savedAt)
  *
  * Per signed-in person, in this browser (see draftStore.js):
- *   voisshield_resume_asked:<email>  [{ kind, id, version, deferred? }, ...] newest first
+ *   voisshield_resume_asked:<email>  [{ kind, id, version, deferred?, draftOnly? }, ...] newest first
  * Kept to the newest MAX_ENTRIES answers. Storage can be unavailable; then
  * nothing is remembered and the question may simply be asked again.
  */
@@ -168,12 +172,15 @@ const versionList = (version) => (Array.isArray(version) ? version : [version]).
 
 /**
  * Was this person already asked about this item, at this version? `version`
- * may be a list of versions that all describe the item as it is now.
+ * may be a list of versions that all describe the item as it is now. An item
+ * kept to Drafts (markDraftOnly) counts as asked at every version.
  */
 export function wasAsked(kind, id, version, actor) {
   if (!KINDS.has(kind) || !id) return false;
   const versions = versionList(version);
-  return readEntries(actor).some((e) => e.kind === kind && e.id === String(id) && versions.includes(e.version));
+  return readEntries(actor).some(
+    (e) => e.kind === kind && e.id === String(id) && (e.draftOnly === true || versions.includes(e.version))
+  );
 }
 
 /**
@@ -182,7 +189,7 @@ export function wasAsked(kind, id, version, actor) {
  * remembered. False when storage refused it.
  */
 export function markAsked(kind, id, version, actor) {
-  return remember(kind, id, version, actor, false);
+  return remember(kind, id, version, actor);
 }
 
 /**
@@ -190,7 +197,16 @@ export function markAsked(kind, id, version, actor) {
  * still to be decided once the user starts something new (wasDeferred).
  */
 export function markDeferred(kind, id, version, actor) {
-  return remember(kind, id, version, actor, true);
+  return remember(kind, id, version, actor, { deferred: true });
+}
+
+/**
+ * Saved with "Save as draft", or opened from Drafts: from now on the item is
+ * picked up from Drafts only and never asked about, whatever changes in it.
+ * Later answers about it keep this.
+ */
+export function markDraftOnly(kind, id, actor) {
+  return remember(kind, id, '', actor, { draftOnly: true });
 }
 
 /** Was the question about this item, at this version, put off ("not now")? */
@@ -202,10 +218,13 @@ export function wasDeferred(kind, id, version, actor) {
   );
 }
 
-function remember(kind, id, version, actor, deferred) {
+function remember(kind, id, version, actor, { deferred = false, draftOnly = false } = {}) {
   if (!KINDS.has(kind) || !id) return false;
   const entry = { kind, id: String(id), version: versionList(version)[0] };
   if (deferred) entry.deferred = true;
-  const rest = readEntries(actor).filter((e) => !(e.kind === entry.kind && e.id === entry.id));
+  const entries = readEntries(actor);
+  const same = (e) => e.kind === entry.kind && e.id === entry.id;
+  if (draftOnly || entries.some((e) => same(e) && e.draftOnly === true)) entry.draftOnly = true;
+  const rest = entries.filter((e) => !same(e));
   return writeJSON(scopedKey(RESUME_ASKED_KEY, actor), [entry, ...rest].slice(0, MAX_ENTRIES));
 }

@@ -30,6 +30,7 @@ import { isEditable } from './campaignStatus';
 import { isCreatedBy, isOwnDraft, toStep } from './campaignWizard';
 import { readString, removeKey, scopedKey, writeString } from './draftStore';
 import { currentActor } from './identity';
+import { markDraftOnly } from './resumePrompt';
 
 const POINTER_BASE = 'voisshield_active_campaign_id';
 const LEGACY_DRAFT_KEY = 'voisshield_active_campaign_draft';
@@ -83,6 +84,26 @@ export function setActiveCampaignId(id) {
 export function clearActiveCampaign() {
   setActiveCampaignId('');
   removeKey(LEGACY_DRAFT_KEY);
+}
+
+/**
+ * "Save as draft": leave the campaign under Drafts. It is no longer the one in
+ * progress, and "Continue your campaign?" never asks about it: it is picked up
+ * from Drafts.
+ */
+export function parkCampaignDraft(row) {
+  if (row?.campaignId) markDraftOnly('campaign', row.campaignId);
+  setActiveCampaignId('');
+}
+
+/**
+ * Open a campaign from Drafts (or a request sent back): it becomes the one in
+ * progress, and like a saved one it is never asked about, since Drafts is where
+ * it is picked up.
+ */
+export function openCampaignDraft(id) {
+  if (id) markDraftOnly('campaign', id);
+  setActiveCampaignId(id);
 }
 
 /**
