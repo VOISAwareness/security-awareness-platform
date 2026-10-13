@@ -33,7 +33,7 @@ import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -424,8 +424,18 @@ const ChooseAScenario = () => {
               Start New Campaign
             </h1>
           </div>
-          {/* The templates and this person's draft are both on their way. */}
-          <HeaderLoading show={scenariosLoading || loading} isDark={isDark} />
+          {/* Create new | Drafts (same switch as the Scenarios page) */}
+          <ViewTabs
+            variant="header"
+            ariaLabel="Start new campaign view"
+            isDark={isDark}
+            value={view}
+            onChange={setView}
+            tabs={[
+              { id: 'all', label: 'Create new' },
+              { id: 'drafts', label: 'Drafts', count: draftItems.length },
+            ]}
+          />
         </div>
 
         {/* ========================================================================= */}
@@ -436,6 +446,10 @@ const ChooseAScenario = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
+          {/* Covered while the view's own data is on its way: the templates and
+              this person's draft (Create new), or their saved campaigns (Drafts). */}
+          <PageLoading show={view === 'all' ? scenariosLoading || loading : draftsLoading} isDark={isDark} />
+
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
@@ -483,24 +497,6 @@ const ChooseAScenario = () => {
                 </div>
               );
             })}
-          </div>
-
-          {/* ── Create new | Drafts (same switch as the Scenarios page) ── */}
-          <div className="px-4 sm:px-3 pt-3 flex items-center gap-2.5 flex-shrink-0">
-            <ViewTabs
-              ariaLabel="Start new campaign view"
-              className="mr-auto"
-              isDark={isDark}
-              value={view}
-              onChange={setView}
-              tabs={[
-                { id: 'all', label: 'Create new' },
-                { id: 'drafts', label: 'Drafts', count: draftItems.length },
-              ]}
-            />
-            {view === 'drafts' && draftsError && (
-              <span role="alert" className="text-[10px] font-bold text-[#E60000]">{draftsError}</span>
-            )}
           </div>
 
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
@@ -670,6 +666,9 @@ const ChooseAScenario = () => {
           </div>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
+              {draftsError && (
+                <span role="alert" className="mb-2 text-[10px] font-bold text-[#E60000]">{draftsError}</span>
+              )}
               <DraftCards
                 items={draftItems}
                 cardClassName="w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px]"

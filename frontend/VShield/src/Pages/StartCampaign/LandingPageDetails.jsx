@@ -43,7 +43,7 @@ import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalog
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
 import createNewOneImg from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -897,8 +897,6 @@ const LandingPageDetails = () => {
               Start New Campaign
             </h1>
           </div>
-          {/* The campaign is on its way from the server. */}
-          <HeaderLoading show={draftLoading} isDark={isDark} />
         </div>
 
         {/* ========================================================================= */}
@@ -909,6 +907,9 @@ const LandingPageDetails = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
+          {/* The campaign is on its way from the server. */}
+          <PageLoading show={draftLoading} isDark={isDark} />
+
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${

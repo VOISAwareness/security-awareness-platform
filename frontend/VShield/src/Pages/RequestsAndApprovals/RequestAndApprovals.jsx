@@ -24,7 +24,7 @@ import RejectedImg from '../../assets/RequestAndApprovalsAssets/RejectedCampaign
 import MegaphoneImg from '../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
 import ExpiredImg from '../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
 import MyApprovedImg from '../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
-import HeaderLoading from '../../GlobalComponents/HeaderLoading';
+import PageLoading from '../../GlobalComponents/PageLoading';
 
 
 // =========================================================================
@@ -247,6 +247,11 @@ const RequestAndApprovals = () => {
     };
   }, [campaigns]);
 
+  // The page is covered only for its first load, while there is nothing to
+  // show yet. A refetch (Retry) keeps the page and its error banner visible;
+  // the Retry icon spins instead.
+  const coverLoading = loading && !error && liveCampaigns.length === 0;
+
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
@@ -267,14 +272,18 @@ const RequestAndApprovals = () => {
               Requests & Approvals
             </h1>
           </div>
-          <HeaderLoading show={loading} isDark={isDark} />
         </div>
 
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
+        {/* Grows to the foot of the page so the loading state is centred in
+            it, and is hidden while loading (it has no card behind it). */}
         <div 
           style={{ gap: `${VarSectionGap}px` }}
-          className="w-full flex flex-col lg:flex-row items-start"
+          className={`relative grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? 'invisible' : ''}`}
         >
+          {/* The campaigns are on their way from the server. */}
+          <PageLoading show={coverLoading} isDark={isDark} surface="page" />
+
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 5 SWITCHER CAPSULES WITH HOVER POP ANIMATION              */}
           {/* ========================================================================= */}
@@ -387,7 +396,7 @@ const RequestAndApprovals = () => {
                   }}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
                 >
-                  <RefreshCw className="w-3 h-3" /> Retry
+                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Retry
                 </button>
               </div>
             )}
