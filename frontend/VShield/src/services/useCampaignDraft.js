@@ -158,11 +158,22 @@ function createDraftOnce(step) {
 /**
  * The draft a pointer refers to, or null when it cannot be opened here: deleted,
  * already submitted or sent, or someone else's campaign.
+ *
+ * Any other failure to read it (offline, a server error, the page left while
+ * the request was in flight) says nothing about the draft, so it is thrown
+ * rather than read as "gone": the pointer is kept, and the campaign is neither
+ * replaced by a blank one nor dropped from "Continue your campaign?".
  */
 async function openPointerDraft(id) {
   if (!id) return null;
   await savesSettled(id);
-  const item = await api.campaigns.get(id).catch(() => null);
+  let item;
+  try {
+    item = await api.campaigns.get(id);
+  } catch (e) {
+    if (e?.status === 404) return null;
+    throw e;
+  }
   if (!item) return null;
   // REJECTED counts as openable: the whole point of a rejection is that the
   // owner reworks it, and the backend allows editing it (see EDITABLE_STATUSES

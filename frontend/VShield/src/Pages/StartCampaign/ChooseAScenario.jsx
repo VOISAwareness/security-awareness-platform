@@ -35,7 +35,6 @@ import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
-import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -144,7 +143,7 @@ const ChooseAScenario = () => {
   // Writes made before then are safe: flush() waits for the load.
   // Lazy: nothing is saved until a template or Start fresh is picked, so
   // opening this page never leaves an empty draft behind.
-  const { draft, loading, update, flush, startNew, campaignId } = useCampaignDraft({ lazy: true });
+  const { draft, loading, error: draftError, update, flush, startNew, campaignId } = useCampaignDraft({ lazy: true });
 
   // ---------------------------------------------------------------------------
   // Create new | Drafts: start a campaign from a template or Start fresh, or
@@ -361,26 +360,6 @@ const ChooseAScenario = () => {
     await startNew();
   };
 
-  // Back from step 2, the campaign being worked on is shown under the
-  // templates with "Save as draft": leave it under Drafts, no longer in
-  // progress, and start clean.
-  const editingInProgress = editingCampaign && Boolean(draftId) && shouldOfferResume(draft);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const handleSaveAsDraft = async () => {
-    const row = draft;
-    setSavingDraft(true);
-    try {
-      await flush().catch(() => {});
-      parkCampaignDraft(row);
-      await startNew();
-      pickScenario(scenariosList[0]?.scenarioId || '');
-      setView('drafts');
-      setSavedNotice(draftLabel(row));
-    } finally {
-      setSavingDraft(false);
-    }
-  };
-
   // "Not now": nothing is written and the page stays as it is.
   const handleNotNow = () => {
     markResumeAnswered();
@@ -426,7 +405,10 @@ const ChooseAScenario = () => {
       scenarioId: scenario.scenarioId,
       previous: findScenario(draft?.scenarioId),
     });
-    if (pick === 'new') {
+    // A campaign in progress that could not be read right now is not
+    // continued either: the template still starts a new one.
+    const unread = !editingCampaign && !draft && Boolean(draftError);
+    if (pick === 'new' || unread) {
       parkCampaignDraft(draft);
       await startNew();
       await goToDetails(templatePatch(scenario, {}, null));
@@ -730,14 +712,6 @@ const ChooseAScenario = () => {
               );
             })}
           </div>
-          {editingInProgress && (
-            <div className="flex items-center justify-end gap-2.5 px-4 -mt-2 mb-3 flex-shrink-0">
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">
-                In progress: {draftLabel(draft)}
-              </span>
-              <SaveDraftButton onClick={handleSaveAsDraft} busy={savingDraft} />
-            </div>
-          )}
           </>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
