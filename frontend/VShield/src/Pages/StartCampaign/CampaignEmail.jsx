@@ -877,17 +877,19 @@ const CampaignEmail = () => {
    {/* 🌟 Single-Line Dark Header Toolbar (Seamless with Container) */}
    <div
     data-editor-toolbar
-    className="w-full h-8 px-2 flex items-center gap-1.5 text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 rounded-t-xl relative z-30 flex-nowrap"
+    className="w-full h-8 text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 rounded-t-xl relative z-30"
    >
-    {/* The tools scroll sideways when the editor is narrower than they are
-        (a mouse wheel scrolls them too); HTML and expand stay on the right. */}
+    {/* The whole header scrolls sideways when the editor is narrower than it
+        (a mouse wheel scrolls it too). When it fits, HTML and expand sit on
+        the right as before. */}
     <div
      data-editor-tools
      onScroll={closeToolbarMenus}
      onWheel={scrollToolsWithWheel}
-     className="flex-1 min-w-0 h-full flex items-center overflow-x-auto overflow-y-hidden [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 dark:[&::-webkit-scrollbar-thumb]:bg-black/25"
+     className="w-full h-full flex items-center overflow-x-auto overflow-y-hidden rounded-t-xl [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 dark:[&::-webkit-scrollbar-thumb]:bg-black/25"
     >
-    <div className="flex items-center gap-1 text-xs flex-nowrap w-max pr-1">
+    <div className="min-w-full w-max h-full px-2 flex items-center justify-between gap-3 flex-nowrap">
+    <div className="flex items-center gap-1 text-xs flex-nowrap">
      {/* Format Block */}
      <select
       onMouseDown={() => saveSelection()}
@@ -1093,9 +1095,34 @@ const CampaignEmail = () => {
 
      </div>
     </div>
+
+    {/* Right side: HTML Code Toggle & Expand (scrolls with the rest) */}
+    <div className="flex items-center gap-1 flex-shrink-0">
+     <button
+      type="button"
+      onClick={handleToggleCodeMode}
+      className={`px-1.5 py-0.5 rounded border text-[8.5px] font-bold flex items-center gap-0.5 cursor-pointer ${
+       rawHtmlMode ? 'bg-[#E60000] text-white border-[#E60000]' : 'bg-[#181A20] text-white border-white/20 hover:bg-white/10'
+      }`}
+      title="Toggle HTML Source Code"
+     >
+      <Code className="w-2.5 h-2.5" />
+      {rawHtmlMode ? 'Visual' : 'HTML'}
+     </button>
+
+     <button
+      type="button"
+      onClick={handleToggleExpand}
+      className="hover:text-[#E60000] text-white dark:text-black cursor-pointer transition-colors p-0.5 rounded hover:bg-white/10"
+      title={expanded ? 'Minimize Screen' : 'Expand Full Screen'}
+     >
+      {expanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+     </button>
+    </div>
+    </div>
     </div>
 
-    {/* Menus of the tools above, drawn here so the scrolling strip does not clip them */}
+    {/* Menus of the tools above, drawn here so the scrolling header does not clip them */}
     {showEditorFxMenu && fxMenuAt?.expanded === expanded && (
        <div
         data-editor-menu="fx"
@@ -1169,30 +1196,6 @@ const CampaignEmail = () => {
         })}
        </div>
       )}
-
-    {/* Right side: HTML Code Toggle & Expand */}
-    <div className="flex items-center gap-1 flex-shrink-0">
-     <button
-      type="button"
-      onClick={handleToggleCodeMode}
-      className={`px-1.5 py-0.5 rounded border text-[8.5px] font-bold flex items-center gap-0.5 cursor-pointer ${
-       rawHtmlMode ? 'bg-[#E60000] text-white border-[#E60000]' : 'bg-[#181A20] text-white border-white/20 hover:bg-white/10'
-      }`}
-      title="Toggle HTML Source Code"
-     >
-      <Code className="w-2.5 h-2.5" />
-      {rawHtmlMode ? 'Visual' : 'HTML'}
-     </button>
-
-     <button
-      type="button"
-      onClick={handleToggleExpand}
-      className="hover:text-[#E60000] text-white dark:text-black cursor-pointer transition-colors p-0.5 rounded hover:bg-white/10"
-      title={expanded ? 'Minimize Screen' : 'Expand Full Screen'}
-     >
-      {expanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-     </button>
-    </div>
    </div>
 
    {/* Main Canvas Area: Clean bottom radius without outer edge bleed */}
