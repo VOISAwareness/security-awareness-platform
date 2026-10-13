@@ -13,8 +13,20 @@ export const TOP_COUNT = 15;
 
 const squash = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
-/** Two bodies that differ only in whitespace are the same body. */
-export const sameBody = (a, b) => squash(a) === squash(b);
+// A whole page's wrappers. The editor is a <div>, which drops them: a template
+// stored as a full page (<!DOCTYPE html><html><head>…) shows there without them.
+const PAGE_WRAPPERS = /<!doctype[^>]*>|<\/?(?:html|head|body)\b[^>]*>/gi;
+
+/**
+ * A body reduced to what tells two bodies apart: no page wrappers, and
+ * whitespace only where it shows (runs become one space; none next to a tag,
+ * so the HTML view's indentation is not a change).
+ */
+export const bodyKey = (html) =>
+  squash(String(html ?? '').replace(PAGE_WRAPPERS, ' ')).replace(/\s*(<[^>]*>)\s*/g, '$1');
+
+/** The same body, once page wrappers and invisible whitespace are set aside. */
+export const sameBody = (a, b) => bodyKey(a) === bodyKey(b);
 
 const ENTITIES = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'" };
 
@@ -51,11 +63,12 @@ export function bodyUsage(campaigns = []) {
  * The bodies to offer, most used first (ties by template id). Templates with
  * no body are skipped, and identical bodies are offered once, under the
  * template that used it most. Past LARGE_LIBRARY bodies only the top
- * TOP_COUNT are returned.
+ * TOP_COUNT are returned. `keyOf` decides when two bodies are identical
+ * (the editor passes one that first parses them as it would show them).
  *
  * -> { options: [{ id, name, html, uses, snippet }], total, limited }
  */
-export function emailBodyOptions(scenarios = [], campaigns = []) {
+export function emailBodyOptions(scenarios = [], campaigns = [], { keyOf = bodyKey } = {}) {
   const uses = bodyUsage(campaigns);
   const byBody = new Map();
   for (const s of scenarios) {
@@ -67,7 +80,7 @@ export function emailBodyOptions(scenarios = [], campaigns = []) {
       html,
       uses: uses.get(String(s.scenarioId)) || 0,
     };
-    const key = squash(html);
+    const key = keyOf(html);
     const seen = byBody.get(key);
     if (!seen) byBody.set(key, option);
     else byBody.set(key, option.uses > seen.uses ? { ...option, uses: option.uses + seen.uses } : { ...seen, uses: seen.uses + option.uses });

@@ -33,7 +33,7 @@ import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { currentActor } from '../../services/identity';
 import { scenariosForViewer } from '../../services/scenarioOwnership';
 import { IN_WIZARD } from '../../services/campaignWizard';
-import { TOP_COUNT, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
+import { TOP_COUNT, bodyKey, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
@@ -118,6 +118,24 @@ const FX_PARAMETERS = [
  { label: '@EmployeeID', code: '{{employeeId}}', desc: 'Corporate employee badge number' },
  { label: '@CurrentDate', code: '{{currentDate}}', desc: 'Simulation execution timestamp' }
 ];
+
+// The editor holds a body as the browser parsed it into a <div>: a full page
+// loses its wrappers, attributes are re-quoted, <br/> becomes <br>, and so on.
+// Both sides are put through that same parse before they are compared, in an
+// inert document, so nothing in a body loads or runs. Parses are kept: the
+// Email Body menu compares every body each time it renders.
+const parsedBodies = new Map();
+const asInEditor = (html) => {
+ const source = String(html ?? '');
+ if (!parsedBodies.has(source)) {
+  if (parsedBodies.size > 200) parsedBodies.clear();
+  const box = document.implementation.createHTMLDocument('').createElement('div');
+  box.innerHTML = source;
+  parsedBodies.set(source, box.innerHTML);
+ }
+ return parsedBodies.get(source);
+};
+const isSameBody = (a, b) => sameBody(asInEditor(a), asInEditor(b));
 
 const CampaignEmail = () => {
  const navigate = useNavigate();
@@ -204,7 +222,8 @@ const CampaignEmail = () => {
  }, []);
 
  const libraryTemplates = libraryScenarios || scenariosJsonData?.scenarios || [];
- const bodyLibrary = emailBodyOptions(libraryTemplates, libraryCampaigns);
+ // Bodies the editor would show the same way are offered once.
+ const bodyLibrary = emailBodyOptions(libraryTemplates, libraryCampaigns, { keyOf: (html) => bodyKey(asInEditor(html)) });
 
  // Recipient lists come from the API, so a list uploaded on the User Lists screen
  // is immediately targetable here. UserDLsData.json stays as the fallback while
@@ -651,13 +670,14 @@ const CampaignEmail = () => {
  };
 
  // Ask first only when the editor holds the user's own work: an empty editor,
- // or one showing another template's body unchanged, loses nothing.
+ // or one showing a template's (or a library) body unchanged, loses nothing.
  const chooseEmailBody = (option) => {
   setShowBodyMenu(false);
   const current = currentBodyHtml();
-  if (sameBody(current, option.html)) return;
+  if (isSameBody(current, option.html)) return;
   const hasContent = Boolean(bodySnippet(current)) || /<(img|table)\b/i.test(current);
-  const isTemplateBody = libraryTemplates.some((t) => sameBody(t.emailBody, current));
+  const isTemplateBody = [...libraryTemplates.map((t) => t.emailBody), ...bodyLibrary.options.map((o) => o.html)]
+   .some((html) => html && isSameBody(html, current));
   if (hasContent && !isTemplateBody) {
    setPendingBody(option);
    return;
@@ -1169,7 +1189,7 @@ const CampaignEmail = () => {
          <span className="px-2 py-2 text-[9px] text-slate-400">No email bodies in the library yet.</span>
         )}
         {bodyLibrary.options.map((option) => {
-         const inEditor = sameBody(option.html, bodyAtMenuOpen);
+         const inEditor = isSameBody(option.html, bodyAtMenuOpen);
          return (
           <button
            key={option.id}
