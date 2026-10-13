@@ -148,9 +148,10 @@ const ChooseAScenario = () => {
   // ---------------------------------------------------------------------------
   // Create new | Drafts: start a campaign from a template or Start fresh, or
   // carry on with one of this person's unfinished campaigns (as listed under
-  // Campaigns → Drafts). Same switch as the Scenarios page. Drafts with no
-  // progress (left by older versions, which saved a blank draft on arrival)
-  // are not listed.
+  // Campaigns → Drafts). Same switch as the Scenarios page. Drafts with nothing
+  // of the user's in them (hasProgress) are not listed: a blank one left by
+  // older versions, or one only opened from a template, which the next
+  // template reuses.
   // ---------------------------------------------------------------------------
   // "Save as draft" on a later step lands here on the Drafts tab, saying so.
   const [view, setView] = useState(() => (location.state?.view === 'drafts' ? 'drafts' : 'all')); // 'all' | 'drafts'

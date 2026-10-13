@@ -84,19 +84,45 @@ test('savedStep reads wizardStep, else the fallback', () => {
   assert.equal(savedStep(null), 2);
 });
 
-test('hasProgress: a step past 1, a scenario, or a title', () => {
+test('hasProgress: nothing of the user\'s yet', () => {
   assert.equal(hasProgress(null), false);
   assert.equal(hasProgress({ campaignId: 'CMP-1', status: 'DRAFT' }), false);
   assert.equal(hasProgress({ wizardStep: 1 }), false);
+  assert.equal(hasProgress({ wizardStep: 2 }), false);
   assert.equal(hasProgress({ campaignTitle: '   ' }), false);
-  assert.equal(hasProgress({ wizardStep: 2 }), true);
-  assert.equal(hasProgress({ scenarioId: 'SC-001' }), true);
+  assert.equal(hasProgress({ scenarioId: 'SC-001' }), false);
+  // Only opened from a template (or Start fresh), at step 1 or 2: the template's own content.
+  assert.equal(hasProgress(fromTemplate(PHISH, { wizardStep: 2 })), false);
+  assert.equal(hasProgress(fromTemplate({ scenarioId: START_FRESH_ID }, { wizardStep: 2 })), false);
+  // Step 2 moved through without typing saves its untouched defaults.
+  assert.equal(
+    hasProgress(fromTemplate(PHISH, { wizardStep: 1, startTime: '', endTime: '', isTestCampaign: false, autoEndPostSending: true })),
+    false
+  );
+});
+
+test('hasProgress: the user\'s own work', () => {
+  const opened = fromTemplate(PHISH, { wizardStep: 2 });
+  assert.equal(hasProgress({ ...opened, wizardStep: 3 }), true);
+  assert.equal(hasProgress({ ...opened, savedAsDraft: true }), true);
+  assert.equal(hasProgress({ ...opened, campaignTitle: 'Q3 drill', campaignTitleSetByUser: true }), true);
+  assert.equal(hasProgress({ ...opened, campaignDescriptionSetByUser: true }), true);
+  assert.equal(hasProgress({ ...opened, startTime: '2026-11-02T10:00' }), true);
+  assert.equal(hasProgress({ ...opened, endTime: '2026-11-03T10:00' }), true);
+  assert.equal(hasProgress({ ...opened, selectedListId: 'UL-1' }), true);
+  assert.equal(hasProgress({ ...opened, isTestCampaign: true }), true);
+  assert.equal(hasProgress({ ...opened, autoEndPostSending: false }), true);
+  assert.equal(hasProgress({ ...opened, landingPageContent: '<div/>' }), true);
+  assert.equal(hasProgress({ ...opened, trainingPathAttachedByUser: true }), true);
+  // Older drafts without the flags: a title other than the template's name.
   assert.equal(hasProgress({ campaignTitle: 'Q3 drill' }), true);
+  assert.equal(hasProgress({ ...opened, campaignTitle: 'Q3 drill' }), true);
 });
 
 test('resume is offered only for an editable draft with progress', () => {
   assert.equal(shouldOfferResume({ status: 'DRAFT', wizardStep: 3 }), true);
-  assert.equal(shouldOfferResume({ status: 'REJECTED', scenarioId: 'SC-001' }), true);
+  assert.equal(shouldOfferResume({ status: 'REJECTED', scenarioId: 'SC-001', startTime: '2026-11-02T10:00' }), true);
+  assert.equal(shouldOfferResume(fromTemplate(PHISH, { wizardStep: 2 })), false);
   assert.equal(shouldOfferResume({ wizardStep: 3 }), true);
   assert.equal(shouldOfferResume({ status: 'PENDING_APPROVAL', wizardStep: 6 }), false);
   assert.equal(shouldOfferResume({ status: 'DRAFT' }), false);
@@ -255,7 +281,13 @@ test('edits: a template that can no longer be found counts any content', () => {
 });
 
 test('templatePick: a template starts a new campaign unless back from step 2', () => {
-  const inProgress = fromTemplate(PHISH, { campaignId: 'CMP-1', status: 'DRAFT', wizardStep: 2 });
+  const inProgress = fromTemplate(PHISH, {
+    campaignId: 'CMP-1',
+    status: 'DRAFT',
+    wizardStep: 2,
+    campaignTitle: 'Q3 drill',
+    campaignTitleSetByUser: true,
+  });
   const pick = (over) => templatePick({ draft: inProgress, scenarioId: PARCEL.scenarioId, previous: PHISH, ...over });
   // Arrived from anywhere else: always a new campaign, even the same template.
   assert.equal(pick({}), 'new');
@@ -271,11 +303,34 @@ test('templatePick: a template starts a new campaign unless back from step 2', (
 });
 
 test('templatePick: back from step 2 the template changes this campaign', () => {
-  const inProgress = fromTemplate(PHISH, { campaignId: 'CMP-1', status: 'DRAFT', wizardStep: 1 });
+  const inProgress = fromTemplate(PHISH, {
+    campaignId: 'CMP-1',
+    status: 'DRAFT',
+    wizardStep: 1,
+    campaignTitle: 'Q3 drill',
+    campaignTitleSetByUser: true,
+  });
   const pick = (over) =>
     templatePick({ editing: true, draft: inProgress, scenarioId: PARCEL.scenarioId, previous: PHISH, ...over });
   assert.equal(pick({ scenarioId: PHISH.scenarioId }), 'same');
   assert.equal(pick({}), 'apply');
   assert.equal(pick({ draft: { ...inProgress, emailSubject: 'Mine' } }), 'confirm');
   assert.equal(pick({ draft: { ...inProgress, wizardStep: 3 } }), 'confirm');
+});
+
+test('templatePick: a campaign only opened from a template is reused, not kept', () => {
+  const opened = fromTemplate(PHISH, { campaignId: 'CMP-1', status: 'DRAFT', wizardStep: 2 });
+  for (const editing of [false, true]) {
+    assert.equal(templatePick({ editing, draft: opened, scenarioId: PARCEL.scenarioId, previous: PHISH }), 'apply');
+    assert.equal(templatePick({ editing, draft: opened, scenarioId: START_FRESH_ID, previous: PHISH }), 'apply');
+  }
+  // The template's email changed (only possible past step 2): never reused.
+  const edited = { ...opened, emailSubject: 'Mine' };
+  assert.equal(templatePick({ draft: edited, scenarioId: PARCEL.scenarioId, previous: PHISH }), 'new');
+  assert.equal(templatePick({ editing: true, draft: edited, scenarioId: PARCEL.scenarioId, previous: PHISH }), 'confirm');
+  // Saved as a draft on purpose: kept, and a template starts a new one.
+  assert.equal(
+    templatePick({ draft: { ...opened, savedAsDraft: true }, scenarioId: PARCEL.scenarioId, previous: PHISH }),
+    'new'
+  );
 });

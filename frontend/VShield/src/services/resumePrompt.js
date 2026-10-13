@@ -112,6 +112,7 @@ const CAMPAIGN_NOT_CONTENT = new Set([
   'withdrawnAt',
   'withdrawalComments',
   'loadedData',
+  'savedAsDraft',
   'campaignTitleSetByUser',
   'campaignDescriptionSetByUser',
   'landingPageAttachedByUser',

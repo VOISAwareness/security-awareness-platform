@@ -227,10 +227,10 @@ const Campaigns = ({ isDark: propIsDark }) => {
         c.CampaignStatus === DESIGN_STATUS.FAILED
       ) {
         // Drafts are personal work in progress. Rows created before createdBy
-        // was recorded have no owner, so everyone still sees those. An empty
-        // draft (opened but never given a template, title or step) is not work
-        // in progress: older versions saved one on every visit to Start New
-        // Campaign, and it would only show as "Untitled campaign".
+        // was recorded have no owner, so everyone still sees those. A draft
+        // with nothing of the user's in it is not work in progress (see
+        // hasProgress): an empty one older versions saved on every visit to
+        // Start New Campaign, or one only opened from a template.
         const owner = String(c.CreatedBy || '').toLowerCase();
         if (!owner || owner === actor) drafts.push(c);
       }
