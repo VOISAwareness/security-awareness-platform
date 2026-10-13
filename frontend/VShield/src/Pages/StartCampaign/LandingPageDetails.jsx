@@ -44,6 +44,8 @@ import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
 import createNewOneImg from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
+import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -523,16 +525,21 @@ const LandingPageDetails = () => {
     navigate('/start-campaign/training', IN_WIZARD);
   };
 
+  // What Back and Save as draft save from this step.
+  const landingPatch = () => ({
+    landingPageId,
+    landingPageName,
+    landingPageContent: rawHtmlMode ? rawHtmlCode : activeHtmlRef.current,
+  });
+
   const handleGoBack = async () => {
-    const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
-    update({
-      landingPageId,
-      landingPageName,
-      landingPageContent: finalHtml
-    });
+    update(landingPatch());
     await flush();
     navigate('/start-campaign/email', IN_WIZARD);
   };
+
+  // Save what is on this step and leave the campaign under Drafts.
+  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, update, flush, onError: setErrorMsg });
 
   const stepsList = CAMPAIGN_STEPS || [
     { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario' },
@@ -1093,6 +1100,7 @@ const LandingPageDetails = () => {
             {/* 🌟 BOTTOM BAR: BACK & NEXT ACTION BUTTONS                      */}
             {/* ═══════════════════════════════════════════════════════════════ */}
             <div className="flex items-center justify-end gap-2.5 pt-2 -mt-2 -mb-1 border-black/5 dark:border-white/10">
+              <SaveDraftButton onClick={() => saveAsDraft(landingPatch())} busy={savingDraft} disabled={draftLoading} />
               <button
                 type="button"
                 onClick={handleGoBack}

@@ -60,6 +60,10 @@ const SAVE_DEBOUNCE_MS = 400;
  *          startNew() keep that draft (Scenarios → Drafts) and carry on with a new one
  *          notNow()   close the question without an answer (see above); after a
  *                     question asked at a first change, the page undoes that change
+ *          canSave    true when the form holds work worth a draft
+ *          saveAndPark() "Save as draft": save now and leave it under Drafts,
+ *                     answered and no longer in progress; returns its summary,
+ *                     or null when there was nothing to save
  *          clear()    remove this draft and stop saving (after a successful publish)
  *          saveFailed true when the browser refused the last save (storage full)
  */
@@ -184,6 +188,23 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
     setOfferOnChange(false);
   }, [actor, answered]);
 
+  // "Save as draft": written now, then parked: asked about as it is, no longer
+  // the scenario in progress, and nothing more is saved from this editor.
+  const saveAndPark = useCallback(() => {
+    if (offer || stoppedRef.current) return null;
+    pendingRef.current = { formData, activeTab };
+    flush();
+    const saved = getScenarioDraft(idRef.current, actor);
+    if (!saved) return null;
+    markAsked('scenario', idRef.current, scenarioContentVersion(saved), actor);
+    setActiveScenarioDraftId('', actor);
+    stoppedRef.current = true;
+    return { id: idRef.current, ...draftSummary(saved) };
+  }, [offer, formData, activeTab, flush, actor]);
+
+  const canSave =
+    !offer && isMeaningfulDraft(buildDraft(formData, activeTab, new Date(0), edit), defaults);
+
   // "Not now": still the scenario in progress, and still undecided.
   const notNow = useCallback(() => {
     if (!offer) return;
@@ -211,6 +232,8 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
     resume,
     startNew,
     notNow,
+    canSave,
+    saveAndPark,
     clear,
     saveFailed,
   };

@@ -34,6 +34,8 @@ import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
+import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -357,6 +359,10 @@ const ReviewAndPublishCampaign = () => {
   // A ref guards the submit itself: the disabled attribute alone can still let a
   // second click through before React has re-rendered the button.
   const publishLockRef = useRef(false);
+
+  // Nothing to edit on this step: save anything pending and leave the
+  // campaign under Drafts.
+  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, flush, onError: setPublishError });
 
   const handlePublishCampaign = async () => {
     if (publishLockRef.current) return;
@@ -1001,6 +1007,7 @@ const ReviewAndPublishCampaign = () => {
               isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-100'
             }`}
           >
+            <SaveDraftButton onClick={() => saveAsDraft()} busy={savingDraft} disabled={draftLoading} />
             <button
               type="button"
               onClick={() => navigate('/start-campaign/training', IN_WIZARD)}

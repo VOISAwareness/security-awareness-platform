@@ -25,6 +25,8 @@ import quizBottomAsset from '../../assets/QuizImageStartANewCampaign.png';
 import certBottomAsset from '../../assets/CertificateImageStartANewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
+import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -217,6 +219,10 @@ const AddTrainingPath = () => {
     await flush().catch(() => {});
     navigate('/start-campaign/landing-page', IN_WIZARD);
   };
+
+  // The selection is saved on click: save anything pending and leave the
+  // campaign under Drafts.
+  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, update, flush, onError: setErrorMsg });
 
   const stepsList = CAMPAIGN_STEPS || [
     { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario' },
@@ -531,6 +537,7 @@ const AddTrainingPath = () => {
 
               {/* Bottom Action Bar */}
               <div className="flex items-center justify-end gap-2.5 pt-2 -mt-2 border-black/5 dark:border-white/10">
+                <SaveDraftButton onClick={() => saveAsDraft()} busy={savingDraft} disabled={draftLoading} />
                 <button
                   type="button"
                   onClick={handleGoBack}

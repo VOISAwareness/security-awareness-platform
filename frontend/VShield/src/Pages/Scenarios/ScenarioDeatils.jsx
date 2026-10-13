@@ -22,6 +22,7 @@ import {
   toSavePayload,
 } from "../../services/scenarioOwnership";
 import DraftDialog from '../../GlobalComponents/DraftDialog';
+import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import trainingPathsJson from '../Training/TrainingPath.json';
@@ -1382,6 +1383,15 @@ const goNext = () => {
   setActiveTab((previous) => previous + 1);
 };
 
+  // "Save as draft": keep the work under Scenarios → Drafts, no longer in
+  // progress, and go there.
+  const handleSaveAsDraft = () => {
+    const parked = scenarioDraft.saveAndPark();
+    if (!parked) return;
+    const name = parked.editing ? `Editing: ${parked.editing.name}` : parked.name;
+    navigate('/create-scenario', { state: { view: 'drafts', fromEditor: true, savedDraft: name } });
+  };
+
   // BACK on the first step leaves the editor for the Scenarios tab it was
   // opened from. Work so far is already saved (the draft flushes on unmount)
   // and stays under Scenarios → Drafts, so arriving there asks nothing.
@@ -1991,6 +2001,12 @@ const handlePublishScenario = async () => {
     dark:border-white/10
   "
 >
+  <SaveDraftButton
+    onClick={handleSaveAsDraft}
+    disabled={!scenarioDraft.canSave}
+    title={scenarioDraft.canSave ? 'Save and finish later from Scenarios → Drafts' : 'Nothing to save yet'}
+  />
+
   {/* BACK */}
   <button
     type="button"
