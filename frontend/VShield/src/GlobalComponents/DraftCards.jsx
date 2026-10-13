@@ -16,11 +16,13 @@ const savedFull = (iso) =>
 // template's art in the corner, the action at the bottom left — so the two
 // tabs read as one system. Pages map their drafts onto `items`:
 //   { id, code, title, description, savedAt, step, stepCount, stepName,
-//     inProgress, busy, theme, image, photo }
+//     inProgress, busy, theme, image, imageClassName, photo }
 // `theme` is one of the page's template themes (NEUTRAL_DRAFT_THEME when the
-// draft has none); `image` is template art for the corner, `photo` an
-// uploaded picture shown framed instead. `cardClassName` carries the page's
-// card widths so drafts line up with its templates.
+// draft has none); `image` is the art for the corner (`imageClassName` tints
+// it), `photo` an uploaded picture shown framed instead. `cardClassName`
+// carries the page's card widths so drafts line up with its templates.
+// The draft in progress comes first, its edge highlighted; a long title or
+// description is cut short, the whole of it shown on hover.
 const DraftCards = ({
   items,
   isDark,
@@ -56,18 +58,23 @@ const DraftCards = ({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
-      {items.map((info) => {
+      {inProgressFirst(items).map((info) => {
         const theme = info.theme || NEUTRAL_DRAFT_THEME;
         return (
           <div
             key={info.id}
             data-draft-id={info.id}
+            data-in-progress={info.inProgress ? 'true' : undefined}
             style={{
               backgroundColor: isDark ? theme.bgDark : theme.bgLight,
-              borderColor: isDark ? theme.borderDark : theme.border,
+              borderColor: info.inProgress ? IN_PROGRESS_EDGE : isDark ? theme.borderDark : theme.border,
+              boxShadow: info.inProgress ? IN_PROGRESS_GLOW : undefined,
             }}
-            className={`relative p-4 rounded-3xl border transition-all duration-150 flex flex-col justify-between overflow-hidden select-none h-[270px] shadow-2xs hover:shadow-md ${cardClassName}`}
+            className={`relative p-4 rounded-3xl border transition-all duration-150 flex flex-col justify-between overflow-hidden select-none h-[270px] ${
+              info.inProgress ? '' : 'shadow-2xs hover:shadow-md'
+            } ${cardClassName}`}
           >
+            {info.inProgress && <span className="sr-only">The draft you were last working on.</span>}
             {/* Top bar: id pill (left) + when it was saved (right) */}
             <div className="flex items-center justify-between gap-2 mb-1.5 z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 shadow-2xs text-slate-900 dark:text-white min-w-0">
@@ -85,18 +92,18 @@ const DraftCards = ({
             </div>
 
             {/* Title, description, where it was left */}
-            <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%] flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-white/70 dark:bg-black/40 text-slate-700 dark:text-slate-300">
-                  Draft
-                </span>
-                {inProgressChip(info.inProgress)}
-              </div>
-              <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight line-clamp-2">
+            <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%] flex-1 min-h-0">
+              <h3
+                title={info.title}
+                className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight line-clamp-2"
+              >
                 {info.title}
               </h3>
               {info.description && (
-                <p className="text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-4 leading-relaxed">
+                <p
+                  title={info.description}
+                  className="text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-2 leading-relaxed cursor-default"
+                >
                   <strong className="text-slate-900 dark:text-white">Description: </strong>
                   {info.description}
                 </p>
@@ -171,7 +178,7 @@ const DraftCards = ({
                 <img
                   src={info.image}
                   alt=""
-                  className="w-full h-full object-contain filter drop-shadow-md"
+                  className={`w-full h-full object-contain filter drop-shadow-md ${info.imageClassName || ''}`}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
@@ -196,13 +203,12 @@ const DraftCards = ({
   );
 };
 
-function inProgressChip(show) {
-  if (!show) return null;
-  return (
-    <span className="px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-[#E60000]/10 text-[#E60000]">
-      In progress
-    </span>
-  );
+// The draft in progress: first, with a highlighted edge instead of a label.
+const IN_PROGRESS_EDGE = '#E60000';
+const IN_PROGRESS_GLOW = '0 0 0 1px #E60000, 0 8px 20px -8px rgba(230, 0, 0, 0.45)';
+
+function inProgressFirst(items) {
+  return [...items].sort((a, b) => Number(Boolean(b.inProgress)) - Number(Boolean(a.inProgress)));
 }
 
 export default DraftCards;
