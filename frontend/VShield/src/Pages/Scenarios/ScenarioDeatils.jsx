@@ -1125,6 +1125,9 @@ useEffect(() => {
   // (or the browser dropping the tab) no longer loses it. On the next visit a
   // saved draft is offered back before anything is overwritten.
   // ==========================================================
+  // The form as this editor opened (blank for a new scenario): what "not now"
+  // goes back to when the question came back at the author's first change.
+  const [openingForm] = useState(() => formData);
   const scenarioDraft = useScenarioDraft({
     formData,
     activeTab,
@@ -1172,10 +1175,14 @@ useEffect(() => {
   };
 
   // "Start new" keeps the saved draft (Scenarios → Drafts) and carries on with a
-  // new one. Like the campaign wizard, closing the dialog (Esc or a click
-  // outside) does the same: the author was asked, the draft stays under
-  // Drafts, and the editor starts fresh.
+  // new one. Closing the dialog (✕, Esc or a click outside) is "not now": the
+  // draft stays as it is and the editor shows a blank form; the question comes
+  // back at the first change, and closing it then also undoes that change.
   const { startNew: handleStartNewDraft } = scenarioDraft;
+  const handleNotNow = () => {
+    if (scenarioDraft.offerOnChange) setFormData(openingForm);
+    scenarioDraft.notNow();
+  };
 
   const draftOffer = scenarioDraft.offer;
   const offeredEdit = draftOffer?.editing || null;
@@ -1720,7 +1727,9 @@ const handlePublishScenario = async () => {
         isDark={isDark}
         title={offeredEdit ? `Continue editing ${offeredEdit.name}?` : 'Continue your scenario?'}
         body={`${
-          offeredEdit
+          scenarioDraft.offerOnChange
+            ? `You still have ${offeredEdit ? 'unsaved changes to this scenario' : 'a scenario in progress'}. Continue it, or start a new scenario with what you just entered. Your saved work stays under Scenarios → Drafts either way.`
+            : offeredEdit
             ? 'You have unsaved changes to this scenario. Pick up where you left off, or start a new scenario. Your changes stay under Scenarios → Drafts either way.'
             : 'You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.'
         }${
@@ -1743,7 +1752,8 @@ const handlePublishScenario = async () => {
         onPrimary={handleContinueDraft}
         secondaryLabel="Start new"
         onSecondary={handleStartNewDraft}
-        onDismiss={handleStartNewDraft}
+        onClose={handleNotNow}
+        onDismiss={handleNotNow}
       />
       <style>{VODAFONE_FONT_STYLE}</style>
       {/* ====================================================

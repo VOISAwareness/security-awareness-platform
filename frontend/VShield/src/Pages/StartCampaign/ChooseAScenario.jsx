@@ -13,7 +13,7 @@ import { setActiveCampaignId, useCampaignDraft } from '../../services/useCampaig
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
 import { scenariosForViewer } from '../../services/scenarioOwnership';
-import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
+import { campaignContentVersions, markAsked, markDeferred, wasAsked, wasDeferred } from '../../services/resumePrompt';
 import {
   IN_WIZARD,
   START_FRESH_ID,
@@ -308,9 +308,17 @@ const ChooseAScenario = () => {
   // campaign: after any answer it is simply a draft (Campaigns -> Drafts), and
   // only a change to its content since then asks again (moving between steps
   // is not a change; see resumePrompt.js).
+  // Closing the question (✕, Esc or a click outside) is "not now": the
+  // campaign stays as it is and is not asked about again here, but choosing a
+  // template or Start fresh asks once more (`startChoice`) before anything is
+  // written, since that choice would otherwise land on the campaign in progress.
   const resumeVersions = useMemo(() => campaignContentVersions(draft), [draft]);
   const draftId = draft?.campaignId || '';
+  const [, setAskedTick] = useState(0); // re-read the answers after "not now"
   const askedBefore = Boolean(draftId) && wasAsked('campaign', draftId, resumeVersions);
+  const putOff =
+    Boolean(draftId) && shouldOfferResume(draft) && wasDeferred('campaign', draftId, resumeVersions);
+  const [startChoice, setStartChoice] = useState(null); // the template chosen after "not now"
   const offerResume = !fromWizard && !loading && shouldOfferResume(draft) && !askedBefore;
   const resumeStep = savedStep(draft);
   const markResumeAnswered = () => markAsked('campaign', draftId, resumeVersions);
@@ -319,24 +327,43 @@ const ChooseAScenario = () => {
   // remember it as it is now, so a later edit to that page is a change.
   const currentVersion = resumeVersions[0];
   useEffect(() => {
-    if (askedBefore) markAsked('campaign', draftId, currentVersion);
-  }, [askedBefore, draftId, currentVersion]);
+    if (!askedBefore) return;
+    if (putOff) markDeferred('campaign', draftId, currentVersion);
+    else markAsked('campaign', draftId, currentVersion);
+  }, [askedBefore, putOff, draftId, currentVersion]);
 
   // Either choice also replaces this history entry with an in-wizard one, so
   // browser Back never asks again.
   const handleContinue = () => {
     markResumeAnswered();
+    setStartChoice(null);
     navigate(routeForStep(resumeStep), { replace: true, ...IN_WIZARD });
   };
 
   // The saved campaign is left exactly as it is (still a DRAFT, listed under
-  // Campaigns -> Drafts); this user simply gets a brand-new one. Closing
-  // "Continue your campaign?" (Esc or a click outside) does the same.
+  // Campaigns -> Drafts); this user simply gets a brand-new one. Asked again
+  // because a template was chosen after "not now", that choice starts it.
   const handleStartNew = async () => {
+    const chosen = startChoice;
     markResumeAnswered();
+    setStartChoice(null);
     navigate(location.pathname, { replace: true, ...IN_WIZARD });
-    pickScenario(scenariosList[0]?.scenarioId || '');
+    pickScenario(chosen?.scenarioId || scenariosList[0]?.scenarioId || '');
     await startNew();
+    if (chosen) await goToDetails(templatePatch(chosen, {}, null));
+  };
+
+  // "Not now": nothing is written, the page stays as it is, and a template
+  // chosen after it is not applied.
+  const handleNotNow = () => {
+    if (startChoice) {
+      setStartChoice(null);
+      pickScenario(draft?.scenarioId || scenariosList[0]?.scenarioId || '');
+      return;
+    }
+    markDeferred('campaign', draftId, resumeVersions);
+    setAskedTick((t) => t + 1);
+    navigate(location.pathname, { replace: true, ...IN_WIZARD });
   };
 
   // A template the user asked for while the draft already holds their own email,
@@ -370,6 +397,11 @@ const ChooseAScenario = () => {
     // Until the draft is known nothing can be compared, so nothing is applied.
     if (!scenario || loading) return;
     pickScenario(scenario.scenarioId);
+    // After "not now" this choice would land on the campaign in progress: ask.
+    if (putOff) {
+      setStartChoice(scenario);
+      return;
+    }
 
     if (isSameScenario(draft, scenario.scenarioId)) {
       await goToDetails({});
@@ -866,10 +898,14 @@ const ChooseAScenario = () => {
       </div>
 
       <DraftDialog
-        open={offerResume}
+        open={offerResume || Boolean(startChoice)}
         isDark={isDark}
         title="Continue your campaign?"
-        body="You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way."
+        body={
+          startChoice
+            ? 'You still have a campaign in progress. Continue it, or start a new campaign with the template you just chose. Your saved campaign stays under Campaigns → Drafts either way.'
+            : 'You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way.'
+        }
         detail={
           <>
             <span className="block">{draftLabel(draft)}</span>
@@ -882,7 +918,8 @@ const ChooseAScenario = () => {
         onPrimary={handleContinue}
         secondaryLabel="Start new"
         onSecondary={handleStartNew}
-        onDismiss={handleStartNew}
+        onClose={handleNotNow}
+        onDismiss={handleNotNow}
       />
 
       <DraftDialog

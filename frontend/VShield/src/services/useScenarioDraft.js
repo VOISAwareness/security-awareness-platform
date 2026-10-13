@@ -10,8 +10,11 @@
  *  - coming back, the scenario in progress is offered back ("Continue your
  *    scenario?"), and nothing is written until the author decides, so the
  *    blank form can never overwrite it;
- *  - "Start new" (or closing that dialog) leaves that draft as it is
- *    (Scenarios → Drafts) and starts a new one, like campaigns;
+ *  - "Start new" leaves that draft as it is (Scenarios → Drafts) and starts a
+ *    new one, like campaigns;
+ *  - closing that dialog (✕, Esc, a click outside) means "not now": the blank
+ *    form is shown, nothing is filed or saved, and the question comes back at
+ *    the author's first change, before anything new is written;
  *  - the question is asked about each draft once (resumePrompt.js): either
  *    answer counts, and only a change to the form asks again (moving between
  *    tabs does not). A draft opened and left untouched is not written again,
@@ -31,7 +34,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentActor } from './identity.js';
-import { markAsked, scenarioContentVersion } from './resumePrompt.js';
+import { markAsked, markDeferred, scenarioContentVersion } from './resumePrompt.js';
 import { buildDraft, draftSummary, fromDraft, isMeaningfulDraft, sameDraftContent } from './scenarioDraft.js';
 import {
   getScenarioDraft,
@@ -51,9 +54,12 @@ const SAVE_DEBOUNCE_MS = 400;
  *                  baseline }, see scenarioDraft.js); null for a new scenario
  * @returns draftId    the draft this editor saves to
  *          offer      summary of the scenario in progress awaiting Continue / Start new, or null
+ *          offerOnChange true when that question came back because the author
+ *                     started on a new scenario after "not now"
  *          resume()   accept the offer; returns { formData, activeTab, edit? } to apply
  *          startNew() keep that draft (Scenarios → Drafts) and carry on with a new one
- *                     (also what closing the dialog does)
+ *          notNow()   close the question without an answer (see above); after a
+ *                     question asked at a first change, the page undoes that change
  *          clear()    remove this draft and stop saving (after a successful publish)
  *          saveFailed true when the browser refused the last save (storage full)
  */
@@ -63,6 +69,9 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
   const [actor] = useState(() => currentActor());
   const [draftId, setDraftId] = useState(opening.id);
   const [offer, setOffer] = useState(opening.offer); // { id, draft } | null
+  // Put off with "not now": asked again at the first change ({ id, draft } | null).
+  const [deferred, setDeferred] = useState(opening.deferred || null);
+  const [offerOnChange, setOfferOnChange] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
 
   // The draft written to, the latest unsaved state, the debounce timer, and
@@ -116,13 +125,22 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
     }
   }, [actor]);
 
-  // Autosave, paused while the scenario in progress is on offer.
+  // Autosave, paused while the scenario in progress is on offer. While it is
+  // put off, nothing is saved: the first real change brings the question back.
   useEffect(() => {
     if (offer || stoppedRef.current) return;
+    if (deferred) {
+      const draft = buildDraft(formData, activeTab, new Date(), editRef.current);
+      if (isMeaningfulDraft(draft, defaultsRef.current)) {
+        setOffer(deferred);
+        setOfferOnChange(true);
+      }
+      return;
+    }
     pendingRef.current = { formData, activeTab };
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(flush, SAVE_DEBOUNCE_MS);
-  }, [formData, activeTab, offer, flush]);
+  }, [formData, activeTab, offer, deferred, flush]);
 
   // Never drop the last few keystrokes: flush on unmount, on pagehide, and when
   // the tab is hidden (a discarded background tab gets no later event).
@@ -151,6 +169,8 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
     setDraftId(offer.id);
     setActiveScenarioDraftId(offer.id, actor);
     setOffer(null);
+    setDeferred(null);
+    setOfferOnChange(false);
     return fromDraft(offer.draft);
   }, [offer, actor, answered]);
 
@@ -160,7 +180,18 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
     answered();
     setActiveScenarioDraftId('', actor);
     setOffer(null);
+    setDeferred(null);
+    setOfferOnChange(false);
   }, [actor, answered]);
+
+  // "Not now": still the scenario in progress, and still undecided.
+  const notNow = useCallback(() => {
+    if (!offer) return;
+    markDeferred('scenario', offer.id, scenarioContentVersion(offer.draft), actor);
+    setDeferred(offer);
+    setOffer(null);
+    setOfferOnChange(false);
+  }, [offer, actor]);
 
   const clear = useCallback(() => {
     stoppedRef.current = true;
@@ -176,8 +207,10 @@ export function useScenarioDraft({ formData, activeTab, defaults, opening, edit 
   return {
     draftId,
     offer: offer ? draftSummary(offer.draft) : null,
+    offerOnChange,
     resume,
     startNew,
+    notNow,
     clear,
     saveFailed,
   };

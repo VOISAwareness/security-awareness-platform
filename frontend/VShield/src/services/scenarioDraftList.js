@@ -16,7 +16,7 @@
  */
 import { readJSON, readString, removeKey, scopedKey, writeJSON, writeString } from './draftStore.js';
 import { SCENARIO_DRAFT_KEY, isMeaningfulDraft, parseDraft } from './scenarioDraft.js';
-import { scenarioContentVersion, wasAsked } from './resumePrompt.js';
+import { scenarioContentVersion, wasAsked, wasDeferred } from './resumePrompt.js';
 
 export const SCENARIO_DRAFTS_KEY = 'voisshield_scenario_drafts';
 export const ACTIVE_SCENARIO_DRAFT_KEY = 'voisshield_active_scenario_draft';
@@ -139,6 +139,17 @@ export function scenarioDraftToOffer(defaults = {}, actor) {
 }
 
 /**
+ * The scenario in progress, if "Continue your scenario?" was closed without an
+ * answer ("not now"): not asked about on arrival, but asked again once the
+ * author starts on a new scenario. -> { id, draft } | null
+ */
+export function deferredScenarioDraft(defaults = {}, actor) {
+  const current = inProgressScenarioDraft(defaults, actor);
+  if (!current) return null;
+  return wasDeferred('scenario', current.id, scenarioContentVersion(current.draft), actor) ? current : null;
+}
+
+/**
  * Which draft the scenario editor opens on, decided once before its first
  * render:
  *  - ?draft=<id> naming a saved draft opens it directly ({ resume });
@@ -148,18 +159,20 @@ export function scenarioDraftToOffer(defaults = {}, actor) {
  *  - otherwise the editor works on a new draft (the requested id when one was
  *    given, so a reload keeps it), and — unless the author just chose "Start
  *    new", or was already asked about it — the scenario in progress is offered
- *    back first ({ offer }).
- * -> { id, resume: draft | null, offer: { id, draft } | null }
+ *    back first ({ offer }). One put off with "not now" is not offered, but is
+ *    returned as `deferred`: it is offered back at the author's first change.
+ * -> { id, resume: draft | null, offer: { id, draft } | null, deferred: { id, draft } | null }
  */
 export function scenarioEditorOpening(
   { requestedId = '', startFresh = false, editId = '', defaults = {} } = {},
   actor
 ) {
   const requested = requestedId ? getScenarioDraft(requestedId, actor) : null;
-  if (requested) return { id: requestedId, resume: requested, offer: null };
+  if (requested) return { id: requestedId, resume: requested, offer: null, deferred: null };
   const editing = editId ? findEditDraft(editId, actor) : null;
-  if (editing?.draft) return { id: editing.id, resume: editing.draft, offer: null };
+  if (editing?.draft) return { id: editing.id, resume: editing.draft, offer: null, deferred: null };
   const id = requestedId || newDraftId();
-  if (startFresh || editId) return { id, resume: null, offer: null };
-  return { id, resume: null, offer: scenarioDraftToOffer(defaults, actor) };
+  if (startFresh || editId) return { id, resume: null, offer: null, deferred: null };
+  const offer = scenarioDraftToOffer(defaults, actor);
+  return { id, resume: null, offer, deferred: offer ? null : deferredScenarioDraft(defaults, actor) };
 }

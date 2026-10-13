@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 import { VarLayoutScale } from './Layout';
 
@@ -8,6 +9,7 @@ import { VarLayoutScale } from './Layout';
 // Portalled to <body>, so it re-applies the app shell's zoom to match the page.
 // Esc and the backdrop call `onDismiss`, which defaults to the secondary action;
 // pass a no-op when the secondary action discards work, so only the button can.
+// With `onClose`, a ✕ in the top-right corner closes it without either choice.
 const DraftDialog = ({
   open,
   isDark = false,
@@ -19,6 +21,7 @@ const DraftDialog = ({
   secondaryLabel,
   onSecondary,
   onDismiss = onSecondary, // Esc / backdrop
+  onClose, // the ✕ button; none without it
   tone = 'default', // 'default' | 'warning'
   zIndex = 9500, // raise it to show above a full-screen layer
 }) => {
@@ -61,11 +64,24 @@ const DraftDialog = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="draft-dialog-title"
-        className={`w-full max-w-[440px] rounded-2xl border p-6 shadow-2xl font-sans ${
+        className={`relative w-full max-w-[440px] rounded-2xl border p-6 shadow-2xl font-sans ${
           isDark ? 'bg-[#1C1E24] border-white/10 text-white' : 'bg-white border-black/10 text-slate-900'
         }`}
       >
-        <h2 id="draft-dialog-title" className="text-[16px] font-extrabold tracking-tight">
+        {onClose && (
+          <button
+            type="button"
+            aria-label="Close"
+            title="Close"
+            onClick={onClose}
+            className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <X className="w-4 h-4" strokeWidth={2.5} />
+          </button>
+        )}
+        <h2 id="draft-dialog-title" className={`text-[16px] font-extrabold tracking-tight ${onClose ? 'pr-8' : ''}`}>
           {title}
         </h2>
         {body && (
