@@ -21,6 +21,7 @@ import {
   draftLabel,
   hasProgress,
   isOwnDraft,
+  latestSavedFirst,
   routeForStep,
   savedStep,
   shouldOfferResume,
@@ -181,8 +182,9 @@ const ChooseAScenario = () => {
   } = useCampaigns({ status: 'DRAFT' });
   const [draftsError, setDraftsError] = useState('');
   const actorEmail = currentActor();
-  const myDrafts = draftCampaigns.filter(
-    (c) => c.status === 'DRAFT' && isOwnDraft(c, actorEmail) && hasProgress(c)
+  // The one saved most recently first (the one in progress is put first by the cards).
+  const myDrafts = latestSavedFirst(
+    draftCampaigns.filter((c) => c.status === 'DRAFT' && isOwnDraft(c, actorEmail) && hasProgress(c))
   );
   // Open a draft on the step it was saved on, as Campaigns → Drafts does.
   const continueCampaignDraft = (id) => {
