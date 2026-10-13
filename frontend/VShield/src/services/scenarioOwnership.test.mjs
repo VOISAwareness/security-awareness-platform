@@ -78,25 +78,29 @@ test('the matrix: edit mode, delete and badge per ownership', () => {
   assert.deepEqual(actions({ ownership: 'template' }), ['copy', false, null, '']);
   assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, 'Shared']);
   assert.deepEqual(actions({ ownership: 'mine', isShared: false, createdBy: ALICE }), ['update', true, 'delete', 'Only you']);
-  assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', false, null, 'Shared']);
+  assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Shared']);
   assert.deepEqual(actions({ ownership: 'myCopy', replaces: 'SC-9' }), ['update', true, 'reset', 'Your version']);
   assert.deepEqual(actions({ ownership: 'myRevision', replaces: 'SC-9' }), ['update', true, 'discard', 'Your edit — not live yet']);
 });
 
-test('everyone can edit; only a shared own scenario explains why there is no Delete', () => {
+test('everyone can edit; the owner of a shared scenario may delete it, warned first', () => {
   for (const ownership of ['template', 'shared', 'mine', 'myCopy', 'myRevision']) {
     const a = cardActions(row({ ownership, isShared: ownership === 'shared' }), ALICE);
     assert.equal(a.canEdit, true, ownership);
     assert.equal(a.ownership, ownership);
-    assert.equal(a.deleteBlocked, '', ownership);
   }
   const shared = cardActions(row({ ownership: 'mine', isShared: true }), ALICE);
-  assert.match(shared.deleteBlocked, /Shared scenarios can't be deleted/);
+  assert.equal(shared.canDelete, true);
+  assert.match(DELETE_KINDS[shared.deleteKind].warning, /Others won't be able to use this scenario/);
+  assert.match(DELETE_KINDS[shared.deleteKind].warning, /Campaigns already sent keep their own copy/);
+  // Someone else's shared scenario and the templates still can't be deleted.
+  assert.equal(cardActions(row({ ownership: 'shared', isShared: true }), ALICE).canDelete, false);
+  assert.equal(cardActions(row({ ownership: 'template' }), ALICE).canDelete, false);
 });
 
 test('every delete kind has its own label and confirmation', () => {
-  for (const ownership of ['mine', 'myCopy', 'myRevision']) {
-    const { deleteKind } = cardActions(row({ ownership, isShared: false }), ALICE);
+  for (const [ownership, isShared] of [['mine', false], ['mine', true], ['myCopy', false], ['myRevision', false]]) {
+    const { deleteKind } = cardActions(row({ ownership, isShared }), ALICE);
     assert.ok(DELETE_KINDS[deleteKind], ownership);
   }
   assert.equal(DELETE_KINDS.delete.confirm, 'Delete this scenario?');

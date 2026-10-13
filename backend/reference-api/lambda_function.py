@@ -231,10 +231,14 @@ def cover_key_from_url(value):
 
 # Kept from the original when a revision's content is published onto it.
 PUBLISH_KEPT_FIELDS = frozenset(
-    {"scenarioId", "createdBy", "CreatedOn", "copyOf", "revisionOf", "publishedAt"}
+    {"scenarioId", "createdBy", "CreatedOn", "copyOf", "revisionOf", "publishedAt", "deletedAt", "deletedBy"}
 )
-# A PUT can't change who owns a row or where it came from.
-PUT_LOCKED_FIELDS = frozenset({"scenarioId", "createdBy", "copyOf", "revisionOf", "publishedAt"})
+# A PUT can't change who owns a row, where it came from, or whether it was deleted.
+PUT_LOCKED_FIELDS = frozenset(
+    {"scenarioId", "createdBy", "copyOf", "revisionOf", "publishedAt", "deletedAt", "deletedBy"}
+)
+# Set only by DELETE of a shared scenario (see deleted_scenario).
+DELETE_MARK_FIELDS = frozenset({"deletedAt", "deletedBy"})
 # Response-only annotations (and PUT's actor): dropped from every body.
 NEVER_STORED_FIELDS = frozenset({"ownership", "isShared", "replaces", "coverImageKey", "actor"})
 
@@ -287,6 +291,12 @@ def scenario_kind(row):
     return "own" if parse_identity(row.get("createdBy")) else "template"
 
 
+def is_deleted(row):
+    """A shared scenario its owner deleted: kept so the campaigns that used it
+    still resolve, but gone from every list."""
+    return bool((row or {}).get("deletedAt"))
+
+
 def is_shared(row, sent_ids):
     """A user's own scenario is shared once a SENT campaign has used it."""
     return scenario_kind(row) == "own" and str(row.get("scenarioId")) in sent_ids
@@ -296,8 +306,15 @@ def visible_scenarios(rows, sent_ids, viewer):
     """The rows `viewer` may see, each annotated (response only) with
     ownership, isShared and replaces. The viewer's copy stands in for the
     template / shared scenario it copies, and their pending revision for their
-    own shared scenario -- for them alone. Published revisions are hidden."""
+    own shared scenario -- for them alone. Published revisions are hidden, and
+    so are deleted scenarios and the pending revisions of one."""
     viewer = parse_identity(viewer)
+    deleted = {str(r.get("scenarioId")) for r in rows if is_deleted(r)}
+    rows = [
+        r
+        for r in rows
+        if not is_deleted(r) and not (scenario_kind(r) == "revision" and str(r["revisionOf"]) in deleted)
+    ]
 
     def mine(row):
         return bool(viewer) and parse_identity(row.get("createdBy")) == viewer
@@ -350,7 +367,7 @@ def publishable_revisions(rows, sent_ids):
         if str(rev.get("scenarioId")) not in sent_ids:
             continue
         original = by_id.get(str(rev["revisionOf"]))
-        if not original or scenario_kind(original) != "own":
+        if not original or scenario_kind(original) != "own" or is_deleted(original):
             continue
         if parse_identity(rev.get("createdBy")) != parse_identity(original.get("createdBy")):
             continue
@@ -364,11 +381,14 @@ def publishable_revisions(rows, sent_ids):
 
 
 def clean_scenario_input(body):
-    """A POST body as it may be stored: response-only fields and publishedAt
-    dropped (only the lazy publish sets it), createdBy lower-cased,
-    copyOf/revisionOf as plain ids, a presigned cover URL back to its key."""
+    """A POST body as it may be stored: response-only fields, publishedAt and
+    the deleted mark dropped (only the lazy publish / DELETE set them),
+    createdBy lower-cased, copyOf/revisionOf as plain ids, a presigned cover
+    URL back to its key."""
     item = {
-        k: v for k, v in body.items() if k not in NEVER_STORED_FIELDS and k != "publishedAt"
+        k: v
+        for k, v in body.items()
+        if k not in NEVER_STORED_FIELDS and k != "publishedAt" and k not in DELETE_MARK_FIELDS
     }
     author = parse_identity(item.pop("createdBy", None))
     if author:
@@ -413,7 +433,9 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
     if not author:
         return err(400, "createdBy is required for a copy or a revision")
     target_id = copy_of or revision_of
-    target = next((r for r in rows if str(r.get("scenarioId")) == target_id), None)
+    target = next(
+        (r for r in rows if str(r.get("scenarioId")) == target_id and not is_deleted(r)), None
+    )
     shared = bool(target) and is_shared(target, sent_ids)
     owner = parse_identity((target or {}).get("createdBy"))
     if copy_of:
@@ -454,10 +476,14 @@ def modify_refusal(row, actor, sent_ids, action):
     an error response, or None when they can. A copy a SENT campaign used, or
     a private scenario an unsent campaign uses, may still be deleted: campaigns
     keep their own copy of the content, and next_scenario_id / create_refusal
-    never hand the id out again."""
+    never hand the id out again. The owner may delete a shared scenario too
+    (see deleted_scenario): others can no longer pick it, and the campaigns
+    already sent keep their own copy."""
     actor = parse_identity(actor)
     if not actor:
         return err(400, "actor is required")
+    if is_deleted(row):
+        return err(404, "Scenario not found")
     kind = scenario_kind(row)
     if kind == "template":
         if action == "edit":
@@ -469,15 +495,33 @@ def modify_refusal(row, actor, sent_ids, action):
     # list): it backs the original's content and the campaign's history.
     if kind == "revision" and (row.get("publishedAt") or str(row.get("scenarioId")) in sent_ids):
         return err(409, "Published revisions are kept for campaign history")
-    if is_shared(row, sent_ids):
-        if action == "edit":
-            return err(
-                409,
-                "This scenario is shared (a sent campaign used it), so editing it "
-                "creates a revision instead",
-            )
-        return err(409, "Shared scenarios can't be deleted")
+    if action == "edit" and is_shared(row, sent_ids):
+        return err(
+            409,
+            "This scenario is shared (a sent campaign used it), so editing it "
+            "creates a revision instead",
+        )
     return None
+
+
+def deleted_scenario(row, actor, now):
+    """The row a DELETE of a shared scenario stores: marked deleted, not
+    removed, so the campaigns that used it still resolve its id."""
+    return {**row, "deletedAt": now, "deletedBy": parse_identity(actor)}
+
+
+def revisions_to_discard(rows, scenario_id, sent_ids):
+    """When a shared scenario is deleted, its owner's pending revisions go with
+    it. A revision a SENT campaign used stays (campaign history); it is hidden
+    with the original and never published onto it."""
+    return [
+        r
+        for r in rows
+        if scenario_kind(r) == "revision"
+        and str(r["revisionOf"]) == str(scenario_id)
+        and not r.get("publishedAt")
+        and str(r.get("scenarioId")) not in sent_ids
+    ]
 
 
 def load_campaign_refs():
@@ -508,7 +552,9 @@ def publish_revisions(rows, sent_ids, context=None):
             # Only onto the original as read: still there, same owner.
             tbl.put_item(
                 Item=merged,
-                ConditionExpression="attribute_exists(scenarioId) AND createdBy = :by",
+                ConditionExpression=(
+                    "attribute_exists(scenarioId) AND createdBy = :by AND attribute_not_exists(deletedAt)"
+                ),
                 ExpressionAttributeValues={":by": original["createdBy"]},
             )
         except ClientError as e:
@@ -567,12 +613,15 @@ def lambda_handler(event, context):
     try:
         if route == "GET /scenarios":
             items = scan_all("scenarios")
-            # Without a viewer every row comes back as before (older clients).
+            # Without a viewer every row comes back as before (older clients),
+            # except deleted shared scenarios, which no list shows.
             viewer = parse_identity((event.get("queryStringParameters") or {}).get("viewer"))
             if viewer:
                 _, sent_ids = load_campaign_refs()
                 items = publish_revisions(items, sent_ids, context)
                 items = visible_scenarios(items, sent_ids, viewer)
+            else:
+                items = [i for i in items if not is_deleted(i)]
             items = [sign_cover(i) for i in items]
             return ok(items, count=len(items))
 
@@ -759,15 +808,41 @@ def lambda_handler(event, context):
 
         if route == "DELETE /scenarios/{id}":
             existing = get_one("scenarios", {"scenarioId": params["id"]})
-            if not existing:
+            if not existing or is_deleted(existing):
                 # Already gone. Covers under this id are left alone: they may
-                # belong to a scenario still being authored.
+                # belong to a scenario still being authored (or, for a deleted
+                # shared one, to the campaigns that used it).
                 return respond(204, {"data": None})
             actor = (event.get("queryStringParameters") or {}).get("actor")
             _, sent_ids = load_campaign_refs()
             refusal = modify_refusal(existing, actor, sent_ids, "delete")
             if refusal:
                 return refusal
+            if is_shared(existing, sent_ids):
+                # Others may have used it: mark it deleted instead of removing
+                # it, so campaign references still resolve. Its cover stays for
+                # the same reason; its pending revisions go with it.
+                marked = deleted_scenario(existing, actor, datetime.now(UTC).isoformat())
+                try:
+                    table("scenarios").put_item(
+                        Item=marked,
+                        ConditionExpression="attribute_exists(scenarioId) AND attribute_not_exists(deletedAt)",
+                    )
+                except ClientError as e:
+                    if conditional_failed(e):
+                        return respond(204, {"data": None})
+                    raise
+                for rev in revisions_to_discard(scan_all("scenarios"), params["id"], sent_ids):
+                    try:
+                        table("scenarios").delete_item(
+                            Key={"scenarioId": rev["scenarioId"]},
+                            ConditionExpression="attribute_not_exists(publishedAt)",
+                        )
+                    except ClientError as e:
+                        if not conditional_failed(e):
+                            raise
+                log(context, "scenario.deleted_shared", scenarioId=params["id"])
+                return respond(204, {"data": None})
             try:
                 table("scenarios").delete_item(
                     Key={"scenarioId": params["id"]},
