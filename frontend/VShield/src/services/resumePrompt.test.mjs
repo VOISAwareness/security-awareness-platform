@@ -8,8 +8,10 @@ import {
   campaignContentVersions,
   contentFingerprint,
   markAsked,
+  markDeferred,
   scenarioContentVersion,
   wasAsked,
+  wasDeferred,
 } from './resumePrompt.js';
 
 const A = 'a@example.test';
@@ -29,6 +31,30 @@ test('nothing is asked until it is marked', () => {
   assert.equal(wasAsked('campaign', 'CMP-1', '2026-10-01T10:00:00Z', A), false);
   assert.equal(markAsked('campaign', 'CMP-1', '2026-10-01T10:00:00Z', A), true);
   assert.equal(wasAsked('campaign', 'CMP-1', '2026-10-01T10:00:00Z', A), true);
+});
+
+test('closing without an answer is "not now": asked, but still to decide', () => {
+  assert.equal(wasDeferred('scenario', 'SD-1', 'v1', A), false);
+  assert.equal(markDeferred('scenario', 'SD-1', 'v1', A), true);
+  // Coming back does not ask again...
+  assert.equal(wasAsked('scenario', 'SD-1', 'v1', A), true);
+  // ...but starting something new does.
+  assert.equal(wasDeferred('scenario', 'SD-1', 'v1', A), true);
+  // A real answer settles it.
+  markAsked('scenario', 'SD-1', 'v1', A);
+  assert.equal(wasAsked('scenario', 'SD-1', 'v1', A), true);
+  assert.equal(wasDeferred('scenario', 'SD-1', 'v1', A), false);
+});
+
+test('"not now" holds for the version put off, and for that person only', () => {
+  markDeferred('campaign', 'CMP-1', ['v2', 'v1'], A);
+  assert.equal(wasDeferred('campaign', 'CMP-1', 'v2', A), true);
+  // Changed since: asked about again on arrival, like any change.
+  assert.equal(wasDeferred('campaign', 'CMP-1', 'v3', A), false);
+  assert.equal(wasAsked('campaign', 'CMP-1', 'v3', A), false);
+  assert.equal(wasDeferred('campaign', 'CMP-1', 'v2', B), false);
+  assert.equal(wasDeferred('nope', 'CMP-1', 'v2', A), false);
+  assert.equal(wasDeferred('campaign', '', 'v2', A), false);
 });
 
 test('a newer version is asked about again, once', () => {

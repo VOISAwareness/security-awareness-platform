@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildDraft } from './scenarioDraft.js';
-import { markAsked, scenarioContentVersion } from './resumePrompt.js';
+import { markAsked, markDeferred, scenarioContentVersion } from './resumePrompt.js';
 import {
   findEditDraft,
   getActiveScenarioDraftId,
@@ -132,6 +132,23 @@ test('editor opening: no id -> a new draft, with the one in progress offered', (
   assert.notEqual(o.id, 'SD-2');
   assert.equal(o.resume, null);
   assert.equal(o.offer.id, 'SD-2');
+});
+
+test('editor opening: a scenario put off with "not now" is held back until the first change', () => {
+  const d = draft('Put off', '2026-10-02T10:00:00Z');
+  saveScenarioDraft('SD-2', d, A);
+  setActiveScenarioDraftId('SD-2', A);
+  markDeferred('scenario', 'SD-2', scenarioContentVersion(d), A);
+  const o = scenarioEditorOpening({ defaults: DEFAULTS }, A);
+  assert.equal(o.offer, null);
+  assert.equal(o.deferred.id, 'SD-2');
+  // Answered for good: nothing held back.
+  markAsked('scenario', 'SD-2', scenarioContentVersion(d), A);
+  assert.equal(scenarioEditorOpening({ defaults: DEFAULTS }, A).deferred, null);
+  // Opening a draft directly, or "Start new", holds nothing back either.
+  markDeferred('scenario', 'SD-2', scenarioContentVersion(d), A);
+  assert.equal(scenarioEditorOpening({ startFresh: true, defaults: DEFAULTS }, A).deferred, null);
+  assert.equal(scenarioEditorOpening({ requestedId: 'SD-2', defaults: DEFAULTS }, A).deferred, null);
 });
 
 test('editor opening: just chose "Start new" -> nothing offered', () => {
