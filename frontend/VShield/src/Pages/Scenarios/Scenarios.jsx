@@ -814,8 +814,9 @@ const Scenarios = () => {
             isDark ? 'bg-[#15161a] border-white/10 shadow-xl' : 'bg-white border-slate-200 shadow-sm'
           }`}
         >
-        {/* The scenarios are on their way from the server. */}
-        <PageLoading show={scenariosLoading} isDark={isDark} />
+        {/* The scenarios are on their way from the server. Drafts are kept in
+            this browser, so the Drafts view never waits for them. */}
+        <PageLoading show={scenariosLoading && view === 'all'} isDark={isDark} />
 
         {/* ================================================= */}
         {/* TOOLBAR */}
