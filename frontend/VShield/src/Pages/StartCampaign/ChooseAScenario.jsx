@@ -33,6 +33,7 @@ import DraftCards from '../../GlobalComponents/DraftCards';
 import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
+import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
 
@@ -67,6 +68,10 @@ export const CAMPAIGN_STEPS = [
   { id: 'training', step: 5, titleLine1: 'Add Training', titleLine2: 'Path', path: '/start-campaign/training' },
   { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish', path: '/start-campaign/review' }
 ];
+
+// Campaign drafts show the Scenarios drafts' art, turned from orange to blue,
+// so the two kinds of draft match without being mistaken for each other.
+const CAMPAIGN_DRAFT_ART_TINT = 'hue-rotate-[200deg]';
 
 // "Start Complete Fresh" goes through the same path as a scenario card.
 const START_FRESH = { scenarioId: START_FRESH_ID, scenarioName: 'Start Fresh' };
@@ -294,8 +299,8 @@ const ChooseAScenario = () => {
   const findScenario = (scenarioId) =>
     scenariosList.find((s) => s.scenarioId === scenarioId) || null;
 
-  // A draft card looks like the card of the template it came from: that
-  // template's colour and art (Start fresh: the Start fresh art).
+  // A draft card takes the colour of the template it came from, and the draft
+  // art of the Scenarios Drafts tab, tinted blue for campaigns.
   const draftItems = myDrafts.map((c) => {
     const step = savedStep(c);
     const fresh = Boolean(c.isStartFresh) || c.scenarioId === START_FRESH_ID;
@@ -314,11 +319,8 @@ const ChooseAScenario = () => {
       inProgress: c.campaignId === campaignId,
       busy: draftAction === c.campaignId,
       theme: template ? DIFFICULTY_THEMES[template.difficulty] || DIFFICULTY_THEMES.Low : NEUTRAL_DRAFT_THEME,
-      image: template
-        ? getScenarioImage(template.CoverImageID)
-        : fresh
-        ? chooseAScenarioStartFresh || '/assets/ChooseAScenarioStartFresh.png'
-        : '',
+      image: draftArt,
+      imageClassName: CAMPAIGN_DRAFT_ART_TINT,
     };
   });
 
@@ -715,7 +717,9 @@ const ChooseAScenario = () => {
           </div>
           </>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-3 mt-1 mb-3">
+            // No right padding here: the cards' own scroll area adds it, so the
+            // drafts are exactly as wide as the template cards.
+            <div className="flex-1 min-h-0 flex flex-col p-4 pr-0 sm:p-3 sm:pr-0 mt-1 mb-3">
               {savedNotice && (
                 <span
                   role="status"
