@@ -28,7 +28,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // Everyone's level badge leads their row, in the place of an avatar (like a
 // game's ranking: rank, this week's move, badge, then the person), and stands
 // on the podium as the hero of each place. A level below zero is shown only to
-// its owner and to Admins; other viewers see a private badge and "Below 0".
+// its owner and to Admins; other viewers see a locked, empty badge and no
+// points at all (the live board doesn't even send them).
 // Clicking any badge opens it in All badges. "All badges", or your own badge, opens every level
 // and grade (GlobalComponents/AllBadges).
 //
@@ -235,14 +236,17 @@ function boardInsights(board, youDept) {
   const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows].filter(Boolean);
   const byDept = {};
   all.forEach((r) => {
-    const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, rep: 0, clk: 0, n: 0 });
-    d.pts += toNum(r.pts);
+    const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, np: 0, rep: 0, clk: 0, n: 0 });
+    if (!r.hidden) { // a live row below zero comes without points
+      d.pts += toNum(r.pts);
+      d.np += 1;
+    }
     d.rep += pct(r.rep);
     d.clk += pct(r.clk);
     d.n += 1;
   });
   const ranked = Object.entries(byDept)
-    .map(([dept, d]) => ({ dept, avg: Math.round(d.pts / d.n), rep: Math.round(d.rep / d.n), clk: Math.round(d.clk / d.n), n: d.n }))
+    .map(([dept, d]) => ({ dept, avg: d.np ? Math.round(d.pts / d.np) : 0, rep: Math.round(d.rep / d.n), clk: Math.round(d.clk / d.n), n: d.n }))
     .sort((a, b) => b.avg - a.avg || a.dept.localeCompare(b.dept))
     .map((d, i) => ({
       rank: i + 1,
@@ -328,7 +332,6 @@ const PrivateLevel = ({ size = 30 }) => (
   <span
     role="img"
     aria-label="Level private"
-    title="Only they and the security admins see this level"
     data-below-zero-hidden
     style={{ width: size + 8, height: size + 8, borderRadius: 999, border: '1.5px dashed var(--muted)', display: 'grid', placeItems: 'center', opacity: 0.75, flexShrink: 0 }}
   >
@@ -364,21 +367,21 @@ const ShieldPts = () => (
   </svg>
 );
 
-// Points, in a gold plate; "Below 0" when the total is below zero and not the
-// viewer's to see.
-const PointsPlate = ({ pts, hidden, big = false }) => (
+// Points, in a gold plate. Nothing at all when the total is below zero and
+// not the viewer's to see.
+const PointsPlate = ({ pts, hidden, big = false }) => (hidden ? null : (
   <span
     style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6, height: big ? 31 : 28, padding: hidden ? '0 10px' : '0 10px 0 7px', borderRadius: 9,
-      background: hidden ? 'var(--track)' : 'var(--pts-bg)', border: hidden ? '1px solid var(--hair)' : '1px solid var(--pts-line)', whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 6, height: big ? 31 : 28, padding: '0 10px 0 7px', borderRadius: 9,
+      background: 'var(--pts-bg)', border: '1px solid var(--pts-line)', whiteSpace: 'nowrap',
     }}
   >
-    {!hidden && <ShieldPts />}
-    <span className="vs-rank" style={{ fontSize: big ? 22 : 19, fontWeight: 800, lineHeight: 1, letterSpacing: '0.02em', color: hidden ? 'var(--muted)' : 'var(--pts-ink)' }}>
-      {hidden ? 'BELOW 0' : pts}
+    <ShieldPts />
+    <span className="vs-rank" style={{ fontSize: big ? 22 : 19, fontWeight: 800, lineHeight: 1, letterSpacing: '0.02em', color: 'var(--pts-ink)' }}>
+      {pts}
     </span>
   </span>
-);
+));
 
 const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) => {
   const c = PLACE[place];
@@ -386,7 +389,7 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) 
   const [fill, ink] = m[isDark ? 'dark' : 'light'];
   const first = place === 'first';
   const flair = first && !reduce && Boolean(level); // sparkles round the champion's badge
-  const tone = level ? (isDark ? level.light : level.color) : 'var(--muted)';
+  const tone = level ? (isDark ? level.light : level.color) : undefined;
   return (
     <motion.div
       initial={reduce ? false : { y: 60, opacity: 0 }}
@@ -432,9 +435,9 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) 
         )}
       </span>
       <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 4, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
-      {(level || hidden) && (
+      {level && (
         <div className="vs-rank" style={{ fontSize: first ? 14 : 13, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: tone, marginTop: 2, lineHeight: 1.1 }}>
-          {level ? gradeName(level) : 'Level private'}
+          {gradeName(level)}
         </div>
       )}
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
@@ -505,10 +508,10 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 2 }}>
       <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-        {people && (
+        {people && level && (
           <>
-            <span className="vs-rank" style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, color: level ? (isDark ? level.light : level.color) : 'var(--muted)' }}>
-              {level ? gradeName(level) : 'Level private'}
+            <span className="vs-rank" style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, color: isDark ? level.light : level.color }}>
+              {gradeName(level)}
             </span>
             <span aria-hidden style={{ width: 3, height: 3, borderRadius: 999, background: 'var(--muted)', opacity: 0.6, flexShrink: 0 }} />
           </>
@@ -671,7 +674,8 @@ const Leaderboard = ({ onClose }) => {
   // The badge this viewer may see on a row (none on department rows), and
   // whether a total below zero is hidden from them ("Below 0", private badge).
   const levelOf = (row, isYou) => (podium.id === 'people' && row ? visibleLevel(row.levelId, { isSelf: isYou, viewerRole }) : null);
-  const hiddenOf = (row, isYou) => podium.id === 'people' && Boolean(row) && !levelOf(row, isYou) && toNum(row.pts) < 0;
+  const belowZeroHidden = (row, isYou) => Boolean(row) && !visibleLevel(row.levelId, { isSelf: isYou, viewerRole }) && (row.hidden || toNum(row.pts) < 0);
+  const hiddenOf = (row, isYou) => podium.id === 'people' && belowZeroHidden(row, isYou);
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
@@ -679,14 +683,18 @@ const Leaderboard = ({ onClose }) => {
     const above = scope.youRank - 1 <= 3
       ? [podium.first, podium.second, podium.third][scope.youRank - 2]
       : rows[scope.youRank - 1 - FIRST_LIST_RANK];
+    // No goal when the person above is below zero and theirs isn't ours to see
+    // (the gap would give their points away).
+    const hiddenAbove = above && !visibleLevel(above.levelId, { viewerRole }) && (above.hidden || toNum(above.pts) < 0);
+    const known = hiddenAbove ? null : above;
     const youPts = toNum(youRow.pts);
-    const abovePts = above ? toNum(above.pts) : youPts;
+    const abovePts = known ? toNum(known.pts) : youPts;
     return {
-      toNext: above ? Math.max(0, abovePts - youPts) : 0,
+      toNext: known ? Math.max(0, abovePts - youPts) : 0,
       fillPct: abovePts > 0 ? Math.min(100, Math.round((youPts / abovePts) * 100)) : 100,
       nextRank: scope.youRank - 1,
     };
-  }, [scope, youRow]);
+  }, [scope, youRow, viewerRole]);
 
   // The ranked list follows the switch: people, or departments. Either way the
   // viewer is pinned in the footer (their own row, or their department's).

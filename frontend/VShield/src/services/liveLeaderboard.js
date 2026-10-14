@@ -3,8 +3,10 @@
  * the sample board (sampleLeaderboard.js globalBoard), so the screen takes
  * either. Read only when VITE_LIVE_LEVELS=true (see liveStanding.js).
  *
- * The server never sends emails; it marks the viewer's row `you` and leaves
- * out levels below zero that the viewer may not see. Report and click rates
+ * The server never sends emails; it marks the viewer's row `you`, and for a
+ * level below zero the viewer may not see it sends neither the level nor the
+ * points (`points: null`): such a row comes back `hidden`, with no points to
+ * show. Report and click rates
  * and the week's movement aren't on the server yet: they come back empty
  * (the screen shows a dash). Pure functions, so `node --test` can cover them.
  */
@@ -21,9 +23,10 @@ const initialsOf = (name) =>
 export function boardFromApi(data) {
   if (!data || !Array.isArray(data.rows)) return null;
   const all = data.rows
-    .filter((r) => Number.isFinite(Number(r?.points)))
+    .filter((r) => r?.points === null || Number.isFinite(Number(r?.points)))
     .map((r, i) => {
-      const points = Number(r.points);
+      const hidden = r.points === null;
+      const points = hidden ? null : Number(r.points);
       return {
         rank: Number(r.rank) || i + 1,
         name: r.name || 'Unknown',
@@ -31,7 +34,8 @@ export function boardFromApi(data) {
         dept: r.department || '',
         initials: initialsOf(r.name),
         points,
-        pts: points.toLocaleString('en-US'),
+        pts: hidden ? '' : points.toLocaleString('en-US'),
+        hidden,
         rep: null,
         clk: null,
         move: 0,

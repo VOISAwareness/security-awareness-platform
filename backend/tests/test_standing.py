@@ -246,22 +246,23 @@ def test_leaderboard_ranks_everyone_and_hides_negatives(api):
         (1, "Jack Roberts", 4620, "L7G3", False),
         (2, "Ana Lopez", 160, "L2G1", True),
         (3, "Ben", 160, "L2G1", False),
-        (4, "Nour El Din", -140, None, False),
-        (5, "George", -260, None, False),
+        (4, "Nour El Din", None, None, False),
+        (5, "George", None, None, False),
     ]
     assert d["rows"][0]["department"] == "Cyber Security"
     assert d["you"] == {"rank": 2, "points": 160, "levelId": "L2G1"}
     assert "ana@" not in json.dumps(d), "no emails on the board"
+    assert "-140" not in json.dumps(d) and "-260" not in json.dumps(d), "no totals below zero for colleagues"
 
 
 def test_leaderboard_negatives_for_self_and_admins(api):
     seed_board(api)
     rows = call(api.mod, "GET /leaderboard", viewer="george@example.test")[1]["data"]["rows"]
-    assert [r["levelId"] for r in rows[3:]] == [None, "LN2"]
+    assert [(r["levelId"], r["points"]) for r in rows[3:]] == [(None, None), ("LN2", -260)], "own total, not Nour's"
     rows = call(api.mod, "GET /leaderboard", viewer=ANA, role="Admin")[1]["data"]["rows"]
-    assert [r["levelId"] for r in rows[3:]] == ["LN1", "LN2"]
+    assert [(r["levelId"], r["points"]) for r in rows[3:]] == [("LN1", -140), ("LN2", -260)]
     rows = call(api.mod, "GET /leaderboard", viewer=ANA, role="Campaign Manager")[1]["data"]["rows"]
-    assert [r["levelId"] for r in rows[3:]] == [None, None]
+    assert [(r["levelId"], r["points"]) for r in rows[3:]] == [(None, None), (None, None)]
 
 
 def test_someone_not_on_the_board(api):

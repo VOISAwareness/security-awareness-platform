@@ -1088,20 +1088,24 @@ def name_from_email(email):
 
 def leaderboard_view(totals, people, viewer, role=None):
     """The board as the Leaderboard screen reads it. Emails are never sent;
-    the viewer's own row is marked `you`."""
+    the viewer's own row is marked `you`.
+
+    A level below zero is for the person and admins only: to anyone else the
+    row comes with no level and no points (`points` None), so the total isn't
+    in the response at all."""
     admin = role in ADMIN_ROLES
     rows, you = [], None
     for rank, (email, points) in enumerate(totals, start=1):
         name, department = people.get(email) or (name_from_email(email), "")
         level = level_for(points)
         mine = email == viewer
+        shown = level["level"] > 0 or mine or admin
         row = {
             "rank": rank,
             "name": name or name_from_email(email),
             "department": department,
-            "points": points,
-            # Below zero is for the person and admins only.
-            "levelId": level["id"] if (level["level"] > 0 or mine or admin) else None,
+            "points": points if shown else None,
+            "levelId": level["id"] if shown else None,
             "you": mine,
         }
         rows.append(row)
