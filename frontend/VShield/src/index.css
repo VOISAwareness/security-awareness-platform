@@ -73,6 +73,19 @@ body {
 .hover-scrollbar::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
 .hover-scrollbar:hover { scrollbar-color: rgba(150, 150, 150, 0.4) transparent; }
 .hover-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.4); }
+
+/* Thin scrollbar, the one on the Scenarios and Start New Campaign lists */
+.vs-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.vs-scroll::-webkit-scrollbar-track { background: transparent; }
+.vs-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 6px; }
+.vs-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+.vs-scroll::-webkit-scrollbar-corner { background: transparent; }
+.dark .vs-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+.dark .vs-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+@supports not selector(::-webkit-scrollbar) {
+  .vs-scroll { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+  .dark .vs-scroll { scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
+}
 /* Level badges (GlobalComponents/LevelBadge, BadgeMedal) */
 .vs-badge-tilt {
   transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
