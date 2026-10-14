@@ -745,7 +745,6 @@ const ChooseAScenario = () => {
               )}
               <DraftCards
                 items={draftItems}
-                cardClassName="w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px]"
                 loading={draftsLoading}
                 isDark={isDark}
                 onContinue={continueCampaignDraft}
