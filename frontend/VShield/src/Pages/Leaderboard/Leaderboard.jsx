@@ -10,7 +10,7 @@ import AllBadges from '../../GlobalComponents/AllBadges';
 import { useMyStanding } from '../../services/useMyStanding';
 import { samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
 import { useGlobalBoard } from '../../services/useGlobalBoard';
-import { gradeName, levelAltText, levelFor, levelTitle, rangeText } from '../../services/levels';
+import { gradeName, levelAltText, levelFor, levelTitle, progressFor, rangeText } from '../../services/levels';
 
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
@@ -221,6 +221,9 @@ const METAL = {
   },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
+// The sheet's title tile keeps its pastel in dark mode, as on the app's other
+// screens, so its words take the light theme's ink.
+const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D' };
 const DEPT_CODE = {
   Finance: 'FIN', 'IT Security': 'SEC', Operations: 'OPS', 'Human Res.': 'HR', Sales: 'SAL', Legal: 'LEG', IT: 'IT', Marketing: 'MKT',
   Procurement: 'PRC', 'Customer Care': 'CC', Engineering: 'ENG', 'Data & AI': 'DAI', 'Risk & Compliance': 'RSK', Facilities: 'FAC', Strategy: 'STR', 'Network Ops': 'NET',
@@ -748,6 +751,18 @@ const Leaderboard = () => {
     };
   }, [scope, youRow, viewerRole]);
 
+  // Your standing's goal: the points to the next rank when that can be shown,
+  // else to the next badge (from your own points, always known to you).
+  const goal = useMemo(() => {
+    if (standing.toNext > 0) {
+      return { label: `${standing.toNext.toLocaleString()} ${standing.toNext === 1 ? 'pt' : 'pts'} to rank ${standing.nextRank}`, pct: standing.fillPct };
+    }
+    const pr = mine.level ? progressFor(mine.points) : null;
+    if (!pr) return null;
+    if (pr.isTop) return { label: 'Top badge reached', pct: 100 };
+    return { label: `${pr.toNext.toLocaleString()} pts to your next badge`, pct: pr.pct };
+  }, [standing, mine.level, mine.points]);
+
   // The ranked list follows the switch: people, or departments. Either way the
   // viewer is pinned in the footer (their own row, or their department's).
   const list = podium.id === 'depts'
@@ -768,8 +783,8 @@ const Leaderboard = () => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.08)', '--pts-bg': 'rgba(232,179,11,0.12)', '--pts-line': 'rgba(232,179,11,0.35)', '--pts-ink': '#FBD46B' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F1F2F5', '--pts-bg': 'linear-gradient(180deg,#FFF8E2,#FFEFC2)', '--pts-line': '#EBCB78', '--pts-ink': '#3F3000' };
+    ? { '--bg': 'transparent', '--base': '#1C1E24', '--rail': '#1C1E24', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.10)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': '#2E200C', '--standing-edge': 'rgba(255,255,255,0.10)', '--standing-shadow': 'none', '--standing-ink': '#F2C66B', '--standing-num': '#FBD46B', '--standing-track': 'rgba(242,198,107,0.18)', '--standing-plate': 'rgba(255,255,255,0.06)', '--standing-plate-edge': 'rgba(255,255,255,0.10)', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.08)', '--pts-bg': 'rgba(232,179,11,0.12)', '--pts-line': 'rgba(232,179,11,0.35)', '--pts-ink': '#FBD46B' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)', '--standing-edge': 'transparent', '--standing-shadow': '0 8px 20px rgba(232,179,11,0.16)', '--standing-ink': '#8A5A0A', '--standing-num': '#7A5B12', '--standing-track': 'rgba(176,122,18,0.18)', '--standing-plate': 'rgba(255,255,255,0.75)', '--standing-plate-edge': 'rgba(176,122,18,0.22)', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F1F2F5', '--pts-bg': 'linear-gradient(180deg,#FFF8E2,#FFEFC2)', '--pts-line': '#EBCB78', '--pts-ink': '#3F3000' };
 
   // A scope capsule: a switch between Global and My Campaigns, or, with Global
   // the only view (Regular Users), a plain title card.
@@ -786,12 +801,12 @@ const Leaderboard = () => {
           position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: canCampaigns ? 'pointer' : 'default', width: '100%', flexShrink: 0,
           borderRadius: L_R, padding: '16px 16px 18px', marginBottom: 10, minHeight: 96,
           border: selected ? '1px solid transparent' : '1px solid var(--hair)',
-          background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
+          background: selected ? (isDark ? '#FFFFFF' : id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
           boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
         }}
       >
-        <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
-        <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
+        <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0F172A' : activeColor) : 'var(--text)' }}>{label}</div>
+        <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, color: selected && isDark ? '#475569' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
         <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: 0, right: 2, width: 60, height: 60, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
       </Cap>
     );
@@ -821,14 +836,14 @@ const Leaderboard = () => {
         </AnimatePresence>
 
         {/* top black bar */}
-        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 18px', flexShrink: 0 }}>
+        <div style={{ background: isDark ? '#FFFFFF' : '#000000', color: isDark ? '#000000' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 18px', flexShrink: 0 }}>
           <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
           <button
             type="button"
             data-lb-back
             onClick={() => navigate('/my-space')}
             aria-label="Back to My Space"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 8, border: isDark ? '1px solid rgba(15,23,42,0.18)' : '1px solid rgba(255,255,255,0.2)', background: isDark ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.08)', color: 'inherit', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             My Space
@@ -841,50 +856,55 @@ const Leaderboard = () => {
           {/* LEFT RAIL */}
           <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
-            {/* Your standing — hero, on top */}
-            <div style={{ flexShrink: 0, height: HERO_H, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'var(--cap-standing)', borderRadius: L_R, padding: '13px 16px', marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
+            {/* Your standing: your badge and name, your rank, and the next step up */}
+            <div data-lb-standing style={{ flexShrink: 0, height: HERO_H, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'var(--cap-standing)', border: '1px solid var(--standing-edge)', borderRadius: L_R, padding: '12px 14px 13px', marginBottom: 10, boxShadow: 'var(--standing-shadow)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</span>
+                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--standing-ink)' }}>Your standing</span>
                 {youRow.move > 0 && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>
                     {youRow.move} this week
                   </span>
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 52, height: 52, borderRadius: 999, flexShrink: 0, background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(184,134,11,0.35)' }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 999, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                    <span style={{ fontSize: 6.5, fontWeight: 800, letterSpacing: '0.12em', color: '#B07A12', marginBottom: 1 }}>RANK</span>
-                    <span className="lb-exb" style={{ fontSize: 17, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
-                  </div>
-                </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.dept}</div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts</div>
-                </div>
-                {mine.level && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {mine.level ? (
                   <button
                     type="button"
                     data-hero-level={mine.level.id}
                     onClick={() => setBadges({})}
                     title={`${levelTitle(mine.level)} · ${mine.level.name}. See all badges`}
                     aria-label={`Your level: ${levelTitle(mine.level)}, ${mine.level.name}. See all badges`}
+                    className="lb-badge-btn"
                     style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', lineHeight: 0 }}
                   >
-                    <LevelBadge level={mine.level} size={58} decorative />
+                    <LevelBadge level={mine.level} size={48} glow={isDark ? 'dark' : true} decorative />
                   </button>
+                ) : (
+                  <Avatar initials={youInitials} size={44} you />
                 )}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3 }}>{youRow.dept}</div>
+                </div>
+                <div data-lb-standing-rank aria-label={scope.youRank ? `Rank ${scope.youRank}` : 'Not ranked yet'} style={{ flexShrink: 0, minWidth: 50, height: 46, padding: '0 8px', boxSizing: 'border-box', borderRadius: 12, background: 'var(--standing-plate)', border: '1px solid var(--standing-plate-edge)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, lineHeight: 1 }}>
+                  <span aria-hidden style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '0.14em', color: 'var(--standing-ink)' }}>RANK</span>
+                  <span aria-hidden className="lb-exb" style={{ fontSize: 19, color: 'var(--standing-num)' }}>{scope.youRank || '—'}</span>
+                </div>
               </div>
 
-              {standing.toNext > 0 && (
-                <div>
-                  <div style={{ height: 6, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${standing.fillPct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
+              {goal && (
+                <div data-lb-goal>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
+                    <span className="vs-rank" style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                      {youRow.pts} <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)' }}>pts</span>
+                    </span>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--standing-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{goal.label}</span>
                   </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--t-gold)', marginTop: 5 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
+                  <div role="progressbar" aria-label={goal.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={goal.pct} style={{ height: 6, borderRadius: 999, background: 'var(--standing-track)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${goal.pct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
+                  </div>
                 </div>
               )}
             </div>
@@ -970,7 +990,7 @@ const Leaderboard = () => {
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
             {/* capsule: its own tile, set apart from the sheet by L_GAP */}
-            <div style={{ position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
+            <div style={{ ...(isDark ? PASTEL_INK : null), position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
               {scope.live && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A' }} />
