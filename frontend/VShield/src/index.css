@@ -1,3 +1,6 @@
+/* Rank lettering for the badge screens (level names, grades, numbers): .vs-rank */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -88,6 +91,47 @@ body {
   background-repeat: no-repeat;
   animation: vs-badge-glint 7s ease-in-out infinite;
 }
+/* level names, grades and numbers on the badge screens */
+.vs-rank {
+  font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+}
+/* light rays turning slowly behind a big badge, and a gentle float */
+@keyframes vs-rays {
+  to { transform: rotate(360deg); }
+}
+.vs-rays {
+  animation: vs-rays 50s linear infinite;
+}
+@keyframes vs-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.vs-float {
+  animation: vs-float 4.8s ease-in-out infinite;
+}
+/* All badges: the level cards and their buttons */
+.vs-tier {
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.vs-tier-btn img {
+  transition: transform 0.25s ease;
+}
+.vs-tier-btn:hover img {
+  transform: translateY(-4px) scale(1.05);
+}
+.vs-grade-btn:hover:not([aria-pressed='true']) {
+  filter: brightness(1.2);
+}
+.vs-below-btn {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.vs-below-btn:hover {
+  transform: translateY(-2px);
+}
+.vs-on-dark:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
 @media (prefers-reduced-motion: reduce) {
   .vs-badge-tilt,
   .vs-badge-tilt:hover {
@@ -97,5 +141,14 @@ body {
   .vs-badge-glint {
     animation: none;
     background-image: none;
+  }
+  .vs-rays,
+  .vs-float {
+    animation: none;
+  }
+  .vs-tier,
+  .vs-tier-btn img,
+  .vs-below-btn {
+    transition: none;
   }
 }

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
 import LevelBadge from '../../GlobalComponents/LevelBadge';
-import LevelsGuide from './LevelsGuide';
+import AllBadges from '../../GlobalComponents/AllBadges';
 import { useMyStanding } from '../../services/useMyStanding';
 import { samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
 import { useGlobalBoard } from '../../services/useGlobalBoard';
@@ -27,7 +27,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 //
 // Everyone's level badge shows beside their name, on the podium and in "Your
 // standing". A level below zero is shown only to its owner and to Admins;
-// other viewers see a dash. "All levels" opens the whole ladder.
+// other viewers see a dash. "All badges", or your own badge, opens every level
+// and grade (GlobalComponents/AllBadges).
 //
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the live
@@ -486,7 +487,8 @@ const Leaderboard = ({ onClose }) => {
   const globalBoard = useGlobalBoard(mine.email, user?.role, mine.rank);
   const viewerRole = user?.role;
   const youDept = mine.department || user?.Department || '';
-  const [showLevels, setShowLevels] = useState(false);
+  const [badges, setBadges] = useState(null); // All badges: null, or { selected, subject }
+  const closeBadges = useCallback(() => setBadges(null), []);
   const [view, setView] = useState('global'); // 'global' | 'campaign'
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
@@ -610,7 +612,18 @@ const Leaderboard = ({ onClose }) => {
       <div className="lb-page" style={{ ...vars, '--accent': '#E60000', position: 'relative', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         <AnimatePresence>
-          {showLevels && <LevelsGuide key="levels" current={mine.level} isDark={isDark} onClose={() => setShowLevels(false)} />}
+          {badges && (
+            <AllBadges
+              key="all-badges"
+              current={mine.level}
+              points={mine.level ? mine.points : null}
+              rank={mine.rank}
+              total={mine.total}
+              selected={badges.selected}
+              subject={badges.subject}
+              onClose={closeBadges}
+            />
+          )}
         </AnimatePresence>
 
         {/* top black bar */}
@@ -663,9 +676,9 @@ const Leaderboard = ({ onClose }) => {
                   <button
                     type="button"
                     data-hero-level={mine.level.id}
-                    onClick={() => setShowLevels(true)}
-                    title={`${levelTitle(mine.level)} · ${mine.level.name}. See all levels`}
-                    aria-label={`Your level: ${levelTitle(mine.level)}, ${mine.level.name}. See all levels`}
+                    onClick={() => setBadges({})}
+                    title={`${levelTitle(mine.level)} · ${mine.level.name}. See all badges`}
+                    aria-label={`Your level: ${levelTitle(mine.level)}, ${mine.level.name}. See all badges`}
                     style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', lineHeight: 0 }}
                   >
                     <LevelBadge level={mine.level} size={58} decorative />
@@ -693,10 +706,10 @@ const Leaderboard = ({ onClose }) => {
                   <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
                   <button
                     type="button"
-                    onClick={() => setShowLevels(true)}
+                    onClick={() => setBadges({})}
                     style={{ border: '1px solid var(--hair)', background: 'var(--track)', color: 'var(--text)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
                   >
-                    All levels
+                    All badges
                   </button>
                 </div>
                 <div style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>

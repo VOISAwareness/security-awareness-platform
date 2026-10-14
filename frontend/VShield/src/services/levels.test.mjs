@@ -3,10 +3,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  BELOW_LEVELS,
   LEVELS,
   LEVEL_BY_ID,
+  LEVEL_FAMILIES,
+  ROMAN,
   canSeeBadge,
   canSeeRisk,
+  familyRangeText,
+  gradeName,
   higherLevel,
   isNegative,
   levelAltText,
@@ -18,6 +23,7 @@ import {
   resolveLevel,
   riskColor,
   riskPosition,
+  stepsAround,
 } from './levels.js';
 
 test('24 levels, lowest first, each band starting where the last one ends', () => {
@@ -154,4 +160,39 @@ test('risk sits on a green-to-red scale; unknown has no place', () => {
   assert.equal(riskColor(100), '#EF4444');
   assert.equal(riskColor(null), '#64748B');
   assert.equal(riskColor(140), '#EF4444');
+});
+
+test('grade names read as players say them', () => {
+  assert.deepEqual(ROMAN.slice(1), ['I', 'II', 'III']);
+  assert.equal(gradeName(LEVEL_BY_ID.L4G3), 'Phish Catcher · III');
+  assert.equal(gradeName(LEVEL_BY_ID.L1G1), 'New Joiner · I');
+  assert.equal(gradeName(LEVEL_BY_ID.LN2), 'Critical Risk');
+  assert.equal(gradeName(null), '');
+});
+
+test('levels 1 to 7 as families of three, and the three below zero', () => {
+  assert.equal(LEVEL_FAMILIES.length, 7);
+  LEVEL_FAMILIES.forEach((grades, i) => {
+    assert.deepEqual(grades.map((l) => l.id), [1, 2, 3].map((g) => `L${i + 1}G${g}`));
+  });
+  assert.deepEqual(BELOW_LEVELS.map((l) => l.id), ['L0', 'LN1', 'LN2']);
+  assert.equal(familyRangeText(LEVEL_FAMILIES[3]), '750–1,299 pts');
+  assert.equal(familyRangeText(LEVEL_FAMILIES[6]), '3,400+ pts');
+  assert.equal(familyRangeText([]), '');
+});
+
+test('steps around a level: its grades, then the next level', () => {
+  const steps = (id) => stepsAround(LEVEL_BY_ID[id]).map((s) => `${s.level.id}:${s.state}`);
+  assert.deepEqual(steps('L2G2'), ['L2G1:done', 'L2G2:current', 'L2G3:ahead', 'L3G1:ahead']);
+  assert.deepEqual(steps('L1G1'), ['L1G1:current', 'L1G2:ahead', 'L1G3:ahead', 'L2G1:ahead']);
+  assert.deepEqual(steps('L6G3'), ['L6G1:done', 'L6G2:done', 'L6G3:current', 'L7G1:ahead']);
+  assert.deepEqual(steps('L7G3'), ['L7G1:done', 'L7G2:done', 'L7G3:current'], 'nothing above the top');
+  assert.deepEqual(stepsAround(null), []);
+});
+
+test('below zero, the steps are the way back to New Joiner', () => {
+  const steps = (id) => stepsAround(LEVEL_BY_ID[id]).map((s) => `${s.level.id}:${s.state}`);
+  assert.deepEqual(steps('LN1'), ['LN2:below', 'LN1:current', 'L0:ahead', 'L1G1:ahead']);
+  assert.deepEqual(steps('L0'), ['LN2:below', 'LN1:below', 'L0:current', 'L1G1:ahead']);
+  assert.deepEqual(steps('LN2'), ['LN2:current', 'LN1:ahead', 'L0:ahead', 'L1G1:ahead']);
 });

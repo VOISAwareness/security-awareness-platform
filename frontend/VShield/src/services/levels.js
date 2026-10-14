@@ -102,10 +102,59 @@ const fmt = (n) => n.toLocaleString('en-US');
 /** The points a level covers: "300–449 pts", "-100 to -1 pts", "4,450+ pts", "below -200 pts". */
 export function rangeText(level) {
   if (!level) return '';
-  if (level.min === null) return `below ${fmt(level.max)} pts`;
-  if (level.max === null) return `${fmt(level.min)}+ pts`;
-  const sep = level.min < 0 ? ' to ' : '–'; // "-100 to -1" reads better than "-100–-1"
-  return `${fmt(level.min)}${sep}${fmt(level.max - 1)} pts`;
+  return spanText(level.min, level.max);
+}
+
+function spanText(min, max) {
+  if (min === null) return `below ${fmt(max)} pts`;
+  if (max === null) return `${fmt(min)}+ pts`;
+  const sep = min < 0 ? ' to ' : '–'; // "-100 to -1" reads better than "-100–-1"
+  return `${fmt(min)}${sep}${fmt(max - 1)} pts`;
+}
+
+/** Grades as players read them: I, II, III. */
+export const ROMAN = Object.freeze(['', 'I', 'II', 'III']);
+
+/** "Phish Catcher · III", or just "Critical Risk" for the levels without grades. */
+export function gradeName(level) {
+  if (!level) return '';
+  return level.grade ? `${level.name} · ${ROMAN[level.grade]}` : level.name;
+}
+
+/** Levels 1 to 7, each as its three grades, lowest first. */
+export const LEVEL_FAMILIES = Object.freeze(
+  [1, 2, 3, 4, 5, 6, 7].map((n) => Object.freeze(LEVELS.filter((l) => l.level === n))),
+);
+
+/** The levels below Level 1, highest first: 0, -1, -2. */
+export const BELOW_LEVELS = Object.freeze(LEVELS.filter((l) => l.level <= 0).reverse());
+
+/** The points a whole level covers, its grades together: "750–1,299 pts", "3,400+ pts". */
+export function familyRangeText(grades) {
+  if (!grades || !grades.length) return '';
+  return spanText(grades[0].min, grades.at(-1).max);
+}
+
+/**
+ * The steps My Space shows around a level: its three grades, then the next
+ * level's first grade. At Cyber Guardian there is no next level, so just the
+ * three grades. Below zero, the way back: Level -2, -1, 0, then New Joiner.
+ *
+ * Each step is { level, state }: 'done' (a grade already passed), 'current',
+ * 'ahead' (not reached yet) or 'below' (a level under yours below zero, which
+ * is nothing to tick off).
+ */
+export function stepsAround(level) {
+  if (!level) return [];
+  const steps = level.grade
+    ? [...LEVEL_FAMILIES[level.level - 1], LEVELS[LEVEL_FAMILIES[level.level - 1].at(-1).rank + 1]].filter(Boolean)
+    : [...BELOW_LEVELS].reverse().concat(LEVEL_BY_ID.L1G1);
+  return steps.map((l) => {
+    let state = 'ahead';
+    if (l.rank === level.rank) state = 'current';
+    else if (l.rank < level.rank) state = l.level > 0 ? 'done' : 'below';
+    return { level: l, state };
+  });
 }
 
 // Level -2 has no floor; its bar is drawn as if it started here.
