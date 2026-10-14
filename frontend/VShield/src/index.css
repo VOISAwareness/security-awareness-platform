@@ -70,3 +70,32 @@ body {
 .hover-scrollbar::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
 .hover-scrollbar:hover { scrollbar-color: rgba(150, 150, 150, 0.4) transparent; }
 .hover-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.4); }
+/* Level badges (GlobalComponents/LevelBadge, BadgeMedal) */
+.vs-badge-tilt {
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.vs-badge-tilt:hover {
+  transform: perspective(320px) rotateY(16deg) rotateX(4deg) scale(1.08);
+}
+/* a band of light that passes over the big badge now and then */
+@keyframes vs-badge-glint {
+  0%, 62% { background-position: 160% 0; }
+  100% { background-position: -60% 0; }
+}
+.vs-badge-glint {
+  background-image: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.5) 50%, transparent 62%);
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  animation: vs-badge-glint 7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs-badge-tilt,
+  .vs-badge-tilt:hover {
+    transition: none;
+    transform: none;
+  }
+  .vs-badge-glint {
+    animation: none;
+    background-image: none;
+  }
+}
