@@ -24,6 +24,14 @@ import MySpaceCardBgLight from '../../assets/MySpaceCardBgLightMode.png';
 import MySpaceCardBgDark from '../../assets/MySpaceCardBgDarkMode.png';
 import { DEMO_USER } from '../../appConfig';
 import LeaderboardModal from '../Leaderboard/LeaderboardModal';
+import LevelBadge from '../../GlobalComponents/LevelBadge';
+import PointsAndBadges from './PointsAndBadges';
+import LevelUpDialog from './LevelUpDialog';
+import { useMyStanding } from '../../services/useMyStanding';
+import { levelNotice, readLastLevel, rememberLevel } from '../../services/levelMemory';
+import { levelTitle, riskColor, riskPosition } from '../../services/levels';
+
+const browserStorage = () => (typeof window === 'undefined' ? null : window.localStorage);
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -62,7 +70,7 @@ const VODAFONE_FONT_STYLE = `
 // =========================================================================
 // 🌟 1. UNBREAKABLE ELASTIC LANYARD & SNAP-BACK ID BADGE (LOWERED BY 4PX)
 // =========================================================================
-const DraggableIdBadge = ({ isDark, userName, email, tower, onOpenLeaderboard }) => {
+const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderboard }) => {
   const cardBgImage = isDark ? MySpaceCardBgDark : MySpaceCardBgLight;
 
   const x = useMotionValue(180);
@@ -159,6 +167,13 @@ const DraggableIdBadge = ({ isDark, userName, email, tower, onOpenLeaderboard })
           {/* Lanyard Top Punch Hole */}
           <div className="w-9 h-1.5 -mt-1 mb-1.5 rounded-full bg-slate-300 dark:bg-[#0c0d10] border border-black/15 dark:border-white/10 shadow-inner" />
 
+          {/* Your level's badge, pinned to the card's corner */}
+          {level && (
+            <div className="absolute top-2.5 right-2.5 z-20" data-id-card-badge={level.id}>
+              <LevelBadge level={level} size={58} />
+            </div>
+          )}
+
           {/* User Photo & Info */}
           <div className="flex flex-col items-center w-full z-10">
             <div className="w-16 h-16 rounded-full bg-[#1e2026] dark:bg-[#111216] border-2 border-white/80 dark:border-white/10 shadow-md flex items-center justify-center mb-2 text-white">
@@ -181,24 +196,39 @@ const DraggableIdBadge = ({ isDark, userName, email, tower, onOpenLeaderboard })
             <div className="w-full h-px bg-black/10 dark:bg-white/10 shadow-xs" />
           </div>
 
-          {/* Restored Risk Score Meter */}
-          <div className="flex flex-col items-center w-full z-10">
-            <div className="flex items-center gap-1.5 justify-center">
-              <span className={`text-[11px] font-voda-exb tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Risk Score
+          {/* Risk level: from your level until a measured risk score exists */}
+          {level && (
+            <div className="flex flex-col items-center w-full z-10" data-id-card-risk>
+              <div className="flex items-center gap-1.5 justify-center">
+                <span className={`text-[11px] font-voda-exb tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Risk Level
+                </span>
+                <span title="Your risk category comes from your level: report suspicious emails and finish training to lower it.">
+                  <Info className="w-3 h-3 text-slate-400 cursor-help" />
+                </span>
+              </div>
+
+              <div className="relative w-24 h-1 rounded-full mt-1.5 bg-gradient-to-r from-[#22c55e] via-[#eab308] to-[#ef4444] shadow-inner">
+                {riskPosition(level) !== null && (
+                  <span
+                    aria-hidden
+                    className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+                    style={{ left: `${riskPosition(level)}%`, background: riskColor(riskPosition(level)) }}
+                  />
+                )}
+              </div>
+
+              <span
+                className="text-[15px] font-voda-exb uppercase leading-none mt-2"
+                style={{ color: riskColor(riskPosition(level)) }}
+              >
+                {level.risk === 'Unknown' ? 'Not known yet' : level.risk}
               </span>
-              <Info className="w-3 h-3 text-slate-400 cursor-pointer" />
+              <span className={`text-[9px] font-bold mt-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                {levelTitle(level)} · {level.name}
+              </span>
             </div>
-
-            <div className="w-20 h-1 rounded-full mt-1 overflow-hidden bg-gradient-to-r from-[#22c55e] via-[#eab308] to-[#ef4444] shadow-inner" />
-
-            <span className="text-[17px] font-voda-exb text-[#22c55e] leading-none mt-1.5">
-              18%
-            </span>
-            <span className={`text-[9px] font-bold mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-              Good
-            </span>
-          </div>
+          )}
 
           {/* Metrics Row: Campaigns Involved & Certificates Earned */}
           <div className="w-full grid grid-cols-2 gap-2 mt-2 z-10 text-center">
@@ -306,7 +336,8 @@ const ActivityGauge = ({ percentage, subLabel, color, isDark }) => {
 // =========================================================================
 // 🌟 3. HIGH-EFFICIENCY VERTICAL ACCORDION GALLERY
 // =========================================================================
-const VerticalAccordionContainer = ({ isDark }) => {
+const VerticalAccordionContainer = ({ isDark, standing }) => {
+  const level = standing?.level;
   const [active, setActive] = useState(0); // 0: Activities (Default), 1: Risk Score, 2: Points & Badges
 
   const sections = [
@@ -387,47 +418,65 @@ const VerticalAccordionContainer = ({ isDark }) => {
 
                   {/* Dynamic Right Side for Unexpanded Strip */}
                   <div className="flex items-center gap-3 pr-4">
-                    {/* Section 1 (Risk Score): Display 18% Good */}
-                    {index === 1 && (
+                    {/* Section 1 (Risk Score): your level's risk category */}
+                    {index === 1 && level && (
                       <div className="flex items-center gap-2">
-                        <span className="text-[14px] font-voda-exb text-[#22c55e] leading-none">
-                          18%
-                        </span>
-                        <span className={`text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          Good
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ background: riskColor(riskPosition(level)) }}
+                        />
+                        <span
+                          className="text-[12px] font-voda-exb uppercase leading-none"
+                          style={{ color: riskColor(riskPosition(level)) }}
+                        >
+                          {level.risk === 'Unknown' ? 'Not known yet' : level.risk}
                         </span>
                       </div>
                     )}
 
-                    {/* Section 2 (Points & Badges): Display My Points | My Rank */}
-                    {index === 2 && (
+                    {/* Section 2 (Points & Badges): badge | My Points | My Rank */}
+                    {index === 2 && level && (
                       <div className="flex items-center gap-2.5">
-                        {/* My Points */}
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[9.5px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            My Points
-                          </span>
-                          <span className={`text-[12px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            +85
-                          </span>
-                          <span className="w-3.5 h-3.5 rounded-full bg-[#22c55e] text-white flex items-center justify-center text-[7.5px] font-bold">
-                            <Check className="w-2 h-2 stroke-[3]" />
+                        <div className="flex items-center gap-1.5">
+                          <LevelBadge level={level} size={30} tilt={false} decorative />
+                          <span className={`text-[10px] font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {level.name}
                           </span>
                         </div>
 
                         {/* Rounded Divider */}
                         <span className="w-0.5 h-3.5 rounded-full bg-black/15 dark:bg-white/20" />
 
-                        {/* My Rank */}
+                        {/* My Points */}
                         <div className="flex items-center gap-1">
                           <span className={`text-[9.5px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            My Rank
+                            My Points
                           </span>
                           <span className={`text-[12px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            72
+                            {standing.points.toLocaleString()}
                           </span>
-                          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                          {standing.points >= 0 && (
+                            <span className="w-3.5 h-3.5 rounded-full bg-[#22c55e] text-white flex items-center justify-center text-[7.5px] font-bold">
+                              <Check className="w-2 h-2 stroke-[3]" />
+                            </span>
+                          )}
                         </div>
+
+                        {/* My Rank */}
+                        {standing.rank && (
+                          <>
+                            <span className="w-0.5 h-3.5 rounded-full bg-black/15 dark:bg-white/20" />
+                            <div className="flex items-center gap-1">
+                              <span className={`text-[9.5px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                My Rank
+                              </span>
+                              <span className={`text-[12px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                {standing.rank}
+                              </span>
+                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -791,32 +840,8 @@ const VerticalAccordionContainer = ({ isDark }) => {
                     </div>
                   )}
 
-                  {/* SECTION 2: POINTS AND BADGES (Placeholder) */}
-                  {index === 2 && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-auto">
-                      <div
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-inner"
-                        style={{
-                          backgroundColor: `${section.color}20`,
-                          border: `1px solid ${section.color}40`
-                        }}
-                      >
-                        <Award className="w-7 h-7" style={{ color: section.color }} />
-                      </div>
-                      <h4
-                        className="text-base font-voda-exb uppercase tracking-tight"
-                        style={{ color: section.color }}
-                      >
-                        Points and Badges
-                      </h4>
-                      <p className={`text-xs font-medium mt-1 max-w-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        The Content will be available soon
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        <Sparkles className="w-3 h-3 text-amber-500" /> Unlocking Soon
-                      </div>
-                    </div>
-                  )}
+                  {/* SECTION 2: POINTS AND BADGES */}
+                  {index === 2 && standing && <PointsAndBadges standing={standing} isDark={isDark} />}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -834,6 +859,16 @@ const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const closeLeaderboard = useCallback(() => setShowLeaderboard(false), []);
+  const standing = useMyStanding();
+  const levelId = standing.level?.id;
+
+  // Has the level changed since this person last looked, on this browser?
+  // Up: a celebration. Down: a short note. Then remember the level now.
+  const [notice, setNotice] = useState(() => levelNotice(readLastLevel(browserStorage(), standing.email), levelId));
+  const closeNotice = useCallback(() => setNotice(null), []);
+  useEffect(() => {
+    rememberLevel(browserStorage(), standing.email, levelId);
+  }, [standing.email, levelId]);
 
   return (
     <>
@@ -842,6 +877,10 @@ const MySpace = () => {
       {/* LEADERBOARD button on the ID badge opens the board as a pop-up */}
       <AnimatePresence>
         {showLeaderboard && <LeaderboardModal key="leaderboard" onClose={closeLeaderboard} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {notice?.kind === 'up' && <LevelUpDialog key="level-up" notice={notice} isDark={isDark} onClose={closeNotice} />}
       </AnimatePresence>
 
       <div
@@ -863,6 +902,30 @@ const MySpace = () => {
           </span>
         </div>
 
+        {/* Your level went down since you last looked: a short note, no fuss */}
+        {notice?.kind === 'down' && (
+          <div
+            role="status"
+            data-level-down
+            className={`w-full px-4 py-2.5 rounded-xl border flex items-center gap-3 ${
+              isDark ? 'bg-amber-500/10 border-amber-400/25 text-amber-100' : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}
+          >
+            <LevelBadge level={notice.to} size={34} tilt={false} decorative />
+            <span className="text-[11.5px] font-semibold flex-1 min-w-0">
+              Your level has gone down to <strong>{levelTitle(notice.to)} · {notice.to.name}</strong> (from {levelTitle(notice.from)}).
+              Report suspicious emails and finish your training to climb back up.
+            </span>
+            <button
+              type="button"
+              onClick={closeNotice}
+              className="flex-shrink-0 text-[10.5px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-lg border border-current/30 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              Got it
+            </button>
+          </div>
+        )}
+
         {/* Main 2-Column Dashboard Grid */}
         <div className="flex flex-col lg:flex-row items-stretch gap-3.5 w-full">
           
@@ -870,7 +933,7 @@ const MySpace = () => {
           {/* ── COLUMN 1 (LEFT): VERTICAL ACCORDION GALLERY ────────────────────────── */}
           {/* ========================================================================= */}
           <div className="flex-1 min-w-0 flex flex-col">
-            <VerticalAccordionContainer isDark={isDark} />
+            <VerticalAccordionContainer isDark={isDark} standing={standing} />
           </div>
 
           {/* ========================================================================= */}
@@ -882,6 +945,7 @@ const MySpace = () => {
               userName={(user?.UserName || DEMO_USER.name).toUpperCase()}
               email={user?.UserEMailID || DEMO_USER.email}
               tower="AI & Data Analytics Tower (AIDA)"
+              level={standing.level}
               onOpenLeaderboard={() => setShowLeaderboard(true)}
             />
           </div>

@@ -16,6 +16,8 @@ import {
   progressFor,
   rangeText,
   resolveLevel,
+  riskColor,
+  riskPosition,
 } from './levels.js';
 
 test('24 levels, lowest first, each band starting where the last one ends', () => {
@@ -139,4 +141,17 @@ test('negative levels and risk are seen by the person and admins only', () => {
   assert.equal(canSeeRisk({ viewerRole: 'GMT' }), false);
   assert.equal(canSeeRisk({ isSelf: true }), true);
   assert.equal(canSeeRisk({ viewerRole: 'Admin' }), true);
+});
+
+test('risk sits on a green-to-red scale; unknown has no place', () => {
+  assert.equal(riskPosition(LEVEL_BY_ID.L1G2), null, 'New Joiner: Unknown');
+  assert.ok(riskPosition(LEVEL_BY_ID.L7G1) < riskPosition(LEVEL_BY_ID.L4G1));
+  assert.ok(riskPosition(LEVEL_BY_ID.L2G1) < riskPosition(LEVEL_BY_ID.L0));
+  assert.ok(riskPosition(LEVEL_BY_ID.L0) < riskPosition(LEVEL_BY_ID.LN2));
+  for (const l of LEVELS) if (l.family !== 'L1') assert.notEqual(riskPosition(l), null, l.id);
+  assert.equal(riskColor(0), '#22C55E');
+  assert.equal(riskColor(50), '#EAB308');
+  assert.equal(riskColor(100), '#EF4444');
+  assert.equal(riskColor(null), '#64748B');
+  assert.equal(riskColor(140), '#EF4444');
 });

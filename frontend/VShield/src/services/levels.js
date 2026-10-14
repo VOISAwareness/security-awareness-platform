@@ -142,6 +142,37 @@ export function higherLevel(a, b) {
   return b.rank > a.rank ? b : a;
 }
 
+// Where each risk category sits on a green-to-red scale (0-100). "Unknown"
+// (New Joiner) has no place on it yet.
+const RISK_SCALE = {
+  Trusted: 4,
+  'Minimal Risk': 12,
+  'Very Low': 22,
+  'Low Risk': 34,
+  'Medium-Low': 46,
+  'Medium Risk': 58,
+  'High Risk': 74,
+  'Very High Risk': 86,
+  'Severe Risk': 96,
+};
+
+/** A level's risk on the 0 (safe) to 100 (severe) scale; null when unknown. */
+export function riskPosition(level) {
+  const v = level ? RISK_SCALE[level.risk] : undefined;
+  return v === undefined ? null : v;
+}
+
+const mix = (a, b, t) => Math.round(a + (b - a) * t);
+const hex = (n) => n.toString(16).padStart(2, '0');
+
+/** The colour at a point of the green (0) - amber (50) - red (100) scale. */
+export function riskColor(position) {
+  if (position === null || position === undefined) return '#64748B';
+  const p = Math.min(100, Math.max(0, position));
+  const [from, to, t] = p <= 50 ? [[34, 197, 94], [234, 179, 8], p / 50] : [[234, 179, 8], [239, 68, 68], (p - 50) / 50];
+  return `#${from.map((c, i) => hex(mix(c, to[i], t))).join('')}`.toUpperCase();
+}
+
 const isAdmin = (role) => ADMIN_ROLES.includes(role);
 
 /**
