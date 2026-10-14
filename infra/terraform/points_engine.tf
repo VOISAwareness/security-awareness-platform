@@ -22,10 +22,9 @@ resource "aws_iam_role" "points_engine" {
   })
 }
 
-# Logs, and reading the events stream.
-resource "aws_iam_role_policy_attachment" "points_engine_stream" {
+resource "aws_iam_role_policy_attachment" "points_engine_logs" {
   role       = aws_iam_role.points_engine.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy" "points_engine" {
@@ -34,6 +33,19 @@ resource "aws_iam_role_policy" "points_engine" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        # Reading the events stream: this table's only, where the AWS managed
+        # AWSLambdaDynamoDBExecutionRole would allow every stream.
+        Effect   = "Allow"
+        Action   = ["dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator"]
+        Resource = "${aws_dynamodb_table.events.arn}/stream/*"
+      },
+      {
+        # Only lists stream ARNs; it can't be scoped to a table.
+        Effect   = "Allow"
+        Action   = "dynamodb:ListStreams"
+        Resource = "*"
+      },
       {
         # Who the event was for, whether the campaign was a test, what the
         # action is worth.
@@ -91,4 +103,7 @@ resource "aws_lambda_event_source_mapping" "points_engine" {
   bisect_batch_on_function_error = true
   maximum_retry_attempts         = 10
   maximum_record_age_in_seconds  = 86400
+
+  # Lambda checks the role can read the stream when the trigger is created.
+  depends_on = [aws_iam_role_policy.points_engine]
 }
