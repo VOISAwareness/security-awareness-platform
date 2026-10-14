@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -72,6 +72,10 @@ const FONT_IMPORT = `
   .lb-row { transition: box-shadow .15s ease; }
   .lb-row:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); }
 
+  /* Department crests: a band of light sweeps across now and then */
+  @keyframes lb-shine { 0%, 62% { transform: translateX(-60px) skewX(-18deg); } 100% { transform: translateX(150px) skewX(-18deg); } }
+  .lb-shine { animation: lb-shine 5.5s ease-in-out infinite; }
+
   /* Viewer's own pill in the footer: click to jump to their page */
   .lb-me { transition: box-shadow .15s ease, transform .15s ease; }
   .lb-me[aria-disabled="false"]:hover { box-shadow: var(--you-glow); transform: translateY(-1px); }
@@ -82,6 +86,7 @@ const FONT_IMPORT = `
 
   @media (prefers-reduced-motion: reduce) {
     .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row { animation: none !important; transition: none !important; }
+    .lb-shine { animation: none !important; opacity: 0; }
   }
 `;
 
@@ -383,12 +388,71 @@ const PointsPlate = ({ pts, hidden, big = false }) => (hidden ? null : (
   </span>
 ));
 
-const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) => {
+// A department's crest, standing in for a badge: a shield in the podium's
+// gold, silver or bronze (steel in the list), with its people and its short
+// code. `shine` sweeps a band of light across it now and then; `compact`
+// (list sizes) drops the people and lets the code fill the shield.
+const CREST = {
+  gold: { stops: ['#FBE08A', '#E9B949', '#B98420'], edge: '#8F620C', ink: '#4A3400', rim: 'rgba(255,255,255,0.45)' },
+  silver: { stops: ['#F8F9FB', '#CDD3DC', '#98A2AE'], edge: '#727D8A', ink: '#2F3742', rim: 'rgba(255,255,255,0.6)' },
+  bronze: { stops: ['#F8D3AE', '#DE9A63', '#A9622F'], edge: '#80461C', ink: '#43200A', rim: 'rgba(255,255,255,0.4)' },
+  steel: { stops: ['#F4F6F8', '#DADFE6', '#B8C0CB'], edge: '#9AA5B3', ink: '#334155', rim: 'rgba(255,255,255,0.7)' },
+  steelDark: { stops: ['#4D535D', '#383D45', '#282C32'], edge: '#5E6673', ink: '#E2E8F0', rim: 'rgba(255,255,255,0.10)' },
+};
+const SHIELD = 'M50 3 L93 18 V57 C93 85 74 103 50 113 C26 103 7 85 7 57 V18 Z';
+
+const DeptCrest = ({ code, size, metal = 'steel', edge, shine = false, compact = false }) => {
+  const id = useId().replace(/:/g, '');
+  const c = CREST[metal];
+  const text = String(code || '').slice(0, 3);
+  return (
+    <svg width={Math.round(size * 0.86)} height={size} viewBox="0 0 100 116" aria-hidden style={{ display: 'block', overflow: 'visible', filter: 'drop-shadow(0 6px 8px rgba(15,23,42,0.22))' }}>
+      <defs>
+        <linearGradient id={`${id}g`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={c.stops[0]} />
+          <stop offset="0.5" stopColor={c.stops[1]} />
+          <stop offset="1" stopColor={c.stops[2]} />
+        </linearGradient>
+        <clipPath id={`${id}c`}><path d={SHIELD} /></clipPath>
+      </defs>
+      <path d={SHIELD} fill={`url(#${id}g)`} stroke={edge || c.edge} strokeWidth="4" strokeLinejoin="round" />
+      <path d="M50 14 L83 26 V57 C83 79 68 93 50 101 C32 93 17 79 17 57 V26 Z" fill="none" stroke={c.rim} strokeWidth="3" />
+      {!compact && (
+        <g fill={c.ink} opacity="0.72">
+          <circle cx="41" cy="33" r="5.5" />
+          <circle cx="59" cy="33" r="5.5" />
+          <path d="M31 48 C31 41.5 35.5 39 41 39 C46.5 39 51 41.5 51 48 Z" />
+          <path d="M49 48 C49 41.5 53.5 39 59 39 C64.5 39 69 41.5 69 48 Z" />
+        </g>
+      )}
+      <text
+        x="50"
+        y={compact ? 72 : 81}
+        textAnchor="middle"
+        fontFamily="'Barlow Condensed', 'Arial Narrow', sans-serif"
+        fontWeight="800"
+        fontSize={compact ? (text.length > 2 ? 38 : 44) : text.length > 2 ? 27 : 31}
+        letterSpacing="1"
+        fill={c.ink}
+      >
+        {text}
+      </text>
+      {shine && (
+        <g clipPath={`url(#${id}c)`}>
+          <rect className="lb-shine" x="0" y="-10" width="26" height="136" fill="rgba(255,255,255,0.5)" />
+        </g>
+      )}
+    </svg>
+  );
+};
+
+const Pedestal = ({ person: p, place, reduce, level, hidden, dept = false, isDark, onBadge }) => {
   const c = PLACE[place];
   const m = METAL[c.metal];
   const [fill, ink] = m[isDark ? 'dark' : 'light'];
   const first = place === 'first';
-  const flair = first && !reduce && Boolean(level); // sparkles round the champion's badge
+  const crest = dept && !level; // a department: its crest stands where a badge would
+  const flair = first && !reduce && Boolean(level || crest); // sparkles round the champion
   const tone = level ? (isDark ? level.light : level.color) : undefined;
   return (
     <motion.div
@@ -398,7 +462,7 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) 
       style={{ width: c.w, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
       <span style={{ position: 'relative', display: 'grid', placeItems: 'center', height: c.badge, width: c.w }}>
-        {level && (
+        {(level || crest) && (
           <>
             <span
               aria-hidden
@@ -430,6 +494,10 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) 
           <BadgeButton level={level} size={c.badge} who={p.name} onOpen={onBadge} float={!reduce} headroom={BADGE_HEADROOM} />
         ) : hidden ? (
           <PrivateLevel size={Math.round(c.badge * 0.5)} />
+        ) : crest ? (
+          <span role="img" aria-label={`${p.name} crest`} className={reduce ? undefined : 'vs-float'} style={{ display: 'block', position: 'relative' }}>
+            <DeptCrest code={p.initials} size={c.badge} metal={c.metal} shine={!reduce} />
+          </span>
         ) : (
           <Avatar initials={p.initials} size={c.av} ring={MEDAL[place]} />
         )}
@@ -498,7 +566,7 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
     </div>
     <div data-row-level={people ? (level ? level.id : 'hidden') : undefined} style={{ display: 'grid', placeItems: 'center' }}>
       {!people ? (
-        <Avatar initials={r.initials} size={32} you={you} />
+        <DeptCrest code={r.initials} size={36} compact metal={isDark ? 'steelDark' : 'steel'} edge={you ? (isDark ? '#F8FAFC' : '#E60000') : undefined} />
       ) : level ? (
         <BadgeButton level={level} size={38} who={you ? null : r.name} onOpen={onBadge} glow={isDark ? 'dark' : true} />
       ) : (
@@ -535,7 +603,7 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
 // People / Departments switch for the podium, at the top of the sheet's arm.
 const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
 
-const StageSwitch = ({ value, onChange, sub, canDepts }) => (
+const StageSwitch = ({ value, onChange, canDepts }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
     <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 4, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
       {STAGES.map((st) => {
@@ -562,7 +630,6 @@ const StageSwitch = ({ value, onChange, sub, canDepts }) => (
         );
       })}
     </div>
-    <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 7 }}>{sub}</div>
   </div>
 );
 
@@ -945,7 +1012,6 @@ const Leaderboard = ({ onClose }) => {
                   value={podium.id}
                   onChange={(id) => { setStage(id); setPage(0); }}
                   canDepts={Boolean(insights.deptPodium)}
-                  sub={podium.id === 'depts' ? 'Average points per person' : view === 'global' ? 'Across every campaign' : 'In this campaign'}
                 />
               </div>
             </div>
@@ -964,9 +1030,9 @@ const Leaderboard = ({ onClose }) => {
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
                   >
-                    {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} hidden={hiddenOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
-                    {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} hidden={hiddenOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
-                    {podium.board.third && <Pedestal person={podium.board.third} place="third" reduce={reduce} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} hidden={hiddenOf(podium.board.third, podium.board.third.rank === list.youRank)} />}
+                    {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} hidden={hiddenOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
+                    {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} hidden={hiddenOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
+                    {podium.board.third && <Pedestal person={podium.board.third} place="third" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} hidden={hiddenOf(podium.board.third, podium.board.third.rank === list.youRank)} />}
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -1028,7 +1094,7 @@ const Leaderboard = ({ onClose }) => {
                       >
                         {podium.id === 'people' && list.you?.levelId
                           ? <LevelBadge levelId={list.you.levelId} size={26} tilt={false} decorative />
-                          : <Avatar initials={list.you?.initials} size={26} you />}
+                          : <DeptCrest code={list.you?.initials} size={26} compact metal={isDark ? 'steelDark' : 'steel'} edge={isDark ? '#F8FAFC' : '#E60000'} />}
                         <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
                         {podium.id === 'people' && list.you?.levelId && (
                           <span className="vs-rank" style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', whiteSpace: 'nowrap', color: isDark ? mine.level?.light : mine.level?.color }}>
