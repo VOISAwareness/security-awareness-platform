@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
@@ -33,6 +34,11 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // Clicking any badge opens it in All badges. "All badges", or your own badge, opens every level
 // and grade (GlobalComponents/AllBadges).
 //
+// A full page, opened from the My Space LEADERBOARD button (there is no nav
+// item); "My Space" in its top bar goes back. My Campaigns (the ongoing
+// campaigns and how each is going) is for every role but Regular User: a
+// Regular User sees the Global Leaderboard only.
+//
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the live
 // points rules or the list of ongoing campaigns) and a right L-shaped "sheet":
@@ -62,7 +68,8 @@ const FONT_IMPORT = `
   .lb-cap:active { transform: scale(.98); }
   .lb-cap .lb-art { transition: transform .35s cubic-bezier(.16,1,.3,1); }
   .lb-cap:hover .lb-art { transform: translateY(-4px) rotate(-6deg) scale(1.08); }
-  .lb-cap[aria-pressed="true"] .lb-art { animation: lb-float 3.2s ease-in-out infinite; }
+  .lb-cap[aria-pressed="true"] .lb-art, .lb-cap-only .lb-art { animation: lb-float 3.2s ease-in-out infinite; }
+  .lb-cap-only:hover, .lb-cap-only:active, .lb-cap-only:hover .lb-art { transform: none; }
   @keyframes lb-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
 
   /* Badges: lift on hover; rows lift a little too */
@@ -679,10 +686,11 @@ const Pager = ({ page, pageCount, onPage }) => (
   </nav>
 );
 
-// `onClose` is passed when the board is shown as a pop-up (LeaderboardModal);
-// it adds a close button to the top bar.
-const Leaderboard = ({ onClose }) => {
-  const { isDark, user } = useUserType() || {};
+const Leaderboard = () => {
+  const { isDark, user, hasAccess } = useUserType() || {};
+  const navigate = useNavigate();
+  // My Campaigns is for every role but Regular User, who sees Global only.
+  const canCampaigns = Boolean(hasAccess && hasAccess('leaderboard-campaigns'));
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
@@ -693,7 +701,8 @@ const Leaderboard = ({ onClose }) => {
   const closeBadges = useCallback(() => setBadges(null), []);
   // A badge on the board: open it in All badges, saying whose it is.
   const openBadge = useCallback((level, who) => setBadges({ selected: level.id, subject: who ? { name: who, levelId: level.id } : null }), []);
-  const [view, setView] = useState('global'); // 'global' | 'campaign'
+  const [pickedView, setView] = useState('global'); // 'global' | 'campaign'
+  const view = canCampaigns ? pickedView : 'global';
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
@@ -792,16 +801,19 @@ const Leaderboard = ({ onClose }) => {
     ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.08)', '--pts-bg': 'rgba(232,179,11,0.12)', '--pts-line': 'rgba(232,179,11,0.35)', '--pts-ink': '#FBD46B' }
     : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F1F2F5', '--pts-bg': 'linear-gradient(180deg,#FFF8E2,#FFEFC2)', '--pts-line': '#EBCB78', '--pts-ink': '#3F3000' };
 
+  // A scope capsule: a switch between Global and My Campaigns, or, with Global
+  // the only view (Regular Users), a plain title card.
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
+    const Cap = canCampaigns ? 'button' : 'div';
+    const capProps = canCampaigns
+      ? { type: 'button', className: 'lb-cap', 'aria-pressed': selected, onClick: () => chooseView(id) }
+      : { className: 'lb-cap lb-cap-only' };
     return (
-      <button
-        type="button"
-        className="lb-cap"
-        aria-pressed={selected}
-        onClick={() => chooseView(id)}
+      <Cap
+        {...capProps}
         style={{
-          position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', width: '100%', flexShrink: 0,
+          position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: canCampaigns ? 'pointer' : 'default', width: '100%', flexShrink: 0,
           borderRadius: L_R, padding: '16px 16px 18px', marginBottom: 10, minHeight: 96,
           border: selected ? '1px solid transparent' : '1px solid var(--hair)',
           background: selected ? (id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
@@ -811,7 +823,7 @@ const Leaderboard = ({ onClose }) => {
         <div style={{ position: 'relative', fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
         <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
         <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: 0, right: 2, width: 60, height: 60, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
-      </button>
+      </Cap>
     );
   };
 
@@ -839,19 +851,18 @@ const Leaderboard = ({ onClose }) => {
         </AnimatePresence>
 
         {/* top black bar */}
-        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: onClose ? '0 8px 0 18px' : '0 18px', flexShrink: 0 }}>
+        <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 18px', flexShrink: 0 }}>
           <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close leaderboard"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
-            >
-              Close
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-            </button>
-          )}
+          <button
+            type="button"
+            data-lb-back
+            onClick={() => navigate('/my-space')}
+            aria-label="Back to My Space"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            My Space
+          </button>
         </div>
 
         {/* two-column workspace */}
@@ -909,7 +920,7 @@ const Leaderboard = ({ onClose }) => {
             </div>
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
-            {railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
+            {canCampaigns && railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
 
             {/* Global view: how points are earned, read live from the Gamification Engine */}
             {view === 'global' && (

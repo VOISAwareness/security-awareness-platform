@@ -30,7 +30,7 @@ import DashboardAndAnalytics from './Pages/DashboardAndAnalytics/DashboardAndAna
 import Campaigns from './Pages/Campaigns/Campaigns';
 import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApprovals';
 
-// 🌟 Leaderboard (design prototype — sample data, not yet wired)
+// 🌟 Leaderboard (opened from My Space)
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
 
 // 🌟 Import Start New Campaign Page
@@ -121,7 +121,7 @@ function App() {
             {/* 🌟 Dashboard And Analytics Route */}
             <Route path="/analytics" element={<DashboardAndAnalytics />} />
 
-            {/* 🌟 Leaderboard Route (design prototype) — Regular Users open it from My Space instead */}
+            {/* 🌟 Leaderboard Route — opened from the My Space LEADERBOARD button (no nav item) */}
             <Route
               path="/leaderboard"
               element={
