@@ -16,11 +16,14 @@ const uploadTarget = (url) =>
     ? `/__s3-upload?url=${encodeURIComponent(url)}`
     : url;
 
-async function request(path, { method = 'GET', body } = {}) {
+// `keepalive` lets a request outlive the page (sent as it closes). Browsers
+// refuse a keepalive body over 64 KB, so callers check the size first.
+async function request(path, { method = 'GET', body, keepalive = false } = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
+    ...(keepalive ? { keepalive: true } : {}),
   });
 
   // 204 No Content (e.g. DELETE) has no body.
@@ -94,6 +97,23 @@ export const api = {
       if (!put.ok) throw new Error(`Cover upload failed (${put.status})`);
       return presign.coverImageKey;
     },
+  },
+  // The scenario editor's unpublished drafts, per person (`owner`, the
+  // client-asserted email as for `viewer` / `actor`). list() is summaries for
+  // the Drafts tab; get() one whole draft. save() body:
+  // { owner, baseRev, saveId, draft: { version, savedAt, activeTab, formData, edit? }, summary };
+  // a 409 DRAFT_CONFLICT error carries `payload.error.current`. See
+  // scenarioDraftSync.js.
+  scenarioDrafts: {
+    list: (owner) => request(`/scenario-drafts?owner=${encodeURIComponent(owner || '')}`),
+    get: (id, owner) =>
+      request(`/scenario-drafts/${encodeURIComponent(id)}?owner=${encodeURIComponent(owner || '')}`),
+    save: (id, body, { keepalive = false } = {}) =>
+      request(`/scenario-drafts/${encodeURIComponent(id)}`, { method: 'PUT', body, keepalive }),
+    remove: (id, owner) =>
+      request(`/scenario-drafts/${encodeURIComponent(id)}?owner=${encodeURIComponent(owner || '')}`, {
+        method: 'DELETE',
+      }),
   },
   landingPages: {
     list: () => request('/landing-pages'),

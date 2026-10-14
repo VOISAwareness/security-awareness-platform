@@ -243,6 +243,15 @@ export function formFingerprint(formData) {
 }
 
 /**
+ * A short fingerprint of a whole draft's content (its step and form, as
+ * sameDraftContent reads them), so a save sent to the server can later be
+ * recognised as this content (scenarioDraftSync.js).
+ */
+export function draftFingerprint(draft) {
+  return `${clampStep(draft?.activeTab)}.${formFingerprint(draft?.formData || {})}`;
+}
+
+/**
  * Does `draft` hold exactly what is already `stored` (same form, same step)?
  * Also true when it is the stored draft as a resume reads it back (fromDraft),
  * so opening a draft and leaving it untouched is not mistaken for new work.
@@ -272,6 +281,8 @@ export function draftSummary(draft) {
     cover:
       form.coverImageThumbnail ||
       (form.coverImageSource === 'catalogue' ? form.coverImagePreview || '' : ''),
+    // 'upload' frames `cover` as a photo; 'catalogue' shows it as card art.
+    coverSource: form.coverImageSource || '',
     needsCoverReattach:
       (form.coverImageSource === 'upload' && !form.coverImageKey) ||
       Boolean(form.coverImageReattach),

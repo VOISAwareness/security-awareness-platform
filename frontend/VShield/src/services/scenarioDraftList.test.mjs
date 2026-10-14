@@ -4,18 +4,28 @@ import assert from 'node:assert/strict';
 import { buildDraft } from './scenarioDraft.js';
 import { markAsked, markDeferred, scenarioContentVersion } from './resumePrompt.js';
 import {
+  addPendingDelete,
+  clearPendingDelete,
+  decideScenarioEditorOpening,
+  draftSyncState,
+  dropSentScenarioDraft,
   findEditDraft,
+  forgetDraftSync,
   getActiveScenarioDraftId,
   getScenarioDraft,
   inProgressScenarioDraft,
+  isDeletePending,
   listScenarioDrafts,
   newDraftId,
+  pendingDraftDeletes,
+  recordDraftSave,
   removeEditDrafts,
   removeScenarioDraft,
   saveScenarioDraft,
   scenarioDraftToOffer,
   scenarioEditorOpening,
   setActiveScenarioDraftId,
+  setDraftBaseRev,
 } from './scenarioDraftList.js';
 
 const A = 'a@example.test';
@@ -251,4 +261,95 @@ test('deleting a scenario drops its unfinished edits only', () => {
   assert.equal(getActiveScenarioDraftId(A), '');
   removeEditDrafts('', A);
   assert.equal(listScenarioDrafts(A).length, 2);
+});
+
+// --- what the server has (scenarioDraftSync.js keeps it up to date) -------------------------
+
+test('a draft kept here once the server has it: dropped, still the one in progress', () => {
+  saveScenarioDraft('SD-1', draft('Sent', '2026-10-01T10:00:00Z'), A);
+  setActiveScenarioDraftId('SD-1', A);
+  dropSentScenarioDraft('SD-1', A);
+  assert.equal(getScenarioDraft('SD-1', A), null);
+  assert.equal(getActiveScenarioDraftId(A), 'SD-1');
+  // The single draft from before goes with its old key too.
+  store.set(`voisshield_scenario_draft:${A}`, JSON.stringify(draft('Old', '2026-09-30T10:00:00Z')));
+  dropSentScenarioDraft('SD-saved-before', A);
+  assert.deepEqual(listScenarioDrafts(A), []);
+});
+
+test('the server rev and this browser\'s saves of a draft, per person', () => {
+  assert.deepEqual(draftSyncState('SD-1', A), { rev: 0, saves: [] });
+  setDraftBaseRev('SD-1', 3, A);
+  recordDraftSave('SD-1', { saveId: 's1', fp: 'f1' }, A);
+  recordDraftSave('SD-1', { saveId: 's2', fp: 'f2' }, A);
+  recordDraftSave('SD-1', { saveId: 's1', fp: 'f1', rev: 4 }, A);
+  assert.deepEqual(draftSyncState('SD-1', A), {
+    rev: 3,
+    saves: [{ saveId: 's1', fp: 'f1', rev: 4 }, { saveId: 's2', fp: 'f2' }],
+  });
+  assert.deepEqual(draftSyncState('SD-1', B), { rev: 0, saves: [] });
+  // Only the newest few saves are kept.
+  for (let i = 0; i < 9; i += 1) recordDraftSave('SD-1', { saveId: `x${i}`, fp: 'f' }, A);
+  assert.deepEqual(draftSyncState('SD-1', A).saves.map((x) => x.saveId), ['x8', 'x7', 'x6', 'x5']);
+  // Junk is ignored.
+  recordDraftSave('SD-1', { fp: 'no id' }, A);
+  setDraftBaseRev('SD-1', -2, A);
+  assert.equal(draftSyncState('SD-1', A).rev, 0);
+  forgetDraftSync('SD-1', A);
+  assert.equal(store.has(`voisshield_scenario_draft_revs:${A}`), false);
+  store.set(`voisshield_scenario_draft_revs:${A}`, '{"SD-2":{"rev":"7","saves":"no"}}');
+  assert.deepEqual(draftSyncState('SD-2', A), { rev: 0, saves: [] });
+});
+
+test('the rev map stays small: the drafts touched most recently are kept', () => {
+  for (let i = 0; i < 60; i += 1) setDraftBaseRev(`SD-${i}`, 1, A);
+  const kept = Object.keys(JSON.parse(store.get(`voisshield_scenario_draft_revs:${A}`)));
+  assert.equal(kept.length, 50);
+  assert.equal(draftSyncState('SD-59', A).rev, 1);
+});
+
+test('deletes the server has not confirmed yet are remembered per person', () => {
+  addPendingDelete('SD-1', A);
+  addPendingDelete('SD-1', A);
+  addPendingDelete('SD-2', A);
+  assert.deepEqual(pendingDraftDeletes(A), ['SD-1', 'SD-2']);
+  assert.equal(isDeletePending('SD-1', B), false);
+  clearPendingDelete('SD-1', A);
+  clearPendingDelete('SD-2', A);
+  assert.equal(store.has(`voisshield_scenario_draft_deletes:${A}`), false);
+});
+
+test('editor opening: a draft deleted here is neither opened nor offered, nor its id reused', () => {
+  saveScenarioDraft('SD-2', draft('In progress', '2026-10-02T10:00:00Z'), A);
+  setActiveScenarioDraftId('SD-2', A);
+  addPendingDelete('SD-2', A);
+  const o = scenarioEditorOpening({ requestedId: 'SD-2', defaults: DEFAULTS }, A);
+  assert.notEqual(o.id, 'SD-2');
+  assert.deepEqual([o.resume, o.offer, o.deferred], [null, null, null]);
+});
+
+test('editor opening, decided over drafts read anywhere: same rules, with their revs', () => {
+  const d = draft('From the server', '2026-10-02T10:00:00Z', 1);
+  const requested = { draft: d, rev: 4, synced: true };
+  assert.deepEqual(
+    decideScenarioEditorOpening({ requestedId: 'SD-9', requested, defaults: DEFAULTS }, A),
+    { id: 'SD-9', resume: d, rev: 4, offer: null, deferred: null }
+  );
+  const current = { id: 'SD-5', draft: d, rev: 2, synced: true };
+  const offered = decideScenarioEditorOpening({ current, defaults: DEFAULTS }, A);
+  assert.equal(offered.offer, current);
+  assert.equal(offered.rev, 0);
+  markAsked('scenario', 'SD-5', scenarioContentVersion(d), A);
+  assert.equal(decideScenarioEditorOpening({ current, defaults: DEFAULTS }, A).offer, null);
+  const editing = { id: 'SD-7', draft: d, rev: 3 };
+  const e = decideScenarioEditorOpening({ editId: 'SC-1', editing, current, defaults: DEFAULTS }, A);
+  assert.deepEqual([e.id, e.rev, e.offer], ['SD-7', 3, null]);
+});
+
+test('editor opening from this browser carries the rev its copy is based on', () => {
+  saveScenarioDraft('SD-1', draft('Kept here', '2026-10-01T10:00:00Z'), A);
+  setDraftBaseRev('SD-1', 6, A);
+  assert.equal(scenarioEditorOpening({ requestedId: 'SD-1', defaults: DEFAULTS }, A).rev, 6);
+  setActiveScenarioDraftId('SD-1', A);
+  assert.equal(scenarioEditorOpening({ defaults: DEFAULTS }, A).offer.rev, 6);
 });
