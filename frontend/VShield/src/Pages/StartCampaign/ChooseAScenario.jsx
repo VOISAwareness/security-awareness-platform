@@ -13,6 +13,7 @@ import { openCampaignDraft, parkCampaignDraft, useCampaignDraft } from '../../se
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
 import { scenariosForViewer } from '../../services/scenarioOwnership';
+import { editedScenarioIds, readScenarioDraftItems } from '../../services/scenarioDraftSync';
 import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
   BACK_TO_STEP_1,
@@ -273,22 +274,31 @@ const ChooseAScenario = () => {
 
   useEffect(() => {
     let active = true;
-    const apply = (rows) => {
+    const viewer = currentActor();
+    const apply = (rows, editing) => {
       if (!active) return;
       setScenariosLoading(false);
-      // An older API sends every row, unannotated: keep what this person may see.
-      const list = normaliseScenarios(scenariosForViewer(rows, currentActor()));
+      // An older API sends every row, unannotated: keep what this person may see,
+      // less what they are editing (under Scenarios -> Drafts) until it is saved.
+      const list = normaliseScenarios(scenariosForViewer(rows, viewer)).filter(
+        (s) => !editing.has(String(s.scenarioId))
+      );
       setScenariosList(list);
       setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
     };
-    // What this person may use: their own copies and pending edits stand in
-    // for the scenarios they replace.
+    // What this person may use: the templates, their own scenarios and their
+    // saved edited versions (a pending edit of a shared one stands in for it).
+    // A scenario of theirs with an unfinished edit is a draft for now, and
+    // drafts are never picked; a template always can be.
+    const editing = readScenarioDraftItems(api, viewer)
+      .then(editedScenarioIds)
+      .catch(() => new Set());
     api.scenarios
-      .list({ viewer: currentActor() })
-      .then(apply)
-      .catch((e) => {
+      .list({ viewer })
+      .then(async (rows) => apply(rows, await editing))
+      .catch(async (e) => {
         console.error('Failed to load scenarios', e);
-        apply(scenariosJsonData?.scenarios || []);
+        apply(scenariosJsonData?.scenarios || [], await editing);
       });
     return () => {
       active = false;

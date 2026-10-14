@@ -6,7 +6,7 @@ import { api } from "../../services/api";
 import { catalogueCoverName, landingPageChoice, toEditFormData, toStoredScenario } from "../../services/scenarioMapper";
 import { formFingerprint, fromDraft, reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
 import { scenarioEditorOpening } from "../../services/scenarioDraftList";
-import { loadScenarioEditorOpening, openingNeedsServer } from "../../services/scenarioDraftSync";
+import { loadScenarioEditorOpening, openingNeedsServer, readScenarioDraftItems } from "../../services/scenarioDraftSync";
 import { makeCoverThumbnail, useScenarioDraft } from "../../services/useScenarioDraft";
 import { currentActor } from "../../services/identity";
 import {
@@ -16,6 +16,7 @@ import {
   editNote,
   existingVersionId,
   idLockHint,
+  nextScenarioId,
   refreshEdit,
   refreshNotice,
   rowToEdit,
@@ -879,10 +880,41 @@ const editPrefill = (row) =>
     trainingQuizzes: trainingQuizzesJson,
   });
 
+// The form an edit opens with. Editing a template (or someone else's shared
+// scenario) makes a new scenario: it never carries the original's ID, but the
+// next free one when the ids already taken are known (`takenIds`), else none
+// yet (see giveCopyItsOwnId).
+const editForm = (row, viewer, takenIds = null) => {
+  const form = editPrefill(row);
+  if (editContext(row, viewer).mode !== 'copy') return form;
+  return { ...form, scenarioId: takenIds ? nextScenarioId(takenIds) : '' };
+};
+
+// The ids an edited version's new ID must not take: every scenario this
+// person can see, and their drafts' (another edit may already have one).
+async function takenScenarioIds(viewer) {
+  const [rows, drafts] = await Promise.all([
+    api.scenarios.list({ viewer }).catch(() => []),
+    readScenarioDraftItems(api, viewer).catch(() => []),
+  ]);
+  return [
+    ...(Array.isArray(rows) ? rows.map((row) => row?.scenarioId) : []),
+    ...drafts.map((item) => item?.summary?.scenarioId),
+  ].filter(Boolean).map(String);
+}
+
+// An edited version of a template whose form still has the template's ID, or
+// none (a draft begun before versions had IDs of their own): the ID to give it.
+const needsOwnId = (edit, form) => {
+  if (edit?.mode !== 'copy') return false;
+  const id = String(form?.scenarioId || '').trim();
+  return !id || id === String(edit.scenarioId);
+};
+
 // Opened by address (a reload before the first change, or a link): the row as
-// this person's list holds it, annotated with its ownership. When they have
-// their own version of it (a copy, or a pending edit, stands in for it), that
-// version is what they edit, never the original again. Only a row their list
+// this person's list holds it, annotated with its ownership. When their
+// pending edit stands in for it, that is what they edit, never the original
+// again; a template opens as itself (each edit of it is a new version). Only a row their list
 // doesn't hold at all is read directly, and only opened if they could see it.
 async function loadScenarioToEdit(scenarioId, viewer) {
   const rows = await api.scenarios.list({ viewer }).catch(() => null);
@@ -930,8 +962,15 @@ const ScenarioEditor = ({ opening }) => {
     const scenarioId = searchParams.get('edit') || '';
     if (!scenarioId || draftOpening.resume) return null;
     const row = location.state?.row;
-    return { scenarioId, row: row && String(row.scenarioId) === scenarioId ? row : null };
+    const takenIds = Array.isArray(location.state?.takenIds) ? location.state.takenIds : null;
+    return { scenarioId, row: row && String(row.scenarioId) === scenarioId ? row : null, takenIds };
   });
+  // The scenario handed over can open at once, unless it is a template whose
+  // new version's ID needs the scenario list first (opened by address).
+  const [editRowReady] = useState(() =>
+    Boolean(editRequest?.row) &&
+    (editContext(editRequest.row, viewer).mode !== 'copy' || Boolean(editRequest.takenIds))
+  );
   // Which Scenarios tab opened the editor, for BACK on the first step. Read
   // before the address is rewritten (below), which drops the history state.
   const [openedFrom] = useState(() => (location.state?.from === 'drafts' ? 'drafts' : 'all'));
@@ -1051,7 +1090,7 @@ useEffect(() => {
     // A draft opened from Scenarios → Drafts.
     ...(openedDraft?.formData || {}),
     // Or the scenario being edited, as the Scenarios list handed it over.
-    ...(editRequest?.row ? editPrefill(editRequest.row) : {}),
+    ...(editRowReady ? editForm(editRequest.row, viewer, editRequest.takenIds) : {}),
   }));
 
   // ==========================================================
@@ -1065,10 +1104,10 @@ useEffect(() => {
   // ==========================================================
   const [edit, setEdit] = useState(() => {
     if (openedDraft?.edit) return openedDraft.edit;
-    if (!editRequest?.row) return null;
+    if (!editRowReady) return null;
     return { ...editContext(editRequest.row, viewer), baseline: formFingerprint(formData) };
   });
-  const [editLoading, setEditLoading] = useState(() => Boolean(editRequest && !editRequest.row));
+  const [editLoading, setEditLoading] = useState(() => Boolean(editRequest && !editRowReady));
   // Set when the scenario can't be opened for editing: the editor then shows
   // only that, never a blank "Create new" form a Publish could save as new.
   const [openError, setOpenError] = useState('');
@@ -1080,12 +1119,17 @@ useEffect(() => {
   // while it loads, so nothing typed can be lost).
   const [blankForm] = useState(formData);
   useEffect(() => {
-    if (!editRequest || editRequest.row) return undefined;
+    if (!editRequest || editRowReady) return undefined;
     let active = true;
-    loadScenarioToEdit(editRequest.scenarioId, viewer)
-      .then((row) => {
+    (editRequest.row ? Promise.resolve(editRequest.row) : loadScenarioToEdit(editRequest.scenarioId, viewer))
+      .then(async (row) => {
+        // A template's new version needs the ids already taken for its own.
+        const takenIds = editContext(row, viewer).mode === 'copy' ? await takenScenarioIds(viewer) : null;
+        return { row, takenIds };
+      })
+      .then(({ row, takenIds }) => {
         if (!active) return;
-        const next = { ...blankForm, ...editPrefill(row) };
+        const next = { ...blankForm, ...editForm(row, viewer, takenIds) };
         setFormData(next);
         setEdit({ ...editContext(row, viewer), baseline: formFingerprint(next) });
       })
@@ -1098,7 +1142,20 @@ useEffect(() => {
     return () => {
       active = false;
     };
-  }, [editRequest, blankForm, viewer]);
+  }, [editRequest, editRowReady, blankForm, viewer]);
+
+  // A draft of a template's edit begun before versions had IDs of their own
+  // still carries the template's ID (or none): it gets its own new one, once
+  // the ids already taken are read. One the author typed is never replaced.
+  const giveCopyItsOwnId = (originalId) => {
+    takenScenarioIds(viewer).then((takenIds) => {
+      const id = nextScenarioId(takenIds);
+      setFormData((previous) => {
+        const current = String(previous.scenarioId || '').trim();
+        return !current || current === String(originalId) ? { ...previous, scenarioId: id } : previous;
+      });
+    });
+  };
 
   // An edit draft reopened is checked against the list as it is now, so Save
   // uses the right mode (a scenario shared meanwhile takes a pending revision)
@@ -1111,9 +1168,11 @@ useEffect(() => {
       setEdit(checked.edit);
       setEditNotice(refreshNotice(checked));
     });
+    if (needsOwnId(openedDraft.edit, openedDraft.formData)) giveCopyItsOwnId(openedDraft.edit.scenarioId);
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, for the draft this editor opened on
   }, [openedDraft, viewer]);
 
   // ==========================================================
@@ -1164,6 +1223,7 @@ useEffect(() => {
     setActiveTab(restored.activeTab);
     // The scenario in progress may be an unfinished edit: checked as above.
     setEdit(restored.edit || null);
+    if (needsOwnId(restored.edit, restored.formData)) giveCopyItsOwnId(restored.edit.scenarioId);
     checkEditTarget(restored.edit, viewer).then((checked) => {
       if (!checked) return;
       setEdit(checked.edit);
@@ -1647,7 +1707,22 @@ const handlePublishScenario = async () => {
             {edit ? 'Saved' : 'Campaign Launched!'}
           </h3>
 
-          {edit ? (
+          {edit?.mode === 'copy' ? (
+            // A template's edit: saved as a scenario of its own, beside it.
+            <p className="
+              text-xs
+              text-slate-600
+              dark:text-slate-300
+              mt-1
+              leading-relaxed
+            ">
+              <strong>"{formData.scenarioName || edit.name || 'Your version'}"</strong>
+              {" "}
+              is saved as a new scenario
+              {formData.scenarioId ? <strong>{` ${formData.scenarioId}`}</strong> : null}
+              , listed under Scenarios. The original stays as it is. {savedAudience(edit)}
+            </p>
+          ) : edit ? (
             <p className="
               text-xs
               text-slate-600
