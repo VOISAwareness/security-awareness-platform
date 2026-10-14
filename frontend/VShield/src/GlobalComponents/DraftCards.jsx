@@ -19,8 +19,11 @@ const savedFull = (iso) =>
 //     inProgress, busy, theme, image, imageClassName, photo }
 // `theme` is one of the page's template themes (NEUTRAL_DRAFT_THEME when the
 // draft has none); `image` is the art for the corner (`imageClassName` tints
-// it), `photo` an uploaded picture shown framed instead. `cardClassName`
-// carries the page's card widths so drafts line up with its templates.
+// it), `photo` an uploaded picture shown framed instead.
+// The cards fill their rows from edge to edge: as many as fit at least
+// `minCardWidth` wide (about a template card's width), stretched to share the
+// row, so no space is left over at the end of a row (a Drafts tab has no
+// filter panel beside it to make room for).
 // The draft in progress comes first, its edge highlighted. Every part has a
 // fixed place, so the cards line up whatever their text: the title and the
 // description take two lines each (cut short with "…", the whole of it shown
@@ -33,7 +36,7 @@ const DraftCards = ({
   onDelete,
   loading = false,
   emptyText = 'Anything you start and leave unfinished is kept here.',
-  cardClassName = 'w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(25%-12px)] min-w-[230px] max-w-[320px]',
+  minCardWidth = 280,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
@@ -60,7 +63,10 @@ const DraftCards = ({
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+    <div
+      style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${minCardWidth}px, 100%), 1fr))` }}
+      className="flex-1 min-h-0 overflow-y-auto pr-3 grid items-start gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
+    >
       {inProgressFirst(items).map((info) => {
         const theme = info.theme || NEUTRAL_DRAFT_THEME;
         return (
@@ -73,9 +79,9 @@ const DraftCards = ({
               borderColor: info.inProgress ? IN_PROGRESS_EDGE : isDark ? theme.borderDark : theme.border,
               boxShadow: info.inProgress ? IN_PROGRESS_GLOW : undefined,
             }}
-            className={`relative p-4 rounded-3xl border transition-all duration-150 flex flex-col justify-between overflow-hidden select-none h-[270px] ${
+            className={`relative w-full p-4 rounded-3xl border transition-all duration-150 flex flex-col justify-between overflow-hidden select-none h-[270px] ${
               info.inProgress ? '' : 'shadow-2xs hover:shadow-md'
-            } ${cardClassName}`}
+            }`}
           >
             {info.inProgress && <span className="sr-only">The draft you were last working on.</span>}
             {/* Top bar: id pill (left) + when it was saved (right). The date

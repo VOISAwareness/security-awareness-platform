@@ -113,12 +113,6 @@ const DIFFICULTY_THEMES = {
 // never land on the same background even if they share an intensityColor
 const THEME_CYCLE = ['Low', 'Medium', 'High'];
 
-// Draft cards are as wide as the scenario cards. Those share their row with
-// the filter panel (250px, 270px from xl, plus the 14px gap), which the Drafts
-// tab does not show, so the drafts' row is that much wider: take it off first.
-const SCENARIO_DRAFT_CARD_WIDTHS =
-  'w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc((100%-264px)/4-12px)] xl:w-[calc((100%-284px)/4-12px)] min-w-[230px] max-w-[320px]';
-
 // Intensity dot color map (for the small dot on the card, independent of the theme)
 const INTENSITY_COLORS = {
   yellow: '#f5b942',
@@ -1050,7 +1044,6 @@ const Scenarios = () => {
                   onContinue={(id) => continueDraft(id)}
                   onDelete={deleteDraft}
                   emptyText="A scenario you start and leave before publishing is kept here."
-                  cardClassName={SCENARIO_DRAFT_CARD_WIDTHS}
                 />
                 </>
               ) : filteredScenarios.length === 0 ? (
