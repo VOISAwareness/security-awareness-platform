@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { ArrowRight, FilePenLine, Trash2 } from 'lucide-react';
+import { ArrowRight, Clock3, FilePenLine, Trash2 } from 'lucide-react';
 
 import { NEUTRAL_DRAFT_THEME } from './draftTheme';
 
-// "Oct 1, 9:00 AM" on the card (one line, beside the id); full date on hover.
-const savedShort = (iso) =>
-  iso
-    ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : '';
+// "Oct 1, 9:00 AM" on the card (one line, beside the id; on a narrow card just
+// "Oct 1"); full date on hover.
+const savedDay = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '');
+const savedTime = (iso) =>
+  iso ? new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 const savedFull = (iso) =>
   iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
 
@@ -21,8 +21,11 @@ const savedFull = (iso) =>
 // draft has none); `image` is the art for the corner (`imageClassName` tints
 // it), `photo` an uploaded picture shown framed instead. `cardClassName`
 // carries the page's card widths so drafts line up with its templates.
-// The draft in progress comes first, its edge highlighted; a long title or
-// description is cut short, the whole of it shown on hover.
+// The draft in progress comes first, its edge highlighted. Every part has a
+// fixed place, so the cards line up whatever their text: the title and the
+// description take two lines each (cut short with "…", the whole of it shown
+// on hover), even when shorter or empty, and the step sits at the same height
+// on every card, on one line.
 const DraftCards = ({
   items,
   isDark,
@@ -75,8 +78,11 @@ const DraftCards = ({
             } ${cardClassName}`}
           >
             {info.inProgress && <span className="sr-only">The draft you were last working on.</span>}
-            {/* Top bar: id pill (left) + when it was saved (right) */}
-            <div className="flex items-center justify-between gap-2 mb-1.5 z-10">
+            {/* Top bar: id pill (left) + when it was saved (right). The date
+                keeps its size and the id takes the rest, cut short only when
+                it is very long; on a narrow card the time of day gives way
+                first (a container query on this bar's own width). */}
+            <div className="flex items-center justify-between gap-2 mb-1.5 z-10 [container-type:inline-size]">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 shadow-2xs text-slate-900 dark:text-white min-w-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
                 <span className="truncate" title={info.code || undefined}>{info.code || 'No ID yet'}</span>
@@ -84,34 +90,51 @@ const DraftCards = ({
               {info.savedAt && (
                 <span
                   title={`Saved ${savedFull(info.savedAt)}`}
-                  className="text-[10px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap flex-shrink-0"
+                  className="inline-flex items-center gap-1 flex-shrink-0 text-[10px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap"
                 >
-                  Saved: {savedShort(info.savedAt)}
+                  <Clock3 className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                  <span className="sr-only">Saved </span>
+                  <span>
+                    {savedDay(info.savedAt)}
+                    <span className="[@container(max-width:260px)]:hidden">, {savedTime(info.savedAt)}</span>
+                  </span>
                 </span>
               )}
             </div>
 
-            {/* Title, description, where it was left */}
-            <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%] flex-1 min-h-0">
+            {/* Title, description, where it was left: fixed heights (two
+                lines each, in em of their own font), so the step below is at
+                the same place on every card. */}
+            <div className="flex flex-col gap-1.5 text-left z-10 max-w-[80%] flex-1 min-h-0">
               <h3
                 title={info.title}
-                className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight line-clamp-2"
+                className="h-[2.5em] flex-shrink-0 text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight line-clamp-2"
               >
                 {info.title}
               </h3>
-              {info.description && (
+              {info.description ? (
                 <p
                   title={info.description}
-                  className="text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-2 leading-relaxed cursor-default"
+                  className="h-[3.25em] flex-shrink-0 text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-2 leading-relaxed cursor-default"
                 >
                   <strong className="text-slate-900 dark:text-white">Description: </strong>
                   {info.description}
                 </p>
+              ) : (
+                <p className="h-[3.25em] flex-shrink-0 text-[9.5px] text-slate-500 dark:text-slate-400 font-medium italic leading-relaxed">
+                  No description yet
+                </p>
               )}
-              <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                Step {info.step} of {info.stepCount}: {info.stepName}
+              <div
+                title={`Step ${info.step} of ${info.stepCount}: ${info.stepName}`}
+                className="flex min-w-0 text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5 whitespace-nowrap cursor-default"
+              >
+                <span className="flex-shrink-0">
+                  Step {info.step} of {info.stepCount}:&nbsp;
+                </span>
+                <span className="truncate">{info.stepName}</span>
               </div>
-              <div className="flex gap-1 max-w-[150px]" aria-hidden="true">
+              <div className="flex gap-1 w-[150px] max-w-full" aria-hidden="true">
                 {Array.from({ length: info.stepCount }, (_, i) => (
                   <span
                     key={i}
