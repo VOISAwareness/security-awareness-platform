@@ -96,9 +96,12 @@ const FIRST = ['Aditi', 'David', 'Noura', 'Priya', 'Marco', 'Sara', 'Liang', 'To
   'Hassan', 'Lena', 'Raj', 'Sofia', 'Kwame', 'Ana', 'Ivan', 'Chloe', 'Ben', 'Fatima', 'Noah', 'Grace'];
 const LAST = ['Rao', 'Kim', 'Ali', 'Nair', 'Bellini', 'Nasser', 'Wei', 'Okafor', 'Petrova', 'Haddad', 'Chen', 'Tanaka',
   'Mensah', 'Fischer', 'Patel', 'Rossi', 'Silva', 'Dubois', 'Carter', 'Zahra', 'Weber', 'Lee', 'Novak', 'Iyer'];
+// The same departments as the people directory (MasterUserData.json), so a
+// campaign's Top departments shows the company's departments, yours included.
 const DEPTS = [
-  'Finance', 'IT Security', 'Operations', 'Human Res.', 'Sales', 'Legal', 'IT', 'Marketing',
-  'Procurement', 'Customer Care', 'Engineering', 'Data & AI', 'Risk & Compliance', 'Facilities', 'Strategy', 'Network Ops',
+  'AIDA', 'CARE', 'Finance Operations', 'Network Engineering', 'Supply Chain Management', 'Cyber Security',
+  'Cloud Infrastructure', 'IT Operations', 'Procurement', 'Human Resources', 'Legal & Compliance', 'Sales & Enterprise',
+  'Digital Products', 'Marketing & Communications', 'Executive Board', 'IT Security',
 ];
 
 // 24 x 24 distinct first/last pairs (5 is coprime with 24, so no repeats
@@ -237,11 +240,14 @@ const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
 // Department board, worked out from whichever people board is showing: every
 // department ranked by average points per person (so team size doesn't decide
 // it), in the same row shape as people so the podium and list can show either.
-function boardInsights(board, youDept) {
+// The viewer's own row (`youRank`) counts for their own department, whatever
+// the board says, so their department is always there to find.
+function boardInsights(board, youDept, youRank) {
   const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows].filter(Boolean);
   const byDept = {};
   all.forEach((r) => {
-    const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, np: 0, rep: 0, clk: 0, n: 0 });
+    const dept = youDept && r.rank === youRank ? youDept : r.dept;
+    const d = byDept[dept] || (byDept[dept] = { pts: 0, np: 0, rep: 0, clk: 0, n: 0 });
     if (!r.hidden) { // a live row below zero comes without points
       d.pts += toNum(r.pts);
       d.np += 1;
@@ -732,7 +738,7 @@ const Leaderboard = ({ onClose }) => {
     return { ...base, name: youName, dept: youDept || base.dept, initials: youInitials, move: scope.board.sample === false ? base.move || 0 : 3, levelId: mine.level?.id || base.levelId };
   }, [scope, youName, youInitials, youDept, mine.level]);
 
-  const insights = useMemo(() => boardInsights(scope.board, youDept), [scope, youDept]);
+  const insights = useMemo(() => boardInsights(scope.board, youDept, scope.youRank), [scope, youDept]);
   // Which podium the stage shows; falls back to people if departments can't be ranked.
   const podium = stage === 'depts' && insights.deptPodium
     ? { id: 'depts', board: insights.deptPodium }
