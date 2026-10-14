@@ -209,3 +209,31 @@ resource "aws_dynamodb_table" "scenario_drafts" {
     type = "S"
   }
 }
+
+# points-ledger — every person's points: one row per action per campaign
+# ("E#<campaignId>#<rule>", written once, so an action counts once) and a
+# running total ("TOTAL"). PK owner (their email), SK entryId. The
+# points-engine Lambda writes it from the events stream; reference-api reads it
+# (GET /standing). Levels are worked out from the total on read, never stored.
+#
+# PROVISIONED 5 + 5 for the same reason as scenario-drafts: inside DynamoDB's
+# always-free 25 + 25 (the two tables use 10 + 10 together). A score is one
+# small transaction (about 4 write units), so a burst beyond 5/s is throttled
+# and the stream retries it a moment later; nothing is lost or counted twice.
+resource "aws_dynamodb_table" "points_ledger" {
+  name           = "${var.name_prefix}-points-ledger"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 5
+  write_capacity = 5
+  hash_key       = "owner"
+  range_key      = "entryId"
+
+  attribute {
+    name = "owner"
+    type = "S"
+  }
+  attribute {
+    name = "entryId"
+    type = "S"
+  }
+}

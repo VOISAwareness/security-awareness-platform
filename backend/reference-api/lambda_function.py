@@ -908,6 +908,144 @@ def scenario_drafts(route, event, params, context):
         )
 
 
+# --- levels and points standing ----------------------------------------------
+#
+# The points ledger (written by the points-engine Lambda from the events
+# stream) holds, per person (`owner`, their email): one row per action per
+# campaign ("E#<campaignId>#<rule>", with its `delta`) and a running total
+# ("TOTAL", `points`). A level is worked out from the total on every read,
+# never stored, so a change to this table needs no data migration.
+#
+# Same table as frontend/VShield/src/services/levels.js (tests check the two
+# agree): a band includes its lower number, not its upper one; the ends are
+# open. ids: L<level>G<grade>, L0, LN1 / LN2 for Levels -1 / -2.
+
+LEVEL_FAMILIES = {
+    "L1": (1, "New Joiner", "Beginner", "Unknown"),
+    "L2": (2, "Aware User", "Learning", "Medium Risk"),
+    "L3": (3, "Safe Handler", "Improving", "Medium-Low"),
+    "L4": (4, "Phish Catcher", "Strong", "Low Risk"),
+    "L5": (5, "Security Champion", "Expert", "Very Low"),
+    "L6": (6, "Security Defender", "Elite", "Minimal Risk"),
+    "L7": (7, "Cyber Guardian", "Top Tier", "Trusted"),
+    "L0": (0, "Awareness Needed", "Novice", "High Risk"),
+    "LN1": (-1, "Vulnerable User", "At Risk", "Very High Risk"),
+    "LN2": (-2, "Critical Risk", "Critical", "Severe Risk"),
+}
+# (family, grade, min, max), lowest first; min counts, max doesn't; None = open.
+LEVEL_BANDS = (
+    ("LN2", None, None, -200),
+    ("LN1", None, -200, -100),
+    ("L0", None, -100, 0),
+    ("L1", 1, 0, 50), ("L1", 2, 50, 100), ("L1", 3, 100, 150),
+    ("L2", 1, 150, 200), ("L2", 2, 200, 250), ("L2", 3, 250, 300),
+    ("L3", 1, 300, 450), ("L3", 2, 450, 600), ("L3", 3, 600, 750),
+    ("L4", 1, 750, 950), ("L4", 2, 950, 1150), ("L4", 3, 1150, 1300),
+    ("L5", 1, 1300, 1600), ("L5", 2, 1600, 1900), ("L5", 3, 1900, 2200),
+    ("L6", 1, 2200, 2600), ("L6", 2, 2600, 3000), ("L6", 3, 3000, 3400),
+    ("L7", 1, 3400, 3900), ("L7", 2, 3900, 4450), ("L7", 3, 4450, None),
+)
+LEVELS = tuple(
+    {
+        "id": f"{family}G{grade}" if grade else family,
+        "level": LEVEL_FAMILIES[family][0],
+        "grade": grade,
+        "name": LEVEL_FAMILIES[family][1],
+        "label": LEVEL_FAMILIES[family][2],
+        "risk": LEVEL_FAMILIES[family][3],
+        "min": lo,
+        "max": hi,
+        "rank": rank,
+    }
+    for rank, (family, grade, lo, hi) in enumerate(LEVEL_BANDS)
+)
+LEDGER_TOTAL = "TOTAL"
+STANDING_HISTORY = 10  # latest changes returned
+STANDING_ROUTES = frozenset({"GET /standing", "GET /levels"})
+
+
+def level_for(points):
+    """The level a points total earns."""
+    return next(
+        lvl
+        for lvl in LEVELS
+        if (lvl["min"] is None or points >= lvl["min"]) and (lvl["max"] is None or points < lvl["max"])
+    )
+
+
+def progress_for(points):
+    """Next level up, points still needed, and how far along this band (0-100).
+    Level -2 has no floor; its bar is drawn as if it started at -400."""
+    lvl = level_for(points)
+    nxt = LEVELS[lvl["rank"] + 1] if lvl["rank"] + 1 < len(LEVELS) else None
+    if not nxt:
+        return {"nextLevelId": None, "toNext": 0, "pct": 100}
+    lo = lvl["min"] if lvl["min"] is not None else min(-400, points)
+    pct = round(min(100, max(0, (points - lo) / (lvl["max"] - lo) * 100)))
+    return {"nextLevelId": nxt["id"], "toNext": lvl["max"] - points, "pct": pct}
+
+
+def standing_view(email, rows):
+    """GET /standing's answer from a person's ledger rows: points, level,
+    progress, best level reached (the highest running total) and the latest
+    changes. Someone with no rows is a New Joiner on 0 points."""
+    total = next((r for r in rows if r.get("entryId") == LEDGER_TOTAL), None)
+    entries = sorted(
+        (r for r in rows if str(r.get("entryId", "")).startswith("E#")),
+        key=lambda r: (str(r.get("at", "")), str(r.get("entryId", ""))),
+    )
+    running = best = 0
+    for e in entries:
+        running += int(e.get("delta", 0))
+        best = max(best, running)
+    points = int(total["points"]) if total and "points" in total else running
+    best = max(best, points)
+    level = level_for(points)
+    return {
+        "email": email,
+        "known": bool(entries or total),
+        "points": points,
+        "levelId": level["id"],
+        **progress_for(points),
+        "bestLevelId": level_for(best)["id"],
+        "history": [
+            {
+                "rule": e.get("rule"),
+                "delta": int(e.get("delta", 0)),
+                "campaignId": e.get("campaignId"),
+                "campaignName": e.get("campaignName") or "",
+                "at": e.get("at"),
+            }
+            for e in reversed(entries[-STANDING_HISTORY:])
+        ],
+        "updatedAt": (total or {}).get("updatedAt"),
+    }
+
+
+def standing(route, event, context):
+    """GET /levels (the table) and GET /standing?viewer=<email>."""
+    if route == "GET /levels":
+        return ok(list(LEVELS), count=len(LEVELS))
+    viewer = parse_identity((event.get("queryStringParameters") or {}).get("viewer"))
+    if not viewer:
+        return err(400, "viewer is required")
+    try:
+        rows, kwargs = [], {"KeyConditionExpression": Key("owner").eq(viewer)}
+        while True:
+            resp = table("points-ledger").query(**kwargs)
+            rows.extend(resp.get("Items", []))
+            if not resp.get("LastEvaluatedKey"):
+                break
+            kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code not in THROTTLED_CODES:
+            raise
+        log(context, "Standing throttled", code=code)
+        return err(503, "Points are busy right now; try again shortly", code="BUSY")
+    return ok(standing_view(viewer, rows))
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /sender-identities": "sender-identities",
@@ -938,6 +1076,9 @@ def lambda_handler(event, context):
     try:
         if route in DRAFT_ROUTES:
             return scenario_drafts(route, event, params, context)
+
+        if route in STANDING_ROUTES:
+            return standing(route, event, context)
 
         if route == "GET /scenarios":
             items = scan_all("scenarios")

@@ -12,7 +12,8 @@ import { higherLevel, levelFor, progressFor } from './levels.js';
 
 const POINTS = { Reported: 80, Trained: 30, Evaluated: 30, Opened: 0, Clicked: -30, Compromised: -50 };
 
-const WHAT = {
+/** What each rule's change means, for the history list. */
+export const WHAT = {
   Reported: 'Reported a phishing email',
   Trained: 'Completed a training',
   Evaluated: 'Passed an evaluation',

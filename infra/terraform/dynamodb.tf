@@ -65,6 +65,11 @@ resource "aws_dynamodb_table" "events" {
   hash_key     = "campaignId"
   range_key    = "eventId"
 
+  # New rows feed the points-engine Lambda (points_engine.tf). Turning the
+  # stream on changes the table in place; reads by a Lambda trigger are free.
+  stream_enabled   = true
+  stream_view_type = "NEW_IMAGE"
+
   attribute {
     name = "campaignId"
     type = "S"

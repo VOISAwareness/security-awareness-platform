@@ -173,6 +173,9 @@ locals {
     "GET /scenario-drafts/{id}",
     "PUT /scenario-drafts/{id}",
     "DELETE /scenario-drafts/{id}",
+    # Levels and points (tables.tf: points_ledger; points_engine.tf writes it).
+    "GET /standing",
+    "GET /levels",
   ]
 }
 

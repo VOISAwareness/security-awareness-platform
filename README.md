@@ -348,7 +348,14 @@ POST                /user-lists/{id}/ingest
 GET                 /gamification-rules
 GET                 /training/paths|videos|quizzes|certificates
 GET                 /campaigns-catalog
+GET                 /levels                     # the level and grade table
+GET                 /standing?viewer=<email>    # points, level, progress, best level, latest changes
 ```
+
+**Points** (`points-engine`, no route) — the events table's stream feeds it; it
+writes the points ledger (`points-ledger`): one row per action per campaign, so
+repeated clicks on one simulation count once, plus each person's total. Test
+campaigns score nothing. Levels are worked out from the total when read.
 
 Every Lambda response goes through a `build_response(status, body)` helper that
 serialises with a `DecimalEncoder` (DynamoDB numbers → JSON numbers) and sets
@@ -369,6 +376,7 @@ security-awareness-platform
 │   ├── campaign-reader/
 │   ├── campaigns-api/         # campaign CRUD + list
 │   ├── email-sender/          # SES delivery
+│   ├── points-engine/         # events stream → points ledger
 │   ├── recipient-ingest/      # S3 upload → DynamoDB
 │   ├── reference-api/         # reference data + presigned uploads
 │   ├── report-event/
@@ -417,7 +425,12 @@ presigned S3 URL, which skips that proxy, so a small dev-only middleware
 forwards those too.
 
 Production builds are unaffected — they read the absolute endpoint from `.env`
-and PUT directly to S3. If the frontend is ever hosted, **that origin must be
+and PUT directly to S3.
+
+**Levels from the server.** My Space shows levels and points from the bundled
+sample (`MasterUserData.json`) until `VITE_LIVE_LEVELS=true` is set, which makes
+it read `GET /standing` instead (falling back to the sample if that fails). Keep
+it off until real campaigns have produced events, or everyone is a New Joiner. If the frontend is ever hosted, **that origin must be
 added to `cors_allowed_origins` and applied.**
 
 > Changes to `vite.config.js` are not hot-reloaded. Restart the dev server.
