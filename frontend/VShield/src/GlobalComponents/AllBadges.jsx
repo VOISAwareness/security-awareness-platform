@@ -22,7 +22,9 @@ import { formatPoints } from '../services/gamificationPoints';
 // "All badges": opens when someone clicks a badge. Seven level cards in a row,
 // each with its colour band, its badge, its three grades (I, II, III) and the
 // points it covers, like a game's rank screen; under them the badge picked,
-// in detail; then the comeback zone, the three levels below Level 1.
+// in detail; then the comeback zone, the three levels below Level 1, in one
+// strip. Sized to fit a laptop screen whole (about 1536 × 730 of browser);
+// on a shorter one the panel scrolls, with the app's thin scrollbar.
 //
 // `current` and `points` are the viewer's own level and points: their level
 // is marked "You", levels passed are ticked, levels ahead are greyed and say
@@ -208,8 +210,8 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
   const sel = LEVEL_BY_ID[selId];
   const selAccent = T.accent(sel);
 
-  // While open, Esc closes this and nothing else (a leaderboard pop-up may be
-  // underneath, listening for Esc too). Focus goes to Close, and back to
+  // While open, Esc closes this and nothing else (a pop-up underneath may be
+  // listening for Esc too). Focus goes to Close, and back to
   // whatever opened it afterwards.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -266,9 +268,9 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
         if (e.target === e.currentTarget) onClose();
       }}
       style={{
-        position: 'fixed', top: 0, left: 0, zIndex: 9100, // over the leaderboard pop-up (9000)
+        position: 'fixed', top: 0, left: 0, zIndex: 9100, // over the app's other pop-ups
         zoom: VarLayoutScale, width: `${100 / VarLayoutScale}vw`, height: `${100 / VarLayoutScale}vh`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, boxSizing: 'border-box',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, boxSizing: 'border-box',
         background: T.backdrop, backdropFilter: 'blur(6px)',
       }}
     >
@@ -277,13 +279,14 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
         aria-modal="true"
         aria-labelledby="all-badges-title"
         data-all-badges={isDark ? 'dark' : 'light'}
+        className="vs-scroll"
         initial={reduce ? false : { opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 220, damping: 26 }}
         style={{
           width: '100%', maxWidth: 1260, maxHeight: '100%', overflow: 'auto', boxSizing: 'border-box',
-          borderRadius: 26, padding: 28, color: T.text, background: T.panel,
+          borderRadius: 26, padding: '20px 24px', color: T.text, background: T.panel,
           border: `1px solid ${T.edge}`, boxShadow: T.panelShadow,
           fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
         }}
@@ -291,18 +294,18 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
         {/* header */}
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.22em', color: T.eyebrow }}>VOIS SHIELD RANKS</div>
-            <h2 id="all-badges-title" className="vs-rank" style={{ margin: '6px 0 0', fontSize: 38, fontWeight: 800, lineHeight: 1, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '0.22em', color: T.eyebrow }}>VOIS SHIELD RANKS</div>
+            <h2 id="all-badges-title" className="vs-rank" style={{ margin: '4px 0 0', fontSize: 32, fontWeight: 800, lineHeight: 1, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
               Badges &amp; levels
             </h2>
-            <p style={{ margin: '8px 0 0', fontSize: 14, fontWeight: 600, color: T.sub }}>
+            <p style={{ margin: '5px 0 0', fontSize: 13, fontWeight: 600, color: T.sub }}>
               Seven levels, three grades each. Earn points to climb. Lose points and you drop.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {current && (
-              <div data-all-badges-you={current.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 18px 6px 8px', borderRadius: 999, background: T.chip, border: `1px solid ${T.chipEdge}` }}>
-                <Picture level={current} height={46} T={T} />
+              <div data-all-badges-you={current.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 18px 5px 8px', borderRadius: 999, background: T.chip, border: `1px solid ${T.chipEdge}` }}>
+                <Picture level={current} height={42} T={T} />
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span className="vs-rank" style={{ fontSize: 17, fontWeight: 800, lineHeight: 1, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{gradeName(current)}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: T.sub }}>
@@ -325,7 +328,7 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
         </div>
 
         {/* the seven levels */}
-        <div style={{ overflowX: 'auto', marginTop: 16, padding: '8px 2px 4px' }}>
+        <div className="vs-scroll" style={{ overflowX: 'auto', marginTop: 8, padding: '8px 2px 4px' }}>
           <div style={{ minWidth: 1080, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 14 }}>
             {LEVEL_FAMILIES.map((grades) => {
               const head = grades[0];
@@ -358,20 +361,20 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
                   >
                     <span
                       className="vs-rank"
-                      style={{ display: 'block', padding: '10px 8px', background: `linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0)), ${headOf(head)}`, color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}
+                      style={{ display: 'block', padding: '9px 8px', background: `linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0)), ${headOf(head)}`, color: '#fff', fontSize: 15, fontWeight: 800, lineHeight: 1, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}
                     >
                       {head.name}
                     </span>
-                    <span style={{ position: 'relative', display: 'grid', placeItems: 'center', height: 138 }}>
-                      <Picture level={shown} height={114} T={T} dim={state === 'ahead' && !isSel} />
+                    <span style={{ position: 'relative', display: 'grid', placeItems: 'center', height: 112 }}>
+                      <Picture level={shown} height={94} T={T} dim={state === 'ahead' && !isSel} />
                       <Corner state={state} level={head} T={T} />
                     </span>
                     <span style={{ display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em', color: T.sub }}>LEVEL {head.level}</span>
-                    <span style={{ display: 'block', minHeight: 34, marginTop: 4, padding: '0 8px', fontSize: 12.5, fontWeight: 700, lineHeight: 1.3, color: accent }}>
+                    <span style={{ display: 'block', minHeight: 32, marginTop: 3, padding: '0 8px', fontSize: 12, fontWeight: 700, lineHeight: 1.3, color: accent }}>
                       {head.label} · {riskText(head)}
                     </span>
                   </button>
-                  <div role="group" aria-label={`${head.name} grades`} style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '10px 8px 6px' }}>
+                  <div role="group" aria-label={`${head.name} grades`} style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '7px 8px 4px' }}>
                     {grades.map((g) => {
                       const gs = stateOf(g, current);
                       const on = g.id === sel.id;
@@ -388,7 +391,7 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
                           style={{
                             ...look,
                             border: on ? T.grade.picked : look.border,
-                            width: 42, height: 40, padding: 0, borderRadius: 10, cursor: 'pointer', boxSizing: 'border-box',
+                            width: 42, height: 34, padding: 0, borderRadius: 10, cursor: 'pointer', boxSizing: 'border-box',
                             fontSize: 16, fontWeight: 800, letterSpacing: '0.06em', transition: 'background .15s ease, color .15s ease',
                           }}
                         >
@@ -397,7 +400,7 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
                       );
                     })}
                   </div>
-                  <div style={{ padding: '4px 8px 14px', textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: T.faint }}>{familyRangeText(grades)}</div>
+                  <div style={{ padding: '3px 8px 10px', textAlign: 'center', fontSize: 11.5, fontWeight: 700, color: T.faint }}>{familyRangeText(grades)}</div>
                 </div>
               );
             })}
@@ -410,17 +413,17 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
           aria-label="Selected badge"
           data-all-badges-detail={sel.id}
           style={{
-            marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'center', padding: '16px 28px', borderRadius: 20,
+            marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', padding: '12px 24px', borderRadius: 20,
             background: `radial-gradient(45% 120% at 13% 50%, ${rgba(sel.color, T.detailGlow)} 0%, rgba(0,0,0,0) 65%), ${T.detail}`,
             border: `1px solid ${T.edge}`, transition: 'background .3s ease',
           }}
         >
-          <div style={{ flex: '0 0 220px', position: 'relative', height: 204, display: 'grid', placeItems: 'center' }}>
+          <div style={{ flex: '0 0 190px', position: 'relative', height: 176, display: 'grid', placeItems: 'center' }}>
             <span
               aria-hidden
               className="vs-rays"
               style={{
-                position: 'absolute', left: '50%', top: '50%', width: 300, height: 300, margin: '-150px 0 0 -150px', borderRadius: '50%',
+                position: 'absolute', left: '50%', top: '50%', width: 260, height: 260, margin: '-130px 0 0 -130px', borderRadius: '50%',
                 background: `repeating-conic-gradient(${rgba(sel.color, T.rays)} 0deg 5deg, rgba(0,0,0,0) 5deg 15deg)`,
                 WebkitMaskImage: 'radial-gradient(circle, #000 25%, rgba(0,0,0,0) 66%)', maskImage: 'radial-gradient(circle, #000 25%, rgba(0,0,0,0) 66%)',
               }}
@@ -438,9 +441,9 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
                 <img
                   src={badgeSrc(sel.id, 512)}
                   srcSet={badgeSrcSet(sel.id)}
-                  sizes="152px"
-                  width={152}
-                  height={190}
+                  sizes="132px"
+                  width={132}
+                  height={165}
                   alt={levelAltText(sel)}
                   draggable={false}
                   style={{ display: 'block', filter: T.shadow }}
@@ -449,25 +452,25 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
             </AnimatePresence>
           </div>
 
-          <div style={{ flex: '1 1 360px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ flex: '1 1 360px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.18em', color: selAccent }}>
               {comeback ? 'COMEBACK ZONE' : `LEVEL ${sel.level}${sel.grade ? ` · GRADE ${ROMAN[sel.grade]}` : ''}`}
             </div>
-            <h3 className="vs-rank" style={{ margin: 0, fontSize: 48, fontWeight: 800, lineHeight: 0.95, letterSpacing: '0.01em', textTransform: 'uppercase' }}>{title(sel)}</h3>
+            <h3 className="vs-rank" style={{ margin: 0, fontSize: 42, fontWeight: 800, lineHeight: 0.95, letterSpacing: '0.01em', textTransform: 'uppercase' }}>{title(sel)}</h3>
             {!comeback && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ padding: '5px 12px', borderRadius: 999, background: rgba(sel.color, T.labelChip), color: selAccent, fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{sel.label}</span>
                 <span style={{ padding: '5px 12px', borderRadius: 999, background: T.chip, color: T.chipText, fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{riskText(sel)}</span>
               </div>
             )}
-            <div className="vs-rank" style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1, color: comeback ? selAccent : T.chipText, letterSpacing: '0.04em' }}>
+            <div className="vs-rank" style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.1, color: comeback ? selAccent : T.chipText, letterSpacing: '0.04em' }}>
               {comeback ? COMEBACK[sel.id] : rangeText(sel)}
             </div>
             {subject && subject.levelId === sel.id && (
               <div style={{ fontSize: 13, fontWeight: 700, color: T.chipText }}>{subject.name} holds this badge.</div>
             )}
             {status && (
-              <div data-all-badges-status style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 12, background: T.row, border: `1px solid ${T.edge}` }}>
+              <div data-all-badges-status style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 12, background: T.row, border: `1px solid ${T.edge}` }}>
                 {StatusIcon && <StatusIcon size={18} strokeWidth={2.4} color={statusTone} aria-hidden />}
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.chipText }}>{status}</span>
               </div>
@@ -485,13 +488,13 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
             )}
           </div>
 
-          <div style={{ flex: '1 1 260px', maxWidth: 330, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ flex: '1 1 260px', maxWidth: 330, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.16em', color: T.sub }}>HOW POINTS MOVE</div>
             {RULES.map((r) => {
               const v = rules.points[r.event];
               const [bg, fg] = v > 0 ? T.gain : v < 0 ? T.loss : T.zero;
               return (
-                <div key={r.event} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px', borderRadius: 10, background: T.row }}>
+                <div key={r.event} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 10px', borderRadius: 10, background: T.row }}>
                   <span className="vs-rank" style={{ flexShrink: 0, minWidth: 46, textAlign: 'center', padding: '4px 0', borderRadius: 8, fontSize: 16, fontWeight: 800, lineHeight: 1.1, background: bg, color: fg }}>
                     {rules.loading ? '…' : formatPoints(v)}
                   </span>
@@ -499,19 +502,19 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
                 </div>
               );
             })}
-            <div style={{ fontSize: 12, fontWeight: 600, color: T.sub, marginTop: 2 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: T.sub, marginTop: 1 }}>
               A simulation can cost you points only once, however many times it is clicked.
             </div>
           </div>
         </section>
 
-        {/* the comeback zone: the levels under Level 1, about the way back up */}
-        <section aria-labelledby="all-badges-comeback" style={{ marginTop: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 14px', marginBottom: 12 }}>
+        {/* the comeback zone: the levels under Level 1, about the way back up, in one strip */}
+        <section aria-labelledby="all-badges-comeback" style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <h3 id="all-badges-comeback" className="vs-rank" style={{ margin: 0, fontSize: 22, fontWeight: 800, lineHeight: 1, letterSpacing: '0.08em' }}>COMEBACK ZONE</h3>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: T.sub }}>Every report and every finished training moves you up and out.</span>
+            <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.35, color: T.sub }}>Every report and every finished training moves you up and out.</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'contents' }}>
             {BELOW_LEVELS.map((l) => {
               const on = sel.id === l.id;
               const st = stateOf(l, current);
@@ -525,15 +528,15 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
                   aria-pressed={on}
                   aria-label={`${l.name}: ${COMEBACK[l.id]}${st === 'current' ? ', your level' : ''}. Show details`}
                   style={{
-                    position: 'relative', display: 'flex', alignItems: 'center', gap: 14, padding: '10px 16px', borderRadius: 14, border: 0, cursor: 'pointer', textAlign: 'left', color: T.text, font: 'inherit',
+                    position: 'relative', display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px', borderRadius: 14, border: 0, cursor: 'pointer', textAlign: 'left', color: T.text, font: 'inherit',
                     background: T.comebackCard(l),
                     boxShadow: on ? `0 0 0 2px ${T.accent(l)}, ${T.selShadow}` : `0 0 0 1px ${T.edge}`,
                   }}
                 >
-                  <Picture level={l} height={66} T={T} />
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
-                    <span className="vs-rank" style={{ fontSize: 20, fontWeight: 800, lineHeight: 1, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{l.name}</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: T.accent(l) }}>{COMEBACK[l.id]}</span>
+                  <Picture level={l} height={52} T={T} />
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <span className="vs-rank" style={{ fontSize: 18, fontWeight: 800, lineHeight: 1, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{l.name}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.accent(l) }}>{COMEBACK[l.id]}</span>
                   </span>
                   {st === 'current' && <Corner state="current" level={l} T={T} />}
                 </button>
