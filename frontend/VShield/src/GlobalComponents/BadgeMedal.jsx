@@ -22,7 +22,8 @@ import { levelAltText, levelTitle, rangeText, resolveLevel } from '../services/l
 //   - left alone it floats and sways a little, and a band of light passes
 //     over it now and then;
 //   - `celebrate` (a number; change it to replay) spins it in with a burst of
-//     light, for a level reached.
+//     light, for a level reached; `intro` gives it a single quieter turn as
+//     it first appears.
 // Thickness comes from copies of the picture stacked behind the face, darker
 // the deeper they sit, so its edge shows as it turns. With reduced motion
 // set, nothing moves on its own and turning over is instant.
@@ -84,6 +85,7 @@ const BadgeMedal = ({
   idle = true,
   showBack = true,
   celebrate = 0,
+  intro = false,
   className = '',
 }) => {
   const level = given || resolveLevel({ levelId, points });
@@ -116,6 +118,19 @@ const BadgeMedal = ({
     const loop = animate(sway, [0, 7, 0, -7, 0], { duration: 10, ease: 'easeInOut', repeat: Infinity });
     return () => loop.stop();
   }, [reduce, idle, engaged, sway]);
+
+  // First appearance: one turn in, growing to size.
+  useEffect(() => {
+    if (!intro || reduce) return undefined;
+    spin.set(-360);
+    pop.set(0.82);
+    const a = animate(spin, 0, { type: 'spring', stiffness: 45, damping: 13 });
+    const b = animate(pop, 1, { type: 'spring', stiffness: 140, damping: 12 });
+    return () => {
+      a.stop();
+      b.stop();
+    };
+  }, [intro, reduce, spin, pop]);
 
   // A level reached: spin in from two turns away, popping up to size.
   useEffect(() => {
