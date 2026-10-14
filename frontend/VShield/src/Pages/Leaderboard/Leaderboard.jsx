@@ -89,9 +89,14 @@ const FONT_IMPORT = `
   .lb-me { transition: box-shadow .15s ease, transform .15s ease; }
   .lb-me[aria-disabled="false"]:hover { box-shadow: var(--you-glow); transform: translateY(-1px); }
 
-  /* Points rules: drop the one-line descriptions when the rail runs short */
+  /* Points rules: drop the one-line descriptions when the rail runs short,
+     and tighten the rows when it runs shorter still, so all six fit */
   .lb-rules { container-type: size; }
   @container (max-height: 360px) { .lb-rule-desc { display: none !important; } }
+  @container (max-height: 330px) {
+    .lb-rule { padding: 4px 0 !important; }
+    .lb-rule-ico { width: 27px !important; height: 27px !important; border-radius: 9px !important; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row { animation: none !important; transition: none !important; }
@@ -192,9 +197,9 @@ const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 // reaching up out of the box, so the badge itself fills it. Under it, only the
 // name, the department and the points: the badge says the level.
 const PLACE = {
-  first: { w: 196, h: 52, num: 24, badge: 88, halo: 142, av: 60, metal: 'gold', delay: 0.26 },
-  second: { w: 176, h: 38, num: 20, badge: 68, halo: 124, av: 50, metal: 'silver', delay: 0.08 },
-  third: { w: 176, h: 28, num: 18, badge: 68, halo: 124, av: 50, metal: 'bronze', delay: 0.16 },
+  first: { w: 196, h: 52, num: 20, badge: 88, halo: 142, av: 60, metal: 'gold', delay: 0.26 },
+  second: { w: 176, h: 38, num: 17, badge: 68, halo: 124, av: 50, metal: 'silver', delay: 0.08 },
+  third: { w: 176, h: 28, num: 15, badge: 68, halo: 124, av: 50, metal: 'bronze', delay: 0.16 },
 };
 const BADGE_HEADROOM = 1.25;
 // [pedestal fill, numeral colour] for light and dark, and the ring's light.
@@ -236,7 +241,7 @@ const CAP_H = HERO_H;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
-const STAGE_RAISE = 38; // the podium rises this far into the arm, under the switch
+const STAGE_RAISE = 34; // the podium rises this far into the arm, under the switch
 
 // Rows are a fixed height so the page size can be worked out from the space
 // the list actually has.
@@ -385,7 +390,7 @@ const PointsPlate = ({ pts, hidden, big = false }) => (hidden ? null : (
     }}
   >
     <ShieldPts />
-    <span className="vs-rank" style={{ fontSize: big ? 15 : 13.5, fontWeight: 800, lineHeight: 1, color: 'var(--pts-ink)' }}>
+    <span className="vs-rank" style={{ fontSize: big ? 13.5 : 12.5, fontWeight: 800, lineHeight: 1, color: 'var(--pts-ink)' }}>
       {pts}
     </span>
   </span>
@@ -503,8 +508,8 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, dept = false, isDar
           <Avatar initials={p.initials} size={c.av} ring={MEDAL[place]} />
         )}
       </span>
-      <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 4, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
-      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
+      <div style={{ fontSize: first ? 13.5 : 12.5, fontWeight: 800, marginTop: 4, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
+      <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 5 }}>
         <PointsPlate pts={p.pts} hidden={hidden} big={first} />
       </div>
@@ -523,12 +528,12 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, dept = false, isDar
 
 // This week's move, under the rank: up / down with the places, or a dash.
 const Move = ({ n }) => {
-  if (!n) return <span className="lb-mono" aria-label="No change this week" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>—</span>;
+  if (!n) return <span className="lb-mono" aria-label="No change this week" style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>—</span>;
   const up = n > 0;
   return (
     <span
       aria-label={`${up ? 'Up' : 'Down'} ${Math.abs(n)} this week`}
-      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: up ? 'var(--t-green)' : 'var(--t-red)' }}
+      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontSize: 9.5, fontWeight: 800, lineHeight: 1, color: up ? 'var(--t-green)' : 'var(--t-red)' }}
     >
       <svg width="10" height="8" viewBox="0 0 14 12" aria-hidden><path d={up ? 'M7 1 L13 11 H1 Z' : 'M7 11 L13 1 H1 Z'} fill="currentColor" /></svg>
       <span className="lb-mono">{Math.abs(n)}</span>
@@ -553,7 +558,7 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
       <span
         className="vs-rank"
-        style={{ minWidth: 34, height: 30, padding: '0 6px', boxSizing: 'border-box', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, lineHeight: 1, background: you ? 'var(--you)' : 'var(--plate)', color: you ? 'var(--you-ink)' : 'var(--text)' }}
+        style={{ minWidth: 34, height: 30, padding: '0 6px', boxSizing: 'border-box', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 12.5, fontWeight: 800, lineHeight: 1, background: you ? 'var(--you)' : 'var(--plate)', color: you ? 'var(--you-ink)' : 'var(--text)' }}
       >
         {r.rank}
       </span>
@@ -569,8 +574,8 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
       )}
     </div>
     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 2 }}>
-      <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.dept}</span>
+      <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.dept}</span>
     </span>
     <div style={{ justifySelf: 'end' }}>
       <PointsPlate pts={r.pts} hidden={hidden} />
@@ -598,7 +603,7 @@ const StageSwitch = ({ value, onChange, canDepts }) => (
             className="lb-pg"
             style={{
               height: 34, padding: '0 18px', borderRadius: 999, border: 'none', cursor: on ? 'default' : 'pointer',
-              fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap',
+              fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap',
               background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)',
               boxShadow: on ? '0 1px 3px rgba(15,23,42,0.14)' : 'none', transition: 'background .15s ease, color .15s ease',
             }}
@@ -620,7 +625,7 @@ const Chevron = ({ left }) => (
 const pagerBtn = (active) => ({
   minWidth: 28, height: 28, padding: '0 6px', borderRadius: 8, cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  fontSize: 11, fontWeight: 800,
+  fontSize: 10.5, fontWeight: 800,
   border: active ? '1px solid var(--ink)' : '1px solid var(--hair)',
   background: active ? 'var(--ink)' : 'var(--base)',
   color: active ? 'var(--ink-on)' : 'var(--text)',
@@ -632,7 +637,7 @@ const Pager = ({ page, pageCount, onPage }) => (
       <Chevron left />
     </button>
     {pageList(page, pageCount).map((p) => (typeof p === 'string' ? (
-      <span key={p} style={{ minWidth: 18, textAlign: 'center', fontSize: 11, fontWeight: 800, color: 'var(--muted)' }}>…</span>
+      <span key={p} style={{ minWidth: 18, textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: 'var(--muted)' }}>…</span>
     ) : (
       <button
         key={p}
@@ -785,8 +790,8 @@ const Leaderboard = () => {
           boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
         }}
       >
-        <div style={{ position: 'relative', fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
-        <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
+        <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? activeColor : 'var(--text)' }}>{label}</div>
+        <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
         <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: 0, right: 2, width: 60, height: 60, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
       </Cap>
     );
@@ -817,7 +822,7 @@ const Leaderboard = () => {
 
         {/* top black bar */}
         <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 18px', flexShrink: 0 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
+          <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
           <button
             type="button"
             data-lb-back
@@ -852,13 +857,13 @@ const Leaderboard = () => {
                 <div style={{ width: 52, height: 52, borderRadius: 999, flexShrink: 0, background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(184,134,11,0.35)' }}>
                   <div style={{ width: 42, height: 42, borderRadius: 999, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                     <span style={{ fontSize: 6.5, fontWeight: 800, letterSpacing: '0.12em', color: '#B07A12', marginBottom: 1 }}>RANK</span>
-                    <span className="lb-exb" style={{ fontSize: 19, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
+                    <span className="lb-exb" style={{ fontSize: 17, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
                   </div>
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.dept}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.dept}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts</div>
                 </div>
                 {mine.level && (
                   <button
@@ -879,7 +884,7 @@ const Leaderboard = () => {
                   <div style={{ height: 6, borderRadius: 999, background: 'rgba(176,122,18,0.18)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${standing.fillPct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
                   </div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--t-gold)', marginTop: 5 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--t-gold)', marginTop: 5 }}>{standing.toNext.toLocaleString()} {standing.toNext === 1 ? 'pt' : 'pts'} to reach rank {standing.nextRank}</div>
                 </div>
               )}
             </div>
@@ -891,16 +896,16 @@ const Leaderboard = () => {
             {view === 'global' && (
               <div className="lb-rules" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
                   <button
                     type="button"
                     onClick={() => setBadges({})}
-                    style={{ border: '1px solid var(--hair)', background: 'var(--track)', color: 'var(--text)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    style={{ border: '1px solid var(--hair)', background: 'var(--track)', color: 'var(--text)', borderRadius: 999, padding: '3px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
                   >
                     All badges
                   </button>
                 </div>
-                <div style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
+                <div style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
                   {rules.error ? 'Live rules unavailable right now' : 'Live from the Gamification Engine'}
                 </div>
                 <div style={{ flex: 1, minHeight: 0, maxHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -909,15 +914,15 @@ const Leaderboard = () => {
                     const tone = v > 0 ? 'var(--t-green)' : v < 0 ? 'var(--t-red)' : 'var(--muted)';
                     const tint = v > 0 ? 'var(--c-mint)' : v < 0 ? 'var(--c-peach)' : 'var(--track)';
                     return (
-                      <div key={rule.event} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid var(--hair)' }}>
-                        <span style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, background: tint, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div key={rule.event} className="lb-rule" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid var(--hair)' }}>
+                        <span className="lb-rule-ico" style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, background: tint, color: tone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <rule.Icon size={16} strokeWidth={2.3} />
                         </span>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rule.label}</div>
-                          <div className="lb-rule-desc" style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{rule.desc}</div>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rule.label}</div>
+                          <div className="lb-rule-desc" style={{ fontSize: 9, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{rule.desc}</div>
                         </div>
-                        <span className="lb-mono" style={{ flexShrink: 0, minWidth: 48, textAlign: 'center', fontSize: 12.5, fontWeight: 800, color: tone, background: tint, borderRadius: 999, padding: '4px 8px' }}>
+                        <span className="lb-mono" style={{ flexShrink: 0, minWidth: 48, textAlign: 'center', fontSize: 11.5, fontWeight: 800, color: tone, background: tint, borderRadius: 999, padding: '4px 8px' }}>
                           {rules.loading ? '…' : formatPoints(v)}
                         </span>
                       </div>
@@ -930,7 +935,7 @@ const Leaderboard = () => {
             {/* the only scrolling region on the page */}
             {view === 'campaign' && (
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
+                <div style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
                   Ongoing campaigns · {CAMPAIGNS.length}
                 </div>
                 <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px 12px 0' }}>
@@ -950,9 +955,9 @@ const Leaderboard = () => {
                       >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                           <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', flexShrink: 0, marginTop: 4 }} />
-                          <span style={{ fontSize: 12.5, fontWeight: 800, lineHeight: 1.25 }}>{c.name}</span>
+                          <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.25 }}>{c.name}</span>
                         </div>
-                        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, paddingLeft: 13 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
+                        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, paddingLeft: 13 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
                       </button>
                     );
                   })}
@@ -972,9 +977,9 @@ const Leaderboard = () => {
                   <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--t-green)' }}>Live now</span>
                 </div>
               )}
-              <div style={{ fontSize: view === 'global' ? 19 : 16, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{scope.title}</div>
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{scope.sub}</div>
-              <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 2, padding: '4px 10px', borderRadius: 999, background: 'var(--chip)', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>
+              <div style={{ fontSize: view === 'global' ? 14 : 13, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{scope.title}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{scope.sub}</div>
+              <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 2, padding: '4px 10px', borderRadius: 999, background: 'var(--chip)', fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>
                 <Users size={13} strokeWidth={2.4} />
                 <span className="lb-mono" style={{ fontWeight: 800, color: 'var(--text)' }}>{scope.counter}</span>
                 {scope.counterLabel}
@@ -1020,7 +1025,7 @@ const Leaderboard = () => {
               </div>
 
               {/* column header */}
-              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
+              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
                 <div>Rank</div>
                 <div style={{ textAlign: 'center' }}>{podium.id === 'depts' ? '' : 'Level'}</div>
                 <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
@@ -1060,8 +1065,8 @@ const Leaderboard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   {list.you && (
                     <>
-                      <span className="lb-exb" style={{ fontSize: 24, lineHeight: 1, color: 'var(--you)', whiteSpace: 'nowrap' }}>
-                        {list.youRank}<span style={{ fontSize: 13, marginLeft: 1 }}>{ordinalSuffix(list.youRank)}</span>
+                      <span className="lb-exb" style={{ fontSize: 20, lineHeight: 1, color: 'var(--you)', whiteSpace: 'nowrap' }}>
+                        {list.youRank}<span style={{ fontSize: 11, marginLeft: 1 }}>{ordinalSuffix(list.youRank)}</span>
                       </span>
                       <button
                         type="button"
@@ -1075,8 +1080,8 @@ const Leaderboard = () => {
                         {podium.id === 'people' && list.you?.levelId
                           ? <LevelBadge levelId={list.you.levelId} size={26} tilt={false} decorative />
                           : <DeptCrest code={list.you?.initials} size={26} compact metal={isDark ? 'steelDark' : 'steel'} edge={isDark ? '#F8FAFC' : '#E60000'} />}
-                        <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
-                        <span className="vs-rank" style={{ fontSize: 13.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{list.units}</span></span>
+                        <span style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
+                        <span className="vs-rank" style={{ fontSize: 12.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{list.units}</span></span>
                         {!youVisible && (
                           <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
                         )}
@@ -1087,7 +1092,7 @@ const Leaderboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                     Ranks <span className="lb-mono" style={{ color: 'var(--text)', fontWeight: 800 }}>{firstShown}–{lastShown}</span> of {list.total.toLocaleString()} {list.noun}
                   </span>
                   <Pager page={safePage} pageCount={pageCount} onPage={setPage} />
