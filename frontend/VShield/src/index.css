@@ -132,6 +132,10 @@ body {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
+.vs-on-light:focus-visible {
+  outline: 3px solid #0f172a;
+  outline-offset: 2px;
+}
 @media (prefers-reduced-motion: reduce) {
   .vs-badge-tilt,
   .vs-badge-tilt:hover {
