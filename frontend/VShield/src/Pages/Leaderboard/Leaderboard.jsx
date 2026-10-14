@@ -9,7 +9,7 @@ import AllBadges from '../../GlobalComponents/AllBadges';
 import { useMyStanding } from '../../services/useMyStanding';
 import { samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
 import { useGlobalBoard } from '../../services/useGlobalBoard';
-import { levelFor, levelTitle } from '../../services/levels';
+import { gradeName, levelAltText, levelFor, levelTitle, rangeText } from '../../services/levels';
 
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
@@ -25,9 +25,11 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // campaign boards are still made up. Keyed by email, shown by name; scores
 // from the gamification rules.
 //
-// Everyone's level badge shows beside their name, on the podium and in "Your
-// standing". A level below zero is shown only to its owner and to Admins;
-// other viewers see a dash. "All badges", or your own badge, opens every level
+// Everyone's level badge leads their row, in the place of an avatar (like a
+// game's ranking: rank, this week's move, badge, then the person), and stands
+// on the podium as the hero of each place. A level below zero is shown only to
+// its owner and to Admins; other viewers see a private badge and "Below 0".
+// Clicking any badge opens it in All badges. "All badges", or your own badge, opens every level
 // and grade (GlobalComponents/AllBadges).
 //
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
@@ -62,6 +64,13 @@ const FONT_IMPORT = `
   .lb-cap[aria-pressed="true"] .lb-art { animation: lb-float 3.2s ease-in-out infinite; }
   @keyframes lb-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
 
+  /* Badges: lift on hover; rows lift a little too */
+  .lb-badge-btn img { transition: transform .25s ease; }
+  .lb-badge-btn:hover img { transform: translateY(-3px) scale(1.07); }
+  .lb-badge-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: 999px; }
+  .lb-row { transition: box-shadow .15s ease; }
+  .lb-row:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); }
+
   /* Viewer's own pill in the footer: click to jump to their page */
   .lb-me { transition: box-shadow .15s ease, transform .15s ease; }
   .lb-me[aria-disabled="false"]:hover { box-shadow: var(--you-glow); transform: translateY(-1px); }
@@ -71,7 +80,7 @@ const FONT_IMPORT = `
   @container (max-height: 360px) { .lb-rule-desc { display: none !important; } }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row { animation: none !important; transition: none !important; }
   }
 `;
 
@@ -160,13 +169,35 @@ const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
 const pct = (s) => parseInt(s, 10) || 0;
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
-const rowFill = (i) => ['var(--c-mint)', 'var(--c-lav)', 'var(--c-peach)'][i % 3];
 const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 
+// The podium: each place's badge stands in a ring of light (`halo` px) on a
+// gold, silver or bronze pedestal (`h` px). The badge takes `badge` px of
+// height; its picture is a quarter taller, the clear space above the stars
+// reaching up out of the box, so the badge itself fills it.
 const PLACE = {
-  first: { w: 184, h: 76, num: 34, av: 60, medal: MEDAL.first, fill: 'var(--c-peach)', delay: 0.26 },
-  second: { w: 160, h: 54, num: 26, av: 50, medal: MEDAL.second, fill: 'var(--c-lav)', delay: 0.08 },
-  third: { w: 160, h: 40, num: 22, av: 50, medal: MEDAL.third, fill: 'var(--c-mint)', delay: 0.16 },
+  first: { w: 196, h: 52, num: 30, badge: 84, halo: 136, av: 60, metal: 'gold', delay: 0.26 },
+  second: { w: 176, h: 38, num: 24, badge: 66, halo: 122, av: 50, metal: 'silver', delay: 0.08 },
+  third: { w: 176, h: 28, num: 21, badge: 66, halo: 122, av: 50, metal: 'bronze', delay: 0.16 },
+};
+const BADGE_HEADROOM = 1.25;
+// [pedestal fill, numeral colour] for light and dark, and the ring's light.
+const METAL = {
+  gold: {
+    light: ['linear-gradient(180deg, #FBE08A 0%, #E9B949 45%, #C9922A 100%)', '#6B4A00'],
+    dark: ['linear-gradient(180deg, #7C5F18 0%, #4A370D 100%)', '#F6D06B'],
+    ray: 'rgba(214,160,30,0.30)', glow: 'rgba(255,204,84,0.55)',
+  },
+  silver: {
+    light: ['linear-gradient(180deg, #F3F5F8 0%, #D3D8E0 45%, #AEB6C2 100%)', '#46505E'],
+    dark: ['linear-gradient(180deg, #4A515C 0%, #2B3038 100%)', '#D5DAE3'],
+    ray: 'rgba(140,150,165,0.26)', glow: 'rgba(205,212,224,0.62)',
+  },
+  bronze: {
+    light: ['linear-gradient(180deg, #F6CFA9 0%, #DE9A63 45%, #B9733E 100%)', '#6A3A16'],
+    dark: ['linear-gradient(180deg, #7A4A24 0%, #4A2C14 100%)', '#F0B88A'],
+    ray: 'rgba(190,110,50,0.26)', glow: 'rgba(240,172,120,0.50)',
+  },
 };
 const NUMERAL = { first: '1', second: '2', third: '3' };
 const DEPT_CODE = {
@@ -176,8 +207,8 @@ const DEPT_CODE = {
   'Cyber Security': 'CYB', 'Cloud Infrastructure': 'CLD', 'IT Operations': 'ITO', 'Human Resources': 'HR', 'Legal & Compliance': 'LEG',
   'Sales & Enterprise': 'SAL', 'Digital Products': 'DIG', 'Marketing & Communications': 'MKT', 'Executive Board': 'EXB',
 };
-// Rank | Person | Level | Reported rate | Clicked | This week | Points
-const COLS = '60px minmax(200px, 1.3fr) 64px minmax(150px, 1fr) 76px 84px 96px';
+// Rank (and this week's move) | Badge | Person | Reported rate | Clicked | Points
+const COLS = '82px 50px minmax(220px, 1.5fr) minmax(150px, 1fr) 76px 112px';
 const ROW_PAD = 14; // row side padding; the column header lines up with it
 
 // L-shape sheet, built like Requests & Approvals: the colour capsule is its own
@@ -189,7 +220,7 @@ const CAP_H = HERO_H;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
-const STAGE_RAISE = 50; // the podium rises this far into the arm, under the switch
+const STAGE_RAISE = 56; // the podium rises this far into the arm, under the switch
 
 // Rows are a fixed height so the page size can be worked out from the space
 // the list actually has.
@@ -280,7 +311,7 @@ const Avatar = ({ initials, size = 32, ring, you }) => (
 );
 
 const Chip = ({ kind, children }) => (
-  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, color: kind === 'good' ? '#15803D' : '#E60000', background: kind === 'good' ? '#DCFCE7' : '#FEE2E2' }}>
+  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', color: kind === 'good' ? '#15803D' : '#E60000', background: kind === 'good' ? '#DCFCE7' : '#FEE2E2' }}>
     {children}
   </span>
 );
@@ -291,31 +322,95 @@ const SPARKLES = [
   { bottom: -2, right: -18, s: 10, d: 1.2 },
 ];
 
-const Pedestal = ({ person: p, place, reduce, level }) => {
+// A level the viewer may not see (below zero, someone else's): a dashed,
+// locked shield in the badge's place.
+const PrivateLevel = ({ size = 30 }) => (
+  <span
+    role="img"
+    aria-label="Level private"
+    title="Only they and the security admins see this level"
+    data-below-zero-hidden
+    style={{ width: size + 8, height: size + 8, borderRadius: 999, border: '1.5px dashed var(--muted)', display: 'grid', placeItems: 'center', opacity: 0.75, flexShrink: 0 }}
+  >
+    <svg width={size * 0.56} height={size * 0.62} viewBox="0 0 18 20" fill="none" aria-hidden>
+      <path d="M9 1 L16.5 4 V9.5 C16.5 14 13.4 17.3 9 19 C4.6 17.3 1.5 14 1.5 9.5 V4 Z" stroke="var(--muted)" strokeWidth="1.5" />
+      <rect x="6" y="8.6" width="6" height="5" rx="1" fill="var(--muted)" />
+      <path d="M7.3 8.6 V7.4 A1.7 1.7 0 0 1 10.7 7.4 V8.6" stroke="var(--muted)" strokeWidth="1.3" />
+    </svg>
+  </span>
+);
+
+// A badge you can click to open it in All badges.
+// `headroom` lets the picture's clear top run up out of the button.
+const BadgeButton = ({ level, size, who, onOpen, float = false, glow = false, headroom = 1 }) => (
+  <button
+    type="button"
+    className="lb-badge-btn"
+    onClick={() => onOpen(level, who)}
+    aria-label={`${who ? `${who}: ` : ''}${levelAltText(level)}. See all badges`}
+    title={`${gradeName(level)} · ${rangeText(level)}. Click to see all badges`}
+    style={{ position: 'relative', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', lineHeight: 0, display: 'grid', placeItems: 'center' }}
+  >
+    <span className={float ? 'vs-float' : undefined} style={{ display: 'block', marginTop: -Math.round(size * (headroom - 1)) }}>
+      <LevelBadge level={level} size={Math.round(size * headroom)} glow={glow} tilt={false} decorative style={float ? { filter: 'drop-shadow(0 10px 12px rgba(40,20,0,0.30))' } : undefined} />
+    </span>
+  </button>
+);
+
+const ShieldPts = () => (
+  <svg width="14" height="16" viewBox="0 0 18 20" aria-hidden style={{ flexShrink: 0 }}>
+    <path d="M9 1 L16.5 4 V9.5 C16.5 14 13.4 17.3 9 19 C4.6 17.3 1.5 14 1.5 9.5 V4 Z" fill="#E2A931" stroke="#9A6B0E" strokeWidth="1.2" />
+    <path d="M9 5.6 L10.3 8.4 L13.2 8.7 L11 10.7 L11.6 13.6 L9 12.1 L6.4 13.6 L7 10.7 L4.8 8.7 L7.7 8.4 Z" fill="#FFF3C4" />
+  </svg>
+);
+
+// Points, in a gold plate; "Below 0" when the total is below zero and not the
+// viewer's to see.
+const PointsPlate = ({ pts, hidden, big = false }) => (
+  <span
+    style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6, height: big ? 31 : 28, padding: hidden ? '0 10px' : '0 10px 0 7px', borderRadius: 9,
+      background: hidden ? 'var(--track)' : 'var(--pts-bg)', border: hidden ? '1px solid var(--hair)' : '1px solid var(--pts-line)', whiteSpace: 'nowrap',
+    }}
+  >
+    {!hidden && <ShieldPts />}
+    <span className="vs-rank" style={{ fontSize: big ? 22 : 19, fontWeight: 800, lineHeight: 1, letterSpacing: '0.02em', color: hidden ? 'var(--muted)' : 'var(--pts-ink)' }}>
+      {hidden ? 'BELOW 0' : pts}
+    </span>
+  </span>
+);
+
+const Pedestal = ({ person: p, place, reduce, level, hidden, isDark, onBadge }) => {
   const c = PLACE[place];
+  const m = METAL[c.metal];
+  const [fill, ink] = m[isDark ? 'dark' : 'light'];
   const first = place === 'first';
-  const flair = first && !reduce; // pulse ring + sparkles on the champion
+  const flair = first && !reduce && Boolean(level); // sparkles round the champion's badge
+  const tone = level ? (isDark ? level.light : level.color) : 'var(--muted)';
   return (
     <motion.div
       initial={reduce ? false : { y: 60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 150, damping: 17, delay: c.delay }}
-      whileHover={{ y: -4 }}
       style={{ width: c.w, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
-      {first && (
-        <span style={{ color: MEDAL.first, display: 'flex', marginBottom: 1 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 7l4 4 5-6 5 6 4-4-2 12H5L3 7z" /></svg>
-        </span>
-      )}
-      <span style={{ position: 'relative', display: 'flex' }}>
-        {flair && (
-          <motion.span
-            aria-hidden
-            animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
-            transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}
-            style={{ position: 'absolute', inset: -6, borderRadius: 999, border: `2px solid ${MEDAL.first}` }}
-          />
+      <span style={{ position: 'relative', display: 'grid', placeItems: 'center', height: c.badge, width: c.w }}>
+        {level && (
+          <>
+            <span
+              aria-hidden
+              className="vs-rays"
+              style={{
+                position: 'absolute', left: '50%', top: '50%', width: c.halo, height: c.halo, marginLeft: -c.halo / 2, marginTop: -c.halo / 2, borderRadius: 999, pointerEvents: 'none',
+                background: `repeating-conic-gradient(${m.ray} 0deg 5deg, transparent 5deg 15deg)`,
+                WebkitMaskImage: 'radial-gradient(circle, #000 28%, transparent 68%)', maskImage: 'radial-gradient(circle, #000 28%, transparent 68%)',
+              }}
+            />
+            <span
+              aria-hidden
+              style={{ position: 'absolute', left: '50%', top: '50%', width: c.halo * 0.7, height: c.halo * 0.7, marginLeft: -c.halo * 0.35, marginTop: -c.halo * 0.35, borderRadius: 999, pointerEvents: 'none', background: `radial-gradient(circle, ${m.glow} 0%, transparent 70%)` }}
+            />
+          </>
         )}
         {flair && SPARKLES.map((sp, i) => (
           <motion.span
@@ -323,83 +418,114 @@ const Pedestal = ({ person: p, place, reduce, level }) => {
             aria-hidden
             animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 0.5] }}
             transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut', delay: sp.d }}
-            style={{ position: 'absolute', top: sp.top, left: sp.left, right: sp.right, bottom: sp.bottom, lineHeight: 0 }}
+            style={{ position: 'absolute', top: sp.top !== undefined ? sp.top + 6 : undefined, left: sp.left !== undefined ? sp.left + 58 : undefined, right: sp.right !== undefined ? sp.right + 58 : undefined, bottom: sp.bottom, lineHeight: 0 }}
           >
             <svg width={sp.s} height={sp.s} viewBox="0 0 24 24" fill={MEDAL.first}><path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" /></svg>
           </motion.span>
         ))}
-        <Avatar initials={p.initials} size={c.av} ring={c.medal} />
-        {level && (
-          <span style={{ position: 'absolute', right: -Math.round(c.av * 0.5), bottom: -Math.round(c.av * 0.14), lineHeight: 0, zIndex: 2 }}>
-            <LevelBadge level={level} size={Math.round(c.av * 0.8)} />
-          </span>
+        {level ? (
+          <BadgeButton level={level} size={c.badge} who={p.name} onOpen={onBadge} float={!reduce} headroom={BADGE_HEADROOM} />
+        ) : hidden ? (
+          <PrivateLevel size={Math.round(c.badge * 0.5)} />
+        ) : (
+          <Avatar initials={p.initials} size={c.av} ring={MEDAL[place]} />
         )}
       </span>
-      <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 7, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
+      <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 4, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
+      {(level || hidden) && (
+        <div className="vs-rank" style={{ fontSize: first ? 14 : 13, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: tone, marginTop: 2, lineHeight: 1.1 }}>
+          {level ? gradeName(level) : 'Level private'}
+        </div>
+      )}
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
-        <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 22 : 17, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
+        <PointsPlate pts={p.pts} hidden={hidden} big={first} />
         {p.rep && <Chip kind="good">{p.rep} reported</Chip>}
       </div>
       <div
         style={{
-          width: '100%', height: c.h, marginTop: 8, background: c.fill,
+          width: '100%', height: c.h, marginTop: 8, background: fill,
           borderRadius: '14px 14px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: first ? 'inset 0 2px 0 rgba(255,255,255,0.6), 0 0 22px rgba(232,179,11,0.18)' : 'inset 0 2px 0 rgba(255,255,255,0.55)',
+          boxShadow: isDark ? 'inset 0 2px 0 rgba(255,255,255,0.12)' : 'inset 0 2px 0 rgba(255,255,255,0.7), inset 0 -10px 16px rgba(0,0,0,0.08)',
         }}
       >
-        <span className="lb-exb" style={{ fontSize: c.num, color: c.medal, lineHeight: 1, opacity: 0.9 }}>{NUMERAL[place]}</span>
+        <span className="vs-rank" style={{ fontSize: c.num, fontWeight: 800, color: ink, lineHeight: 1, textShadow: isDark ? 'none' : '0 1px 0 rgba(255,255,255,0.6)' }}>{NUMERAL[place]}</span>
       </div>
     </motion.div>
   );
 };
 
+// This week's move, under the rank: up / down with the places, or a dash.
 const Move = ({ n }) => {
-  if (!n) return <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--muted)' }}>—</span>;
+  if (!n) return <span className="lb-mono" aria-label="No change this week" style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>—</span>;
   const up = n > 0;
   return (
-    <span className="lb-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11.5, fontWeight: 800, color: up ? 'var(--t-green)' : 'var(--t-red)' }}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><polyline points={up ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} /></svg>
-      {Math.abs(n)}
+    <span
+      aria-label={`${up ? 'Up' : 'Down'} ${Math.abs(n)} this week`}
+      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: up ? 'var(--t-green)' : 'var(--t-red)' }}
+    >
+      <svg width="10" height="8" viewBox="0 0 14 12" aria-hidden><path d={up ? 'M7 1 L13 11 H1 Z' : 'M7 11 L13 1 H1 Z'} fill="currentColor" /></svg>
+      <span className="lb-mono">{Math.abs(n)}</span>
     </span>
   );
 };
 
-const RankRow = ({ r, fill, you, accent, level, levelCol }) => (
+// A ranked row: rank and move, the badge (an avatar for departments), the
+// person with their level, the rates, the points.
+const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
   <div
+    data-lb-row={r.rank}
+    className="lb-row"
     style={{
       height: ROW_H, flexShrink: 0,
-      background: you ? 'var(--base)' : fill,
-      border: you ? '1.5px solid var(--you)' : '1px solid var(--hair)',
+      background: you ? 'var(--base)' : 'var(--row)',
+      border: you ? '1.5px solid var(--you)' : '1px solid var(--row-hair)',
       borderRadius: 12, display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center',
       padding: `0 ${ROW_PAD}px`, boxShadow: you ? 'var(--you-glow)' : 'none',
     }}
   >
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: you ? 'var(--you)' : 'rgba(255,255,255,0.85)', borderRadius: 999, padding: '3px 9px', width: 'fit-content', boxShadow: you ? 'none' : '0 1px 2px rgba(15,23,42,0.06)' }}>
-      {!you && <span style={{ width: 6, height: 6, borderRadius: 999, background: accent }} />}
-      <span className="lb-mono" style={{ fontSize: 12, fontWeight: 800, color: you ? 'var(--you-ink)' : '#0F172A' }}>{r.rank}</span>
-    </span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-      <Avatar initials={r.initials} size={32} you={you} />
-      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 1 }}>
-        <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{r.dept}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+      <span
+        className="vs-rank"
+        style={{ minWidth: 34, height: 32, padding: '0 6px', boxSizing: 'border-box', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 19, fontWeight: 800, lineHeight: 1, background: you ? 'var(--you)' : 'var(--plate)', color: you ? 'var(--you-ink)' : 'var(--text)' }}
+      >
+        {r.rank}
       </span>
+      <Move n={r.move} />
     </div>
-    <div data-row-level={levelCol ? (level ? level.id : 'hidden') : undefined} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {levelCol && (level
-        ? <LevelBadge level={level} size={38} />
-        : <span aria-label="Level not shown" style={{ fontSize: 13, fontWeight: 800, color: 'var(--muted)' }}>—</span>)}
+    <div data-row-level={people ? (level ? level.id : 'hidden') : undefined} style={{ display: 'grid', placeItems: 'center' }}>
+      {!people ? (
+        <Avatar initials={r.initials} size={32} you={you} />
+      ) : level ? (
+        <BadgeButton level={level} size={38} who={you ? null : r.name} onOpen={onBadge} glow={isDark ? 'dark' : true} />
+      ) : (
+        <PrivateLevel size={28} />
+      )}
     </div>
+    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 2 }}>
+      <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+        {people && (
+          <>
+            <span className="vs-rank" style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, color: level ? (isDark ? level.light : level.color) : 'var(--muted)' }}>
+              {level ? gradeName(level) : 'Level private'}
+            </span>
+            <span aria-hidden style={{ width: 3, height: 3, borderRadius: 999, background: 'var(--muted)', opacity: 0.6, flexShrink: 0 }} />
+          </>
+        )}
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.dept}</span>
+      </span>
+    </span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ flex: 1, height: 8, borderRadius: 999, background: you ? 'var(--track)' : 'rgba(255,255,255,0.7)', overflow: 'hidden', display: 'block' }}>
-        <span style={{ display: 'block', height: '100%', width: r.rep || '0%', background: '#16A34A', borderRadius: 999 }} />
+      <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--track)', overflow: 'hidden', display: 'block' }}>
+        <span style={{ display: 'block', height: '100%', width: r.rep || '0%', background: 'linear-gradient(90deg, #34C77B, #16A34A)', borderRadius: 999 }} />
       </span>
       <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-green)', width: 34, textAlign: 'right' }}>{r.rep || '—'}</span>
     </div>
-    <div className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-red)', textAlign: 'center' }}>{r.clk || '—'}</div>
-    <div style={{ textAlign: 'center' }}><Move n={r.move} /></div>
-    <div className="lb-mono" style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
+    <div className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: pct(r.clk) > 0 ? 'var(--t-red)' : 'var(--muted)', textAlign: 'center' }}>{r.clk || '—'}</div>
+    <div style={{ justifySelf: 'end' }}>
+      <PointsPlate pts={r.pts} hidden={hidden} />
+    </div>
   </div>
 );
 
@@ -489,6 +615,8 @@ const Leaderboard = ({ onClose }) => {
   const youDept = mine.department || user?.Department || '';
   const [badges, setBadges] = useState(null); // All badges: null, or { selected, subject }
   const closeBadges = useCallback(() => setBadges(null), []);
+  // A badge on the board: open it in All badges, saying whose it is.
+  const openBadge = useCallback((level, who) => setBadges({ selected: level.id, subject: who ? { name: who, levelId: level.id } : null }), []);
   const [view, setView] = useState('global'); // 'global' | 'campaign'
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
@@ -540,8 +668,10 @@ const Leaderboard = ({ onClose }) => {
     ? { id: 'depts', board: insights.deptPodium }
     : { id: 'people', board: scope.board.podium };
 
-  // The badge this viewer may see on a row (none on department rows).
+  // The badge this viewer may see on a row (none on department rows), and
+  // whether a total below zero is hidden from them ("Below 0", private badge).
   const levelOf = (row, isYou) => (podium.id === 'people' && row ? visibleLevel(row.levelId, { isSelf: isYou, viewerRole }) : null);
+  const hiddenOf = (row, isYou) => podium.id === 'people' && Boolean(row) && !levelOf(row, isYou) && toNum(row.pts) < 0;
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
@@ -578,8 +708,8 @@ const Leaderboard = ({ onClose }) => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)' };
+    ? { '--bg': '#0E0F13', '--base': '#1C1E24', '--rail': '#15171C', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.08)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#143024', '--cap-camp': '#1E2250', '--cap-standing': 'linear-gradient(135deg,#3A2A0E,#241A0A)', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.08)', '--pts-bg': 'rgba(232,179,11,0.12)', '--pts-line': 'rgba(232,179,11,0.35)', '--pts-ink': '#FBD46B' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F1F2F5', '--pts-bg': 'linear-gradient(180deg,#FFF8E2,#FFEFC2)', '--pts-line': '#EBCB78', '--pts-ink': '#3F3000' };
 
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
@@ -815,7 +945,7 @@ const Leaderboard = ({ onClose }) => {
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
 
               {/* podium, centred on the sheet and lit from below: top people, or top departments via the switch */}
-              <div style={{ flexShrink: 0, marginTop: -STAGE_RAISE, padding: '0 24px 10px', background: 'radial-gradient(34% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+              <div data-podium style={{ flexShrink: 0, marginTop: -STAGE_RAISE, padding: '0 24px 10px', background: 'radial-gradient(34% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={`${podium.id}-${view}-${campaignId}`}
@@ -825,9 +955,9 @@ const Leaderboard = ({ onClose }) => {
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
                   >
-                    {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
-                    {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
-                    {podium.board.third && <Pedestal person={podium.board.third} place="third" reduce={reduce} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} />}
+                    {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} hidden={hiddenOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
+                    {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} hidden={hiddenOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
+                    {podium.board.third && <Pedestal person={podium.board.third} place="third" reduce={reduce} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} hidden={hiddenOf(podium.board.third, podium.board.third.rank === list.youRank)} />}
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -835,11 +965,10 @@ const Leaderboard = ({ onClose }) => {
               {/* column header */}
               <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
                 <div>Rank</div>
-                <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
                 <div style={{ textAlign: 'center' }}>{podium.id === 'depts' ? '' : 'Level'}</div>
+                <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
                 <div>Reported rate</div>
                 <div style={{ textAlign: 'center' }}>Clicked</div>
-                <div style={{ textAlign: 'center' }}>This week</div>
                 <div style={{ textAlign: 'right' }}>{podium.id === 'depts' ? 'Avg. points' : 'Points'}</div>
               </div>
 
@@ -852,18 +981,19 @@ const Leaderboard = ({ onClose }) => {
                   transition={{ duration: 0.22, ease: 'easeOut' }}
                   style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP }}
                 >
-                  {pageRows.map((r, i) => {
+                  {pageRows.map((r) => {
                     const isYou = r.rank === list.youRank;
                     const row = isYou ? list.you : r;
                     return (
                       <RankRow
                         key={r.rank}
                         r={row}
-                        fill={rowFill(pageStart + i)}
                         you={isYou}
-                        accent="var(--accent)"
-                        levelCol={podium.id === 'people'}
+                        people={podium.id === 'people'}
+                        isDark={isDark}
+                        onBadge={openBadge}
                         level={levelOf(row, isYou)}
+                        hidden={hiddenOf(row, isYou)}
                       />
                     );
                   })}
@@ -871,7 +1001,7 @@ const Leaderboard = ({ onClose }) => {
               </div>
 
               {/* footer: the viewer's rank + their pill, which jumps to their page (left); pagination (right) */}
-              <div style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
+              <div data-lb-footer style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   {list.you && (
                     <>
@@ -887,10 +1017,16 @@ const Leaderboard = ({ onClose }) => {
                         onClick={() => { if (!youVisible) setPage(youPage); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, border: '1.5px solid var(--you)', borderRadius: 999, padding: youVisible ? '4px 16px 4px 4px' : '4px 10px 4px 4px', background: 'var(--base)', color: 'var(--text)', cursor: youVisible ? 'default' : 'pointer' }}
                       >
-                        <Avatar initials={list.you?.initials} size={26} you />
+                        {podium.id === 'people' && list.you?.levelId
+                          ? <LevelBadge levelId={list.you.levelId} size={26} tilt={false} decorative />
+                          : <Avatar initials={list.you?.initials} size={26} you />}
                         <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
-                        {podium.id === 'people' && list.you?.levelId && <LevelBadge levelId={list.you.levelId} size={24} tilt={false} decorative />}
-                        <span className="lb-mono" style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} {list.units}</span>
+                        {podium.id === 'people' && list.you?.levelId && (
+                          <span className="vs-rank" style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', whiteSpace: 'nowrap', color: isDark ? mine.level?.light : mine.level?.color }}>
+                            {mine.level ? gradeName(mine.level) : ''}
+                          </span>
+                        )}
+                        <span className="vs-rank" style={{ fontSize: 17, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{list.units}</span></span>
                         {!youVisible && (
                           <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
                         )}
