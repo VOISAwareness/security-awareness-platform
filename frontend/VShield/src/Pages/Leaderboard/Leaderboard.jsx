@@ -27,8 +27,10 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // from the gamification rules.
 //
 // Everyone's level badge leads their row, in the place of an avatar (like a
-// game's ranking: rank, this week's move, badge, then the person), and stands
-// on the podium as the hero of each place. A level below zero is shown only to
+// game's ranking: rank, this week's move, badge, the person, their points),
+// and stands on the podium as the hero of each place. Kept clean: no level
+// names and no report rates on the board; the badge says the level (its name
+// shows on hover). A level below zero is shown only to
 // its owner and to Admins; other viewers see a locked, empty badge and no
 // points at all (the live board doesn't even send them).
 // Clicking any badge opens it in All badges. "All badges", or your own badge, opens every level
@@ -130,11 +132,9 @@ function buildBoard(seed, total) {
     const s = (1 - t) ** 1.6 * rank ** -0.08; // 1 at the top, 0 at the bottom
     const p = person(rank - 1 + seed * 37);
     const pts = Math.round(80 + 1400 * s - (seed % 5) * 7);
-    const rep = Math.round(27 + 70 * s);
-    const clk = Math.round(46 - 44 * s);
     const move = ((rank * 13 + seed * 7) % 9) - 3; // places gained (+) or lost (-) this week
     const levelId = levelFor(samplePointsFor(rank - 1 + seed * 37))?.id || null; // their overall level
-    all.push({ rank, ...p, pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%`, move, levelId });
+    all.push({ rank, ...p, pts: pts.toLocaleString(), move, levelId });
   }
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
@@ -182,7 +182,6 @@ const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_,
 
 const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
 
-const pct = (s) => parseInt(s, 10) || 0;
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
 const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
@@ -190,11 +189,12 @@ const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 // The podium: each place's badge stands in a ring of light (`halo` px) on a
 // gold, silver or bronze pedestal (`h` px). The badge takes `badge` px of
 // height; its picture is a quarter taller, the clear space above the stars
-// reaching up out of the box, so the badge itself fills it.
+// reaching up out of the box, so the badge itself fills it. Under it, only the
+// name, the department and the points: the badge says the level.
 const PLACE = {
-  first: { w: 196, h: 52, num: 30, badge: 84, halo: 136, av: 60, metal: 'gold', delay: 0.26 },
-  second: { w: 176, h: 38, num: 24, badge: 66, halo: 122, av: 50, metal: 'silver', delay: 0.08 },
-  third: { w: 176, h: 28, num: 21, badge: 66, halo: 122, av: 50, metal: 'bronze', delay: 0.16 },
+  first: { w: 196, h: 52, num: 30, badge: 102, halo: 162, av: 60, metal: 'gold', delay: 0.26 },
+  second: { w: 176, h: 38, num: 24, badge: 80, halo: 146, av: 50, metal: 'silver', delay: 0.08 },
+  third: { w: 176, h: 28, num: 21, badge: 80, halo: 146, av: 50, metal: 'bronze', delay: 0.16 },
 };
 const BADGE_HEADROOM = 1.25;
 // [pedestal fill, numeral colour] for light and dark, and the ring's light.
@@ -223,8 +223,8 @@ const DEPT_CODE = {
   'Cyber Security': 'CYB', 'Cloud Infrastructure': 'CLD', 'IT Operations': 'ITO', 'Human Resources': 'HR', 'Legal & Compliance': 'LEG',
   'Sales & Enterprise': 'SAL', 'Digital Products': 'DIG', 'Marketing & Communications': 'MKT', 'Executive Board': 'EXB',
 };
-// Rank (and this week's move) | Badge | Person | Reported rate | Clicked | Points
-const COLS = '82px 50px minmax(220px, 1.5fr) minmax(150px, 1fr) 76px 112px';
+// Rank (and this week's move) | Badge | Person | Points
+const COLS = '82px 50px minmax(0, 1fr) 112px';
 const ROW_PAD = 14; // row side padding; the column header lines up with it
 
 // L-shape sheet, built like Requests & Approvals: the colour capsule is its own
@@ -254,17 +254,15 @@ function boardInsights(board, youDept, youRank) {
   const byDept = {};
   all.forEach((r) => {
     const dept = youDept && r.rank === youRank ? youDept : r.dept;
-    const d = byDept[dept] || (byDept[dept] = { pts: 0, np: 0, rep: 0, clk: 0, n: 0 });
+    const d = byDept[dept] || (byDept[dept] = { pts: 0, np: 0, n: 0 });
     if (!r.hidden) { // a live row below zero comes without points
       d.pts += toNum(r.pts);
       d.np += 1;
     }
-    d.rep += pct(r.rep);
-    d.clk += pct(r.clk);
     d.n += 1;
   });
   const ranked = Object.entries(byDept)
-    .map(([dept, d]) => ({ dept, avg: d.np ? Math.round(d.pts / d.np) : 0, rep: Math.round(d.rep / d.n), clk: Math.round(d.clk / d.n), n: d.n }))
+    .map(([dept, d]) => ({ dept, avg: d.np ? Math.round(d.pts / d.np) : 0, n: d.n }))
     .sort((a, b) => b.avg - a.avg || a.dept.localeCompare(b.dept))
     .map((d, i) => ({
       rank: i + 1,
@@ -272,8 +270,6 @@ function boardInsights(board, youDept, youRank) {
       initials: DEPT_CODE[d.dept] || d.dept.slice(0, 3).toUpperCase(),
       dept: `${d.n.toLocaleString()} ${d.n === 1 ? 'person' : 'people'}`,
       pts: d.avg.toLocaleString(),
-      rep: `${d.rep}%`,
-      clk: `${d.clk}%`,
       move: ((d.dept.length * 7 + d.n * 3 + all.length) % 7) - 3, // sample week-on-week movement
     }));
   return {
@@ -329,12 +325,6 @@ const Avatar = ({ initials, size = 32, ring, you }) => (
     }}
   >
     {initials}
-  </span>
-);
-
-const Chip = ({ kind, children }) => (
-  <span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', color: kind === 'good' ? '#15803D' : '#E60000', background: kind === 'good' ? '#DCFCE7' : '#FEE2E2' }}>
-    {children}
   </span>
 );
 
@@ -466,7 +456,6 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, dept = false, isDar
   const first = place === 'first';
   const crest = dept && !level; // a department: its crest stands where a badge would
   const flair = first && !reduce && Boolean(level || crest); // sparkles round the champion
-  const tone = level ? (isDark ? level.light : level.color) : undefined;
   return (
     <motion.div
       initial={reduce ? false : { y: 60, opacity: 0 }}
@@ -516,15 +505,9 @@ const Pedestal = ({ person: p, place, reduce, level, hidden, dept = false, isDar
         )}
       </span>
       <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 4, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
-      {level && (
-        <div className="vs-rank" style={{ fontSize: first ? 14 : 13, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: tone, marginTop: 2, lineHeight: 1.1 }}>
-          {gradeName(level)}
-        </div>
-      )}
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginTop: 5 }}>
         <PointsPlate pts={p.pts} hidden={hidden} big={first} />
-        {p.rep && <Chip kind="good">{p.rep} reported</Chip>}
       </div>
       <div
         style={{
@@ -588,25 +571,8 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
     </div>
     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 2 }}>
       <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-        {people && level && (
-          <>
-            <span className="vs-rank" style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, color: isDark ? level.light : level.color }}>
-              {gradeName(level)}
-            </span>
-            <span aria-hidden style={{ width: 3, height: 3, borderRadius: 999, background: 'var(--muted)', opacity: 0.6, flexShrink: 0 }} />
-          </>
-        )}
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.dept}</span>
-      </span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.dept}</span>
     </span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--track)', overflow: 'hidden', display: 'block' }}>
-        <span style={{ display: 'block', height: '100%', width: r.rep || '0%', background: 'linear-gradient(90deg, #34C77B, #16A34A)', borderRadius: 999 }} />
-      </span>
-      <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-green)', width: 34, textAlign: 'right' }}>{r.rep || '—'}</span>
-    </div>
-    <div className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: pct(r.clk) > 0 ? 'var(--t-red)' : 'var(--muted)', textAlign: 'center' }}>{r.clk || '—'}</div>
     <div style={{ justifySelf: 'end' }}>
       <PointsPlate pts={r.pts} hidden={hidden} />
     </div>
@@ -742,7 +708,7 @@ const Leaderboard = () => {
 
   const youRow = useMemo(() => {
     const { podium: top, rows } = scope.board; // the viewer may be on the podium
-    const base = [top.first, top.second, top.third, ...rows].find((r) => r && r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
+    const base = [top.first, top.second, top.third, ...rows].find((r) => r && r.rank === scope.youRank) || { rank: scope.youRank, pts: '—' };
     // The week's movement is sample-only; a live board doesn't track it yet.
     return { ...base, name: youName, dept: youDept || base.dept, initials: youInitials, move: scope.board.sample === false ? base.move || 0 : 3, levelId: mine.level?.id || base.levelId };
   }, [scope, youName, youInitials, youDept, mine.level]);
@@ -893,7 +859,7 @@ const Leaderboard = () => {
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.dept}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts{youRow.rep ? ` · ${youRow.rep} reported` : ''}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts</div>
                 </div>
                 {mine.level && (
                   <button
@@ -1059,8 +1025,6 @@ const Leaderboard = () => {
                 <div>Rank</div>
                 <div style={{ textAlign: 'center' }}>{podium.id === 'depts' ? '' : 'Level'}</div>
                 <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
-                <div>Reported rate</div>
-                <div style={{ textAlign: 'center' }}>Clicked</div>
                 <div style={{ textAlign: 'right' }}>{podium.id === 'depts' ? 'Avg. points' : 'Points'}</div>
               </div>
 
@@ -1113,11 +1077,6 @@ const Leaderboard = () => {
                           ? <LevelBadge levelId={list.you.levelId} size={26} tilt={false} decorative />
                           : <DeptCrest code={list.you?.initials} size={26} compact metal={isDark ? 'steelDark' : 'steel'} edge={isDark ? '#F8FAFC' : '#E60000'} />}
                         <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
-                        {podium.id === 'people' && list.you?.levelId && (
-                          <span className="vs-rank" style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', whiteSpace: 'nowrap', color: isDark ? mine.level?.light : mine.level?.color }}>
-                            {mine.level ? gradeName(mine.level) : ''}
-                          </span>
-                        )}
                         <span className="vs-rank" style={{ fontSize: 17, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{list.units}</span></span>
                         {!youVisible && (
                           <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
