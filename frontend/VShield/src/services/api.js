@@ -159,6 +159,12 @@ export const api = {
         body: { PointsAssigned: points, ModifiedBy: actor },
       }),
   },
+  // Levels and points: reference-api reads the points ledger the
+  // points-engine Lambda writes. `viewer` is client-asserted, like elsewhere.
+  points: {
+    standing: (viewer) => request(`/standing?viewer=${encodeURIComponent(viewer || '')}`),
+    levels: () => request('/levels'),
+  },
   training: {
     paths: () => request('/training/paths'),
     videos: () => request('/training/videos'),

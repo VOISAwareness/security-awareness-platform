@@ -26,12 +26,9 @@ import { DEMO_USER } from '../../appConfig';
 import LeaderboardModal from '../Leaderboard/LeaderboardModal';
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import PointsAndBadges from './PointsAndBadges';
-import LevelUpDialog from './LevelUpDialog';
+import LevelChangeNotice from './LevelChangeNotice';
 import { useMyStanding } from '../../services/useMyStanding';
-import { levelNotice, readLastLevel, rememberLevel } from '../../services/levelMemory';
 import { levelTitle, riskColor, riskPosition } from '../../services/levels';
-
-const browserStorage = () => (typeof window === 'undefined' ? null : window.localStorage);
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -860,15 +857,6 @@ const MySpace = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const closeLeaderboard = useCallback(() => setShowLeaderboard(false), []);
   const standing = useMyStanding();
-  const levelId = standing.level?.id;
-
-  // Has the level changed since this person last looked, on this browser?
-  // Up: a celebration. Down: a short note. Then remember the level now.
-  const [notice, setNotice] = useState(() => levelNotice(readLastLevel(browserStorage(), standing.email), levelId));
-  const closeNotice = useCallback(() => setNotice(null), []);
-  useEffect(() => {
-    rememberLevel(browserStorage(), standing.email, levelId);
-  }, [standing.email, levelId]);
 
   return (
     <>
@@ -877,10 +865,6 @@ const MySpace = () => {
       {/* LEADERBOARD button on the ID badge opens the board as a pop-up */}
       <AnimatePresence>
         {showLeaderboard && <LeaderboardModal key="leaderboard" onClose={closeLeaderboard} />}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {notice?.kind === 'up' && <LevelUpDialog key="level-up" notice={notice} isDark={isDark} onClose={closeNotice} />}
       </AnimatePresence>
 
       <div
@@ -902,28 +886,9 @@ const MySpace = () => {
           </span>
         </div>
 
-        {/* Your level went down since you last looked: a short note, no fuss */}
-        {notice?.kind === 'down' && (
-          <div
-            role="status"
-            data-level-down
-            className={`w-full px-4 py-2.5 rounded-xl border flex items-center gap-3 ${
-              isDark ? 'bg-amber-500/10 border-amber-400/25 text-amber-100' : 'bg-amber-50 border-amber-200 text-amber-900'
-            }`}
-          >
-            <LevelBadge level={notice.to} size={34} tilt={false} decorative />
-            <span className="text-[11.5px] font-semibold flex-1 min-w-0">
-              Your level has gone down to <strong>{levelTitle(notice.to)} · {notice.to.name}</strong> (from {levelTitle(notice.from)}).
-              Report suspicious emails and finish your training to climb back up.
-            </span>
-            <button
-              type="button"
-              onClick={closeNotice}
-              className="flex-shrink-0 text-[10.5px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-lg border border-current/30 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10"
-            >
-              Got it
-            </button>
-          </div>
+        {/* Level up since you last looked: a pop-up; down: a short note here */}
+        {standing.ready !== false && standing.level && (
+          <LevelChangeNotice key={standing.email} email={standing.email} level={standing.level} isDark={isDark} />
         )}
 
         {/* Main 2-Column Dashboard Grid */}
