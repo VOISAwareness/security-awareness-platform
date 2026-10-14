@@ -47,17 +47,38 @@ def api(mod, monkeypatch):
             AttributeDefinitions=[
                 {"AttributeName": "owner", "AttributeType": "S"},
                 {"AttributeName": "entryId", "AttributeType": "S"},
+                {"AttributeName": "board", "AttributeType": "S"},
+                {"AttributeName": "points", "AttributeType": "N"},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "board-points-index",
+                    "KeySchema": [
+                        {"AttributeName": "board", "KeyType": "HASH"},
+                        {"AttributeName": "points", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "INCLUDE", "NonKeyAttributes": ["updatedAt"]},
+                    "ProvisionedThroughput": {"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+                }
             ],
             ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
         )
+        users = db.create_table(
+            TableName=f"{mod.TABLE_PREFIX}-users",
+            KeySchema=[{"AttributeName": "UserID", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "UserID", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
         monkeypatch.setattr(mod, "dynamodb", db)
-        yield SimpleNamespace(mod=mod, ledger=ledger)
+        monkeypatch.setattr(mod, "_board_cache", {"at": 0.0, "totals": None})
+        monkeypatch.setattr(mod, "_people_cache", {"at": 0.0, "people": None})
+        yield SimpleNamespace(mod=mod, ledger=ledger, users=users)
 
 
-def call(mod, route, viewer=None):
+def call(mod, route, viewer=None, role=None):
     event = {"routeKey": route}
     if viewer is not None:
-        event["queryStringParameters"] = {"viewer": viewer}
+        event["queryStringParameters"] = {"viewer": viewer, **({"role": role} if role else {})}
     resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
     return resp["statusCode"], json.loads(resp["body"])
 
@@ -147,7 +168,7 @@ def test_standing_from_the_ledger(api):
     api.ledger.put_item(Item=entry(ANA, "CMP-3", "Reported", 80, "2026-10-05T09:00:00Z"))
     api.ledger.put_item(Item=entry(ANA, "CMP-3", "Clicked", -30, "2026-10-07T09:00:00Z"))
     api.ledger.put_item(Item=entry(ANA, "CMP-4", "Compromised", -50, "2026-10-09T09:00:00Z"))
-    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": 160, "entries": 5, "updatedAt": "u"})
+    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": 160, "entries": 5, "updatedAt": "u", "board": "GLOBAL"})
     api.ledger.put_item(Item=entry("ben@example.test", "CMP-1", "Reported", 80, "2026-10-01T09:00:00Z"))
 
     status, body = call(api.mod, "GET /standing", viewer=" ANA@example.test ")
@@ -177,7 +198,7 @@ def test_below_zero(api):
     api.ledger.put_item(Item=entry(ANA, "CMP-1", "Compromised", -50, "2026-10-01T09:00:00Z"))
     api.ledger.put_item(Item=entry(ANA, "CMP-2", "Compromised", -50, "2026-10-02T09:00:00Z"))
     api.ledger.put_item(Item=entry(ANA, "CMP-3", "Clicked", -30, "2026-10-03T09:00:00Z"))
-    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": -130})
+    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": -130, "board": "GLOBAL"})
     d = call(api.mod, "GET /standing", viewer=ANA)[1]["data"]
     assert (d["levelId"], d["bestLevelId"], d["nextLevelId"], d["toNext"]) == ("LN1", "L1G1", "L0", 30)
 
@@ -190,3 +211,92 @@ def test_a_throttled_ledger_answers_busy(api, monkeypatch):
     status, body = call(api.mod, "GET /standing", viewer=ANA)
     assert status == 503
     assert body["error"]["code"] == "BUSY"
+
+
+# --- GET /leaderboard and rank -------------------------------------------------
+
+
+def total(api, email, points):
+    api.ledger.put_item(Item={"owner": email, "entryId": "TOTAL", "points": points, "board": "GLOBAL", "updatedAt": "u"})
+
+
+def seed_board(api):
+    total(api, "jack.roberts@example.test", 4620)
+    total(api, ANA, 160)
+    total(api, "ben@example.test", 160)  # a tie: email decides the order
+    total(api, "nour.el-din@example.test", -140)
+    total(api, "george@example.test", -260)
+    api.users.put_item(Item={"UserID": "U1", "UserEMailID": "Jack.Roberts@example.test", "UserName": "Jack Roberts", "Department": "Cyber Security"})
+    api.users.put_item(Item={"UserID": "U2", "UserEMailID": ANA, "UserName": "Ana Lopez", "Department": "Sales"})
+    # an entry row never shows on the board
+    api.ledger.put_item(Item=entry(ANA, "CMP-1", "Reported", 80, "2026-10-01T09:00:00Z"))
+
+
+def test_leaderboard_needs_a_viewer(api):
+    assert call(api.mod, "GET /leaderboard")[0] == 400
+
+
+def test_leaderboard_ranks_everyone_and_hides_negatives(api):
+    seed_board(api)
+    status, body = call(api.mod, "GET /leaderboard", viewer=ANA)
+    assert status == 200
+    d = body["data"]
+    assert d["total"] == 5
+    assert [(r["rank"], r["name"], r["points"], r["levelId"], r["you"]) for r in d["rows"]] == [
+        (1, "Jack Roberts", 4620, "L7G3", False),
+        (2, "Ana Lopez", 160, "L2G1", True),
+        (3, "Ben", 160, "L2G1", False),
+        (4, "Nour El Din", -140, None, False),
+        (5, "George", -260, None, False),
+    ]
+    assert d["rows"][0]["department"] == "Cyber Security"
+    assert d["you"] == {"rank": 2, "points": 160, "levelId": "L2G1"}
+    assert "ana@" not in json.dumps(d), "no emails on the board"
+
+
+def test_leaderboard_negatives_for_self_and_admins(api):
+    seed_board(api)
+    rows = call(api.mod, "GET /leaderboard", viewer="george@example.test")[1]["data"]["rows"]
+    assert [r["levelId"] for r in rows[3:]] == [None, "LN2"]
+    rows = call(api.mod, "GET /leaderboard", viewer=ANA, role="Admin")[1]["data"]["rows"]
+    assert [r["levelId"] for r in rows[3:]] == ["LN1", "LN2"]
+    rows = call(api.mod, "GET /leaderboard", viewer=ANA, role="Campaign Manager")[1]["data"]["rows"]
+    assert [r["levelId"] for r in rows[3:]] == [None, None]
+
+
+def test_someone_not_on_the_board(api):
+    seed_board(api)
+    d = call(api.mod, "GET /leaderboard", viewer="new@example.test")[1]["data"]
+    assert d["you"] is None
+    s = call(api.mod, "GET /standing", viewer="new@example.test")[1]["data"]
+    assert (s["rank"], s["total"], s["points"]) == (None, 5, 0)
+
+
+def test_standing_rank_matches_the_board(api):
+    seed_board(api)
+    s = call(api.mod, "GET /standing", viewer="ben@example.test")[1]["data"]
+    assert (s["rank"], s["total"]) == (3, 5)
+
+
+def test_the_board_is_cached_briefly(api, monkeypatch):
+    seed_board(api)
+    call(api.mod, "GET /leaderboard", viewer=ANA)
+    total(api, "zed@example.test", 9000)
+    assert call(api.mod, "GET /leaderboard", viewer=ANA)[1]["data"]["total"] == 5
+    monkeypatch.setattr(api.mod, "LEADERBOARD_TTL_SECONDS", -1)
+    d = call(api.mod, "GET /leaderboard", viewer=ANA)[1]["data"]
+    assert (d["total"], d["rows"][0]["name"], d["you"]["rank"]) == (6, "Zed", 3)
+
+
+def test_a_throttled_board_answers_busy(api, monkeypatch):
+    def slow(**_):
+        raise ClientError({"Error": {"Code": "ThrottlingException", "Message": "x"}}, "Query")
+
+    monkeypatch.setattr(api.mod, "table", lambda name: SimpleNamespace(query=slow, scan=slow))
+    status, body = call(api.mod, "GET /leaderboard", viewer=ANA)
+    assert (status, body["error"]["code"]) == (503, "BUSY")
+
+
+def test_name_from_email(mod):
+    assert mod.name_from_email("ana.lopez@x.test") == "Ana Lopez"
+    assert mod.name_from_email("j_doe-2@x.test") == "J Doe 2"

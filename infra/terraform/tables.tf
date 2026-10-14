@@ -217,7 +217,7 @@ resource "aws_dynamodb_table" "scenario_drafts" {
 # (GET /standing). Levels are worked out from the total on read, never stored.
 #
 # PROVISIONED 5 + 5 for the same reason as scenario-drafts: inside DynamoDB's
-# always-free 25 + 25 (the two tables use 10 + 10 together). A score is one
+# always-free 25 + 25 (with the leaderboard index below, 15 + 15 in all). A score is one
 # small transaction (about 4 write units), so a burst beyond 5/s is throttled
 # and the stream retries it a moment later; nothing is lost or counted twice.
 resource "aws_dynamodb_table" "points_ledger" {
@@ -235,5 +235,26 @@ resource "aws_dynamodb_table" "points_ledger" {
   attribute {
     name = "entryId"
     type = "S"
+  }
+  attribute {
+    name = "board"
+    type = "S"
+  }
+  attribute {
+    name = "points"
+    type = "N"
+  }
+
+  # The global leaderboard: only TOTAL rows carry `board`, so this lists every
+  # person's total, already sorted by points (reference-api GET /leaderboard).
+  # Its own 5 + 5 units bring this project to 15 + 15 of the free 25 + 25.
+  global_secondary_index {
+    name               = "board-points-index"
+    hash_key           = "board"
+    range_key          = "points"
+    projection_type    = "INCLUDE"
+    non_key_attributes = ["updatedAt"]
+    read_capacity      = 5
+    write_capacity     = 5
   }
 }
