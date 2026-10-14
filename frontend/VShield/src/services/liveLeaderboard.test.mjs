@@ -11,8 +11,8 @@ const data = {
     { rank: 1, name: 'Jack Roberts', department: 'Cyber Security', points: 4620, levelId: 'L7G3', you: false },
     { rank: 2, name: 'Ana Lopez', department: 'Sales', points: 160, levelId: 'L2G1', you: true },
     { rank: 3, name: 'Ben', department: '', points: 160, levelId: 'L2G1', you: false },
-    { rank: 4, name: 'Nour El Din', department: '', points: -140, levelId: null, you: false },
-    { rank: 5, name: 'George', department: '', points: -260, levelId: null, you: false },
+    { rank: 4, name: 'Nour El Din', department: '', points: null, levelId: null, you: false },
+    { rank: 5, name: 'George', department: '', points: null, levelId: null, you: false },
   ],
 };
 
@@ -25,6 +25,8 @@ test('podium, rows and the viewer', () => {
   assert.equal(b.podium.first.initials, 'JR');
   assert.equal(b.podium.second.you, true);
   assert.deepEqual(b.rows.map((r) => [r.rank, r.levelId, r.dept]), [[4, null, ''], [5, null, '']]);
+  assert.deepEqual(b.rows.map((r) => [r.points, r.pts, r.hidden]), [[null, '', true], [null, '', true]], 'below zero, not ours: no points');
+  assert.equal(b.podium.first.hidden, false);
   assert.deepEqual([b.rows[0].rep, b.rows[0].clk, b.rows[0].move], [null, null, 0], 'not on the server yet');
 });
 
