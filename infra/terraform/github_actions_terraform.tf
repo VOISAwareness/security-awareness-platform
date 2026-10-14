@@ -18,6 +18,7 @@ locals {
   project_roles     = "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*"
   project_tables    = "arn:aws:dynamodb:${local.region}:${local.account_id}:table/${var.name_prefix}-*"
   project_functions = "arn:aws:lambda:${local.region}:${local.account_id}:function:${var.name_prefix}-*"
+  event_mappings    = "arn:aws:lambda:${local.region}:${local.account_id}:event-source-mapping:*"
   api_arn           = "arn:aws:apigateway:${local.region}::/apis/${aws_apigatewayv2_api.main.id}"
 }
 
@@ -110,6 +111,28 @@ resource "aws_iam_role_policy" "github_terraform" {
           "lambda:UntagResource",
         ]
         Resource = local.project_functions
+      },
+      {
+        # Triggers (event source mappings), e.g. events stream -> points-engine.
+        # Their IDs are random, so writes are scoped by the function they call.
+        Sid       = "FunctionTriggers"
+        Effect    = "Allow"
+        Action    = ["lambda:CreateEventSourceMapping", "lambda:UpdateEventSourceMapping", "lambda:DeleteEventSourceMapping"]
+        Resource  = local.event_mappings
+        Condition = { StringLike = { "lambda:FunctionArn" = local.project_functions } }
+      },
+      {
+        Sid      = "FunctionTriggersReadAndTag"
+        Effect   = "Allow"
+        Action   = ["lambda:GetEventSourceMapping", "lambda:ListTags", "lambda:TagResource", "lambda:UntagResource"]
+        Resource = local.event_mappings
+      },
+      {
+        # Has no resource to scope to.
+        Sid      = "ListFunctionTriggers"
+        Effect   = "Allow"
+        Action   = "lambda:ListEventSourceMappings"
+        Resource = "*"
       },
       {
         Sid    = "FunctionRoles"
