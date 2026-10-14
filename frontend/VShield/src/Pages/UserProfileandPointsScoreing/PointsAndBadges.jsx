@@ -101,7 +101,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
             <span className="text-[10.5px] font-extrabold uppercase tracking-[0.16em]" style={{ color: tone }}>
               {level.grade ? `Level ${level.level} · Grade ${ROMAN[level.grade]}` : `Level ${levelNo(level)}`}
             </span>
-            <h4 className={`vs-rank text-[35px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] mt-0.5 truncate ${strong}`}>{level.name}</h4>
+            <h4 className={`vs-rank text-[23px] font-black uppercase leading-[1.05] tracking-tight mt-1 truncate ${strong}`}>{level.name}</h4>
           </div>
           {bestIsHigher && (
             <span className={`flex-shrink-0 inline-flex items-center gap-1 text-[10px] font-bold mt-0.5 ${muted}`} title={`Best reached: ${levelTitle(best)} · ${best.name}`}>
@@ -130,9 +130,9 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className={`vs-rank text-[40px] font-extrabold leading-none ${strong}`} data-my-points>
+          <span className={`vs-rank text-[28px] font-black leading-none tracking-tight ${strong}`} data-my-points>
             {fmt(points)}
-            <span className={`text-[16px] font-bold ml-1 ${muted}`}>pts</span>
+            <span className={`text-[13px] font-bold ml-1 ${muted}`}>pts</span>
           </span>
           {rank && (
             <>
@@ -199,7 +199,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
                       </span>
                     )}
                   </span>
-                  <span className={`vs-rank text-[13px] font-extrabold tracking-[0.06em] leading-none mt-0.5 whitespace-nowrap ${isNow ? '' : muted}`} style={isNow ? { color: tone } : undefined}>
+                  <span className={`vs-rank text-[10.5px] font-extrabold tracking-[0.02em] leading-none mt-0.5 whitespace-nowrap ${isNow ? '' : muted}`} style={isNow ? { color: tone } : undefined}>
                     {stepLabel(step, level)}
                     {isNow && ' · YOU'}
                   </span>
@@ -263,7 +263,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
               }`}
             >
               <span
-                className={`vs-rank flex-shrink-0 min-w-[40px] text-center text-[14px] font-extrabold rounded-md px-1.5 py-0.5 ${
+                className={`vs-rank flex-shrink-0 min-w-[40px] text-center text-[11.5px] font-extrabold rounded-md px-1.5 py-0.5 ${
                   h.points >= 0
                     ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-500/15'
                     : 'text-red-600 bg-red-100 dark:text-red-300 dark:bg-red-500/15'

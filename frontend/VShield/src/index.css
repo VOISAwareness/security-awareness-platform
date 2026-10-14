@@ -1,5 +1,6 @@
-/* Rank lettering for the badge screens (level names, grades, numbers): .vs-rank */
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap');
+/* The app's display face for the badge screens (.vs-rank): Vodafone ExB where it
+   is installed, else Montserrat, as every other screen's .font-voda-exb */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -104,9 +105,9 @@ body {
   background-repeat: no-repeat;
   animation: vs-badge-glint 7s ease-in-out infinite;
 }
-/* level names, grades and numbers on the badge screens */
+/* level names, grades and numbers on the badge screens: the app's display face */
 .vs-rank {
-  font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', sans-serif;
 }
 /* light rays turning slowly behind a big badge, and a gentle float */
 @keyframes vs-rays {

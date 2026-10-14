@@ -57,7 +57,7 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 
 const FONT_IMPORT = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap');
-  .lb-exb  { font-family: 'Montserrat', sans-serif; font-weight: 900; }
+  .lb-exb  { font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', sans-serif; font-weight: 900; }
   .lb-mono { font-family: 'JetBrains Mono', monospace; }
   .lb-page { font-family: 'Inter', system-ui, sans-serif; }
   .lb-scroll::-webkit-scrollbar { width: 7px; }
@@ -192,9 +192,9 @@ const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 // reaching up out of the box, so the badge itself fills it. Under it, only the
 // name, the department and the points: the badge says the level.
 const PLACE = {
-  first: { w: 196, h: 52, num: 30, badge: 102, halo: 162, av: 60, metal: 'gold', delay: 0.26 },
-  second: { w: 176, h: 38, num: 24, badge: 80, halo: 146, av: 50, metal: 'silver', delay: 0.08 },
-  third: { w: 176, h: 28, num: 21, badge: 80, halo: 146, av: 50, metal: 'bronze', delay: 0.16 },
+  first: { w: 196, h: 52, num: 24, badge: 88, halo: 142, av: 60, metal: 'gold', delay: 0.26 },
+  second: { w: 176, h: 38, num: 20, badge: 68, halo: 124, av: 50, metal: 'silver', delay: 0.08 },
+  third: { w: 176, h: 28, num: 18, badge: 68, halo: 124, av: 50, metal: 'bronze', delay: 0.16 },
 };
 const BADGE_HEADROOM = 1.25;
 // [pedestal fill, numeral colour] for light and dark, and the ring's light.
@@ -236,7 +236,7 @@ const CAP_H = HERO_H;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
-const STAGE_RAISE = 56; // the podium rises this far into the arm, under the switch
+const STAGE_RAISE = 38; // the podium rises this far into the arm, under the switch
 
 // Rows are a fixed height so the page size can be worked out from the space
 // the list actually has.
@@ -369,7 +369,7 @@ const BadgeButton = ({ level, size, who, onOpen, float = false, glow = false, he
 );
 
 const ShieldPts = () => (
-  <svg width="14" height="16" viewBox="0 0 18 20" aria-hidden style={{ flexShrink: 0 }}>
+  <svg width="12" height="14" viewBox="0 0 18 20" aria-hidden style={{ flexShrink: 0 }}>
     <path d="M9 1 L16.5 4 V9.5 C16.5 14 13.4 17.3 9 19 C4.6 17.3 1.5 14 1.5 9.5 V4 Z" fill="#E2A931" stroke="#9A6B0E" strokeWidth="1.2" />
     <path d="M9 5.6 L10.3 8.4 L13.2 8.7 L11 10.7 L11.6 13.6 L9 12.1 L6.4 13.6 L7 10.7 L4.8 8.7 L7.7 8.4 Z" fill="#FFF3C4" />
   </svg>
@@ -380,12 +380,12 @@ const ShieldPts = () => (
 const PointsPlate = ({ pts, hidden, big = false }) => (hidden ? null : (
   <span
     style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6, height: big ? 31 : 28, padding: '0 10px 0 7px', borderRadius: 9,
+      display: 'inline-flex', alignItems: 'center', gap: 5, height: big ? 26 : 24, padding: '0 9px 0 6px', borderRadius: 8,
       background: 'var(--pts-bg)', border: '1px solid var(--pts-line)', whiteSpace: 'nowrap',
     }}
   >
     <ShieldPts />
-    <span className="vs-rank" style={{ fontSize: big ? 22 : 19, fontWeight: 800, lineHeight: 1, letterSpacing: '0.02em', color: 'var(--pts-ink)' }}>
+    <span className="vs-rank" style={{ fontSize: big ? 15 : 13.5, fontWeight: 800, lineHeight: 1, color: 'var(--pts-ink)' }}>
       {pts}
     </span>
   </span>
@@ -432,10 +432,9 @@ const DeptCrest = ({ code, size, metal = 'steel', edge, shine = false, compact =
         x="50"
         y={compact ? 72 : 81}
         textAnchor="middle"
-        fontFamily="'Barlow Condensed', 'Arial Narrow', sans-serif"
+        fontFamily="'Vodafone ExB', 'Vodafone', 'Montserrat', sans-serif"
         fontWeight="800"
-        fontSize={compact ? (text.length > 2 ? 38 : 44) : text.length > 2 ? 27 : 31}
-        letterSpacing="1"
+        fontSize={compact ? (text.length > 2 ? 30 : 38) : text.length > 2 ? 22 : 27}
         fill={c.ink}
       >
         {text}
@@ -554,7 +553,7 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
       <span
         className="vs-rank"
-        style={{ minWidth: 34, height: 32, padding: '0 6px', boxSizing: 'border-box', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 19, fontWeight: 800, lineHeight: 1, background: you ? 'var(--you)' : 'var(--plate)', color: you ? 'var(--you-ink)' : 'var(--text)' }}
+        style={{ minWidth: 34, height: 30, padding: '0 6px', boxSizing: 'border-box', borderRadius: 9, display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, lineHeight: 1, background: you ? 'var(--you)' : 'var(--plate)', color: you ? 'var(--you-ink)' : 'var(--text)' }}
       >
         {r.rank}
       </span>
@@ -1077,7 +1076,7 @@ const Leaderboard = () => {
                           ? <LevelBadge levelId={list.you.levelId} size={26} tilt={false} decorative />
                           : <DeptCrest code={list.you?.initials} size={26} compact metal={isDark ? 'steelDark' : 'steel'} edge={isDark ? '#F8FAFC' : '#E60000'} />}
                         <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
-                        <span className="vs-rank" style={{ fontSize: 17, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{list.units}</span></span>
+                        <span className="vs-rank" style={{ fontSize: 13.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{list.units}</span></span>
                         {!youVisible && (
                           <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
                         )}

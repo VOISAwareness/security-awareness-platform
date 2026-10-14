@@ -208,7 +208,7 @@ const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderb
             >
               <LevelBadge level={level} size={60} glow={isDark ? 'dark' : true} tilt={false} decorative />
               <span className="flex flex-col min-w-0 flex-1 gap-0.5">
-                <span className={`vs-rank text-[19px] font-extrabold uppercase leading-none tracking-[0.02em] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <span className={`vs-rank text-[13.5px] font-black uppercase leading-tight tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {gradeName(level)}
                 </span>
                 <span className="text-[9.5px] font-bold" style={{ color: isDark ? level.light : level.color }}>
