@@ -11,6 +11,7 @@ import decimal
 import json
 import os
 import re
+import time
 import uuid
 import zlib
 from datetime import UTC, datetime
@@ -961,7 +962,7 @@ LEVELS = tuple(
 )
 LEDGER_TOTAL = "TOTAL"
 STANDING_HISTORY = 10  # latest changes returned
-STANDING_ROUTES = frozenset({"GET /standing", "GET /levels"})
+STANDING_ROUTES = frozenset({"GET /standing", "GET /levels", "GET /leaderboard"})
 
 
 def level_for(points):
@@ -1022,14 +1023,119 @@ def standing_view(email, rows):
     }
 
 
+# --- the global leaderboard ---------------------------------------------------
+#
+# Every person's TOTAL row carries board = "GLOBAL", so the ledger's sparse
+# index board-points-index lists all totals already sorted by points. The
+# whole board (up to LEADERBOARD_MAX people) is read at most once a minute per
+# Lambda instance; names and departments come from the users table (by
+# email), read at most every five minutes.
+#
+# Rank is the place in that order (points high to low, then email), so the
+# leaderboard and GET /standing always agree. A level below zero is shown only
+# to its owner and to an Admin; `role` is client-asserted like `viewer`, so
+# this keeps honest users apart but is not a security boundary until sign-in
+# exists.
+
+LEADERBOARD_MAX = 5000
+LEADERBOARD_TTL_SECONDS = 60
+PEOPLE_TTL_SECONDS = 300
+ADMIN_ROLES = frozenset({"Admin"})
+_board_cache = {"at": 0.0, "totals": None}
+_people_cache = {"at": 0.0, "people": None}
+
+
+def board_totals():
+    """[(email, points)], points high to low then email; cached briefly."""
+    now = time.monotonic()
+    if _board_cache["totals"] is not None and now - _board_cache["at"] < LEADERBOARD_TTL_SECONDS:
+        return _board_cache["totals"]
+    totals, kwargs = [], {
+        "IndexName": "board-points-index",
+        "KeyConditionExpression": Key("board").eq("GLOBAL"),
+        "ScanIndexForward": False,
+    }
+    while len(totals) < LEADERBOARD_MAX:
+        resp = table("points-ledger").query(**kwargs)
+        totals.extend((str(i["owner"]), int(i.get("points", 0))) for i in resp.get("Items", []))
+        if not resp.get("LastEvaluatedKey"):
+            break
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    totals = sorted(totals[:LEADERBOARD_MAX], key=lambda t: (-t[1], t[0]))
+    _board_cache.update(at=now, totals=totals)
+    return totals
+
+
+def people_by_email():
+    """email -> (name, department) from the users table; cached."""
+    now = time.monotonic()
+    if _people_cache["people"] is not None and now - _people_cache["at"] < PEOPLE_TTL_SECONDS:
+        return _people_cache["people"]
+    people = {}
+    for u in scan_all("users"):
+        email = parse_identity(u.get("UserEMailID"))
+        if email:
+            people[email] = (str(u.get("UserName") or ""), str(u.get("Department") or ""))
+    _people_cache.update(at=now, people=people)
+    return people
+
+
+def name_from_email(email):
+    """'ana.lopez@x' -> 'Ana Lopez', for people missing from the users table."""
+    local = email.split("@", 1)[0]
+    return " ".join(w.capitalize() for w in re.split(r"[._-]+", local) if w) or email
+
+
+def leaderboard_view(totals, people, viewer, role=None):
+    """The board as the Leaderboard screen reads it. Emails are never sent;
+    the viewer's own row is marked `you`."""
+    admin = role in ADMIN_ROLES
+    rows, you = [], None
+    for rank, (email, points) in enumerate(totals, start=1):
+        name, department = people.get(email) or (name_from_email(email), "")
+        level = level_for(points)
+        mine = email == viewer
+        row = {
+            "rank": rank,
+            "name": name or name_from_email(email),
+            "department": department,
+            "points": points,
+            # Below zero is for the person and admins only.
+            "levelId": level["id"] if (level["level"] > 0 or mine or admin) else None,
+            "you": mine,
+        }
+        rows.append(row)
+        if mine:
+            you = {"rank": rank, "points": points, "levelId": level["id"]}
+    return {"rows": rows, "total": len(rows), "you": you}
+
+
+def rank_of(totals, viewer):
+    """(rank, total) of a person on the global board; rank None if absent."""
+    rank = next((i for i, (email, _) in enumerate(totals, start=1) if email == viewer), None)
+    return rank, len(totals)
+
+
+def busy(context, what, e):
+    code = e.response.get("Error", {}).get("Code", "")
+    if code not in THROTTLED_CODES:
+        raise e
+    log(context, f"{what} throttled", code=code)
+    return err(503, "Points are busy right now; try again shortly", code="BUSY")
+
+
 def standing(route, event, context):
-    """GET /levels (the table) and GET /standing?viewer=<email>."""
+    """GET /levels (the table), GET /standing?viewer=<email> and
+    GET /leaderboard?viewer=<email>&role=<role>."""
     if route == "GET /levels":
         return ok(list(LEVELS), count=len(LEVELS))
-    viewer = parse_identity((event.get("queryStringParameters") or {}).get("viewer"))
+    query = event.get("queryStringParameters") or {}
+    viewer = parse_identity(query.get("viewer"))
     if not viewer:
         return err(400, "viewer is required")
     try:
+        if route == "GET /leaderboard":
+            return ok(leaderboard_view(board_totals(), people_by_email(), viewer, query.get("role")))
         rows, kwargs = [], {"KeyConditionExpression": Key("owner").eq(viewer)}
         while True:
             resp = table("points-ledger").query(**kwargs)
@@ -1037,13 +1143,11 @@ def standing(route, event, context):
             if not resp.get("LastEvaluatedKey"):
                 break
             kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+        view = standing_view(viewer, rows)
+        rank, total = rank_of(board_totals(), viewer)
+        return ok({**view, "rank": rank, "total": total})
     except ClientError as e:
-        code = e.response.get("Error", {}).get("Code", "")
-        if code not in THROTTLED_CODES:
-            raise
-        log(context, "Standing throttled", code=code)
-        return err(503, "Points are busy right now; try again shortly", code="BUSY")
-    return ok(standing_view(viewer, rows))
+        return busy(context, "Standing" if route == "GET /standing" else "Leaderboard", e)
 
 
 # routeKey -> table name for simple "list all" GETs

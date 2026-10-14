@@ -349,7 +349,8 @@ GET                 /gamification-rules
 GET                 /training/paths|videos|quizzes|certificates
 GET                 /campaigns-catalog
 GET                 /levels                     # the level and grade table
-GET                 /standing?viewer=<email>    # points, level, progress, best level, latest changes
+GET                 /standing?viewer=<email>    # points, rank, level, progress, best level, latest changes
+GET                 /leaderboard?viewer=<email> # everyone ranked by points (&role=Admin shows levels below zero)
 ```
 
 **Points** (`points-engine`, no route) — the events table's stream feeds it; it
@@ -427,9 +428,10 @@ forwards those too.
 Production builds are unaffected — they read the absolute endpoint from `.env`
 and PUT directly to S3.
 
-**Levels from the server.** My Space shows levels and points from the bundled
-sample (`MasterUserData.json`) until `VITE_LIVE_LEVELS=true` is set, which makes
-it read `GET /standing` instead (falling back to the sample if that fails). Keep
+**Levels from the server.** My Space and the global Leaderboard show levels and
+points from the bundled sample (`MasterUserData.json`) until
+`VITE_LIVE_LEVELS=true` is set, which makes them read `GET /standing` and
+`GET /leaderboard` instead (falling back to the sample if that fails). Keep
 it off until real campaigns have produced events, or everyone is a New Joiner. If the frontend is ever hosted, **that origin must be
 added to `cors_allowed_origins` and applied.**
 

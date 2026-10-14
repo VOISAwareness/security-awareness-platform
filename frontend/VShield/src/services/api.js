@@ -164,6 +164,12 @@ export const api = {
   points: {
     standing: (viewer) => request(`/standing?viewer=${encodeURIComponent(viewer || '')}`),
     levels: () => request('/levels'),
+    // The whole global board, ranked. `role` lets an Admin see levels below
+    // zero; like `viewer`, it is not a security boundary until sign-in exists.
+    leaderboard: (viewer, role) =>
+      request(
+        `/leaderboard?viewer=${encodeURIComponent(viewer || '')}${role ? `&role=${encodeURIComponent(role)}` : ''}`,
+      ),
   },
   training: {
     paths: () => request('/training/paths'),

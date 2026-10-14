@@ -176,6 +176,7 @@ locals {
     # Levels and points (tables.tf: points_ledger; points_engine.tf writes it).
     "GET /standing",
     "GET /levels",
+    "GET /leaderboard",
   ]
 }
 

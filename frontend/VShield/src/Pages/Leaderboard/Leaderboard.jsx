@@ -4,11 +4,11 @@ import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerCl
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
-import masterUsers from '../../MasterUserData.json';
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import LevelsGuide from './LevelsGuide';
 import { useMyStanding } from '../../services/useMyStanding';
-import { globalBoard, samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
+import { samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
+import { useGlobalBoard } from '../../services/useGlobalBoard';
 import { levelFor, levelTitle } from '../../services/levels';
 
 // Clay-model corner artwork, reused from the existing asset set so the
@@ -19,11 +19,11 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
 //
-// SAMPLE data for layout + motion review; real figures come later from the S3
-// event store projected into DynamoDB. Keyed by email, shown by name; scores
-// from the gamification rules. The global board is the bundled user list
-// ranked by points (services/sampleLeaderboard.js), the same list My Space
-// reads; the campaign boards are made up.
+// The global board comes from useGlobalBoard: the bundled user list ranked by
+// points (services/sampleLeaderboard.js, the same list My Space reads), or,
+// with VITE_LIVE_LEVELS=true, the points ledger (GET /leaderboard). The
+// campaign boards are still made up. Keyed by email, shown by name; scores
+// from the gamification rules.
 //
 // Everyone's level badge shows beside their name, on the podium and in "Your
 // standing". A level below zero is shown only to its owner and to Admins;
@@ -113,7 +113,6 @@ function buildBoard(seed, total) {
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
 
-const GLOBAL_BOARD = globalBoard(masterUsers);
 
 const NAMED_CAMPAIGNS = [
   { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1 },
@@ -201,7 +200,7 @@ const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
 // department ranked by average points per person (so team size doesn't decide
 // it), in the same row shape as people so the podium and list can show either.
 function boardInsights(board, youDept) {
-  const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows];
+  const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows].filter(Boolean);
   const byDept = {};
   all.forEach((r) => {
     const d = byDept[r.dept] || (byDept[r.dept] = { pts: 0, rep: 0, clk: 0, n: 0 });
@@ -339,7 +338,7 @@ const Pedestal = ({ person: p, place, reduce, level }) => {
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
         <span className={first ? 'lb-exb' : 'lb-mono'} style={{ fontSize: first ? 22 : 17, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{p.pts}</span>
-        <Chip kind="good">{p.rep} reported</Chip>
+        {p.rep && <Chip kind="good">{p.rep} reported</Chip>}
       </div>
       <div
         style={{
@@ -393,11 +392,11 @@ const RankRow = ({ r, fill, you, accent, level, levelCol }) => (
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <span style={{ flex: 1, height: 8, borderRadius: 999, background: you ? 'var(--track)' : 'rgba(255,255,255,0.7)', overflow: 'hidden', display: 'block' }}>
-        <span style={{ display: 'block', height: '100%', width: r.rep, background: '#16A34A', borderRadius: 999 }} />
+        <span style={{ display: 'block', height: '100%', width: r.rep || '0%', background: '#16A34A', borderRadius: 999 }} />
       </span>
-      <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-green)', width: 34, textAlign: 'right' }}>{r.rep}</span>
+      <span className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-green)', width: 34, textAlign: 'right' }}>{r.rep || '—'}</span>
     </div>
-    <div className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-red)', textAlign: 'center' }}>{r.clk}</div>
+    <div className="lb-mono" style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--t-red)', textAlign: 'center' }}>{r.clk || '—'}</div>
     <div style={{ textAlign: 'center' }}><Move n={r.move} /></div>
     <div className="lb-mono" style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', textAlign: 'right' }}>{r.pts}</div>
   </div>
@@ -484,6 +483,7 @@ const Leaderboard = ({ onClose }) => {
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
+  const globalBoard = useGlobalBoard(mine.email, user?.role, mine.rank);
   const viewerRole = user?.role;
   const youDept = mine.department || user?.Department || '';
   const [showLevels, setShowLevels] = useState(false);
@@ -516,19 +516,20 @@ const Leaderboard = ({ onClose }) => {
 
   const scope = useMemo(() => {
     if (view === 'global') {
-      return { board: GLOBAL_BOARD, youRank: mine.rank || GLOBAL_BOARD.total, counter: GLOBAL_BOARD.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
+      return { board: globalBoard, youRank: globalBoard.youRank, counter: globalBoard.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
     }
     return {
       board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
       counter: campaign.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
       sub: `${campaign.type} · started ${campaign.started}`, live: true,
     };
-  }, [view, campaign, mine.rank]);
+  }, [view, campaign, globalBoard]);
 
   const youRow = useMemo(() => {
     const { podium: top, rows } = scope.board; // the viewer may be on the podium
     const base = [top.first, top.second, top.third, ...rows].find((r) => r && r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
-    return { ...base, name: youName, dept: youDept || base.dept, initials: youInitials, move: 3, levelId: mine.level?.id || base.levelId };
+    // The week's movement is sample-only; a live board doesn't track it yet.
+    return { ...base, name: youName, dept: youDept || base.dept, initials: youInitials, move: scope.board.sample === false ? base.move || 0 : 3, levelId: mine.level?.id || base.levelId };
   }, [scope, youName, youInitials, youDept, mine.level]);
 
   const insights = useMemo(() => boardInsights(scope.board, youDept), [scope, youDept]);
@@ -559,7 +560,7 @@ const Leaderboard = ({ onClose }) => {
   // viewer is pinned in the footer (their own row, or their department's).
   const list = podium.id === 'depts'
     ? { rows: insights.deptRows, total: insights.deptTotal, noun: 'departments', you: insights.youDept, youRank: insights.youDept ? insights.youDept.rank : 0, units: 'avg pts' }
-    : { rows: scope.board.rows, total: scope.board.total, noun: scope.counterLabel, you: youRow, youRank: scope.youRank, units: 'pts' };
+    : { rows: scope.board.rows, total: scope.board.total, noun: scope.counterLabel, you: scope.youRank ? youRow : null, youRank: scope.youRank || 0, units: 'pts' };
 
   // Pagination over ranks 4..N (1–3 are on the podium).
   const listRows = list.rows;
@@ -638,10 +639,12 @@ const Leaderboard = ({ onClose }) => {
             <div style={{ flexShrink: 0, height: HERO_H, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'var(--cap-standing)', borderRadius: L_R, padding: '13px 16px', marginBottom: 10, boxShadow: '0 8px 20px rgba(232,179,11,0.16)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B07A12' }}>Your standing</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>
-                  {youRow.move} this week
-                </span>
+                {youRow.move > 0 && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '3px 8px', borderRadius: 999 }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15" /></svg>
+                    {youRow.move} this week
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -654,7 +657,7 @@ const Leaderboard = ({ onClose }) => {
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.dept}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts · {youRow.rep} reported</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts{youRow.rep ? ` · ${youRow.rep} reported` : ''}</div>
                 </div>
                 {mine.level && (
                   <button
@@ -809,9 +812,9 @@ const Leaderboard = ({ onClose }) => {
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
                   >
-                    <Pedestal person={podium.board.second} place="second" reduce={reduce} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} />
-                    <Pedestal person={podium.board.first} place="first" reduce={reduce} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} />
-                    <Pedestal person={podium.board.third} place="third" reduce={reduce} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} />
+                    {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
+                    {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
+                    {podium.board.third && <Pedestal person={podium.board.third} place="third" reduce={reduce} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} />}
                   </motion.div>
                 </AnimatePresence>
               </div>
