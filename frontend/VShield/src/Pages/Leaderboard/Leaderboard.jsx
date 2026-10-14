@@ -4,6 +4,12 @@ import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerCl
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
+import masterUsers from '../../MasterUserData.json';
+import LevelBadge from '../../GlobalComponents/LevelBadge';
+import LevelsGuide from './LevelsGuide';
+import { useMyStanding } from '../../services/useMyStanding';
+import { globalBoard, samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
+import { levelFor, levelTitle } from '../../services/levels';
 
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
@@ -15,7 +21,13 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 //
 // SAMPLE data for layout + motion review; real figures come later from the S3
 // event store projected into DynamoDB. Keyed by email, shown by name; scores
-// from the gamification rules.
+// from the gamification rules. The global board is the bundled user list
+// ranked by points (services/sampleLeaderboard.js), the same list My Space
+// reads; the campaign boards are made up.
+//
+// Everyone's level badge shows beside their name, on the podium and in "Your
+// standing". A level below zero is shown only to its owner and to Admins;
+// other viewers see a dash. "All levels" opens the whole ladder.
 //
 // Layout follows Requests & Approvals: a left rail (your standing on top, then
 // the Global / My Campaigns scope capsules with clay corner art, then the live
@@ -72,7 +84,6 @@ const DEPTS = [
   'Finance', 'IT Security', 'Operations', 'Human Res.', 'Sales', 'Legal', 'IT', 'Marketing',
   'Procurement', 'Customer Care', 'Engineering', 'Data & AI', 'Risk & Compliance', 'Facilities', 'Strategy', 'Network Ops',
 ];
-const YOU_DEPT = 'IT Security'; // sample: the signed-in person's department
 
 // 24 x 24 distinct first/last pairs (5 is coprime with 24, so no repeats
 // until index 576).
@@ -96,12 +107,13 @@ function buildBoard(seed, total) {
     const rep = Math.round(27 + 70 * s);
     const clk = Math.round(46 - 44 * s);
     const move = ((rank * 13 + seed * 7) % 9) - 3; // places gained (+) or lost (-) this week
-    all.push({ rank, ...p, pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%`, move });
+    const levelId = levelFor(samplePointsFor(rank - 1 + seed * 37))?.id || null; // their overall level
+    all.push({ rank, ...p, pts: pts.toLocaleString(), rep: `${rep}%`, clk: `${clk}%`, move, levelId });
   }
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
 
-const GLOBAL = { total: 128, youRank: 12, board: buildBoard(0, 128) };
+const GLOBAL_BOARD = globalBoard(masterUsers);
 
 const NAMED_CAMPAIGNS = [
   { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1 },
@@ -160,9 +172,12 @@ const NUMERAL = { first: '1', second: '2', third: '3' };
 const DEPT_CODE = {
   Finance: 'FIN', 'IT Security': 'SEC', Operations: 'OPS', 'Human Res.': 'HR', Sales: 'SAL', Legal: 'LEG', IT: 'IT', Marketing: 'MKT',
   Procurement: 'PRC', 'Customer Care': 'CC', Engineering: 'ENG', 'Data & AI': 'DAI', 'Risk & Compliance': 'RSK', Facilities: 'FAC', Strategy: 'STR', 'Network Ops': 'NET',
+  AIDA: 'AI', CARE: 'CAR', 'Finance Operations': 'FIN', 'Network Engineering': 'NET', 'Supply Chain Management': 'SCM',
+  'Cyber Security': 'CYB', 'Cloud Infrastructure': 'CLD', 'IT Operations': 'ITO', 'Human Resources': 'HR', 'Legal & Compliance': 'LEG',
+  'Sales & Enterprise': 'SAL', 'Digital Products': 'DIG', 'Marketing & Communications': 'MKT', 'Executive Board': 'EXB',
 };
-// Rank | Person | Reported rate | Clicked | This week | Points
-const COLS = '60px minmax(200px, 1.3fr) minmax(170px, 1fr) 76px 84px 96px';
+// Rank | Person | Level | Reported rate | Clicked | This week | Points
+const COLS = '60px minmax(200px, 1.3fr) 64px minmax(150px, 1fr) 76px 84px 96px';
 const ROW_PAD = 14; // row side padding; the column header lines up with it
 
 // L-shape sheet, built like Requests & Approvals: the colour capsule is its own
@@ -185,7 +200,7 @@ const FIRST_LIST_RANK = 4; // ranks 1–3 stand on the podium
 // Department board, worked out from whichever people board is showing: every
 // department ranked by average points per person (so team size doesn't decide
 // it), in the same row shape as people so the podium and list can show either.
-function boardInsights(board) {
+function boardInsights(board, youDept) {
   const all = [board.podium.first, board.podium.second, board.podium.third, ...board.rows];
   const byDept = {};
   all.forEach((r) => {
@@ -212,7 +227,7 @@ function boardInsights(board) {
     deptPodium: ranked.length >= 3 ? { first: ranked[0], second: ranked[1], third: ranked[2] } : null,
     deptRows: ranked.slice(3),
     deptTotal: ranked.length,
-    youDept: ranked.find((d) => d.name === YOU_DEPT) || null,
+    youDept: ranked.find((d) => d.name === youDept) || null,
   };
 }
 
@@ -276,7 +291,7 @@ const SPARKLES = [
   { bottom: -2, right: -18, s: 10, d: 1.2 },
 ];
 
-const Pedestal = ({ person: p, place, reduce }) => {
+const Pedestal = ({ person: p, place, reduce, level }) => {
   const c = PLACE[place];
   const first = place === 'first';
   const flair = first && !reduce; // pulse ring + sparkles on the champion
@@ -314,6 +329,11 @@ const Pedestal = ({ person: p, place, reduce }) => {
           </motion.span>
         ))}
         <Avatar initials={p.initials} size={c.av} ring={c.medal} />
+        {level && (
+          <span style={{ position: 'absolute', right: -Math.round(c.av * 0.5), bottom: -Math.round(c.av * 0.14), lineHeight: 0, zIndex: 2 }}>
+            <LevelBadge level={level} size={Math.round(c.av * 0.8)} />
+          </span>
+        )}
       </span>
       <div style={{ fontSize: first ? 16 : 14.5, fontWeight: 800, marginTop: 7, textAlign: 'center', lineHeight: 1.15, color: 'var(--text)' }}>{p.name}</div>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--muted)', marginTop: 1 }}>{p.dept}</div>
@@ -345,7 +365,7 @@ const Move = ({ n }) => {
   );
 };
 
-const RankRow = ({ r, fill, you, accent }) => (
+const RankRow = ({ r, fill, you, accent, level, levelCol }) => (
   <div
     style={{
       height: ROW_H, flexShrink: 0,
@@ -365,6 +385,11 @@ const RankRow = ({ r, fill, you, accent }) => (
         <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{r.dept}</span>
       </span>
+    </div>
+    <div data-row-level={levelCol ? (level ? level.id : 'hidden') : undefined} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {levelCol && (level
+        ? <LevelBadge level={level} size={38} />
+        : <span aria-label="Level not shown" style={{ fontSize: 13, fontWeight: 800, color: 'var(--muted)' }}>—</span>)}
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <span style={{ flex: 1, height: 8, borderRadius: 999, background: you ? 'var(--track)' : 'rgba(255,255,255,0.7)', overflow: 'hidden', display: 'block' }}>
@@ -458,6 +483,10 @@ const Leaderboard = ({ onClose }) => {
   const { isDark, user } = useUserType() || {};
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
+  const mine = useMyStanding(); // the viewer's points, rank and level
+  const viewerRole = user?.role;
+  const youDept = mine.department || user?.Department || '';
+  const [showLevels, setShowLevels] = useState(false);
   const [view, setView] = useState('global'); // 'global' | 'campaign'
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
@@ -487,25 +516,29 @@ const Leaderboard = ({ onClose }) => {
 
   const scope = useMemo(() => {
     if (view === 'global') {
-      return { board: GLOBAL.board, youRank: GLOBAL.youRank, counter: GLOBAL.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
+      return { board: GLOBAL_BOARD, youRank: mine.rank || GLOBAL_BOARD.total, counter: GLOBAL_BOARD.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
     }
     return {
       board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
       counter: campaign.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
       sub: `${campaign.type} · started ${campaign.started}`, live: true,
     };
-  }, [view, campaign]);
+  }, [view, campaign, mine.rank]);
 
   const youRow = useMemo(() => {
-    const base = scope.board.rows.find((r) => r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
-    return { ...base, name: youName, dept: YOU_DEPT, initials: youInitials, move: 3 };
-  }, [scope, youName, youInitials]);
+    const { podium: top, rows } = scope.board; // the viewer may be on the podium
+    const base = [top.first, top.second, top.third, ...rows].find((r) => r && r.rank === scope.youRank) || { rank: scope.youRank, pts: '—', rep: '—', clk: '—' };
+    return { ...base, name: youName, dept: youDept || base.dept, initials: youInitials, move: 3, levelId: mine.level?.id || base.levelId };
+  }, [scope, youName, youInitials, youDept, mine.level]);
 
-  const insights = useMemo(() => boardInsights(scope.board), [scope]);
+  const insights = useMemo(() => boardInsights(scope.board, youDept), [scope, youDept]);
   // Which podium the stage shows; falls back to people if departments can't be ranked.
   const podium = stage === 'depts' && insights.deptPodium
     ? { id: 'depts', board: insights.deptPodium }
     : { id: 'people', board: scope.board.podium };
+
+  // The badge this viewer may see on a row (none on department rows).
+  const levelOf = (row, isYou) => (podium.id === 'people' && row ? visibleLevel(row.levelId, { isSelf: isYou, viewerRole }) : null);
 
   // Standing vs the person one place above — a small goal + progress bar.
   const standing = useMemo(() => {
@@ -573,7 +606,11 @@ const Leaderboard = ({ onClose }) => {
       <style>{FONT_IMPORT}</style>
 
       {/* Fills <main> exactly; nothing inside lets the page itself scroll. */}
-      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', position: 'relative', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+        <AnimatePresence>
+          {showLevels && <LevelsGuide key="levels" current={mine.level} isDark={isDark} onClose={() => setShowLevels(false)} />}
+        </AnimatePresence>
 
         {/* top black bar */}
         <div style={{ background: '#000', color: '#fff', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: onClose ? '0 8px 0 18px' : '0 18px', flexShrink: 0 }}>
@@ -614,11 +651,23 @@ const Leaderboard = ({ onClose }) => {
                     <span className="lb-exb" style={{ fontSize: 19, color: '#7A5B12', lineHeight: 1 }}>{scope.youRank}</span>
                   </div>
                 </div>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youName}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{youRow.dept}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{youRow.dept}</div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t-gold)', marginTop: 1 }}>{youRow.pts} pts · {youRow.rep} reported</div>
                 </div>
+                {mine.level && (
+                  <button
+                    type="button"
+                    data-hero-level={mine.level.id}
+                    onClick={() => setShowLevels(true)}
+                    title={`${levelTitle(mine.level)} · ${mine.level.name}. See all levels`}
+                    aria-label={`Your level: ${levelTitle(mine.level)}, ${mine.level.name}. See all levels`}
+                    style={{ flexShrink: 0, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', lineHeight: 0 }}
+                  >
+                    <LevelBadge level={mine.level} size={58} decorative />
+                  </button>
+                )}
               </div>
 
               {standing.toNext > 0 && (
@@ -637,7 +686,16 @@ const Leaderboard = ({ onClose }) => {
             {/* Global view: how points are earned, read live from the Gamification Engine */}
             {view === 'global' && (
               <div className="lb-rules" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
-                <div style={{ flexShrink: 0, fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>How to earn points</div>
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowLevels(true)}
+                    style={{ border: '1px solid var(--hair)', background: 'var(--track)', color: 'var(--text)', borderRadius: 999, padding: '3px 10px', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    All levels
+                  </button>
+                </div>
                 <div style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
                   {rules.error ? 'Live rules unavailable right now' : 'Live from the Gamification Engine'}
                 </div>
@@ -751,9 +809,9 @@ const Leaderboard = ({ onClose }) => {
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
                   >
-                    <Pedestal person={podium.board.second} place="second" reduce={reduce} />
-                    <Pedestal person={podium.board.first} place="first" reduce={reduce} />
-                    <Pedestal person={podium.board.third} place="third" reduce={reduce} />
+                    <Pedestal person={podium.board.second} place="second" reduce={reduce} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} />
+                    <Pedestal person={podium.board.first} place="first" reduce={reduce} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} />
+                    <Pedestal person={podium.board.third} place="third" reduce={reduce} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} />
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -762,6 +820,7 @@ const Leaderboard = ({ onClose }) => {
               <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
                 <div>Rank</div>
                 <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
+                <div style={{ textAlign: 'center' }}>{podium.id === 'depts' ? '' : 'Level'}</div>
                 <div>Reported rate</div>
                 <div style={{ textAlign: 'center' }}>Clicked</div>
                 <div style={{ textAlign: 'center' }}>This week</div>
@@ -777,15 +836,21 @@ const Leaderboard = ({ onClose }) => {
                   transition={{ duration: 0.22, ease: 'easeOut' }}
                   style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP }}
                 >
-                  {pageRows.map((r, i) => (
-                    <RankRow
-                      key={r.rank}
-                      r={r.rank === list.youRank ? list.you : r}
-                      fill={rowFill(pageStart + i)}
-                      you={r.rank === list.youRank}
-                      accent="var(--accent)"
-                    />
-                  ))}
+                  {pageRows.map((r, i) => {
+                    const isYou = r.rank === list.youRank;
+                    const row = isYou ? list.you : r;
+                    return (
+                      <RankRow
+                        key={r.rank}
+                        r={row}
+                        fill={rowFill(pageStart + i)}
+                        you={isYou}
+                        accent="var(--accent)"
+                        levelCol={podium.id === 'people'}
+                        level={levelOf(row, isYou)}
+                      />
+                    );
+                  })}
                 </motion.div>
               </div>
 
@@ -808,6 +873,7 @@ const Leaderboard = ({ onClose }) => {
                       >
                         <Avatar initials={list.you?.initials} size={26} you />
                         <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{list.you?.name}</span>
+                        {podium.id === 'people' && list.you?.levelId && <LevelBadge levelId={list.you.levelId} size={24} tilt={false} decorative />}
                         <span className="lb-mono" style={{ fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap' }}>{list.you?.pts} {list.units}</span>
                         {!youVisible && (
                           <span aria-hidden style={{ display: 'flex', color: 'var(--you)' }}><Chevron /></span>
