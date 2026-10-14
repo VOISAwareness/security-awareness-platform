@@ -123,11 +123,15 @@ def test_published_revision_is_hidden_from_everyone(mod):
         assert "A3R" not in view(mod, viewer)
 
 
-def test_bob_sees_his_copies_instead_of_what_they_copy(mod):
+def test_bob_sees_his_copies_beside_what_they_copy(mod):
+    """A copy is an edited version of its own: the template (or shared
+    scenario) it was made from is still listed, and never replaced."""
     seen = view(mod, BOB)
-    assert set(seen) == {"BC1", "T2", "BC2", "A3", "B1", "B2"}
-    assert (seen["BC1"]["ownership"], seen["BC1"]["replaces"]) == ("myCopy", "T1")
-    assert (seen["BC2"]["ownership"], seen["BC2"]["replaces"]) == ("myCopy", "A2")
+    assert set(seen) == {"T1", "BC1", "T2", "A2", "BC2", "A3", "B1", "B2"}
+    assert (seen["T1"]["ownership"], seen["A2"]["ownership"]) == ("template", "shared")
+    for copy_id, of in (("BC1", "T1"), ("BC2", "A2")):
+        copy = seen[copy_id]
+        assert (copy["ownership"], copy["copyOf"], copy["replaces"]) == ("myCopy", of, None)
 
 
 def test_a_sent_copy_stays_private_and_unshared(mod):
@@ -142,9 +146,9 @@ def test_legacy_mixed_case_creator_still_owns_the_row(mod):
 
 def test_carol_sees_shared_rows_and_her_copy_only(mod):
     seen = view(mod, CAROL)
-    assert set(seen) == {"T1", "T2", "A2", "A3", "CC1"}
-    assert seen["A2"]["ownership"] == "shared"
-    assert (seen["CC1"]["ownership"], seen["CC1"]["replaces"]) == ("myCopy", "B1")
+    assert set(seen) == {"T1", "T2", "A2", "A3", "B1", "CC1"}
+    assert (seen["A2"]["ownership"], seen["B1"]["ownership"]) == ("shared", "shared")
+    assert (seen["CC1"]["ownership"], seen["CC1"]["replaces"]) == ("myCopy", None)
 
 
 def test_private_scenarios_copies_and_revisions_never_leak(mod):
@@ -169,7 +173,7 @@ def test_every_row_is_annotated_and_inputs_are_untouched(mod):
     rows = [dict(r) for r in WORLD]
     for row in mod.visible_scenarios(rows, SENT, ALICE):
         assert {"ownership", "isShared", "replaces"} <= set(row)
-        if row["ownership"] not in ("myCopy", "myRevision"):
+        if row["ownership"] != "myRevision":
             assert row["replaces"] is None
     assert rows == WORLD, "annotations are response-only"
 
@@ -385,9 +389,22 @@ def test_plain_create_with_an_id_a_campaign_used_is_409(mod, sid):
     assert status == 409 and "earlier campaign" in error["message"]
 
 
-def test_copy_ignores_a_client_id_even_if_a_campaign_used_it(mod):
-    """The API names copies itself, so a reused id in the body is harmless."""
-    assert create(mod, scenarioId="BC1", createdBy=CAROL, copyOf="T2") is None
+def test_copy_keeps_a_free_client_id(mod):
+    """The editor shows a copy its new id while it is a draft; Save keeps it."""
+    assert create(mod, scenarioId="SC-777", createdBy=CAROL, copyOf="T2") is None
+
+
+def test_copy_with_an_id_a_campaign_used_is_409(mod):
+    status, error = create(mod, scenarioId="BC1", createdBy=CAROL, copyOf="T2")
+    assert status == 409 and "earlier campaign" in error["message"]
+
+
+def test_a_copy_never_keeps_the_copied_rows_own_id(mod):
+    """An older editor sent the template's id along: the API names the copy."""
+    item = mod.clean_scenario_input({"scenarioId": " T1 ", "copyOf": "T1", "createdBy": ALICE})
+    assert "scenarioId" not in item and item["copyOf"] == "T1"
+    kept = mod.clean_scenario_input({"scenarioId": "SC-9", "copyOf": "T1"})
+    assert kept["scenarioId"] == "SC-9"
 
 
 def test_copy_of_a_template_or_someone_elses_shared_scenario(mod):
@@ -421,11 +438,10 @@ def test_copy_and_revision_at_once_is_400(mod):
     assert create(mod, createdBy=ALICE, copyOf="T1", revisionOf="A3")[0] == 400
 
 
-def test_second_copy_of_the_same_row_is_409_with_existing_id(mod):
-    status, error = create(mod, createdBy="BOB@x.com", copyOf="T1")
-    assert status == 409
-    assert error["existingId"] == "BC1"
-    assert error["message"]
+def test_a_person_may_make_several_copies_of_one_row(mod):
+    """Each edit of a template is a new version: BC1 doesn't block another."""
+    assert create(mod, createdBy="BOB@x.com", copyOf="T1") is None
+    assert create(mod, createdBy=BOB, copyOf="A2") is None
 
 
 def test_someone_elses_copy_does_not_block_mine(mod):
@@ -467,9 +483,9 @@ def test_a_sent_but_unstamped_revision_does_not_block_the_next_one(mod):
     assert create(mod, sent=SENT | {"A2R"}, createdBy=ALICE, revisionOf="A2") is None
 
 
-def test_a_sent_copy_still_blocks_a_second_copy(mod):
-    """Copies are never published, so being sent changes nothing for them."""
-    assert create(mod, createdBy=BOB, copyOf="T1")[1]["existingId"] == "BC1"
+def test_a_sent_copy_does_not_block_another_either(mod):
+    """BC1 was used by a sent campaign; copies are still never published."""
+    assert create(mod, sent=SENT | {"BC1"}, createdBy=BOB, copyOf="T1") is None
 
 
 # --- campaign references / id sequence -----------------------------------------
@@ -722,14 +738,16 @@ def test_list_with_viewer_filters_and_annotates(mod, world):
     assert status == 200
     ids = {r["scenarioId"]: r["ownership"] for r in body["data"]}
     assert ids == {
+        "T1": "template",
         "BC1": "myCopy",
         "T2": "template",
+        "A2": "shared",
         "BC2": "myCopy",
         "A3": "shared",
         "B1": "mine",
         "B2": "mine",
     }
-    assert body["count"] == 6
+    assert body["count"] == 8
     assert world["campaigns"].scans == 1
 
 
@@ -751,7 +769,8 @@ def test_list_publishes_a_sent_revision_once(mod, world, monkeypatch):
     # Idempotent: the next list (by anyone) writes nothing more.
     _, again = call(mod, "GET /scenarios", query={"viewer": BOB})
     assert world["scenarios"].writes == [("put", "A2"), ("update", "A2R")]
-    assert {r["scenarioId"]: r for r in again["data"]}["BC2"]["replaces"] == "A2"
+    bc2 = {r["scenarioId"]: r for r in again["data"]}["BC2"]
+    assert (bc2["copyOf"], bc2["replaces"]) == ("A2", None)
 
 
 def test_list_survives_a_failed_publish(mod, world):
@@ -819,11 +838,29 @@ def test_post_copy_continues_the_sequence(mod, world):
     assert body["data"]["scenarioId"] == "SC-005"
 
 
-def test_post_duplicate_copy_is_409_with_existing_id(mod, world):
+def test_post_second_copy_is_a_new_version(mod, world):
     status, body = call(mod, "POST /scenarios", body={"scenarioName": "x", "createdBy": BOB, "copyOf": "T1"})
-    assert status == 409
-    assert body["error"]["existingId"] == "BC1"
-    assert len(world["scenarios"].rows) == len(WORLD)
+    assert status == 201
+    assert body["data"]["scenarioId"] == "SC-001" and body["data"]["copyOf"] == "T1"
+    assert world["scenarios"].rows["BC1"] == sc("BC1", BOB, copyOf="T1"), "the first version is untouched"
+    assert world["scenarios"].rows["T1"] == sc("T1"), "the template is untouched"
+
+
+def test_post_copy_keeps_the_id_its_editor_showed(mod, world):
+    status, body = call(
+        mod, "POST /scenarios", body={"scenarioName": "x", "scenarioId": "SC-014", "createdBy": BOB, "copyOf": "T1"}
+    )
+    assert status == 201 and body["data"]["scenarioId"] == "SC-014"
+    assert world["scenarios"].rows["SC-014"]["copyOf"] == "T1"
+
+
+def test_post_copy_with_a_taken_id_is_409_and_writes_nothing(mod, world):
+    before = {k: dict(v) for k, v in world["scenarios"].rows.items()}
+    status, body = call(
+        mod, "POST /scenarios", body={"scenarioName": "x", "scenarioId": "B2", "createdBy": CAROL, "copyOf": "T1"}
+    )
+    assert status == 409 and "already exists" in body["error"]["message"]
+    assert world["scenarios"].rows == before
 
 
 def test_post_invalid_revision_is_400(mod, world):

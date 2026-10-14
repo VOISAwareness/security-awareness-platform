@@ -226,7 +226,9 @@ def cover_key_from_url(value):
 #   template  no createdBy: the fixed seed scenarios, visible to everyone.
 #   own       a user's scenario. Private until a SENT campaign uses it, then
 #             shared with everyone and frozen -- edits go through a revision.
-#   copy      copyOf=X: its owner's private stand-in for template / shared X.
+#   copy      copyOf=X: its owner's private edited version of template / shared X,
+#             a scenario of its own: X stays as it is and is still listed, and
+#             one person may make any number of versions of X.
 #   revision  revisionOf=S: its owner's pending edit of their own shared S,
 #             published onto S once a campaign that used it has been SENT.
 # The handler only does I/O; every rule lives in the pure helpers below.
@@ -306,10 +308,11 @@ def is_shared(row, sent_ids):
 
 def visible_scenarios(rows, sent_ids, viewer):
     """The rows `viewer` may see, each annotated (response only) with
-    ownership, isShared and replaces. The viewer's copy stands in for the
-    template / shared scenario it copies, and their pending revision for their
-    own shared scenario -- for them alone. Published revisions are hidden, and
-    so are deleted scenarios and the pending revisions of one."""
+    ownership, isShared and replaces. The viewer's pending revision stands in
+    for their own shared scenario -- for them alone. Their copies are listed
+    beside what they copy: a template (or someone else's shared scenario) is
+    never hidden. Published revisions are hidden, and so are deleted scenarios
+    and the pending revisions of one."""
     viewer = parse_identity(viewer)
     deleted = {str(r.get("scenarioId")) for r in rows if is_deleted(r)}
     rows = [
@@ -321,36 +324,36 @@ def visible_scenarios(rows, sent_ids, viewer):
     def mine(row):
         return bool(viewer) and parse_identity(row.get("createdBy")) == viewer
 
-    copied, revised = set(), set()
-    for row in rows:
-        if mine(row) and not row.get("publishedAt"):
-            kind = scenario_kind(row)
-            if kind == "copy":
-                copied.add(str(row["copyOf"]))
-            elif kind == "revision":
-                revised.add(str(row["revisionOf"]))
+    revised = {
+        str(row["revisionOf"])
+        for row in rows
+        if mine(row) and not row.get("publishedAt") and scenario_kind(row) == "revision"
+    }
 
     visible = []
     for row in rows:
         kind, sid = scenario_kind(row), str(row.get("scenarioId"))
         shared, replaces = is_shared(row, sent_ids), None
         if kind == "template":
-            if sid in copied:
-                continue
             ownership = "template"
         elif kind == "own" and mine(row):
             if sid in revised:
                 continue
             ownership = "mine"
         elif kind == "own":
-            if not shared or sid in copied:
+            if not shared:
                 continue
             ownership = "shared"
+        elif kind == "copy":
+            # Listed beside the scenario it copies, which it never replaces.
+            if not mine(row):
+                continue
+            ownership = "myCopy"
         else:
             if not mine(row) or row.get("publishedAt"):
                 continue
-            ownership = "myCopy" if kind == "copy" else "myRevision"
-            replaces = str(row["copyOf"] if kind == "copy" else row["revisionOf"])
+            ownership = "myRevision"
+            replaces = str(row["revisionOf"])
         visible.append({**row, "ownership": ownership, "isShared": shared, "replaces": replaces})
     return visible
 
@@ -386,7 +389,8 @@ def clean_scenario_input(body):
     """A POST body as it may be stored: response-only fields, publishedAt and
     the deleted mark dropped (only the lazy publish / DELETE set them),
     createdBy lower-cased, copyOf/revisionOf as plain ids, a presigned cover
-    URL back to its key."""
+    URL back to its key. A copy never keeps the copied row's own id (an older
+    editor sent it along): the API names that copy instead."""
     item = {
         k: v
         for k, v in body.items()
@@ -400,6 +404,8 @@ def clean_scenario_input(body):
         ref = "" if ref is None else str(ref).strip()
         if ref:
             item[attr] = ref
+    if item.get("copyOf") and str(item.get("scenarioId") or "").strip() == item["copyOf"]:
+        del item["scenarioId"]
     if "CoverImageID" in item:
         item["CoverImageID"] = cover_key_from_url(item["CoverImageID"])
     return item
@@ -422,15 +428,16 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
     """Why a POST of `item` (already cleaned) can't go ahead, as an error
     response, or None."""
     copy_of, revision_of = item.get("copyOf"), item.get("revisionOf")
-    if not copy_of and not revision_of:
-        # A typed id an old campaign used would inherit its history (see
-        # next_scenario_id). A copy's or revision's id is the API's, so it
-        # never gets here.
-        if str(item.get("scenarioId") or "") in referenced_ids:
-            return err(409, "That scenario ID was used by an earlier campaign; choose another")
-        return None
     if copy_of and revision_of:
         return err(400, "A scenario can be a copy or a revision, not both")
+    if not revision_of:
+        # A typed id (a new scenario's, or the one the editor gave a copy) that
+        # an old campaign used would inherit its history (see
+        # next_scenario_id). A revision's id is the API's, so it never gets here.
+        if str(item.get("scenarioId") or "") in referenced_ids:
+            return err(409, "That scenario ID was used by an earlier campaign; choose another")
+        if not copy_of:
+            return None
     author = item.get("createdBy")
     if not author:
         return err(400, "createdBy is required for a copy or a revision")
@@ -445,29 +452,29 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
             scenario_kind(target) == "template" or (shared and owner != author)
         ):
             return err(400, "copyOf must be a template or someone else's shared scenario")
-        kind, link, noun = "copy", "copyOf", "a copy"
-    else:
-        if not shared or owner != author:
-            return err(400, "revisionOf must be one of your own shared scenarios")
-        kind, link, noun = "revision", "revisionOf", "a pending revision"
-    # A revision a SENT campaign used is published by the next list even if
-    # not stamped yet, so it doesn't block the next one.
+        # Each edit of a template is a version of its own: no limit per person.
+        return None
+    if not shared or owner != author:
+        return err(400, "revisionOf must be one of your own shared scenarios")
+    # One pending revision per scenario and person. A revision a SENT campaign
+    # used is published by the next list even if not stamped yet, so it
+    # doesn't block the next one.
     existing = next(
         (
             r
             for r in rows
-            if scenario_kind(r) == kind
-            and str(r.get(link)) == target_id
+            if scenario_kind(r) == "revision"
+            and str(r.get("revisionOf")) == target_id
             and parse_identity(r.get("createdBy")) == author
             and not r.get("publishedAt")
-            and not (kind == "revision" and str(r.get("scenarioId")) in sent_ids)
+            and str(r.get("scenarioId")) not in sent_ids
         ),
         None,
     )
     if existing:
         return err(
             409,
-            f"You already have {noun} of {target_id}",
+            f"You already have a pending revision of {target_id}",
             existingId=existing.get("scenarioId"),
         )
     return None
@@ -1066,10 +1073,17 @@ def lambda_handler(event, context):
             refusal = create_refusal(item, rows, referenced, sent_ids)
             if refusal:
                 return refusal
-            if item.get("copyOf") or item.get("revisionOf"):
-                # A copy or revision is a new row the API names itself: an id
-                # or date carried over from the row it was made from must not stick.
+            if item.get("revisionOf"):
+                # A revision is a new row the API names itself: an id or date
+                # carried over from the row it was made from must not stick.
                 item["scenarioId"] = next_scenario_id(rows, referenced)
+                item["CreatedOn"] = created_on
+            elif item.get("copyOf"):
+                # A copy keeps the id its editor showed (checked above, and
+                # the write below refuses one that is taken); without one,
+                # the API names it. Never the copied row's date.
+                if not item.get("scenarioId"):
+                    item["scenarioId"] = next_scenario_id(rows, referenced)
                 item["CreatedOn"] = created_on
             elif not item.get("scenarioId"):
                 # The wizard's first step asks the author to type an id, so the
