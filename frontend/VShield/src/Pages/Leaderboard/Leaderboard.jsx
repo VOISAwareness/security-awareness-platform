@@ -759,6 +759,7 @@ const Leaderboard = ({ onClose }) => {
               total={mine.total}
               selected={badges.selected}
               subject={badges.subject}
+              isDark={isDark}
               onClose={closeBadges}
             />
           )}

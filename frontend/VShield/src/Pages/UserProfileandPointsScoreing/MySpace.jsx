@@ -886,6 +886,7 @@ const MySpace = () => {
             points={standing.points}
             rank={standing.rank}
             total={standing.total}
+            isDark={isDark}
             onClose={closeBadges}
           />
         )}
