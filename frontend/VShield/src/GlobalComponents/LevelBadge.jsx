@@ -8,7 +8,9 @@ import { levelAltText, levelTitle, resolveLevel } from '../services/levels';
 // `points`. `size` is the height in px; the width follows the badge's 4:5
 // shape. It tilts towards you on hover (`tilt={false}` to keep it still).
 // `locked` greys it out, for levels not reached yet. `decorative` drops the
-// alt text when the level is already written next to it.
+// alt text when the level is already written next to it. `glow` sets it on a
+// soft disc of its own colour, so a badge stands out on any background
+// (`glow="dark"` for dark screens).
 //
 // The browser picks the smallest picture that is sharp at this size, so a
 // row of 40 px badges fetches a few KB each.
@@ -20,6 +22,7 @@ const LevelBadge = ({
   locked = false,
   tilt = true,
   decorative = false,
+  glow = false,
   title,
   className = '',
   style,
@@ -55,7 +58,7 @@ const LevelBadge = ({
     );
   }
 
-  return (
+  const img = (
     <img
       src={src}
       srcSet={badgeSrcSet(level.id)}
@@ -78,6 +81,18 @@ const LevelBadge = ({
         ...style,
       }}
     />
+  );
+  if (!glow) return img;
+
+  const disc = Math.round(size * 1.18);
+  const tint = glow === 'dark' ? `${level.light}38` : `${level.color}40`;
+  return (
+    <span
+      className="relative inline-grid place-items-center flex-shrink-0 rounded-full"
+      style={{ width: disc, height: disc, background: `radial-gradient(circle at 50% 56%, ${tint} 0%, transparent 68%)` }}
+    >
+      {img}
+    </span>
   );
 };
 

@@ -7,7 +7,6 @@ import {
   Star,
   Users,
   Check,
-  Info,
   Mail,
   Bell,
   GraduationCap,
@@ -25,10 +24,11 @@ import MySpaceCardBgDark from '../../assets/MySpaceCardBgDarkMode.png';
 import { DEMO_USER } from '../../appConfig';
 import LeaderboardModal from '../Leaderboard/LeaderboardModal';
 import LevelBadge from '../../GlobalComponents/LevelBadge';
+import AllBadges from '../../GlobalComponents/AllBadges';
 import PointsAndBadges from './PointsAndBadges';
 import LevelChangeNotice from './LevelChangeNotice';
 import { useMyStanding } from '../../services/useMyStanding';
-import { levelTitle, riskColor, riskPosition } from '../../services/levels';
+import { gradeName, levelAltText, levelTitle, riskColor, riskPosition } from '../../services/levels';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -67,7 +67,7 @@ const VODAFONE_FONT_STYLE = `
 // =========================================================================
 // 🌟 1. UNBREAKABLE ELASTIC LANYARD & SNAP-BACK ID BADGE (LOWERED BY 4PX)
 // =========================================================================
-const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderboard }) => {
+const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderboard, onOpenBadges }) => {
   const cardBgImage = isDark ? MySpaceCardBgDark : MySpaceCardBgLight;
 
   const x = useMotionValue(180);
@@ -164,13 +164,6 @@ const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderb
           {/* Lanyard Top Punch Hole */}
           <div className="w-9 h-1.5 -mt-1 mb-1.5 rounded-full bg-slate-300 dark:bg-[#0c0d10] border border-black/15 dark:border-white/10 shadow-inner" />
 
-          {/* Your level's badge, pinned to the card's corner */}
-          {level && (
-            <div className="absolute top-2.5 right-2.5 z-20" data-id-card-badge={level.id}>
-              <LevelBadge level={level} size={58} />
-            </div>
-          )}
-
           {/* User Photo & Info */}
           <div className="flex flex-col items-center w-full z-10">
             <div className="w-16 h-16 rounded-full bg-[#1e2026] dark:bg-[#111216] border-2 border-white/80 dark:border-white/10 shadow-md flex items-center justify-center mb-2 text-white">
@@ -193,38 +186,52 @@ const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderb
             <div className="w-full h-px bg-black/10 dark:bg-white/10 shadow-xs" />
           </div>
 
-          {/* Risk level: from your level until a measured risk score exists */}
+          {/* Your rank plate: badge, level and risk (from your level until a
+              measured risk score exists). Opens All badges. */}
           {level && (
-            <div className="flex flex-col items-center w-full z-10" data-id-card-risk>
-              <div className="flex items-center gap-1.5 justify-center">
-                <span className={`text-[11px] font-voda-exb tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Risk Level
+            <button
+              type="button"
+              data-id-card-badge={level.id}
+              data-id-card-risk
+              onClick={onOpenBadges}
+              onPointerDownCapture={(e) => e.stopPropagation()} // a press here is a click, not a drag of the card
+              aria-label={`${levelAltText(level)}. Risk: ${level.risk === 'Unknown' ? 'not known yet' : level.risk}. See all badges`}
+              title="Your risk category comes from your level: report suspicious emails and finish training to lower it."
+              className={`w-full flex items-center gap-2 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+                isDark ? 'border-white/10 hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]' : 'border-black/[0.07] hover:shadow-[0_8px_18px_rgba(15,23,42,0.12)]'
+              }`}
+              style={{
+                background: isDark
+                  ? `linear-gradient(135deg, ${level.color}55 0%, rgba(255,255,255,0.03) 100%)`
+                  : `linear-gradient(135deg, ${level.light}4D 0%, #ffffff 100%)`,
+              }}
+            >
+              <LevelBadge level={level} size={60} glow={isDark ? 'dark' : true} tilt={false} decorative />
+              <span className="flex flex-col min-w-0 flex-1 gap-0.5">
+                <span className={`vs-rank text-[19px] font-extrabold uppercase leading-none tracking-[0.02em] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {gradeName(level)}
                 </span>
-                <span title="Your risk category comes from your level: report suspicious emails and finish training to lower it.">
-                  <Info className="w-3 h-3 text-slate-400 cursor-help" />
+                <span className="text-[9.5px] font-bold" style={{ color: isDark ? level.light : level.color }}>
+                  {levelTitle(level)}
                 </span>
-              </div>
-
-              <div className="relative w-24 h-1 rounded-full mt-1.5 bg-gradient-to-r from-[#22c55e] via-[#eab308] to-[#ef4444] shadow-inner">
-                {riskPosition(level) !== null && (
-                  <span
-                    aria-hidden
-                    className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
-                    style={{ left: `${riskPosition(level)}%`, background: riskColor(riskPosition(level)) }}
-                  />
-                )}
-              </div>
-
-              <span
-                className="text-[15px] font-voda-exb uppercase leading-none mt-2"
-                style={{ color: riskColor(riskPosition(level)) }}
-              >
-                {level.risk === 'Unknown' ? 'Not known yet' : level.risk}
+                <span className="flex items-center justify-between gap-2 mt-1">
+                  <span className={`text-[8.5px] font-extrabold uppercase tracking-[0.12em] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Risk
+                  </span>
+                  <span className="text-[10.5px] font-voda-exb uppercase leading-none whitespace-nowrap" style={{ color: riskColor(riskPosition(level)) }}>
+                    {level.risk === 'Unknown' ? 'Not known yet' : level.risk}
+                  </span>
+                </span>
+                <span aria-hidden className="relative h-1 rounded-full mt-1 bg-gradient-to-r from-[#22c55e] via-[#eab308] to-[#ef4444]">
+                  {riskPosition(level) !== null && (
+                    <span
+                      className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+                      style={{ left: `${riskPosition(level)}%`, background: riskColor(riskPosition(level)) }}
+                    />
+                  )}
+                </span>
               </span>
-              <span className={`text-[9px] font-bold mt-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                {levelTitle(level)} · {level.name}
-              </span>
-            </div>
+            </button>
           )}
 
           {/* Metrics Row: Campaigns Involved & Certificates Earned */}
@@ -333,7 +340,7 @@ const ActivityGauge = ({ percentage, subLabel, color, isDark }) => {
 // =========================================================================
 // 🌟 3. HIGH-EFFICIENCY VERTICAL ACCORDION GALLERY
 // =========================================================================
-const VerticalAccordionContainer = ({ isDark, standing }) => {
+const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
   const level = standing?.level;
   const [active, setActive] = useState(0); // 0: Activities (Default), 1: Risk Score, 2: Points & Badges
 
@@ -838,7 +845,7 @@ const VerticalAccordionContainer = ({ isDark, standing }) => {
                   )}
 
                   {/* SECTION 2: POINTS AND BADGES */}
-                  {index === 2 && standing && <PointsAndBadges standing={standing} isDark={isDark} />}
+                  {index === 2 && standing && <PointsAndBadges standing={standing} isDark={isDark} onOpenBadges={onOpenBadges} />}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -856,6 +863,9 @@ const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const closeLeaderboard = useCallback(() => setShowLeaderboard(false), []);
+  const [showBadges, setShowBadges] = useState(false);
+  const openBadges = useCallback(() => setShowBadges(true), []);
+  const closeBadges = useCallback(() => setShowBadges(false), []);
   const standing = useMyStanding();
 
   return (
@@ -865,6 +875,20 @@ const MySpace = () => {
       {/* LEADERBOARD button on the ID badge opens the board as a pop-up */}
       <AnimatePresence>
         {showLeaderboard && <LeaderboardModal key="leaderboard" onClose={closeLeaderboard} />}
+      </AnimatePresence>
+
+      {/* your badge (Points & Badges, or the ID card) opens every level and grade */}
+      <AnimatePresence>
+        {showBadges && standing.level && (
+          <AllBadges
+            key="all-badges"
+            current={standing.level}
+            points={standing.points}
+            rank={standing.rank}
+            total={standing.total}
+            onClose={closeBadges}
+          />
+        )}
       </AnimatePresence>
 
       <div
@@ -898,7 +922,7 @@ const MySpace = () => {
           {/* ── COLUMN 1 (LEFT): VERTICAL ACCORDION GALLERY ────────────────────────── */}
           {/* ========================================================================= */}
           <div className="flex-1 min-w-0 flex flex-col">
-            <VerticalAccordionContainer isDark={isDark} standing={standing} />
+            <VerticalAccordionContainer isDark={isDark} standing={standing} onOpenBadges={openBadges} />
           </div>
 
           {/* ========================================================================= */}
@@ -912,6 +936,7 @@ const MySpace = () => {
               tower="AI & Data Analytics Tower (AIDA)"
               level={standing.level}
               onOpenLeaderboard={() => setShowLeaderboard(true)}
+              onOpenBadges={openBadges}
             />
           </div>
 
