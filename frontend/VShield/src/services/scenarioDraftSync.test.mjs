@@ -26,6 +26,7 @@ import {
   CONFLICT_NOTICE,
   deleteScenarioDraftEverywhere,
   draftPutBody,
+  editedScenarioIds,
   fitsKeepalive,
   inProgressAmong,
   listServerDrafts,
@@ -34,6 +35,7 @@ import {
   mergeScenarioDrafts,
   openingNeedsServer,
   queueDraftOp,
+  readScenarioDraftItems,
   removeEditDraftsEverywhere,
   resetScenarioDraftSync,
   resolveInProgress,
@@ -522,6 +524,36 @@ test("deleting a scenario deletes this person's edits of it, here and on the ser
   await removeEditDraftsEverywhere(server.api, 'SC-906', items, A);
   assert.equal(server.row(A, 'SD-e2'), null);
   assert.equal(server.row(A, 'SD-e4'), null);
+});
+
+test('an unfinished edit holds its scenario back; a template\'s edit (a new version) does not', async () => {
+  const server = fakeServer();
+  const ownEdit = (scenarioId, name, savedAt, mode = 'update') =>
+    buildDraft({ scenarioId, scenarioName: name, emailSubject: 'changed' }, 1, new Date(savedAt), {
+      scenarioId,
+      mode,
+      name,
+      baseline: 'x',
+    });
+  server.seed(A, 'SD-u1', ownEdit('SC-905', 'Mine', '2026-10-02T10:00:00Z'));
+  server.seed(A, 'SD-r1', ownEdit('SC-906', 'My shared one', '2026-10-02T10:00:00Z', 'revision'));
+  server.seed(A, 'SD-c1', editDraft('SC-001', 'A template', '2026-10-02T10:00:00Z'));
+  server.seed(B, 'SD-b1', ownEdit('SC-908', 'Someone else\'s', '2026-10-02T10:00:00Z'));
+  saveScenarioDraft('SD-u2', ownEdit('SC-907', 'Kept here only', '2026-10-03T10:00:00Z'), A);
+  addPendingDelete('SD-gone', A);
+  server.seed(A, 'SD-gone', ownEdit('SC-909', 'Deleted here', '2026-10-02T10:00:00Z'));
+
+  const items = await readScenarioDraftItems(server.api, A, DEFAULTS);
+  assert.deepEqual([...editedScenarioIds(items)].sort(), ['SC-905', 'SC-906', 'SC-907']);
+  // Only read: one list request, nothing sent, nothing deleted.
+  assert.deepEqual(server.calls.map((c) => [c.method, c.id]), [['GET', '']]);
+
+  // Without the server, what is kept here.
+  resetScenarioDraftSync();
+  server.state.mode = 'offline';
+  assert.deepEqual([...editedScenarioIds(await readScenarioDraftItems(server.api, A, DEFAULTS))], ['SC-907']);
+  assert.deepEqual([...editedScenarioIds([])], []);
+  assert.deepEqual([...editedScenarioIds(null)], []);
 });
 
 // --- The draft in progress ("Continue your scenario?") -----------------------------------------------

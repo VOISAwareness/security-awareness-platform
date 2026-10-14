@@ -594,6 +594,35 @@ export function loadScenarioDraftsTab({ api: client, actor, defaults = {} }) {
 }
 
 /**
+ * The scenarios an unfinished edit among these Drafts-tab items holds back:
+ * listed under Drafts instead of the scenario list, and not to be picked for
+ * a campaign until the edit is saved or its draft deleted. A template's (or
+ * someone else's shared scenario's) edit holds nothing back: it is a new
+ * version, and the original stays as it is. -> Set of scenarioIds
+ */
+export function editedScenarioIds(items) {
+  const ids = new Set();
+  for (const item of items || []) {
+    const editing = item?.summary?.editing;
+    if (editing?.scenarioId && editing.mode !== 'copy') ids.add(String(editing.scenarioId));
+  }
+  return ids;
+}
+
+/**
+ * This person's Drafts-tab items, read for another page (the editor, Start
+ * New Campaign): the server's list merged with the copies kept here, and
+ * nothing sent. Without the server, the copies kept here. -> Promise<items>
+ */
+export async function readScenarioDraftItems(client, actor, defaults = {}) {
+  let rows = [];
+  if (canSyncDrafts(actor) && !routesMissing) {
+    rows = await listServerDrafts(client, actor).catch(() => []);
+  }
+  return mergeScenarioDrafts(rows, listScenarioDrafts(actor), { deleted: hiddenIds(actor), defaults });
+}
+
+/**
  * Deleting a scenario leaves nothing for its unfinished edits to be saved
  * onto: each of this person's edits of it is deleted everywhere. They are
  * found by summary.editing in the Drafts tab's `items`, among the copies kept

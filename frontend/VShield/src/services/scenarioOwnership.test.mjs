@@ -7,8 +7,11 @@ import {
   cardActions,
   conflictMessage,
   editContext,
+  editNote,
   existingVersionId,
+  idLockHint,
   isAnnotated,
+  nextScenarioId,
   ownershipOf,
   refreshEdit,
   refreshNotice,
@@ -79,7 +82,7 @@ test('the matrix: edit mode, delete and badge per ownership', () => {
   assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, 'Shared']);
   assert.deepEqual(actions({ ownership: 'mine', isShared: false, createdBy: ALICE }), ['update', true, 'delete', 'Only you']);
   assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Shared']);
-  assert.deepEqual(actions({ ownership: 'myCopy', replaces: 'SC-9' }), ['update', true, 'reset', 'Your version']);
+  assert.deepEqual(actions({ ownership: 'myCopy', copyOf: 'SC-9' }), ['update', true, 'delete', 'Edited from SC-9']);
   assert.deepEqual(actions({ ownership: 'myRevision', replaces: 'SC-9' }), ['update', true, 'discard', 'Your edit — not live yet']);
 });
 
@@ -104,7 +107,10 @@ test('every delete kind has its own label and confirmation', () => {
     assert.ok(DELETE_KINDS[deleteKind], ownership);
   }
   assert.equal(DELETE_KINDS.delete.confirm, 'Delete this scenario?');
-  assert.equal(DELETE_KINDS.reset.label, 'Reset to original');
+  // An edited version is a scenario of its own: deleting it is a plain delete,
+  // and the original it was made from stays as it is.
+  assert.equal(cardActions(row({ ownership: 'myCopy', copyOf: 'SC-9' }), ALICE).deleteKind, 'delete');
+  assert.equal(DELETE_KINDS.reset, undefined);
   assert.equal(DELETE_KINDS.discard.label, 'Discard changes');
 });
 
@@ -114,13 +120,36 @@ test('older API: own rows are editable in place and deletable, others become cop
   assert.deepEqual(actions({}), ['copy', false, null, '']);
 });
 
-test('every badge explains itself on hover, naming what a copy or edit stands in for', () => {
+test('every badge explains itself on hover, naming what a version was made from', () => {
   for (const ownership of ['shared', 'mine', 'myCopy', 'myRevision']) {
     assert.ok(cardActions(row({ ownership }), ALICE).badgeHint, ownership);
   }
-  assert.match(cardActions(row({ ownership: 'myCopy', replaces: 'SC-101' }), ALICE).badgeHint, /^Your own copy of SC-101,/);
+  const copy = cardActions(row({ ownership: 'myCopy', copyOf: 'SC-101' }), ALICE);
+  assert.equal(copy.badge, 'Edited from SC-101');
+  assert.match(copy.badgeHint, /^Your edited version of SC-101, with its own ID\. The original stays as it is\./);
   assert.match(cardActions(row({ ownership: 'myRevision', replaces: 'SC-600' }), ALICE).badgeHint, /^Your edit of SC-600\./);
-  assert.match(cardActions(row({ ownership: 'myCopy', replaces: null }), ALICE).badgeHint, /^Your own copy,/);
+  const unnamed = cardActions(row({ ownership: 'myCopy' }), ALICE);
+  assert.equal(unnamed.badge, 'Edited version');
+  assert.match(unnamed.badgeHint, /^Your edited version, with its own ID/);
+});
+
+test('editing a template: a new scenario, whose ID is chosen like a new one\'s', () => {
+  const copyEdit = { mode: 'copy', scenarioId: 'SC-001' };
+  assert.equal(idLockHint(copyEdit), '');
+  assert.match(editNote(copyEdit), /new scenario with its own ID\. The original stays as it is/);
+  assert.ok(idLockHint({ mode: 'update' }), 'an own scenario keeps its ID');
+  assert.ok(idLockHint({ mode: 'revision' }));
+});
+
+// --- nextScenarioId ----------------------------------------------------------------------
+
+test('a new version\'s ID: one past the highest SC number taken, three digits at least', () => {
+  assert.equal(nextScenarioId([]), 'SC-001');
+  assert.equal(nextScenarioId(['SC-001', 'SC-013', 'SC-004']), 'SC-014');
+  assert.equal(nextScenarioId(['SC-099']), 'SC-100');
+  assert.equal(nextScenarioId(['SC-1234']), 'SC-1235');
+  // Typed ids outside the sequence are not in the way.
+  assert.equal(nextScenarioId(['SC-PHISH-1', 'TEST-9', 'sc-050', ' SC-007 ', null, undefined, 42]), 'SC-008');
 });
 
 // --- editContext / savedAudience -------------------------------------------------------
@@ -148,7 +177,7 @@ test('the Saved message says who sees the result', () => {
 
 const form = (extra = {}) => ({ ...toWizardFormData(row()), ...extra });
 
-test('a copy is a POST naming its original, the author and no id of its own', () => {
+test('a copy is a POST naming its original and the author; no id when its form has none of its own', () => {
   const plan = toSavePayload(form(), { mode: 'copy', row: row({ ownership: 'template' }), viewer: ' Alice@X.test ' });
   assert.equal(plan.method, 'POST');
   assert.equal(plan.id, '');
@@ -160,6 +189,19 @@ test('a copy is a POST naming its original, the author and no id of its own', ()
   assert.equal('actor' in plan.body, false);
   assert.equal(plan.body.emailSubject, 'Your parcel');
   assert.equal(plan.body.campaignType, 'Data Entry');
+});
+
+test('a copy sends its own ID: the one its editor showed, never the original\'s', () => {
+  const own = toSavePayload(form({ scenarioId: ' SC-014 ' }), { mode: 'copy', row: { scenarioId: 'SC-1' }, viewer: ALICE });
+  assert.equal(own.body.scenarioId, 'SC-014');
+  assert.equal(own.body.copyOf, 'SC-1');
+  const blank = toSavePayload(form({ scenarioId: '' }), { mode: 'copy', row: { scenarioId: 'SC-1' }, viewer: ALICE });
+  assert.equal('scenarioId' in blank.body, false);
+  // A revision and an update never send an id in the body.
+  for (const mode of ['revision', 'update']) {
+    const plan = toSavePayload(form({ scenarioId: 'SC-014' }), { mode, row: { scenarioId: 'SC-1' }, viewer: ALICE });
+    assert.equal('scenarioId' in plan.body, false, mode);
+  }
 });
 
 test('a revision is a POST naming the shared original', () => {
@@ -238,18 +280,18 @@ const OLD = [
 const ids = (rows) => rows.map((r) => r.scenarioId).sort();
 
 test('older API: other people\'s copies and revisions, and published revisions, are hidden', () => {
-  assert.deepEqual(ids(visibleForViewer(OLD, ALICE)), ['A1', 'A2R', 'AC1', 'AX', 'T1', 'T2']);
-  assert.deepEqual(ids(visibleForViewer(OLD, BOB)), ['A1', 'A2', 'BC1', 'BR1', 'T2']);
+  assert.deepEqual(ids(visibleForViewer(OLD, ALICE)), ['A1', 'A2R', 'AC1', 'AX', 'B1', 'T1', 'T2']);
+  assert.deepEqual(ids(visibleForViewer(OLD, BOB)), ['A1', 'A2', 'BC1', 'BR1', 'T1', 'T2']);
   assert.deepEqual(ids(visibleForViewer(OLD, 'carol@x.test')), ['A1', 'A2', 'B1', 'T1', 'T2']);
 });
 
-test('older API: the viewer\'s own copy / pending edit stands in for what it replaces', () => {
+test('older API: a pending edit stands in for what it revises; a copy is listed beside what it copies', () => {
   const alice = ids(visibleForViewer(OLD, ' ALICE@x.test '));
   assert.ok(!alice.includes('A2') && alice.includes('A2R'), 'her revision replaces her A2');
-  assert.ok(!alice.includes('B1') && alice.includes('AC1'), 'her copy replaces Bob\'s B1');
+  assert.ok(alice.includes('B1') && alice.includes('AC1'), 'her copy of Bob\'s B1 hides nothing');
   assert.ok(alice.includes('A1') && alice.includes('AX'), 'a copy of her own scenario hides nothing');
   const bob = ids(visibleForViewer(OLD, BOB));
-  assert.ok(!bob.includes('T1') && bob.includes('BC1'));
+  assert.ok(bob.includes('T1') && bob.includes('BC1'), 'the template stays beside his version');
   assert.ok(!bob.includes('B1') && bob.includes('BR1'));
   assert.deepEqual(ids(visibleForViewer(OLD, '')), ['A1', 'A2', 'B1', 'T1', 'T2']);
   assert.deepEqual(visibleForViewer(null, ALICE), []);
@@ -264,10 +306,12 @@ test('the API\'s annotated rows are taken as they are; an older API\'s are filte
   assert.deepEqual(scenariosForViewer(undefined, ALICE), []);
 });
 
-test('what a row stands in for, annotated or not', () => {
-  assert.equal(replacedId({ scenarioId: 'X', ownership: 'myCopy', replaces: 'T1' }, ALICE), 'T1');
+test('what a row stands in for, annotated or not: only a pending edit does', () => {
+  assert.equal(replacedId({ scenarioId: 'X', ownership: 'myRevision', replaces: 'A2' }, ALICE), 'A2');
+  // A copy stands in for nothing, even from an API that still says so.
+  assert.equal(replacedId({ scenarioId: 'X', ownership: 'myCopy', replaces: 'T1', copyOf: 'T1' }, ALICE), '');
   assert.equal(replacedId({ scenarioId: 'X', ownership: 'template', replaces: null, copyOf: 'T9' }, ALICE), '');
-  assert.equal(replacedId(sc('AC1', ALICE, { copyOf: 'B1' }), ALICE), 'B1');
+  assert.equal(replacedId(sc('AC1', ALICE, { copyOf: 'B1' }), ALICE), '');
   assert.equal(replacedId(sc('A2R', ALICE, { revisionOf: 'A2' }), ALICE), 'A2');
   assert.equal(replacedId(sc('BC1', BOB, { copyOf: 'T1' }), ALICE), '');
   assert.equal(replacedId(sc('A3R', ALICE, { revisionOf: 'A3', publishedAt: 'x' }), ALICE), '');
@@ -277,21 +321,23 @@ test('what a row stands in for, annotated or not', () => {
 
 const LIST = [
   { ...sc('T1'), ownership: 'template', isShared: false, replaces: null },
-  { ...sc('C9', ALICE, { copyOf: 'T2' }), ownership: 'myCopy', isShared: false, replaces: 'T2' },
+  { ...sc('T2'), ownership: 'template', isShared: false, replaces: null },
+  { ...sc('C9', ALICE, { copyOf: 'T2' }), ownership: 'myCopy', isShared: false, replaces: null },
   { ...sc('R7', ALICE, { revisionOf: 'A2' }), ownership: 'myRevision', isShared: false, replaces: 'A2' },
   { ...sc('A5', ALICE), ownership: 'mine', isShared: true, replaces: null },
 ];
 
-test('Edit by id opens the person\'s own version when they have one', () => {
-  assert.equal(rowToEdit(LIST, 'T2', ALICE).scenarioId, 'C9');
+test('Edit by id: a template opens itself (a new version each time); a pending edit stands in', () => {
+  assert.equal(rowToEdit(LIST, 'T2', ALICE).scenarioId, 'T2');
   assert.equal(rowToEdit(LIST, 'A2', ALICE).scenarioId, 'R7');
   assert.equal(rowToEdit(LIST, 'C9', ALICE).scenarioId, 'C9');
   assert.equal(rowToEdit(LIST, ' T1 ', ALICE).scenarioId, 'T1');
   assert.equal(rowToEdit(LIST, 'SC-999', ALICE), null);
   assert.equal(rowToEdit(null, 'T1', ALICE), null);
   assert.equal(rowToEdit(LIST, '', ALICE), null);
-  // Older API: the same, from createdBy / copyOf.
-  assert.equal(rowToEdit(OLD, 'B1', ALICE).scenarioId, 'AC1');
+  // Older API: the same, from createdBy / copyOf / revisionOf.
+  assert.equal(rowToEdit(OLD, 'B1', ALICE).scenarioId, 'B1');
+  assert.equal(rowToEdit(OLD, 'A2', ALICE).scenarioId, 'A2R');
   assert.equal(rowToEdit(OLD, 'BR1', ALICE), null);
 });
 
@@ -319,11 +365,16 @@ test('own scenario shared since the edit began: saved as a pending revision, and
   assert.match(refreshNotice(r), /shared since you started/);
 });
 
-test('their own version made meanwhile: replaced, never saved as a second one', () => {
+test('a template\'s edit is a new version: another version saved meanwhile is no conflict', () => {
   const r = refreshEdit(edit('T2', 'copy', 'template'), LIST, ALICE);
-  assert.deepEqual([r.change, r.existingId, r.edit.mode], ['replaced', 'C9', 'copy']);
-  assert.equal(refreshNotice(r), conflictMessage('C9'));
-  assert.equal(refreshEdit(edit('A2', 'revision', 'mine'), LIST, ALICE).existingId, 'R7');
+  assert.deepEqual([r.change, r.existingId, r.edit.mode], ['same', '', 'copy']);
+  assert.equal(refreshNotice(r), '');
+});
+
+test('their own pending edit made meanwhile: replaced, never saved as a second one', () => {
+  const r = refreshEdit(edit('A2', 'revision', 'mine'), LIST, ALICE);
+  assert.deepEqual([r.change, r.existingId], ['replaced', 'R7']);
+  assert.equal(refreshNotice(r), conflictMessage('R7'));
 });
 
 test('gone from the list: refused with a reason', () => {
@@ -333,7 +384,8 @@ test('gone from the list: refused with a reason', () => {
 });
 
 test('older API: the same checks from createdBy', () => {
-  assert.equal(refreshEdit(edit('B1', 'copy', 'shared'), OLD, ALICE).change, 'replaced');
+  assert.equal(refreshEdit(edit('B1', 'copy', 'shared'), OLD, ALICE).change, 'same');
+  assert.equal(refreshEdit(edit('A2', 'revision', 'mine'), OLD, ALICE).change, 'replaced');
   // A1 is still listed (AX, a copy of her own scenario, is bad data that hides nothing).
   assert.equal(refreshEdit(edit('A1', 'update', 'mine'), OLD, ALICE).change, 'same');
 });

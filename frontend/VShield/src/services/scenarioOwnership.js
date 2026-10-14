@@ -10,13 +10,14 @@
  *               Editing makes a personal copy.
  *   mine        the viewer's own scenario. Private until a campaign using it is
  *               sent; then shared (`isShared`), and edited through a revision.
- *   myCopy      the viewer's copy of a template / someone else's shared scenario,
- *               shown to them instead of it. Always private.
+ *   myCopy      the viewer's edited version of a template / someone else's shared
+ *               scenario: a scenario of its own (its own ID), listed beside the
+ *               one it was made from, which never changes. Always private.
  *   myRevision  the viewer's pending edit of their own shared scenario, shown to
  *               them instead of it, until a campaign that used it is sent.
  * An older API sends no annotations, and every row: visibleForViewer applies
  * the same hiding the API would (other people's copies and pending edits,
- * published revisions, what the viewer's own copies stand in for), and rows are
+ * published revisions, what the viewer's own pending edits stand in for), and rows are
  * read by `createdBy`: none -> template, the viewer's -> mine (or myCopy /
  * myRevision when the row says what it stands in for), anyone else's -> shared.
  *
@@ -56,29 +57,26 @@ export function isAnnotated(rows) {
 /**
  * The rows an older API (no annotations) returned, cut down to what the
  * viewer may see, as the API itself would: other people's copies and pending
- * edits are never shown, nor a published revision; the viewer's own copy
- * stands in for the template / someone else's scenario it copies, and their
- * own pending edit for their scenario it revises. (Who has shared what is
+ * edits are never shown, nor a published revision; the viewer's own pending
+ * edit stands in for their scenario it revises. Their copies are listed
+ * beside what they copy, which is never hidden. (Who has shared what is
  * unknown there, so other people's own scenarios stay listed, as "Shared".)
  */
 export function visibleForViewer(rows, viewer) {
   const who = identity(viewer);
   const mine = (row) => Boolean(who) && identity(row?.createdBy) === who;
-  const copied = new Set();
   const revised = new Set();
   for (const row of rows || []) {
     if (!row || row.publishedAt || !mine(row)) continue;
-    if (scenarioKind(row) === 'copy') copied.add(String(row.copyOf));
     if (scenarioKind(row) === 'revision') revised.add(String(row.revisionOf));
   }
   return (rows || []).filter((row) => {
     if (!row || row.publishedAt) return false;
-    const id = String(row.scenarioId);
     switch (scenarioKind(row)) {
       case 'template':
-        return !copied.has(id);
+        return true;
       case 'own':
-        return mine(row) ? !revised.has(id) : !copied.has(id);
+        return !mine(row) || !revised.has(String(row.scenarioId));
       default:
         return mine(row);
     }
@@ -91,20 +89,23 @@ export function scenariosForViewer(rows, viewer) {
   return isAnnotated(rows) ? rows : visibleForViewer(rows, viewer);
 }
 
-/** The id this row stands in for, for this viewer (their copy / pending edit), else ''. */
+/**
+ * The id this row stands in for, for this viewer (their pending edit of their
+ * own shared scenario), else ''. A copy stands in for nothing: it is listed
+ * beside what it copies.
+ */
 export function replacedId(row, viewer) {
-  if (typeof row?.ownership === 'string') return row.replaces ? String(row.replaces) : '';
   if (!row || row.publishedAt) return '';
-  const ownership = ownershipOf(row, viewer);
-  if (ownership === 'myCopy') return String(row.copyOf);
-  if (ownership === 'myRevision') return String(row.revisionOf);
-  return '';
+  if (ownershipOf(row, viewer) !== 'myRevision') return '';
+  if (typeof row.ownership === 'string') return row.replaces ? String(row.replaces) : '';
+  return String(row.revisionOf);
 }
 
 /**
- * The row to open for Edit of `scenarioId`, from the viewer's list: their own
- * version of it when they have one (a copy, or a pending edit, stands in for
- * it), else the row itself; null when the list doesn't hold it.
+ * The row to open for Edit of `scenarioId`, from the viewer's list: their
+ * pending edit of it when they have one (it stands in for it), else the row
+ * itself; null when the list doesn't hold it. Edit on a template opens the
+ * template: each edit of it is a new version.
  */
 export function rowToEdit(rows, scenarioId, viewer) {
   const sid = String(scenarioId || '').trim();
@@ -125,7 +126,7 @@ export function canOpenForEdit(row, viewer) {
   return Boolean(row?.scenarioId) && visibleForViewer([row], viewer).length === 1;
 }
 
-// " of SC-101": what a copy / pending edit stands in for, when the API said.
+// " of SC-101": what a pending edit stands in for, when the API said.
 const standsInFor = (row) => (row?.replaces ? ` of ${row.replaces}` : '');
 
 /** What the card's destructive button does, and how it asks first. */
@@ -138,7 +139,6 @@ export const DELETE_KINDS = {
     yes: 'Yes, delete',
     warning: "Others won't be able to use this scenario any more. Campaigns already sent keep their own copy.",
   },
-  reset: { label: 'Reset to original', confirm: 'Reset to original?', yes: 'Yes, reset' },
   discard: { label: 'Discard changes', confirm: 'Discard your changes?', yes: 'Yes, discard' },
 };
 
@@ -180,13 +180,14 @@ export function cardActions(row, viewer) {
         badgeHint: 'Only you see this until a campaign using it is sent.',
       };
     case 'myCopy':
+      // A scenario of its own: deleting it leaves the original as it is.
       return {
         ...base,
         editMode: 'update',
         canDelete: true,
-        deleteKind: 'reset',
-        badge: 'Your version',
-        badgeHint: `Your own copy${standsInFor(row)}, shown to you instead of the original. Only you see it.`,
+        deleteKind: 'delete',
+        badge: row?.copyOf ? `Edited from ${row.copyOf}` : 'Edited version',
+        badgeHint: `Your edited version${row?.copyOf ? ` of ${row.copyOf}` : ''}, with its own ID. The original stays as it is. Only you see this one.`,
       };
     case 'myRevision':
       return {
@@ -216,6 +217,21 @@ export function editContext(row, viewer) {
   };
 }
 
+/**
+ * A free id for a new edited version of a template, in the API's own SC-NNN
+ * sequence: one past the highest SC number among `taken` (the ids the person
+ * can see, and their drafts'), three digits at least. The API checks it again
+ * at Save; if someone took it meanwhile, the author is asked for another.
+ */
+export function nextScenarioId(taken = []) {
+  let highest = 0;
+  for (const id of taken) {
+    const match = /^SC-(\d+)$/.exec(String(id ?? '').trim());
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  return `SC-${String(highest + 1).padStart(3, '0')}`;
+}
+
 /** Who sees the saved result, for the "Saved" message. */
 export function savedAudience(edit) {
   if (edit?.mode === 'copy' || edit?.ownership === 'myCopy') return 'Only you see this version.';
@@ -227,26 +243,33 @@ export function savedAudience(edit) {
 
 /** What saving this edit will do, shown in the editor's header while editing. */
 export function editNote(edit) {
-  if (edit?.mode === 'copy') return 'Saving makes your own copy. Only you see it.';
+  if (edit?.mode === 'copy') {
+    return 'Saving adds this as a new scenario with its own ID. The original stays as it is. Only you see the new one.';
+  }
   if (edit?.mode === 'revision') return 'Shared: your edit stays with you until a campaign using it is sent.';
   return savedAudience(edit);
 }
 
-/** Why the scenario ID can't be changed while editing (its field's hover text). */
+/**
+ * Why the scenario ID can't be changed while editing (its field's hover
+ * text); '' when it can: an edited version of a template is a new scenario,
+ * whose ID is chosen like any new one's.
+ */
 export function idLockHint(edit) {
-  if (edit?.mode === 'copy') return 'Your copy gets its own ID when you save.';
+  if (edit?.mode === 'copy') return '';
   if (edit?.mode === 'revision') return 'Your edit is saved under its own ID until it goes live.';
   return "A saved scenario's ID can't be changed.";
 }
 
 /**
  * The request that saves an edit: { method, id, body }.
- *   copy      POST /scenarios  {...scenario, createdBy, copyOf: row.scenarioId}
+ *   copy      POST /scenarios  {...scenario, scenarioId?, createdBy, copyOf: row.scenarioId}
  *   revision  POST /scenarios  {...scenario, createdBy, revisionOf: row.scenarioId}
  *   update    PUT /scenarios/<row.scenarioId>  {...scenario, actor}
  * The scenario is toStoredScenario's record, so the API's annotations
- * (ownership, isShared, replaces, coverImageKey) are never sent. No scenarioId
- * or CreatedOn: the API names a copy or revision itself, and a PUT keeps them.
+ * (ownership, isShared, replaces, coverImageKey) are never sent. No CreatedOn;
+ * no scenarioId either, except a copy's own (its form's, when it has one other
+ * than the original's): the API names a revision itself, and a PUT keeps it.
  * `coverImageId` undefined keeps the form's stored cover (its key, never a
  * presigned URL); `landingPageId` undefined keeps the form's.
  */
@@ -262,7 +285,12 @@ export function toSavePayload(formData = {}, { mode, row, viewer, coverImageId, 
   const who = identity(viewer);
   if (mode === 'update') return { method: 'PUT', id: targetId, body: { ...record, actor: who } };
   const link = mode === 'copy' ? 'copyOf' : 'revisionOf';
-  return { method: 'POST', id: '', body: { ...record, createdBy: who, [link]: targetId } };
+  const ownId = mode === 'copy' ? String(formData.scenarioId || '').trim() : '';
+  return {
+    method: 'POST',
+    id: '',
+    body: { ...record, ...(ownId && ownId !== targetId ? { scenarioId: ownId } : {}), createdBy: who, [link]: targetId },
+  };
 }
 
 /**

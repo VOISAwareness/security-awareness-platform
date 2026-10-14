@@ -27,6 +27,7 @@ import { setActiveScenarioDraftId } from '../../services/scenarioDraftList';
 import {
   canSyncDrafts,
   deleteScenarioDraftEverywhere,
+  editedScenarioIds,
   inProgressAmong,
   keptScenarioDrafts,
   loadScenarioDraftsTab,
@@ -769,13 +770,11 @@ const Scenarios = () => {
   // ---------------------------------------------------
   // Search (matches id, title, or type)
   // ---------------------------------------------------
-  // A scenario with unsaved changes shows in one place only: under Drafts as
-  // "Editing: <name>", not also here. It is back in this list once the edit is
-  // saved or its draft deleted.
-  const editingIds = useMemo(
-    () => new Set(drafts.map((d) => d.summary?.editing?.scenarioId).filter(Boolean).map(String)),
-    [drafts]
-  );
+  // One of the person's own scenarios with unsaved changes shows in one place
+  // only: under Drafts as "Editing: <name>", not also here. It is back in this
+  // list once the edit is saved or its draft deleted. A template (or someone
+  // else's shared scenario) always stays here: its edit is a new version.
+  const editingIds = useMemo(() => editedScenarioIds(drafts), [drafts]);
 
   const filteredScenarios = useMemo(() => {
     const listed = scenariosList.filter((scenario) => !editingIds.has(String(scenario.scenarioId)));
@@ -808,9 +807,27 @@ const Scenarios = () => {
   // An unfinished edit of this scenario, if any, is reopened by the editor.
   // A scenario with one on the server is listed under Drafts instead, so when
   // the server's list was read here, the editor need not look for one there.
+  // A template stays listed while an edit of it is unfinished, so Edit on it
+  // reopens that draft (the newest, should there be two) rather than start
+  // another. Otherwise a new edit: takenIds is what an edited version of a
+  // template must not be called (every scenario listed here, and the
+  // drafts'), so the editor can give it a new ID at once; editChecked says
+  // the drafts were read here and hold no unfinished edit of it.
   const handleEdit = (scenario) => {
-    navigate(`/new-scenario?edit=${encodeURIComponent(scenario.scenarioId)}`, {
-      state: { row: scenario._row, from: 'all', editChecked: draftsListed },
+    const sid = String(scenario.scenarioId);
+    const unfinished = drafts
+      .filter((d) => String(d.summary?.editing?.scenarioId || '') === sid)
+      .sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
+    if (unfinished) {
+      continueDraft(unfinished.id, 'all');
+      return;
+    }
+    const takenIds = [
+      ...rawScenarios.map((row) => row?.scenarioId),
+      ...drafts.map((d) => d.summary?.scenarioId),
+    ].filter(Boolean).map(String);
+    navigate(`/new-scenario?edit=${encodeURIComponent(sid)}`, {
+      state: { row: scenario._row, from: 'all', editChecked: draftsListed, takenIds },
     });
   };
 
