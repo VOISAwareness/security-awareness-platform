@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MySpacePart2 from './MySpacePart2';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
@@ -22,7 +23,6 @@ import {
 import MySpaceCardBgLight from '../../assets/MySpaceCardBgLightMode.png';
 import MySpaceCardBgDark from '../../assets/MySpaceCardBgDarkMode.png';
 import { DEMO_USER } from '../../appConfig';
-import LeaderboardModal from '../Leaderboard/LeaderboardModal';
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import AllBadges from '../../GlobalComponents/AllBadges';
 import PointsAndBadges from './PointsAndBadges';
@@ -861,8 +861,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 // ==========================================
 const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const closeLeaderboard = useCallback(() => setShowLeaderboard(false), []);
+  const navigate = useNavigate();
   const [showBadges, setShowBadges] = useState(false);
   const openBadges = useCallback(() => setShowBadges(true), []);
   const closeBadges = useCallback(() => setShowBadges(false), []);
@@ -871,11 +870,6 @@ const MySpace = () => {
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
-
-      {/* LEADERBOARD button on the ID badge opens the board as a pop-up */}
-      <AnimatePresence>
-        {showLeaderboard && <LeaderboardModal key="leaderboard" onClose={closeLeaderboard} />}
-      </AnimatePresence>
 
       {/* your badge (Points & Badges, or the ID card) opens every level and grade */}
       <AnimatePresence>
@@ -936,7 +930,7 @@ const MySpace = () => {
               email={user?.UserEMailID || DEMO_USER.email}
               tower="AI & Data Analytics Tower (AIDA)"
               level={standing.level}
-              onOpenLeaderboard={() => setShowLeaderboard(true)}
+              onOpenLeaderboard={() => navigate('/leaderboard')}
               onOpenBadges={openBadges}
             />
           </div>

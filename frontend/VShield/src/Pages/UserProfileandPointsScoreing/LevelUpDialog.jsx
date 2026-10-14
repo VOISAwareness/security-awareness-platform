@@ -9,8 +9,7 @@ import { levelTitle, rangeText } from '../../services/levels';
 // Shown on My Space when your level has gone up since you last looked: the
 // new badge spins in with a burst of light. A new level and a new grade read
 // differently ("Level up!" / "New grade!"). Closes on the button, Esc or the
-// backdrop. Portalled to <body>, re-applying the app shell's zoom, like the
-// leaderboard pop-up.
+// backdrop. Portalled to <body>, re-applying the app shell's zoom.
 const LevelUpDialog = ({ notice, isDark, onClose }) => {
   const reduce = useReducedMotion();
   const buttonRef = useRef(null);
