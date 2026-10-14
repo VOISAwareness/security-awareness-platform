@@ -168,6 +168,11 @@ locals {
     "GET /training/quizzes",
     "GET /training/certificates",
     "GET /campaigns-catalog",
+    # The scenario editor's drafts (tables.tf: scenario_drafts).
+    "GET /scenario-drafts",
+    "GET /scenario-drafts/{id}",
+    "PUT /scenario-drafts/{id}",
+    "DELETE /scenario-drafts/{id}",
   ]
 }
 
