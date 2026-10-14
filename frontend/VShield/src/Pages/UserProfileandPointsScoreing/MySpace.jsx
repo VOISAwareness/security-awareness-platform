@@ -367,7 +367,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
       line1: 'POINTS &',
       line2: 'BADGES',
       color: '#69edd7',
-      subText: 'Achievements Matrix'
+      subText: 'Your rank and progress'
     }
   ];
 
