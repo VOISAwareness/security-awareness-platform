@@ -123,19 +123,12 @@ body {
 .vs-float {
   animation: vs-float 4.8s ease-in-out infinite;
 }
-/* My Space: the road to your next grade fills in, and your spot on it pulses */
+/* My Space: the bar to your next rank fills in */
 @keyframes vs-road-fill {
   from { width: 0; }
 }
 .vs-road-fill {
   animation: vs-road-fill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s backwards;
-}
-@keyframes vs-road-knob {
-  0% { box-shadow: 0 0 0 0 var(--knob); }
-  70%, 100% { box-shadow: 0 0 0 7px transparent; }
-}
-.vs-road-knob {
-  animation: vs-road-knob 2.2s ease-out infinite;
 }
 /* All badges: the level cards and their buttons */
 .vs-tier {
@@ -176,8 +169,7 @@ body {
   }
   .vs-rays,
   .vs-float,
-  .vs-road-fill,
-  .vs-road-knob {
+  .vs-road-fill {
     animation: none;
   }
   .vs-tier,
