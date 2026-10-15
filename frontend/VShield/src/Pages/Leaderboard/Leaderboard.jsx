@@ -33,8 +33,8 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 // shows on hover). A level below zero is shown only to
 // its owner and to Admins; other viewers see a locked, empty badge and no
 // points at all (the live board doesn't even send them).
-// Clicking any badge opens it in All badges. "All badges", or your own badge, opens every level
-// and grade (GlobalComponents/AllBadges).
+// Clicking any badge on the board opens it in All badges
+// (GlobalComponents/AllBadges), with every level and grade.
 //
 // A full page, opened from the My Space LEADERBOARD button (there is no nav
 // item); "My Space" in its top bar goes back. My Campaigns (the ongoing
@@ -64,15 +64,12 @@ const FONT_IMPORT = `
   .lb-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,145,0.35); border-radius: 999px; }
   .lb-pg:disabled { cursor: default; opacity: 0.4; }
 
-  /* Scope capsules: clay corner art, as on Campaigns / Requests & Approvals */
+  /* Scope capsules: the card pops a little on hover; its clay art sits still
+     in the bottom-right corner, as on Campaigns and Requests & Approvals */
   .lb-cap { transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease; }
-  .lb-cap:hover { transform: translateY(-1px) scale(1.012); }
-  .lb-cap:active { transform: scale(.98); }
-  .lb-cap .lb-art { transition: transform .35s cubic-bezier(.16,1,.3,1); }
-  .lb-cap:hover .lb-art { transform: translateY(-4px) rotate(-6deg) scale(1.08); }
-  .lb-cap[aria-pressed="true"] .lb-art, .lb-cap-only .lb-art { animation: lb-float 3.2s ease-in-out infinite; }
-  .lb-cap-only:hover, .lb-cap-only:active, .lb-cap-only:hover .lb-art { transform: none; }
-  @keyframes lb-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+  .lb-cap:hover { transform: scale(1.02); }
+  .lb-cap:active { transform: scale(.97); }
+  .lb-cap-only:hover, .lb-cap-only:active { transform: none; }
 
   /* Badges: lift on hover; rows lift a little too */
   .lb-badge-btn img { transition: transform .25s ease; }
@@ -671,9 +668,10 @@ const Pager = ({ page, pageCount, onPage }) => (
 // on top, then a figure, your badge or medal in the middle, and a figure, then
 // a line below. The front is you: your name, your points, your badge and the
 // points to your next badge, with the bar to it. Click the badge and the card
-// turns over to your rank: this week's move, your place on a gold medal, how
-// many are on the board (or your top %), and what moves you up next. The medal turns it round again. Nothing on
-// the card says it turns: the badge and the medal lift a little under the
+// turns over to your rank: this week's move, your place on a gold medal,
+// your percentile (never how many are on the board), and what moves you up
+// next. The medal turns it round again. Nothing on the card says it turns:
+// the badge and the medal lift a little under the
 // pointer. No level or badge names on either side. The front's points are your
 // own total (what your badge is earned with); the back's rank is on whichever
 // board is showing, global or a campaign's.
@@ -699,7 +697,7 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
       <div className="vs-rank" style={{ fontSize: 17, fontWeight: 900, color, lineHeight: 1, whiteSpace: 'nowrap' }}>
         {value}{unit && <span style={{ fontSize: 9, fontWeight: 800, marginLeft: 2 }}>{unit}</span>}
       </div>
-      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--muted)', marginTop: 4, lineHeight: 1.2 }}>{note}</div>
+      {note && <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--muted)', marginTop: 4, lineHeight: 1.2 }}>{note}</div>}
     </div>
   );
   const suffix = rank ? ordinalSuffix(rank) : '';
@@ -768,9 +766,7 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
                 </span>
               </span>
             </button>
-            {rank && rank > 1 && topPct <= 50
-              ? fig(`Top ${topPct}%`, '', `Of ${total.toLocaleString()} colleagues`, 'var(--standing-num)', 'right')
-              : fig(total ? total.toLocaleString() : '—', '', 'On the board', 'var(--standing-num)', 'right')}
+            {fig(topPct ? `Top ${topPct}%` : '—', '', '', 'var(--standing-num)', 'right')}
           </div>
           <div style={{ ...line, color: 'var(--text)' }}>{next}</div>
         </div>
@@ -927,7 +923,7 @@ const Leaderboard = () => {
       >
         <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0F172A' : activeColor) : 'var(--text)' }}>{label}</div>
         <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, color: selected && isDark ? '#475569' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
-        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: 0, right: 2, width: 60, height: 60, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.18))' }} />
+        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: 56, height: 56, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
       </Cap>
     );
   };
@@ -996,16 +992,7 @@ const Leaderboard = () => {
             {/* Global view: how points are earned, read live from the Gamification Engine */}
             {view === 'global' && (
               <div className="lb-rules" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
-                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
-                  <button
-                    type="button"
-                    onClick={() => setBadges({})}
-                    style={{ border: '1px solid var(--hair)', background: 'var(--track)', color: 'var(--text)', borderRadius: 999, padding: '3px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    All badges
-                  </button>
-                </div>
+                <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
                 <div style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
                   {rules.error ? 'Live rules unavailable right now' : 'Live from the Gamification Engine'}
                 </div>
