@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, Copy, Downl
 import { findings, story } from '../../services/bigPictureFindings';
 import { reportCsv } from '../../services/bigPictureExport';
 import { csvName, downloadCsv } from '../../services/csv';
+import { FindingDetail } from './BigPictureDetail';
 import { DepartmentTable, PeopleTable } from './BigPictureTables';
 import { REPORT_INK } from './reportInk';
 
@@ -14,8 +15,8 @@ import { REPORT_INK } from './reportInk';
 //   - where everyone stands today: one sentence and one bar of the level
 //     bands, each with how it moved;
 //   - 01 needs attention, 02 going well, 03 what could happen next: three
-//     findings at most in each, every one a number, a line, where it sits,
-//     and a link to the people behind it.
+//     findings at most in each, every one a number, a line and where it sits.
+// A finding opens to its detail: by department, and (admins) who exactly.
 // People and Departments list everyone one by one, to select and export.
 //
 // Colours: the level bands run red (new or below zero) through grey to teal
@@ -123,7 +124,7 @@ function Chapter({ c, items, when, ink, seeFor, onOpen, first }) {
         {items.length
           ? items.map((f, i) => (
             <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 142px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
-              <Item f={f} see={seeFor(f)} onOpen={() => onOpen(f.link)} />
+              <Item f={f} see={seeFor(f)} onOpen={() => onOpen(f)} />
             </div>
           ))
           : <p style={{ ...small, fontSize: 10.5, margin: '14px 0 0' }}>Nothing stands out here.</p>}
@@ -156,6 +157,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const fresh = () => ({
     scope: scopeKey,
     tab: 'overview',
+    detail: null, // the finding opened, by id
     people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' } },
     picked: new Set(),
     deptSort: { key: 'net', dir: 'asc' },
@@ -176,16 +178,17 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const DEPT_SORT = { slipped: 'slipped', belowZero: 'belowZero', oneClick: 'nearSlip', nearUp: 'nearUp', gave: 'net', neverReported: 'reportRate' };
   const pinpoint = ({ show = 'all', dept = 'all', q = '' }) => {
     if (canSeePeople) {
-      set({ tab: 'people', people: { ...state.people, show, dept, level: 'all', q } });
+      set({ tab: 'people', detail: null, people: { ...state.people, show, dept, level: 'all', q } });
     } else {
       const key = dept !== 'all' ? 'net' : DEPT_SORT[show] || 'net';
-      set({ tab: 'departments', deptSort: { key, dir: key === 'net' || key === 'reportRate' ? 'asc' : 'desc' } });
+      set({ tab: 'departments', detail: null, deptSort: { key, dir: key === 'net' || key === 'reportRate' ? 'asc' : 'desc' } });
     }
   };
 
   const parts = story(r, { campaign: Boolean(campaign) });
   const when = campaign ? 'in this campaign' : 'in the last 30 days';
-  const seeFor = (f) => (f.link?.dept ? (canSeePeople ? 'See the team' : 'See departments') : canSeePeople ? 'See who' : 'See departments');
+  const seeFor = (f) => (canSeePeople ? (f.link?.dept ? 'See the team' : 'See where and who') : 'See by department');
+  const opened = state.detail ? [...parts.wrong, ...parts.right, ...parts.next].find((f) => f.id === state.detail) : null;
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
   const exportReport = () => downloadCsv(csvName('big picture', scopeName, 'report'), reportCsv(r, { title, withPeople: canSeePeople, campaign: Boolean(campaign) }));
@@ -242,7 +245,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
           {TABS.map((t) => {
             const on = tab === t.id;
             return (
-              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
+              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, detail: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
                 <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
                 {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{num(t.count)}</span>}
               </button>
@@ -250,9 +253,21 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
           })}
         </div>
 
-        {tab === 'overview' && (
+        {tab === 'overview' && opened && (
+          <FindingDetail
+            key={`${scopeKey}-${opened.id}`}
+            f={opened}
+            r={r}
+            canSeePeople={canSeePeople}
+            ink={ink}
+            scopeName={scopeName}
+            onBack={() => set({ detail: null })}
+            onOpenPeople={({ dept }) => pinpoint({ show: opened.link?.show || 'all', dept: dept || 'all' })}
+          />
+        )}
+        {tab === 'overview' && !opened && (
           <div data-bp-story style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 28 }}>
-            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} seeFor={seeFor} onOpen={pinpoint} first={i === 0} />)}
+            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} seeFor={seeFor} onOpen={(f) => set({ detail: f.id })} first={i === 0} />)}
           </div>
         )}
         {tab === 'people' && canSeePeople && (

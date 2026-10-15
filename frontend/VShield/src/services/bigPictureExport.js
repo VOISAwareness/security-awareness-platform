@@ -107,3 +107,14 @@ export function reportCsv(r, { title, withPeople = false, campaign = false }) {
   if (withPeople) sections.push({ title: 'People, bottom of the board first', columns: PEOPLE_COLUMNS, rows: r.people });
   return sectionsCsv(sections);
 }
+
+/** A finding's department breakdown (breakdown() in bigPictureFindings.js). */
+export function breakdownCsv(b) {
+  const label = b.kind === 'count' ? 'People in this finding' : b.kind === 'rate' ? 'Report rate %' : 'Points gained or lost';
+  return toCsv([
+    { label: 'Department', value: (d) => d.name },
+    { label, value: (d) => (b.kind === 'rate' ? rate(d.value) : d.value) },
+    { label: 'People in the department', value: (d) => d.size },
+    ...(b.kind === 'count' ? [{ label: 'Share of the department %', value: (d) => rate(d.share) }] : []),
+  ], b.departments);
+}

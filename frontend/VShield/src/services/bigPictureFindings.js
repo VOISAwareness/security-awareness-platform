@@ -127,3 +127,31 @@ export function findings(r, opts) {
   const s = story(r, opts);
   return [...s.wrong, ...s.right, ...s.next];
 }
+
+/**
+ * The detail behind a finding: who is in it (`people`, bottom of the board
+ * first) and how it splits by department. For a finding about people, each
+ * department's count, its size and the share; for a finding about a team,
+ * every department's points (or report rate), that team marked.
+ * `kind` says which: 'count', 'points' or 'rate'.
+ */
+export function breakdown(r, f) {
+  const size = Object.fromEntries(r.departments.map((d) => [d.name, d.people]));
+  if (f.link?.dept) {
+    const team = f.link.dept;
+    const kind = f.id === 'bestReporters' ? 'rate' : 'points';
+    const value = (d) => (kind === 'rate' ? d.reportRate ?? 0 : d.net);
+    const departments = r.departments
+      .map((d) => ({ name: d.name, value: value(d), size: d.people, mark: d.name === team }))
+      .sort((a, b) => (f.id === 'worstTeam' ? a.value - b.value : b.value - a.value) || a.name.localeCompare(b.name));
+    return { kind, people: r.people.filter((x) => x.dept === team), departments };
+  }
+  const test = f.link?.show ? PEOPLE_FILTERS.find((x) => x.id === f.link.show)?.test : null;
+  const people = test ? r.people.filter(test) : [];
+  const by = {};
+  people.forEach((x) => { by[x.dept] = (by[x.dept] || 0) + 1; });
+  const departments = Object.entries(by)
+    .map(([name, value]) => ({ name, value, size: size[name] || value, share: value / (size[name] || value), mark: false }))
+    .sort((a, b) => b.value - a.value || b.share - a.share || a.name.localeCompare(b.name));
+  return { kind: 'count', people, departments };
+}

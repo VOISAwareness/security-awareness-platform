@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { bigPicture } from './bigPicture.js';
-import { findings, story, whereThey } from './bigPictureFindings.js';
+import { breakdown, findings, story, whereThey } from './bigPictureFindings.js';
 import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber', 'CARE'];
@@ -42,4 +42,35 @@ test('one campaign: "in this campaign", no 30-day outlook, one-click split in tw
   assert.ok(!all.some((x) => /30 days/.test(`${x.headline} ${x.detail}`)));
   assert.ok(!s.next.some((x) => x.id === 'outlook' || x.id === 'oneClick'));
   assert.ok(all.some((x) => /in this campaign/.test(x.headline)));
+});
+
+test('breakdown: the people behind a finding, by department', () => {
+  const r = bigPicture(ITEMS, PEOPLE);
+  const all = findings(r);
+  const below = all.find((x) => x.id === 'belowZero');
+  const b = breakdown(r, below);
+  assert.equal(b.kind, 'count');
+  assert.equal(b.people.length, Number(below.value));
+  assert.ok(b.people.every((x) => x.belowZero));
+  assert.equal(b.departments.reduce((a, d) => a + d.value, 0), b.people.length);
+  assert.ok(b.departments.every((d) => d.share > 0 && d.share <= 1 && d.value <= d.size));
+  assert.ok(b.departments.every((d, i, l) => i === 0 || l[i - 1].value >= d.value), 'most first');
+});
+
+test('breakdown: a team finding marks the team among every department', () => {
+  const r = bigPicture(ITEMS, PEOPLE);
+  const team = findings(r).find((x) => x.link?.dept);
+  const b = breakdown(r, team);
+  assert.equal(b.departments.length, r.departments.length);
+  assert.equal(b.departments.filter((d) => d.mark).length, 1);
+  assert.ok(b.people.every((x) => x.dept === team.link.dept));
+  assert.ok(['points', 'rate'].includes(b.kind));
+});
+
+test('breakdown: a campaign finding works the same way', () => {
+  const r = bigPicture(ITEMS, PEOPLE, { focus: 'C1' });
+  const f = findings(r, { campaign: true }).find((x) => x.link?.show);
+  const b = breakdown(r, f);
+  assert.ok(b.people.length > 0);
+  assert.equal(b.departments.reduce((a, d) => a + d.value, 0), b.people.length);
 });

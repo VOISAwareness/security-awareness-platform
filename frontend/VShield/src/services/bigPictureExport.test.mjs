@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { bigPicture } from './bigPicture.js';
-import { DEPARTMENT_COLUMNS, PEOPLE_COLUMNS, departmentsCsv, peopleCsv, reportCsv } from './bigPictureExport.js';
+import { DEPARTMENT_COLUMNS, PEOPLE_COLUMNS, breakdownCsv, departmentsCsv, peopleCsv, reportCsv } from './bigPictureExport.js';
+import { breakdown, findings } from './bigPictureFindings.js';
 import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber'];
@@ -32,4 +33,11 @@ test('the whole report: every table, the people only when asked', () => {
   const withPeople = reportCsv(R, { title: 'The organisation', withPeople: true });
   assert.ok(withPeople.includes('People, bottom of the board first'));
   assert.ok(withPeople.includes('Person 0'));
+});
+
+test('a finding’s breakdown exports by department', () => {
+  const f = findings(R).find((x) => x.link?.show);
+  const lines = breakdownCsv(breakdown(R, f)).split('\r\n');
+  assert.equal(lines[0], 'Department,People in this finding,People in the department,Share of the department %');
+  assert.ok(lines.length > 1);
 });
