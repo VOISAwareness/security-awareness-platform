@@ -2,14 +2,16 @@ import { ArrowUpRight, Crown, ShieldAlert, ShieldCheck, ShieldQuestion } from 'l
 import { Link } from 'react-router-dom';
 
 import BadgeMedal from '../../GlobalComponents/BadgeMedal';
-import { BELOW_LEVELS, LEVEL_FAMILIES, ROMAN, rankName, riskColor, riskPosition, riskStatus } from '../../services/levels';
+import { BELOW_LEVELS, LEVEL_FAMILIES, ROMAN, rangeText, rankName, riskColor, riskPosition, riskStatus } from '../../services/levels';
 
 // My Space → Points & Badges, in three parts:
 //   - your badge on its stage (click it to open every rank);
-//   - who you are (level, rank, risk status), your security score and place
-//     on the leaderboard, and the points from your rank to the next one;
-//   - the details: your level's grades, your personal best and where your
-//     risk sits on the scale. No other badge pictures, so yours stands alone. Points are indigo everywhere; the risk status takes
+//   - who you are: level, rank, risk status;
+//   - one row of figures: security score, place on the leaderboard, your
+//     level's grades, your personal best and where your risk sits;
+//   - the bar from your rank to the next.
+// No boxes and no other badge pictures, so yours stands alone; text sizes
+// follow My Activities. Points are indigo everywhere; the risk status takes
 // its own colour (green, amber, red), so the two never read as the same
 // thing. Click the badge to open every rank (`onOpenBadges`).
 //
@@ -46,7 +48,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const strong = isDark ? 'text-white' : 'text-slate-900';
   const score = isDark ? 'text-indigo-300' : 'text-indigo-600';
-  const label = `block text-[9.5px] font-extrabold uppercase tracking-[0.14em] ${muted}`;
+  const label = `block text-[8.5px] font-extrabold uppercase tracking-[0.12em] ${muted}`;
   const status = riskStatus(level);
   const tone = RISK_TONE[status.tone];
   const below = level.level <= 0;
@@ -80,50 +82,126 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   // who you are
   const identity = (
     <div className="min-w-0" data-hero>
-      <span className={`block text-[10.5px] font-extrabold uppercase tracking-[0.16em] ${muted}`}>Level {levelNo(level)}</span>
-      <h4 className={`vs-rank text-[28px] [@container(max-width:860px)]:text-[21px] font-black uppercase leading-[1.1] tracking-tight truncate mt-0.5 ${strong}`} data-rank-name>
+      <span className={`block text-[9px] font-extrabold uppercase tracking-[0.14em] ${muted}`}>Level {levelNo(level)}</span>
+      <h4 className={`vs-rank text-[17px] font-black uppercase leading-[1.15] tracking-tight truncate mt-0.5 ${strong}`} data-rank-name>
         {rankName(level)}
       </h4>
       <span
         data-risk-status={status.tone}
         title="Your risk status, from your level"
-        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-[3px] mt-2 text-[10px] font-extrabold uppercase tracking-[0.06em] ${isDark ? tone.dark : tone.light}`}
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-[2px] mt-1.5 text-[9px] font-extrabold uppercase tracking-[0.06em] ${isDark ? tone.dark : tone.light}`}
       >
-        <tone.Icon className="w-3.5 h-3.5" strokeWidth={2.4} aria-hidden />
+        <tone.Icon className="w-3 h-3" strokeWidth={2.4} aria-hidden />
         {status.label}
       </span>
     </div>
   );
 
-  // your score, and your place among everyone
+  // one row of figures, all alike: a label, the value, a short note
   const [place, suffix] = rank ? ordinal(rank) : [];
+  const figure = (key, title, value, note) => (
+    <div key={key} className="min-w-0" data-figure={key}>
+      <span className={label}>{title}</span>
+      <div className="h-[24px] flex items-center mt-1">{value}</div>
+      <span className={`block text-[9px] font-semibold mt-0.5 leading-tight ${muted}`}>{note}</span>
+    </div>
+  );
   const stats = (
-    <div className="flex items-start gap-12 [@container(max-width:860px)]:gap-7 flex-shrink-0" data-stats>
-      <div>
-        <span className={label}>Security score</span>
-        <span className={`vs-rank block text-[30px] font-black leading-none tracking-tight mt-1.5 ${score}`} data-my-points>
+    <div className="grid grid-cols-[1fr_1fr_1fr_1.45fr_1fr] [@container(max-width:860px)]:grid-cols-3 gap-x-5 gap-y-4" data-stats>
+      {figure(
+        'score',
+        'Security score',
+        <span className={`vs-rank text-[19px] font-black leading-none tracking-tight ${score}`} data-my-points>
           {fmt(points)}
-          <span className="text-[12px] font-extrabold ml-1">PTS</span>
-        </span>
-        <span className={`block text-[10px] font-semibold mt-1.5 ${muted}`}>Higher is better</span>
-      </div>
-      <div>
-        <span className={label}>Leaderboard</span>
-        {rank ? (
-          <Link
-            to="/leaderboard"
-            title="Open the leaderboard"
-            className={`vs-rank block text-[30px] font-black leading-none tracking-tight mt-1.5 hover:underline underline-offset-4 decoration-2 ${strong}`}
-            data-my-rank
-          >
+          <span className="text-[9px] font-extrabold ml-0.5">PTS</span>
+        </span>,
+        'Higher is better',
+      )}
+      {figure(
+        'rank',
+        'Leaderboard',
+        rank ? (
+          <Link to="/leaderboard" title="Open the leaderboard" className={`vs-rank text-[19px] font-black leading-none tracking-tight hover:underline underline-offset-4 ${strong}`} data-my-rank>
             {place}
-            <span className="text-[14px] font-extrabold align-top ml-0.5">{suffix}</span>
+            <span className="text-[10px] font-extrabold align-top ml-px">{suffix}</span>
           </Link>
         ) : (
-          <span className={`vs-rank block text-[30px] font-black leading-none mt-1.5 ${muted}`}>—</span>
+          <span className={`vs-rank text-[19px] font-black leading-none ${muted}`}>—</span>
+        ),
+        rank ? 'Among all colleagues' : 'Not ranked yet',
+      )}
+      {figure(
+        'grade',
+        level.grade ? 'Grade' : 'The way back',
+        <span className="relative flex items-center gap-3" data-grades>
+          <span aria-hidden className={`absolute left-2 right-2 top-1/2 -mt-px h-[2px] ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+          {along > 0 && (
+            <span aria-hidden className="absolute left-2 top-1/2 -mt-px h-[2px]" style={{ width: `calc((100% - 16px) * ${along / (steps.length - 1)})`, background: tint }} />
+          )}
+          {steps.map((g) => {
+            const state = g.rank < level.rank ? 'done' : g.rank === level.rank ? 'now' : 'ahead';
+            return (
+              <span
+                key={g.id}
+                data-grade={state}
+                title={`${rankName(g)} · from ${g.min === null ? `below ${fmt(g.max)}` : fmt(g.min)} pts`}
+                className={`vs-rank relative grid place-items-center rounded-full font-black ${state === 'now' ? 'w-[21px] h-[21px] text-[8.5px] text-white' : 'w-[17px] h-[17px] text-[7.5px]'} ${
+                  state === 'done' ? 'text-white' : state === 'ahead' ? (isDark ? 'bg-[#22242B] text-slate-500 border border-white/20' : 'bg-white text-slate-400 border border-slate-300') : ''
+                }`}
+                style={
+                  state === 'now'
+                    ? { background: `linear-gradient(135deg, ${level.light}, ${level.color} 75%)`, boxShadow: `0 0 0 3px ${level.color}${isDark ? '40' : '26'}` }
+                    : state === 'done'
+                      ? { background: tint }
+                      : undefined
+                }
+              >
+                {g.grade ? ROMAN[g.grade] : levelNo(g)}
+              </span>
+            );
+          })}
+        </span>,
+        rangeText(level),
+      )}
+      {best &&
+        figure(
+          'best',
+          'Personal best',
+          <span className="min-w-0 flex items-center gap-1.5" data-best>
+            <Crown className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-500'}`} aria-hidden />
+            <strong className={`text-[11px] font-voda-exb uppercase leading-tight truncate ${strong}`} title={rankName(best)}>
+              {rankName(best)}
+            </strong>
+          </span>,
+          best.rank > level.rank ? (
+            <>
+              <strong className={score}>{fmt(best.min - points)} pts</strong> to win it back
+            </>
+          ) : (
+            'You are at your best'
+          ),
         )}
-        <span className={`block text-[10px] font-semibold mt-1.5 ${muted}`}>{rank ? 'Among all colleagues' : 'Not ranked yet'}</span>
-      </div>
+      {figure(
+        'risk',
+        'Risk level',
+        riskAt === null ? (
+          <span className={`text-[10px] font-bold ${muted}`}>Not rated yet</span>
+        ) : (
+          <span className="relative w-full max-w-[120px] h-1.5 rounded-full" data-risk-scale style={{ background: 'linear-gradient(90deg, #22C55E, #EAB308 50%, #EF4444)' }}>
+            <span
+              aria-hidden
+              className={`absolute top-1/2 w-3 h-3 -mt-1.5 -ml-1.5 rounded-full border-[2.5px] ${isDark ? 'bg-[#1C1E24]' : 'bg-white'}`}
+              style={{ left: `${riskAt}%`, borderColor: riskColor(riskAt) }}
+            />
+          </span>
+        ),
+        riskAt === null ? '' : (
+          <span className="flex justify-between max-w-[120px]">
+            <span>Low</span>
+            <span>High</span>
+          </span>
+        ),
+      )}
     </div>
   );
 
@@ -171,8 +249,8 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
 
         {/* from your rank to the next */}
         <div data-progress>
-          {bar('h-2.5')}
-          <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-3 mt-2 text-[11px] font-semibold ${muted}`}>
+          {bar('h-1.5')}
+          <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-3 mt-1.5 text-[10px] font-semibold ${muted}`}>
             <span className="min-w-0">
               <span className={`block font-bold leading-tight ${strong}`}>{rankName(level)}</span>
               {level.min === null ? `below ${fmt(level.max)}` : fmt(level.min)}
@@ -197,100 +275,6 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
         </div>
       </div>
 
-      {/* the details: grades, personal best, risk */}
-      <div
-        data-details
-        className={`w-[252px] [@container(max-width:860px)]:w-[206px] flex-shrink-0 rounded-[14px] border px-4 py-3 flex flex-col justify-between ${
-          isDark ? 'bg-white/[0.035] border-white/10' : 'bg-slate-50 border-slate-200'
-        }`}
-      >
-        <div data-grades>
-          <span className={label}>{level.grade ? 'Grades' : 'The way back'}</span>
-          {/* a stepper: the line fills up to your points */}
-          <div className="relative grid grid-cols-3 mt-2.5">
-            <span aria-hidden className={`absolute top-[13px] left-[16.67%] w-[66.67%] h-[3px] rounded-full ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
-            {along > 0 && (
-              <span aria-hidden className="absolute top-[13px] left-[16.67%] h-[3px] rounded-full" style={{ width: `${(along / 3) * 100}%`, background: tint }} />
-            )}
-            {steps.map((g) => {
-              const state = g.rank < level.rank ? 'done' : g.rank === level.rank ? 'now' : 'ahead';
-              const mark = g.grade ? ROMAN[g.grade] : levelNo(g);
-              return (
-                <span key={g.id} data-grade={state} title={rankName(g)} className="relative flex flex-col items-center">
-                  <span className="h-[29px] grid place-items-center">
-                    <span
-                      className={`vs-rank grid place-items-center rounded-full font-black ${state === 'now' ? 'w-[29px] h-[29px] text-[11px] text-white' : 'w-[23px] h-[23px] text-[10px]'} ${
-                        state === 'done' ? 'text-white' : state === 'ahead' ? (isDark ? 'bg-[#22242B] text-slate-500 border-2 border-white/15' : 'bg-white text-slate-400 border-2 border-slate-300') : ''
-                      }`}
-                      style={
-                        state === 'now'
-                          ? { background: `linear-gradient(135deg, ${level.light}, ${level.color} 75%)`, boxShadow: `0 0 0 4px ${level.color}${isDark ? '40' : '26'}` }
-                          : state === 'done'
-                            ? { background: tint }
-                            : undefined
-                      }
-                    >
-                      {mark}
-                    </span>
-                  </span>
-                  <span
-                    className={`text-[9.5px] leading-none mt-1.5 ${state === 'now' ? 'font-extrabold' : `font-semibold ${muted}`}`}
-                    style={state === 'now' ? { color: tint } : undefined}
-                  >
-                    {g.min === null ? `< ${fmt(g.max)}` : fmt(g.min)}
-                  </span>
-                  <span className="sr-only">{state === 'done' ? 'passed' : state === 'now' ? 'you are here' : 'not reached yet'}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        {best && (
-          <div data-best>
-            <span className={label}>Personal best</span>
-            <span className="flex items-start gap-1.5 mt-1.5 min-w-0">
-              <Crown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-500'}`} aria-hidden />
-              <span className={`vs-rank text-[13px] font-black uppercase leading-tight tracking-tight ${strong}`}>{rankName(best)}</span>
-            </span>
-            <span className={`block text-[10px] font-semibold mt-0.5 ${muted}`}>
-              {best.rank > level.rank ? (
-                <>
-                  <strong className={score}>{fmt(best.min - points)} pts</strong> to win it back
-                </>
-              ) : (
-                'You are at your best'
-              )}
-            </span>
-          </div>
-        )}
-
-        <div data-risk-scale>
-          <span className={label}>Risk level</span>
-          <div
-            className="relative h-2 mt-2.5 rounded-full"
-            style={{ background: riskAt === null ? (isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0') : 'linear-gradient(90deg, #22C55E, #EAB308 50%, #EF4444)' }}
-          >
-            {riskAt !== null && (
-              <span
-                aria-hidden
-                className={`absolute top-1/2 w-3.5 h-3.5 -mt-[7px] -ml-[7px] rounded-full border-[3px] shadow ${isDark ? 'bg-[#1C1E24]' : 'bg-white'}`}
-                style={{ left: `${riskAt}%`, borderColor: riskColor(riskAt) }}
-              />
-            )}
-          </div>
-          <span className={`flex items-center justify-between mt-1 text-[9.5px] font-semibold ${muted}`}>
-            {riskAt === null ? (
-              <span>Not rated yet</span>
-            ) : (
-              <>
-                <span>Low</span>
-                <span>High</span>
-              </>
-            )}
-          </span>
-        </div>
-      </div>
     </div>
   );
 };
