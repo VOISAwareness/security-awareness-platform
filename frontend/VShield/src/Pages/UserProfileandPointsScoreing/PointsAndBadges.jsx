@@ -156,7 +156,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col justify-center gap-9 [@container(max-width:860px)]:gap-5 pl-1">
+      <div className="flex-1 min-w-0 flex flex-col justify-between gap-4 pl-1" data-rank-card>
         <div className="flex items-start justify-between gap-6 [@container(max-width:860px)]:flex-col [@container(max-width:860px)]:gap-4">
           {identity}
           {stats}
