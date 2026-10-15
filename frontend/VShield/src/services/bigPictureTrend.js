@@ -10,10 +10,11 @@
  * anything between is holding steady. `history` is { total, n, end, ledger }
  * (bigPicture's), the ledger being { at, points } changes.
  *
- * progress() is the one-line answer the Big Picture leads with: for the
- * organisation, the trend over the last six months; for one campaign, the
- * points its recipients gained or lost from it, per person. Pure functions,
- * so `node --test` can check every step.
+ * progress() is the answer the Big Picture leads with: for the
+ * organisation, the last six months; for one campaign, what it did for its
+ * recipients. Per person: the change, the average before and after, and
+ * the points earned by reporting and lost to clicks behind the change.
+ * Pure functions, so `node --test` can check every step.
  */
 export const DAY = 86400000;
 /** Points per person within which the board is holding steady. */
@@ -43,12 +44,21 @@ export function trend({ total, n, end, ledger }, { days, step }) {
   return { series, from, to, change, word: wordFor(change) };
 }
 
-/** Is everyone gaining points? { word, change } per person, over six months or from one campaign. */
+/**
+ * Is everyone gaining points? Per person: { word, change, from, to, earned,
+ * lost }, over the last six months, or from one campaign.
+ */
 export function progress(r, { campaign = false } = {}) {
+  const n = Math.max(1, r.history.n);
+  const to = r.history.total / n;
   if (campaign) {
     const change = r.people.reduce((a, x) => a + x.change, 0) / Math.max(1, r.people.length);
-    return { word: wordFor(change), change };
+    return { word: wordFor(change), change, from: to - change, to, earned: r.points.earned / n, lost: r.points.lost / n };
   }
-  const t = trend(r.history, RANGES.find((x) => x.id === '6m'));
-  return { word: t.word, change: t.change };
+  const six = RANGES.find((x) => x.id === '6m');
+  const t = trend(r.history, six);
+  const since = r.history.end - six.days * DAY;
+  const inRange = r.history.ledger.filter((c) => c.at > since);
+  const sum = (k) => inRange.reduce((a, c) => a + (c[k] || 0), 0) / n;
+  return { word: t.word, change: t.change, from: t.from, to: t.to, earned: sum('earned'), lost: sum('lost') };
 }

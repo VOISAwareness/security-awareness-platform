@@ -36,9 +36,10 @@ test('trend: weekly steps end on today, and changes outside the range only shift
 });
 
 test('progress: six months for the organisation, the campaign itself for one campaign', () => {
-  const history = { total: 1000, n: 10, end: END, ledger: [{ at: END - 100 * DAY, points: 200 }, { at: END - 400 * DAY, points: 900 }] };
-  assert.deepEqual(progress({ history }), { word: 'improving', change: 20 }, 'only the last six months count');
+  const history = { total: 1000, n: 10, end: END, ledger: [{ at: END - 100 * DAY, points: 200, earned: 320, lost: 120 }, { at: END - 400 * DAY, points: 900, earned: 900, lost: 0 }] };
+  assert.deepEqual(progress({ history }), { word: 'improving', change: 20, from: 80, to: 100, earned: 32, lost: 12 }, 'only the last six months count');
   const people = [{ change: 80 }, { change: -30 }, { change: -60 }, { change: 0 }];
-  assert.deepEqual(progress({ people, history }, { campaign: true }), { word: 'steady', change: -2.5 });
-  assert.equal(progress({ people: [{ change: -30 }], history }, { campaign: true }).word, 'slipping');
+  const points = { earned: 80, lost: 90 };
+  assert.deepEqual(progress({ people, history: { ...history, n: 4, total: 400 }, points }, { campaign: true }), { word: 'steady', change: -2.5, from: 102.5, to: 100, earned: 20, lost: 22.5 });
+  assert.equal(progress({ people: [{ change: -30 }], history, points }, { campaign: true }).word, 'slipping');
 });

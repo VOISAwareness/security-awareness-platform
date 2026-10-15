@@ -92,8 +92,9 @@ function Flag({ x, ink }) {
 }
 
 // One person: rank, badge, name with department and level, points, change,
-// and what stands out (or `note`, when the list is about one thing).
-export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null }) {
+// and what stands out (or `note`, when the list is about one thing); `end`
+// sets that last column against the right edge.
+export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, end = false }) {
   const level = LEVEL_BY_ID[x.levelId];
   return (
     <div role="row" data-bp-person={x.key} style={{ height: rowH, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderTop: first ? 'none' : '1px solid var(--hair)', background: picked ? 'var(--bp-soft)' : 'transparent' }}>
@@ -110,7 +111,7 @@ export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false,
       <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontSize: 10.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
         {x.change ? <>{x.change > 0 ? <ArrowUpRight size={11} strokeWidth={3} color={ink.good} aria-hidden /> : <ArrowDownRight size={11} strokeWidth={3} color={ink.bad} aria-hidden />}{signed(x.change)}</> : <span style={small}>—</span>}
       </span>
-      {note ?? <Flag x={x} ink={ink} />}
+      {end ? <span style={{ justifySelf: 'end', minWidth: 0, maxWidth: '100%', display: 'flex' }}>{note ?? <Flag x={x} ink={ink} />}</span> : (note ?? <Flag x={x} ink={ink} />)}
     </div>
   );
 }
