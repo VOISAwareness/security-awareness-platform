@@ -15,7 +15,8 @@
  *   people    - everyone, one by one, bottom of the board first: points,
  *               change, level then and now, what they did, and which of the
  *               above they are part of (PEOPLE_FILTERS picks them out);
- *   departments - the same, department by department.
+ *   departments - the same, department by department, least ground gained
+ *               per person first.
  *
  * For the organisation it reads the campaigns of the last `days` days over
  * everyone on the board; for one campaign, its recipients. Sample behaviour
@@ -232,12 +233,16 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     if (x.moved === 'down') d.slipped += 1;
     COUNTS.slice(2).forEach((k) => { if (x[k]) d[k] += 1; });
   });
+  // Per person and as shares, so a big team and a small one compare fairly.
   const departments = Object.values(byDept).map(({ points, ...d }) => ({
     ...d,
     avgPoints: Math.round(points / d.people),
+    perPerson: Math.round(d.net / d.people),
+    belowZeroShare: d.belowZero / d.people,
+    slippedShare: d.tookPart ? d.slipped / d.tookPart : 0,
     reportRate: pct(d.reported, d.emails),
     clickRate: pct(d.clicked, d.emails),
-  })).sort((a, b) => a.net - b.net || a.name.localeCompare(b.name));
+  })).sort((a, b) => a.perPerson - b.perPerson || a.name.localeCompare(b.name));
 
   const took = seen.filter((s) => s.took).length;
   return {
@@ -258,7 +263,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
 
 /** The ways to pick people out of the picture, as the list's "Show" menu offers them. */
 export const PEOPLE_FILTERS = Object.freeze([
-  { id: 'all', label: 'Everyone, bottom of the board first', test: () => true },
+  { id: 'all', label: 'Everyone', test: () => true },
   { id: 'belowZero', label: 'Below zero now', test: (x) => x.belowZero },
   { id: 'fellBelowZero', label: 'Fell below zero', test: (x) => x.fellBelowZero },
   { id: 'slipped', label: 'Slipped a level', test: (x) => x.moved === 'down' },

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { bigPicture } from './bigPicture.js';
-import { breakdown, findings, story, whereThey } from './bigPictureFindings.js';
+import { breakdown, count, findings, share, story, whereThey } from './bigPictureFindings.js';
 import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber', 'CARE'];
@@ -19,20 +19,33 @@ test('whereThey says where people sit', () => {
   assert.equal(whereThey([]), '');
 });
 
+test('share and count read cleanly at any size', () => {
+  assert.equal(share(0, 100), '0%');
+  assert.equal(share(1, 30000), '<1%');
+  assert.equal(share(4, 104), '3.8%');
+  assert.equal(share(42, 100), '42%');
+  assert.equal(count(940), '940');
+  assert.equal(count(4213), '4,213');
+  assert.equal(count(12430), '12.4k');
+  assert.equal(count(30000), '30k');
+  assert.equal(count(250000), '250k');
+});
+
 test('the story: three parts of three at most, each line complete, never advice', () => {
   const r = bigPicture(ITEMS, PEOPLE);
   const s = story(r);
   for (const part of ['wrong', 'right', 'next']) {
     assert.ok(s[part].length > 0 && s[part].length <= 3, part);
-    assert.ok(s[part].every((x) => x.value && x.headline && x.detail && 'link' in x && !('weight' in x)), part);
+    assert.ok(s[part].every((x) => x.value && x.headline && x.sub && x.detail && 'link' in x && !('weight' in x)), part);
   }
   assert.ok(s.wrong.every((x) => x.tone === 'bad'));
   assert.ok(s.right.every((x) => x.tone === 'good'));
   assert.ok(s.next.some((x) => x.id === 'outlook'));
   const below = s.wrong.find((x) => x.id === 'belowZero');
-  assert.equal(below.value, String(r.people.filter((x) => x.belowZero).length));
+  assert.equal(below.count, r.people.filter((x) => x.belowZero).length);
+  assert.equal(below.value, share(below.count, r.people.length));
   assert.deepEqual(findings(r), [...s.wrong, ...s.right, ...s.next]);
-  assert.ok(findings(r).every((x) => !/\b(should|recommend|suggest|target|send)\b/i.test(`${x.headline} ${x.detail}`)), 'reports, never advises');
+  assert.ok(findings(r).every((x) => !/\b(should|recommend|suggest|target|send)\b/i.test(`${x.headline} ${x.sub} ${x.detail}`)), 'reports, never advises');
 });
 
 test('one campaign: "in this campaign", no 30-day outlook, one-click split in two', () => {
@@ -41,7 +54,7 @@ test('one campaign: "in this campaign", no 30-day outlook, one-click split in tw
   const all = findings(r, { campaign: true });
   assert.ok(!all.some((x) => /30 days/.test(`${x.headline} ${x.detail}`)));
   assert.ok(!s.next.some((x) => x.id === 'outlook' || x.id === 'oneClick'));
-  assert.ok(all.some((x) => /in this campaign/.test(x.headline)));
+  assert.ok(!all.some((x) => /last 30 days/.test(x.detail)));
 });
 
 test('breakdown: the people behind a finding, by department', () => {
@@ -50,11 +63,11 @@ test('breakdown: the people behind a finding, by department', () => {
   const below = all.find((x) => x.id === 'belowZero');
   const b = breakdown(r, below);
   assert.equal(b.kind, 'count');
-  assert.equal(b.people.length, Number(below.value));
+  assert.equal(b.people.length, below.count);
   assert.ok(b.people.every((x) => x.belowZero));
   assert.equal(b.departments.reduce((a, d) => a + d.value, 0), b.people.length);
   assert.ok(b.departments.every((d) => d.share > 0 && d.share <= 1 && d.value <= d.size));
-  assert.ok(b.departments.every((d, i, l) => i === 0 || l[i - 1].value >= d.value), 'most first');
+  assert.ok(b.departments.every((d, i, l) => i === 0 || l[i - 1].share >= d.share), 'highest share first');
 });
 
 test('breakdown: a team finding marks the team among every department', () => {

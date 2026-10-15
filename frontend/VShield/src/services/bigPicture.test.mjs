@@ -86,11 +86,12 @@ test('everyone one by one, bottom of the board first, adding up to the totals', 
   assert.ok(r.people.every((x) => x.reported + x.clicked <= x.campaigns && x.gave <= x.clicked));
 });
 
-test('departments one by one, least ground gained first', () => {
+test('departments one by one, least ground gained per person first', () => {
   const r = bigPicture(ITEMS, PEOPLE);
   assert.equal(r.departments.length, DEPTS.length);
   assert.equal(r.departments.reduce((a, d) => a + d.people, 0), 300);
-  assert.ok(r.departments.every((d, i, all) => i === 0 || all[i - 1].net <= d.net));
+  assert.ok(r.departments.every((d, i, all) => i === 0 || all[i - 1].perPerson <= d.perPerson));
+  assert.ok(r.departments.every((d) => d.perPerson === Math.round(d.net / d.people) && d.belowZeroShare >= 0 && d.belowZeroShare <= 1));
   assert.equal(r.departments.reduce((a, d) => a + d.slipped, 0), r.moved.slipped);
   const finance = r.departments.find((d) => d.name === 'Finance');
   assert.equal(finance.nearZero, r.people.filter((x) => x.dept === 'Finance' && x.nearZero).length);

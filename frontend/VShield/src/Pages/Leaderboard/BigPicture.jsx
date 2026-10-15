@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, Copy, Download, Hourglass, LayoutGrid, ThumbsUp, TriangleAlert, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronRight, Copy, Download, Hourglass, LayoutGrid, ThumbsUp, TriangleAlert, Users } from 'lucide-react';
 
-import { findings, story } from '../../services/bigPictureFindings';
+import { count, findings, share, story } from '../../services/bigPictureFindings';
 import { reportCsv } from '../../services/bigPictureExport';
 import { csvName, downloadCsv } from '../../services/csv';
 import { FindingDetail } from './BigPictureDetail';
@@ -35,10 +35,20 @@ const BANDS = {
 };
 const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
 
-// The one sentence that sums up the movement.
-const moveLine = (r, campaign) => `${num(r.moved.climbed)} climbed a level and ${num(r.moved.slipped)} slipped ${campaign ? 'in this campaign' : 'in the last 30 days'}.`;
+// The one sentence that sums up the movement, as a ratio so it reads the
+// same for a hundred people or thirty thousand.
+const times = (k) => (Math.round(k * 10) / 10).toString();
+function moveLine(r, campaign) {
+  const { climbed, slipped } = r.moved;
+  const when = campaign ? 'in this campaign' : 'in the last 30 days';
+  if (!climbed && !slipped) return `No one changed level ${when}.`;
+  if (!slipped) return `Everyone who changed level ${when} climbed.`;
+  const k = climbed / slipped;
+  return k >= 1 ? `For every person who slipped a level ${when}, ${times(k)} climbed one.` : `More slipped a level than climbed ${when}: ${times(1 / k)} for every one who climbed.`;
+}
 
-// Where everyone stands: the level bands in one bar, each with its count and how it moved.
+// Where everyone stands: the level bands in one bar, each with its share and
+// which way it moved (the counts are in the tooltip and the export).
 function Standing({ r, campaign, isDark, ink }) {
   const colors = BANDS[isDark ? 'dark' : 'light'];
   const total = Math.max(1, r.standing.reduce((a, g) => a + g.now, 0));
@@ -47,28 +57,23 @@ function Standing({ r, campaign, isDark, ink }) {
     <div style={{ minWidth: 0, flex: 1 }}>
       <div style={eyebrow}>{campaign ? 'Where its recipients stand now' : 'Where everyone stands today'}</div>
       <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)', marginTop: 6 }}>{moveLine(r, campaign)}</div>
-      <div role="img" aria-label={bands.map((g) => `${g.now} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 12, marginTop: 12 }}>
+      <div role="img" aria-label={bands.map((g) => `${share(g.now, total)} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 10, marginTop: 14 }}>
         {bands.filter((g) => g.now > 0).map((g, i, all) => (
-          <span key={g.id} title={`${g.label}: ${num(g.now)}`} style={{ flex: g.now / total, background: colors[g.id], borderRadius: all.length === 1 ? 4 : i === 0 ? '4px 0 0 4px' : i === all.length - 1 ? '0 4px 4px 0' : 0 }} />
+          <span key={g.id} title={`${g.label}: ${num(g.now)} people`} style={{ flex: g.now / total, background: colors[g.id], borderRadius: all.length === 1 ? 4 : i === 0 ? '4px 0 0 4px' : i === all.length - 1 ? '0 4px 4px 0' : 0 }} />
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginTop: 9 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12, marginTop: 10 }}>
         {bands.map((g) => {
-          const d = g.now - g.before;
+          const d = (g.now - g.before) / total; // as a share of everyone
+          const flat = Math.abs(d) < 0.005;
           const better = g.id === 'low' ? d < 0 : d > 0;
           const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
           return (
-            <span key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span key={g.id} title={`${num(g.now)} people · ${num(g.before)} at the start`} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
               <span aria-hidden style={{ flexShrink: 0, width: 8, height: 8, borderRadius: 2, background: colors[g.id], boxShadow: g.id === 'learning' ? 'inset 0 0 0 1px var(--hair)' : 'none' }} />
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.brief}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <strong className="vs-rank" style={{ fontSize: 13, color: 'var(--text)' }}>{num(g.now)}</strong>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 9.5, fontWeight: 800, color: 'var(--muted)' }}>
-                    {d === 0 ? 'same' : <><Arrow size={11} strokeWidth={3} color={better ? ink.good : ink.bad} aria-hidden />{num(Math.abs(d))}</>}
-                  </span>
-                </span>
-              </span>
+              <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.brief}</span>
+              <strong style={{ fontSize: 11, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{share(g.now, total)}</strong>
+              {!flat && <Arrow size={11} strokeWidth={3} color={better ? ink.good : ink.bad} aria-label={d > 0 ? 'up' : 'down'} style={{ flexShrink: 0 }} />}
             </span>
           );
         })}
@@ -84,32 +89,29 @@ const CHAPTERS = [
   { id: 'next', n: '03', title: 'What could happen next', sub: () => 'Who is one step from a change', Icon: Hourglass, tone: 'watch' },
 ];
 
-// One finding: its number, the line, where it sits, and the people behind it.
-function Item({ f, see, onOpen }) {
+// One finding: its number, the line, and a quiet line under it. The whole
+// item opens its detail.
+function Item({ f, onOpen }) {
   const Tag = f.link ? 'button' : 'div';
   return (
     <Tag
-      {...(f.link ? { type: 'button', onClick: onOpen, className: 'bp-finding', 'aria-label': `${f.value} ${f.unit} ${f.headline}. ${see}` } : null)}
+      {...(f.link ? { type: 'button', onClick: onOpen, className: 'bp-finding', 'aria-label': `${f.value} ${f.unit} ${f.headline}. ${f.sub}. See the detail` } : null)}
       data-bp-finding={f.id}
-      style={{ width: 'calc(100% + 24px)', boxSizing: 'border-box', flex: 'none', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 4, padding: '14px 12px 10px', margin: '0 -12px', border: 'none', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default' }}
+      style={{ position: 'relative', width: 'calc(100% + 24px)', boxSizing: 'border-box', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 5, padding: '16px 34px 12px 12px', margin: '0 -12px', border: 'none', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default' }}
     >
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-        <span className="vs-rank" style={{ fontSize: 24, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{f.value}</span>
+        <span className="vs-rank" style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{f.value}</span>
         {f.unit && <span style={{ ...small, fontWeight: 800 }}>{f.unit}</span>}
       </span>
-      <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
-      <span title={f.detail} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', ...small, fontSize: 10, lineHeight: 1.4 }}>{f.detail}</span>
-      {f.link && (
-        <span className="bp-go" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2, fontSize: 10, fontWeight: 800, color: 'var(--muted)' }}>
-          {see} <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
-        </span>
-      )}
+      <span style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
+      <span style={{ ...small, fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.sub}</span>
+      {f.link && <ChevronRight className="bp-go" size={16} strokeWidth={2.4} aria-hidden style={{ position: 'absolute', right: 10, top: 18, color: 'var(--muted)' }} />}
     </Tag>
   );
 }
 
 // One part of the story: its number and title, then its findings.
-function Chapter({ c, items, when, ink, seeFor, onOpen, first }) {
+function Chapter({ c, items, when, ink, onOpen, first }) {
   const color = c.tone === 'good' ? ink.good : c.tone === 'bad' ? ink.bad : 'var(--text)';
   return (
     <section aria-label={c.title} data-bp-chapter={c.id} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingLeft: first ? 0 : 28, borderLeft: first ? 'none' : '1px solid var(--hair)' }}>
@@ -123,8 +125,8 @@ function Chapter({ c, items, when, ink, seeFor, onOpen, first }) {
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 2 }}>
         {items.length
           ? items.map((f, i) => (
-            <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 142px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
-              <Item f={f} see={seeFor(f)} onOpen={() => onOpen(f)} />
+            <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 124px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
+              <Item f={f} onOpen={() => onOpen(f)} />
             </div>
           ))
           : <p style={{ ...small, fontSize: 10.5, margin: '14px 0 0' }}>Nothing stands out here.</p>}
@@ -138,17 +140,17 @@ function summaryText(r, title, campaign) {
   return [
     title,
     moveLine(r, campaign),
-    `Where everyone stands: ${[...r.standing].reverse().map((g) => `${g.brief} ${num(g.now)} (${g.now - g.before >= 0 ? '+' : '−'}${num(Math.abs(g.now - g.before))})`).join(', ')}.`,
+    `Where everyone stands: ${[...r.standing].reverse().map((g) => `${g.brief} ${share(g.now, r.people.length)}`).join(', ')}.`,
     '',
     'What stands out:',
-    ...findings(r, { campaign }).map((f) => `- ${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline}. ${f.detail}.`),
+    ...findings(r, { campaign }).map((f) => `- ${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline} (${f.sub}).`),
   ].join('\n');
 }
 
 /**
  * The Big Picture, in the board's L shape: a colour tile top left naming what
- * it covers; where everyone stands along the arm; below, what stands out and
- * the bottom of the board, with People and Departments a tab away.
+ * it covers; where everyone stands along the arm; below, the story in three
+ * parts, with People and Departments a tab away.
  */
 export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
@@ -158,9 +160,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     scope: scopeKey,
     tab: 'overview',
     detail: null, // the finding opened, by id
-    people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' } },
+    people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' }, page: 0 },
     picked: new Set(),
-    deptSort: { key: 'net', dir: 'asc' },
+    depts: { sort: { key: 'perPerson', dir: 'asc' }, q: '', page: 0 },
     deptPicked: new Set(),
   });
   const [kept, setState] = useState(fresh);
@@ -175,19 +177,12 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   }, [copied]);
 
   // From a finding to the people (or departments) behind it.
-  const DEPT_SORT = { slipped: 'slipped', belowZero: 'belowZero', oneClick: 'nearSlip', nearUp: 'nearUp', gave: 'net', neverReported: 'reportRate' };
   const pinpoint = ({ show = 'all', dept = 'all', q = '' }) => {
-    if (canSeePeople) {
-      set({ tab: 'people', detail: null, people: { ...state.people, show, dept, level: 'all', q } });
-    } else {
-      const key = dept !== 'all' ? 'net' : DEPT_SORT[show] || 'net';
-      set({ tab: 'departments', detail: null, deptSort: { key, dir: key === 'net' || key === 'reportRate' ? 'asc' : 'desc' } });
-    }
+    set({ tab: 'people', detail: null, people: { ...state.people, show, dept, level: 'all', q, page: 0 } });
   };
 
   const parts = story(r, { campaign: Boolean(campaign) });
   const when = campaign ? 'in this campaign' : 'in the last 30 days';
-  const seeFor = (f) => (canSeePeople ? (f.link?.dept ? 'See the team' : 'See where and who') : 'See by department');
   const opened = state.detail ? [...parts.wrong, ...parts.right, ...parts.next].find((f) => f.id === state.detail) : null;
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
@@ -228,29 +223,30 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
       {/* the arm: where everyone stands */}
       <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 28, padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
         <Standing r={r} campaign={Boolean(campaign)} isDark={isDark} ink={ink} />
-        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, width: 150 }}>
-          <button type="button" data-bp-export-report onClick={exportReport} title={canSeePeople ? 'Every table, people included, as one CSV file' : 'Every table as one CSV file'} style={{ height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-            <Download size={14} strokeWidth={2.6} aria-hidden /> Export report
-          </button>
-          <button type="button" data-bp-copy onClick={copy} style={{ height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 10, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-            {copied ? <Check size={14} strokeWidth={2.8} aria-hidden /> : <Copy size={14} strokeWidth={2.4} aria-hidden />}
-            {copied ? 'Copied' : 'Copy summary'}
-          </button>
-        </div>
       </div>
 
       {/* the base: the story in three parts, or a full list */}
       <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 28px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
-        <div role="tablist" aria-label="The big picture" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', padding: 3, borderRadius: 11, background: 'var(--track)' }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div role="tablist" aria-label="The big picture" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 3, borderRadius: 11, background: 'var(--track)' }}>
           {TABS.map((t) => {
             const on = tab === t.id;
             return (
               <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, detail: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
                 <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
-                {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{num(t.count)}</span>}
+                {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{count(t.count)}</span>}
               </button>
             );
           })}
+        </div>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" data-bp-copy onClick={copy} aria-label={copied ? 'Summary copied' : 'Copy a summary'} title={copied ? 'Copied' : 'Copy a summary to paste anywhere'} style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', borderRadius: 9, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
+            {copied ? <Check size={14} strokeWidth={2.8} aria-hidden /> : <Copy size={14} strokeWidth={2.4} aria-hidden />}
+          </button>
+          <button type="button" data-bp-export-report onClick={exportReport} title={canSeePeople ? 'Every table, people included, as one CSV file' : 'Every table as one CSV file'} style={{ height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+            <Download size={13} strokeWidth={2.6} aria-hidden /> Export report
+          </button>
+        </span>
         </div>
 
         {tab === 'overview' && opened && (
@@ -259,6 +255,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
             f={opened}
             r={r}
             canSeePeople={canSeePeople}
+            isDark={isDark}
             ink={ink}
             scopeName={scopeName}
             onBack={() => set({ detail: null })}
@@ -267,7 +264,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         )}
         {tab === 'overview' && !opened && (
           <div data-bp-story style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 28 }}>
-            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} seeFor={seeFor} onOpen={(f) => set({ detail: f.id })} first={i === 0} />)}
+            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} onOpen={(f) => set({ detail: f.id })} first={i === 0} />)}
           </div>
         )}
         {tab === 'people' && canSeePeople && (
@@ -276,8 +273,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         {tab === 'departments' && (
           <DepartmentTable
             r={r}
-            sort={state.deptSort}
-            onSort={(deptSort) => set({ deptSort })}
+            view={state.depts}
+            onView={(depts) => set({ depts })}
+            isDark={isDark}
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
             onPeople={canSeePeople ? (dept) => pinpoint({ dept }) : null}

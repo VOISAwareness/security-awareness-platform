@@ -1,54 +1,70 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronLeft, Download, Hourglass, ThumbsUp, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Building2, ChevronLeft, Download, Hourglass, Search, ThumbsUp, TriangleAlert, Users, X } from 'lucide-react';
 
-import LevelBadge from '../../GlobalComponents/LevelBadge';
-import { LEVEL_BY_ID, rankName } from '../../services/levels';
-import { breakdown } from '../../services/bigPictureFindings';
+import { breakdown, count, share } from '../../services/bigPictureFindings';
 import { breakdownCsv, peopleCsv } from '../../services/bigPictureExport';
 import { csvName, downloadCsv } from '../../services/csv';
+import { Pager, PersonRow } from './BigPictureTables';
+import { useFitRows } from './useFitRows';
 
-// A finding opened: where it sits, department by department, and (for
-// admins) exactly who is in it. Click a department to narrow the people to
-// it. Both lists export. The same view serves the organisation and a single
-// campaign, as the finding carries its own scope.
+// A finding opened. First by department: where it sits, each team as a bar
+// of its share (so a team of 40 and a team of 4,000 compare fairly). Then,
+// for admins, the people: a page at a time, searchable, narrowed to a
+// department with one click. Each view exports what it shows. The same view
+// serves the organisation and a single campaign.
 
 const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
 const pc = (v) => `${Math.round((v || 0) * 100)}%`;
-const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
-const SHOWN = 200; // people drawn here; the full list is in People
+const PEOPLE_COLS = '52px minmax(0,2.2fr) 70px 66px minmax(0,1.3fr)';
+const D_ROW_H = 40;
+const P_ROW_H = 44;
 
 const button = (primary) => ({
   height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 9, fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
   border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'transparent', color: primary ? 'var(--ink-on)' : 'var(--text)',
 });
 
-// What stands out about a person, for the list: the first that applies.
-const flagOf = (x) => (x.fellBelowZero ? 'Fell below zero' : x.belowZero ? 'Below zero' : x.nearZero ? '1 click from below zero' : x.nearSlip ? '1 click from a level down' : x.moved === 'down' ? 'Slipped a level' : x.gave ? 'Gave details away' : x.backAbove ? 'Back above zero' : x.moved === 'up' ? 'Climbed a level' : x.nearUp ? '1 report from a level up' : '');
-
-export function FindingDetail({ f, r, canSeePeople, ink, scopeName, onBack, onOpenPeople }) {
+export function FindingDetail({ f, r, canSeePeople, isDark, ink, scopeName, onBack, onOpenPeople }) {
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
-  const [dept, setDept] = useState(f.link?.dept || null);
-  const back = useRef(null);
-  useEffect(() => { back.current?.focus(); }, []);
+  const team = Boolean(f.link?.dept);
+  const [view, setView] = useState({ tab: 'departments', dept: team ? f.link.dept : null, q: '', page: 0, deptPage: 0 });
+  const backRef = useRef(null);
+  useEffect(() => { backRef.current?.focus(); }, []);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onBack(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onBack]);
 
-  const team = Boolean(f.link?.dept);
-  const people = dept && !team ? b.people.filter((x) => x.dept === dept) : b.people;
+  const q = view.q.trim().toLowerCase();
+  const people = useMemo(() => {
+    let list = view.dept && !team ? b.people.filter((x) => x.dept === view.dept) : b.people;
+    if (q) list = list.filter((x) => x.name.toLowerCase().includes(q) || x.email.toLowerCase().includes(q));
+    return list;
+  }, [b.people, view.dept, team, q]);
+
+  const [deptBox, deptSize] = useFitRows(D_ROW_H);
+  const [peopleBox, peopleSize] = useFitRows(P_ROW_H);
+  const deptPages = Math.max(1, Math.ceil(b.departments.length / deptSize));
+  const deptPage = Math.min(view.deptPage, deptPages - 1);
+  const depts = b.departments.slice(deptPage * deptSize, (deptPage + 1) * deptSize);
+  const pages = Math.max(1, Math.ceil(people.length / peopleSize));
+  const page = Math.min(view.page, pages - 1);
+  const shown = people.slice(page * peopleSize, (page + 1) * peopleSize);
+
   const Icon = TONE[f.tone];
   const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)';
-  const bar = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)';
-  const max = Math.max(1e-6, ...b.departments.map((d) => Math.abs(d.value)));
-  const valueText = (d) => (b.kind === 'rate' ? pc(d.value) : b.kind === 'points' ? `${signed(d.value)} pts` : num(d.value));
-  const file = (what) => csvName('big picture', scopeName, f.id, what);
+  const max = Math.max(1e-6, ...b.departments.map((d) => (b.kind === 'count' ? d.share : Math.abs(d.value))));
+  const file = (what) => csvName('big picture', scopeName, f.headline, what);
+  const tabs = [
+    { id: 'departments', label: 'By department', Icon: Building2, n: b.departments.length },
+    ...(canSeePeople ? [{ id: 'people', label: 'People', Icon: Users, n: b.people.length }] : []),
+  ];
 
   return (
     <motion.div
@@ -58,111 +74,116 @@ export function FindingDetail({ f, r, canSeePeople, ink, scopeName, onBack, onOp
       transition={{ duration: 0.22, ease: 'easeOut' }}
       style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 16 }}
     >
-      {/* the finding itself */}
+      {/* the finding */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <button ref={back} type="button" onClick={onBack} aria-label="Back to the story" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, height: 30, padding: '0 12px 0 8px', borderRadius: 999, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+        <button ref={backRef} type="button" onClick={onBack} aria-label="Back to the story" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, height: 30, padding: '0 12px 0 8px', borderRadius: 999, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
           <ChevronLeft size={14} strokeWidth={2.6} aria-hidden /> The story
         </button>
         <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: tone }}><Icon size={15} strokeWidth={2.5} /></span>
         <span style={{ minWidth: 0, flex: 1 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-            <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text)' }}>{f.value}{f.unit ? <span style={{ ...small, fontWeight: 800, marginLeft: 4 }}>{f.unit}</span> : null}</span>
+            <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace: 'nowrap' }}>{f.value}{f.unit && <span style={{ ...small, fontWeight: 800, marginLeft: 4 }}>{f.unit}</span>}</span>
             <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.headline}</span>
           </span>
           <span style={{ display: 'block', ...small, fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.detail}</span>
         </span>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: canSeePeople ? 'minmax(0,1fr) minmax(0,1.35fr)' : 'minmax(0,1fr)', gap: 28 }}>
-        {/* by department */}
-        <section aria-label="By department" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, paddingBottom: 10, borderBottom: '1px solid var(--hair)' }}>
-            <span>
-              <span style={eyebrow}>By department</span>
-              <span style={{ display: 'block', ...small, marginTop: 3 }}>
-                {b.kind === 'count' ? `${b.departments.length} department${b.departments.length === 1 ? '' : 's'} · share of each team` : b.kind === 'rate' ? 'Every team’s report rate' : 'Every team’s points gained or lost'}
-                {!team && canSeePeople ? ' · click one to see its people' : ''}
-              </span>
-            </span>
-            <button type="button" data-bp-export-breakdown onClick={() => downloadCsv(file('departments'), breakdownCsv(b))} style={button(false)}>
+      {/* the two views, and what they export */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div role="tablist" aria-label="The detail" style={{ display: 'flex', gap: 4, padding: 3, borderRadius: 11, background: 'var(--track)' }}>
+          {tabs.map((t) => {
+            const on = view.tab === t.id;
+            return (
+              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-detail-tab={t.id} onClick={() => setView({ ...view, tab: t.id })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
+                <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}<span style={{ fontSize: 9, color: 'var(--muted)' }}>{count(t.n)}</span>
+              </button>
+            );
+          })}
+        </div>
+        {view.tab === 'people' && (
+          <>
+            <label style={{ position: 'relative', width: 190 }}>
+              <span className="sr-only">Find a person</span>
+              <Search size={13} strokeWidth={2.4} aria-hidden style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+              <input type="search" value={view.q} onChange={(e) => setView({ ...view, q: e.target.value, page: 0 })} placeholder="Find a person" style={{ height: 30, width: '100%', boxSizing: 'border-box', borderRadius: 9, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 600, padding: '0 8px 0 28px', outline: 'none', colorScheme: isDark ? 'dark' : 'light' }} />
+            </label>
+            {view.dept && !team && (
+              <button type="button" data-bp-detail-chip onClick={() => setView({ ...view, dept: null, page: 0 })} aria-label={`Show every department, not only ${view.dept}`} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px', borderRadius: 999, border: 'none', background: 'var(--bp-soft)', color: 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>
+                {view.dept} <X size={12} strokeWidth={2.8} aria-hidden />
+              </button>
+            )}
+          </>
+        )}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {view.tab === 'people' ? (
+            <>
+              <button type="button" onClick={() => onOpenPeople({ dept: view.dept || f.link?.dept })} className="bp-link" style={{ ...button(false), border: 'none', padding: '0 4px' }}>
+                Open in People <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
+              </button>
+              <button type="button" data-bp-export-finding onClick={() => downloadCsv(file(view.dept && !team ? view.dept : 'people'), peopleCsv(people))} style={button(true)}>
+                <Download size={13} strokeWidth={2.6} aria-hidden />Export {count(people.length)}
+              </button>
+            </>
+          ) : (
+            <button type="button" data-bp-export-breakdown onClick={() => downloadCsv(file('departments'), breakdownCsv(b))} style={button(true)}>
               <Download size={13} strokeWidth={2.6} aria-hidden />Export
             </button>
+          )}
+        </span>
+      </div>
+
+      {/* by department: share of each team, highest first */}
+      {view.tab === 'departments' && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,2fr) 150px', gap: 16, padding: '0 12px 8px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span>Department</span>
+            <span>{b.kind === 'count' ? 'Share of the team' : b.kind === 'rate' ? 'Report rate' : 'Points per person'}</span>
+            <span style={{ textAlign: 'right' }}>{b.kind === 'count' ? 'People' : 'Team size'}</span>
           </div>
-          <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: 6 }}>
-            {b.departments.map((d) => {
-              const on = team ? d.mark : dept === d.name;
+          <div ref={deptBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            {depts.map((d, i) => {
               const Tag = !team && canSeePeople ? 'button' : 'div';
+              const v = b.kind === 'count' ? d.share : Math.abs(d.value);
+              const fill = b.kind === 'points' ? (d.value >= 0 ? ink.good : ink.bad) : tone;
               return (
                 <Tag
                   key={d.name}
-                  {...(Tag === 'button' ? { type: 'button', onClick: () => setDept(on ? null : d.name), 'aria-pressed': on, className: 'bp-row' } : null)}
+                  {...(Tag === 'button' ? { type: 'button', className: 'bp-row', onClick: () => setView({ ...view, tab: 'people', dept: d.name, page: 0 }), title: `See the people in ${d.name}` } : null)}
                   data-bp-detail-dept={d.name}
-                  style={{ width: '100%', display: 'block', textAlign: 'left', padding: '9px 10px', border: 'none', borderBottom: '1px solid var(--hair)', borderRadius: 0, background: on ? 'var(--bp-soft)' : 'none', color: 'var(--text)', cursor: Tag === 'button' ? 'pointer' : 'default' }}
+                  style={{ width: '100%', height: D_ROW_H, display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,2fr) 150px', alignItems: 'center', gap: 16, padding: '0 12px', border: 'none', borderTop: i ? '1px solid var(--hair)' : 'none', background: d.mark ? 'var(--bp-soft)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: Tag === 'button' ? 'pointer' : 'default' }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: on ? 900 : 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                    <span style={{ flexShrink: 0, ...small, fontSize: 10 }}>
-                      <strong style={{ color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{valueText(d)}</strong>
-                      {b.kind === 'count' ? ` of ${num(d.size)} · ${pc(d.share)}` : ` · ${num(d.size)} people`}
+                  <span style={{ fontSize: 11, fontWeight: d.mark ? 900 : 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+                  <span style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 48px', alignItems: 'center', gap: 10 }}>
+                    <span aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
+                      <span style={{ display: 'block', height: '100%', width: `${Math.max(2, (v / max) * 100)}%`, borderRadius: '0 4px 4px 0', background: fill, opacity: team && !d.mark ? 0.4 : 1 }} />
                     </span>
+                    <strong style={{ fontSize: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.kind === 'count' ? share(d.value, d.size) : b.kind === 'rate' ? pc(d.value) : signed(d.value)}</strong>
                   </span>
-                  <span aria-hidden style={{ display: 'block', height: 6, marginTop: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-                    <span style={{ display: 'block', height: '100%', width: `${Math.max(2, (Math.abs(d.value) / max) * 100)}%`, borderRadius: '0 4px 4px 0', background: b.kind === 'points' ? (d.value >= 0 ? ink.good : ink.bad) : bar, opacity: team && !d.mark ? 0.35 : 1 }} />
+                  <span style={{ ...small, fontSize: 10, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {b.kind === 'count' ? <><strong style={{ color: 'var(--text)' }}>{count(d.value)}</strong> of {count(d.size)}</> : `${count(d.size)} people`}
                   </span>
                 </Tag>
               );
             })}
           </div>
-        </section>
+          <Pager page={deptPage} pages={deptPages} total={b.departments.length} size={deptSize} onPage={(p) => setView({ ...view, deptPage: p })} what="departments" />
+        </div>
+      )}
 
-        {/* the people (admins) */}
-        {canSeePeople && (
-          <section aria-label="People" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, paddingBottom: 10, borderBottom: '1px solid var(--hair)' }}>
-              <span>
-                <span style={eyebrow}>People</span>
-                <span style={{ display: 'block', ...small, marginTop: 3 }}>
-                  {num(people.length)} {dept && !team ? `in ${dept}` : team ? `in ${f.link.dept}` : 'in total'} · lowest points first
-                  {dept && !team && <> · <button type="button" onClick={() => setDept(null)} style={{ padding: 0, border: 'none', background: 'none', ...small, fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }}>all departments</button></>}
-                </span>
-              </span>
-              <span style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => onOpenPeople({ dept: dept || f.link?.dept })} className="bp-link" style={{ ...button(false), border: 'none', padding: '0 4px' }}>
-                  Open in People <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
-                </button>
-                <button type="button" data-bp-export-finding onClick={() => downloadCsv(file(dept && !team ? dept : 'people'), peopleCsv(people))} style={button(true)}>
-                  <Download size={13} strokeWidth={2.6} aria-hidden />Export {num(people.length)}
-                </button>
-              </span>
-            </div>
-            <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: 6 }}>
-              {people.slice(0, SHOWN).map((x) => {
-                const level = LEVEL_BY_ID[x.levelId];
-                return (
-                  <div key={x.key} data-bp-detail-person={x.key} style={{ display: 'grid', gridTemplateColumns: '44px 22px minmax(0,1.4fr) minmax(0,1fr) 64px 56px', alignItems: 'center', gap: 10, padding: '7px 6px', borderBottom: '1px solid var(--hair)' }}>
-                    <span style={{ ...small, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>#{num(x.rank)}</span>
-                    {level ? <LevelBadge level={level} size={22} tilt={false} decorative /> : <span />}
-                    <span style={{ minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name || x.key}</span>
-                      <span style={{ display: 'block', ...small, fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.dept} · {rankName(level)}</span>
-                    </span>
-                    <span style={{ ...small, fontSize: 9.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{flagOf(x)}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 800, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(x.points)} <span style={{ ...small, fontSize: 8.5 }}>pts</span></span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, fontSize: 10, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                      {x.change ? <>{x.change > 0 ? <ArrowUpRight size={11} strokeWidth={3} color={ink.good} aria-hidden /> : <ArrowDownRight size={11} strokeWidth={3} color={ink.bad} aria-hidden />}{signed(x.change)}</> : <span style={small}>—</span>}
-                    </span>
-                  </div>
-                );
-              })}
-              {people.length > SHOWN && (
-                <p style={{ ...small, fontSize: 10, margin: '10px 6px' }}>
-                  Showing the lowest {SHOWN} of {num(people.length)}. <button type="button" onClick={() => onOpenPeople({ dept: dept || f.link?.dept })} style={{ padding: 0, border: 'none', background: 'none', ...small, fontSize: 10, fontWeight: 800, textDecoration: 'underline', cursor: 'pointer' }}>Open in People</button> for all of them.
-                </p>
-              )}
-            </div>
-          </section>
-        )}
-      </div>
+      {/* the people: a page at a time */}
+      {view.tab === 'people' && canSeePeople && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: PEOPLE_COLS, gap: 12, padding: '0 12px 8px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span>Rank</span><span>Person</span><span style={{ textAlign: 'right' }}>Points</span><span style={{ textAlign: 'right' }}>Change</span><span>Stands out</span>
+          </div>
+          <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
+            {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={P_ROW_H} first={i === 0} />)}
+          </div>
+          <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />
+        </div>
+      )}
     </motion.div>
   );
 }

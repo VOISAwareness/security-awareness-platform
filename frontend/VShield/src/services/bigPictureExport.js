@@ -39,9 +39,11 @@ export const DEPARTMENT_COLUMNS = Object.freeze([
   { label: 'Took part', value: (d) => d.tookPart },
   { label: 'Average points', value: (d) => d.avgPoints },
   { label: 'Points gained or lost', value: (d) => d.net },
+  { label: 'Points per person', value: (d) => d.perPerson },
   { label: 'Climbed a level', value: (d) => d.climbed },
   { label: 'Slipped a level', value: (d) => d.slipped },
   { label: 'Below zero', value: (d) => d.belowZero },
+  { label: 'Below zero %', value: (d) => rate(d.belowZeroShare) },
   { label: 'Fell below zero', value: (d) => d.fellBelowZero },
   { label: 'One click from below zero', value: (d) => d.nearZero },
   { label: 'One click from a level down', value: (d) => d.nearSlip },
@@ -77,7 +79,7 @@ export function reportCsv(r, { title, withPeople = false, campaign = false }) {
     { title: 'Summary', columns: pair, rows: summary },
     {
       title: 'What stands out',
-      columns: [{ label: 'Number', value: (f) => `${f.value}${f.unit ? ` ${f.unit}` : ''}` }, { label: 'Finding', value: (f) => f.headline }, { label: 'Detail', value: (f) => f.detail }],
+      columns: [{ label: 'Number', value: (f) => `${f.value}${f.unit ? ` ${f.unit}` : ''}` }, { label: 'Finding', value: (f) => f.headline }, { label: 'In short', value: (f) => f.sub }, { label: 'Detail', value: (f) => f.detail }],
       rows: findings(r, { campaign }),
     },
     {
@@ -110,7 +112,7 @@ export function reportCsv(r, { title, withPeople = false, campaign = false }) {
 
 /** A finding's department breakdown (breakdown() in bigPictureFindings.js). */
 export function breakdownCsv(b) {
-  const label = b.kind === 'count' ? 'People in this finding' : b.kind === 'rate' ? 'Report rate %' : 'Points gained or lost';
+  const label = b.kind === 'count' ? 'People in this finding' : b.kind === 'rate' ? 'Report rate %' : 'Points per person';
   return toCsv([
     { label: 'Department', value: (d) => d.name },
     { label, value: (d) => (b.kind === 'rate' ? rate(d.value) : d.value) },
