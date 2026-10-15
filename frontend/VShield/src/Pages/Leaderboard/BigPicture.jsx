@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Award, Building2, Check, Coins, Copy, Mail, MessageSquareQuote, RotateCcw, TrendingUp, TriangleAlert, X } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Award, Building2, Check, Coins, Copy, Download, LayoutGrid, Mail, MessageSquareQuote, RotateCcw, TrendingUp, TriangleAlert, Users, X } from 'lucide-react';
 
+import { reportCsv } from '../../services/bigPictureExport';
+import { csvName, downloadCsv } from '../../services/csv';
+import { DepartmentTable, PeopleTable } from './BigPictureTables';
 import { REPORT_INK } from './reportInk';
 
 // The Big Picture: the leaderboard's reporting view for leaders and admins.
@@ -15,6 +18,11 @@ import { REPORT_INK } from './reportInk';
 // Along the top, what moved. Four cards, each a question with its answer and
 // the number behind it; click one and it turns over to the full breakdown,
 // with why it matters. Along the bottom, who is one step from a change.
+//
+// Every number leads to the people and departments behind it: People lists
+// everyone one by one, bottom of the board first (admins only, as with
+// below-zero levels elsewhere), Departments does the same by department.
+// Both select and export to CSV; Export report saves every table at once.
 //
 // Colours: teal for climbing, reporting and gaining points; red for slipping,
 // clicking and losing them. Checked for colour-blind separation on both
@@ -91,9 +99,20 @@ function Diverge({ value, max, ink, left = false }) {
   );
 }
 
+// A team's name in a breakdown: a link to its people (or its row) when it can be one.
+function TeamName({ name, onTeam, inline = false }) {
+  const text = { minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 10, fontWeight: 700 };
+  if (!onTeam) return <span style={{ ...text, display: inline ? 'inline' : 'block', marginBottom: inline ? 0 : 3 }}>{name}</span>;
+  return (
+    <button type="button" className="bp-link" onClick={() => onTeam(name)} title={`See ${name}`} style={{ ...text, display: 'block', maxWidth: '100%', marginBottom: inline ? 0 : 3, padding: 0, border: 'none', background: 'none', color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+      {name}
+    </button>
+  );
+}
+
 // --- the four questions -------------------------------------------------------
 
-function cardsFor(r, campaign, ink, rgb) {
+function cardsFor(r, campaign, ink, rgb, onTeam) {
   const org = !campaign;
   // 1. levels: who moved
   const mover = [...r.groups].sort((a, b) => b.climbed - a.climbed || a.label.localeCompare(b.label))[0];
@@ -198,7 +217,7 @@ function cardsFor(r, campaign, ink, rgb) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {r.teams.map((t) => (
             <div key={t.name}>
-              <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
+              <TeamName name={t.name} onTeam={onTeam} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2px 1fr', alignItems: 'center' }}>
                 <Diverge value={Math.min(0, t.net)} max={maxNet} ink={ink} left />
                 <span style={{ height: 12, background: 'var(--hair)' }} />
@@ -230,7 +249,7 @@ function cardsFor(r, campaign, ink, rgb) {
             {r.messages.teams.map((t) => (
               <div key={t.name}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 10, fontWeight: 700, marginBottom: 3 }}>
-                  <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</span>
+                  <TeamName name={t.name} onTeam={onTeam} inline />
                   <span style={{ flexShrink: 0, ...small }}>{org && <>{t.best} · </>}<strong style={{ color: 'var(--text)' }}>{pc(t.rate)}</strong></span>
                 </div>
                 <Meter compact value={t.rate} avg={org ? null : r.messages.overall} color={ink.bad} label={t.name} max={maxRate * 1.1} />
@@ -336,16 +355,38 @@ function summaryText(r, title) {
  * it covers; what moved along the arm; the four cards below, and who is one
  * step from a change.
  */
-export function BigPictureSheet({ r, campaign, isDark, shell }) {
+export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
   const rgb = isDark ? '232,99,95' : '229,72,77';
   const reduce = useReducedMotion();
   const { CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK } = shell;
   const scopeKey = campaign ? campaign.id : 'org';
-  const [state, setState] = useState({ scope: scopeKey, open: null });
-  const open = state.scope === scopeKey ? state.open : null; // a new scope starts with every card closed
+  const fresh = () => ({
+    scope: scopeKey,
+    open: null,
+    tab: 'overview',
+    people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' } },
+    picked: new Set(),
+    deptSort: { key: 'net', dir: 'asc' },
+    deptPicked: new Set(),
+  });
+  const [kept, setState] = useState(fresh);
+  const state = kept.scope === scopeKey ? kept : fresh(); // a new scope starts afresh
+  const { open, tab } = state;
+  const set = (patch) => setState({ ...state, ...patch });
   const [copied, setCopied] = useState(false);
-  const turn = (id) => setState({ scope: scopeKey, open: open === id ? null : id });
+  const turn = (id) => set({ open: open === id ? null : id });
+
+  // From any number to the people (or departments) behind it.
+  const DEPT_SORT = { climbed: 'climbed', slipped: 'slipped', fellBelowZero: 'fellBelowZero', belowZero: 'belowZero', nearZero: 'nearZero', nearSlip: 'nearSlip', nearUp: 'nearUp' };
+  const pinpoint = ({ show = 'all', dept = 'all' }) => {
+    if (canSeePeople) {
+      set({ open: null, tab: 'people', people: { ...state.people, show, dept, level: 'all', q: '' } });
+    } else {
+      set({ open: null, tab: 'departments', deptSort: { key: DEPT_SORT[show] || 'net', dir: DEPT_SORT[show] ? 'desc' : 'asc' } });
+    }
+  };
+  const onTeam = (dept) => pinpoint({ dept });
 
   useEffect(() => {
     if (!open) return undefined;
@@ -360,6 +401,8 @@ export function BigPictureSheet({ r, campaign, isDark, shell }) {
   }, [copied]);
 
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
+  const scopeName = campaign ? campaign.name : 'organisation';
+  const exportReport = () => downloadCsv(csvName('big picture', scopeName, 'report'), reportCsv(r, { title, withPeople: canSeePeople }));
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(summaryText(r, title));
@@ -374,20 +417,26 @@ export function BigPictureSheet({ r, campaign, isDark, shell }) {
   const m = r.moved;
   const ratio = m.slipped ? m.climbed / m.slipped : null;
   const moves = [
-    { Icon: ArrowUpRight, tone: ink.good, value: m.climbed, label: 'climbed a level' },
-    { Icon: ArrowDownRight, tone: ink.bad, value: m.slipped, label: 'slipped a level' },
-    { Icon: TriangleAlert, tone: ink.bad, value: m.belowZero, label: 'fell below zero' },
-    { Icon: RotateCcw, tone: ink.good, value: m.backAbove, label: 'came back above zero' },
+    { Icon: ArrowUpRight, tone: ink.good, value: m.climbed, label: 'climbed a level', show: 'climbed' },
+    { Icon: ArrowDownRight, tone: ink.bad, value: m.slipped, label: 'slipped a level', show: 'slipped' },
+    { Icon: TriangleAlert, tone: ink.bad, value: m.belowZero, label: 'fell below zero', show: 'fellBelowZero' },
+    { Icon: RotateCcw, tone: ink.good, value: m.backAbove, label: 'came back above zero', show: 'backAbove' },
   ];
   const next = [
-    { Icon: Award, value: num(r.edge.nearUp), label: 'one report from a level up', note: 'A report is worth enough to lift them' },
-    { Icon: ArrowDownRight, value: num(r.edge.nearSlip), label: 'one click from a level down', note: 'Just above their level’s floor' },
-    { Icon: TriangleAlert, value: num(r.edge.nearZero), label: 'one click from below zero', note: 'Fewer points than a click costs' },
+    { Icon: Award, value: num(r.edge.nearUp), label: 'one report from a level up', note: 'A report is worth enough to lift them', show: 'nearUp' },
+    { Icon: ArrowDownRight, value: num(r.edge.nearSlip), label: 'one click from a level down', note: 'Just above their level’s floor', show: 'nearSlip' },
+    { Icon: TriangleAlert, value: num(r.edge.nearZero), label: 'one click from below zero', note: 'Fewer points than a click costs', show: 'nearZero' },
     r.outlook
       ? { Icon: TrendingUp, value: num(r.outlook.strongNext), label: 'at Phish Catcher or above', note: `In 30 days at this pace · ${num(r.outlook.strongNow)} today` }
       : { Icon: Coins, value: `+${num(r.points.earned)}`, label: 'points earned', note: `−${num(r.points.lost)} lost in this campaign` },
   ];
-  const cards = cardsFor(r, campaign, ink, rgb);
+  const cards = cardsFor(r, campaign, ink, rgb, onTeam);
+  const see = canSeePeople ? 'See the people' : 'See the departments';
+  const TABS = [
+    { id: 'overview', label: 'Overview', Icon: LayoutGrid },
+    ...(canSeePeople ? [{ id: 'people', label: 'People', Icon: Users, count: r.people.length }] : []),
+    { id: 'departments', label: 'Departments', Icon: Building2, count: r.departments.length },
+  ];
 
   return (
     <div data-lb-reports={campaign ? 'campaign' : 'org'} style={{ ...tokens, flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -411,34 +460,70 @@ export function BigPictureSheet({ r, campaign, isDark, shell }) {
           <div style={eyebrow}>{campaign ? 'What this campaign did to the board' : 'What moved on the board'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12, marginTop: 10 }}>
             {moves.map((x) => (
-              <div key={x.label} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <button key={x.label} type="button" className="bp-pin" data-bp-pin={x.show} onClick={() => pinpoint({ show: x.show })} title={`${see} who ${x.label}`} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, padding: '4px 6px', margin: '-4px -6px', border: 'none', borderRadius: 10, background: 'none', color: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                 <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: x.tone }}><x.Icon size={16} strokeWidth={2.6} /></span>
                 <span style={{ minWidth: 0 }}>
                   <span className="vs-rank" style={{ display: 'block', fontSize: 24, fontWeight: 900, lineHeight: 1, color: 'var(--text)' }}>{num(x.value)}</span>
                   <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
                 </span>
-              </div>
+              </button>
             ))}
           </div>
           <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text)', marginTop: 12 }}>
             {ratio === null ? 'Nobody slipped a level.' : ratio >= 1 ? `For every person who slipped a level, ${ratio.toFixed(1)} climbed one.` : `More slipped than climbed: ${(1 / ratio).toFixed(1)} slipped for every one who climbed.`}
           </div>
         </div>
-        <button type="button" data-bp-copy onClick={copy} style={{ flexShrink: 0, alignSelf: 'flex-start', marginTop: 26, height: 34, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', borderRadius: 10, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-          {copied ? <Check size={14} strokeWidth={2.8} aria-hidden /> : <Copy size={14} strokeWidth={2.4} aria-hidden />}
-          {copied ? 'Copied' : 'Copy summary'}
-        </button>
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, width: 150 }}>
+          <button type="button" data-bp-export-report onClick={exportReport} title={canSeePeople ? 'Every table, people included, as one CSV file' : 'Every table as one CSV file'} style={{ height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+            <Download size={14} strokeWidth={2.6} aria-hidden /> Export report
+          </button>
+          <button type="button" data-bp-copy onClick={copy} style={{ height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 10, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+            {copied ? <Check size={14} strokeWidth={2.8} aria-hidden /> : <Copy size={14} strokeWidth={2.4} aria-hidden />}
+            {copied ? 'Copied' : 'Copy summary'}
+          </button>
+        </div>
       </div>
 
       {/* the base: four questions, then who is one step from a change */}
-      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 16, padding: '18px 24px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
+      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 24px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
+        <div role="tablist" aria-label="The big picture" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', padding: 3, borderRadius: 11, background: 'var(--track)' }}>
+          {TABS.map((t) => {
+            const on = tab === t.id;
+            return (
+              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, open: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
+                <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
+                {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{num(t.count)}</span>}
+              </button>
+            );
+          })}
+        </div>
+        {tab === 'people' && canSeePeople && (
+          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} scopeName={scopeName} isDark={isDark} ink={ink} />
+        )}
+        {tab === 'departments' && (
+          <DepartmentTable
+            r={r}
+            sort={state.deptSort}
+            onSort={(deptSort) => set({ deptSort })}
+            selected={state.deptPicked}
+            onSelected={(deptPicked) => set({ deptPicked })}
+            onPeople={canSeePeople ? (dept) => pinpoint({ dept }) : null}
+            scopeName={scopeName}
+            ink={ink}
+          />
+        )}
+        {tab === 'overview' && (
+        <>
         <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14 }}>
           {cards.map((c) => <Card key={`${scopeKey}-${c.id}`} c={c} reduce={reduce} open={open === c.id} onTurn={() => turn(c.id)} />)}
         </div>
         <div data-bp-next style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'auto repeat(4, minmax(0,1fr))', alignItems: 'center', padding: '12px 4px 0', borderTop: '1px solid var(--hair)' }}>
           <div style={{ ...eyebrow, paddingRight: 22, lineHeight: 1.5 }}>What can<br />happen next</div>
-          {next.map((o, i) => (
-            <div key={o.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', borderLeft: i ? '1px solid var(--hair)' : 'none', minWidth: 0 }}>
+          {next.map((o, i) => {
+            const Tag = o.show ? 'button' : 'div';
+            const pin = o.show ? { type: 'button', className: 'bp-pin', 'data-bp-pin': o.show, onClick: () => pinpoint({ show: o.show }), title: `${see} ${o.label}` } : null;
+            return (
+            <Tag key={o.label} {...pin} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 16px', border: 'none', borderLeft: i ? '1px solid var(--hair)' : 'none', borderRadius: 0, background: 'none', color: 'inherit', textAlign: 'left', cursor: o.show ? 'pointer' : 'default', minWidth: 0 }}>
               <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: 'var(--text)' }}><o.Icon size={15} strokeWidth={2.3} /></span>
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0 }}>
@@ -447,9 +532,12 @@ export function BigPictureSheet({ r, campaign, isDark, shell }) {
                 </span>
                 <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.note}</span>
               </span>
-            </div>
-          ))}
+            </Tag>
+            );
+          })}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -9,7 +9,9 @@ const UserTypeContext = createContext();
 // My Campaigns view (ongoing campaigns and how each is going), for every role
 // except Regular User, who sees the Global Leaderboard only. 'leaderboard-reports'
 // is its The Big Picture view (what the board shows), for the same roles; they
-// don't see How to earn points.
+// don't see How to earn points. 'leaderboard-people' is The Big Picture's People
+// list (everyone by name, below-zero levels included, with CSV export): Admin
+// only, as below-zero badges and risk are everywhere else.
 export const ROLE_PERMISSIONS = {
   'Admin': [
     'home',
@@ -27,6 +29,7 @@ export const ROLE_PERMISSIONS = {
     'leaderboard',
     'leaderboard-campaigns',
     'leaderboard-reports',
+    'leaderboard-people',
     'my-space',
     'my-training'
   ],

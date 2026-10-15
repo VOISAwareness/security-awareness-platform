@@ -12,7 +12,11 @@
  *               (for one campaign: how each team took its message);
  *   edge      - who is one step from a change: one report from a new level,
  *               one click from dropping a level or going below zero;
- *   outlook   - where the board is heading if the pace holds.
+ *   outlook   - where the board is heading if the pace holds;
+ *   people    - everyone, one by one, bottom of the board first: points,
+ *               change, level then and now, what they did, and which of the
+ *               above they are part of (PEOPLE_FILTERS picks them out);
+ *   departments - the same, department by department.
  *
  * For the organisation it reads the campaigns of the last `days` days over
  * everyone on the board; for one campaign, its recipients. Sample behaviour
@@ -73,7 +77,7 @@ function toNextLevel(points) {
 
 /**
  * The picture. `items` are { campaign, report } pairs (campaignReport output);
- * `people` are { key, dept, points } with today's points; `focus` a campaign
+ * `people` are { key, name, email, dept, points } with today's points; `focus` a campaign
  * id for one campaign (its recipients are `people` then); `rules` the live
  * points per event; `now` the end of the window (by default the newest
  * campaign's start).
@@ -90,7 +94,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
   // points. Their starting level comes from the change, so it's worked out
   // twice: first from today's level, then from the level that gives.
   const play = (levelAt) => {
-    const seen = people.map(() => ({ delta: 0, took: 0, events: [] }));
+    const seen = people.map(() => ({ delta: 0, took: 0, reported: 0, clicked: 0, gave: 0, events: [] }));
     let earned = 0;
     let lost = 0;
     window.forEach(({ campaign: c, report }) => {
@@ -103,8 +107,15 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
         const rep = clamp(report.rates.report * REPORT_BY_GROUP[g] * (2 - lean(p.dept, 0.9)), 0, 0.95 - click);
         const u = hash01(`${p.key}|${c.id}|e`);
         let d = 0;
-        if (u < rep) d = pts.Reported;
-        else if (u < rep + click) d = pts.Clicked + (hash01(`${p.key}|${c.id}|x`) < gave ? pts.Compromised : 0);
+        if (u < rep) {
+          d = pts.Reported;
+          seen[i].reported += 1;
+        } else if (u < rep + click) {
+          const gaveAway = hash01(`${p.key}|${c.id}|x`) < gave;
+          d = pts.Clicked + (gaveAway ? pts.Compromised : 0);
+          seen[i].clicked += 1;
+          if (gaveAway) seen[i].gave += 1;
+        }
         if (d > 0) earned += d; else lost -= d;
         seen[i].delta += d;
         seen[i].took += 1;
@@ -182,20 +193,73 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     };
   }
 
-  // One step from a change, from today's points.
+  // Everyone, one by one: where they stand, what changed, what they did, and
+  // how close they are to a change (from today's points).
   const click = Math.abs(pts.Clicked);
-  const edge = { nearUp: 0, nearSlip: 0, nearZero: 0 };
-  let strongNow = 0;
-  people.forEach((p) => {
-    const level = levelOf(p.points);
-    if (level >= 4) strongNow += 1;
-    if (level >= 1) {
-      const gap = toNextLevel(p.points);
-      if (gap !== null && gap <= pts.Reported) edge.nearUp += 1;
-    }
-    if (level >= 2 && p.points - levelFloor(level) < click) edge.nearSlip += 1;
-    if (p.points >= 0 && p.points < click) edge.nearZero += 1;
+  const order = people.map((p, i) => i).sort((a, b) => people[b].points - people[a].points || String(people[a].name || people[a].key).localeCompare(String(people[b].name || people[b].key)));
+  const rankOf = new Map(order.map((i, k) => [i, k + 1]));
+  const persons = people.map((p, i) => {
+    const s = seen[i];
+    const before = p.points - s.delta;
+    const lb = levelOf(before);
+    const ln = levelOf(p.points);
+    const gap = ln >= 1 ? toNextLevel(p.points) : null;
+    return {
+      key: p.key,
+      name: p.name || '',
+      email: p.email || '',
+      dept: p.dept || 'Unassigned',
+      rank: rankOf.get(i),
+      points: p.points,
+      change: s.delta,
+      levelId: levelFor(p.points)?.id ?? null,
+      startLevelId: levelFor(before)?.id ?? null,
+      group: groupOf(lb), // the level group they started at
+      groupNow: groupOf(ln),
+      campaigns: s.took,
+      reported: s.reported,
+      clicked: s.clicked,
+      gave: s.gave,
+      moved: !s.took ? null : ln > lb ? 'up' : ln < lb ? 'down' : null,
+      belowZero: p.points < 0,
+      fellBelowZero: s.took > 0 && before >= 0 && p.points < 0,
+      backAbove: s.took > 0 && before < 0 && p.points >= 0,
+      nearUp: gap !== null && gap <= pts.Reported,
+      nearSlip: ln >= 2 && p.points - levelFloor(ln) < click,
+      nearZero: p.points >= 0 && p.points < click,
+    };
+  }).sort((a, b) => a.rank - b.rank).reverse(); // bottom of the board first
+
+  const edge = {
+    nearUp: persons.filter((x) => x.nearUp).length,
+    nearSlip: persons.filter((x) => x.nearSlip).length,
+    nearZero: persons.filter((x) => x.nearZero).length,
+  };
+  const strongNow = persons.filter((x) => levelOf(x.points) >= 4).length;
+
+  // Department by department, the least ground gained first.
+  const COUNTS = ['climbed', 'slipped', 'belowZero', 'fellBelowZero', 'nearUp', 'nearSlip', 'nearZero'];
+  const byDept = {};
+  persons.forEach((x) => {
+    const d = byDept[x.dept] || (byDept[x.dept] = { name: x.dept, people: 0, tookPart: 0, points: 0, net: 0, reported: 0, clicked: 0, gave: 0, emails: 0, ...Object.fromEntries(COUNTS.map((k) => [k, 0])) });
+    d.people += 1;
+    d.points += x.points;
+    d.net += x.change;
+    if (x.campaigns) d.tookPart += 1;
+    d.emails += x.campaigns;
+    d.reported += x.reported;
+    d.clicked += x.clicked;
+    d.gave += x.gave;
+    if (x.moved === 'up') d.climbed += 1;
+    if (x.moved === 'down') d.slipped += 1;
+    COUNTS.slice(2).forEach((k) => { if (x[k]) d[k] += 1; });
   });
+  const departments = Object.values(byDept).map(({ points, ...d }) => ({
+    ...d,
+    avgPoints: Math.round(points / d.people),
+    reportRate: pct(d.reported, d.emails),
+    clickRate: pct(d.clicked, d.emails),
+  })).sort((a, b) => a.net - b.net || a.name.localeCompare(b.name));
 
   const took = seen.filter((s) => s.took).length;
   return {
@@ -209,5 +273,23 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     // if the window's pace holds for another window: people at Phish Catcher or above
     outlook: followed ? null : { strongNow, strongNext: Math.max(0, strongNow + strongAfter - strongBefore) },
     points: { earned, lost },
+    people: persons,
+    departments,
   };
 }
+
+/** The ways to pick people out of the picture, as the list's "Show" menu offers them. */
+export const PEOPLE_FILTERS = Object.freeze([
+  { id: 'all', label: 'Everyone, bottom of the board first', test: () => true },
+  { id: 'belowZero', label: 'Below zero now', test: (x) => x.belowZero },
+  { id: 'fellBelowZero', label: 'Fell below zero', test: (x) => x.fellBelowZero },
+  { id: 'slipped', label: 'Slipped a level', test: (x) => x.moved === 'down' },
+  { id: 'nearZero', label: 'One click from below zero', test: (x) => x.nearZero },
+  { id: 'nearSlip', label: 'One click from a level down', test: (x) => x.nearSlip },
+  { id: 'gave', label: 'Gave details away', test: (x) => x.gave > 0 },
+  { id: 'clicked', label: 'Clicked at least once', test: (x) => x.clicked > 0 },
+  { id: 'neverReported', label: 'Took part, never reported', test: (x) => x.campaigns > 0 && x.reported === 0 },
+  { id: 'nearUp', label: 'One report from a level up', test: (x) => x.nearUp },
+  { id: 'climbed', label: 'Climbed a level', test: (x) => x.moved === 'up' },
+  { id: 'backAbove', label: 'Came back above zero', test: (x) => x.backAbove },
+]);

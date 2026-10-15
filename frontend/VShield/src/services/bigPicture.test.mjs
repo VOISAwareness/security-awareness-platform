@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GROUPS, MOTIVATORS, bigPicture, dateOf, styleOf } from './bigPicture.js';
+import { GROUPS, MOTIVATORS, PEOPLE_FILTERS, bigPicture, dateOf, styleOf } from './bigPicture.js';
 import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['AIDA', 'CARE', 'Finance', 'Network', 'Supply', 'Cyber', 'Cloud', 'IT Ops', 'Procurement', 'HR'];
@@ -67,4 +67,32 @@ test('one step from a change, from today’s points', () => {
 test('points follow the live rules', () => {
   const r = bigPicture(ITEMS, PEOPLE, { rules: { Reported: 100 } });
   assert.equal(r.points.earned % 100, 0);
+});
+
+test('everyone one by one, bottom of the board first, adding up to the totals', () => {
+  const r = bigPicture(ITEMS, PEOPLE);
+  assert.equal(r.people.length, 300);
+  assert.ok(r.people.every((x, i, all) => i === 0 || all[i - 1].points <= x.points), 'lowest points first');
+  assert.equal(r.people[0].rank, 300);
+  assert.equal(r.people.at(-1).rank, 1);
+  const count = (id) => r.people.filter(PEOPLE_FILTERS.find((f) => f.id === id).test).length;
+  assert.equal(count('climbed'), r.moved.climbed);
+  assert.equal(count('slipped'), r.moved.slipped);
+  assert.equal(count('fellBelowZero'), r.moved.belowZero);
+  assert.equal(count('backAbove'), r.moved.backAbove);
+  assert.equal(count('nearUp'), r.edge.nearUp);
+  assert.equal(count('nearSlip'), r.edge.nearSlip);
+  assert.equal(count('nearZero'), r.edge.nearZero);
+  assert.equal(r.people.reduce((a, x) => a + x.change, 0), r.points.earned - r.points.lost);
+  assert.ok(r.people.every((x) => x.reported + x.clicked <= x.campaigns && x.gave <= x.clicked));
+});
+
+test('departments one by one, least ground gained first', () => {
+  const r = bigPicture(ITEMS, PEOPLE);
+  assert.equal(r.departments.length, DEPTS.length);
+  assert.equal(r.departments.reduce((a, d) => a + d.people, 0), 300);
+  assert.ok(r.departments.every((d, i, all) => i === 0 || all[i - 1].net <= d.net));
+  assert.equal(r.departments.reduce((a, d) => a + d.slipped, 0), r.moved.slipped);
+  const finance = r.departments.find((d) => d.name === 'Finance');
+  assert.equal(finance.nearZero, r.people.filter((x) => x.dept === 'Finance' && x.nearZero).length);
 });

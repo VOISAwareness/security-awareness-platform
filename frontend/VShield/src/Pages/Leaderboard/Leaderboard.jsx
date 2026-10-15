@@ -82,6 +82,10 @@ const FONT_IMPORT = `
   .bp-card:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .bp-card .bp-turn svg { transition: transform .2s ease; }
   .bp-card:hover .bp-turn svg { transform: translateX(3px); }
+  .bp-pin { transition: background .15s ease; }
+  .bp-pin:hover { background: var(--track) !important; }
+  .bp-pin:focus-visible, .bp-link:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .bp-link:hover { text-decoration: underline; }
 
   /* Badges: lift on hover; rows lift a little too */
   .lb-badge-btn img { transition: transform .25s ease; }
@@ -796,6 +800,9 @@ const Leaderboard = () => {
   // The Big Picture (what the board shows) is for the same staff roles. Staff
   // know how points are given, so How to earn points is for colleagues only.
   const canReports = Boolean(hasAccess && hasAccess('leaderboard-reports'));
+  // Its People list names everyone, below-zero levels included, so it is for
+  // admins only, as below-zero badges and risk are everywhere else.
+  const canSeePeople = Boolean(hasAccess && hasAccess('leaderboard-people'));
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
@@ -849,14 +856,14 @@ const Leaderboard = () => {
     const { podium: top, rows } = globalBoard;
     const people = [top.first, top.second, top.third, ...rows]
       .filter((p) => p && p.points !== null && p.points !== undefined)
-      .map((p) => ({ key: p.email || `${p.name}|${p.rank}`, dept: p.dept, points: Number(p.points) }));
+      .map((p) => ({ key: p.email || `${p.name}|${p.rank}`, name: p.name, email: p.email || '', dept: p.dept, points: Number(p.points) }));
     return bigPicture(pictureItems, people, { rules: rules.points });
   }, [canReports, pictureItems, globalBoard, rules.points]);
   const pictureCampaign = CAMPAIGNS.find((c) => c.id === pictureOf) || null;
   const campaignPicture = useMemo(() => {
     if (!pictureCampaign || view !== 'reports') return null;
     const { podium: top, rows } = buildBoard(pictureCampaign.seed, pictureCampaign.total);
-    const people = [top.first, top.second, top.third, ...rows].map((p) => ({ key: `${p.name}|${p.rank}`, dept: p.dept, points: p.overall }));
+    const people = [top.first, top.second, top.third, ...rows].map((p) => ({ key: `${p.name}|${p.rank}`, name: p.name, email: '', dept: p.dept, points: p.overall }));
     return bigPicture(pictureItems, people, { focus: pictureCampaign.id, rules: rules.points });
   }, [pictureCampaign, view, pictureItems, rules.points]);
 
@@ -1098,6 +1105,7 @@ const Leaderboard = () => {
               r={(pictureCampaign && campaignPicture) || orgPicture}
               campaign={pictureCampaign && campaignPicture ? pictureCampaign : null}
               isDark={isDark}
+              canSeePeople={canSeePeople}
               shell={{ CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK }}
             />
           )}
