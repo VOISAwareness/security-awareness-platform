@@ -28,7 +28,7 @@ import AllBadges from '../../GlobalComponents/AllBadges';
 import PointsAndBadges from './PointsAndBadges';
 import LevelChangeNotice from './LevelChangeNotice';
 import { useMyStanding } from '../../services/useMyStanding';
-import { gradeName, levelAltText, levelTitle, riskColor, riskPosition } from '../../services/levels';
+import { levelAltText, rankName, riskColor, riskPosition } from '../../services/levels';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -209,10 +209,10 @@ const DraggableIdBadge = ({ isDark, userName, email, tower, level, onOpenLeaderb
               <LevelBadge level={level} size={60} glow={isDark ? 'dark' : true} tilt={false} decorative />
               <span className="flex flex-col min-w-0 flex-1 gap-0.5">
                 <span className={`vs-rank text-[13.5px] font-black uppercase leading-tight tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {gradeName(level)}
+                  {rankName(level)}
                 </span>
                 <span className="text-[9.5px] font-bold" style={{ color: isDark ? level.light : level.color }}>
-                  {levelTitle(level)}
+                  Level {level.level}
                 </span>
                 <span className="flex items-center justify-between gap-2 mt-1">
                   <span className={`text-[8.5px] font-extrabold uppercase tracking-[0.12em] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>

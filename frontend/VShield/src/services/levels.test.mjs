@@ -20,9 +20,11 @@ import {
   levelTitle,
   progressFor,
   rangeText,
+  rankName,
   resolveLevel,
   riskColor,
   riskPosition,
+  riskStatus,
   stepsAround,
 } from './levels.js';
 
@@ -195,4 +197,22 @@ test('below zero, the steps are the way back to New Joiner', () => {
   assert.deepEqual(steps('LN1'), ['LN2:below', 'LN1:current', 'L0:ahead', 'L1G1:ahead']);
   assert.deepEqual(steps('L0'), ['LN2:below', 'LN1:below', 'L0:current', 'L1G1:ahead']);
   assert.deepEqual(steps('LN2'), ['LN2:current', 'LN1:ahead', 'L0:ahead', 'L1G1:ahead']);
+});
+
+test('rankName: the level and its grade, as people say it', () => {
+  assert.equal(rankName(LEVEL_BY_ID.L7G2), 'Cyber Guardian II');
+  assert.equal(rankName(LEVEL_BY_ID.L1G1), 'New Joiner I');
+  assert.equal(rankName(LEVEL_BY_ID.LN1), 'Vulnerable User');
+  assert.equal(rankName(null), '');
+});
+
+test('riskStatus: words and a tone for each risk category', () => {
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L7G1), { label: 'Trusted user', tone: 'low' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L5G1), { label: 'Very low risk', tone: 'low' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L4G1), { label: 'Low risk', tone: 'low' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L3G1), { label: 'Medium-low risk', tone: 'medium' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L2G2), { label: 'Medium risk', tone: 'medium' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L0), { label: 'High risk', tone: 'high' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.LN2), { label: 'Severe risk', tone: 'high' });
+  assert.deepEqual(riskStatus(LEVEL_BY_ID.L1G1), { label: 'Not rated yet', tone: 'unknown' });
 });

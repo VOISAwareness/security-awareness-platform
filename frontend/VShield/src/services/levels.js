@@ -121,6 +121,12 @@ export function gradeName(level) {
   return level.grade ? `${level.name} · ${ROMAN[level.grade]}` : level.name;
 }
 
+/** A rank as people say it: "Cyber Guardian II", or "Critical Risk" for the levels without grades. */
+export function rankName(level) {
+  if (!level) return '';
+  return level.grade ? `${level.name} ${ROMAN[level.grade]}` : level.name;
+}
+
 /** Levels 1 to 7, each as its three grades, lowest first. */
 export const LEVEL_FAMILIES = Object.freeze(
   [1, 2, 3, 4, 5, 6, 7].map((n) => Object.freeze(LEVELS.filter((l) => l.level === n))),
@@ -220,6 +226,20 @@ export function riskColor(position) {
   const p = Math.min(100, Math.max(0, position));
   const [from, to, t] = p <= 50 ? [[34, 197, 94], [234, 179, 8], p / 50] : [[234, 179, 8], [239, 68, 68], (p - 50) / 50];
   return `#${from.map((c, i) => hex(mix(c, to[i], t))).join('')}`.toUpperCase();
+}
+
+/**
+ * A level's risk category as a status: the words to show ("Trusted user",
+ * "Medium risk", "Not rated yet") and a tone for its colour: 'low', 'medium',
+ * 'high', or 'unknown' for New Joiners.
+ */
+export function riskStatus(level) {
+  const position = riskPosition(level);
+  if (position === null) return { label: 'Not rated yet', tone: 'unknown' };
+  const words = level.risk === 'Trusted' ? 'Trusted user' : /risk$/i.test(level.risk) ? level.risk : `${level.risk} risk`;
+  const label = words.charAt(0) + words.slice(1).toLowerCase();
+  const tone = position <= 34 ? 'low' : position <= 58 ? 'medium' : 'high';
+  return { label, tone };
 }
 
 const isAdmin = (role) => ADMIN_ROLES.includes(role);
