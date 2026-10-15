@@ -668,9 +668,10 @@ const Pager = ({ page, pageCount, onPage }) => (
 // on top, then a figure, your badge or medal in the middle, and a figure, then
 // a line below. The front is you: your name, your points, your badge and the
 // points to your next badge, with the bar to it. Click the badge and the card
-// turns over to your rank: this week's move, your place on a gold medal, how
-// many are on the board (or your top %), and what moves you up next. The medal turns it round again. Nothing on
-// the card says it turns: the badge and the medal lift a little under the
+// turns over to your rank: this week's move, your place on a gold medal,
+// your percentile (never how many are on the board), and what moves you up
+// next. The medal turns it round again. Nothing on the card says it turns:
+// the badge and the medal lift a little under the
 // pointer. No level or badge names on either side. The front's points are your
 // own total (what your badge is earned with); the back's rank is on whichever
 // board is showing, global or a campaign's.
@@ -765,9 +766,7 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
                 </span>
               </span>
             </button>
-            {rank && rank > 1 && topPct <= 50
-              ? fig(`Top ${topPct}%`, '', `Of ${total.toLocaleString()} colleagues`, 'var(--standing-num)', 'right')
-              : fig(total ? total.toLocaleString() : '—', '', 'On the board', 'var(--standing-num)', 'right')}
+            {fig(topPct ? `Top ${topPct}%` : '—', '', 'Percentile', 'var(--standing-num)', 'right')}
           </div>
           <div style={{ ...line, color: 'var(--text)' }}>{next}</div>
         </div>
