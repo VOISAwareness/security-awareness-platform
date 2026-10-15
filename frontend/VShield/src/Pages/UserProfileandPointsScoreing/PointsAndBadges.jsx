@@ -1,12 +1,15 @@
-import { ArrowUpRight, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { ArrowUpRight, Check, Crown, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import BadgeMedal from '../../GlobalComponents/BadgeMedal';
-import { rankName, riskStatus } from '../../services/levels';
+import { BELOW_LEVELS, LEVEL_FAMILIES, ROMAN, rankName, riskColor, riskPosition, riskStatus } from '../../services/levels';
 
-// My Space → Points & Badges: your badge; who you are (level, rank, risk
-// status) beside your security score and place on the leaderboard; and the
-// points between your rank and the next one. Points are indigo everywhere; the risk status takes
+// My Space → Points & Badges, in three parts:
+//   - your badge on its stage (click it to open every rank);
+//   - who you are (level, rank, risk status), your security score and place
+//     on the leaderboard, and the points from your rank to the next one;
+//   - the details: your level's grades, your personal best and where your
+//     risk sits on the scale. No other badge pictures, so yours stands alone. Points are indigo everywhere; the risk status takes
 // its own colour (green, amber, red), so the two never read as the same
 // thing. Click the badge to open every rank (`onOpenBadges`).
 //
@@ -37,7 +40,7 @@ const TrainingLink = ({ isDark }) => (
 );
 
 const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
-  const { level, progress, points, rank } = standing;
+  const { level, progress, points, rank, best } = standing;
   if (!level) return null;
 
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -47,6 +50,10 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   const status = riskStatus(level);
   const tone = RISK_TONE[status.tone];
   const below = level.level <= 0;
+  const tint = isDark ? level.light : level.color;
+  const riskAt = riskPosition(level);
+  // your level's three grades; below zero, the three levels of the way back
+  const steps = level.grade ? LEVEL_FAMILIES[level.level - 1] : [...BELOW_LEVELS].reverse();
 
   const bar = (className = '') => (
     <div
@@ -72,7 +79,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   const identity = (
     <div className="min-w-0" data-hero>
       <span className={`block text-[10.5px] font-extrabold uppercase tracking-[0.16em] ${muted}`}>Level {levelNo(level)}</span>
-      <h4 className={`vs-rank text-[28px] font-black uppercase leading-[1.1] tracking-tight truncate mt-0.5 ${strong}`} data-rank-name>
+      <h4 className={`vs-rank text-[28px] [@container(max-width:860px)]:text-[21px] font-black uppercase leading-[1.1] tracking-tight truncate mt-0.5 ${strong}`} data-rank-name>
         {rankName(level)}
       </h4>
       <span
@@ -89,7 +96,7 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   // your score, and your place among everyone
   const [place, suffix] = rank ? ordinal(rank) : [];
   const stats = (
-    <div className="flex items-start gap-12 flex-shrink-0" data-stats>
+    <div className="flex items-start gap-12 [@container(max-width:860px)]:gap-7 flex-shrink-0" data-stats>
       <div>
         <span className={label}>Security score</span>
         <span className={`vs-rank block text-[30px] font-black leading-none tracking-tight mt-1.5 ${score}`} data-my-points>
@@ -157,17 +164,15 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col justify-between gap-4 pl-1" data-rank-card>
-        <div className="flex items-start justify-between gap-6 [@container(max-width:860px)]:flex-col [@container(max-width:860px)]:gap-4">
-          {identity}
-          {stats}
-        </div>
+        {identity}
+        {stats}
 
         {/* from your rank to the next */}
         <div data-progress>
           {bar('h-2.5')}
           <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-3 mt-2 text-[11px] font-semibold ${muted}`}>
             <span className="min-w-0">
-              <span className={`block font-bold truncate ${strong}`}>{rankName(level)}</span>
+              <span className={`block font-bold leading-tight ${strong}`}>{rankName(level)}</span>
               {level.min === null ? `below ${fmt(level.max)}` : fmt(level.min)}
             </span>
             <span className="text-center pt-0.5">
@@ -181,12 +186,100 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
             <span className="min-w-0 text-right">
               {!progress.isTop && (
                 <>
-                  <span className={`block font-bold truncate ${strong}`}>{rankName(progress.next)}</span>
+                  <span className={`block font-bold leading-tight ${strong}`}>{rankName(progress.next)}</span>
                   {fmt(progress.next.min)}
                 </>
               )}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* the details: grades, personal best, risk */}
+      <div
+        data-details
+        className={`w-[252px] [@container(max-width:860px)]:w-[206px] flex-shrink-0 rounded-[14px] border px-4 py-3 flex flex-col justify-between ${
+          isDark ? 'bg-white/[0.035] border-white/10' : 'bg-slate-50 border-slate-200'
+        }`}
+      >
+        <div data-grades>
+          <span className={label}>{level.grade ? 'Grades' : 'The way back'}</span>
+          <div className="grid grid-cols-3 gap-1.5 mt-2">
+            {steps.map((g) => {
+              const state = g.rank < level.rank ? 'done' : g.rank === level.rank ? 'now' : 'ahead';
+              return (
+                <span
+                  key={g.id}
+                  data-grade={state}
+                  title={rankName(g)}
+                  className={`vs-rank h-[30px] rounded-lg flex items-center justify-center gap-1 text-[12px] font-black ${
+                    state === 'now' ? 'text-white shadow-sm' : state === 'done' ? '' : isDark ? 'bg-white/5 text-slate-500' : 'bg-slate-200/70 text-slate-400'
+                  }`}
+                  style={
+                    state === 'now'
+                      ? { background: `linear-gradient(135deg, ${level.light}, ${level.color} 75%)` }
+                      : state === 'done'
+                        ? { color: tint, background: `${level.color}${isDark ? '33' : '1F'}` }
+                        : undefined
+                  }
+                >
+                  {state === 'done' && <Check className="w-3 h-3" strokeWidth={3.2} aria-hidden />}
+                  {state === 'ahead' && <Lock className="w-2.5 h-2.5" strokeWidth={3} aria-hidden />}
+                  {g.grade ? ROMAN[g.grade] : levelNo(g)}
+                </span>
+              );
+            })}
+          </div>
+          <div className={`grid grid-cols-3 gap-1.5 mt-1 text-center text-[9.5px] font-semibold ${muted}`}>
+            {steps.map((g) => (
+              <span key={g.id}>{g.min === null ? `< ${fmt(g.max)}` : fmt(g.min)}</span>
+            ))}
+          </div>
+        </div>
+
+        {best && (
+          <div data-best>
+            <span className={label}>Personal best</span>
+            <span className="flex items-start gap-1.5 mt-1.5 min-w-0">
+              <Crown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-500'}`} aria-hidden />
+              <span className={`vs-rank text-[13px] font-black uppercase leading-tight tracking-tight ${strong}`}>{rankName(best)}</span>
+            </span>
+            <span className={`block text-[10px] font-semibold mt-0.5 ${muted}`}>
+              {best.rank > level.rank ? (
+                <>
+                  <strong className={score}>{fmt(best.min - points)} pts</strong> to win it back
+                </>
+              ) : (
+                'You are at your best'
+              )}
+            </span>
+          </div>
+        )}
+
+        <div data-risk-scale>
+          <span className={label}>Risk level</span>
+          <div
+            className="relative h-2 mt-2.5 rounded-full"
+            style={{ background: riskAt === null ? (isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0') : 'linear-gradient(90deg, #22C55E, #EAB308 50%, #EF4444)' }}
+          >
+            {riskAt !== null && (
+              <span
+                aria-hidden
+                className={`absolute top-1/2 w-3.5 h-3.5 -mt-[7px] -ml-[7px] rounded-full border-[3px] shadow ${isDark ? 'bg-[#1C1E24]' : 'bg-white'}`}
+                style={{ left: `${riskAt}%`, borderColor: riskColor(riskAt) }}
+              />
+            )}
+          </div>
+          <span className={`flex items-center justify-between mt-1 text-[9.5px] font-semibold ${muted}`}>
+            {riskAt === null ? (
+              <span>Not rated yet</span>
+            ) : (
+              <>
+                <span>Low</span>
+                <span>High</span>
+              </>
+            )}
+          </span>
         </div>
       </div>
     </div>
