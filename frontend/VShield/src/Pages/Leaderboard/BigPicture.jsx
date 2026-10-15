@@ -15,10 +15,10 @@ import { TONE_ART, TONE_TINT, VERDICT_ART } from './bigPictureArt';
 //
 // It reports what the board shows; it never says what to do. It reads as a
 // story, top to bottom and then left to right:
-//   - along the top, one slim strip: are people improving through the
-//     phishing simulations? The verdict, then the numbers behind it: the
-//     average points per person (and from what), the points earned by
-//     reporting and the points lost to clicks;
+//   - along the top, the Security Pulse (the Campaign Pulse for one
+//     campaign): are people improving through the phishing simulations?
+//     The verdict, then per person, in the app's own terms: Avg Points
+//     (and from what), Report Points earned and Hook Points lost;
 //   - needs attention, going well, what could happen next: three findings
 //     at most in each, every one a number, a line and where it sits.
 // A finding opens to its detail: by department, and (admins) who exactly.
@@ -35,26 +35,28 @@ const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 
 const VERDICT = {
   improving: { word: 'Improving', tile: '#D0FBDF' },
-  steady: { word: 'Holding steady', tile: '#F3E7FD' },
-  slipping: { word: 'Slipping', tile: '#FBD3D3' },
+  steady: { word: 'Steady', tile: '#F3E7FD' },
+  slipping: { word: 'Declining', tile: '#FBD3D3' },
 };
 const whole = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${whole(Math.abs(n))}`;
 
 // Along the top: one slim strip answering the first question, are people
 // improving through the phishing simulations? The verdict with its clay
-// trend, then the numbers behind it, per person: the average points now
-// (and before), the points earned by reporting and those lost to clicks.
-// Over the last six months for the organisation; from one campaign for it.
+// trend, then the numbers behind it, per person, named as the rest of the
+// app names them (Report Rate, Hook Rate): Avg Points now (and before),
+// Report Points earned by reporting, Hook Points lost to clicks and
+// details given away. Over the last six months for the organisation; from
+// one campaign for it.
 function ProgressStrip({ r, campaign, ink, isDark }) {
   const p = progress(r, { campaign });
   const { word, tile } = VERDICT[p.word];
   const Arrow = p.word === 'improving' ? ArrowUpRight : p.word === 'slipping' ? ArrowDownRight : Minus;
   const arrow = p.word === 'improving' ? ink.good : p.word === 'slipping' ? ink.bad : 'var(--muted)';
   const cells = [
-    { id: 'average', label: 'Average points', value: whole(p.to), sub: `from ${whole(p.from)}` },
-    { id: 'earned', label: 'Earned by reporting', value: `+${whole(p.earned)}`, sub: 'pts per person', Icon: ArrowUpRight, color: ink.good },
-    { id: 'lost', label: 'Lost to clicks', value: `−${whole(p.lost)}`, sub: 'pts per person', Icon: ArrowDownRight, color: ink.bad },
+    { id: 'average', label: 'Avg Points', value: whole(p.to), sub: `from ${whole(p.from)}`, hint: 'Average points per person, now and at the start' },
+    { id: 'earned', label: 'Report Points', value: `+${whole(p.earned)}`, sub: 'pts each', Icon: ArrowUpRight, color: ink.good, hint: 'Points earned per person by reporting phishing emails' },
+    { id: 'lost', label: 'Hook Points', value: `−${whole(p.lost)}`, sub: 'pts each', Icon: ArrowDownRight, color: ink.bad, hint: 'Points lost per person to clicks and details given away' },
   ];
   return (
     <div data-bp-progress={p.word} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.45fr) repeat(3, minmax(0,1fr))', alignItems: 'center', borderRadius: 14, background: 'var(--plate)' }}>
@@ -65,12 +67,12 @@ function ProgressStrip({ r, campaign, ink, isDark }) {
         <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 4 }}>
           <span className="vs-rank" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.05, color: 'var(--text)', whiteSpace: 'nowrap' }}>{word}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 20, padding: '0 8px', borderRadius: 999, background: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', fontSize: 9.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>
-            <Arrow size={11} strokeWidth={3} color={arrow} aria-hidden />{signed(p.change)} pts per person
+            <Arrow size={11} strokeWidth={3} color={arrow} aria-hidden />{signed(p.change)} pts each
           </span>
         </span>
       </div>
       {cells.map((c) => (
-        <div key={c.id} data-bp-progress-cell={c.id} style={{ minWidth: 0, padding: '2px 16px', borderLeft: '1px solid var(--hair)' }}>
+        <div key={c.id} data-bp-progress-cell={c.id} title={c.hint} style={{ minWidth: 0, padding: '2px 16px', borderLeft: '1px solid var(--hair)' }}>
           <div style={{ ...eyebrow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 5, whiteSpace: 'nowrap' }}>
             {c.Icon && <c.Icon size={12} strokeWidth={3} color={c.color} aria-hidden style={{ alignSelf: 'center' }} />}
@@ -323,8 +325,8 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, fontSize: 11, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             <span aria-hidden style={{ width: 3, height: 14, borderRadius: 2, background: 'var(--bp-accent)', flexShrink: 0 }} />
-            {campaign ? 'How its recipients did' : 'How everyone is doing'}
-            <span style={{ fontWeight: 600, color: 'var(--muted)' }}>{campaign ? '· this campaign' : '· last 6 months'}</span>
+            {campaign ? 'Campaign Pulse' : 'Security Pulse'}
+            <span style={{ fontWeight: 600, color: 'var(--muted)' }}>{campaign ? `· since ${campaign.started}` : '· last 6 months'}</span>
           </span>
           {toolbar}
         </div>
