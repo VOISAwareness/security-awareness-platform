@@ -269,6 +269,7 @@ export const PEOPLE_FILTERS = Object.freeze([
   { id: 'clicked', label: 'Clicked at least once', test: (x) => x.clicked > 0 },
   { id: 'neverReported', label: 'Took part, never reported', test: (x) => x.campaigns > 0 && x.reported === 0 },
   { id: 'nearUp', label: 'One report from a level up', test: (x) => x.nearUp },
+  { id: 'reachedStrong', label: 'Reached Phish Catcher or above', test: (x) => (x.groupNow === 'strong' || x.groupNow === 'top') && x.group !== 'strong' && x.group !== 'top' },
   { id: 'climbed', label: 'Climbed a level', test: (x) => x.moved === 'up' },
   { id: 'backAbove', label: 'Came back above zero', test: (x) => x.backAbove },
 ]);

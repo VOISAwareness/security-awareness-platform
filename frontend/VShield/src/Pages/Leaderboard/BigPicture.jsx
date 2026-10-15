@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, Copy, Download, Eye, LayoutGrid, ThumbsUp, TriangleAlert, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, Copy, Download, Hourglass, LayoutGrid, ThumbsUp, TriangleAlert, Users } from 'lucide-react';
 
-import LevelBadge from '../../GlobalComponents/LevelBadge';
-import { LEVEL_BY_ID } from '../../services/levels';
-import { findings } from '../../services/bigPictureFindings';
+import { findings, story } from '../../services/bigPictureFindings';
 import { reportCsv } from '../../services/bigPictureExport';
 import { csvName, downloadCsv } from '../../services/csv';
 import { DepartmentTable, PeopleTable } from './BigPictureTables';
@@ -11,12 +9,13 @@ import { REPORT_INK } from './reportInk';
 
 // The Big Picture: the leaderboard's reporting view for leaders and admins.
 //
-// It reports what the board shows; it never says what to do. Three things,
-// each readable at a glance:
-//   - where everyone stands: one bar of the level bands, and how they moved;
-//   - what stands out: a handful of findings, one line each, worst first,
-//     each opening the people behind it;
-//   - the bottom of the board: the people (admins) or departments to watch.
+// It reports what the board shows; it never says what to do. It reads as a
+// story, top to bottom and then left to right:
+//   - where everyone stands today: one sentence and one bar of the level
+//     bands, each with how it moved;
+//   - 01 needs attention, 02 going well, 03 what could happen next: three
+//     findings at most in each, every one a number, a line, where it sits,
+//     and a link to the people behind it.
 // People and Departments list everyone one by one, to select and export.
 //
 // Colours: the level bands run red (new or below zero) through grey to teal
@@ -25,7 +24,6 @@ import { REPORT_INK } from './reportInk';
 // tone has its own icon, never colour alone.
 
 const num = (n) => Math.round(n).toLocaleString('en-US');
-const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
 
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
@@ -34,7 +32,7 @@ const BANDS = {
   light: { top: '#115E59', strong: '#14B8A6', learning: '#E2E8F0', low: '#E5484D' },
   dark: { top: '#99F6E4', strong: '#14B8A6', learning: '#475569', low: '#E8635F' },
 };
-const TONE = { bad: TriangleAlert, watch: Eye, good: ThumbsUp };
+const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
 
 // The one sentence that sums up the movement.
 const moveLine = (r, campaign) => `${num(r.moved.climbed)} climbed a level and ${num(r.moved.slipped)} slipped ${campaign ? 'in this campaign' : 'in the last 30 days'}.`;
@@ -46,7 +44,7 @@ function Standing({ r, campaign, isDark, ink }) {
   const bands = [...r.standing].reverse(); // lowest first, left to right
   return (
     <div style={{ minWidth: 0, flex: 1 }}>
-      <div style={eyebrow}>{campaign ? 'Where its recipients stand' : 'Where everyone stands'}</div>
+      <div style={eyebrow}>{campaign ? 'Where its recipients stand now' : 'Where everyone stands today'}</div>
       <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)', marginTop: 6 }}>{moveLine(r, campaign)}</div>
       <div role="img" aria-label={bands.map((g) => `${g.now} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 12, marginTop: 12 }}>
         {bands.filter((g) => g.now > 0).map((g, i, all) => (
@@ -78,85 +76,57 @@ function Standing({ r, campaign, isDark, ink }) {
   );
 }
 
+// The three parts of the story, in reading order.
+const CHAPTERS = [
+  { id: 'wrong', n: '01', title: 'Needs attention', sub: (when) => `What went wrong ${when}`, Icon: TriangleAlert, tone: 'bad' },
+  { id: 'right', n: '02', title: 'Going well', sub: (when) => `What went right ${when}`, Icon: ThumbsUp, tone: 'good' },
+  { id: 'next', n: '03', title: 'What could happen next', sub: () => 'Who is one step from a change', Icon: Hourglass, tone: 'watch' },
+];
+
 // One finding: its number, the line, where it sits, and the people behind it.
-function Finding({ f, ink, see, onOpen }) {
-  const Icon = TONE[f.tone];
-  const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)';
+function Item({ f, see, onOpen }) {
   const Tag = f.link ? 'button' : 'div';
   return (
     <Tag
-      {...(f.link ? { type: 'button', onClick: onOpen, className: 'bp-finding', 'data-bp-finding': f.id, 'aria-label': `${f.value} ${f.headline}. ${see}` } : { 'data-bp-finding': f.id })}
-      style={{ width: '100%', display: 'grid', gridTemplateColumns: '26px 86px minmax(0,1fr) auto', alignItems: 'center', gap: 12, padding: '0 10px', border: 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default', minHeight: 0, flex: 1 }}
+      {...(f.link ? { type: 'button', onClick: onOpen, className: 'bp-finding', 'aria-label': `${f.value} ${f.unit} ${f.headline}. ${see}` } : null)}
+      data-bp-finding={f.id}
+      style={{ width: 'calc(100% + 24px)', boxSizing: 'border-box', flex: 'none', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 4, padding: '14px 12px 10px', margin: '0 -12px', border: 'none', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default' }}
     >
-      <span aria-hidden title={f.tone === 'good' ? 'Good news' : f.tone === 'bad' ? 'Concern' : 'Worth watching'} style={{ width: 26, height: 26, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'var(--track)', color: tone }}>
-        <Icon size={13} strokeWidth={2.6} />
-      </span>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
-        <span className="vs-rank" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>{f.value}</span>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+        <span className="vs-rank" style={{ fontSize: 24, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{f.value}</span>
         {f.unit && <span style={{ ...small, fontWeight: 800 }}>{f.unit}</span>}
       </span>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 11.5, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
-        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', ...small, fontSize: 10, lineHeight: 1.4, marginTop: 2 }} title={f.detail}>{f.detail}</span>
-      </span>
-      {f.link ? (
-        <span className="bp-go" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
+      <span title={f.detail} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', ...small, fontSize: 10, lineHeight: 1.4 }}>{f.detail}</span>
+      {f.link && (
+        <span className="bp-go" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2, fontSize: 10, fontWeight: 800, color: 'var(--muted)' }}>
           {see} <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
         </span>
-      ) : <span />}
+      )}
     </Tag>
   );
 }
 
-// The bottom of the board: the people (admins) or departments to watch.
-function WatchList({ r, canSeePeople, ink, onAll, onPerson, onDept }) {
-  const people = r.people.slice(0, 7);
-  const depts = r.departments.slice(0, 7);
-  const maxNet = Math.max(1, ...depts.map((d) => Math.abs(d.net)));
+// One part of the story: its number and title, then its findings.
+function Chapter({ c, items, when, ink, seeFor, onOpen, first }) {
+  const color = c.tone === 'good' ? ink.good : c.tone === 'bad' ? ink.bad : 'var(--text)';
   return (
-    <section aria-label={canSeePeople ? 'Bottom of the board' : 'Departments to watch'} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--hair)', paddingLeft: 20 }}>
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-        <span>
-          <span style={eyebrow}>{canSeePeople ? 'Bottom of the board' : 'Least ground gained'}</span>
-          <span style={{ display: 'block', ...small, marginTop: 3 }}>{canSeePeople ? 'Lowest points first' : 'Departments, points gained or lost'}</span>
+    <section aria-label={c.title} data-bp-chapter={c.id} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingLeft: first ? 0 : 28, borderLeft: first ? 'none' : '1px solid var(--hair)' }}>
+      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, borderBottom: '1px solid var(--hair)' }}>
+        <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color }}><c.Icon size={15} strokeWidth={2.5} /></span>
+        <span style={{ minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800, color: 'var(--text)' }}><span style={{ color: 'var(--muted)', marginRight: 6 }}>{c.n}</span>{c.title}</span>
+          <span style={{ display: 'block', ...small, marginTop: 2 }}>{c.sub(when)}</span>
         </span>
-        <button type="button" data-bp-see-all onClick={onAll} className="bp-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0, border: 'none', background: 'none', fontSize: 10, fontWeight: 800, color: 'var(--text)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          See all {num(canSeePeople ? r.people.length : r.departments.length)} <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
-        </button>
-      </div>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        {canSeePeople
-          ? people.map((x) => {
-            const level = LEVEL_BY_ID[x.levelId];
-            return (
-              <button key={x.key} type="button" className="bp-row" data-bp-watch={x.key} onClick={() => onPerson(x)} title={`Find ${x.name} in People`} style={{ display: 'grid', gridTemplateColumns: '40px 22px minmax(0,1fr) auto', alignItems: 'center', gap: 8, padding: '5px 6px', border: 'none', borderTop: '1px solid var(--hair)', background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
-                <span style={{ ...small, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(x.rank)}</span>
-                {level ? <LevelBadge level={level} size={22} tilt={false} decorative /> : <span />}
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
-                  <span style={{ display: 'block', ...small, fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.dept}</span>
-                </span>
-                <span style={{ textAlign: 'right' }}>
-                  <span style={{ display: 'block', fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(x.points)}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', ...small, fontSize: 9, fontWeight: 700 }}>
-                    {x.change ? <>{x.change > 0 ? <ArrowUpRight size={10} strokeWidth={3} color={ink.good} aria-hidden /> : <ArrowDownRight size={10} strokeWidth={3} color={ink.bad} aria-hidden />}{signed(x.change)}</> : 'no change'}
-                  </span>
-                </span>
-              </button>
-            );
-          })
-          : depts.map((d) => (
-            <button key={d.name} type="button" className="bp-row" onClick={() => onDept(d.name)} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 92px', alignItems: 'center', gap: 10, padding: '7px 6px', border: 'none', borderTop: '1px solid var(--hair)', background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                <span style={{ display: 'block', ...small, fontSize: 9 }}>{d.people} people · {d.belowZero} below zero</span>
-              </span>
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{signed(d.net)} pts</span>
-                <span aria-hidden style={{ width: `${Math.max(6, (Math.abs(d.net) / maxNet) * 100)}%`, height: 4, borderRadius: 4, background: d.net >= 0 ? ink.good : ink.bad }} />
-              </span>
-            </button>
-          ))}
+      </header>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 2 }}>
+        {items.length
+          ? items.map((f, i) => (
+            <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 142px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
+              <Item f={f} see={seeFor(f)} onOpen={() => onOpen(f.link)} />
+            </div>
+          ))
+          : <p style={{ ...small, fontSize: 10.5, margin: '14px 0 0' }}>Nothing stands out here.</p>}
       </div>
     </section>
   );
@@ -213,7 +183,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     }
   };
 
-  const list = findings(r, { campaign: Boolean(campaign) });
+  const parts = story(r, { campaign: Boolean(campaign) });
+  const when = campaign ? 'in this campaign' : 'in the last 30 days';
+  const seeFor = (f) => (f.link?.dept ? (canSeePeople ? 'See the team' : 'See departments') : canSeePeople ? 'See who' : 'See departments');
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
   const exportReport = () => downloadCsv(csvName('big picture', scopeName, 'report'), reportCsv(r, { title, withPeople: canSeePeople, campaign: Boolean(campaign) }));
@@ -264,8 +236,8 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         </div>
       </div>
 
-      {/* the base: what stands out and the bottom of the board, or a full list */}
-      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 24px 18px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
+      {/* the base: the story in three parts, or a full list */}
+      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 28px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
         <div role="tablist" aria-label="The big picture" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', padding: 3, borderRadius: 11, background: 'var(--track)' }}>
           {TABS.map((t) => {
             const on = tab === t.id;
@@ -279,28 +251,8 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         </div>
 
         {tab === 'overview' && (
-          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.75fr) minmax(0,1fr)', gap: 20 }}>
-            <section aria-label="What stands out" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ flexShrink: 0, marginBottom: 6 }}>
-                <span style={eyebrow}>What stands out</span>
-                <span style={{ display: 'block', ...small, marginTop: 3 }}>Concerns first, then good news{canSeePeople ? '' : ' · links open the departments'}</span>
-              </div>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                {list.map((f, i) => (
-                  <div key={f.id} style={{ flex: 1, minHeight: 0, display: 'flex', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
-                    <Finding f={f} ink={ink} see={f.link?.dept ? `See ${canSeePeople ? 'the team' : 'departments'}` : canSeePeople ? 'See who' : 'See departments'} onOpen={() => pinpoint(f.link)} />
-                  </div>
-                ))}
-              </div>
-            </section>
-            <WatchList
-              r={r}
-              canSeePeople={canSeePeople}
-              ink={ink}
-              onAll={() => (canSeePeople ? pinpoint({}) : set({ tab: 'departments', deptSort: { key: 'net', dir: 'asc' } }))}
-              onPerson={(x) => pinpoint({ q: x.name })}
-              onDept={() => set({ tab: 'departments', deptSort: { key: 'net', dir: 'asc' } })}
-            />
+          <div data-bp-story style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 28 }}>
+            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} seeFor={seeFor} onOpen={pinpoint} first={i === 0} />)}
           </div>
         )}
         {tab === 'people' && canSeePeople && (
@@ -323,14 +275,15 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   );
 }
 
-/** Staff see this where colleagues see How to earn points: the top three findings. */
+/** Staff see this where colleagues see How to earn points: the story's opening line from each part. */
 export function BigPictureTeaser({ r, isDark, onOpen }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
-  const top = findings(r).slice(0, 3);
+  const parts = story(r);
+  const top = CHAPTERS.map((c) => parts[c.id][0]).filter(Boolean);
   return (
     <div data-bp-teaser style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: 16, padding: '14px 16px' }}>
       <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>The big picture</span>
-      <span style={{ ...small, marginTop: 2 }}>What stands out · last 30 days</span>
+      <span style={{ ...small, marginTop: 2 }}>The last 30 days on the board</span>
       <div style={{ flex: 1, minHeight: 0, maxHeight: 250, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
         {top.map((f) => {
           const Icon = TONE[f.tone];
