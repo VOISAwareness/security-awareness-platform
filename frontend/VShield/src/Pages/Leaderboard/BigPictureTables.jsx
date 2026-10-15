@@ -38,7 +38,7 @@ export function Pager({ page, pages, total, size, onPage, what = 'people' }) {
   const cell = (on) => ({ minWidth: 26, height: 26, padding: '0 6px', borderRadius: 8, border: on ? 'none' : '1px solid var(--hair)', background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', fontVariantNumeric: 'tabular-nums' });
   return (
     <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 10, borderTop: '1px solid var(--hair)' }}>
-      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {what}</span>
+      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total === 1 && what === 'people' ? 'person' : what}</span>
       {pages > 1 && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button type="button" aria-label="Previous page" disabled={page === 0} onClick={() => onPage(page - 1)} style={{ ...cell(false), opacity: page === 0 ? 0.4 : 1 }}><ChevronLeft size={12} strokeWidth={2.8} /></button>
@@ -93,13 +93,13 @@ function Flag({ x, ink }) {
 
 // One person: rank, badge, name with department and level, points, change,
 // and what stands out (or `note`, when the list is about one thing); `end`
-// sets that last column against the right edge.
-export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, end = false }) {
+// sets that last column against the right edge, `noRank` leaves rank out.
+export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, end = false, noRank = false }) {
   const level = LEVEL_BY_ID[x.levelId];
   return (
     <div role="row" data-bp-person={x.key} style={{ height: rowH, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderTop: first ? 'none' : '1px solid var(--hair)', background: picked ? 'var(--bp-soft)' : 'transparent' }}>
       {tick}
-      <span style={{ ...small, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>#{num(x.rank)}</span>
+      {!noRank && <span style={{ ...small, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>#{num(x.rank)}</span>}
       <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         {level ? <LevelBadge level={level} size={24} tilt={false} decorative /> : <span style={{ width: 19 }} />}
         <span style={{ minWidth: 0 }}>
