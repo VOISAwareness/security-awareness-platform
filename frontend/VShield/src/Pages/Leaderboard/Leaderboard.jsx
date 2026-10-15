@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardCheck, Flag, GraduationCap, KeyRound, LocateFixed, MailOpen, MousePointerClick, Users } from 'lucide-react';
+import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
@@ -91,9 +91,7 @@ const FONT_IMPORT = `
   .lb-hero-badge:hover img { transform: translateY(-3px) scale(1.05); }
   .lb-hero-badge:hover > span { transform: scale(1.04); }
   .lb-hero-badge > span { transition: transform .25s ease; }
-  .lb-hero-badge:focus-visible, .lb-find:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-  .lb-find { transition: transform .15s ease, box-shadow .15s ease; }
-  .lb-find:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15,23,42,0.12); }
+  .lb-hero-badge:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
   /* Viewer's own pill in the footer: click to jump to their page */
   .lb-me { transition: box-shadow .15s ease, transform .15s ease; }
@@ -109,7 +107,7 @@ const FONT_IMPORT = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .lb-find { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img { animation: none !important; transition: none !important; }
     .lb-shine { animation: none !important; opacity: 0; }
   }
 `;
@@ -669,33 +667,41 @@ const Pager = ({ page, pageCount, onPage }) => (
   </nav>
 );
 
-// Your standing, as a card with two sides. The front is you: your badge, large,
-// your name, and the points to your next badge. Click the badge and the card
-// turns over to your rank: where you stand, this week's move, the gap to the
-// next place, and a button that finds your row in the list. The medal turns
-// it round again. Nothing on the card says it turns: the badge and the medal
-// lift a little under the pointer. No level or badge names on either side. The
-// front's points are your own total (what your badge is earned with); the
-// back's rank is on whichever board is showing, global or a campaign's.
-const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, badgeGoal, rankGoal, isDark, onFindMe }) => {
+// Your standing, as a card with two sides, each laid out the same way: a line
+// on top, then a figure, your badge or medal in the middle, and a figure, then
+// a line below. The front is you: your name, your points, your badge and the
+// points to your next badge, with the bar to it. Click the badge and the card
+// turns over to your rank: this week's move, your place on a gold medal, how
+// many are on the board (or your top %), and what moves you up next. The medal turns it round again. Nothing on
+// the card says it turns: the badge and the medal lift a little under the
+// pointer. No level or badge names on either side. The front's points are your
+// own total (what your badge is earned with); the back's rank is on whichever
+// board is showing, global or a campaign's.
+const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, badgeGoal, rankGoal, isDark }) => {
   const [flipped, setFlipped] = useState(false);
   const turn = () => setFlipped((f) => !f);
   const topPct = rank && total ? Math.max(1, Math.ceil((rank / total) * 100)) : null;
-  const where = !rank ? 'Not on the board yet'
-    : rank === 1 ? 'You lead the board'
-      : topPct <= 50 ? `Top ${topPct}% of ${total.toLocaleString()}`
-        : `Climbing among ${total.toLocaleString()}`;
-  const moved = move > 0 ? { text: `${move} ${move === 1 ? 'place' : 'places'} up this week`, tone: 'var(--t-green)', arrow: '6 15 12 9 18 15' }
-    : move < 0 ? { text: `${-move} ${move === -1 ? 'place' : 'places'} down this week`, tone: 'var(--t-red)', arrow: '6 9 12 15 18 9' }
-      : { text: 'No change this week', tone: 'var(--muted)', arrow: null };
-  const next = rank === 1 ? 'Keep it up to stay first' : rankGoal || 'Every report moves you up';
-  const onPodium = Boolean(rank) && rank < FIRST_LIST_RANK;
+  // the line under the medal: what moves you up next
+  const next = !rank ? 'Report a phishing email to get on the board'
+    : rank === 1 ? 'You lead the board. Keep it up to stay first'
+      : rankGoal ? `${rankGoal.pts.toLocaleString()} ${rankGoal.pts === 1 ? 'pt' : 'pts'} to overtake ${rankGoal.place}${ordinalSuffix(rankGoal.place)} place`
+        : 'Every report moves you up';
+  const up = move > 0;
   const face = {
-    position: 'absolute', inset: 0, boxSizing: 'border-box', display: 'flex', gap: 12, padding: '10px 14px 12px 10px',
-    background: 'var(--cap-standing)', border: '1px solid var(--standing-edge)', borderRadius: L_R, boxShadow: 'var(--standing-shadow)',
+    position: 'absolute', inset: 0, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'space-between',
+    padding: '9px 16px 11px', background: 'var(--cap-standing)', border: '1px solid var(--standing-edge)', borderRadius: L_R, boxShadow: 'var(--standing-shadow)',
     overflow: 'hidden', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
   };
-  const eyebrow = { fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--standing-ink)' };
+  const line = { fontSize: 10, fontWeight: 700, color: 'var(--standing-ink)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.2 };
+  const middle = { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', columnGap: 10 };
+  const fig = (value, unit, note, color = 'var(--text)', align = 'left') => (
+    <div style={{ minWidth: 0, textAlign: align }}>
+      <div className="vs-rank" style={{ fontSize: 17, fontWeight: 900, color, lineHeight: 1, whiteSpace: 'nowrap' }}>
+        {value}{unit && <span style={{ fontSize: 9, fontWeight: 800, marginLeft: 2 }}>{unit}</span>}
+      </div>
+      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--muted)', marginTop: 4, lineHeight: 1.2 }}>{note}</div>
+    </div>
+  );
   const suffix = rank ? ordinalSuffix(rank) : '';
   return (
     <div data-lb-standing={flipped ? 'rank' : 'badge'} style={{ flexShrink: 0, height: HERO_H, marginBottom: 10, perspective: 1100 }}>
@@ -703,84 +709,70 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
 
         {/* front: you and your badge */}
         <div data-lb-face="badge" inert={flipped} style={face}>
-          <button
-            type="button"
-            className="lb-hero-badge"
-            onClick={turn}
-            aria-label={`Your badge${level ? `: ${levelAltText(level)}` : ''}. Show your rank`}
-            style={{
-              position: 'relative', flexShrink: 0, width: 96, border: 0, padding: 0, margin: 0, borderRadius: 14, cursor: 'pointer',
-              background: level ? `radial-gradient(closest-side, ${level.color}${isDark ? '59' : '38'}, transparent 78%)` : 'transparent',
-              display: 'grid', placeItems: 'center',
-            }}
-          >
-            {level
-              ? <LevelBadge level={level} size={86} tilt={false} glow={isDark ? 'dark' : true} decorative />
-              : <Avatar initials={initials} size={58} you />}
-          </button>
-
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '2px 0' }}>
-            <span style={eyebrow}>Your standing</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</div>
-            </div>
-            <div data-lb-goal>
-              <div className="vs-rank" style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', lineHeight: 1, whiteSpace: 'nowrap' }}>
-                {pts} <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--muted)' }}>pts</span>
-              </div>
-              {badgeGoal && (
-                <>
-                  <div role="progressbar" aria-label={badgeGoal.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={badgeGoal.pct} style={{ height: 6, borderRadius: 999, background: 'var(--standing-track)', overflow: 'hidden', marginTop: 6 }}>
-                    <div style={{ height: '100%', width: `${badgeGoal.pct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
-                  </div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--standing-ink)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{badgeGoal.label}</div>
-                </>
-              )}
-            </div>
+          <div style={line}>
+            <span style={{ color: 'var(--text)', fontWeight: 800 }}>{name}</span>
+            {dept && <span style={{ fontWeight: 600 }}> · {dept}</span>}
           </div>
+          <div style={middle}>
+            {fig(pts, 'pts', 'Your points')}
+            <button
+              type="button"
+              className="lb-hero-badge"
+              onClick={turn}
+              aria-label={`Your badge${level ? `: ${levelAltText(level)}` : ''}. Show your rank`}
+              style={{
+                position: 'relative', width: 84, height: 80, border: 0, padding: 0, margin: 0, borderRadius: 999, cursor: 'pointer',
+                background: level ? `radial-gradient(closest-side, ${level.color}${isDark ? '59' : '38'}, transparent 80%)` : 'transparent',
+                display: 'grid', placeItems: 'center',
+              }}
+            >
+              {level
+                ? <LevelBadge level={level} size={78} tilt={false} glow={isDark ? 'dark' : true} decorative />
+                : <Avatar initials={initials} size={52} you />}
+            </button>
+            {badgeGoal && (badgeGoal.isTop
+              ? fig('Top', '', 'Badge reached', 'var(--standing-num)', 'right')
+              : fig(badgeGoal.toNext.toLocaleString(), 'pts', 'To next badge', 'var(--standing-num)', 'right'))}
+          </div>
+          {badgeGoal ? (
+            <div role="progressbar" aria-label={badgeGoal.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={badgeGoal.pct} style={{ height: 4, borderRadius: 999, background: 'var(--standing-track)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${badgeGoal.pct}%`, background: 'linear-gradient(90deg,#E8B30B,#F6D06B)', borderRadius: 999 }} />
+            </div>
+          ) : <span />}
         </div>
 
         {/* back: your rank */}
         <div data-lb-face="rank" inert={!flipped} style={{ ...face, transform: 'rotateY(180deg)' }}>
-          <button
-            type="button"
-            className="lb-hero-badge"
-            onClick={turn}
-            aria-label={rank ? `Rank ${rank}. Show your badge` : 'Show your badge'}
-            style={{ flexShrink: 0, width: 96, border: 0, padding: 0, margin: 0, background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-          >
-            <span style={{ width: 86, height: 86, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', boxShadow: '0 6px 14px rgba(184,134,11,0.30)' }}>
-              <span style={{ width: 72, height: 72, borderRadius: 999, background: 'var(--standing-medal-in)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, lineHeight: 1 }}>
-                <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '0.16em', color: 'var(--standing-ink)' }}>RANK</span>
-                <span className="lb-exb" style={{ fontSize: rank && rank > 99 ? 22 : 26, color: 'var(--standing-num)', whiteSpace: 'nowrap' }}>
-                  {rank || '—'}<span style={{ fontSize: 11, marginLeft: 1 }}>{suffix}</span>
-                </span>
-              </span>
-            </span>
-          </button>
-
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '2px 0' }}>
-            <span style={eyebrow}>Your rank</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{where}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: moved.tone, marginTop: 3, whiteSpace: 'nowrap' }}>
-                {moved.arrow && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points={moved.arrow} /></svg>}
-                {moved.text}
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--standing-ink)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{next}</div>
-            </div>
+          <div style={{ ...line, fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your rank</div>
+          <div style={middle}>
+            {move
+              ? fig(
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points={up ? '6 15 12 9 18 15' : '6 9 12 15 18 9'} /></svg>
+                  {Math.abs(move)}
+                </span>,
+                '', up ? 'Up this week' : 'Down this week', up ? 'var(--t-green)' : 'var(--t-red)')
+              : fig('—', '', 'Same as last week', 'var(--muted)')}
             <button
               type="button"
-              className="lb-find"
-              onClick={() => { onFindMe(); setFlipped(false); }}
-              disabled={!rank || onPodium}
-              style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 10px', borderRadius: 999, border: '1px solid var(--standing-plate-edge)', background: 'var(--standing-plate)', color: 'var(--standing-num)', fontSize: 9.5, fontWeight: 800, cursor: !rank || onPodium ? 'default' : 'pointer', whiteSpace: 'nowrap' }}
+              className="lb-hero-badge"
+              onClick={turn}
+              aria-label={rank ? `Rank ${rank}. Show your badge` : 'Show your badge'}
+              style={{ width: 84, height: 80, border: 0, padding: 0, margin: 0, background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
             >
-              <LocateFixed size={11} strokeWidth={2.6} aria-hidden />
-              {onPodium ? 'You are on the podium' : 'Find me in the list'}
+              <span style={{ width: 76, height: 76, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'conic-gradient(from 210deg, #F6D06B, #E8B30B, #B8860B, #E8B30B, #F6D06B)', boxShadow: '0 5px 12px rgba(184,134,11,0.28)' }}>
+                <span style={{ width: 63, height: 63, borderRadius: 999, background: 'var(--standing-medal-in)', display: 'grid', placeItems: 'center', lineHeight: 1 }}>
+                  <span className="lb-exb" style={{ fontSize: rank && rank > 99 ? 19 : 23, color: 'var(--standing-num)', whiteSpace: 'nowrap' }}>
+                    {rank || '—'}<span style={{ fontSize: 10, marginLeft: 1 }}>{suffix}</span>
+                  </span>
+                </span>
+              </span>
             </button>
+            {rank && rank > 1 && topPct <= 50
+              ? fig(`Top ${topPct}%`, '', `Of ${total.toLocaleString()} colleagues`, 'var(--standing-num)', 'right')
+              : fig(total ? total.toLocaleString() : '—', '', 'On the board', 'var(--standing-num)', 'right')}
           </div>
+          <div style={{ ...line, color: 'var(--text)' }}>{next}</div>
         </div>
       </div>
     </div>
@@ -885,17 +877,11 @@ const Leaderboard = () => {
   const badgeGoal = useMemo(() => {
     const pr = mine.level ? progressFor(mine.points) : null;
     if (!pr) return null;
-    if (pr.isTop) return { label: 'Top badge reached', pct: 100 };
-    return { label: `${pr.toNext.toLocaleString()} pts to your next badge`, pct: pr.pct };
+    if (pr.isTop) return { label: 'Top badge reached', pct: 100, isTop: true };
+    return { label: `${pr.toNext.toLocaleString()} pts to your next badge`, pct: pr.pct, toNext: pr.toNext };
   }, [mine.level, mine.points]);
-  const rankGoal = standing.toNext > 0
-    ? `${standing.toNext.toLocaleString()} ${standing.toNext === 1 ? 'pt' : 'pts'} to overtake rank ${standing.nextRank}`
-    : null;
-  // "Find me": the people board, on the page with your row (the podium is on every page).
-  const findMe = () => {
-    setStage('people');
-    setPage(scope.youRank >= FIRST_LIST_RANK ? Math.floor((scope.youRank - FIRST_LIST_RANK) / rowsPerPage) : 0);
-  };
+  // the points to overtake the place above, when that can be shown
+  const rankGoal = standing.toNext > 0 ? { pts: standing.toNext, place: standing.nextRank } : null;
 
   // The ranked list follows the switch: people, or departments. Either way the
   // viewer is pinned in the footer (their own row, or their department's).
@@ -1002,7 +988,6 @@ const Leaderboard = () => {
               badgeGoal={badgeGoal}
               rankGoal={rankGoal}
               isDark={isDark}
-              onFindMe={findMe}
             />
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
