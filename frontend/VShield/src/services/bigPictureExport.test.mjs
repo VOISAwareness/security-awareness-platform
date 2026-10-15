@@ -27,7 +27,7 @@ test('the departments table', () => {
 
 test('the whole report: every table, the people only when asked', () => {
   const without = reportCsv(R, { title: 'The organisation' });
-  for (const t of ['Summary', 'Who moved', 'What catches each level', 'Departments', 'Which message lands where']) assert.ok(without.includes(t), t);
+  for (const t of ['Summary', 'What stands out', 'Where everyone stands', 'Who moved', 'What catches each level', 'Departments']) assert.ok(without.includes(t), t);
   assert.ok(!without.includes('Person 0'));
   const withPeople = reportCsv(R, { title: 'The organisation', withPeople: true });
   assert.ok(withPeople.includes('People, bottom of the board first'));

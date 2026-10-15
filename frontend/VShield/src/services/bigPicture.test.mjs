@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GROUPS, MOTIVATORS, PEOPLE_FILTERS, bigPicture, dateOf, styleOf } from './bigPicture.js';
+import { GROUPS, PEOPLE_FILTERS, bigPicture, dateOf } from './bigPicture.js';
 import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['AIDA', 'CARE', 'Finance', 'Network', 'Supply', 'Cyber', 'Cloud', 'IT Ops', 'Procurement', 'HR'];
@@ -38,18 +38,17 @@ test('the organisation: the last 30 days, and everything adds up', () => {
   const low = r.groups.find((g) => g.id === 'low');
   const top = r.groups.find((g) => g.id === 'top');
   assert.ok(low.click > top.click && low.report < top.report, 'lower levels click more and report less');
-  assert.ok(r.messages.teams.every((t) => MOTIVATORS.includes(t.best)));
+  assert.equal(r.standing.reduce((a, g) => a + g.now, 0), 300);
+  assert.equal(r.standing.reduce((a, g) => a + g.before, 0), 300);
   assert.ok(r.outlook.strongNow >= 0 && r.outlook.strongNext >= 0);
 });
 
-test('one campaign: everyone given took part, and its message style', () => {
+test('one campaign: everyone given took part', () => {
   const r = bigPicture(ITEMS, PEOPLE, { focus: 'C3' });
   assert.equal(r.basis.campaigns, 1);
   assert.equal(r.basis.people, 300);
-  assert.equal(r.messages.style, styleOf(CAMPAIGNS[3]));
   assert.equal(r.lures.length, 1);
   assert.equal(r.lures[0].type, 'HR lure');
-  assert.ok(r.messages.teams.every((t, i, all) => i === 0 || all[i - 1].rate >= t.rate));
   assert.equal(r.outlook, null);
 });
 

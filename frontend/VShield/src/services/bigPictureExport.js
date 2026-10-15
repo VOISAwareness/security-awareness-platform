@@ -1,10 +1,11 @@
 /**
  * What The Big Picture exports, as CSV columns: the people list, the
- * departments table, and the whole report (every table, one after another).
+ * departments table, and the whole report (the findings, then every table).
  * Pure, so `node --test` can cover it; csv.js turns these into a file.
  */
 import { LEVEL_BY_ID, rankName } from './levels.js';
 import { GROUPS } from './bigPicture.js';
+import { findings } from './bigPictureFindings.js';
 import { sectionsCsv, toCsv } from './csv.js';
 
 const levelName = (id) => rankName(LEVEL_BY_ID[id]) || '';
@@ -54,7 +55,7 @@ export const peopleCsv = (people) => toCsv(PEOPLE_COLUMNS, people);
 export const departmentsCsv = (departments) => toCsv(DEPARTMENT_COLUMNS, departments);
 
 /** Every table of the picture in one file; the people list only when `withPeople`. */
-export function reportCsv(r, { title, withPeople = false }) {
+export function reportCsv(r, { title, withPeople = false, campaign = false }) {
   const pair = [{ label: 'Measure', value: (x) => x[0] }, { label: 'Value', value: (x) => x[1] }];
   const summary = [
     ['Report', title],
@@ -75,6 +76,16 @@ export function reportCsv(r, { title, withPeople = false }) {
   const sections = [
     { title: 'Summary', columns: pair, rows: summary },
     {
+      title: 'What stands out',
+      columns: [{ label: 'Number', value: (f) => `${f.value}${f.unit ? ` ${f.unit}` : ''}` }, { label: 'Finding', value: (f) => f.headline }, { label: 'Detail', value: (f) => f.detail }],
+      rows: findings(r, { campaign }),
+    },
+    {
+      title: 'Where everyone stands, by level',
+      columns: [{ label: 'Level group', value: (g) => g.label }, { label: 'Now', value: (g) => g.now }, { label: 'At the start', value: (g) => g.before }, { label: 'Change', value: (g) => g.now - g.before }],
+      rows: r.standing,
+    },
+    {
       title: 'Who moved, by the level people started at',
       columns: [
         { label: 'Level group', value: (g) => g.label },
@@ -92,17 +103,6 @@ export function reportCsv(r, { title, withPeople = false }) {
       rows: r.lures,
     },
     { title: 'Departments', columns: DEPARTMENT_COLUMNS, rows: r.departments },
-    r.messages.styles
-      ? {
-        title: 'Which message lands where: each team’s most-clicked style',
-        columns: [{ label: 'Department', value: (t) => t.name }, { label: 'Most-clicked style', value: (t) => t.best }, { label: 'Click rate %', value: (t) => rate(t.rate) }],
-        rows: r.messages.teams,
-      }
-      : {
-        title: `Which message lands where: click rate % on this campaign's ${r.messages.style.toLowerCase()} message`,
-        columns: [{ label: 'Department', value: (t) => t.name }, { label: 'Click rate %', value: (t) => rate(t.rate) }],
-        rows: r.messages.teams,
-      },
   ];
   if (withPeople) sections.push({ title: 'People, bottom of the board first', columns: PEOPLE_COLUMNS, rows: r.people });
   return sectionsCsv(sections);

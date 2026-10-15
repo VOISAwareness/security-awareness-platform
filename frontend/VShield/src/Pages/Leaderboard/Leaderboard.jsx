@@ -76,15 +76,13 @@ const FONT_IMPORT = `
   .lb-cap:active { transform: scale(.97); }
   .lb-cap-only:hover, .lb-cap-only:active { transform: none; }
 
-  /* The Big Picture: a card's edge lights up and its arrow nudges on hover */
-  .bp-card { transition: box-shadow .2s ease, border-color .2s ease; }
-  .bp-card:hover { box-shadow: 0 10px 24px rgba(15,23,42,0.10); border-color: var(--bp-accent) !important; }
-  .bp-card:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-  .bp-card .bp-turn svg { transition: transform .2s ease; }
-  .bp-card:hover .bp-turn svg { transform: translateX(3px); }
-  .bp-pin { transition: background .15s ease; }
-  .bp-pin:hover { background: var(--track) !important; }
-  .bp-pin:focus-visible, .bp-link:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  /* The Big Picture: findings and rows light up, their arrow nudges, on hover */
+  .bp-finding, .bp-row { transition: background .15s ease; }
+  .bp-finding:hover, .bp-row:hover { background: var(--track) !important; }
+  .bp-finding .bp-go svg { transition: transform .2s ease; }
+  .bp-finding:hover .bp-go svg { transform: translateX(3px); }
+  .bp-finding:hover .bp-go { color: var(--text) !important; }
+  .bp-finding:focus-visible, .bp-row:focus-visible, .bp-link:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .bp-link:hover { text-decoration: underline; }
 
   /* Badges: lift on hover; rows lift a little too */
@@ -120,7 +118,7 @@ const FONT_IMPORT = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .bp-card, .bp-card svg { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .bp-finding, .bp-finding svg, .bp-row { animation: none !important; transition: none !important; }
     .lb-shine { animation: none !important; opacity: 0; }
   }
 `;

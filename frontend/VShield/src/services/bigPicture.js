@@ -3,13 +3,12 @@
  * leaders and admins. It reports what happened and what could happen next;
  * it never recommends. Planning is left to the people reading it.
  *
+ *   standing  - how many people are in each level band now, and at the start;
  *   moved     - who climbed a level, who slipped, who fell below zero;
  *   groups    - the same by the level people started at, with how often
  *               they clicked and reported;
  *   lures     - how often each lure got a click, at each level;
  *   teams     - the points each department gained or lost;
- *   messages  - which message style got the most clicks from each team
- *               (for one campaign: how each team took its message);
  *   edge      - who is one step from a change: one report from a new level,
  *               one click from dropping a level or going below zero;
  *   outlook   - where the board is heading if the pace holds;
@@ -27,15 +26,13 @@
 import { LEVELS, levelFor, progressFor } from './levels.js';
 import { lean } from './sampleReports.js';
 
-// The Dashboard's message styles (motivators), so both screens use the same words.
-export const MOTIVATORS = Object.freeze(['Urgency', 'Authority', 'Reward', 'Curiosity', 'Fear']);
-
-// Level groups, top first: `from` is the lowest level number in the group.
+// Level groups, top first: `from` is the lowest level number in the group;
+// `brief` a name that fits a legend.
 export const GROUPS = Object.freeze([
-  Object.freeze({ id: 'top', label: 'Security Defender, Cyber Guardian', short: 'L6–7', from: 6 }),
-  Object.freeze({ id: 'strong', label: 'Phish Catcher, Security Champion', short: 'L4–5', from: 4 }),
-  Object.freeze({ id: 'learning', label: 'Aware User, Safe Handler', short: 'L2–3', from: 2 }),
-  Object.freeze({ id: 'low', label: 'New Joiner or below zero', short: 'L1 & below', from: -Infinity }),
+  Object.freeze({ id: 'top', label: 'Security Defender, Cyber Guardian', brief: 'Defender & Guardian', short: 'L6–7', from: 6 }),
+  Object.freeze({ id: 'strong', label: 'Phish Catcher, Security Champion', brief: 'Catcher & Champion', short: 'L4–5', from: 4 }),
+  Object.freeze({ id: 'learning', label: 'Aware User, Safe Handler', brief: 'Aware & Safe Handler', short: 'L2–3', from: 2 }),
+  Object.freeze({ id: 'low', label: 'New Joiner or below zero', brief: 'New or below zero', short: 'L1 & below', from: -Infinity }),
 ]);
 const groupOf = (level) => GROUPS.find((g) => level >= g.from).id;
 
@@ -61,9 +58,6 @@ export function dateOf(started, year = 2026) {
   return Date.UTC(year, MONTHS[m] ?? 0, Number(d) || 1);
 }
 
-/** The message style a sample campaign used (the API will record it). */
-export const styleOf = (campaign) => MOTIVATORS[Math.floor(hash01(`style|${campaign.id}`) * MOTIVATORS.length)];
-
 const levelOf = (points) => levelFor(points)?.level ?? 1;
 // The lowest points of a level number (its Grade 1), or null below zero.
 const levelFloor = (level) => LEVELS.find((l) => l.level === level && l.grade === 1)?.min ?? null;
@@ -87,7 +81,10 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
   const followed = focus ? items.find((x) => x.campaign.id === focus) || null : null;
   const end = now ?? Math.max(...items.map((x) => dateOf(x.campaign.started)));
   const window = followed ? [followed] : items.filter((x) => end - dateOf(x.campaign.started) <= days * DAY);
-  const takesPart = (p, c) => Boolean(followed) || hash01(`${p.key}|${c.id}|in`) < 0.55;
+  // Sample: everyone gets about three of the window's campaigns, as a real
+  // programme sends a few emails a month, not all of them.
+  const share = Math.min(1, 3 / Math.max(1, window.length));
+  const takesPart = (p, c) => Boolean(followed) || hash01(`${p.key}|${c.id}|in`) < share;
 
   // Each person in each campaign: how likely they were to click or report
   // (by the level they were at), what they did, and what it did to their
@@ -98,12 +95,11 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     let earned = 0;
     let lost = 0;
     window.forEach(({ campaign: c, report }) => {
-      const style = styleOf(c);
       const gave = report.clicked ? report.compromised / report.clicked : 0;
       people.forEach((p, i) => {
         if (!takesPart(p, c)) return;
         const g = groupOf(levelAt(i));
-        const click = clamp(report.rates.click * CLICK_BY_GROUP[g] * lean(p.dept, 0.9) * lean(`${p.dept}|${c.type}`, 0.7) * lean(`${p.dept}|${style}`, 0.8), 0, 0.85);
+        const click = clamp(report.rates.click * CLICK_BY_GROUP[g] * lean(p.dept, 0.9) * lean(`${p.dept}|${c.type}`, 0.7), 0, 0.85);
         const rep = clamp(report.rates.report * REPORT_BY_GROUP[g] * (2 - lean(p.dept, 0.9)), 0, 0.95 - click);
         const u = hash01(`${p.key}|${c.id}|e`);
         let d = 0;
@@ -119,7 +115,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
         if (d > 0) earned += d; else lost -= d;
         seen[i].delta += d;
         seen[i].took += 1;
-        seen[i].events.push({ type: c.type, style, click, rep });
+        seen[i].events.push({ type: c.type, click, rep });
       });
     });
     return { seen, earned, lost };
@@ -148,7 +144,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     if (before < 0 && p.points >= 0) moved.backAbove += 1;
     if (lb >= 4) strongBefore += 1;
     if (ln >= 4) strongAfter += 1;
-    const t = teams[p.dept || 'Unassigned'] || (teams[p.dept || 'Unassigned'] = { net: 0, people: 0, click: 0, n: 0, styles: {} });
+    const t = teams[p.dept || 'Unassigned'] || (teams[p.dept || 'Unassigned'] = { net: 0, people: 0, click: 0, n: 0 });
     t.net += s.delta;
     t.people += 1;
     s.events.forEach((e) => {
@@ -158,8 +154,6 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
       cell[k] = cell[k] || { click: 0, n: 0 };
       cell[k].click += e.click; cell[k].n += 1;
       t.click += e.click; t.n += 1;
-      const st = (t.styles[e.style] ||= { click: 0, n: 0 });
-      st.click += e.click; st.n += 1;
     });
   });
 
@@ -168,30 +162,8 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     return { type, click: pct(all.click, all.n), cells: Object.fromEntries(GROUPS.map((g) => [g.id, cells[g.id] ? pct(cells[g.id].click, cells[g.id].n) : null])) };
   }).sort((a, b) => b.click - a.click || a.type.localeCompare(b.type));
 
-  const teamList = Object.entries(teams).map(([name, t]) => ({ name, net: t.net, people: t.people, click: pct(t.click, t.n), styles: t.styles }))
+  const teamList = Object.entries(teams).map(([name, t]) => ({ name, net: t.net, people: t.people, click: pct(t.click, t.n) }))
     .sort((a, b) => b.net - a.net || a.name.localeCompare(b.name));
-
-  let messages;
-  if (followed) {
-    const overall = teamList.reduce((a, t) => ({ click: a.click + (t.click ?? 0) * t.people, n: a.n + t.people }), { click: 0, n: 0 });
-    messages = {
-      style: styleOf(followed.campaign),
-      overall: pct(overall.click, overall.n),
-      teams: teamList.map((t) => ({ name: t.name, rate: t.click })).sort((a, b) => b.rate - a.rate || a.name.localeCompare(b.name)),
-    };
-  } else {
-    const byStyle = Object.fromEntries(MOTIVATORS.map((m) => [m, { click: 0, n: 0 }]));
-    const list = teamList.map((t) => {
-      const rates = Object.fromEntries(MOTIVATORS.map((m) => [m, t.styles[m] ? pct(t.styles[m].click, t.styles[m].n) : null]));
-      MOTIVATORS.forEach((m) => { if (t.styles[m]) { byStyle[m].click += t.styles[m].click; byStyle[m].n += t.styles[m].n; } });
-      const best = MOTIVATORS.filter((m) => rates[m] !== null).sort((a, b) => rates[b] - rates[a])[0] || null;
-      return { name: t.name, best, rate: best ? rates[best] : null, rates };
-    }).sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1) || a.name.localeCompare(b.name));
-    messages = {
-      styles: MOTIVATORS.map((m) => ({ style: m, rate: pct(byStyle[m].click, byStyle[m].n) })).filter((x) => x.rate !== null).sort((a, b) => b.rate - a.rate),
-      teams: list,
-    };
-  }
 
   // Everyone, one by one: where they stand, what changed, what they did, and
   // how close they are to a change (from today's points).
@@ -236,6 +208,12 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     nearZero: persons.filter((x) => x.nearZero).length,
   };
   const strongNow = persons.filter((x) => levelOf(x.points) >= 4).length;
+  // how many in each level band, now and at the start of the window
+  const standing = GROUPS.map((g) => ({
+    id: g.id, label: g.label, brief: g.brief,
+    now: persons.filter((x) => x.groupNow === g.id).length,
+    before: persons.filter((x) => x.group === g.id).length,
+  }));
 
   // Department by department, the least ground gained first.
   const COUNTS = ['climbed', 'slipped', 'belowZero', 'fellBelowZero', 'nearUp', 'nearSlip', 'nearZero'];
@@ -263,12 +241,12 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
 
   const took = seen.filter((s) => s.took).length;
   return {
-    basis: { campaigns: window.length, people: took, population: people.length, days: followed ? null : days, style: followed ? styleOf(followed.campaign) : null },
+    basis: { campaigns: window.length, people: took, population: people.length, days: followed ? null : days },
+    standing,
     moved,
     groups: GROUPS.map((g) => ({ id: g.id, label: g.label, short: g.short, people: groups[g.id].people, climbed: groups[g.id].climbed, slipped: groups[g.id].slipped, click: pct(groups[g.id].click, groups[g.id].n), report: pct(groups[g.id].rep, groups[g.id].n) })),
     lures,
     teams: teamList.map((t) => ({ name: t.name, net: t.net, people: t.people, click: t.click })),
-    messages,
     edge,
     // if the window's pace holds for another window: people at Phish Catcher or above
     outlook: followed ? null : { strongNow, strongNext: Math.max(0, strongNow + strongAfter - strongBefore) },
@@ -284,6 +262,7 @@ export const PEOPLE_FILTERS = Object.freeze([
   { id: 'belowZero', label: 'Below zero now', test: (x) => x.belowZero },
   { id: 'fellBelowZero', label: 'Fell below zero', test: (x) => x.fellBelowZero },
   { id: 'slipped', label: 'Slipped a level', test: (x) => x.moved === 'down' },
+  { id: 'oneClick', label: 'One click from a level down or below zero', test: (x) => x.nearSlip || x.nearZero },
   { id: 'nearZero', label: 'One click from below zero', test: (x) => x.nearZero },
   { id: 'nearSlip', label: 'One click from a level down', test: (x) => x.nearSlip },
   { id: 'gave', label: 'Gave details away', test: (x) => x.gave > 0 },

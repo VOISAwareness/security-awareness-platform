@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Award, Building2, Check, Coins, Copy, Download, LayoutGrid, Mail, MessageSquareQuote, RotateCcw, TrendingUp, TriangleAlert, Users, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, Copy, Download, Eye, LayoutGrid, ThumbsUp, TriangleAlert, Users } from 'lucide-react';
 
+import LevelBadge from '../../GlobalComponents/LevelBadge';
+import { LEVEL_BY_ID } from '../../services/levels';
+import { findings } from '../../services/bigPictureFindings';
 import { reportCsv } from '../../services/bigPictureExport';
 import { csvName, downloadCsv } from '../../services/csv';
 import { DepartmentTable, PeopleTable } from './BigPictureTables';
@@ -9,361 +11,180 @@ import { REPORT_INK } from './reportInk';
 
 // The Big Picture: the leaderboard's reporting view for leaders and admins.
 //
-// It reports what the board shows and what could happen next; it never says
-// what to do. Leaders read it and plan for themselves. Nothing here repeats
-// the Dashboard: it is about movement on the board (levels climbed and
-// slipped, points gained and lost) and how that splits by level, lure, team
-// and message style.
+// It reports what the board shows; it never says what to do. Three things,
+// each readable at a glance:
+//   - where everyone stands: one bar of the level bands, and how they moved;
+//   - what stands out: a handful of findings, one line each, worst first,
+//     each opening the people behind it;
+//   - the bottom of the board: the people (admins) or departments to watch.
+// People and Departments list everyone one by one, to select and export.
 //
-// Along the top, what moved. Four cards, each a question with its answer and
-// the number behind it; click one and it turns over to the full breakdown,
-// with why it matters. Along the bottom, who is one step from a change.
-//
-// Every number leads to the people and departments behind it: People lists
-// everyone one by one, bottom of the board first (admins only, as with
-// below-zero levels elsewhere), Departments does the same by department.
-// Both select and export to CSV; Export report saves every table at once.
-//
-// Colours: teal for climbing, reporting and gaining points; red for slipping,
-// clicking and losing them. Checked for colour-blind separation on both
-// themes, and every coloured mark has its number beside it.
+// Colours: the level bands run red (new or below zero) through grey to teal
+// (Phish Catcher and up), checked for colour-blind separation on both
+// themes; every band has its count written beside it, and every finding's
+// tone has its own icon, never colour alone.
 
-const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
 const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
 
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 
-// Two counts side by side in one bar (climbed vs slipped, gained vs lost).
-function Split({ a, b, aLabel, bLabel, ink }) {
-  const sum = Math.max(1, a + b);
+const BANDS = {
+  light: { top: '#115E59', strong: '#14B8A6', learning: '#E2E8F0', low: '#E5484D' },
+  dark: { top: '#99F6E4', strong: '#14B8A6', learning: '#475569', low: '#E8635F' },
+};
+const TONE = { bad: TriangleAlert, watch: Eye, good: ThumbsUp };
+
+// The one sentence that sums up the movement.
+const moveLine = (r, campaign) => `${num(r.moved.climbed)} climbed a level and ${num(r.moved.slipped)} slipped ${campaign ? 'in this campaign' : 'in the last 30 days'}.`;
+
+// Where everyone stands: the level bands in one bar, each with its count and how it moved.
+function Standing({ r, campaign, isDark, ink }) {
+  const colors = BANDS[isDark ? 'dark' : 'light'];
+  const total = Math.max(1, r.standing.reduce((a, g) => a + g.now, 0));
+  const bands = [...r.standing].reverse(); // lowest first, left to right
   return (
-    <div>
-      <div role="img" aria-label={`${a} ${aLabel}, ${b} ${bLabel}`} style={{ display: 'flex', gap: 2, height: 7 }}>
-        {a > 0 && <span style={{ flex: a / sum, background: ink.good, borderRadius: b > 0 ? '4px 0 0 4px' : 4 }} />}
-        {b > 0 && <span style={{ flex: b / sum, background: ink.bad, borderRadius: a > 0 ? '0 4px 4px 0' : 4 }} />}
-        {!a && !b && <span style={{ flex: 1, background: 'var(--track)', borderRadius: 4 }} />}
+    <div style={{ minWidth: 0, flex: 1 }}>
+      <div style={eyebrow}>{campaign ? 'Where its recipients stand' : 'Where everyone stands'}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)', marginTop: 6 }}>{moveLine(r, campaign)}</div>
+      <div role="img" aria-label={bands.map((g) => `${g.now} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 12, marginTop: 12 }}>
+        {bands.filter((g) => g.now > 0).map((g, i, all) => (
+          <span key={g.id} title={`${g.label}: ${num(g.now)}`} style={{ flex: g.now / total, background: colors[g.id], borderRadius: all.length === 1 ? 4 : i === 0 ? '4px 0 0 4px' : i === all.length - 1 ? '0 4px 4px 0' : 0 }} />
+        ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 6, ...small }}>
-        <span><strong style={{ color: 'var(--text)' }}>{num(a)}</strong> {aLabel}</span>
-        <span><strong style={{ color: 'var(--text)' }}>{num(b)}</strong> {bLabel}</span>
-      </div>
-    </div>
-  );
-}
-
-// A rate against a comparison: a thin bar with a 4px end, a tick at the comparison.
-function Meter({ value, avg, color, label, avgLabel, compact = false, max: scale = null }) {
-  const max = scale ?? Math.max(0.05, value ?? 0, avg ?? 0) * 1.25;
-  return (
-    <div>
-      {!compact && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...small, fontWeight: 700, marginBottom: 6 }}>
-          <span>{label}</span>
-          <span style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)' }}>{pc(value)}</strong>{avg !== null && avg !== undefined && <> · {avgLabel} {pc(avg)}</>}</span>
-        </div>
-      )}
-      <div role="img" aria-label={`${label} ${pc(value)}${avg !== null && avg !== undefined ? `, ${avgLabel} ${pc(avg)}` : ''}`} style={{ position: 'relative', height: compact ? 5 : 7 }}>
-        <div style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${Math.min(1, (value ?? 0) / max) * 100}%`, background: color, borderRadius: '0 4px 4px 0' }} />
-        </div>
-        {avg !== null && avg !== undefined && <span aria-hidden style={{ position: 'absolute', left: `calc(${Math.min(1, avg / max) * 100}% - 1px)`, top: -3, bottom: -3, width: 2, borderRadius: 1, background: 'var(--text)' }} />}
-      </div>
-    </div>
-  );
-}
-
-// One cell of a click-rate heat map: deeper red, more clicks; the number is always written.
-function Heat({ value, max, rgb, h = 26 }) {
-  if (value === null || value === undefined) {
-    return <span style={{ height: h, display: 'grid', placeItems: 'center', borderRadius: 6, background: 'var(--track)', ...small }} title="Not sent to this level">—</span>;
-  }
-  const a = 0.1 + 0.8 * (value / Math.max(0.01, max));
-  return (
-    <span style={{ height: h, display: 'grid', placeItems: 'center', borderRadius: 6, background: `rgba(${rgb},${a.toFixed(2)})`, color: a > 0.55 ? '#FFFFFF' : 'var(--text)', fontSize: 9.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-      {pc(value)}
-    </span>
-  );
-}
-
-// A bar either side of zero (slipped | climbed, lost | gained), its number at the end.
-function Diverge({ value, max, ink, left = false }) {
-  const w = `${(Math.min(1, Math.abs(value) / Math.max(1, max)) * 100).toFixed(1)}%`;
-  return (
-    <span style={{ display: 'flex', justifyContent: left ? 'flex-end' : 'flex-start', alignItems: 'center', gap: 5, minWidth: 0 }}>
-      {left && <span style={{ ...small, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{value ? num(Math.abs(value)) : ''}</span>}
-      <span style={{ height: 7, width: value ? w : 0, minWidth: value ? 3 : 0, background: left ? ink.bad : ink.good, borderRadius: left ? '4px 0 0 4px' : '0 4px 4px 0' }} />
-      {!left && <span style={{ ...small, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{value ? num(Math.abs(value)) : ''}</span>}
-    </span>
-  );
-}
-
-// A team's name in a breakdown: a link to its people (or its row) when it can be one.
-function TeamName({ name, onTeam, inline = false }) {
-  const text = { minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 10, fontWeight: 700 };
-  if (!onTeam) return <span style={{ ...text, display: inline ? 'inline' : 'block', marginBottom: inline ? 0 : 3 }}>{name}</span>;
-  return (
-    <button type="button" className="bp-link" onClick={() => onTeam(name)} title={`See ${name}`} style={{ ...text, display: 'block', maxWidth: '100%', marginBottom: inline ? 0 : 3, padding: 0, border: 'none', background: 'none', color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
-      {name}
-    </button>
-  );
-}
-
-// --- the four questions -------------------------------------------------------
-
-function cardsFor(r, campaign, ink, rgb, onTeam) {
-  const org = !campaign;
-  // 1. levels: who moved
-  const mover = [...r.groups].sort((a, b) => b.climbed - a.climbed || a.label.localeCompare(b.label))[0];
-  const maxMove = Math.max(1, ...r.groups.map((g) => Math.max(g.climbed, g.slipped)));
-  // 2. lures: what catches each level (by Phish Catchers and Champions)
-  const sticky = [...r.lures].sort((a, b) => (b.cells.strong ?? -1) - (a.cells.strong ?? -1))[0];
-  const maxHeat = Math.max(0.01, ...r.lures.flatMap((l) => Object.values(l.cells).filter((v) => v !== null)));
-  // 3. teams: points gained and lost
-  const topTeam = r.teams[0];
-  const lowTeam = r.teams.at(-1);
-  const maxNet = Math.max(1, ...r.teams.map((t) => Math.abs(t.net)));
-  const gained = r.teams.filter((t) => t.net > 0).length;
-  // 4. messages
-  const mt = r.messages.teams[0];
-  const styleAvg = org ? r.messages.styles.find((s) => s.style === mt?.best)?.rate ?? null : r.messages.overall;
-  const maxRate = Math.max(0.05, ...r.messages.teams.map((t) => t.rate ?? 0));
-
-  const strip = (lure) => (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 3 }}>
-        {r.groups.map((g) => <Heat key={g.id} value={lure?.cells[g.id] ?? null} max={maxHeat} rgb={rgb} h={22} />)}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 3, marginTop: 4 }}>
-        {r.groups.map((g) => <span key={g.id} style={{ ...small, fontSize: 8.5, textAlign: 'center', whiteSpace: 'nowrap' }}>{g.short}</span>)}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10, marginTop: 9 }}>
+        {bands.map((g) => {
+          const d = g.now - g.before;
+          const better = g.id === 'low' ? d < 0 : d > 0;
+          const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
+          return (
+            <span key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              <span aria-hidden style={{ flexShrink: 0, width: 8, height: 8, borderRadius: 2, background: colors[g.id], boxShadow: g.id === 'learning' ? 'inset 0 0 0 1px var(--hair)' : 'none' }} />
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.brief}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <strong className="vs-rank" style={{ fontSize: 13, color: 'var(--text)' }}>{num(g.now)}</strong>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 9.5, fontWeight: 800, color: 'var(--muted)' }}>
+                    {d === 0 ? 'same' : <><Arrow size={11} strokeWidth={3} color={better ? ink.good : ink.bad} aria-hidden />{num(Math.abs(d))}</>}
+                  </span>
+                </span>
+              </span>
+            </span>
+          );
+        })}
       </div>
     </div>
   );
-
-  return [
-    {
-      id: 'moved', n: 1, title: 'Who moved', Icon: TrendingUp,
-      answer: mover.label,
-      note: org ? 'Climbed the most in the last 30 days' : 'Climbed the most in this campaign',
-      hero: num(mover.climbed), caption: `of them climbed a level, from ${num(mover.people)} who started here`,
-      mini: <Split a={mover.climbed} b={mover.slipped} aLabel="climbed" bLabel="slipped" ink={ink} />,
-      what: 'Climbed and slipped a level, by the level people started at.',
-      why: 'Movement shows whether behaviour is changing, not only where it stands.',
-      body: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            <span style={{ textAlign: 'right', paddingRight: 6 }}>Slipped</span><span style={{ paddingLeft: 6 }}>Climbed</span>
-          </div>
-          {r.groups.map((g) => (
-            <div key={g.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
-                <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</span>
-                <span style={{ ...small, flexShrink: 0 }}>{num(g.people)}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2px 1fr', alignItems: 'center' }}>
-                <Diverge value={g.slipped} max={maxMove} ink={ink} left />
-                <span style={{ height: 14, background: 'var(--hair)' }} />
-                <Diverge value={g.climbed} max={maxMove} ink={ink} />
-              </div>
-            </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      id: 'lures', n: 2, title: 'What catches each level', Icon: Mail,
-      answer: sticky?.type || '—',
-      note: org ? `${pc(sticky?.cells.low)} of New Joiners and below clicked it` : 'The lure this campaign used',
-      hero: pc(sticky?.cells.strong), caption: org ? 'of Phish Catchers and Champions clicked it, more than any other lure' : 'of Phish Catchers and Champions clicked it',
-      mini: strip(sticky),
-      what: org ? 'How often each lure got a click, at each level.' : 'How each level handled this lure: clicked and reported.',
-      why: 'Shows which tricks still work on people who usually spot them.',
-      body: org ? (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) repeat(4, minmax(0,1fr))', gap: 3, alignItems: 'center' }}>
-            <span />
-            {r.groups.map((g) => <span key={g.id} style={{ ...small, fontSize: 8.5, fontWeight: 800, textAlign: 'center', whiteSpace: 'nowrap' }}>{g.short}</span>)}
-            {r.lures.map((l) => [
-              <span key={`${l.type}-n`} title={l.type} style={{ fontSize: 9.5, fontWeight: 700, lineHeight: 1.15, paddingRight: 4, overflowWrap: 'anywhere' }}>{l.type.replace(/ lure$/, '')}</span>,
-              ...r.groups.map((g) => <Heat key={`${l.type}-${g.id}`} value={l.cells[g.id]} max={maxHeat} rgb={rgb} />),
-            ])}
-          </div>
-          <div style={{ ...small, marginTop: 8 }}>Click rate by lure (rows) and level (columns) · deeper red, more clicks</div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {r.groups.map((g) => (
-            <div key={g.id}>
-              <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) 30px', alignItems: 'center', gap: 6, ...small }}>
-                <span>Clicked</span><Meter compact value={g.click} color={ink.bad} label="Clicked" /><strong style={{ color: 'var(--text)', textAlign: 'right' }}>{pc(g.click)}</strong>
-                <span>Reported</span><Meter compact value={g.report} color={ink.good} label="Reported" /><strong style={{ color: 'var(--text)', textAlign: 'right' }}>{pc(g.report)}</strong>
-              </div>
-            </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      id: 'teams', n: 3, title: 'Which teams gained ground', Icon: Building2,
-      answer: topTeam?.name || '—',
-      note: lowTeam ? `${lowTeam.name} ${lowTeam.net < 0 ? 'lost the most' : 'gained the least'}: ${signed(lowTeam.net)} pts` : '',
-      hero: signed(topTeam?.net || 0), caption: 'points, the most of any team',
-      mini: <Split a={gained} b={r.teams.length - gained} aLabel="teams gained" bLabel="lost or held" ink={ink} />,
-      what: 'Points each team gained or lost, reports less clicks.',
-      why: 'Points are the board’s record of behaviour: reporting earns them, clicking costs them.',
-      body: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {r.teams.map((t) => (
-            <div key={t.name}>
-              <TeamName name={t.name} onTeam={onTeam} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2px 1fr', alignItems: 'center' }}>
-                <Diverge value={Math.min(0, t.net)} max={maxNet} ink={ink} left />
-                <span style={{ height: 12, background: 'var(--hair)' }} />
-                <Diverge value={Math.max(0, t.net)} max={maxNet} ink={ink} />
-              </div>
-            </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      id: 'messages', n: 4, title: 'Which message lands where', Icon: MessageSquareQuote,
-      answer: org ? mt?.name || '—' : r.messages.style,
-      note: org ? `Clicked most when an email used ${mt?.best?.toLowerCase()}` : 'The message style this campaign used',
-      hero: pc(mt?.rate), caption: org ? 'the highest click rate of any team and style' : `of ${mt?.name} clicked it, the most of any team`,
-      mini: <Meter value={mt?.rate} avg={styleAvg} color={ink.bad} label={org ? `${mt?.best} emails` : 'This campaign'} avgLabel={org ? 'all teams' : 'everyone'} />,
-      what: org ? 'Each team’s most-clicked message style, and how often it worked.' : 'How often each team clicked this campaign’s message.',
-      why: 'The pressure that works differs from team to team.',
-      body: (
-        <div>
-          {org && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
-              {r.messages.styles.map((s) => (
-                <span key={s.style} style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--track)', ...small, fontSize: 9 }}>{s.style} <strong style={{ color: 'var(--text)' }}>{pc(s.rate)}</strong></span>
-              ))}
-            </div>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {r.messages.teams.map((t) => (
-              <div key={t.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 10, fontWeight: 700, marginBottom: 3 }}>
-                  <TeamName name={t.name} onTeam={onTeam} inline />
-                  <span style={{ flexShrink: 0, ...small }}>{org && <>{t.best} · </>}<strong style={{ color: 'var(--text)' }}>{pc(t.rate)}</strong></span>
-                </div>
-                <Meter compact value={t.rate} avg={org ? null : r.messages.overall} color={ink.bad} label={t.name} max={maxRate * 1.1} />
-              </div>
-            ))}
-          </div>
-        </div>
-      ),
-    },
-  ];
 }
 
-// The front of a card: the answer, the number behind it, and a small picture of it.
-function Front({ c, open, onTurn }) {
+// One finding: its number, the line, where it sits, and the people behind it.
+function Finding({ f, ink, see, onOpen }) {
+  const Icon = TONE[f.tone];
+  const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)';
+  const Tag = f.link ? 'button' : 'div';
   return (
-    <button
-      type="button"
-      inert={open}
-      data-bp-card={c.id}
-      className="bp-card"
-      onClick={onTurn}
-      aria-expanded={open}
-      aria-label={`${c.title}: ${c.answer}. See the breakdown`}
-      style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: '16px 18px', borderRadius: 16, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)' }}
+    <Tag
+      {...(f.link ? { type: 'button', onClick: onOpen, className: 'bp-finding', 'data-bp-finding': f.id, 'aria-label': `${f.value} ${f.headline}. ${see}` } : { 'data-bp-finding': f.id })}
+      style={{ width: '100%', display: 'grid', gridTemplateColumns: '26px 86px minmax(0,1fr) auto', alignItems: 'center', gap: 12, padding: '0 10px', border: 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default', minHeight: 0, flex: 1 }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span aria-hidden style={{ width: 22, height: 22, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--bp-soft)', color: 'var(--bp-ink)' }}><c.Icon size={12} strokeWidth={2.6} /></span>
-        <span style={eyebrow}>{c.title}</span>
+      <span aria-hidden title={f.tone === 'good' ? 'Good news' : f.tone === 'bad' ? 'Concern' : 'Worth watching'} style={{ width: 26, height: 26, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'var(--track)', color: tone }}>
+        <Icon size={13} strokeWidth={2.6} />
       </span>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span key={`${c.answer}-${c.hero}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, marginTop: 14 }}>
-          <span className="vs-rank" style={{ fontSize: 17, fontWeight: 900, lineHeight: 1.15, letterSpacing: '-0.01em' }}>{c.answer}</span>
-          <span style={{ ...small, fontSize: 10, lineHeight: 1.45, marginTop: 5 }}>{c.note}</span>
-          <span style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '10px 0' }}>
-            <span className="vs-rank" style={{ fontSize: 34, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{c.hero}</span>
-            <span style={{ fontSize: 10.5, fontWeight: 700, lineHeight: 1.4, marginTop: 6 }}>{c.caption}</span>
-          </span>
-          <span style={{ display: 'block' }}>{c.mini}</span>
-        </motion.span>
-      </AnimatePresence>
-      <span className="bp-turn" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 10, fontWeight: 800, color: 'var(--muted)' }}>
-        See the breakdown <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
+        <span className="vs-rank" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>{f.value}</span>
+        {f.unit && <span style={{ ...small, fontWeight: 800 }}>{f.unit}</span>}
       </span>
-    </button>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 11.5, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
+        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', ...small, fontSize: 10, lineHeight: 1.4, marginTop: 2 }} title={f.detail}>{f.detail}</span>
+      </span>
+      {f.link ? (
+        <span className="bp-go" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+          {see} <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
+        </span>
+      ) : <span />}
+    </Tag>
   );
 }
 
-// The back of a card: what it shows, why it matters, the full breakdown.
-function Back({ c, open, flat, onClose }) {
-  const close = useRef(null);
-  useEffect(() => { if (open) close.current?.focus(); }, [open]);
+// The bottom of the board: the people (admins) or departments to watch.
+function WatchList({ r, canSeePeople, ink, onAll, onPerson, onDept }) {
+  const people = r.people.slice(0, 7);
+  const depts = r.departments.slice(0, 7);
+  const maxNet = Math.max(1, ...depts.map((d) => Math.abs(d.net)));
   return (
-    <div
-      data-bp-back={c.id}
-      inert={!open}
-      aria-hidden={!open}
-      style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: flat ? 'none' : 'rotateY(180deg)', display: 'flex', flexDirection: 'column', padding: '14px 12px 12px 18px', borderRadius: 16, border: '1.5px solid var(--bp-accent)', background: 'var(--rail)', color: 'var(--text)', boxShadow: '0 12px 28px rgba(15,23,42,0.12)' }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, paddingRight: 4 }}>
-        <span style={{ ...eyebrow, color: 'var(--bp-ink)' }}>{c.title}</span>
-        <button ref={close} type="button" onClick={onClose} aria-label="Close the breakdown" style={{ marginLeft: 'auto', width: 24, height: 24, display: 'grid', placeItems: 'center', borderRadius: 8, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
-          <X size={13} strokeWidth={2.6} />
+    <section aria-label={canSeePeople ? 'Bottom of the board' : 'Departments to watch'} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--hair)', paddingLeft: 20 }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <span>
+          <span style={eyebrow}>{canSeePeople ? 'Bottom of the board' : 'Least ground gained'}</span>
+          <span style={{ display: 'block', ...small, marginTop: 3 }}>{canSeePeople ? 'Lowest points first' : 'Departments, points gained or lost'}</span>
+        </span>
+        <button type="button" data-bp-see-all onClick={onAll} className="bp-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0, border: 'none', background: 'none', fontSize: 10, fontWeight: 800, color: 'var(--text)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          See all {num(canSeePeople ? r.people.length : r.departments.length)} <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
         </button>
       </div>
-      <p style={{ margin: '6px 6px 0 0', fontSize: 10.5, fontWeight: 700, lineHeight: 1.45, flexShrink: 0 }}>{c.what}</p>
-      <p style={{ margin: '3px 6px 12px 0', ...small, lineHeight: 1.45, flexShrink: 0 }}>{c.why}</p>
-      <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: 6 }}>{c.body}</div>
-    </div>
-  );
-}
-
-// One card that turns over (with reduced motion, it swaps instead).
-function Card({ c, open, onTurn, reduce }) {
-  const front = <Front c={c} open={open} onTurn={onTurn} />;
-  const back = <Back c={c} open={open} flat={reduce} onClose={onTurn} />;
-  if (reduce) return <div style={{ position: 'relative', minWidth: 0, minHeight: 0 }}>{open ? back : front}</div>;
-  return (
-    <div style={{ position: 'relative', minWidth: 0, minHeight: 0, perspective: 1400 }}>
-      <motion.div initial={false} animate={{ rotateY: open ? 180 : 0 }} transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }} style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
-        {front}
-        {back}
-      </motion.div>
-    </div>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        {canSeePeople
+          ? people.map((x) => {
+            const level = LEVEL_BY_ID[x.levelId];
+            return (
+              <button key={x.key} type="button" className="bp-row" data-bp-watch={x.key} onClick={() => onPerson(x)} title={`Find ${x.name} in People`} style={{ display: 'grid', gridTemplateColumns: '40px 22px minmax(0,1fr) auto', alignItems: 'center', gap: 8, padding: '5px 6px', border: 'none', borderTop: '1px solid var(--hair)', background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
+                <span style={{ ...small, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(x.rank)}</span>
+                {level ? <LevelBadge level={level} size={22} tilt={false} decorative /> : <span />}
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
+                  <span style={{ display: 'block', ...small, fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.dept}</span>
+                </span>
+                <span style={{ textAlign: 'right' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(x.points)}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', ...small, fontSize: 9, fontWeight: 700 }}>
+                    {x.change ? <>{x.change > 0 ? <ArrowUpRight size={10} strokeWidth={3} color={ink.good} aria-hidden /> : <ArrowDownRight size={10} strokeWidth={3} color={ink.bad} aria-hidden />}{signed(x.change)}</> : 'no change'}
+                  </span>
+                </span>
+              </button>
+            );
+          })
+          : depts.map((d) => (
+            <button key={d.name} type="button" className="bp-row" onClick={() => onDept(d.name)} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 92px', alignItems: 'center', gap: 10, padding: '7px 6px', border: 'none', borderTop: '1px solid var(--hair)', background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+                <span style={{ display: 'block', ...small, fontSize: 9 }}>{d.people} people · {d.belowZero} below zero</span>
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{signed(d.net)} pts</span>
+                <span aria-hidden style={{ width: `${Math.max(6, (Math.abs(d.net) / maxNet) * 100)}%`, height: 4, borderRadius: 4, background: d.net >= 0 ? ink.good : ink.bad }} />
+              </span>
+            </button>
+          ))}
+      </div>
+    </section>
   );
 }
 
 /** The picture as plain text, for "Copy summary". */
-function summaryText(r, title) {
-  const m = r.moved;
-  const lines = [
+function summaryText(r, title, campaign) {
+  return [
     title,
-    `${num(m.climbed)} climbed a level, ${num(m.slipped)} slipped, ${num(m.belowZero)} fell below zero, ${num(m.backAbove)} came back above zero.`,
-    `Points: +${num(r.points.earned)} earned, −${num(r.points.lost)} lost.`,
-    `Team that gained most: ${r.teams[0]?.name} (${signed(r.teams[0]?.net || 0)}); least: ${r.teams.at(-1)?.name} (${signed(r.teams.at(-1)?.net || 0)}).`,
-    `Next: ${num(r.edge.nearUp)} one report from a level up; ${num(r.edge.nearSlip)} one click from a level down; ${num(r.edge.nearZero)} one click from going below zero.`,
-  ];
-  if (r.outlook) lines.push(`At this pace: ${num(r.outlook.strongNext)} at Phish Catcher or above in 30 days (${num(r.outlook.strongNow)} today).`);
-  return lines.join('\n');
+    moveLine(r, campaign),
+    `Where everyone stands: ${[...r.standing].reverse().map((g) => `${g.brief} ${num(g.now)} (${g.now - g.before >= 0 ? '+' : '−'}${num(Math.abs(g.now - g.before))})`).join(', ')}.`,
+    '',
+    'What stands out:',
+    ...findings(r, { campaign }).map((f) => `- ${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline}. ${f.detail}.`),
+  ].join('\n');
 }
 
 /**
  * The Big Picture, in the board's L shape: a colour tile top left naming what
- * it covers; what moved along the arm; the four cards below, and who is one
- * step from a change.
+ * it covers; where everyone stands along the arm; below, what stands out and
+ * the bottom of the board, with People and Departments a tab away.
  */
 export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
-  const rgb = isDark ? '232,99,95' : '229,72,77';
-  const reduce = useReducedMotion();
   const { CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK } = shell;
   const scopeKey = campaign ? campaign.id : 'org';
   const fresh = () => ({
     scope: scopeKey,
-    open: null,
     tab: 'overview',
     people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' } },
     picked: new Set(),
@@ -372,40 +193,33 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   });
   const [kept, setState] = useState(fresh);
   const state = kept.scope === scopeKey ? kept : fresh(); // a new scope starts afresh
-  const { open, tab } = state;
+  const { tab } = state;
   const set = (patch) => setState({ ...state, ...patch });
   const [copied, setCopied] = useState(false);
-  const turn = (id) => set({ open: open === id ? null : id });
-
-  // From any number to the people (or departments) behind it.
-  const DEPT_SORT = { climbed: 'climbed', slipped: 'slipped', fellBelowZero: 'fellBelowZero', belowZero: 'belowZero', nearZero: 'nearZero', nearSlip: 'nearSlip', nearUp: 'nearUp' };
-  const pinpoint = ({ show = 'all', dept = 'all' }) => {
-    if (canSeePeople) {
-      set({ open: null, tab: 'people', people: { ...state.people, show, dept, level: 'all', q: '' } });
-    } else {
-      set({ open: null, tab: 'departments', deptSort: { key: DEPT_SORT[show] || 'net', dir: DEPT_SORT[show] ? 'desc' : 'asc' } });
-    }
-  };
-  const onTeam = (dept) => pinpoint({ dept });
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setState((s) => ({ ...s, open: null })); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
   useEffect(() => {
     if (!copied) return undefined;
     const t = setTimeout(() => setCopied(false), 1800);
     return () => clearTimeout(t);
   }, [copied]);
 
+  // From a finding to the people (or departments) behind it.
+  const DEPT_SORT = { slipped: 'slipped', belowZero: 'belowZero', oneClick: 'nearSlip', nearUp: 'nearUp', gave: 'net', neverReported: 'reportRate' };
+  const pinpoint = ({ show = 'all', dept = 'all', q = '' }) => {
+    if (canSeePeople) {
+      set({ tab: 'people', people: { ...state.people, show, dept, level: 'all', q } });
+    } else {
+      const key = dept !== 'all' ? 'net' : DEPT_SORT[show] || 'net';
+      set({ tab: 'departments', deptSort: { key, dir: key === 'net' || key === 'reportRate' ? 'asc' : 'desc' } });
+    }
+  };
+
+  const list = findings(r, { campaign: Boolean(campaign) });
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
-  const exportReport = () => downloadCsv(csvName('big picture', scopeName, 'report'), reportCsv(r, { title, withPeople: canSeePeople }));
+  const exportReport = () => downloadCsv(csvName('big picture', scopeName, 'report'), reportCsv(r, { title, withPeople: canSeePeople, campaign: Boolean(campaign) }));
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(summaryText(r, title));
+      await navigator.clipboard.writeText(summaryText(r, title, Boolean(campaign)));
       setCopied(true);
     } catch {
       setCopied(false);
@@ -414,24 +228,6 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const tokens = isDark
     ? { '--bp-accent': '#5EEAD4', '--bp-soft': 'rgba(94,234,212,0.14)', '--bp-ink': '#5EEAD4' }
     : { '--bp-accent': '#0F766E', '--bp-soft': '#D5F5F0', '--bp-ink': '#0F766E' };
-  const m = r.moved;
-  const ratio = m.slipped ? m.climbed / m.slipped : null;
-  const moves = [
-    { Icon: ArrowUpRight, tone: ink.good, value: m.climbed, label: 'climbed a level', show: 'climbed' },
-    { Icon: ArrowDownRight, tone: ink.bad, value: m.slipped, label: 'slipped a level', show: 'slipped' },
-    { Icon: TriangleAlert, tone: ink.bad, value: m.belowZero, label: 'fell below zero', show: 'fellBelowZero' },
-    { Icon: RotateCcw, tone: ink.good, value: m.backAbove, label: 'came back above zero', show: 'backAbove' },
-  ];
-  const next = [
-    { Icon: Award, value: num(r.edge.nearUp), label: 'one report from a level up', note: 'A report is worth enough to lift them', show: 'nearUp' },
-    { Icon: ArrowDownRight, value: num(r.edge.nearSlip), label: 'one click from a level down', note: 'Just above their level’s floor', show: 'nearSlip' },
-    { Icon: TriangleAlert, value: num(r.edge.nearZero), label: 'one click from below zero', note: 'Fewer points than a click costs', show: 'nearZero' },
-    r.outlook
-      ? { Icon: TrendingUp, value: num(r.outlook.strongNext), label: 'at Phish Catcher or above', note: `In 30 days at this pace · ${num(r.outlook.strongNow)} today` }
-      : { Icon: Coins, value: `+${num(r.points.earned)}`, label: 'points earned', note: `−${num(r.points.lost)} lost in this campaign` },
-  ];
-  const cards = cardsFor(r, campaign, ink, rgb, onTeam);
-  const see = canSeePeople ? 'See the people' : 'See the departments';
   const TABS = [
     { id: 'overview', label: 'Overview', Icon: LayoutGrid },
     ...(canSeePeople ? [{ id: 'people', label: 'People', Icon: Users, count: r.people.length }] : []),
@@ -454,25 +250,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
       </svg>
 
-      {/* the arm: what moved on the board */}
-      <div data-bp-moved style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 24, padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={eyebrow}>{campaign ? 'What this campaign did to the board' : 'What moved on the board'}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12, marginTop: 10 }}>
-            {moves.map((x) => (
-              <button key={x.label} type="button" className="bp-pin" data-bp-pin={x.show} onClick={() => pinpoint({ show: x.show })} title={`${see} who ${x.label}`} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, padding: '4px 6px', margin: '-4px -6px', border: 'none', borderRadius: 10, background: 'none', color: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
-                <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: x.tone }}><x.Icon size={16} strokeWidth={2.6} /></span>
-                <span style={{ minWidth: 0 }}>
-                  <span className="vs-rank" style={{ display: 'block', fontSize: 24, fontWeight: 900, lineHeight: 1, color: 'var(--text)' }}>{num(x.value)}</span>
-                  <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text)', marginTop: 12 }}>
-            {ratio === null ? 'Nobody slipped a level.' : ratio >= 1 ? `For every person who slipped a level, ${ratio.toFixed(1)} climbed one.` : `More slipped than climbed: ${(1 / ratio).toFixed(1)} slipped for every one who climbed.`}
-          </div>
-        </div>
+      {/* the arm: where everyone stands */}
+      <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 28, padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+        <Standing r={r} campaign={Boolean(campaign)} isDark={isDark} ink={ink} />
         <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, width: 150 }}>
           <button type="button" data-bp-export-report onClick={exportReport} title={canSeePeople ? 'Every table, people included, as one CSV file' : 'Every table as one CSV file'} style={{ height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 10, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
             <Download size={14} strokeWidth={2.6} aria-hidden /> Export report
@@ -484,19 +264,45 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         </div>
       </div>
 
-      {/* the base: four questions, then who is one step from a change */}
-      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 24px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
+      {/* the base: what stands out and the bottom of the board, or a full list */}
+      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 24px 18px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
         <div role="tablist" aria-label="The big picture" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start', padding: 3, borderRadius: 11, background: 'var(--track)' }}>
           {TABS.map((t) => {
             const on = tab === t.id;
             return (
-              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, open: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
+              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
                 <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
                 {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{num(t.count)}</span>}
               </button>
             );
           })}
         </div>
+
+        {tab === 'overview' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.75fr) minmax(0,1fr)', gap: 20 }}>
+            <section aria-label="What stands out" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flexShrink: 0, marginBottom: 6 }}>
+                <span style={eyebrow}>What stands out</span>
+                <span style={{ display: 'block', ...small, marginTop: 3 }}>Concerns first, then good news{canSeePeople ? '' : ' · links open the departments'}</span>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                {list.map((f, i) => (
+                  <div key={f.id} style={{ flex: 1, minHeight: 0, display: 'flex', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
+                    <Finding f={f} ink={ink} see={f.link?.dept ? `See ${canSeePeople ? 'the team' : 'departments'}` : canSeePeople ? 'See who' : 'See departments'} onOpen={() => pinpoint(f.link)} />
+                  </div>
+                ))}
+              </div>
+            </section>
+            <WatchList
+              r={r}
+              canSeePeople={canSeePeople}
+              ink={ink}
+              onAll={() => (canSeePeople ? pinpoint({}) : set({ tab: 'departments', deptSort: { key: 'net', dir: 'asc' } }))}
+              onPerson={(x) => pinpoint({ q: x.name })}
+              onDept={() => set({ tab: 'departments', deptSort: { key: 'net', dir: 'asc' } })}
+            />
+          </div>
+        )}
         {tab === 'people' && canSeePeople && (
           <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} scopeName={scopeName} isDark={isDark} ink={ink} />
         )}
@@ -512,58 +318,31 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
             ink={ink}
           />
         )}
-        {tab === 'overview' && (
-        <>
-        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14 }}>
-          {cards.map((c) => <Card key={`${scopeKey}-${c.id}`} c={c} reduce={reduce} open={open === c.id} onTurn={() => turn(c.id)} />)}
-        </div>
-        <div data-bp-next style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'auto repeat(4, minmax(0,1fr))', alignItems: 'center', padding: '12px 4px 0', borderTop: '1px solid var(--hair)' }}>
-          <div style={{ ...eyebrow, paddingRight: 22, lineHeight: 1.5 }}>What can<br />happen next</div>
-          {next.map((o, i) => {
-            const Tag = o.show ? 'button' : 'div';
-            const pin = o.show ? { type: 'button', className: 'bp-pin', 'data-bp-pin': o.show, onClick: () => pinpoint({ show: o.show }), title: `${see} ${o.label}` } : null;
-            return (
-            <Tag key={o.label} {...pin} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 16px', border: 'none', borderLeft: i ? '1px solid var(--hair)' : 'none', borderRadius: 0, background: 'none', color: 'inherit', textAlign: 'left', cursor: o.show ? 'pointer' : 'default', minWidth: 0 }}>
-              <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: 'var(--text)' }}><o.Icon size={15} strokeWidth={2.3} /></span>
-              <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0 }}>
-                  <span className="vs-rank" style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)' }}>{o.value}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.label}</span>
-                </span>
-                <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.note}</span>
-              </span>
-            </Tag>
-            );
-          })}
-        </div>
-        </>
-        )}
       </div>
     </div>
   );
 }
 
-/** Staff see this where colleagues see How to earn points: the last 30 days, in four lines. */
+/** Staff see this where colleagues see How to earn points: the top three findings. */
 export function BigPictureTeaser({ r, isDark, onOpen }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
-  const rows = [
-    { Icon: ArrowUpRight, tone: ink.good, label: 'Climbed a level', value: r.moved.climbed },
-    { Icon: ArrowDownRight, tone: ink.bad, label: 'Slipped a level', value: r.moved.slipped },
-    { Icon: TriangleAlert, tone: ink.bad, label: 'Fell below zero', value: r.moved.belowZero },
-    { Icon: Award, tone: 'var(--text)', label: 'One report from a level up', value: r.edge.nearUp },
-  ];
+  const top = findings(r).slice(0, 3);
   return (
     <div data-bp-teaser style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: 16, padding: '14px 16px' }}>
       <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>The big picture</span>
-      <span style={{ ...small, marginTop: 2 }}>Last 30 days on the board</span>
-      <div style={{ flex: 1, minHeight: 0, maxHeight: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
-        {rows.map((x) => (
-          <div key={x.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid var(--hair)' }}>
-            <span aria-hidden style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: x.tone }}><x.Icon size={14} strokeWidth={2.6} /></span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
-            <span className="vs-rank" style={{ fontSize: 14, fontWeight: 900, color: 'var(--text)' }}>{num(x.value)}</span>
-          </div>
-        ))}
+      <span style={{ ...small, marginTop: 2 }}>What stands out · last 30 days</span>
+      <div style={{ flex: 1, minHeight: 0, maxHeight: 250, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
+        {top.map((f) => {
+          const Icon = TONE[f.tone];
+          return (
+            <div key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderTop: '1px solid var(--hair)' }}>
+              <span aria-hidden style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'var(--track)', color: f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)' }}><Icon size={12} strokeWidth={2.6} /></span>
+              <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--text)' }}>
+                <strong className="vs-rank" style={{ fontSize: 12.5, fontWeight: 900 }}>{f.value}{f.unit ? ` ${f.unit}` : ''}</strong> {f.headline}
+              </span>
+            </div>
+          );
+        })}
       </div>
       <button type="button" data-bp-open onClick={onOpen} style={{ marginTop: 10, alignSelf: 'stretch', height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, border: '1px solid var(--hair)', background: 'var(--track)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
         Open the big picture <ArrowRight size={13} strokeWidth={2.6} aria-hidden />
