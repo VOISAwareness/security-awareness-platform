@@ -23,6 +23,12 @@ function random(seed) {
 }
 
 const pct = (n, of) => (of > 0 ? n / of : 0);
+const median = (list) => {
+  if (!list.length) return null;
+  const s = [...list].sort((x, y) => x - y);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
+};
 const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
 const pointsOf = (rules, event) => (Number.isFinite(rules?.[event]) ? rules[event] : POINTS[event]);
 
@@ -181,7 +187,13 @@ export function orgReport(campaigns, board, { depts = [], personAt, rules, recen
     avgScore: scored ? Math.round(scoreSum / scored) : 0,
     atRisk,
     // oldest first, for the trend chart
-    trend: reports.slice().reverse().map((x) => ({ id: x.id, name: x.name, started: x.started, report: x.rates.report, click: x.rates.click })),
+    trend: reports.slice().reverse().map((x) => ({
+      id: x.id, name: x.name, started: x.started, report: x.rates.report, click: x.rates.click,
+      firstReport: x.timing.firstReport, firstClick: x.timing.firstClick,
+    })),
+    // the typical minutes to the first report, and to the first click
+    timing: { firstReport: median(reports.map((x) => x.timing.firstReport)), firstClick: median(reports.map((x) => x.timing.firstClick)) },
+    resilience: sum('clicked') ? sum('reported') / sum('clicked') : null,
     levels: LEVEL_ORDER.map((family) => ({ family, count: byFamily[family] })),
     departments,
   };

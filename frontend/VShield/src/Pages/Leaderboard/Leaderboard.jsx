@@ -17,7 +17,7 @@ import { gradeName, levelAltText, levelFor, progressFor, rangeText } from '../..
 import GlobalTrophy from '../../assets/LeaderboardAssets/GlobalTrophy.png';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import ReportsChart from '../../assets/LeaderboardAssets/ReportsChart.png';
-import { CampaignList, GlanceCard, ReportsSheet } from './LeaderboardReports';
+import { CampaignList, GlanceCard, PulseSheet } from './LeaderboardReports';
 import { REPORT_INK } from './reportInk';
 import { campaignReport, orgReport } from '../../services/sampleReports';
 
@@ -75,6 +75,13 @@ const FONT_IMPORT = `
   .lb-cap:active { transform: scale(.97); }
   .lb-cap-only:hover, .lb-cap-only:active { transform: none; }
 
+  /* Security Pulse: question cards lift and their arrow nudges on hover */
+  .lb-story { transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease, border-color .2s ease; }
+  .lb-story:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,0.10); border-color: var(--t-reports) !important; }
+  .lb-story:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .lb-story .lb-story-go svg { transition: transform .2s ease; }
+  .lb-story:hover .lb-story-go svg { transform: translateX(3px); }
+
   /* Badges: lift on hover; rows lift a little too */
   .lb-badge-btn img { transition: transform .25s ease; }
   .lb-badge-btn:hover img { transform: translateY(-3px) scale(1.07); }
@@ -108,7 +115,7 @@ const FONT_IMPORT = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .lb-story, .lb-story svg { animation: none !important; transition: none !important; }
     .lb-shine { animation: none !important; opacity: 0; }
   }
 `;
@@ -1007,7 +1014,7 @@ const Leaderboard = () => {
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
             {canCampaigns && railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
-            {canReports && railCapsule('reports', 'Reports', 'Insights for leaders and admins', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
+            {canReports && railCapsule('reports', 'Security Pulse', 'How safe we are, and why', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
 
             {/* staff, Global view: the week in three numbers, opening Reports */}
             {view === 'global' && canReports && <GlanceCard org={org} isDark={isDark} onOpen={() => { chooseView('reports'); setReportOn('org'); }} />}
@@ -1058,7 +1065,7 @@ const Leaderboard = () => {
             )}
             {view === 'reports' && (
               <CampaignList
-                label="Report on"
+                label="Take the pulse of"
                 org
                 campaigns={CAMPAIGNS}
                 selected={reportOn}
@@ -1072,10 +1079,10 @@ const Leaderboard = () => {
           </div>
 
           {view === 'reports' && (
-            <ReportsSheet
+            <PulseSheet
               kind={report ? 'campaign' : 'org'}
-              title={report ? report.name : 'All campaigns'}
-              sub={report ? `${reportCampaign.type} · started ${reportCampaign.started}` : `The last ${org.campaigns} campaigns and everyone on the board`}
+              title={report ? report.name : 'The whole organisation'}
+              sub={report ? `${reportCampaign.type} · started ${reportCampaign.started}` : `The last ${org.campaigns} campaigns, everyone on the board`}
               counter={(report ? report.sent : org.people).toLocaleString()}
               counterLabel={report ? 'recipients' : 'people'}
               report={report}

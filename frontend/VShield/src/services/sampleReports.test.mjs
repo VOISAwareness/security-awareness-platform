@@ -48,4 +48,6 @@ test('orgReport: trend oldest first, levels count everyone, at-risk includes hid
   assert.equal(r.avgScore, Math.round((4620 + 900 + 200 - 50) / 4));
   assert.equal(r.departments.find((d) => d.name === 'HR').atRisk, 1);
   assert.ok(r.rates.report > 0 && r.rates.report < 1);
+  assert.ok(r.trend.every((t) => t.firstReport > 0 && t.firstClick > 0), 'timing per campaign');
+  assert.ok(r.timing.firstReport > 0 && r.resilience > 0);
 });
