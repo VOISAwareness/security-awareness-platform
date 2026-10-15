@@ -697,7 +697,7 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
       <div className="vs-rank" style={{ fontSize: 17, fontWeight: 900, color, lineHeight: 1, whiteSpace: 'nowrap' }}>
         {value}{unit && <span style={{ fontSize: 9, fontWeight: 800, marginLeft: 2 }}>{unit}</span>}
       </div>
-      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--muted)', marginTop: 4, lineHeight: 1.2 }}>{note}</div>
+      {note && <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--muted)', marginTop: 4, lineHeight: 1.2 }}>{note}</div>}
     </div>
   );
   const suffix = rank ? ordinalSuffix(rank) : '';
@@ -766,7 +766,7 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
                 </span>
               </span>
             </button>
-            {fig(topPct ? `Top ${topPct}%` : '—', '', 'Percentile', 'var(--standing-num)', 'right')}
+            {fig(topPct ? `Top ${topPct}%` : '—', '', '', 'var(--standing-num)', 'right')}
           </div>
           <div style={{ ...line, color: 'var(--text)' }}>{next}</div>
         </div>
