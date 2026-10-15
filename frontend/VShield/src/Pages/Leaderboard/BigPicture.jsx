@@ -13,26 +13,21 @@ import { REPORT_INK } from './reportInk';
 //
 // It reports what the board shows; it never says what to do. It reads as a
 // story, top to bottom and then left to right:
-//   - along the top, which way the board moved, in a word, and where
-//     everyone stands today;
+//   - along the top, which way the board moved, in a word, and two numbers:
+//     the share at risk and the share that is strong;
 //   - 01 needs attention, 02 going well, 03 what could happen next: three
 //     findings at most in each, every one a number, a line and where it sits.
 // A finding opens to its detail: by department, and (admins) who exactly.
 // People and Departments list everyone one by one. One Export menu offers
 // the full report, the lists, and whatever is on screen.
 //
-// Colours: the level bands run red (new or below zero) through grey to teal
-// (Phish Catcher and up), checked for colour-blind separation on both
-// themes; every band has its share written beside it, and every tone has
-// its own icon and word, never colour alone.
+// Colours: teal for better, red for worse, checked for colour-blind
+// separation on both themes; every arrow has its number beside it and every
+// tone its own icon and word, never colour alone.
 
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 
-const BANDS = {
-  light: { top: '#115E59', strong: '#14B8A6', learning: '#E2E8F0', low: '#E5484D' },
-  dark: { top: '#99F6E4', strong: '#14B8A6', learning: '#475569', low: '#E8635F' },
-};
 const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
 const VERDICT = {
   improving: { word: 'Improving', Icon: TrendingUp },
@@ -40,17 +35,22 @@ const VERDICT = {
   slipping: { word: 'Slipping', Icon: TrendingDown },
 };
 
-// Along the top: which way the board moved, and where everyone stands today.
-function Standing({ r, campaign, isDark, ink }) {
+// Along the top: which way the board moved, in a word, and two numbers for
+// where everyone stands: the share at risk and the share that is strong,
+// each with where it was at the start.
+function Standing({ r, campaign, ink }) {
   const v = verdict(r);
   const { word, Icon } = VERDICT[v.word];
   const color = v.word === 'improving' ? ink.good : v.word === 'slipping' ? ink.bad : 'var(--text)';
-  const colors = BANDS[isDark ? 'dark' : 'light'];
   const total = Math.max(1, r.standing.reduce((a, g) => a + g.now, 0));
-  const bands = [...r.standing].reverse(); // lowest first, left to right
+  const band = (ids) => r.standing.filter((g) => ids.includes(g.id)).reduce((a, g) => ({ now: a.now + g.now, before: a.before + g.before }), { now: 0, before: 0 });
+  const stats = [
+    { id: 'risk', label: 'At risk', note: 'New Joiners or below zero', ...band(['low']), upIsGood: false },
+    { id: 'strong', label: 'Strong', note: 'Phish Catcher or above', ...band(['strong', 'top']), upIsGood: true },
+  ];
   return (
-    <div style={{ flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: '230px minmax(0,1fr)', alignItems: 'center', gap: 28 }}>
-      <div data-bp-verdict={v.word}>
+    <div style={{ flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)', alignItems: 'center' }}>
+      <div data-bp-verdict={v.word} style={{ minWidth: 0, paddingRight: 28 }}>
         <div style={eyebrow}>{campaign ? 'This campaign' : 'The last 30 days'}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
           <span aria-hidden style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--track)', color }}><Icon size={18} strokeWidth={2.6} /></span>
@@ -61,30 +61,25 @@ function Standing({ r, campaign, isDark, ink }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ArrowDownRight size={12} strokeWidth={3} color={ink.bad} aria-hidden /><strong style={{ color: 'var(--text)' }}>{share(r.moved.slipped, r.basis.people)}</strong> down</span>
         </div>
       </div>
-      <div style={{ minWidth: 0, paddingLeft: 28, borderLeft: '1px solid var(--hair)' }}>
-        <div style={eyebrow}>{campaign ? 'Where its recipients stand now' : 'Where everyone stands today'}</div>
-        <div role="img" aria-label={bands.map((g) => `${share(g.now, total)} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 10, marginTop: 12 }}>
-          {bands.filter((g) => g.now > 0).map((g, i, all) => (
-            <span key={g.id} title={`${g.label}: ${count(g.now)} people`} style={{ flex: g.now / total, background: colors[g.id], borderRadius: all.length === 1 ? 4 : i === 0 ? '4px 0 0 4px' : i === all.length - 1 ? '0 4px 4px 0' : 0 }} />
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px 20px', marginTop: 12 }}>
-          {bands.map((g) => {
-            const d = (g.now - g.before) / total; // as a share of everyone
-            const flat = Math.abs(d) < 0.005;
-            const better = g.id === 'low' ? d < 0 : d > 0;
-            const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
-            return (
-              <span key={g.id} title={`${count(g.now)} people · ${count(g.before)} at the start`} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                <span aria-hidden style={{ flexShrink: 0, width: 8, height: 8, borderRadius: 2, background: colors[g.id], boxShadow: g.id === 'learning' ? 'inset 0 0 0 1px var(--hair)' : 'none' }} />
-                <span style={{ ...small, fontSize: 10, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.brief}</span>
-                <strong style={{ fontSize: 11, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{share(g.now, total)}</strong>
-                <span style={{ width: 12, flexShrink: 0 }}>{!flat && <Arrow size={11} strokeWidth={3} color={better ? ink.good : ink.bad} aria-label={d > 0 ? 'up' : 'down'} />}</span>
-              </span>
-            );
-          })}
-        </div>
-      </div>
+      {stats.map((x) => {
+        const d = (x.now - x.before) / total;
+        const flat = Math.abs(d) < 0.005;
+        const good = (d > 0) === x.upIsGood;
+        const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
+        // when rounding would show the same number twice, show a decimal so the change reads
+        const fine = !flat && share(x.now, total) === share(x.before, total);
+        const shown = (n) => (fine ? `${(Math.round((n / total) * 1000) / 10).toFixed(1)}%` : share(n, total));
+        return (
+          <div key={x.id} data-bp-stat={x.id} title={`${count(x.now)} people now · ${count(x.before)} at the start`} style={{ minWidth: 0, paddingLeft: 28, borderLeft: '1px solid var(--hair)' }}>
+            <div style={eyebrow}>{x.label}</div>
+            <div className="vs-rank" style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)', marginTop: 8 }}>{shown(x.now)}</div>
+            <div style={{ ...small, fontSize: 10, marginTop: 6 }}>{x.note}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, ...small, fontSize: 10, marginTop: 2 }}>
+              {flat ? 'Same as before' : <><Arrow size={11} strokeWidth={3} color={good ? ink.good : ink.bad} aria-label={d > 0 ? 'up' : 'down'} />from {shown(x.before)}</>}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -96,23 +91,22 @@ const CHAPTERS = [
   { id: 'next', n: '03', title: 'What could happen next', sub: () => 'Who is one step from a change', Icon: Hourglass, tone: 'watch' },
 ];
 
-// One finding: its number, the line, and a quiet line under it. The whole
-// item opens its detail.
+// One finding: its number and one line. The whole item opens its detail,
+// where the rest (how many, where) is.
 function Item({ f, onOpen }) {
   const Tag = f.link ? 'button' : 'div';
   return (
     <Tag
       {...(f.link ? { type: 'button', onClick: onOpen, className: 'bp-finding', 'aria-label': `${f.value} ${f.unit} ${f.headline}. ${f.sub}. See the detail` } : null)}
       data-bp-finding={f.id}
-      style={{ position: 'relative', width: 'calc(100% + 24px)', boxSizing: 'border-box', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 5, padding: '16px 34px 12px 12px', margin: '0 -12px', border: 'none', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default' }}
+      style={{ position: 'relative', width: 'calc(100% + 24px)', boxSizing: 'border-box', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, padding: '0 34px 0 12px', margin: '0 -12px', border: 'none', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default' }}
     >
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
         <span className="vs-rank" style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{f.value}</span>
         {f.unit && <span style={{ ...small, fontWeight: 800 }}>{f.unit}</span>}
       </span>
       <span style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
-      <span style={{ ...small, fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.sub}</span>
-      {f.link && <ChevronRight className="bp-go" size={16} strokeWidth={2.4} aria-hidden style={{ position: 'absolute', right: 10, top: 18, color: 'var(--muted)' }} />}
+      {f.link && <ChevronRight className="bp-go" size={16} strokeWidth={2.4} aria-hidden style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />}
     </Tag>
   );
 }
@@ -132,7 +126,7 @@ function Chapter({ c, items, when, ink, onOpen, first }) {
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 2 }}>
         {items.length
           ? items.map((f, i) => (
-            <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 124px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
+            <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 110px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
               <Item f={f} onOpen={() => onOpen(f)} />
             </div>
           ))
@@ -148,7 +142,7 @@ function summaryText(r, title, campaign) {
   return [
     title,
     `${VERDICT[v.word].word}: ${share(r.moved.climbed, r.basis.people)} moved up a level, ${share(r.moved.slipped, r.basis.people)} down.`,
-    `Where everyone stands: ${[...r.standing].reverse().map((g) => `${g.brief} ${share(g.now, r.people.length)}`).join(', ')}.`,
+    `At risk (New Joiners or below zero): ${share(r.standing.find((g) => g.id === 'low')?.now || 0, r.people.length)}. Strong (Phish Catcher or above): ${share(r.standing.filter((g) => g.id === 'strong' || g.id === 'top').reduce((a, g) => a + g.now, 0), r.people.length)}.`,
     '',
     'What stands out:',
     ...findings(r, { campaign }).map((f) => `- ${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline} (${f.sub}).`),
@@ -326,7 +320,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
 
       {/* the arm: which way the board moved, and where everyone stands */}
       <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
-        <Standing r={r} campaign={Boolean(campaign)} isDark={isDark} ink={ink} />
+        <Standing r={r} campaign={Boolean(campaign)} ink={ink} />
       </div>
 
       {/* the base: the story in three parts, or a full list */}
