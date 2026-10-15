@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, ChevronLeft, ChevronRight, Download, Search, Users } from 'lucide-react';
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, ChevronLeft, ChevronRight, Search, Users } from 'lucide-react';
 
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
 import { GROUPS, PEOPLE_FILTERS } from '../../services/bigPicture';
 import { count, share } from '../../services/bigPictureFindings';
-import { departmentsCsv, peopleCsv } from '../../services/bigPictureExport';
-import { csvName, downloadCsv } from '../../services/csv';
+import { departmentsShown, peopleShown } from '../../services/bigPictureViews';
 import { useFitRows } from './useFitRows';
 
 // The Big Picture's lists: everyone one by one (People, for admins) and
 // department by department. Built for tens of thousands: a page that fits
 // the screen at a time, a few columns that matter (the export has them all),
 // filters and search to find anyone, and selection that can take in every
-// match, not just the page.
+// match, not just the page. What they show (and what is selected) is what
+// the one Export menu offers to download.
 
 const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
@@ -22,10 +22,6 @@ const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const head = { ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' };
 
 const control = (isDark) => ({ height: 30, borderRadius: 9, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 700, padding: '0 8px', outline: 'none', colorScheme: isDark ? 'dark' : 'light', minWidth: 0 });
-const button = (primary) => ({
-  height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 9, fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
-  border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'transparent', color: primary ? 'var(--ink-on)' : 'var(--text)',
-});
 
 // A checkbox that can show "some of these".
 export function Tick({ checked, mixed = false, onChange, label }) {
@@ -71,12 +67,6 @@ function SortHead({ label, k, sort, onSort, align = 'right' }) {
   );
 }
 
-const compare = (sort, tie) => (a, b) => {
-  const x = a[sort.key];
-  const y = b[sort.key];
-  const d = typeof x === 'string' ? x.localeCompare(String(y)) : (x ?? 0) - (y ?? 0);
-  return (sort.dir === 'asc' ? d : -d) || tie(a, b);
-};
 
 // What stands out about a person: the first that applies.
 const FLAGS = [
@@ -131,18 +121,8 @@ const ROW_H = 44;
  * Everyone, one by one. `view` holds the filters, sort and page ({ show,
  * dept, level, q, sort, page }); `selected` is a Set of person keys.
  */
-export function PeopleTable({ r, view, onView, selected, onSelected, scopeName, isDark, ink }) {
-  const filter = PEOPLE_FILTERS.find((f) => f.id === view.show) || PEOPLE_FILTERS[0];
-  const q = view.q.trim().toLowerCase();
-  const rows = useMemo(() => {
-    let list = r.people.filter(filter.test);
-    if (view.dept !== 'all') list = list.filter((x) => x.dept === view.dept);
-    if (view.level !== 'all') list = list.filter((x) => x.groupNow === view.level);
-    if (q) list = list.filter((x) => x.name.toLowerCase().includes(q) || x.email.toLowerCase().includes(q));
-    // on equal values, keep board order: bottom first when the lowest points lead
-    const byBoard = view.sort.key === 'points' && view.sort.dir === 'asc' ? (a, b) => b.rank - a.rank : (a, b) => a.rank - b.rank;
-    return [...list].sort(compare(view.sort, byBoard));
-  }, [r.people, filter, view.dept, view.level, q, view.sort]);
+export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink }) {
+  const rows = useMemo(() => peopleShown(r, view), [r, view]);
   const counts = useMemo(() => Object.fromEntries(PEOPLE_FILTERS.map((f) => [f.id, r.people.filter(f.test).length])), [r.people]);
   const depts = useMemo(() => [...new Set(r.people.map((x) => x.dept))].sort(), [r.people]);
 
@@ -165,8 +145,6 @@ export function PeopleTable({ r, view, onView, selected, onSelected, scopeName, 
     if (next.has(key)) next.delete(key); else next.add(key);
     onSelected(next);
   };
-  const exportRows = (list, what) => downloadCsv(csvName('big picture', scopeName, what), peopleCsv(list));
-
   return (
     <div data-bp-people style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -186,16 +164,10 @@ export function PeopleTable({ r, view, onView, selected, onSelected, scopeName, 
           <option value="all">All levels</option>
           {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.brief}</option>)}
         </select>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {selected.size > 0 && (
-            <>
-              <span style={{ ...small, whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)' }}>{count(selected.size)}</strong> selected · <button type="button" onClick={() => onSelected(new Set())} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, textDecoration: 'underline' }}>Clear</button></span>
-              <button type="button" data-bp-export-selected onClick={() => exportRows(r.people.filter((x) => selected.has(x.key)), 'selected people')} style={button(true)}><Download size={13} strokeWidth={2.6} aria-hidden />Export selected</button>
-            </>
-          )}
-          <button type="button" data-bp-export-list onClick={() => exportRows(rows, view.show === 'all' ? 'people' : filter.label)} disabled={!rows.length} style={{ ...button(selected.size === 0), opacity: rows.length ? 1 : 0.5 }}>
-            <Download size={13} strokeWidth={2.6} aria-hidden />Export {count(rows.length)}
-          </button>
+        <span style={{ marginLeft: 'auto', ...small, whiteSpace: 'nowrap' }}>
+          {selected.size > 0
+            ? <><strong style={{ color: 'var(--text)' }}>{count(selected.size)}</strong> selected · <button type="button" onClick={() => onSelected(new Set())} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, textDecoration: 'underline' }}>Clear</button></>
+            : 'Tick people to export only them'}
         </span>
       </div>
 
@@ -241,12 +213,8 @@ const D_ROW_H = 42;
  * Department by department. `view` holds { sort, q, page }; `selected` is a
  * Set of department names; `onPeople(name)` (admins only) opens its people.
  */
-export function DepartmentTable({ r, view, onView, selected, onSelected, onPeople, scopeName, isDark, ink }) {
-  const q = view.q.trim().toLowerCase();
-  const rows = useMemo(() => {
-    const list = q ? r.departments.filter((d) => d.name.toLowerCase().includes(q)) : r.departments;
-    return [...list].sort(compare(view.sort, (a, b) => a.name.localeCompare(b.name)));
-  }, [r.departments, q, view.sort]);
+export function DepartmentTable({ r, view, onView, selected, onSelected, onPeople, isDark, ink }) {
+  const rows = useMemo(() => departmentsShown(r, view), [r, view]);
   const [box, size] = useFitRows(D_ROW_H);
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const page = Math.min(view.page || 0, pages - 1);
@@ -263,8 +231,6 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onPeopl
     if (next.has(name)) next.delete(name); else next.add(name);
     onSelected(next);
   };
-  const exportRows = (list, what) => downloadCsv(csvName('big picture', scopeName, what), departmentsCsv(list));
-
   return (
     <div data-bp-departments style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -273,15 +239,11 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onPeopl
           <Search size={13} strokeWidth={2.4} aria-hidden style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
           <input type="search" value={view.q} onChange={(e) => change({ q: e.target.value })} placeholder="Find a department" style={{ ...control(isDark), width: '100%', boxSizing: 'border-box', paddingLeft: 28, fontWeight: 600 }} />
         </label>
-        <span style={small}>Least ground gained per person first · click a heading to sort</span>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {selected.size > 0 && (
-            <>
-              <span style={{ ...small, whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)' }}>{selected.size}</strong> selected · <button type="button" onClick={() => onSelected(new Set())} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, textDecoration: 'underline' }}>Clear</button></span>
-              <button type="button" onClick={() => exportRows(r.departments.filter((d) => selected.has(d.name)), 'selected departments')} style={button(true)}><Download size={13} strokeWidth={2.6} aria-hidden />Export selected</button>
-            </>
-          )}
-          <button type="button" data-bp-export-departments onClick={() => exportRows(rows, 'departments')} style={button(selected.size === 0)}><Download size={13} strokeWidth={2.6} aria-hidden />Export {rows.length}</button>
+        <span style={small}>Least ground gained per person first</span>
+        <span style={{ marginLeft: 'auto', ...small, whiteSpace: 'nowrap' }}>
+          {selected.size > 0
+            ? <><strong style={{ color: 'var(--text)' }}>{selected.size}</strong> selected · <button type="button" onClick={() => onSelected(new Set())} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, textDecoration: 'underline' }}>Clear</button></>
+            : 'Tick departments to export only them'}
         </span>
       </div>
       <div role="table" aria-label="Departments" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

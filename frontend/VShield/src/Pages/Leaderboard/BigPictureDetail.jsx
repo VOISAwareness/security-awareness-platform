@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Building2, ChevronLeft, Download, Hourglass, Search, ThumbsUp, TriangleAlert, Users, X } from 'lucide-react';
+import { ArrowRight, Building2, ChevronLeft, Hourglass, Search, ThumbsUp, TriangleAlert, Users, X } from 'lucide-react';
 
 import { breakdown, count, share } from '../../services/bigPictureFindings';
-import { breakdownCsv, peopleCsv } from '../../services/bigPictureExport';
-import { csvName, downloadCsv } from '../../services/csv';
+import { findingPeople } from '../../services/bigPictureViews';
 import { Pager, PersonRow } from './BigPictureTables';
 import { useFitRows } from './useFitRows';
 
 // A finding opened. First by department: where it sits, each team as a bar
 // of its share (so a team of 40 and a team of 4,000 compare fairly). Then,
 // for admins, the people: a page at a time, searchable, narrowed to a
-// department with one click. Each view exports what it shows. The same view
-// serves the organisation and a single campaign.
+// department with one click. The Export menu offers what each view shows.
+// The same view serves the organisation and a single campaign.
 
 const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
@@ -28,11 +27,11 @@ const button = (primary) => ({
   border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'transparent', color: primary ? 'var(--ink-on)' : 'var(--text)',
 });
 
-export function FindingDetail({ f, r, canSeePeople, isDark, ink, scopeName, onBack, onOpenPeople }) {
+/** `view` is { tab, dept, q, page, deptPage }, kept by the sheet so Export knows it. */
+export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDark, ink, onBack, onOpenPeople }) {
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
   const team = Boolean(f.link?.dept);
-  const [view, setView] = useState({ tab: 'departments', dept: team ? f.link.dept : null, q: '', page: 0, deptPage: 0 });
   const backRef = useRef(null);
   useEffect(() => { backRef.current?.focus(); }, []);
   useEffect(() => {
@@ -41,12 +40,7 @@ export function FindingDetail({ f, r, canSeePeople, isDark, ink, scopeName, onBa
     return () => window.removeEventListener('keydown', onKey);
   }, [onBack]);
 
-  const q = view.q.trim().toLowerCase();
-  const people = useMemo(() => {
-    let list = view.dept && !team ? b.people.filter((x) => x.dept === view.dept) : b.people;
-    if (q) list = list.filter((x) => x.name.toLowerCase().includes(q) || x.email.toLowerCase().includes(q));
-    return list;
-  }, [b.people, view.dept, team, q]);
+  const people = useMemo(() => findingPeople(b, view, team), [b, view, team]);
 
   const [deptBox, deptSize] = useFitRows(D_ROW_H);
   const [peopleBox, peopleSize] = useFitRows(P_ROW_H);
@@ -60,7 +54,6 @@ export function FindingDetail({ f, r, canSeePeople, isDark, ink, scopeName, onBa
   const Icon = TONE[f.tone];
   const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)';
   const max = Math.max(1e-6, ...b.departments.map((d) => (b.kind === 'count' ? d.share : Math.abs(d.value))));
-  const file = (what) => csvName('big picture', scopeName, f.headline, what);
   const tabs = [
     { id: 'departments', label: 'By department', Icon: Building2, n: b.departments.length },
     ...(canSeePeople ? [{ id: 'people', label: 'People', Icon: Users, n: b.people.length }] : []),
@@ -115,22 +108,11 @@ export function FindingDetail({ f, r, canSeePeople, isDark, ink, scopeName, onBa
             )}
           </>
         )}
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {view.tab === 'people' ? (
-            <>
-              <button type="button" onClick={() => onOpenPeople({ dept: view.dept || f.link?.dept })} className="bp-link" style={{ ...button(false), border: 'none', padding: '0 4px' }}>
-                Open in People <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
-              </button>
-              <button type="button" data-bp-export-finding onClick={() => downloadCsv(file(view.dept && !team ? view.dept : 'people'), peopleCsv(people))} style={button(true)}>
-                <Download size={13} strokeWidth={2.6} aria-hidden />Export {count(people.length)}
-              </button>
-            </>
-          ) : (
-            <button type="button" data-bp-export-breakdown onClick={() => downloadCsv(file('departments'), breakdownCsv(b))} style={button(true)}>
-              <Download size={13} strokeWidth={2.6} aria-hidden />Export
-            </button>
-          )}
-        </span>
+        {view.tab === 'people' && (
+          <button type="button" onClick={() => onOpenPeople({ dept: view.dept || f.link?.dept })} className="bp-link" style={{ ...button(false), marginLeft: 'auto', border: 'none', padding: '0 4px' }}>
+            Open in People <ArrowRight size={12} strokeWidth={2.6} aria-hidden />
+          </button>
+        )}
       </div>
 
       {/* by department: share of each team, highest first */}

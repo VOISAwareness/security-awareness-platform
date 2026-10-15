@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronRight, Copy, Download, Hourglass, LayoutGrid, ThumbsUp, TriangleAlert, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronDown, ChevronRight, Copy, Download, FileSpreadsheet, Hourglass, LayoutGrid, Minus, ThumbsUp, TrendingDown, TrendingUp, TriangleAlert, Users } from 'lucide-react';
 
-import { count, findings, share, story } from '../../services/bigPictureFindings';
-import { reportCsv } from '../../services/bigPictureExport';
+import { breakdown, count, findings, share, story } from '../../services/bigPictureFindings';
+import { breakdownCsv, departmentsCsv, peopleCsv, reportCsv } from '../../services/bigPictureExport';
+import { departmentsShown, findingPeople, peopleFiltered, peopleShown, verdict } from '../../services/bigPictureViews';
 import { csvName, downloadCsv } from '../../services/csv';
 import { FindingDetail } from './BigPictureDetail';
 import { DepartmentTable, PeopleTable } from './BigPictureTables';
@@ -12,19 +13,18 @@ import { REPORT_INK } from './reportInk';
 //
 // It reports what the board shows; it never says what to do. It reads as a
 // story, top to bottom and then left to right:
-//   - where everyone stands today: one sentence and one bar of the level
-//     bands, each with how it moved;
+//   - along the top, which way the board moved, in a word, and where
+//     everyone stands today;
 //   - 01 needs attention, 02 going well, 03 what could happen next: three
 //     findings at most in each, every one a number, a line and where it sits.
 // A finding opens to its detail: by department, and (admins) who exactly.
-// People and Departments list everyone one by one, to select and export.
+// People and Departments list everyone one by one. One Export menu offers
+// the full report, the lists, and whatever is on screen.
 //
 // Colours: the level bands run red (new or below zero) through grey to teal
 // (Phish Catcher and up), checked for colour-blind separation on both
-// themes; every band has its count written beside it, and every finding's
-// tone has its own icon, never colour alone.
-
-const num = (n) => Math.round(n).toLocaleString('en-US');
+// themes; every band has its share written beside it, and every tone has
+// its own icon and word, never colour alone.
 
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
@@ -34,49 +34,56 @@ const BANDS = {
   dark: { top: '#99F6E4', strong: '#14B8A6', learning: '#475569', low: '#E8635F' },
 };
 const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
+const VERDICT = {
+  improving: { word: 'Improving', Icon: TrendingUp },
+  steady: { word: 'Holding steady', Icon: Minus },
+  slipping: { word: 'Slipping', Icon: TrendingDown },
+};
 
-// The one sentence that sums up the movement, as a ratio so it reads the
-// same for a hundred people or thirty thousand.
-const times = (k) => (Math.round(k * 10) / 10).toString();
-function moveLine(r, campaign) {
-  const { climbed, slipped } = r.moved;
-  const when = campaign ? 'in this campaign' : 'in the last 30 days';
-  if (!climbed && !slipped) return `No one changed level ${when}.`;
-  if (!slipped) return `Everyone who changed level ${when} climbed.`;
-  const k = climbed / slipped;
-  return k >= 1 ? `For every person who slipped a level ${when}, ${times(k)} climbed one.` : `More slipped a level than climbed ${when}: ${times(1 / k)} for every one who climbed.`;
-}
-
-// Where everyone stands: the level bands in one bar, each with its share and
-// which way it moved (the counts are in the tooltip and the export).
+// Along the top: which way the board moved, and where everyone stands today.
 function Standing({ r, campaign, isDark, ink }) {
+  const v = verdict(r);
+  const { word, Icon } = VERDICT[v.word];
+  const color = v.word === 'improving' ? ink.good : v.word === 'slipping' ? ink.bad : 'var(--text)';
   const colors = BANDS[isDark ? 'dark' : 'light'];
   const total = Math.max(1, r.standing.reduce((a, g) => a + g.now, 0));
   const bands = [...r.standing].reverse(); // lowest first, left to right
   return (
-    <div style={{ minWidth: 0, flex: 1 }}>
-      <div style={eyebrow}>{campaign ? 'Where its recipients stand now' : 'Where everyone stands today'}</div>
-      <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text)', marginTop: 6 }}>{moveLine(r, campaign)}</div>
-      <div role="img" aria-label={bands.map((g) => `${share(g.now, total)} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 10, marginTop: 14 }}>
-        {bands.filter((g) => g.now > 0).map((g, i, all) => (
-          <span key={g.id} title={`${g.label}: ${num(g.now)} people`} style={{ flex: g.now / total, background: colors[g.id], borderRadius: all.length === 1 ? 4 : i === 0 ? '4px 0 0 4px' : i === all.length - 1 ? '0 4px 4px 0' : 0 }} />
-        ))}
+    <div style={{ flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: '230px minmax(0,1fr)', alignItems: 'center', gap: 28 }}>
+      <div data-bp-verdict={v.word}>
+        <div style={eyebrow}>{campaign ? 'This campaign' : 'The last 30 days'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+          <span aria-hidden style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--track)', color }}><Icon size={18} strokeWidth={2.6} /></span>
+          <span className="vs-rank" style={{ fontSize: 21, fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--text)' }}>{word}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ArrowUpRight size={12} strokeWidth={3} color={ink.good} aria-hidden /><strong style={{ color: 'var(--text)' }}>{share(r.moved.climbed, r.basis.people)}</strong> moved up a level</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ArrowDownRight size={12} strokeWidth={3} color={ink.bad} aria-hidden /><strong style={{ color: 'var(--text)' }}>{share(r.moved.slipped, r.basis.people)}</strong> down</span>
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12, marginTop: 10 }}>
-        {bands.map((g) => {
-          const d = (g.now - g.before) / total; // as a share of everyone
-          const flat = Math.abs(d) < 0.005;
-          const better = g.id === 'low' ? d < 0 : d > 0;
-          const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
-          return (
-            <span key={g.id} title={`${num(g.now)} people · ${num(g.before)} at the start`} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-              <span aria-hidden style={{ flexShrink: 0, width: 8, height: 8, borderRadius: 2, background: colors[g.id], boxShadow: g.id === 'learning' ? 'inset 0 0 0 1px var(--hair)' : 'none' }} />
-              <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.brief}</span>
-              <strong style={{ fontSize: 11, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{share(g.now, total)}</strong>
-              {!flat && <Arrow size={11} strokeWidth={3} color={better ? ink.good : ink.bad} aria-label={d > 0 ? 'up' : 'down'} style={{ flexShrink: 0 }} />}
-            </span>
-          );
-        })}
+      <div style={{ minWidth: 0, paddingLeft: 28, borderLeft: '1px solid var(--hair)' }}>
+        <div style={eyebrow}>{campaign ? 'Where its recipients stand now' : 'Where everyone stands today'}</div>
+        <div role="img" aria-label={bands.map((g) => `${share(g.now, total)} ${g.brief}`).join(', ')} style={{ display: 'flex', gap: 2, height: 10, marginTop: 12 }}>
+          {bands.filter((g) => g.now > 0).map((g, i, all) => (
+            <span key={g.id} title={`${g.label}: ${count(g.now)} people`} style={{ flex: g.now / total, background: colors[g.id], borderRadius: all.length === 1 ? 4 : i === 0 ? '4px 0 0 4px' : i === all.length - 1 ? '0 4px 4px 0' : 0 }} />
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '8px 20px', marginTop: 12 }}>
+          {bands.map((g) => {
+            const d = (g.now - g.before) / total; // as a share of everyone
+            const flat = Math.abs(d) < 0.005;
+            const better = g.id === 'low' ? d < 0 : d > 0;
+            const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
+            return (
+              <span key={g.id} title={`${count(g.now)} people · ${count(g.before)} at the start`} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                <span aria-hidden style={{ flexShrink: 0, width: 8, height: 8, borderRadius: 2, background: colors[g.id], boxShadow: g.id === 'learning' ? 'inset 0 0 0 1px var(--hair)' : 'none' }} />
+                <span style={{ ...small, fontSize: 10, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.brief}</span>
+                <strong style={{ fontSize: 11, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{share(g.now, total)}</strong>
+                <span style={{ width: 12, flexShrink: 0 }}>{!flat && <Arrow size={11} strokeWidth={3} color={better ? ink.good : ink.bad} aria-label={d > 0 ? 'up' : 'down'} />}</span>
+              </span>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -135,11 +142,12 @@ function Chapter({ c, items, when, ink, onOpen, first }) {
   );
 }
 
-/** The picture as plain text, for "Copy summary". */
+/** The picture as plain text, for "Copy a short summary". */
 function summaryText(r, title, campaign) {
+  const v = verdict(r);
   return [
     title,
-    moveLine(r, campaign),
+    `${VERDICT[v.word].word}: ${share(r.moved.climbed, r.basis.people)} moved up a level, ${share(r.moved.slipped, r.basis.people)} down.`,
     `Where everyone stands: ${[...r.standing].reverse().map((g) => `${g.brief} ${share(g.now, r.people.length)}`).join(', ')}.`,
     '',
     'What stands out:',
@@ -148,9 +156,78 @@ function summaryText(r, title, campaign) {
 }
 
 /**
+ * The one Export button: a short menu of what can be downloaded, in groups,
+ * the first being whatever is on screen. `groups` are { name, items } with
+ * items { id, label, note, run, Icon }.
+ */
+function ExportMenu({ scope, groups }) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(null); // the item just run, for a moment
+  const box = useRef(null);
+  const first = useRef(null);
+  // closing also drops a pending "Downloaded", so its timer can't close the menu once reopened
+  const close = () => { setOpen(false); setDone(null); };
+  useEffect(() => {
+    if (!open) return undefined;
+    first.current?.focus();
+    const onDown = (e) => { if (!box.current?.contains(e.target)) { setOpen(false); setDone(null); } };
+    // in the capture phase, so Escape closes the menu and nothing else
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); setDone(null); } };
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey, true); };
+  }, [open]);
+  useEffect(() => {
+    if (!done) return undefined;
+    const t = setTimeout(() => { setDone(null); setOpen(false); }, 900);
+    return () => clearTimeout(t);
+  }, [done]);
+  const firstId = groups.find((g) => g.items.length)?.items[0]?.id;
+  return (
+    <div ref={box} style={{ position: 'relative' }}>
+      <button type="button" data-bp-export onClick={() => (open ? close() : setOpen(true))} aria-haspopup="menu" aria-expanded={open} style={{ height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px 0 12px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+        <Download size={13} strokeWidth={2.6} aria-hidden /> Export <ChevronDown size={13} strokeWidth={2.6} aria-hidden style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }} />
+      </button>
+      {open && (
+        <div role="menu" aria-label="Export" data-bp-export-menu style={{ position: 'absolute', right: 0, top: 36, width: 320, zIndex: 30, padding: 6, borderRadius: 14, border: '1px solid var(--hair)', background: 'var(--base)', boxShadow: '0 18px 40px rgba(15,23,42,0.18)' }}>
+          <div style={{ ...small, padding: '6px 10px 4px' }}>Download as a spreadsheet (CSV) · {scope}</div>
+          {groups.filter((g) => g.items.length).map((g, gi) => (
+            <div key={g.name} style={{ borderTop: gi ? '1px solid var(--hair)' : 'none', marginTop: gi ? 4 : 0, paddingTop: 4 }}>
+              <div style={{ ...eyebrow, padding: '6px 10px 4px' }}>{g.name}</div>
+              {g.items.map((it) => {
+                const Icon = done === it.id ? Check : it.Icon || FileSpreadsheet;
+                return (
+                  <button
+                    key={it.id}
+                    ref={it.id === firstId ? first : undefined}
+                    type="button"
+                    role="menuitem"
+                    data-bp-export-item={it.id}
+                    className="bp-row"
+                    onClick={() => { it.run(); setDone(it.id); }}
+                    style={{ width: '100%', display: 'grid', gridTemplateColumns: '28px minmax(0,1fr)', alignItems: 'center', gap: 10, padding: '7px 10px', border: 'none', borderRadius: 9, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    <span aria-hidden style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'var(--track)', color: 'var(--text)' }}><Icon size={14} strokeWidth={2.4} /></span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{done === it.id ? it.doneLabel || 'Downloaded' : it.label}</span>
+                      <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.note}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * The Big Picture, in the board's L shape: a colour tile top left naming what
- * it covers; where everyone stands along the arm; below, the story in three
- * parts, with People and Departments a tab away.
+ * it covers; which way the board moved and where everyone stands along the
+ * arm; below, the story in three parts, with People and Departments a tab
+ * away and one Export menu.
  */
 export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
@@ -160,6 +237,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     scope: scopeKey,
     tab: 'overview',
     detail: null, // the finding opened, by id
+    detailView: { tab: 'departments', dept: null, q: '', page: 0, deptPage: 0 },
     people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' }, page: 0 },
     picked: new Set(),
     depts: { sort: { key: 'perPerson', dir: 'asc' }, q: '', page: 0 },
@@ -169,32 +247,19 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const state = kept.scope === scopeKey ? kept : fresh(); // a new scope starts afresh
   const { tab } = state;
   const set = (patch) => setState({ ...state, ...patch });
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return undefined;
-    const t = setTimeout(() => setCopied(false), 1800);
-    return () => clearTimeout(t);
-  }, [copied]);
 
-  // From a finding to the people (or departments) behind it.
   const pinpoint = ({ show = 'all', dept = 'all', q = '' }) => {
     set({ tab: 'people', detail: null, people: { ...state.people, show, dept, level: 'all', q, page: 0 } });
   };
+  const openFinding = (f) => set({ detail: f.id, detailView: { tab: 'departments', dept: f.link?.dept || null, q: '', page: 0, deptPage: 0 } });
 
   const parts = story(r, { campaign: Boolean(campaign) });
   const when = campaign ? 'in this campaign' : 'in the last 30 days';
   const opened = state.detail ? [...parts.wrong, ...parts.right, ...parts.next].find((f) => f.id === state.detail) : null;
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
-  const exportReport = () => downloadCsv(csvName('big picture', scopeName, 'report'), reportCsv(r, { title, withPeople: canSeePeople, campaign: Boolean(campaign) }));
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(summaryText(r, title, Boolean(campaign)));
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
+  const scopeLabel = campaign ? campaign.name : 'the organisation, last 30 days';
+  const file = (...what) => csvName('big picture', scopeName, ...what);
   const tokens = isDark
     ? { '--bp-accent': '#5EEAD4', '--bp-soft': 'rgba(94,234,212,0.14)', '--bp-ink': '#5EEAD4' }
     : { '--bp-accent': '#0F766E', '--bp-soft': '#D5F5F0', '--bp-ink': '#0F766E' };
@@ -202,6 +267,45 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     { id: 'overview', label: 'Overview', Icon: LayoutGrid },
     ...(canSeePeople ? [{ id: 'people', label: 'People', Icon: Users, count: r.people.length }] : []),
     { id: 'departments', label: 'Departments', Icon: Building2, count: r.departments.length },
+  ];
+
+  // The Export menu: what is on screen first, then everything.
+  const onScreen = [];
+  if (tab === 'overview' && opened) {
+    const b = breakdown(r, opened);
+    const team = Boolean(opened.link?.dept);
+    const what = `${opened.value}${opened.unit ? ` ${opened.unit}` : ''} ${opened.headline}`;
+    onScreen.push({ id: 'finding-departments', Icon: Building2, label: 'This finding, by department', note: `${what} · ${b.departments.length} departments`, run: () => downloadCsv(file(opened.headline, 'by department'), breakdownCsv(b)) });
+    if (canSeePeople) {
+      const list = findingPeople(b, state.detailView, team);
+      const narrowed = state.detailView.dept && !team;
+      onScreen.push({ id: 'finding-people', Icon: Users, label: narrowed ? `This finding’s people in ${state.detailView.dept}` : 'This finding’s people', note: `${count(list.length)} ${list.length === 1 ? 'person' : 'people'} · ${what}`, run: () => downloadCsv(file(opened.headline, narrowed ? state.detailView.dept : 'people'), peopleCsv(list)) });
+    }
+  }
+  if (tab === 'people' && canSeePeople) {
+    if (peopleFiltered(state.people)) {
+      const list = peopleShown(r, state.people);
+      onScreen.push({ id: 'people-shown', Icon: Users, label: 'The people shown', note: `${count(list.length)} people, with your filters`, run: () => downloadCsv(file('people shown'), peopleCsv(list)) });
+    }
+    if (state.picked.size) onScreen.push({ id: 'people-selected', Icon: Check, label: 'The people you selected', note: `${count(state.picked.size)} ${state.picked.size === 1 ? 'person' : 'people'}`, run: () => downloadCsv(file('selected people'), peopleCsv(r.people.filter((x) => state.picked.has(x.key)))) });
+  }
+  if (tab === 'departments') {
+    if (state.depts.q.trim()) {
+      const list = departmentsShown(r, state.depts);
+      onScreen.push({ id: 'departments-shown', Icon: Building2, label: 'The departments shown', note: `${list.length} departments, with your search`, run: () => downloadCsv(file('departments shown'), departmentsCsv(list)) });
+    }
+    if (state.deptPicked.size) onScreen.push({ id: 'departments-selected', Icon: Check, label: 'The departments you selected', note: `${state.deptPicked.size} departments`, run: () => downloadCsv(file('selected departments'), departmentsCsv(r.departments.filter((d) => state.deptPicked.has(d.name)))) });
+  }
+  const everything = [
+    { id: 'report', Icon: FileSpreadsheet, label: 'Full report', note: canSeePeople ? 'Story, levels, departments and everyone' : 'Story, levels and departments', run: () => downloadCsv(file('report'), reportCsv(r, { title, withPeople: canSeePeople, campaign: Boolean(campaign) })) },
+    { id: 'departments', Icon: Building2, label: 'All departments', note: `${r.departments.length} departments, every measure`, run: () => downloadCsv(file('departments'), departmentsCsv(departmentsShown(r, { q: '', sort: state.depts.sort }))) },
+    ...(canSeePeople ? [{ id: 'everyone', Icon: Users, label: 'Everyone', note: `${count(r.people.length)} people, lowest points first`, run: () => downloadCsv(file('people'), peopleCsv(r.people)) }] : []),
+  ];
+  const share_ = [{ id: 'copy', Icon: Copy, label: 'Copy a short summary', doneLabel: 'Copied', note: 'To paste into an email or a chat', run: () => navigator.clipboard?.writeText(summaryText(r, title, Boolean(campaign))).catch(() => {}) }];
+  const groups = [
+    { name: tab === 'overview' && opened ? 'What you’re looking at' : 'Your selection', items: onScreen },
+    { name: 'Everything', items: everything },
+    { name: 'Share', items: share_ },
   ];
 
   return (
@@ -213,40 +317,35 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         </div>
         <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{campaign ? campaign.name : 'The organisation'}</div>
         <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>
-          {campaign ? `${campaign.type} · started ${campaign.started} · ${num(r.basis.people)} recipients` : `Last 30 days · ${r.basis.campaigns} campaigns · ${num(r.basis.population)} people on the board`}
+          {campaign ? `${campaign.type} · started ${campaign.started} · ${count(r.basis.people)} recipients` : `Last 30 days · ${r.basis.campaigns} campaigns · ${count(r.basis.population)} people on the board`}
         </div>
       </div>
       <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
         <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
       </svg>
 
-      {/* the arm: where everyone stands */}
-      <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 28, padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+      {/* the arm: which way the board moved, and where everyone stands */}
+      <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
         <Standing r={r} campaign={Boolean(campaign)} isDark={isDark} ink={ink} />
       </div>
 
       {/* the base: the story in three parts, or a full list */}
       <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 28px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div role="tablist" aria-label="The big picture" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 3, borderRadius: 11, background: 'var(--track)' }}>
-          {TABS.map((t) => {
-            const on = tab === t.id;
-            return (
-              <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, detail: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
-                <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
-                {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{count(t.count)}</span>}
-              </button>
-            );
-          })}
-        </div>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button type="button" data-bp-copy onClick={copy} aria-label={copied ? 'Summary copied' : 'Copy a summary'} title={copied ? 'Copied' : 'Copy a summary to paste anywhere'} style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', borderRadius: 9, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
-            {copied ? <Check size={14} strokeWidth={2.8} aria-hidden /> : <Copy size={14} strokeWidth={2.4} aria-hidden />}
-          </button>
-          <button type="button" data-bp-export-report onClick={exportReport} title={canSeePeople ? 'Every table, people included, as one CSV file' : 'Every table as one CSV file'} style={{ height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-            <Download size={13} strokeWidth={2.6} aria-hidden /> Export report
-          </button>
-        </span>
+          <div role="tablist" aria-label="The big picture" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 3, borderRadius: 11, background: 'var(--track)' }}>
+            {TABS.map((t) => {
+              const on = tab === t.id;
+              return (
+                <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, detail: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
+                  <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
+                  {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{count(t.count)}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <span style={{ marginLeft: 'auto' }}>
+            <ExportMenu scope={scopeLabel} groups={groups} />
+          </span>
         </div>
 
         {tab === 'overview' && opened && (
@@ -254,21 +353,22 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
             key={`${scopeKey}-${opened.id}`}
             f={opened}
             r={r}
+            view={state.detailView}
+            onView={(detailView) => set({ detailView })}
             canSeePeople={canSeePeople}
             isDark={isDark}
             ink={ink}
-            scopeName={scopeName}
             onBack={() => set({ detail: null })}
             onOpenPeople={({ dept }) => pinpoint({ show: opened.link?.show || 'all', dept: dept || 'all' })}
           />
         )}
         {tab === 'overview' && !opened && (
           <div data-bp-story style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 28 }}>
-            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} onOpen={(f) => set({ detail: f.id })} first={i === 0} />)}
+            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} onOpen={openFinding} first={i === 0} />)}
           </div>
         )}
         {tab === 'people' && canSeePeople && (
-          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} scopeName={scopeName} isDark={isDark} ink={ink} />
+          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} isDark={isDark} ink={ink} />
         )}
         {tab === 'departments' && (
           <DepartmentTable
@@ -279,7 +379,6 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
             onPeople={canSeePeople ? (dept) => pinpoint({ dept }) : null}
-            scopeName={scopeName}
             ink={ink}
           />
         )}
