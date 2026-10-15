@@ -22,7 +22,7 @@ function random(seed) {
 
 // A department's steady lean, the same in every campaign: some teams click
 // more than others, and fall for some lures more than others.
-function lean(key, spread) {
+export function lean(key, spread) {
   let h = 2166136261;
   for (let i = 0; i < key.length; i += 1) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
   return 1 - spread / 2 + ((h >>> 0) % 1000) / 1000 * spread;

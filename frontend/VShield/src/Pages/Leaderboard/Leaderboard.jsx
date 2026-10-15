@@ -17,9 +17,10 @@ import { gradeName, levelAltText, levelFor, progressFor, rangeText } from '../..
 import GlobalTrophy from '../../assets/LeaderboardAssets/GlobalTrophy.png';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import ReportsChart from '../../assets/LeaderboardAssets/ReportsChart.png';
-import { CampaignList, NextMoveSheet, NextMoveTeaser } from './NextMove';
+import { BigPictureSheet, BigPictureTeaser } from './BigPicture';
+import { CampaignList } from './CampaignList';
 import { campaignReport } from '../../services/sampleReports';
-import { nextMove } from '../../services/nextMove';
+import { bigPicture } from '../../services/bigPicture';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
@@ -75,13 +76,12 @@ const FONT_IMPORT = `
   .lb-cap:active { transform: scale(.97); }
   .lb-cap-only:hover, .lb-cap-only:active { transform: none; }
 
-  /* Next Move: a card's edge lights up and its arrow nudges on hover */
-  .nm-card { transition: box-shadow .2s ease, border-color .2s ease; }
-  .nm-card:hover { box-shadow: 0 10px 24px rgba(15,23,42,0.10); border-color: var(--nm-accent) !important; }
-  .nm-card:focus-visible, .nm-option:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-  .nm-card .nm-turn svg { transition: transform .2s ease; }
-  .nm-card:hover .nm-turn svg { transform: translateX(3px); }
-  .nm-option:hover { background: var(--track) !important; }
+  /* The Big Picture: a card's edge lights up and its arrow nudges on hover */
+  .bp-card { transition: box-shadow .2s ease, border-color .2s ease; }
+  .bp-card:hover { box-shadow: 0 10px 24px rgba(15,23,42,0.10); border-color: var(--bp-accent) !important; }
+  .bp-card:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .bp-card .bp-turn svg { transition: transform .2s ease; }
+  .bp-card:hover .bp-turn svg { transform: translateX(3px); }
 
   /* Badges: lift on hover; rows lift a little too */
   .lb-badge-btn img { transition: transform .25s ease; }
@@ -116,7 +116,7 @@ const FONT_IMPORT = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .nm-card, .nm-card svg { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .bp-card, .bp-card svg { animation: none !important; transition: none !important; }
     .lb-shine { animation: none !important; opacity: 0; }
   }
 `;
@@ -155,8 +155,9 @@ function buildBoard(seed, total) {
     const p = person(rank - 1 + seed * 37);
     const pts = Math.round(80 + 1400 * s - (seed % 5) * 7);
     const move = ((rank * 13 + seed * 7) % 9) - 3; // places gained (+) or lost (-) this week
-    const levelId = levelFor(samplePointsFor(rank - 1 + seed * 37))?.id || null; // their overall level
-    all.push({ rank, ...p, pts: pts.toLocaleString(), move, levelId });
+    const overall = samplePointsFor(rank - 1 + seed * 37); // their points across every campaign
+    const levelId = levelFor(overall)?.id || null; // their overall level
+    all.push({ rank, ...p, pts: pts.toLocaleString(), move, levelId, overall });
   }
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
@@ -792,11 +793,9 @@ const Leaderboard = () => {
   const navigate = useNavigate();
   // My Campaigns is for every role but Regular User, who sees Global only.
   const canCampaigns = Boolean(hasAccess && hasAccess('leaderboard-campaigns'));
-  // Next Move (what to run next) is for the same staff roles. Staff know how
-  // points are given, so How to earn points is for colleagues only. Only the
-  // roles that start campaigns get "Start this campaign".
+  // The Big Picture (what the board shows) is for the same staff roles. Staff
+  // know how points are given, so How to earn points is for colleagues only.
   const canReports = Boolean(hasAccess && hasAccess('leaderboard-reports'));
-  const canStart = Boolean(hasAccess && hasAccess('start-campaign'));
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
@@ -809,7 +808,7 @@ const Leaderboard = () => {
   const openBadge = useCallback((level, who) => setBadges({ selected: level.id, subject: who ? { name: who, levelId: level.id } : null }), []);
   const [pickedView, setView] = useState('global'); // 'global' | 'campaign' | 'reports'
   const view = (pickedView === 'campaign' && canCampaigns) || (pickedView === 'reports' && canReports) ? pickedView : 'global';
-  const [planFrom, setPlanFrom] = useState('org'); // Next Move: 'org' or a campaign id to follow up
+  const [pictureOf, setPictureOf] = useState('org'); // The Big Picture: 'org' or a campaign id
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
@@ -827,7 +826,7 @@ const Leaderboard = () => {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [boardShown]); // the board's list comes back after Next Move: measure it again
+  }, [boardShown]); // the board's list comes back after The Big Picture: measure it again
 
   const chooseView = (id) => { setView(id); setPage(0); };
   const chooseCampaign = (id) => { setCampaignId(id); setPage(0); };
@@ -837,19 +836,29 @@ const Leaderboard = () => {
 
   const campaign = useMemo(() => CAMPAIGNS.find((c) => c.id === campaignId) || CAMPAIGNS[0], [campaignId]);
 
-  // Next Move (sample until the reports API exists): every campaign's results,
-  // and the suggested brief for the organisation the rail's teaser shows.
-  const planItems = useMemo(() => {
+  // The Big Picture (sample until the reports API exists): every campaign's
+  // results, read over everyone on the board for the organisation, or over a
+  // campaign's own recipients.
+  const pictureItems = useMemo(() => {
     if (!canReports) return [];
     const opts = { depts: DEPTS, personAt: person, rules: rules.points };
     return CAMPAIGNS.map((c) => ({ campaign: c, report: campaignReport(c, opts) }));
   }, [canReports, rules.points]);
-  const orgMove = useMemo(() => (canReports ? nextMove(planItems, globalBoard) : null), [canReports, planItems, globalBoard]);
-  const planCampaign = CAMPAIGNS.find((c) => c.id === planFrom) || null;
-  // Start this campaign: the scenario picker, carrying the brief along.
-  const startFromBrief = (m) => navigate('/start-campaign', {
-    state: { nextMove: { who: m.choice.who.label, what: m.choice.what.label, how: m.choice.how.label, difficulty: m.choice.hard.label } },
-  });
+  const orgPicture = useMemo(() => {
+    if (!canReports) return null;
+    const { podium: top, rows } = globalBoard;
+    const people = [top.first, top.second, top.third, ...rows]
+      .filter((p) => p && p.points !== null && p.points !== undefined)
+      .map((p) => ({ key: p.email || `${p.name}|${p.rank}`, dept: p.dept, points: Number(p.points) }));
+    return bigPicture(pictureItems, people, { rules: rules.points });
+  }, [canReports, pictureItems, globalBoard, rules.points]);
+  const pictureCampaign = CAMPAIGNS.find((c) => c.id === pictureOf) || null;
+  const campaignPicture = useMemo(() => {
+    if (!pictureCampaign || view !== 'reports') return null;
+    const { podium: top, rows } = buildBoard(pictureCampaign.seed, pictureCampaign.total);
+    const people = [top.first, top.second, top.third, ...rows].map((p) => ({ key: `${p.name}|${p.rank}`, dept: p.dept, points: p.overall }));
+    return bigPicture(pictureItems, people, { focus: pictureCampaign.id, rules: rules.points });
+  }, [pictureCampaign, view, pictureItems, rules.points]);
 
   const scope = useMemo(() => {
     if (view === 'global') {
@@ -1022,10 +1031,10 @@ const Leaderboard = () => {
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
             {canCampaigns && railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
-            {canReports && railCapsule('reports', 'Next Move', 'What to run next, and why', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
+            {canReports && railCapsule('reports', 'The Big Picture', 'What the board is telling us', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
 
-            {/* staff, Global view: the suggested next campaign, opening Next Move */}
-            {view === 'global' && orgMove && <NextMoveTeaser m={orgMove} isDark={isDark} onOpen={() => { chooseView('reports'); setPlanFrom('org'); }} />}
+            {/* staff, Global view: the last 30 days in four lines, opening The Big Picture */}
+            {view === 'global' && orgPicture && <BigPictureTeaser r={orgPicture} isDark={isDark} onOpen={() => { chooseView('reports'); setPictureOf('org'); }} />}
 
             {/* colleagues, Global view: how points are earned, read live from the Gamification Engine */}
             {view === 'global' && !canReports && (
@@ -1072,11 +1081,11 @@ const Leaderboard = () => {
             )}
             {view === 'reports' && (
               <CampaignList
-                label="Plan the next campaign for"
-                org={{ title: 'The organisation', sub: 'Whoever needs it most', listLabel: 'Or follow up a campaign' }}
+                label="The big picture of"
+                org={{ title: 'The organisation', sub: 'Last 30 days, everyone on the board', listLabel: 'Or one campaign' }}
                 campaigns={CAMPAIGNS}
-                selected={planFrom}
-                onSelect={setPlanFrom}
+                selected={pictureOf}
+                onSelect={setPictureOf}
                 meta={(c) => `${c.type} · started ${c.started}`}
                 isDark={isDark}
                 tint={{ fill: 'var(--cap-reports)', edge: isDark ? '#5EEAD4' : '#14B8A6', glow: 'rgba(20,184,166,0.18)' }}
@@ -1084,15 +1093,11 @@ const Leaderboard = () => {
             )}
           </div>
 
-          {view === 'reports' && (
-            <NextMoveSheet
-              items={planItems}
-              board={globalBoard}
-              focus={planCampaign ? planCampaign.id : null}
-              campaign={planCampaign}
+          {view === 'reports' && orgPicture && (
+            <BigPictureSheet
+              r={(pictureCampaign && campaignPicture) || orgPicture}
+              campaign={pictureCampaign && campaignPicture ? pictureCampaign : null}
               isDark={isDark}
-              canStart={canStart}
-              onStart={startFromBrief}
               shell={{ CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK }}
             />
           )}

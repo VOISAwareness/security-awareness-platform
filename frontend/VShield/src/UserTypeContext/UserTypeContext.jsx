@@ -8,7 +8,7 @@ const UserTypeContext = createContext();
 // button (it has no nav item); every role has it. 'leaderboard-campaigns' is its
 // My Campaigns view (ongoing campaigns and how each is going), for every role
 // except Regular User, who sees the Global Leaderboard only. 'leaderboard-reports'
-// is its Next Move view (what to run next, and why), for the same roles; they
+// is its The Big Picture view (what the board shows), for the same roles; they
 // don't see How to earn points.
 export const ROLE_PERMISSIONS = {
   'Admin': [
