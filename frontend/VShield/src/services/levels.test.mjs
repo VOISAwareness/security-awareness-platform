@@ -45,8 +45,9 @@ test('a band includes its lower number, not its upper one', () => {
   const cases = [
     [0, 'L1G1'], [49, 'L1G1'], [50, 'L1G2'], [99.5, 'L1G2'], [100, 'L1G3'], [149, 'L1G3'],
     [150, 'L2G1'], [299, 'L2G3'], [300, 'L3G1'], [749, 'L3G3'], [750, 'L4G1'],
-    [1150, 'L4G3'], [1299, 'L4G3'], [1300, 'L5G1'], [2199, 'L5G3'], [2200, 'L6G1'],
-    [3399, 'L6G3'], [3400, 'L7G1'], [4449, 'L7G2'], [4450, 'L7G3'], [5000, 'L7G3'], [999999, 'L7G3'],
+    [1150, 'L4G3'], [1299, 'L4G3'], [1300, 'L5G1'], [1699, 'L5G1'], [1700, 'L5G2'], [2100, 'L5G3'], [2549, 'L5G3'],
+    [2550, 'L6G1'], [3150, 'L6G2'], [3750, 'L6G3'], [4399, 'L6G3'], [4400, 'L7G1'], [5199, 'L7G1'], [5200, 'L7G2'],
+    [6049, 'L7G2'], [6050, 'L7G3'], [999999, 'L7G3'],
     [-1, 'L0'], [-100, 'L0'], [-101, 'LN1'], [-200, 'LN1'], [-201, 'LN2'], [-5000, 'LN2'], [-99999, 'LN2'],
   ];
   for (const [points, id] of cases) assert.equal(levelFor(points)?.id, id, `${points} pts`);
@@ -74,8 +75,8 @@ test('titles, alt text and ranges', () => {
   assert.equal(levelTitle(LEVEL_BY_ID.LN2), 'Level -2');
   assert.equal(levelAltText(LEVEL_BY_ID.L3G2), 'Level 3, Grade 2: Safe Handler');
   assert.equal(rangeText(LEVEL_BY_ID.L3G1), '300–449 pts');
-  assert.equal(rangeText(LEVEL_BY_ID.L5G2), '1,600–1,899 pts');
-  assert.equal(rangeText(LEVEL_BY_ID.L7G3), '4,450+ pts');
+  assert.equal(rangeText(LEVEL_BY_ID.L5G2), '1,700–2,099 pts');
+  assert.equal(rangeText(LEVEL_BY_ID.L7G3), '6,050+ pts');
   assert.equal(rangeText(LEVEL_BY_ID.LN2), 'below -200 pts');
   assert.equal(rangeText(LEVEL_BY_ID.L0), '-100 to -1 pts');
   assert.equal(rangeText(LEVEL_BY_ID.LN1), '-200 to -101 pts');
@@ -98,7 +99,7 @@ test('progress to the next grade', () => {
 });
 
 test('the top grade has nowhere further to go', () => {
-  const top = progressFor(6000);
+  const top = progressFor(7000);
   assert.equal(top.level.id, 'L7G3');
   assert.equal(top.next, null);
   assert.equal(top.isTop, true);
@@ -179,7 +180,7 @@ test('levels 1 to 7 as families of three, and the three below zero', () => {
   });
   assert.deepEqual(BELOW_LEVELS.map((l) => l.id), ['L0', 'LN1', 'LN2']);
   assert.equal(familyRangeText(LEVEL_FAMILIES[3]), '750–1,299 pts');
-  assert.equal(familyRangeText(LEVEL_FAMILIES[6]), '3,400+ pts');
+  assert.equal(familyRangeText(LEVEL_FAMILIES[6]), '4,400+ pts');
   assert.equal(familyRangeText([]), '');
 });
 

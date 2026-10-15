@@ -19,7 +19,7 @@ test('the global board is everyone, by points, with a level each', () => {
     assert.ok(r.move >= -3 && r.move <= 5);
   });
   assert.equal(b.podium.first.name, 'Jack Roberts');
-  assert.equal(b.podium.first.levelId, 'L7G3');
+  assert.equal(b.podium.first.levelId, 'L7G1'); // Jack Roberts, 4,620 pts
   assert.equal(b.podium.first.pts, '4,620');
   assert.equal(all.at(-1).levelId, 'LN2', 'lowest is below zero');
 });
@@ -40,7 +40,7 @@ test('made-up campaign people: stable, mostly low, a few below zero', () => {
   assert.deepEqual(pts.slice(0, 20), Array.from({ length: 20 }, (_, i) => samplePointsFor(i)));
   const below = pts.filter((p) => p < 0).length;
   assert.ok(below > 5 && below < 60, `below zero: ${below}`);
-  assert.ok(pts.filter((p) => p >= 3400).length > 0, 'some Cyber Guardians');
+  assert.ok(pts.filter((p) => p >= 4400).length > 0, 'some Cyber Guardians');
   assert.ok(pts.filter((p) => p < 300).length > 150, 'most low on the ladder');
 });
 

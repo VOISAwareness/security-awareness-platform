@@ -99,7 +99,8 @@ def test_bands_join_up_and_cover_every_total(mod):
         assert cur["min"] == prev["max"]
     cases = {
         0: "L1G1", 49: "L1G1", 50: "L1G2", 150: "L2G1", 749: "L3G3", 750: "L4G1", 1299: "L4G3",
-        1300: "L5G1", 4449: "L7G2", 4450: "L7G3", 99999: "L7G3",
+        1300: "L5G1", 1699: "L5G1", 1700: "L5G2", 2549: "L5G3", 2550: "L6G1", 4399: "L6G3", 4400: "L7G1",
+        6049: "L7G2", 6050: "L7G3", 99999: "L7G3",
         -1: "L0", -100: "L0", -101: "LN1", -200: "LN1", -201: "LN2", -99999: "LN2",
     }
     for points, level_id in cases.items():
@@ -110,7 +111,8 @@ def test_progress(mod):
     assert mod.progress_for(205) == {"nextLevelId": "L2G3", "toNext": 45, "pct": 10}
     assert mod.progress_for(-30) == {"nextLevelId": "L1G1", "toNext": 30, "pct": 70}
     assert mod.progress_for(-350) == {"nextLevelId": "LN1", "toNext": 150, "pct": 25}
-    assert mod.progress_for(5000) == {"nextLevelId": None, "toNext": 0, "pct": 100}
+    assert mod.progress_for(7000) == {"nextLevelId": None, "toNext": 0, "pct": 100}
+    assert mod.progress_for(4620) == {"nextLevelId": "L7G2", "toNext": 580, "pct": 28}
 
 
 def test_the_level_table_matches_the_front_end():
@@ -143,7 +145,7 @@ def test_get_levels(api):
     assert body["count"] == 24
     first, last = body["data"][0], body["data"][-1]
     assert (first["id"], first["min"], first["max"], first["name"]) == ("LN2", None, -200, "Critical Risk")
-    assert (last["id"], last["min"], last["max"], last["risk"]) == ("L7G3", 4450, None, "Trusted")
+    assert (last["id"], last["min"], last["max"], last["risk"]) == ("L7G3", 6050, None, "Trusted")
 
 
 # --- GET /standing ------------------------------------------------------------
@@ -243,7 +245,7 @@ def test_leaderboard_ranks_everyone_and_hides_negatives(api):
     d = body["data"]
     assert d["total"] == 5
     assert [(r["rank"], r["name"], r["points"], r["levelId"], r["you"]) for r in d["rows"]] == [
-        (1, "Jack Roberts", 4620, "L7G3", False),
+        (1, "Jack Roberts", 4620, "L7G1", False),
         (2, "Ana Lopez", 160, "L2G1", True),
         (3, "Ben", 160, "L2G1", False),
         (4, "Nour El Din", None, None, False),

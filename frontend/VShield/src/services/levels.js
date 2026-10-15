@@ -8,7 +8,7 @@
  *
  * A total belongs to the band whose lower number it has reached: 0–49 is
  * Level 1 · Grade 1, 50–99 is Grade 2, and so on. A newcomer on 0 points is a
- * New Joiner. The ends are open: 4,450 and up stays Cyber Guardian · Grade 3,
+ * New Joiner. The ends are open: 6,050 and up stays Cyber Guardian · Grade 3,
  * anything below -200 is Critical Risk.
  *
  * Pure data and functions, so `node --test` can cover them. The badge
@@ -40,9 +40,11 @@ const BANDS = [
   ['L2', 1, 150, 200], ['L2', 2, 200, 250], ['L2', 3, 250, 300],
   ['L3', 1, 300, 450], ['L3', 2, 450, 600], ['L3', 3, 600, 750],
   ['L4', 1, 750, 950], ['L4', 2, 950, 1150], ['L4', 3, 1150, 1300],
-  ['L5', 1, 1300, 1600], ['L5', 2, 1600, 1900], ['L5', 3, 1900, 2200],
-  ['L6', 1, 2200, 2600], ['L6', 2, 2600, 3000], ['L6', 3, 3000, 3400],
-  ['L7', 1, 3400, 3900], ['L7', 2, 3900, 4450], ['L7', 3, 4450, null],
+  // From Level 5 up each grade takes longer: 400 points a grade in Level 5,
+  // 600 in Level 6, 800 then 850 in Level 7 (450 and 650 to step up a level).
+  ['L5', 1, 1300, 1700], ['L5', 2, 1700, 2100], ['L5', 3, 2100, 2550],
+  ['L6', 1, 2550, 3150], ['L6', 2, 3150, 3750], ['L6', 3, 3750, 4400],
+  ['L7', 1, 4400, 5200], ['L7', 2, 5200, 6050], ['L7', 3, 6050, null],
 ];
 
 export const LEVELS = Object.freeze(
@@ -99,7 +101,7 @@ export function levelAltText(level) {
 
 const fmt = (n) => n.toLocaleString('en-US');
 
-/** The points a level covers: "300–449 pts", "-100 to -1 pts", "4,450+ pts", "below -200 pts". */
+/** The points a level covers: "300–449 pts", "-100 to -1 pts", "6,050+ pts", "below -200 pts". */
 export function rangeText(level) {
   if (!level) return '';
   return spanText(level.min, level.max);
@@ -135,7 +137,7 @@ export const LEVEL_FAMILIES = Object.freeze(
 /** The levels below Level 1, highest first: 0, -1, -2. */
 export const BELOW_LEVELS = Object.freeze(LEVELS.filter((l) => l.level <= 0).reverse());
 
-/** The points a whole level covers, its grades together: "750–1,299 pts", "3,400+ pts". */
+/** The points a whole level covers, its grades together: "750–1,299 pts", "4,400+ pts". */
 export function familyRangeText(grades) {
   if (!grades || !grades.length) return '';
   return spanText(grades[0].min, grades.at(-1).max);
