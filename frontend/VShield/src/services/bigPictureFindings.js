@@ -7,9 +7,10 @@
  *   right - going well: the team that gained the most ground, people who
  *           reached Phish Catcher or above, the best-reporting team, people
  *           back above zero, people who climbed;
- *   next  - what could happen next: who is one click from a level down or
- *           below zero, one report from a level up, and where the board is
- *           heading at this pace.
+ *   next  - what could happen next, if everyone gets one more email: how
+ *           many could drop a level, how many could move up, and how many
+ *           would be Phish Catcher or above, each worked out by formula
+ *           from every person's record (bigPictureForecast.js).
  *
  * Built to read at any size, ten people or thirty thousand: each finding
  * leads with one number, a share of people (or points per person for a
@@ -135,21 +136,26 @@ export function story(r, { campaign = false } = {}) {
   const climbed = P.filter(pick('climbed'));
   if (climbed.length) right.push(about('climbed', 'good', 50, climbed, took, 'climbed a level'));
 
-  // what could happen next
-  if (campaign) {
-    const nearZero = P.filter(pick('nearZero'));
-    const nearSlip = P.filter(pick('nearSlip'));
-    if (nearZero.length) next.push(about('nearZero', 'watch', 90, nearZero, all, 'are one click from below zero'));
-    if (nearSlip.length) next.push(about('nearSlip', 'watch', 85, nearSlip, all, 'are one click from a level down'));
-  } else {
-    const oneClick = P.filter(pick('oneClick'));
-    if (oneClick.length) next.push(about('oneClick', 'watch', 90, oneClick, all, 'are one click from a level down'));
+  // what could happen next: if everyone gets one more email (bigPictureForecast.js)
+  const fc = r.forecast;
+  // an expected number: one decimal when small, whole and grouped when large
+  const one = (n) => (n >= 100 ? num(n) : (Math.round(n * 10) / 10).toString());
+  // a range whose ends never round to the same thing
+  const range = (x) => (count(x.low) === count(x.high) && x.low !== x.high ? `${num(x.low)}–${num(x.high)}` : `${count(x.low)}–${count(x.high)}`);
+  const shareRange = (lo, hi, of) => {
+    if (share(lo, of) !== share(hi, of) || lo === hi) return `${share(lo, of)}–${share(hi, of)}`;
+    const fine = (n) => `${(Math.round((n / of) * 1000) / 10).toFixed(1)}%`;
+    return `${fine(lo)}–${fine(hi)}`;
+  };
+  if (fc.down.within) {
+    next.push({ id: 'mayDrop', tone: 'watch', weight: 90, count: fc.down.within, value: share(fc.down.expected, all), headline: 'could drop a level after one more email', sub: `About ${count(Math.round(fc.down.expected))} people, likely ${range(fc.down)}`, detail: `Expected ${one(fc.down.expected)} of the ${people(fc.down.within)} within reach of a click, from each one’s own click rate · likely ${range(fc.down)} (9 times in 10)`, link: { show: 'mayDrop' } });
   }
-  const nearUp = P.filter(pick('nearUp'));
-  if (nearUp.length) next.push(about('nearUp', 'good', 80, nearUp, all, 'are one report from a level up'));
-  if (r.outlook && all) {
-    const d = r.outlook.strongNext - r.outlook.strongNow;
-    next.push({ id: 'outlook', tone: d >= 0 ? 'good' : 'watch', weight: 70, value: share(r.outlook.strongNext, all), headline: 'could be Phish Catchers or above in 30 days', sub: `${share(r.outlook.strongNow, all)} today, at this pace`, detail: `${people(r.outlook.strongNext)} at this pace · ${people(r.outlook.strongNow)} today`, link: null });
+  if (fc.up.within) {
+    next.push({ id: 'mayClimb', tone: 'good', weight: 80, count: fc.up.within, value: share(fc.up.expected, all), headline: 'could move up a level after one more email', sub: `About ${count(Math.round(fc.up.expected))} people, likely ${range(fc.up)}`, detail: `Expected ${one(fc.up.expected)} of the ${people(fc.up.within)} within one report, from each one’s own report rate · likely ${range(fc.up)} (9 times in 10)`, link: { show: 'mayClimb' } });
+  }
+  if (all) {
+    const st = fc.strong;
+    next.push({ id: 'strongNext', tone: st.expected >= st.now ? 'good' : 'watch', weight: 70, value: share(st.expected, all), headline: 'could be Phish Catcher or above after one more email', sub: `${share(st.now, all)} today · likely ${shareRange(st.low, st.high, all)}`, detail: `${people(st.now)} today; expected ${one(st.expected)} after one more email · likely ${range(st)} (9 times in 10)`, link: null });
   }
 
   return { wrong: top3(wrong), right: top3(right), next: top3(next) };
@@ -181,6 +187,9 @@ export function breakdown(r, f) {
   }
   const test = f.link?.show ? PEOPLE_FILTERS.find((x) => x.id === f.link.show)?.test : null;
   const list = test ? r.people.filter(test) : [];
+  // the most likely first
+  if (f.link?.show === 'mayDrop') list.sort((a, b) => b.pDrop - a.pDrop || a.points - b.points);
+  if (f.link?.show === 'mayClimb') list.sort((a, b) => b.pUp - a.pUp || b.points - a.points);
   const by = {};
   list.forEach((x) => { by[x.dept] = (by[x.dept] || 0) + 1; });
   const departments = Object.entries(by)

@@ -20,6 +20,8 @@ const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
 const PEOPLE_COLS = '52px minmax(0,2.2fr) 70px 66px minmax(0,1.3fr)';
 const D_ROW_H = 40;
+// The forecast findings list each person's own chance, from the formula.
+const CHANCE = { mayDrop: ['pDrop', 'bad', 'of a level down'], mayClimb: ['pUp', 'good', 'of a level up'] };
 const P_ROW_H = 44;
 
 const button = (primary) => ({
@@ -27,11 +29,22 @@ const button = (primary) => ({
   border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'transparent', color: primary ? 'var(--ink-on)' : 'var(--text)',
 });
 
+// One person's chance, e.g. "34% of a level down".
+function Chance({ p, color, what }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 10, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: color }} />
+      <strong style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{p > 0 && p < 0.005 ? '<1%' : pc(p)}</strong>{what}
+    </span>
+  );
+}
+
 /** `view` is { tab, dept, q, page, deptPage }, kept by the sheet so Export knows it. */
 export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDark, ink, onBack, onOpenPeople }) {
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
   const team = Boolean(f.link?.dept);
+  const chance = CHANCE[f.link?.show];
   const backRef = useRef(null);
   useEffect(() => { backRef.current?.focus(); }, []);
   useEffect(() => {
@@ -157,11 +170,11 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
       {view.tab === 'people' && canSeePeople && (
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: PEOPLE_COLS, gap: 12, padding: '0 12px 8px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            <span>Rank</span><span>Person</span><span style={{ textAlign: 'right' }}>Points</span><span style={{ textAlign: 'right' }}>Change</span><span>Stands out</span>
+            <span>Rank</span><span>Person</span><span style={{ textAlign: 'right' }}>Points</span><span style={{ textAlign: 'right' }}>Change</span><span>{chance ? 'Chance after one more email' : 'Stands out'}</span>
           </div>
           <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
             {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
-            {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={P_ROW_H} first={i === 0} />)}
+            {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={P_ROW_H} first={i === 0} note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
           </div>
           <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />
         </div>

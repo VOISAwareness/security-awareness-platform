@@ -88,7 +88,7 @@ function Standing({ r, campaign, ink }) {
 const CHAPTERS = [
   { id: 'wrong', n: '01', title: 'Needs attention', sub: (when) => `What went wrong ${when}`, Icon: TriangleAlert, tone: 'bad' },
   { id: 'right', n: '02', title: 'Going well', sub: (when) => `What went right ${when}`, Icon: ThumbsUp, tone: 'good' },
-  { id: 'next', n: '03', title: 'What could happen next', sub: () => 'Who is one step from a change', Icon: Hourglass, tone: 'watch' },
+  { id: 'next', n: '03', title: 'What could happen next', sub: () => 'If everyone gets one more email', Icon: Hourglass, tone: 'watch' },
 ];
 
 // One finding: its number and one line. The whole item opens its detail,
