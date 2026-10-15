@@ -16,6 +16,11 @@ import { gradeName, levelAltText, levelFor, progressFor, rangeText } from '../..
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
 import GlobalTrophy from '../../assets/LeaderboardAssets/GlobalTrophy.png';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
+import ReportsChart from '../../assets/LeaderboardAssets/ReportsChart.png';
+import { BigPictureSheet, BigPictureTeaser } from './BigPicture';
+import { CampaignList } from './CampaignList';
+import { campaignReport } from '../../services/sampleReports';
+import { bigPicture } from '../../services/bigPicture';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
@@ -71,6 +76,15 @@ const FONT_IMPORT = `
   .lb-cap:active { transform: scale(.97); }
   .lb-cap-only:hover, .lb-cap-only:active { transform: none; }
 
+  /* The Big Picture: findings and rows light up, their arrow nudges, on hover */
+  .bp-finding, .bp-row { transition: background .15s ease; }
+  .bp-finding:hover, .bp-row:hover { background: var(--track) !important; }
+  .bp-finding .bp-go svg { transition: transform .2s ease; }
+  .bp-finding:hover .bp-go svg { transform: translateX(3px); }
+  .bp-finding:hover .bp-go { color: var(--text) !important; }
+  .bp-finding:focus-visible, .bp-row:focus-visible, .bp-link:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .bp-link:hover { text-decoration: underline; }
+
   /* Badges: lift on hover; rows lift a little too */
   .lb-badge-btn img { transition: transform .25s ease; }
   .lb-badge-btn:hover img { transform: translateY(-3px) scale(1.07); }
@@ -104,7 +118,7 @@ const FONT_IMPORT = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .bp-finding, .bp-finding svg, .bp-row { animation: none !important; transition: none !important; }
     .lb-shine { animation: none !important; opacity: 0; }
   }
 `;
@@ -143,8 +157,9 @@ function buildBoard(seed, total) {
     const p = person(rank - 1 + seed * 37);
     const pts = Math.round(80 + 1400 * s - (seed % 5) * 7);
     const move = ((rank * 13 + seed * 7) % 9) - 3; // places gained (+) or lost (-) this week
-    const levelId = levelFor(samplePointsFor(rank - 1 + seed * 37))?.id || null; // their overall level
-    all.push({ rank, ...p, pts: pts.toLocaleString(), move, levelId });
+    const overall = samplePointsFor(rank - 1 + seed * 37); // their points across every campaign
+    const levelId = levelFor(overall)?.id || null; // their overall level
+    all.push({ rank, ...p, pts: pts.toLocaleString(), move, levelId, overall });
   }
   return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
 }
@@ -780,6 +795,12 @@ const Leaderboard = () => {
   const navigate = useNavigate();
   // My Campaigns is for every role but Regular User, who sees Global only.
   const canCampaigns = Boolean(hasAccess && hasAccess('leaderboard-campaigns'));
+  // The Big Picture (what the board shows) is for the same staff roles. Staff
+  // know how points are given, so How to earn points is for colleagues only.
+  const canReports = Boolean(hasAccess && hasAccess('leaderboard-reports'));
+  // Its People list names everyone, below-zero levels included, so it is for
+  // admins only, as below-zero badges and risk are everywhere else.
+  const canSeePeople = Boolean(hasAccess && hasAccess('leaderboard-people'));
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
@@ -790,12 +811,14 @@ const Leaderboard = () => {
   const closeBadges = useCallback(() => setBadges(null), []);
   // A badge on the board: open it in All badges, saying whose it is.
   const openBadge = useCallback((level, who) => setBadges({ selected: level.id, subject: who ? { name: who, levelId: level.id } : null }), []);
-  const [pickedView, setView] = useState('global'); // 'global' | 'campaign'
-  const view = canCampaigns ? pickedView : 'global';
+  const [pickedView, setView] = useState('global'); // 'global' | 'campaign' | 'reports'
+  const view = (pickedView === 'campaign' && canCampaigns) || (pickedView === 'reports' && canReports) ? pickedView : 'global';
+  const [pictureOf, setPictureOf] = useState('org'); // The Big Picture: 'org' or a campaign id
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
   const [rowsPerPage, setRowsPerPage] = useState(7);
+  const boardShown = view !== 'reports';
   const listRef = useRef(null);
 
   // Fit the page size to the list's real height; re-run on any resize.
@@ -808,7 +831,7 @@ const Leaderboard = () => {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [boardShown]); // the board's list comes back after The Big Picture: measure it again
 
   const chooseView = (id) => { setView(id); setPage(0); };
   const chooseCampaign = (id) => { setCampaignId(id); setPage(0); };
@@ -817,6 +840,30 @@ const Leaderboard = () => {
   const youInitials = youName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'YOU';
 
   const campaign = useMemo(() => CAMPAIGNS.find((c) => c.id === campaignId) || CAMPAIGNS[0], [campaignId]);
+
+  // The Big Picture (sample until the reports API exists): every campaign's
+  // results, read over everyone on the board for the organisation, or over a
+  // campaign's own recipients.
+  const pictureItems = useMemo(() => {
+    if (!canReports) return [];
+    const opts = { depts: DEPTS, personAt: person, rules: rules.points };
+    return CAMPAIGNS.map((c) => ({ campaign: c, report: campaignReport(c, opts) }));
+  }, [canReports, rules.points]);
+  const orgPicture = useMemo(() => {
+    if (!canReports) return null;
+    const { podium: top, rows } = globalBoard;
+    const people = [top.first, top.second, top.third, ...rows]
+      .filter((p) => p && p.points !== null && p.points !== undefined)
+      .map((p) => ({ key: p.email || `${p.name}|${p.rank}`, name: p.name, email: p.email || '', dept: p.dept, points: Number(p.points) }));
+    return bigPicture(pictureItems, people, { rules: rules.points });
+  }, [canReports, pictureItems, globalBoard, rules.points]);
+  const pictureCampaign = CAMPAIGNS.find((c) => c.id === pictureOf) || null;
+  const campaignPicture = useMemo(() => {
+    if (!pictureCampaign || view !== 'reports') return null;
+    const { podium: top, rows } = buildBoard(pictureCampaign.seed, pictureCampaign.total);
+    const people = [top.first, top.second, top.third, ...rows].map((p) => ({ key: `${p.name}|${p.rank}`, name: p.name, email: '', dept: p.dept, points: p.overall }));
+    return bigPicture(pictureItems, people, { focus: pictureCampaign.id, rules: rules.points });
+  }, [pictureCampaign, view, pictureItems, rules.points]);
 
   const scope = useMemo(() => {
     if (view === 'global') {
@@ -899,14 +946,15 @@ const Leaderboard = () => {
   const youVisible = youOnPodium || youPage === safePage;
 
   const vars = isDark
-    ? { '--bg': 'transparent', '--base': '#1C1E24', '--rail': '#1C1E24', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.10)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': '#2E200C', '--standing-edge': 'rgba(255,255,255,0.10)', '--standing-shadow': 'none', '--standing-ink': '#F2C66B', '--standing-num': '#FBD46B', '--standing-track': 'rgba(242,198,107,0.18)', '--standing-plate': 'rgba(255,255,255,0.06)', '--standing-plate-edge': 'rgba(255,255,255,0.10)', '--standing-medal-in': '#241A08', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.08)', '--pts-bg': 'rgba(232,179,11,0.12)', '--pts-line': 'rgba(232,179,11,0.35)', '--pts-ink': '#FBD46B' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)', '--standing-edge': 'transparent', '--standing-shadow': '0 8px 20px rgba(232,179,11,0.16)', '--standing-ink': '#8A5A0A', '--standing-num': '#7A5B12', '--standing-track': 'rgba(176,122,18,0.18)', '--standing-plate': 'rgba(255,255,255,0.75)', '--standing-plate-edge': 'rgba(176,122,18,0.22)', '--standing-medal-in': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F1F2F5', '--pts-bg': 'linear-gradient(180deg,#FFF8E2,#FFEFC2)', '--pts-line': '#EBCB78', '--pts-ink': '#3F3000' };
+    ? { '--bg': 'transparent', '--base': '#1C1E24', '--rail': '#1C1E24', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.10)', '--track': 'rgba(255,255,255,0.12)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--you': '#F8FAFC', '--you-ink': '#0F172A', '--you-avatar': '#0F172A', '--you-glow': '0 0 0 3px rgba(248,250,252,0.10)', '--chip': 'rgba(255,255,255,0.08)', '--t-green': '#4ADE80', '--t-red': '#F87171', '--t-gold': '#FBBF24', '--c-mint': '#0D271E', '--c-lav': '#22193E', '--c-peach': '#2E200C', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-reports': '#CCF3EE', '--t-reports': '#0F766E', '--cap-standing': '#2E200C', '--standing-edge': 'rgba(255,255,255,0.10)', '--standing-shadow': 'none', '--standing-ink': '#F2C66B', '--standing-num': '#FBD46B', '--standing-track': 'rgba(242,198,107,0.18)', '--standing-plate': 'rgba(255,255,255,0.06)', '--standing-plate-edge': 'rgba(255,255,255,0.10)', '--standing-medal-in': '#241A08', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.08)', '--pts-bg': 'rgba(232,179,11,0.12)', '--pts-line': 'rgba(232,179,11,0.35)', '--pts-ink': '#FBD46B' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--rail': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.06)', '--track': '#EEF2F6', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--you': '#E60000', '--you-ink': '#FFFFFF', '--you-avatar': '#E60000', '--you-glow': '0 4px 12px rgba(230,0,0,0.12)', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D', '--t-red': '#DC2626', '--t-gold': '#B07A12', '--c-mint': '#CEFBEA', '--c-lav': '#ECE8FF', '--c-peach': '#FFEFCE', '--cap-global': '#D8F3DC', '--cap-camp': '#E0E7FF', '--cap-reports': '#D5F5F0', '--t-reports': '#0F766E', '--cap-standing': 'linear-gradient(135deg,#FFF3D6,#FFE6C7)', '--standing-edge': 'transparent', '--standing-shadow': '0 8px 20px rgba(232,179,11,0.16)', '--standing-ink': '#8A5A0A', '--standing-num': '#7A5B12', '--standing-track': 'rgba(176,122,18,0.18)', '--standing-plate': 'rgba(255,255,255,0.75)', '--standing-plate-edge': 'rgba(176,122,18,0.22)', '--standing-medal-in': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F1F2F5', '--pts-bg': 'linear-gradient(180deg,#FFF8E2,#FFEFC2)', '--pts-line': '#EBCB78', '--pts-ink': '#3F3000' };
 
   // A scope capsule: a switch between Global and My Campaigns, or, with Global
   // the only view (Regular Users), a plain title card.
   const railCapsule = (id, label, sub, art, activeColor) => {
     const selected = view === id;
     const Cap = canCampaigns ? 'button' : 'div';
+    const compact = canCampaigns;
     const capProps = canCampaigns
       ? { type: 'button', className: 'lb-cap', 'aria-pressed': selected, onClick: () => chooseView(id) }
       : { className: 'lb-cap lb-cap-only' };
@@ -915,15 +963,15 @@ const Leaderboard = () => {
         {...capProps}
         style={{
           position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: canCampaigns ? 'pointer' : 'default', width: '100%', flexShrink: 0,
-          borderRadius: L_R, padding: '16px 16px 18px', marginBottom: 10, minHeight: 96,
+          borderRadius: L_R, padding: compact ? '13px 16px 14px' : '16px 16px 18px', marginBottom: compact ? 8 : 10, minHeight: compact ? 70 : 96,
           border: selected ? '1px solid transparent' : '1px solid var(--hair)',
-          background: selected ? (isDark ? '#FFFFFF' : id === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)') : 'var(--rail)',
+          background: selected ? (isDark ? '#FFFFFF' : `var(--cap-${id === 'global' ? 'global' : id === 'campaign' ? 'camp' : 'reports'})`) : 'var(--rail)',
           boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
         }}
       >
         <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0F172A' : activeColor) : 'var(--text)' }}>{label}</div>
         <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, color: selected && isDark ? '#475569' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
-        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: 56, height: 56, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
+        <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: compact ? 50 : 56, height: compact ? 50 : 56, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
       </Cap>
     );
   };
@@ -988,9 +1036,13 @@ const Leaderboard = () => {
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
             {canCampaigns && railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
+            {canReports && railCapsule('reports', 'The Big Picture', 'What the board is telling us', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
 
-            {/* Global view: how points are earned, read live from the Gamification Engine */}
-            {view === 'global' && (
+            {/* staff, Global view: the last 30 days in four lines, opening The Big Picture */}
+            {view === 'global' && orgPicture && <BigPictureTeaser r={orgPicture} isDark={isDark} onOpen={() => { chooseView('reports'); setPictureOf('org'); }} />}
+
+            {/* colleagues, Global view: how points are earned, read live from the Gamification Engine */}
+            {view === 'global' && !canReports && (
               <div className="lb-rules" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
                 <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
                 <div style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
@@ -1020,42 +1072,44 @@ const Leaderboard = () => {
               </div>
             )}
 
-            {/* the only scrolling region on the page */}
+            {/* the only scrolling regions on the page: the campaign lists */}
             {view === 'campaign' && (
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '2px 4px 8px' }}>
-                  Ongoing campaigns · {CAMPAIGNS.length}
-                </div>
-                <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px 12px 0' }}>
-                  {CAMPAIGNS.map((c) => {
-                    const sel = c.id === campaignId;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => chooseCampaign(c.id)}
-                        style={{
-                          flexShrink: 0, textAlign: 'left', cursor: 'pointer', borderRadius: 14, padding: '10px 12px',
-                          ...(sel && isDark ? PASTEL_INK : null),
-                          border: sel ? '1.5px solid #818CF8' : '1px solid var(--hair)',
-                          background: sel ? (isDark ? '#FFFFFF' : 'var(--cap-camp)') : 'var(--rail)', color: 'var(--text)',
-                          boxShadow: sel ? '0 4px 12px rgba(129,140,248,0.18)' : 'none',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A', flexShrink: 0, marginTop: 4 }} />
-                          <span style={{ fontSize: 11.5, fontWeight: 800, lineHeight: 1.25 }}>{c.name}</span>
-                        </div>
-                        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 3, paddingLeft: 13 }}>{c.type} · {c.total.toLocaleString()} recipients</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <CampaignList
+                label={`Ongoing campaigns · ${CAMPAIGNS.length}`}
+                campaigns={CAMPAIGNS}
+                selected={campaignId}
+                onSelect={chooseCampaign}
+                meta={(c) => `${c.type} · ${c.total.toLocaleString()} recipients`}
+                isDark={isDark}
+                tint={{ fill: 'var(--cap-camp)', edge: '#818CF8', glow: 'rgba(129,140,248,0.18)' }}
+              />
+            )}
+            {view === 'reports' && (
+              <CampaignList
+                label="The big picture of"
+                org={{ title: 'The organisation', sub: 'Last 30 days, everyone on the board', listLabel: 'Or one campaign' }}
+                campaigns={CAMPAIGNS}
+                selected={pictureOf}
+                onSelect={setPictureOf}
+                meta={(c) => `${c.type} · started ${c.started}`}
+                isDark={isDark}
+                tint={{ fill: 'var(--cap-reports)', edge: isDark ? '#5EEAD4' : '#14B8A6', glow: 'rgba(20,184,166,0.18)' }}
+              />
             )}
           </div>
 
+          {view === 'reports' && orgPicture && (
+            <BigPictureSheet
+              r={(pictureCampaign && campaignPicture) || orgPicture}
+              campaign={pictureCampaign && campaignPicture ? pictureCampaign : null}
+              isDark={isDark}
+              canSeePeople={canSeePeople}
+              shell={{ CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK }}
+            />
+          )}
+
           {/* RIGHT SHEET — standalone colour capsule; the white sheet wraps round it in an L */}
+          {view !== 'reports' && (
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
             {/* capsule: its own tile, set apart from the sheet by L_GAP */}
@@ -1190,6 +1244,7 @@ const Leaderboard = () => {
 
             </div>
           </div>
+          )}
         </div>
       </div>
     </>
