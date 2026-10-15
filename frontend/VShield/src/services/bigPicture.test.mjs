@@ -98,3 +98,17 @@ test('departments one by one, least ground gained per person first', () => {
   const finance = r.departments.find((d) => d.name === 'Finance');
   assert.equal(finance.nearZero, r.people.filter((x) => x.dept === 'Finance' && x.nearZero).length);
 });
+
+test('history: today’s points and every dated change, for whether people are improving', () => {
+  const r = bigPicture(ITEMS, PEOPLE);
+  const DAY = 86400000;
+  assert.equal(r.history.n, PEOPLE.length);
+  assert.equal(r.history.total, PEOPLE.reduce((a, p) => a + p.points, 0));
+  const { ledger, end } = r.history;
+  assert.ok(ledger.every((c, i) => !i || c.at >= ledger[i - 1].at), 'oldest first');
+  assert.ok(ledger.every((c) => c.at <= end && c.at >= end - 182 * DAY), 'within six months, never after today');
+  // the window's changes add up to everyone's change in the picture
+  const inWindow = ledger.filter((c) => c.at >= end - 30 * DAY).reduce((a, c) => a + c.points, 0);
+  const changed = r.people.reduce((a, x) => a + x.change, 0);
+  assert.equal(inWindow, changed);
+});

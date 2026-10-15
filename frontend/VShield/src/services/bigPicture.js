@@ -18,7 +18,10 @@
  *               change, level then and now, what they did, and which of the
  *               above they are part of (PEOPLE_FILTERS picks them out);
  *   departments - the same, department by department, least ground gained
- *               per person first.
+ *               per person first;
+ *   history   - every dated points change for the people in scope over the
+ *               last six months, with their points today, for whether
+ *               they are improving (bigPictureTrend.js).
  *
  * For the organisation it reads the campaigns of the last `days` days over
  * everyone on the board; for one campaign, its recipients. Sample behaviour
@@ -46,6 +49,7 @@ const REPORT_BY_GROUP = { top: 1.6, strong: 1.35, learning: 0.95, low: 0.55 };
 const POINTS = { Reported: 80, Clicked: -30, Compromised: -50 };
 const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 const DAY = 86400000;
+const HISTORY_DAYS = 182;
 
 const pct = (n, of) => (of > 0 ? n / of : null);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -54,6 +58,25 @@ function hash01(key) {
   let h = 2166136261;
   for (let i = 0; i < key.length; i += 1) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0) / 4294967296;
+}
+
+/**
+ * Sample history before the campaigns we simulate: a week at a time, the
+ * points change for `n` people as a programme usually drifts (reports
+ * slowly up, clicks down), with some week-to-week noise. Until the points
+ * ledger API feeds real dated events.
+ */
+function sampleHistory(key, n, from, to, pts) {
+  const out = [];
+  const tilt = lean(`${key}|history`, 0.5);
+  for (let at = from + 3 * DAY, w = 0; at < to; at += 7 * DAY, w += 1) {
+    const prog = (at - from) / (HISTORY_DAYS * DAY);
+    const rep = (0.15 + 0.13 * prog) * tilt;
+    const click = 0.27 - 0.09 * prog;
+    const per = 0.7 * (rep * pts.Reported + click * pts.Clicked + click * 0.45 * pts.Compromised);
+    out.push({ at, points: Math.round(n * per * (0.6 + 0.8 * hash01(`${key}|week|${w}`))) });
+  }
+  return out;
 }
 
 /** "6 Oct" as a UTC time in `year`. */
@@ -96,6 +119,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
   // twice: first from today's level, then from the level that gives.
   const play = (levelAt) => {
     const seen = people.map(() => ({ delta: 0, took: 0, reported: 0, clicked: 0, gave: 0, events: [] }));
+    const book = new Map(); // day -> points changed that day
     let earned = 0;
     let lost = 0;
     window.forEach(({ campaign: c, report }) => {
@@ -117,15 +141,21 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
           if (gaveAway) seen[i].gave += 1;
         }
         if (d > 0) earned += d; else lost -= d;
+        if (d) {
+          // most people act on an email within a few days of it arriving
+          const after = Math.min(10, Math.floor(-Math.log(1 - hash01(`${p.key}|${c.id}|t`)) * 2));
+          const at = Math.min(end, dateOf(c.started) + after * DAY);
+          book.set(at, (book.get(at) || 0) + d);
+        }
         seen[i].delta += d;
         seen[i].took += 1;
         seen[i].events.push({ type: c.type, click, rep });
       });
     });
-    return { seen, earned, lost };
+    return { seen, earned, lost, book };
   };
   const first = play((i) => levelOf(people[i].points));
-  const { seen, earned, lost } = play((i) => levelOf(people[i].points - first.seen[i].delta));
+  const { seen, earned, lost, book } = play((i) => levelOf(people[i].points - first.seen[i].delta));
 
   // Movement: where each person started (today's points less the window's change).
   const moved = { climbed: 0, slipped: 0, belowZero: 0, backAbove: 0 };
@@ -249,6 +279,14 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     clickRate: pct(d.clicked, d.emails),
   })).sort((a, b) => a.perPerson - b.perPerson || a.name.localeCompare(b.name));
 
+  // The points ledger behind the trend: the simulated campaigns' changes,
+  // and sample history for the months before (for one campaign, its
+  // recipients' other emails).
+  const ledger = [...book].map(([at, points]) => ({ at, points }));
+  const from = end - HISTORY_DAYS * DAY;
+  ledger.push(...sampleHistory(focus || 'org', people.length, from, followed ? end : end - days * DAY, pts));
+  ledger.sort((a, b) => a.at - b.at);
+
   const took = seen.filter((s) => s.took).length;
   return {
     basis: { campaigns: window.length, people: took, population: people.length, days: followed ? null : days },
@@ -262,6 +300,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     points: { earned, lost },
     people: persons,
     departments,
+    history: { total: people.reduce((a, p) => a + p.points, 0), n: people.length, end, ledger },
   };
 }
 
