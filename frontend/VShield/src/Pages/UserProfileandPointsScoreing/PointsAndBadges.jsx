@@ -1,4 +1,20 @@
-import { ArrowUpRight, Check, LayoutGrid, Lock, Trophy } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  ClipboardCheck,
+  Crown,
+  Flag,
+  Flame,
+  GraduationCap,
+  KeyRound,
+  LayoutGrid,
+  Lock,
+  MailOpen,
+  MousePointerClick,
+  Sparkles,
+  Trophy,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import BadgeMedal from '../../GlobalComponents/BadgeMedal';
@@ -6,13 +22,16 @@ import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { ROMAN, gradeName, levelTitle, riskColor, riskPosition, stepsAround } from '../../services/levels';
 import { formatPoints } from '../../services/gamificationPoints';
 
-// My Space → Points & Badges, inside the card's existing space:
+// My Space → Points & Badges, laid out like a game's rank screen inside the
+// card's existing space:
 //   - your badge on its own lit stage; click it (or "All badges") to open
 //     every level and grade (`onOpenBadges`);
-//   - your level, risk, points and rank; then the grades of your level, game
-//     style (passed ticked, yours marked, the rest locked) with the next
-//     level after them, and the points to your next grade;
-//   - your latest point changes.
+//   - your rank: level and grade (pips for the grades), risk, points and
+//     your place on the leaderboard;
+//   - the road: your level's grades and the next level on one track, filled
+//     up to where your points are (below zero: the way back);
+//   - your personal best, and the points to win it back if you've slipped;
+//   - your latest point changes, with your run of gains.
 //
 // `standing` comes from useMyStanding(). This is your own profile, so a level
 // below zero and the risk category show here (colleagues don't see them).
@@ -24,10 +43,32 @@ const levelNo = (l) => (l.level < 0 ? `−${-l.level}` : String(l.level));
 function stepLabel(step, current) {
   const l = step.level;
   if (!current.grade) return `L${levelNo(l)}`; // below zero: the way back, by level
-  if (l.level !== current.level) return `NEXT · L${l.level}`;
+  if (l.level !== current.level) return `Level ${l.level}`;
   return ROMAN[l.grade];
 }
 const stepFrom = (l) => (l.min === null ? `below ${fmt(l.max)}` : `${fmt(l.min)} pts`);
+
+// "Grade III" inside your level, the level's name past it.
+const nextName = (next, level) => (next.level === level.level && next.grade ? `Grade ${ROMAN[next.grade]}` : gradeName(next));
+
+// A pointy-top hexagon: the sockets on the road and the grade plate.
+const HEX = 'polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%)';
+
+const EVENT_ICON = {
+  Reported: Flag,
+  Trained: GraduationCap,
+  Evaluated: ClipboardCheck,
+  Opened: MailOpen,
+  Clicked: MousePointerClick,
+  Compromised: KeyRound,
+};
+
+// Gains in a row, newest first, until the first loss.
+function gainRun(history) {
+  let n = 0;
+  while (n < history.length && history[n].points > 0) n += 1;
+  return n;
+}
 
 const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   const { level, progress, best, points, rank, total, history } = standing;
@@ -37,11 +78,21 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   const risk = riskPosition(level);
   const muted = isDark ? 'text-slate-400' : 'text-slate-500';
   const strong = isDark ? 'text-white' : 'text-slate-900';
+  const surface = isDark ? 'bg-white/[0.035] border-white/10' : 'bg-[#F7F9FD] border-[#E3E9F5]';
   const bestIsHigher = best && best.rank > level.rank;
   const below = level.level <= 0;
   const steps = stepsAround(level);
   const at = steps.findIndex((s) => s.state === 'current');
-  const half = 50 / steps.length; // from a column's edge to its centre, in %
+  const n = steps.length;
+  // The road runs between the first and last sockets (column centres); it is
+  // filled to your socket plus how far you are through your band.
+  const along = at + (at < n - 1 && progress ? progress.pct / 100 : 0);
+  const run = gainRun(history);
+  const roadTitle = below
+    ? 'The way back'
+    : steps.at(-1).level.level !== level.level
+      ? `Road to ${steps.at(-1).level.name}`
+      : `Grades in ${level.name}`;
 
   return (
     <div className="flex-1 min-h-0 flex gap-5 pt-2.5 [container-type:inline-size]" data-points-badges>
@@ -94,116 +145,170 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
         </button>
       </div>
 
-      {/* level, points, the grades around you */}
-      <div className="flex-1 min-w-0 flex flex-col justify-between gap-1.5">
+      {/* your rank: who you are, your points, the road, your best */}
+      <div className="flex-1 min-w-0 flex flex-col justify-between gap-2" data-rank-card>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <span className="text-[10.5px] font-extrabold uppercase tracking-[0.16em]" style={{ color: tone }}>
-              {level.grade ? `Level ${level.level} · Grade ${ROMAN[level.grade]}` : `Level ${levelNo(level)}`}
+            <span className="block text-[10.5px] font-extrabold uppercase tracking-[0.16em]" style={{ color: tone }}>
+              Level {levelNo(level)} · {level.label}
             </span>
-            <h4 className={`vs-rank text-[23px] font-black uppercase leading-[1.05] tracking-tight mt-1 truncate ${strong}`}>{level.name}</h4>
+            <div className="flex items-center gap-2 mt-0.5 min-w-0">
+              <h4 className={`vs-rank text-[23px] font-black uppercase leading-[1.1] tracking-tight truncate ${strong}`}>{level.name}</h4>
+              {level.grade && (
+                <span
+                  aria-hidden
+                  className="vs-rank flex-shrink-0 grid place-items-center w-[28px] h-[31px] text-[12px] font-black text-white"
+                  style={{ clipPath: HEX, background: `linear-gradient(160deg, ${level.light}, ${level.color} 70%)` }}
+                >
+                  {ROMAN[level.grade]}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2.5 mt-1.5">
+              {level.grade && (
+                <span className="inline-flex items-center gap-1.5" data-grade-pips>
+                  {[1, 2, 3].map((g) => (
+                    <span
+                      key={g}
+                      aria-hidden
+                      className="w-[9px] h-[10px]"
+                      style={{ clipPath: HEX, background: g <= level.grade ? tone : isDark ? 'rgba(255,255,255,0.16)' : '#D5DCE8' }}
+                    />
+                  ))}
+                  <span className={`text-[10px] font-extrabold uppercase tracking-[0.08em] ${muted}`}>
+                    Grade {level.grade} of 3
+                  </span>
+                </span>
+              )}
+              <span
+                className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide px-2.5 py-[3px] rounded-full"
+                style={{ color: riskColor(risk), background: `${riskColor(risk)}${isDark ? '26' : '1A'}` }}
+                title="Your risk category, from your level"
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: riskColor(risk) }} />
+                {level.risk === 'Unknown' ? 'Risk not known yet' : level.risk}
+              </span>
+            </div>
           </div>
-          {bestIsHigher && (
-            <span className={`flex-shrink-0 inline-flex items-center gap-1 text-[10px] font-bold mt-0.5 ${muted}`} title={`Best reached: ${levelTitle(best)} · ${best.name}`}>
-              Best
-              <LevelBadge level={best} size={22} tilt={false} decorative />
-              <span className={strong}>{gradeName(best)}</span>
+
+          <div className="flex-shrink-0 flex flex-col items-end gap-1">
+            <span className={`vs-rank text-[30px] font-black leading-none tracking-tight ${strong}`} data-my-points>
+              {fmt(points)}
+              <span className={`text-[12px] font-extrabold ml-1 ${muted}`}>PTS</span>
             </span>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span
-            className="text-[10px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full"
-            style={{ color: tone, background: `${level.color}${isDark ? '33' : '1A'}` }}
-          >
-            {level.label}
-          </span>
-          <span
-            className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full"
-            style={{ color: riskColor(risk), background: `${riskColor(risk)}${isDark ? '26' : '1A'}` }}
-            title="Your risk category, from your level"
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: riskColor(risk) }} />
-            {level.risk === 'Unknown' ? 'Risk not known yet' : level.risk}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className={`vs-rank text-[28px] font-black leading-none tracking-tight ${strong}`} data-my-points>
-            {fmt(points)}
-            <span className={`text-[13px] font-bold ml-1 ${muted}`}>pts</span>
-          </span>
-          {rank && (
-            <>
-              <span aria-hidden className={`w-px h-6 ${isDark ? 'bg-white/15' : 'bg-black/10'}`} />
-              <span className={`inline-flex items-center gap-1.5 text-[12px] font-extrabold ${strong}`}>
-                <Trophy className="w-4 h-4 text-amber-500" aria-hidden />
+            {rank && (
+              <Link
+                to="/leaderboard"
+                title={`Rank ${rank} of ${total} on the leaderboard`}
+                className={`group inline-flex items-center gap-1 rounded-full pl-2 pr-1.5 py-[3px] text-[11px] font-extrabold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+                  isDark ? 'bg-amber-400/15 text-amber-200 hover:bg-amber-400/25' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                <Trophy className={`w-3.5 h-3.5 ${isDark ? 'text-amber-300' : 'text-amber-500'}`} aria-hidden />
                 Rank {rank}
-                <span className={`font-bold ${muted}`}>of {total}</span>
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* your level's grades, then the next level (below zero: the way back) */}
-        <div
-          data-level-steps
-          className={`rounded-[12px] border px-3 pt-1.5 pb-1.5 ${isDark ? 'bg-white/[0.03] border-white/10' : 'bg-[#F7F9FD] border-[#E3E9F5]'}`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-[9.5px] font-extrabold uppercase tracking-[0.14em] ${muted}`}>
-              {level.grade ? `Grades in ${level.name}` : 'The way back'}
-            </span>
-            {level.grade && (
-              <span className="text-[10px] font-extrabold" style={{ color: tone }}>
-                {level.grade} of 3
-              </span>
+                <ChevronRight className="w-3 h-3 opacity-60 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
             )}
           </div>
-          <ol className="relative grid list-none m-0 p-0" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-            {at > 0 && (
-              <span aria-hidden className="absolute top-[27px] h-[3px] rounded-full" style={{ left: `${half}%`, width: `${(100 / steps.length) * at}%`, background: tone }} />
-            )}
-            {at < steps.length - 1 && (
+        </div>
+
+        {/* the road: your level's grades, then the next level, filled to your points */}
+        <div data-level-steps className={`rounded-[12px] border px-3 pt-1.5 pb-2 ${surface}`}>
+          <div className="flex items-center justify-between gap-3">
+            <span className={`text-[9.5px] font-extrabold uppercase tracking-[0.14em] truncate ${muted}`}>{roadTitle}</span>
+            <span className={`flex-shrink-0 text-[10.5px] font-bold ${muted}`}>
+              {progress.isTop ? (
+                'Top of the ladder'
+              ) : (
+                <>
+                  <strong style={{ color: tone }}>{progress.toNext.toLocaleString()} pts</strong> to {nextName(progress.next, level)}
+                </>
+              )}
+              {below && (
+                <Link to="/my-training" className={`ml-2 underline underline-offset-2 inline-flex items-center gap-0.5 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                  My training <ArrowUpRight className="w-3 h-3" aria-hidden />
+                </Link>
+              )}
+            </span>
+          </div>
+          <ol
+            className="relative grid list-none m-0 p-0 mt-1"
+            style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}
+            role="progressbar"
+            aria-label={progress.isTop ? 'Top of the ladder' : `Progress to ${gradeName(progress.next)}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress.pct}
+          >
+            <span
+              aria-hidden
+              className={`absolute top-[30px] h-[6px] rounded-full ${isDark ? 'bg-white/10' : 'bg-[#DFE5EF]'}`}
+              style={{ left: `${50 / n}%`, width: `${(100 / n) * (n - 1)}%` }}
+            />
+            {along > 0 && (
               <span
                 aria-hidden
-                className={`absolute top-[27px] h-0 border-t-[3px] border-dashed ${isDark ? 'border-white/20' : 'border-[#C5CEDD]'}`}
-                style={{ left: `${half + (100 / steps.length) * at}%`, width: `${(100 / steps.length) * (steps.length - 1 - at)}%` }}
-              />
+                className="vs-road-fill absolute top-[30px] h-[6px] rounded-full"
+                style={{
+                  left: `${50 / n}%`,
+                  width: `${(100 / n) * along}%`,
+                  background: `linear-gradient(90deg, ${level.light}, ${level.color})`,
+                  boxShadow: `0 0 10px ${level.color}80`,
+                }}
+              >
+                {at < n - 1 && (
+                  <span
+                    className="vs-road-knob absolute -right-[7px] -top-[4px] w-[14px] h-[14px] rounded-full border-[3px]"
+                    style={{ background: isDark ? '#fff' : '#fff', borderColor: tone, '--knob': `${level.color}66` }}
+                  />
+                )}
+              </span>
             )}
             {steps.map((step) => {
               const l = step.level;
               const isNow = step.state === 'current';
               const ahead = step.state === 'ahead';
+              const w = isNow ? 54 : 44; // the socket; the badge stands out of it
+              const ring = isNow || step.state === 'done' ? tone : isDark ? 'rgba(255,255,255,0.16)' : '#D5DCE8';
               return (
-                <li key={l.id} data-step={l.id} data-step-state={step.state} className="relative z-[1] flex flex-col items-center gap-0.5" title={`${levelTitle(l)} · ${l.name}`}>
-                  <span
-                    className="relative w-[50px] h-[56px] grid place-items-center rounded-[10px]"
-                    style={{
-                      background: ahead ? (isDark ? '#1F2128' : '#EEF1F6') : isDark ? '#15161a' : '#fff',
-                      boxShadow: isNow
-                        ? `0 0 0 2.5px ${tone}, 0 6px 14px ${level.color}40`
-                        : `0 0 0 1px ${isDark ? 'rgba(255,255,255,0.08)' : '#DDE3EE'}`,
-                    }}
-                  >
-                    <LevelBadge level={l} size={47} locked={ahead} tilt={false} decorative />
+                <li key={l.id} data-step={l.id} data-step-state={step.state} className="relative z-[1] flex flex-col items-center" title={`${levelTitle(l)} · ${l.name}`}>
+                  <span className="relative h-[66px] grid place-items-center">
+                    <span
+                      aria-hidden
+                      className="relative"
+                      style={{ width: w, height: Math.round(w * 1.12), filter: isNow ? `drop-shadow(0 4px 12px ${level.color}80)` : undefined }}
+                    >
+                      <span className="absolute inset-0" style={{ clipPath: HEX, background: ring }} />
+                      <span
+                        className="absolute"
+                        style={{
+                          inset: isNow ? 3 : 2,
+                          clipPath: HEX,
+                          background: ahead
+                            ? isDark ? '#1F2128' : '#EEF1F6'
+                            : isNow ? `radial-gradient(circle at 50% 40%, ${level.color}${isDark ? '66' : '33'}, ${isDark ? '#17181D' : '#fff'} 75%)` : isDark ? '#17181D' : '#fff',
+                        }}
+                      />
+                    </span>
+                    <span className="absolute inset-0 grid place-items-center">
+                      <LevelBadge level={l} size={isNow ? 62 : 48} locked={ahead} tilt={false} decorative />
+                    </span>
                     {step.state === 'done' && (
-                      <span aria-hidden className={`absolute -right-1.5 -top-1.5 w-[18px] h-[18px] rounded-full bg-[#1E9E5A] border-2 grid place-items-center ${isDark ? 'border-[#15161a]' : 'border-white'}`}>
-                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3.4} />
+                      <span aria-hidden className={`absolute right-[-6px] top-[5px] w-[16px] h-[16px] rounded-full bg-[#1E9E5A] border-2 grid place-items-center ${isDark ? 'border-[#17181D]' : 'border-white'}`}>
+                        <Check className="w-2 h-2 text-white" strokeWidth={3.6} />
                       </span>
                     )}
                     {ahead && (
-                      <span aria-hidden className={`absolute -right-1.5 -top-1.5 w-[18px] h-[18px] rounded-full border-2 grid place-items-center ${isDark ? 'bg-slate-600 border-[#15161a]' : 'bg-slate-400 border-white'}`}>
+                      <span aria-hidden className={`absolute right-[-6px] top-[7px] w-[16px] h-[16px] rounded-full border-2 grid place-items-center ${isDark ? 'bg-slate-600 border-[#17181D]' : 'bg-slate-400 border-white'}`}>
                         <Lock className="w-2 h-2 text-white" strokeWidth={3.2} />
                       </span>
                     )}
                   </span>
-                  <span className={`vs-rank text-[10.5px] font-extrabold tracking-[0.02em] leading-none mt-0.5 whitespace-nowrap ${isNow ? '' : muted}`} style={isNow ? { color: tone } : undefined}>
+                  <span className={`vs-rank text-[10.5px] font-black uppercase tracking-[0.02em] leading-none whitespace-nowrap ${isNow ? '' : muted}`} style={isNow ? { color: tone } : undefined}>
                     {stepLabel(step, level)}
-                    {isNow && ' · YOU'}
+                    {isNow && ' · You'}
                   </span>
-                  <span className={`text-[9px] font-bold leading-none ${muted}`}>{stepFrom(l)}</span>
+                  <span className={`text-[9px] font-bold leading-none mt-[3px] ${muted}`}>{stepFrom(l)}</span>
                   <span className="sr-only">
                     {l.name}
                     {l.grade ? ` grade ${ROMAN[l.grade]}` : ''}: {step.state === 'done' ? 'reached' : isNow ? 'you are here' : step.state === 'below' ? 'below your level' : `starts at ${stepFrom(l)}`}
@@ -214,72 +319,94 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
           </ol>
         </div>
 
-        {/* to the next grade */}
-        <div className="max-w-[480px]">
-          {progress.isTop ? (
-            <span className={`text-[10.5px] font-bold ${muted}`}>Top of the ladder: there is no higher grade.</span>
-          ) : (
-            <>
-              <div className={`flex items-center justify-between gap-2 text-[10.5px] font-bold ${muted}`}>
-                <span className="truncate">
-                  <strong style={{ color: tone }}>{progress.toNext.toLocaleString()} pts</strong> to {gradeName(progress.next)}
-                  {below && (
-                    <Link to="/my-training" className={`ml-2 underline underline-offset-2 inline-flex items-center gap-0.5 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
-                      My training <ArrowUpRight className="w-3 h-3" aria-hidden />
-                    </Link>
-                  )}
-                </span>
-                <span className="flex-shrink-0">
-                  {fmt(points)} / {fmt(progress.next.min)}
-                </span>
-              </div>
-              <div
-                role="progressbar"
-                aria-label={`Progress to ${gradeName(progress.next)}`}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={progress.pct}
-                className={`h-2 mt-1 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-slate-200'}`}
+        {/* your personal best */}
+        {best && (
+          <div
+            data-best
+            className={`relative flex items-center gap-2.5 rounded-[12px] border pl-2.5 pr-3 py-1 overflow-hidden ${isDark ? 'border-white/10' : 'border-[#E3E9F5]'}`}
+            style={{
+              background: isDark
+                ? `linear-gradient(90deg, ${best.color}66 0%, ${best.color}1F 45%, rgba(255,255,255,0.03) 100%)`
+                : `linear-gradient(90deg, ${best.light}55 0%, ${best.light}1A 45%, #F7F9FD 100%)`,
+            }}
+          >
+            <LevelBadge level={best} size={48} tilt={false} decorative />
+            <span className="min-w-0 flex-1">
+              <span className={`flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-[0.16em] ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
+                <Crown className="w-3 h-3" aria-hidden />
+                Personal best
+              </span>
+              <span className={`block vs-rank text-[16px] font-black uppercase leading-tight tracking-tight truncate ${strong}`}>{gradeName(best)}</span>
+            </span>
+            {bestIsHigher ? (
+              <span
+                className={`flex-shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-extrabold ${
+                  isDark ? 'bg-black/30 text-white' : 'bg-white text-slate-800 shadow-sm'
+                }`}
               >
-                <div
-                  className="h-full rounded-full transition-[width] duration-700"
-                  style={{ width: `${progress.pct}%`, background: `linear-gradient(90deg, ${level.light}, ${level.color})` }}
-                />
-              </div>
-            </>
-          )}
-        </div>
+                <ArrowUpRight className="w-3.5 h-3.5" style={{ color: isDark ? best.light : best.color }} aria-hidden />
+                {fmt(best.min - points)} pts to win it back
+              </span>
+            ) : (
+              <span
+                className={`flex-shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-extrabold ${
+                  isDark ? 'bg-black/30 text-emerald-300' : 'bg-white text-emerald-700 shadow-sm'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" aria-hidden />
+                You are at your best
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* latest point changes */}
-      <div className="w-[250px] flex-shrink-0 flex flex-col min-h-0 [@container(max-width:860px)]:hidden">
-        <span className={`text-[10px] font-extrabold uppercase tracking-[0.12em] mb-1.5 ${muted}`}>Latest points</span>
-        <ul className="flex flex-col gap-1.5">
-          {history.slice(0, 4).map((h) => (
-            <li
-              key={h.id}
-              className={`flex items-center gap-2 py-1.5 px-2 rounded-md border ${
-                isDark ? 'bg-[#15161a]/60 border-white/5' : 'bg-white/80 border-black/5 shadow-2xs'
-              }`}
+      <div className="w-[264px] flex-shrink-0 flex flex-col min-h-0 [@container(max-width:860px)]:hidden" data-latest-points>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className={`text-[10px] font-extrabold uppercase tracking-[0.12em] ${muted}`}>Latest points</span>
+          {run >= 2 && (
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-extrabold rounded-full px-2 py-0.5 ${isDark ? 'bg-orange-400/15 text-orange-300' : 'bg-orange-50 text-orange-600'}`}
+              title={`Your last ${run} point changes were all gains`}
             >
-              <span
-                className={`vs-rank flex-shrink-0 min-w-[40px] text-center text-[11.5px] font-extrabold rounded-md px-1.5 py-0.5 ${
-                  h.points >= 0
-                    ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-500/15'
-                    : 'text-red-600 bg-red-100 dark:text-red-300 dark:bg-red-500/15'
-                }`}
-              >
-                {formatPoints(h.points)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className={`block text-[10.5px] font-bold truncate ${strong}`}>{h.what}</span>
-                <span className={`block text-[9.5px] font-semibold truncate ${muted}`}>
-                  {h.where} · {when(h.at)}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
+              <Flame className="w-3 h-3" aria-hidden />
+              {run} in a row
+            </span>
+          )}
+        </div>
+        {history.length === 0 ? (
+          <p className={`text-[10.5px] font-semibold ${muted}`}>No point changes yet. Report a phishing email or finish a training to get going.</p>
+        ) : (
+          <ul className="flex-1 min-h-0 flex flex-col gap-1.5">
+            {history.slice(0, 4).map((h) => {
+              const gain = h.points >= 0;
+              const Icon = EVENT_ICON[h.event] || Flag;
+              const hue = gain ? (isDark ? '#4ADE80' : '#15803D') : isDark ? '#F87171' : '#DC2626';
+              return (
+                <li
+                  key={h.id}
+                  className={`relative flex-1 min-h-0 grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-2 pl-2.5 pr-2.5 rounded-[10px] border overflow-hidden ${
+                    isDark ? 'bg-white/[0.035] border-white/10' : 'bg-white border-[#E3E9F5] shadow-2xs'
+                  }`}
+                >
+                  <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: hue }} />
+                  <span aria-hidden className="row-span-2 w-7 h-7 rounded-lg grid place-items-center" style={{ color: hue, background: `${hue}${isDark ? '24' : '14'}` }}>
+                    <Icon className="w-3.5 h-3.5" strokeWidth={2.4} />
+                  </span>
+                  <span className={`self-end text-[10.5px] font-bold leading-tight truncate ${strong}`}>{h.what}</span>
+                  <span className="self-end vs-rank text-[14px] font-black leading-tight tracking-tight" style={{ color: hue }}>
+                    {formatPoints(h.points)}
+                  </span>
+                  <span className={`col-span-2 self-start text-[9.5px] font-semibold leading-tight truncate ${muted}`}>
+                    {h.where ? `${h.where} · ` : ''}
+                    {when(h.at)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
