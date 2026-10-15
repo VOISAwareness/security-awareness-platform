@@ -17,9 +17,9 @@ import { gradeName, levelAltText, levelFor, progressFor, rangeText } from '../..
 import GlobalTrophy from '../../assets/LeaderboardAssets/GlobalTrophy.png';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import ReportsChart from '../../assets/LeaderboardAssets/ReportsChart.png';
-import { CampaignList, GlanceCard, PulseSheet } from './LeaderboardReports';
-import { REPORT_INK } from './reportInk';
-import { campaignReport, orgReport } from '../../services/sampleReports';
+import { CampaignList, NextMoveSheet, NextMoveTeaser } from './NextMove';
+import { campaignReport } from '../../services/sampleReports';
+import { nextMove } from '../../services/nextMove';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
@@ -75,12 +75,13 @@ const FONT_IMPORT = `
   .lb-cap:active { transform: scale(.97); }
   .lb-cap-only:hover, .lb-cap-only:active { transform: none; }
 
-  /* Security Pulse: question cards lift and their arrow nudges on hover */
-  .lb-story { transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease, border-color .2s ease; }
-  .lb-story:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,0.10); border-color: var(--t-reports) !important; }
-  .lb-story:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-  .lb-story .lb-story-go svg { transition: transform .2s ease; }
-  .lb-story:hover .lb-story-go svg { transform: translateX(3px); }
+  /* Next Move: a card's edge lights up and its arrow nudges on hover */
+  .nm-card { transition: box-shadow .2s ease, border-color .2s ease; }
+  .nm-card:hover { box-shadow: 0 10px 24px rgba(15,23,42,0.10); border-color: var(--nm-accent) !important; }
+  .nm-card:focus-visible, .nm-option:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .nm-card .nm-turn svg { transition: transform .2s ease; }
+  .nm-card:hover .nm-turn svg { transform: translateX(3px); }
+  .nm-option:hover { background: var(--track) !important; }
 
   /* Badges: lift on hover; rows lift a little too */
   .lb-badge-btn img { transition: transform .25s ease; }
@@ -115,7 +116,7 @@ const FONT_IMPORT = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .lb-story, .lb-story svg { animation: none !important; transition: none !important; }
+    .lb-cap, .lb-cap *, .lb-me, .lb-badge-btn img, .lb-row, .lb-flip, .lb-hero-badge img, .nm-card, .nm-card svg { animation: none !important; transition: none !important; }
     .lb-shine { animation: none !important; opacity: 0; }
   }
 `;
@@ -791,9 +792,11 @@ const Leaderboard = () => {
   const navigate = useNavigate();
   // My Campaigns is for every role but Regular User, who sees Global only.
   const canCampaigns = Boolean(hasAccess && hasAccess('leaderboard-campaigns'));
-  // Reports (organisation and per campaign) are for the same staff roles. Staff
-  // know how points are given, so How to earn points is for colleagues only.
+  // Next Move (what to run next) is for the same staff roles. Staff know how
+  // points are given, so How to earn points is for colleagues only. Only the
+  // roles that start campaigns get "Start this campaign".
   const canReports = Boolean(hasAccess && hasAccess('leaderboard-reports'));
+  const canStart = Boolean(hasAccess && hasAccess('start-campaign'));
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
@@ -806,7 +809,7 @@ const Leaderboard = () => {
   const openBadge = useCallback((level, who) => setBadges({ selected: level.id, subject: who ? { name: who, levelId: level.id } : null }), []);
   const [pickedView, setView] = useState('global'); // 'global' | 'campaign' | 'reports'
   const view = (pickedView === 'campaign' && canCampaigns) || (pickedView === 'reports' && canReports) ? pickedView : 'global';
-  const [reportOn, setReportOn] = useState('org'); // Reports: 'org' or a campaign id
+  const [planFrom, setPlanFrom] = useState('org'); // Next Move: 'org' or a campaign id to follow up
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
@@ -824,7 +827,7 @@ const Leaderboard = () => {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [boardShown]); // the board's list comes back after Reports: measure it again
+  }, [boardShown]); // the board's list comes back after Next Move: measure it again
 
   const chooseView = (id) => { setView(id); setPage(0); };
   const chooseCampaign = (id) => { setCampaignId(id); setPage(0); };
@@ -834,14 +837,19 @@ const Leaderboard = () => {
 
   const campaign = useMemo(() => CAMPAIGNS.find((c) => c.id === campaignId) || CAMPAIGNS[0], [campaignId]);
 
-  // Reports (sample until the reports API exists): the organisation over the
-  // last campaigns, one campaign, and each campaign's report rate for the lists.
-  const reportOpts = useMemo(() => ({ depts: DEPTS, personAt: person, rules: rules.points }), [rules.points]);
-  const org = useMemo(() => orgReport(CAMPAIGNS, globalBoard, reportOpts), [globalBoard, reportOpts]);
-  const reportRates = useMemo(() => Object.fromEntries(CAMPAIGNS.map((c) => [c.id, campaignReport(c, reportOpts).rates.report])), [reportOpts]);
-  const reportCampaign = CAMPAIGNS.find((c) => c.id === reportOn) || null;
-  const report = useMemo(() => (reportCampaign ? campaignReport(reportCampaign, reportOpts) : null), [reportCampaign, reportOpts]);
-  const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
+  // Next Move (sample until the reports API exists): every campaign's results,
+  // and the suggested brief for the organisation the rail's teaser shows.
+  const planItems = useMemo(() => {
+    if (!canReports) return [];
+    const opts = { depts: DEPTS, personAt: person, rules: rules.points };
+    return CAMPAIGNS.map((c) => ({ campaign: c, report: campaignReport(c, opts) }));
+  }, [canReports, rules.points]);
+  const orgMove = useMemo(() => (canReports ? nextMove(planItems, globalBoard) : null), [canReports, planItems, globalBoard]);
+  const planCampaign = CAMPAIGNS.find((c) => c.id === planFrom) || null;
+  // Start this campaign: the scenario picker, carrying the brief along.
+  const startFromBrief = (m) => navigate('/start-campaign', {
+    state: { nextMove: { who: m.choice.who.label, what: m.choice.what.label, how: m.choice.how.label, difficulty: m.choice.hard.label } },
+  });
 
   const scope = useMemo(() => {
     if (view === 'global') {
@@ -1014,10 +1022,10 @@ const Leaderboard = () => {
 
             {railCapsule('global', 'Global Leaderboard', 'Everyone, every campaign, all time', GlobalTrophy, isDark ? '#4ADE80' : '#15803D')}
             {canCampaigns && railCapsule('campaign', 'My Campaigns', 'Live ranking inside each campaign', CampaignMegaphone, isDark ? '#A5B4FC' : '#4F46E5')}
-            {canReports && railCapsule('reports', 'Security Pulse', 'How safe we are, and why', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
+            {canReports && railCapsule('reports', 'Next Move', 'What to run next, and why', ReportsChart, isDark ? '#5EEAD4' : '#0F766E')}
 
-            {/* staff, Global view: the week in three numbers, opening Reports */}
-            {view === 'global' && canReports && <GlanceCard org={org} isDark={isDark} onOpen={() => { chooseView('reports'); setReportOn('org'); }} />}
+            {/* staff, Global view: the suggested next campaign, opening Next Move */}
+            {view === 'global' && orgMove && <NextMoveTeaser m={orgMove} isDark={isDark} onOpen={() => { chooseView('reports'); setPlanFrom('org'); }} />}
 
             {/* colleagues, Global view: how points are earned, read live from the Gamification Engine */}
             {view === 'global' && !canReports && (
@@ -1053,41 +1061,38 @@ const Leaderboard = () => {
             {/* the only scrolling regions on the page: the campaign lists */}
             {view === 'campaign' && (
               <CampaignList
-                label="Ongoing campaigns"
+                label={`Ongoing campaigns · ${CAMPAIGNS.length}`}
                 campaigns={CAMPAIGNS}
                 selected={campaignId}
                 onSelect={chooseCampaign}
-                reportRateOf={(c) => reportRates[c.id]}
+                meta={(c) => `${c.type} · ${c.total.toLocaleString()} recipients`}
                 isDark={isDark}
-                ink={ink}
                 tint={{ fill: 'var(--cap-camp)', edge: '#818CF8', glow: 'rgba(129,140,248,0.18)' }}
               />
             )}
             {view === 'reports' && (
               <CampaignList
-                label="Take the pulse of"
-                org
+                label="Plan the next campaign for"
+                org={{ title: 'The organisation', sub: 'Whoever needs it most', listLabel: 'Or follow up a campaign' }}
                 campaigns={CAMPAIGNS}
-                selected={reportOn}
-                onSelect={setReportOn}
-                reportRateOf={(c) => reportRates[c.id]}
+                selected={planFrom}
+                onSelect={setPlanFrom}
+                meta={(c) => `${c.type} · started ${c.started}`}
                 isDark={isDark}
-                ink={ink}
                 tint={{ fill: 'var(--cap-reports)', edge: isDark ? '#5EEAD4' : '#14B8A6', glow: 'rgba(20,184,166,0.18)' }}
               />
             )}
           </div>
 
           {view === 'reports' && (
-            <PulseSheet
-              kind={report ? 'campaign' : 'org'}
-              title={report ? report.name : 'The whole organisation'}
-              sub={report ? `${reportCampaign.type} · started ${reportCampaign.started}` : `The last ${org.campaigns} campaigns, everyone on the board`}
-              counter={(report ? report.sent : org.people).toLocaleString()}
-              counterLabel={report ? 'recipients' : 'people'}
-              report={report}
-              org={org}
+            <NextMoveSheet
+              items={planItems}
+              board={globalBoard}
+              focus={planCampaign ? planCampaign.id : null}
+              campaign={planCampaign}
               isDark={isDark}
+              canStart={canStart}
+              onStart={startFromBrief}
               shell={{ CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK }}
             />
           )}

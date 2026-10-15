@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { LEVEL_ORDER, campaignReport, orgReport } from './sampleReports.js';
+import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['AIDA', 'CARE', 'Finance', 'Network', 'Supply', 'Cyber', 'Cloud', 'IT Ops', 'Procurement', 'HR'];
 const personAt = (i) => ({ name: `Person ${i}`, dept: DEPTS[i % DEPTS.length] });
@@ -29,25 +29,4 @@ test('campaignReport: points follow the live rules', () => {
   const doubled = campaignReport(CAMPAIGNS[0], { depts: DEPTS, personAt, rules: { Reported: 160, Trained: 60, Clicked: -60, Compromised: -100 } });
   assert.equal(doubled.points.earned, base.points.earned * 2);
   assert.equal(doubled.points.lost, base.points.lost * 2);
-});
-
-test('orgReport: trend oldest first, levels count everyone, at-risk includes hidden rows', () => {
-  const board = {
-    total: 5,
-    podium: { first: { rank: 1, pts: '4,620', levelId: 'L7G1', dept: 'Cyber' }, second: { rank: 2, pts: '900', levelId: 'L4G1', dept: 'HR' }, third: { rank: 3, pts: '200', levelId: 'L2G2', dept: 'HR' } },
-    rows: [{ rank: 4, pts: '-50', levelId: 'L0', dept: 'Cyber' }, { rank: 5, pts: null, levelId: null, hidden: true, dept: 'HR' }],
-  };
-  const r = orgReport(CAMPAIGNS, board, { depts: DEPTS, personAt });
-  assert.equal(r.campaigns, 8);
-  assert.equal(r.trend.length, 8);
-  assert.equal(r.trend[0].id, 'C7', 'oldest first');
-  assert.equal(r.trend.at(-1).id, 'C0');
-  assert.deepEqual(r.levels.map((l) => l.family), [...LEVEL_ORDER]);
-  assert.equal(r.levels.reduce((a, l) => a + l.count, 0), 5);
-  assert.equal(r.atRisk, 2);
-  assert.equal(r.avgScore, Math.round((4620 + 900 + 200 - 50) / 4));
-  assert.equal(r.departments.find((d) => d.name === 'HR').atRisk, 1);
-  assert.ok(r.rates.report > 0 && r.rates.report < 1);
-  assert.ok(r.trend.every((t) => t.firstReport > 0 && t.firstClick > 0), 'timing per campaign');
-  assert.ok(r.timing.firstReport > 0 && r.resilience > 0);
 });
