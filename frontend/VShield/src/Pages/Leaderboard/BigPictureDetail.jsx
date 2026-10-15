@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, Building2, ChevronLeft, Hourglass, Search, ThumbsUp, TriangleAlert, Users, X } from 'lucide-react';
+import { ArrowRight, Building2, ChevronLeft, Search, Users, X } from 'lucide-react';
 
 import { breakdown, count, share } from '../../services/bigPictureFindings';
 import { findingPeople } from '../../services/bigPictureViews';
 import { Pager, PersonRow } from './BigPictureTables';
 import { useFitRows } from './useFitRows';
+import { TONE_ART } from './bigPictureArt';
 
 // A finding opened. First by department: where it sits, each team as a bar
 // of its share (so a team of 40 and a team of 4,000 compare fairly). Then,
@@ -17,7 +18,6 @@ const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
 const pc = (v) => `${Math.round((v || 0) * 100)}%`;
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
-const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
 const PEOPLE_COLS = '52px minmax(0,2.2fr) 70px 66px minmax(0,1.3fr)';
 const D_ROW_H = 40;
 // The forecast findings list each person's own chance, from the formula.
@@ -64,8 +64,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const page = Math.min(view.page, pages - 1);
   const shown = people.slice(page * peopleSize, (page + 1) * peopleSize);
 
-  const Icon = TONE[f.tone];
-  const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)';
+  const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : isDark ? '#8F88F2' : '#6C63E8'; // indigo, as the hourglass
   const max = Math.max(1e-6, ...b.departments.map((d) => (b.kind === 'count' ? d.share : Math.abs(d.value))));
   const tabs = [
     { id: 'departments', label: 'By department', Icon: Building2, n: b.departments.length },
@@ -85,7 +84,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
         <button ref={backRef} type="button" onClick={onBack} aria-label="Back to the story" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, height: 30, padding: '0 12px 0 8px', borderRadius: 999, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
           <ChevronLeft size={14} strokeWidth={2.6} aria-hidden /> The story
         </button>
-        <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color: tone }}><Icon size={15} strokeWidth={2.5} /></span>
+        <img src={TONE_ART[f.tone]} alt="" width={28} height={28} style={{ flexShrink: 0 }} />
         <span style={{ minWidth: 0, flex: 1 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
             <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text)', whiteSpace: 'nowrap' }}>{f.value}{f.unit && <span style={{ ...small, fontWeight: 800, marginLeft: 4 }}>{f.unit}</span>}</span>

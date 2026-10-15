@@ -1,94 +1,78 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronDown, ChevronRight, Copy, Download, FileSpreadsheet, Hourglass, LayoutGrid, Minus, ThumbsUp, TrendingDown, TrendingUp, TriangleAlert, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronDown, ChevronRight, Copy, Download, FileSpreadsheet, LayoutGrid, Minus, Users } from 'lucide-react';
 
 import { breakdown, count, findings, share, story } from '../../services/bigPictureFindings';
 import { breakdownCsv, departmentsCsv, peopleCsv, reportCsv } from '../../services/bigPictureExport';
 import { departmentsShown, findingPeople, peopleFiltered, peopleShown, verdict } from '../../services/bigPictureViews';
 import { csvName, downloadCsv } from '../../services/csv';
+import { progress } from '../../services/bigPictureTrend';
 import { FindingDetail } from './BigPictureDetail';
 import { DepartmentTable, PeopleTable } from './BigPictureTables';
 import { REPORT_INK } from './reportInk';
+import { TONE_ART, TONE_TINT, VERDICT_ART } from './bigPictureArt';
 
 // The Big Picture: the leaderboard's reporting view for leaders and admins.
 //
 // It reports what the board shows; it never says what to do. It reads as a
 // story, top to bottom and then left to right:
-//   - along the top, which way the board moved, in a word, and two numbers:
-//     the share at risk and the share that is strong;
-//   - 01 needs attention, 02 going well, 03 what could happen next: three
-//     findings at most in each, every one a number, a line and where it sits.
+//   - along the top, one small card: are people improving through the
+//     phishing simulations? The verdict in a word, the points per person
+//     behind it, and a line on why;
+//   - needs attention, going well, what could happen next: three findings
+//     at most in each, every one a number, a line and where it sits.
 // A finding opens to its detail: by department, and (admins) who exactly.
-// People and Departments list everyone one by one. One Export menu offers
-// the full report, the lists, and whatever is on screen.
+// People and Departments list everyone one by one. Their tabs, and the one
+// Export menu (the full report, the lists, whatever is on screen), sit in
+// the top-right corner, so the base is all story.
 //
 // Colours: teal for better, red for worse, checked for colour-blind
 // separation on both themes; every arrow has its number beside it and every
-// tone its own icon and word, never colour alone.
+// tone its own clay icon and word, never colour alone.
 
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 
-const TONE = { bad: TriangleAlert, watch: Hourglass, good: ThumbsUp };
 const VERDICT = {
-  improving: { word: 'Improving', Icon: TrendingUp },
-  steady: { word: 'Holding steady', Icon: Minus },
-  slipping: { word: 'Slipping', Icon: TrendingDown },
+  improving: { word: 'Improving', why: 'More points earned by reporting than lost to clicks', tile: '#D0FBDF' },
+  steady: { word: 'Holding steady', why: 'Points earned by reporting and lost to clicks are about even', tile: '#F3E7FD' },
+  slipping: { word: 'Slipping', why: 'More points lost to clicks than earned by reporting', tile: '#FBD3D3' },
 };
+const whole = (n) => Math.round(n).toLocaleString('en-US');
+const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${whole(Math.abs(n))}`;
 
-// Along the top: which way the board moved, in a word, and two numbers for
-// where everyone stands: the share at risk and the share that is strong,
-// each with where it was at the start.
-function Standing({ r, campaign, ink }) {
-  const v = verdict(r);
-  const { word, Icon } = VERDICT[v.word];
-  const color = v.word === 'improving' ? ink.good : v.word === 'slipping' ? ink.bad : 'var(--text)';
-  const total = Math.max(1, r.standing.reduce((a, g) => a + g.now, 0));
-  const band = (ids) => r.standing.filter((g) => ids.includes(g.id)).reduce((a, g) => ({ now: a.now + g.now, before: a.before + g.before }), { now: 0, before: 0 });
-  const stats = [
-    { id: 'risk', label: 'At risk', note: 'New Joiners or below zero', ...band(['low']), upIsGood: false },
-    { id: 'strong', label: 'Strong', note: 'Phish Catcher or above', ...band(['strong', 'top']), upIsGood: true },
-  ];
+// Along the top: one small card answering the first question, are people
+// improving through the phishing simulations? Its clay trend on a pastel
+// tile, the verdict, the points per person behind it (over six months for
+// the organisation; from this campaign for one campaign), and why.
+function ProgressCard({ r, campaign, ink, isDark }) {
+  const p = progress(r, { campaign });
+  const { word, why, tile } = VERDICT[p.word];
+  const Arrow = p.word === 'improving' ? ArrowUpRight : p.word === 'slipping' ? ArrowDownRight : Minus;
+  const arrow = p.word === 'improving' ? ink.good : p.word === 'slipping' ? ink.bad : 'var(--muted)';
   return (
-    <div style={{ flex: 1, minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)', alignItems: 'center' }}>
-      <div data-bp-verdict={v.word} style={{ minWidth: 0, paddingRight: 28 }}>
-        <div style={eyebrow}>{campaign ? 'This campaign' : 'The last 30 days'}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-          <span aria-hidden style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--track)', color }}><Icon size={18} strokeWidth={2.6} /></span>
-          <span className="vs-rank" style={{ fontSize: 21, fontWeight: 900, letterSpacing: '-0.01em', color: 'var(--text)' }}>{word}</span>
+    <div data-bp-progress={p.word} style={{ flex: '0 1 470px', minWidth: 0, display: 'flex', alignItems: 'center', gap: 14, padding: '0 16px 0 12px', borderRadius: 14, background: 'var(--plate)' }}>
+      <span aria-hidden style={{ flexShrink: 0, width: 58, height: 58, borderRadius: 14, display: 'grid', placeItems: 'center', background: tile }}>
+        <img src={VERDICT_ART[p.word]} alt="" width={34} height={34} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ ...eyebrow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{campaign ? 'This campaign · its recipients' : 'Phishing simulations · last 6 months'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+          <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.05, color: 'var(--text)', whiteSpace: 'nowrap' }}>{word}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 20, padding: '0 8px', borderRadius: 999, background: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', fontSize: 9.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+            <Arrow size={11} strokeWidth={3} color={arrow} aria-hidden />{signed(p.change)} pts per person
+          </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, fontSize: 10.5, fontWeight: 600, color: 'var(--muted)' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ArrowUpRight size={12} strokeWidth={3} color={ink.good} aria-hidden /><strong style={{ color: 'var(--text)' }}>{share(r.moved.climbed, r.basis.people)}</strong> moved up a level</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><ArrowDownRight size={12} strokeWidth={3} color={ink.bad} aria-hidden /><strong style={{ color: 'var(--text)' }}>{share(r.moved.slipped, r.basis.people)}</strong> down</span>
-        </div>
+        <div style={{ ...small, fontSize: 10, marginTop: 5 }}>{why}.</div>
       </div>
-      {stats.map((x) => {
-        const d = (x.now - x.before) / total;
-        const flat = Math.abs(d) < 0.005;
-        const good = (d > 0) === x.upIsGood;
-        const Arrow = d > 0 ? ArrowUpRight : ArrowDownRight;
-        // when rounding would show the same number twice, show a decimal so the change reads
-        const fine = !flat && share(x.now, total) === share(x.before, total);
-        const shown = (n) => (fine ? `${(Math.round((n / total) * 1000) / 10).toFixed(1)}%` : share(n, total));
-        return (
-          <div key={x.id} data-bp-stat={x.id} title={`${count(x.now)} people now · ${count(x.before)} at the start`} style={{ minWidth: 0, paddingLeft: 28, borderLeft: '1px solid var(--hair)' }}>
-            <div style={eyebrow}>{x.label}</div>
-            <div className="vs-rank" style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)', marginTop: 8 }}>{shown(x.now)}</div>
-            <div style={{ ...small, fontSize: 10, marginTop: 6 }}>{x.note}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, ...small, fontSize: 10, marginTop: 2 }}>
-              {flat ? 'Same as before' : <><Arrow size={11} strokeWidth={3} color={good ? ink.good : ink.bad} aria-label={d > 0 ? 'up' : 'down'} />from {shown(x.before)}</>}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
 
 // The three parts of the story, in reading order.
 const CHAPTERS = [
-  { id: 'wrong', n: '01', title: 'Needs attention', sub: (when) => `What went wrong ${when}`, Icon: TriangleAlert, tone: 'bad' },
-  { id: 'right', n: '02', title: 'Going well', sub: (when) => `What went right ${when}`, Icon: ThumbsUp, tone: 'good' },
-  { id: 'next', n: '03', title: 'What could happen next', sub: () => 'If everyone gets one more email', Icon: Hourglass, tone: 'watch' },
+  { id: 'wrong', title: 'Needs attention', sub: (when) => `What went wrong ${when}`, tone: 'bad' },
+  { id: 'right', title: 'Going well', sub: (when) => `What went right ${when}`, tone: 'good' },
+  { id: 'next', title: 'What could happen next', sub: () => 'If everyone gets one more email', tone: 'watch' },
 ];
 
 // One finding: its number and one line. The whole item opens its detail,
@@ -111,22 +95,23 @@ function Item({ f, onOpen }) {
   );
 }
 
-// One part of the story: its number and title, then its findings.
-function Chapter({ c, items, when, ink, onOpen, first }) {
-  const color = c.tone === 'good' ? ink.good : c.tone === 'bad' ? ink.bad : 'var(--text)';
+// One part of the story: a slim tinted header with its clay icon and title,
+// then its findings.
+function Chapter({ c, items, when, isDark, onOpen }) {
+  const t = (isDark ? TONE_TINT.dark : TONE_TINT.light)[c.tone];
   return (
-    <section aria-label={c.title} data-bp-chapter={c.id} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingLeft: first ? 0 : 28, borderLeft: first ? 'none' : '1px solid var(--hair)' }}>
-      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, borderBottom: '1px solid var(--hair)' }}>
-        <span aria-hidden style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--track)', color }}><c.Icon size={15} strokeWidth={2.5} /></span>
+    <section aria-label={c.title} data-bp-chapter={c.id} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <header style={{ flexShrink: 0, height: 46, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', borderRadius: 12, background: t.wash, border: `1px solid ${t.edge}` }}>
+        <img src={TONE_ART[c.tone]} alt="" width={24} height={24} style={{ flexShrink: 0 }} />
         <span style={{ minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 12.5, fontWeight: 800, color: 'var(--text)' }}><span style={{ color: 'var(--muted)', marginRight: 6 }}>{c.n}</span>{c.title}</span>
-          <span style={{ display: 'block', ...small, marginTop: 2 }}>{c.sub(when)}</span>
+          <span style={{ display: 'block', fontSize: 12, fontWeight: 800, letterSpacing: '-0.005em', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title}</span>
+          <span style={{ display: 'block', ...small, fontSize: 9.5, marginTop: 1 }}>{c.sub(when)}</span>
         </span>
       </header>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', paddingTop: 2 }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '6px 4px 0' }}>
         {items.length
           ? items.map((f, i) => (
-            <div key={f.id} style={{ flex: '0 0 auto', height: 'min(33.333%, 110px)', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
+            <div key={f.id} style={{ flex: '0 0 auto', height: '33.333%', minHeight: 0, display: 'flex', alignItems: 'stretch', borderTop: i ? '1px solid var(--hair)' : 'none' }}>
               <Item f={f} onOpen={() => onOpen(f)} />
             </div>
           ))
@@ -139,10 +124,11 @@ function Chapter({ c, items, when, ink, onOpen, first }) {
 /** The picture as plain text, for "Copy a short summary". */
 function summaryText(r, title, campaign) {
   const v = verdict(r);
+  const p = progress(r, { campaign });
   return [
     title,
-    `${VERDICT[v.word].word}: ${share(r.moved.climbed, r.basis.people)} moved up a level, ${share(r.moved.slipped, r.basis.people)} down.`,
-    `At risk (New Joiners or below zero): ${share(r.standing.find((g) => g.id === 'low')?.now || 0, r.people.length)}. Strong (Phish Catcher or above): ${share(r.standing.filter((g) => g.id === 'strong' || g.id === 'top').reduce((a, g) => a + g.now, 0), r.people.length)}.`,
+    `${campaign ? 'From this campaign' : 'Over the last 6 months'}: ${VERDICT[p.word].word.toLowerCase()}, ${signed(p.change)} points per person.`,
+    `${campaign ? 'In this campaign' : 'In the last 30 days'}: ${share(r.moved.climbed, r.basis.people)} moved up a level, ${share(r.moved.slipped, r.basis.people)} down (${VERDICT[v.word].word.toLowerCase()}).`,
     '',
     'What stands out:',
     ...findings(r, { campaign }).map((f) => `- ${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline} (${f.sub}).`),
@@ -179,11 +165,11 @@ function ExportMenu({ scope, groups }) {
   const firstId = groups.find((g) => g.items.length)?.items[0]?.id;
   return (
     <div ref={box} style={{ position: 'relative' }}>
-      <button type="button" data-bp-export onClick={() => (open ? close() : setOpen(true))} aria-haspopup="menu" aria-expanded={open} style={{ height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px 0 12px', borderRadius: 9, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+      <button type="button" data-bp-export onClick={() => (open ? close() : setOpen(true))} aria-haspopup="menu" aria-expanded={open} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px 0 12px', borderRadius: 8, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
         <Download size={13} strokeWidth={2.6} aria-hidden /> Export <ChevronDown size={13} strokeWidth={2.6} aria-hidden style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }} />
       </button>
       {open && (
-        <div role="menu" aria-label="Export" data-bp-export-menu style={{ position: 'absolute', right: 0, top: 36, width: 320, zIndex: 30, padding: 6, borderRadius: 14, border: '1px solid var(--hair)', background: 'var(--base)', boxShadow: '0 18px 40px rgba(15,23,42,0.18)' }}>
+        <div role="menu" aria-label="Export" data-bp-export-menu style={{ position: 'absolute', right: 0, top: 34, width: 320, zIndex: 30, padding: 6, borderRadius: 14, border: '1px solid var(--hair)', background: 'var(--base)', boxShadow: '0 18px 40px rgba(15,23,42,0.18)' }}>
           <div style={{ ...small, padding: '6px 10px 4px' }}>Download as a spreadsheet (CSV) · {scope}</div>
           {groups.filter((g) => g.items.length).map((g, gi) => (
             <div key={g.name} style={{ borderTop: gi ? '1px solid var(--hair)' : 'none', marginTop: gi ? 4 : 0, paddingTop: 4 }}>
@@ -219,9 +205,9 @@ function ExportMenu({ scope, groups }) {
 
 /**
  * The Big Picture, in the board's L shape: a colour tile top left naming what
- * it covers; which way the board moved and where everyone stands along the
- * arm; below, the story in three parts, with People and Departments a tab
- * away and one Export menu.
+ * it covers; along the arm, a small card saying whether people are
+ * improving, with the tabs (Overview, People, Departments) and the Export
+ * menu in the top-right corner; below, the story in three parts.
  */
 export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
@@ -302,6 +288,24 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     { name: 'Share', items: share_ },
   ];
 
+  // The top-right corner: the tabs, and Export beside them.
+  const toolbar = (
+    <div style={{ marginLeft: 'auto', flexShrink: 0, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div role="tablist" aria-label="The big picture" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: 2, borderRadius: 10, background: 'var(--track)' }}>
+        {TABS.map((t) => {
+          const on = tab === t.id;
+          return (
+            <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, detail: null })} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 11px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
+              <t.Icon size={12} strokeWidth={2.4} aria-hidden />{t.label}
+              {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{count(t.count)}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <ExportMenu scope={scopeLabel} groups={groups} />
+    </div>
+  );
+
   return (
     <div data-lb-reports={campaign ? 'campaign' : 'org'} style={{ ...tokens, flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
       <div style={{ ...(isDark ? PASTEL_INK : null), position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, background: 'var(--cap-reports)', borderRadius: L_R, overflow: 'hidden' }}>
@@ -318,30 +322,14 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
       </svg>
 
-      {/* the arm: which way the board moved, and where everyone stands */}
-      <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 28px', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
-        <Standing r={r} campaign={Boolean(campaign)} ink={ink} />
+      {/* the arm: are people improving, and in the corner the tabs and Export */}
+      <div data-bp-standing style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', gap: 14, padding: `14px 16px ${L_GAP + 7}px 22px`, background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+        <ProgressCard r={r} campaign={Boolean(campaign)} ink={ink} isDark={isDark} />
+        {toolbar}
       </div>
 
       {/* the base: the story in three parts, or a full list */}
-      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 28px 20px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div role="tablist" aria-label="The big picture" style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 3, borderRadius: 11, background: 'var(--track)' }}>
-            {TABS.map((t) => {
-              const on = tab === t.id;
-              return (
-                <button key={t.id} type="button" role="tab" aria-selected={on} data-bp-tab={t.id} onClick={() => set({ tab: t.id, detail: null })} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 800, background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
-                  <t.Icon size={13} strokeWidth={2.4} aria-hidden />{t.label}
-                  {t.count !== undefined && <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--muted)' }}>{count(t.count)}</span>}
-                </button>
-              );
-            })}
-          </div>
-          <span style={{ marginLeft: 'auto' }}>
-            <ExportMenu scope={scopeLabel} groups={groups} />
-          </span>
-        </div>
-
+      <div data-bp-body style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 18, padding: '14px 16px 18px 22px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
         {tab === 'overview' && opened && (
           <FindingDetail
             key={`${scopeKey}-${opened.id}`}
@@ -357,8 +345,8 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
           />
         )}
         {tab === 'overview' && !opened && (
-          <div data-bp-story style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 28 }}>
-            {CHAPTERS.map((c, i) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} ink={ink} onOpen={openFinding} first={i === 0} />)}
+          <div data-bp-story style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 14 }}>
+            {CHAPTERS.map((c) => <Chapter key={c.id} c={c} items={parts[c.id]} when={when} isDark={isDark} onOpen={openFinding} />)}
           </div>
         )}
         {tab === 'people' && canSeePeople && (
@@ -382,8 +370,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
 }
 
 /** Staff see this where colleagues see How to earn points: the story's opening line from each part. */
-export function BigPictureTeaser({ r, isDark, onOpen }) {
-  const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
+export function BigPictureTeaser({ r, onOpen }) {
   const parts = story(r);
   const top = CHAPTERS.map((c) => parts[c.id][0]).filter(Boolean);
   return (
@@ -392,10 +379,9 @@ export function BigPictureTeaser({ r, isDark, onOpen }) {
       <span style={{ ...small, marginTop: 2 }}>The last 30 days on the board</span>
       <div style={{ flex: 1, minHeight: 0, maxHeight: 250, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
         {top.map((f) => {
-          const Icon = TONE[f.tone];
           return (
-            <div key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderTop: '1px solid var(--hair)' }}>
-              <span aria-hidden style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'var(--track)', color: f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--text)' }}><Icon size={12} strokeWidth={2.6} /></span>
+            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--hair)' }}>
+              <img src={TONE_ART[f.tone]} alt="" width={24} height={24} style={{ flexShrink: 0 }} />
               <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--text)' }}>
                 <strong className="vs-rank" style={{ fontSize: 12.5, fontWeight: 900 }}>{f.value}{f.unit ? ` ${f.unit}` : ''}</strong> {f.headline}
               </span>
