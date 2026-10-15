@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { bigPicture } from './bigPicture.js';
-import { DEPARTMENT_COLUMNS, PEOPLE_COLUMNS, breakdownCsv, departmentsCsv, peopleCsv, reportCsv } from './bigPictureExport.js';
+import { DEPARTMENT_COLUMNS, PEOPLE_COLUMNS, breakdownCsv, departmentsCsv, findingCsv, peopleCsv, reportCsv } from './bigPictureExport.js';
 import { breakdown, findings } from './bigPictureFindings.js';
 import { campaignReport } from './sampleReports.js';
 
@@ -40,4 +40,16 @@ test('a finding’s breakdown exports by department', () => {
   const lines = breakdownCsv(breakdown(R, f)).split('\r\n');
   assert.equal(lines[0], 'Department,People in this finding,People in the department,Share of the department %');
   assert.ok(lines.length > 1);
+});
+
+test('findingCsv: the finding, by department, then its people (only when given)', () => {
+  const f = findings(R)[0];
+  const b = breakdown(R, f);
+  const withPeople = findingCsv(f, b, b.people);
+  assert.ok(withPeople.startsWith(`${f.value}`), 'opens with the finding');
+  assert.ok(withPeople.includes('By department\r\nDepartment,'));
+  assert.ok(withPeople.includes('People\r\nRank,Name,Email'));
+  assert.equal(withPeople.split('\r\n').filter((l) => l.startsWith(`${b.people[0]?.rank},`)).length >= (b.people.length ? 1 : 0), true);
+  const departmentsOnly = findingCsv(f, b);
+  assert.ok(!departmentsOnly.includes('Rank,Name,Email'), 'no names without people');
 });

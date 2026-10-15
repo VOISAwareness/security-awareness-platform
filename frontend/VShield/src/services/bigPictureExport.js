@@ -121,12 +121,25 @@ export function reportCsv(r, { title, withPeople = false, campaign = false }) {
 }
 
 /** A finding's department breakdown (breakdown() in bigPictureFindings.js). */
+const breakdownColumns = (b) => [
+  { label: 'Department', value: (d) => d.name },
+  { label: b.kind === 'count' ? 'People in this finding' : b.kind === 'rate' ? 'Report rate %' : 'Points per person', value: (d) => (b.kind === 'rate' ? rate(d.value) : d.value) },
+  { label: 'People in the department', value: (d) => d.size },
+  ...(b.kind === 'count' ? [{ label: 'Share of the department %', value: (d) => rate(d.share) }] : []),
+];
+
 export function breakdownCsv(b) {
-  const label = b.kind === 'count' ? 'People in this finding' : b.kind === 'rate' ? 'Report rate %' : 'Points per person';
-  return toCsv([
-    { label: 'Department', value: (d) => d.name },
-    { label, value: (d) => (b.kind === 'rate' ? rate(d.value) : d.value) },
-    { label: 'People in the department', value: (d) => d.size },
-    ...(b.kind === 'count' ? [{ label: 'Share of the department %', value: (d) => rate(d.share) }] : []),
-  ], b.departments);
+  return toCsv(breakdownColumns(b), b.departments);
+}
+
+/**
+ * One finding in one file: its headline, then by department, then (for
+ * admins) its people, `people` being those on screen (a department, a search).
+ */
+export function findingCsv(f, b, people = null) {
+  return sectionsCsv([
+    { title: `${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline}`, columns: [{ label: 'About this finding', value: (x) => x }], rows: [f.detail || f.sub || ''] },
+    { title: 'By department', columns: breakdownColumns(b), rows: b.departments },
+    ...(people ? [{ title: 'People', columns: PEOPLE_COLUMNS, rows: people }] : []),
+  ]);
 }
