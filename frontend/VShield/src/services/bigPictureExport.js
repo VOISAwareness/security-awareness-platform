@@ -10,6 +10,7 @@ import { sectionsCsv, toCsv } from './csv.js';
 
 const levelName = (id) => rankName(LEVEL_BY_ID[id]) || '';
 const rate = (v) => (v === null || v === undefined ? '' : Math.round(v * 1000) / 10); // 0.237 -> 23.7
+const one = (n) => Math.round(n * 10) / 10;
 const moved = (m) => (m === 'up' ? 'Climbed a level' : m === 'down' ? 'Slipped a level' : '');
 
 export const PEOPLE_COLUMNS = Object.freeze([
@@ -31,6 +32,8 @@ export const PEOPLE_COLUMNS = Object.freeze([
   { label: 'One report from a level up', value: (x) => x.nearUp },
   { label: 'One click from a level down', value: (x) => x.nearSlip },
   { label: 'One click from below zero', value: (x) => x.nearZero },
+  { label: 'Chance of dropping a level after one more email %', value: (x) => rate(x.pDrop) },
+  { label: 'Chance of moving up a level after one more email %', value: (x) => rate(x.pUp) },
 ]);
 
 export const DEPARTMENT_COLUMNS = Object.freeze([
@@ -73,7 +76,14 @@ export function reportCsv(r, { title, withPeople = false, campaign = false }) {
     ['One report from a level up', r.edge.nearUp],
     ['One click from a level down', r.edge.nearSlip],
     ['One click from below zero', r.edge.nearZero],
-    ...(r.outlook ? [['Phish Catcher or above today', r.outlook.strongNow], ['Phish Catcher or above in 30 days at this pace', r.outlook.strongNext]] : []),
+    ['If everyone gets one more email (expected · likely range, 9 times in 10)', ''],
+    ['Could drop a level', `${one(r.forecast.down.expected)} · ${r.forecast.down.low}–${r.forecast.down.high} of ${r.forecast.down.within} within reach`],
+    ['Could move up a level', `${one(r.forecast.up.expected)} · ${r.forecast.up.low}–${r.forecast.up.high} of ${r.forecast.up.within} within reach`],
+    ['Phish Catcher or above', `${r.forecast.strong.now} today · ${one(r.forecast.strong.expected)} expected · ${r.forecast.strong.low}–${r.forecast.strong.high}`],
+    ['Average click rate % (C)', rate(r.forecast.method.clickRate)],
+    ['Average report rate % (R)', rate(r.forecast.method.reportRate)],
+    ['Clicks that gave details away % (G)', rate(r.forecast.method.gaveShare)],
+    ['Weight of the average, in emails (K)', r.forecast.method.k],
   ];
   const sections = [
     { title: 'Summary', columns: pair, rows: summary },

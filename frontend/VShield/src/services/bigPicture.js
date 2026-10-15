@@ -11,7 +11,9 @@
  *   teams     - the points each department gained or lost;
  *   edge      - who is one step from a change: one report from a new level,
  *               one click from dropping a level or going below zero;
- *   outlook   - where the board is heading if the pace holds;
+ *   forecast  - if everyone gets one more email: how many could move down a
+ *               level, how many up, and how many would be Phish Catcher or
+ *               above, each with a likely range (bigPictureForecast.js);
  *   people    - everyone, one by one, bottom of the board first: points,
  *               change, level then and now, what they did, and which of the
  *               above they are part of (PEOPLE_FILTERS picks them out);
@@ -26,6 +28,7 @@
  */
 import { LEVELS, levelFor, progressFor } from './levels.js';
 import { lean } from './sampleReports.js';
+import { forecast } from './bigPictureForecast.js';
 
 // Level groups, top first: `from` is the lowest level number in the group;
 // `brief` a name that fits a legend.
@@ -129,8 +132,6 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
   const groups = Object.fromEntries(GROUPS.map((g) => [g.id, { people: 0, climbed: 0, slipped: 0, click: 0, rep: 0, n: 0 }]));
   const lureCells = {};
   const teams = {};
-  let strongBefore = 0; // took part, and at Phish Catcher or above before
-  let strongAfter = 0; // ...and after
   people.forEach((p, i) => {
     const s = seen[i];
     if (!s.took) return;
@@ -143,8 +144,6 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     if (ln < lb) { moved.slipped += 1; g.slipped += 1; }
     if (before >= 0 && p.points < 0) moved.belowZero += 1;
     if (before < 0 && p.points >= 0) moved.backAbove += 1;
-    if (lb >= 4) strongBefore += 1;
-    if (ln >= 4) strongAfter += 1;
     const t = teams[p.dept || 'Unassigned'] || (teams[p.dept || 'Unassigned'] = { net: 0, people: 0, click: 0, n: 0 });
     t.net += s.delta;
     t.people += 1;
@@ -208,7 +207,13 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     nearSlip: persons.filter((x) => x.nearSlip).length,
     nearZero: persons.filter((x) => x.nearZero).length,
   };
-  const strongNow = persons.filter((x) => levelOf(x.points) >= 4).length;
+  // What could happen after one more email, by formula, from each person's record.
+  const fc = forecast(persons, pts);
+  persons.forEach((x) => {
+    const c = fc.chances.get(x.key);
+    x.pDrop = c.down;
+    x.pUp = c.up;
+  });
   // how many in each level band, now and at the start of the window
   const standing = GROUPS.map((g) => ({
     id: g.id, label: g.label, brief: g.brief,
@@ -253,8 +258,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     lures,
     teams: teamList.map((t) => ({ name: t.name, net: t.net, people: t.people, click: t.click })),
     edge,
-    // if the window's pace holds for another window: people at Phish Catcher or above
-    outlook: followed ? null : { strongNow, strongNext: Math.max(0, strongNow + strongAfter - strongBefore) },
+    forecast: { method: fc.method, down: fc.down, up: fc.up, strong: fc.strong },
     points: { earned, lost },
     people: persons,
     departments,
@@ -274,6 +278,8 @@ export const PEOPLE_FILTERS = Object.freeze([
   { id: 'clicked', label: 'Clicked at least once', test: (x) => x.clicked > 0 },
   { id: 'neverReported', label: 'Took part, never reported', test: (x) => x.campaigns > 0 && x.reported === 0 },
   { id: 'nearUp', label: 'One report from a level up', test: (x) => x.nearUp },
+  { id: 'mayDrop', label: 'Could drop a level after one more email', test: (x) => x.pDrop > 0 },
+  { id: 'mayClimb', label: 'Could move up a level after one more email', test: (x) => x.pUp > 0 },
   { id: 'reachedStrong', label: 'Reached Phish Catcher or above', test: (x) => (x.groupNow === 'strong' || x.groupNow === 'top') && x.group !== 'strong' && x.group !== 'top' },
   { id: 'climbed', label: 'Climbed a level', test: (x) => x.moved === 'up' },
   { id: 'backAbove', label: 'Came back above zero', test: (x) => x.backAbove },

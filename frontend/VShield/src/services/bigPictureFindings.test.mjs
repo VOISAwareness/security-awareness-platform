@@ -40,7 +40,8 @@ test('the story: three parts of three at most, each line complete, never advice'
   }
   assert.ok(s.wrong.every((x) => x.tone === 'bad'));
   assert.ok(s.right.every((x) => x.tone === 'good'));
-  assert.ok(s.next.some((x) => x.id === 'outlook'));
+  assert.ok(s.next.every((x) => ['mayDrop', 'mayClimb', 'strongNext'].includes(x.id)));
+  assert.ok(s.next.some((x) => x.id === 'strongNext'));
   const below = s.wrong.find((x) => x.id === 'belowZero');
   assert.equal(below.count, r.people.filter((x) => x.belowZero).length);
   assert.equal(below.value, share(below.count, r.people.length));
@@ -48,12 +49,12 @@ test('the story: three parts of three at most, each line complete, never advice'
   assert.ok(findings(r).every((x) => !/\b(should|recommend|suggest|target|send)\b/i.test(`${x.headline} ${x.sub} ${x.detail}`)), 'reports, never advises');
 });
 
-test('one campaign: "in this campaign", no 30-day outlook, one-click split in two', () => {
+test('one campaign: "in this campaign", and the same forecast', () => {
   const r = bigPicture(ITEMS, PEOPLE, { focus: 'C2' });
   const s = story(r, { campaign: true });
   const all = findings(r, { campaign: true });
   assert.ok(!all.some((x) => /30 days/.test(`${x.headline} ${x.detail}`)));
-  assert.ok(!s.next.some((x) => x.id === 'outlook' || x.id === 'oneClick'));
+  assert.ok(s.next.every((x) => ['mayDrop', 'mayClimb', 'strongNext'].includes(x.id)));
   assert.ok(!all.some((x) => /last 30 days/.test(x.detail)));
 });
 

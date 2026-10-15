@@ -40,7 +40,9 @@ test('the organisation: the last 30 days, and everything adds up', () => {
   assert.ok(low.click > top.click && low.report < top.report, 'lower levels click more and report less');
   assert.equal(r.standing.reduce((a, g) => a + g.now, 0), 300);
   assert.equal(r.standing.reduce((a, g) => a + g.before, 0), 300);
-  assert.ok(r.outlook.strongNow >= 0 && r.outlook.strongNext >= 0);
+  assert.ok(r.forecast.strong.now >= 0 && r.forecast.strong.low <= r.forecast.strong.expected && r.forecast.strong.expected <= r.forecast.strong.high);
+  assert.equal(r.forecast.down.within, r.people.filter((x) => x.pDrop > 0).length);
+  assert.ok(Math.abs(r.forecast.down.expected - r.people.reduce((a, x) => a + x.pDrop, 0)) < 1e-9, 'expected = sum of chances');
 });
 
 test('one campaign: everyone given took part', () => {
@@ -49,7 +51,7 @@ test('one campaign: everyone given took part', () => {
   assert.equal(r.basis.people, 300);
   assert.equal(r.lures.length, 1);
   assert.equal(r.lures[0].type, 'HR lure');
-  assert.equal(r.outlook, null);
+  assert.ok(r.forecast.up.within >= 0);
 });
 
 test('one step from a change, from today’s points', () => {
