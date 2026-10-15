@@ -9,7 +9,11 @@
  */
 import { LEVEL_BY_ID, levelChange } from './levels.js';
 
-const key = (email) => `voisshield_last_level:${String(email || '').trim().toLowerCase()}`;
+// Bump TABLE when the level table's points change: everyone starts afresh
+// (nothing to compare with), so a new table doesn't show as a level-up or a
+// level-down that the person didn't earn.
+const TABLE = 2;
+const key = (email) => `voisshield_last_level:v${TABLE}:${String(email || '').trim().toLowerCase()}`;
 
 export function readLastLevel(storage, email) {
   try {
