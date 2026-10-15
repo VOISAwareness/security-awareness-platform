@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, Crown, Lock, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { ArrowUpRight, Crown, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import BadgeMedal from '../../GlobalComponents/BadgeMedal';
@@ -54,6 +54,8 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
   const riskAt = riskPosition(level);
   // your level's three grades; below zero, the three levels of the way back
   const steps = level.grade ? LEVEL_FAMILIES[level.level - 1] : [...BELOW_LEVELS].reverse();
+  const at = steps.findIndex((g) => g.rank === level.rank);
+  const along = at + (at < steps.length - 1 ? progress.pct / 100 : 0); // steps passed, and how far to the next
 
   const bar = (className = '') => (
     <div
@@ -204,36 +206,43 @@ const PointsAndBadges = ({ standing, isDark, onOpenBadges }) => {
       >
         <div data-grades>
           <span className={label}>{level.grade ? 'Grades' : 'The way back'}</span>
-          <div className="grid grid-cols-3 gap-1.5 mt-2">
+          {/* a stepper: the line fills up to your points */}
+          <div className="relative grid grid-cols-3 mt-2.5">
+            <span aria-hidden className={`absolute top-[13px] left-[16.67%] w-[66.67%] h-[3px] rounded-full ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+            {along > 0 && (
+              <span aria-hidden className="absolute top-[13px] left-[16.67%] h-[3px] rounded-full" style={{ width: `${(along / 3) * 100}%`, background: tint }} />
+            )}
             {steps.map((g) => {
               const state = g.rank < level.rank ? 'done' : g.rank === level.rank ? 'now' : 'ahead';
+              const mark = g.grade ? ROMAN[g.grade] : levelNo(g);
               return (
-                <span
-                  key={g.id}
-                  data-grade={state}
-                  title={rankName(g)}
-                  className={`vs-rank h-[30px] rounded-lg flex items-center justify-center gap-1 text-[12px] font-black ${
-                    state === 'now' ? 'text-white shadow-sm' : state === 'done' ? '' : isDark ? 'bg-white/5 text-slate-500' : 'bg-slate-200/70 text-slate-400'
-                  }`}
-                  style={
-                    state === 'now'
-                      ? { background: `linear-gradient(135deg, ${level.light}, ${level.color} 75%)` }
-                      : state === 'done'
-                        ? { color: tint, background: `${level.color}${isDark ? '33' : '1F'}` }
-                        : undefined
-                  }
-                >
-                  {state === 'done' && <Check className="w-3 h-3" strokeWidth={3.2} aria-hidden />}
-                  {state === 'ahead' && <Lock className="w-2.5 h-2.5" strokeWidth={3} aria-hidden />}
-                  {g.grade ? ROMAN[g.grade] : levelNo(g)}
+                <span key={g.id} data-grade={state} title={rankName(g)} className="relative flex flex-col items-center">
+                  <span className="h-[29px] grid place-items-center">
+                    <span
+                      className={`vs-rank grid place-items-center rounded-full font-black ${state === 'now' ? 'w-[29px] h-[29px] text-[11px] text-white' : 'w-[23px] h-[23px] text-[10px]'} ${
+                        state === 'done' ? 'text-white' : state === 'ahead' ? (isDark ? 'bg-[#22242B] text-slate-500 border-2 border-white/15' : 'bg-white text-slate-400 border-2 border-slate-300') : ''
+                      }`}
+                      style={
+                        state === 'now'
+                          ? { background: `linear-gradient(135deg, ${level.light}, ${level.color} 75%)`, boxShadow: `0 0 0 4px ${level.color}${isDark ? '40' : '26'}` }
+                          : state === 'done'
+                            ? { background: tint }
+                            : undefined
+                      }
+                    >
+                      {mark}
+                    </span>
+                  </span>
+                  <span
+                    className={`text-[9.5px] leading-none mt-1.5 ${state === 'now' ? 'font-extrabold' : `font-semibold ${muted}`}`}
+                    style={state === 'now' ? { color: tint } : undefined}
+                  >
+                    {g.min === null ? `< ${fmt(g.max)}` : fmt(g.min)}
+                  </span>
+                  <span className="sr-only">{state === 'done' ? 'passed' : state === 'now' ? 'you are here' : 'not reached yet'}</span>
                 </span>
               );
             })}
-          </div>
-          <div className={`grid grid-cols-3 gap-1.5 mt-1 text-center text-[9.5px] font-semibold ${muted}`}>
-            {steps.map((g) => (
-              <span key={g.id}>{g.min === null ? `< ${fmt(g.max)}` : fmt(g.min)}</span>
-            ))}
           </div>
         </div>
 
