@@ -7,7 +7,9 @@ const UserTypeContext = createContext();
 // 'leaderboard' is the /leaderboard page, opened from the My Space LEADERBOARD
 // button (it has no nav item); every role has it. 'leaderboard-campaigns' is its
 // My Campaigns view (ongoing campaigns and how each is going), for every role
-// except Regular User, who sees the Global Leaderboard only.
+// except Regular User, who sees the Global Leaderboard only. 'leaderboard-reports'
+// is its Reports view (organisation and campaign insights), for the same roles;
+// they don't see How to earn points.
 export const ROLE_PERMISSIONS = {
   'Admin': [
     'home',
@@ -24,6 +26,7 @@ export const ROLE_PERMISSIONS = {
     'analytics',
     'leaderboard',
     'leaderboard-campaigns',
+    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
@@ -41,6 +44,7 @@ export const ROLE_PERMISSIONS = {
     'analytics',
     'leaderboard',
     'leaderboard-campaigns',
+    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
@@ -58,6 +62,7 @@ export const ROLE_PERMISSIONS = {
     'analytics',
     'leaderboard',
     'leaderboard-campaigns',
+    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
@@ -65,6 +70,7 @@ export const ROLE_PERMISSIONS = {
     'gamification-engine',
     'leaderboard',
     'leaderboard-campaigns',
+    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
@@ -77,6 +83,7 @@ export const ROLE_PERMISSIONS = {
     'analytics',
     'leaderboard',
     'leaderboard-campaigns',
+    'leaderboard-reports',
     'my-space',
     'my-training'
   ]
