@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronLeft, Search } from 'lucide-react';
 
-import { breakdown, count, share } from '../../services/bigPictureFindings';
-import { findingPeople } from '../../services/bigPictureViews';
+import { breakdown, count } from '../../services/bigPictureFindings';
+import { findingPeople, health, recordOf } from '../../services/bigPictureViews';
 import { Chip, Pager, PersonRow } from './BigPictureTables';
 import { useFitRows } from './useFitRows';
 import { TONE_ART } from './bigPictureArt';
@@ -30,10 +30,10 @@ const CHAPTER = { bad: 'Needs attention', good: 'Going well', watch: 'What could
 // column under its name
 const PEOPLE_COLS = 'minmax(0,1fr) 88px 72px 140px';
 const mid = { textAlign: 'center' };
-// a department, its people in this finding, and its number
-const DEPT_COLS = 'minmax(0,1fr) 64px 76px';
-// a count finding's number is the share of each department's people in it
-const VALUE_HEAD = { count: '% of dept', rate: 'Reported', points: 'Points each' };
+// a department, the finding's number for it, and its health
+const DEPT_COLS = 'minmax(0,1fr) 72px 92px';
+// a count finding's number is how many of its people are in each department
+const VALUE_HEAD = { count: 'People', rate: 'Reported', points: 'Points each' };
 const num11 = { fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' };
 const ROW_H = 42; // one row height in both panes, so their lines meet
 
@@ -41,18 +41,34 @@ const ROW_H = 42; // one row height in both panes, so their lines meet
 function Heads({ cols, children }) {
   return <div role="row" style={{ flexShrink: 0, height: 30, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderBottom: '1px solid var(--hair)', whiteSpace: 'nowrap', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{children}</div>;
 }
-// The forecast findings list how close each person is to the line: the
-// points they have to spare before a level down, or still to go to a level
-// up (their chance is in the export, with the formula).
-const pts = (n) => `${count(n)} ${n === 1 ? 'pt' : 'pts'}`;
-const CLOSE = {
-  mayDrop: { tone: 'bad', text: (x) => (x.spare > 0 ? `${pts(x.spare)} to spare` : 'On the line'), hint: 'Points above the start of their level: one more click could take them below it' },
-  mayClimb: { tone: 'good', text: (x) => `${pts(x.toGo)} to go`, hint: 'Points short of the next level: one more report could lift them to it' },
+// A forecast finding's people show their record: what they did with the
+// emails they got, the clicks for a level down, the reports for a level up
+// (their chance is in the export, with the formula). With one email (a
+// campaign), what they did with it.
+const did = (x) => (x.gave ? 'Gave details away' : x.clicked ? 'Clicked' : x.reported ? 'Reported' : 'No action');
+const RECORD = {
+  mayDrop: { text: (x) => `Clicked ${count(x.clicked)} of ${count(x.campaigns)}`, tone: (x) => (x.clicked ? 'bad' : 'steady') },
+  mayClimb: { text: (x) => `Reported ${count(x.reported)} of ${count(x.campaigns)}`, tone: (x) => (x.reported ? 'good' : 'steady') },
 };
+const recordText = (x, how) => (!x.campaigns ? 'No emails yet' : x.campaigns === 1 ? did(x) : how.text(x));
+// the colour says what the words say: clicks red, reports teal, nothing either way grey
+const recordTone = (x, how) => (!x.campaigns ? 'steady' : x.campaigns === 1 ? (x.clicked ? 'bad' : x.reported ? 'good' : 'steady') : how.tone(x));
+const recordHint = (x) => `Got ${count(x.campaigns)} ${x.campaigns === 1 ? 'email' : 'emails'}: reported ${count(x.reported)}, clicked ${count(x.clicked)}${x.gave ? `, gave details away ${count(x.gave)}` : ''}`;
 
-// How close one person is, e.g. "12 pts to spare".
-function Close({ x, how, ink }) {
-  return <Chip color={ink[how.tone]} width={118} title={how.hint}>{how.text(x)}</Chip>;
+const STEADY_INK = '#94A3B8';
+function Record({ x, how, ink }) {
+  const tone = recordTone(x, how);
+  return <Chip color={tone === 'steady' ? STEADY_INK : ink[tone]} width={128} title={x.campaigns ? recordHint(x) : 'Not sent a phishing email yet'}>{recordText(x, how)}</Chip>;
+}
+
+// A department's health (health() in bigPictureViews.js): Protected,
+// Holding or Exposed, with its Report and Hook Rates on hover.
+const HEALTH_TONE = { Protected: 'good', Holding: 'steady', Exposed: 'bad' };
+function Health({ of, ink }) {
+  const h = health(of);
+  if (!h) return <span style={small}>—</span>;
+  const color = HEALTH_TONE[h.word] === 'steady' ? STEADY_INK : ink[HEALTH_TONE[h.word]];
+  return <Chip color={color} width={86} title={`Reported ${pc(h.reportRate)} of emails · clicked ${pc(h.clickRate)}`}>{h.word}</Chip>;
 }
 
 // A small search box for a pane's header.
@@ -86,7 +102,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
   const team = f.link?.dept || null;
-  const close = CLOSE[f.link?.show];
+  const record = RECORD[f.link?.show];
   const backRef = useRef(null);
   useEffect(() => { backRef.current?.focus(); }, []);
   useEffect(() => {
@@ -101,11 +117,12 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const page = Math.min(view.page, pages - 1);
   const shown = people.slice(page * peopleSize, (page + 1) * peopleSize);
 
-  const value = (d) => (b.kind === 'count' ? share(d.value, d.size) : b.kind === 'rate' ? pc(d.value) : signed(d.value));
+  const value = (d) => (b.kind === 'count' ? count(d.value) : b.kind === 'rate' ? pc(d.value) : signed(d.value));
   const dq = view.deptQ.trim().toLowerCase();
   const depts = dq ? b.departments.filter((d) => d.name.toLowerCase().includes(dq)) : b.departments;
   const pick = !team && canSeePeople; // departments narrow the people
   const everyone = r.people.length;
+  const overall = useMemo(() => recordOf(r.departments), [r.departments]); // the whole organisation or campaign
   const pinned = pick && !dq; // "All departments" leads every page
   const [deptBox, deptFit] = useFitRows(ROW_H);
   const deptSize = Math.max(1, deptFit - (pinned ? 1 : 0));
@@ -146,13 +163,13 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
           title="Departments"
           tools={b.departments.length > 8 ? <Find value={view.deptQ} onChange={(deptQ) => setView({ ...view, deptQ, deptPage: 0 })} label="Find a department" isDark={isDark} /> : null}
         >
-          <Heads cols={DEPT_COLS}><span>Department</span><span>People</span><span>{VALUE_HEAD[b.kind]}</span></Heads>
+          <Heads cols={DEPT_COLS}><span>Department</span><span>{VALUE_HEAD[b.kind]}</span><span style={mid}>Health</span></Heads>
           <div ref={deptBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {pinned && (
               <button type="button" data-bp-detail-dept="" onClick={() => pickDept(null)} title={`${count(b.people.length)} of ${count(everyone)} people`} style={row(!view.dept, false, true)}>
                 <span style={{ minWidth: 0, fontSize: 11, fontWeight: 800 }}>All departments</span>
-                <span style={num11}>{count(b.people.length)}</span>
-                <strong style={num11}>{share(b.people.length, everyone)}</strong>
+                <strong style={num11}>{count(b.people.length)}</strong>
+                <span style={{ display: 'flex', justifyContent: 'center' }}><Health of={overall} ink={ink} /></span>
               </button>
             )}
             {deptShown.map((d, i) => {
@@ -161,8 +178,8 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
               return (
                 <Tag key={d.name} {...(pick ? { type: 'button', onClick: () => pickDept(d.name), 'aria-pressed': on } : null)} data-bp-detail-dept={d.name} className={pick ? 'bp-row' : undefined} title={b.kind === 'count' ? `${count(d.value)} of ${count(d.size)} people in ${d.name}` : undefined} style={row(on, d.mark, !pinned && i === 0)}>
                   <span style={{ minWidth: 0, fontSize: 11, fontWeight: d.mark ? 900 : 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                  <span style={num11}>{count(b.kind === 'count' ? d.value : d.size)}</span>
                   <strong style={num11}>{value(d)}</strong>
+                  <span style={{ display: 'flex', justifyContent: 'center' }}><Health of={d} ink={ink} /></span>
                 </Tag>
               );
             })}
@@ -179,10 +196,10 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             label="People"
             tools={<Find value={view.q} onChange={(q) => setView({ ...view, q, page: 0 })} label="Find a person" isDark={isDark} />}
           >
-            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>{close ? 'How close' : 'Stands out'}</span></Heads>
+            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>{record ? 'Their record' : 'Stands out'}</span></Heads>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} note={close ? <Close x={x} how={close} ink={ink} /> : null} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} note={record ? <Record x={x} how={record} ink={ink} /> : null} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />

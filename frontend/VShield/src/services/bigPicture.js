@@ -248,8 +248,6 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     const c = fc.chances.get(x.key);
     x.pDrop = c.down;
     x.pUp = c.up;
-    x.spare = c.spare; // points above the start of their level
-    x.toGo = c.toGo; // points short of the next level
   });
   // how many in each level band, now and at the start of the window
   const standing = GROUPS.map((g) => ({

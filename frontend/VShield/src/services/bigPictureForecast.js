@@ -119,8 +119,7 @@ export function forecast(people, pts, { k = K } = {}) {
     const down = gap < click ? clickRate : gap < clickAndGive ? clickRate * G : 0;
     const toUp = toNextLevel(x.points);
     const up = toUp !== null && toUp <= pts.Reported ? reportRate : 0;
-    // how close they are: points above the start of their level, and short of the next
-    chances.set(x.key, { down, up, clickRate, reportRate, spare: floor === null ? null : gap, toGo: toUp });
+    chances.set(x.key, { down, up, clickRate, reportRate });
     if (down) downs.push(down);
     if (up) ups.push(up);
     const level = levelFor(x.points)?.level ?? 1;

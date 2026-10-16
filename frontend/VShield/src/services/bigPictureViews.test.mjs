@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { bigPicture } from './bigPicture.js';
 import { breakdown, findings } from './bigPictureFindings.js';
-import { departmentsShown, findingPeople, peopleFiltered, peopleShown, verdict } from './bigPictureViews.js';
+import { departmentsShown, findingPeople, health, peopleFiltered, peopleShown, recordOf, verdict } from './bigPictureViews.js';
 import { campaignReport } from './sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber', 'CARE'];
@@ -45,4 +45,21 @@ test('verdict: which way the board moved, in a word', () => {
   assert.equal(at(10, 9).word, 'steady');
   assert.equal(at(0, 0).word, 'steady');
   assert.deepEqual([at(20, 5).up, at(20, 5).down], [0.2, 0.05]);
+});
+
+test('health: reports against clicks, in a word', () => {
+  assert.equal(health({ reported: 20, clicked: 10, emails: 100 }).word, 'Protected');
+  assert.equal(health({ reported: 19, clicked: 10, emails: 100 }).word, 'Holding');
+  assert.equal(health({ reported: 10, clicked: 10, emails: 100 }).word, 'Holding');
+  assert.equal(health({ reported: 9, clicked: 10, emails: 100 }).word, 'Exposed');
+  assert.equal(health({ reported: 0, clicked: 0, emails: 5 }).word, 'Holding', 'nobody clicked, nobody reported');
+  assert.equal(health({ reported: 0, clicked: 0, emails: 0 }), null, 'no emails, no health');
+  const h = health({ reported: 21, clicked: 25, emails: 100 });
+  assert.equal(h.reportRate, 0.21);
+  assert.equal(h.clickRate, 0.25);
+  const r = bigPicture(ITEMS, PEOPLE);
+  const all = health(recordOf(r.departments));
+  const sum = (k) => r.departments.reduce((a, d) => a + d[k], 0);
+  assert.equal(all.reportRate, sum('reported') / sum('emails'));
+  assert.ok(r.departments.every((d) => !d.emails || ['Protected', 'Holding', 'Exposed'].includes(health(d).word)));
 });

@@ -176,12 +176,17 @@ export function findings(r, opts) {
  */
 export function breakdown(r, f) {
   const size = Object.fromEntries(r.departments.map((d) => [d.name, d.people]));
+  // what each department did with its emails, for its health
+  const record = (name) => {
+    const d = r.departments.find((x) => x.name === name);
+    return d ? { reported: d.reported, clicked: d.clicked, emails: d.emails } : { reported: 0, clicked: 0, emails: 0 };
+  };
   if (f.link?.dept) {
     const team = f.link.dept;
     const kind = f.id === 'bestReporters' ? 'rate' : 'points';
     const value = (d) => (kind === 'rate' ? d.reportRate ?? 0 : d.perPerson);
     const departments = r.departments
-      .map((d) => ({ name: d.name, value: value(d), size: d.people, mark: d.name === team }))
+      .map((d) => ({ name: d.name, value: value(d), size: d.people, mark: d.name === team, ...record(d.name) }))
       .sort((a, b) => (f.id === 'worstTeam' ? a.value - b.value : b.value - a.value) || a.name.localeCompare(b.name));
     return { kind, people: r.people.filter((x) => x.dept === team), departments };
   }
@@ -193,7 +198,7 @@ export function breakdown(r, f) {
   const by = {};
   list.forEach((x) => { by[x.dept] = (by[x.dept] || 0) + 1; });
   const departments = Object.entries(by)
-    .map(([name, value]) => ({ name, value, size: size[name] || value, share: value / (size[name] || value), mark: false }))
-    .sort((a, b) => b.share - a.share || b.value - a.value || a.name.localeCompare(b.name));
+    .map(([name, value]) => ({ name, value, size: size[name] || value, share: value / (size[name] || value), mark: false, ...record(name) }))
+    .sort((a, b) => b.value - a.value || b.share - a.share || a.name.localeCompare(b.name));
   return { kind: 'count', people: list, departments };
 }
