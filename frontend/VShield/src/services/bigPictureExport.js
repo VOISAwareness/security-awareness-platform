@@ -59,8 +59,8 @@ export const DEPARTMENT_COLUMNS = Object.freeze([
   { label: 'Hook Rate', value: (d) => d.clickRate, kind: 'pct', width: 11 },
   { label: 'Health', value: (d) => health(d)?.word || '', width: 11 },
   { label: 'Gave details away', value: (d) => d.gave, kind: 'int', width: 11 },
-  { label: 'One click from a level down', value: (d) => d.nearSlip, kind: 'int', width: 13 },
-  { label: 'One report from a level up', value: (d) => d.nearUp, kind: 'int', width: 13 },
+  { label: '1 click to drop', value: (d) => d.nearSlip, kind: 'int', width: 13 },
+  { label: '1 report to climb', value: (d) => d.nearUp, kind: 'int', width: 13 },
 ]);
 
 // The Summary's grid: Measure | Value | Share (or a range) | What it means.
@@ -87,8 +87,8 @@ const head = (title, note) => [{ title }, { note }, { gap: true }];
 /** The full report: one sheet per topic. `scope` names what it covers; people only when `withPeople`. */
 export function reportBook(r, { title, scope, withPeople = false, campaign = null, source = 'Sample data' }) {
   const p = progress(r, { campaign: Boolean(campaign) });
-  const pulse = campaign ? `Campaign Pulse · since ${campaign.started}` : 'Security Pulse · last 6 months';
-  const period = campaign ? 'This campaign' : 'The last 30 days';
+  const pulse = campaign ? `Campaign Pulse · since ${campaign.started}` : `Security Pulse · last ${r.basis.days} days`;
+  const period = campaign ? 'This campaign' : `The last ${r.basis.days} days`;
   const took = r.basis.people;
   const parts = story(r, { campaign: Boolean(campaign) });
   const fc = r.forecast;
@@ -177,8 +177,8 @@ export function reportBook(r, { title, scope, withPeople = false, campaign = nul
         ['Hook Rate', 'The share of emails received that were clicked.'],
         ['Level groups', GROUPS.map((g) => g.label).join(' · ')],
         ['Below zero', 'Fewer than 0 points: more lost to clicks than earned by reporting.'],
-        ['One click from a level down', 'Close enough to the bottom of their level that one more click would drop them a level.'],
-        ['One report from a level up', 'Close enough to the next level that one more report would lift them to it.'],
+        ['1 click to drop', 'Close enough to the bottom of their level that one more click would drop them a level.'],
+        ['1 report to climb', 'Close enough to the next level that one more report would lift them to it.'],
         ['Chance after one more email', "Each person's own click rate (for a level down) or report rate (for a level up), pulled toward everyone's average when their record is short."],
         ['Health', 'Protected: reports at least double the clicks. Holding: reports at least match the clicks. Exposed: more clicks than reports.'],
         ['Likely range', 'If people behave as their record says, the real number lands in this range 9 times out of 10.'],
@@ -196,7 +196,7 @@ export function reportBook(r, { title, scope, withPeople = false, campaign = nul
       measures([
         ['Verdict', VERDICT[p.word], `Improving when Avg Points rose by ${STEADY} or more per person; Declining when it fell by as much; Steady in between.`],
         ['Avg Points now', Math.round(p.to), 'Average points per person today.'],
-        ['Avg Points at the start', Math.round(p.from), campaign ? 'Before this campaign.' : 'Six months ago.'],
+        ['Avg Points at the start', Math.round(p.from), campaign ? 'Before this campaign.' : `${r.basis.days} days ago.`],
         ['Change', { value: Math.round(p.change), kind: 'signed' }, 'Points per person, now against the start.'],
         ['Report Points', { value: Math.round(p.earned), kind: 'signed' }, 'Earned per person by reporting phishing emails.'],
         ['Hook Points', { value: -Math.round(p.lost), kind: 'signed' }, 'Lost per person to clicks and details given away.'],

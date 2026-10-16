@@ -46,8 +46,8 @@ const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${whole(Math.abs(n))}`
 // trend, then the numbers behind it, per person, named as the rest of the
 // app names them (Report Rate, Hook Rate): Avg Points now (and before),
 // Report Points earned by reporting, Hook Points lost to clicks and
-// details given away. Over the last six months for the organisation; from
-// one campaign for it.
+// details given away. Over the organisation's period (30, 60 or 90 days);
+// from one campaign for it.
 function ProgressStrip({ r, campaign, ink, isDark }) {
   const p = progress(r, { campaign });
   const { word, tile } = VERDICT[p.word];
@@ -145,12 +145,34 @@ function summaryText(r, title, campaign) {
   const p = progress(r, { campaign });
   return [
     title,
-    `${campaign ? 'From this campaign' : 'Over the last 6 months'}: ${VERDICT[p.word].word.toLowerCase()}, ${signed(p.change)} points per person.`,
-    `${campaign ? 'In this campaign' : 'In the last 30 days'}: ${share(r.moved.climbed, r.basis.people)} moved up a level, ${share(r.moved.slipped, r.basis.people)} down (${VERDICT[v.word].word.toLowerCase()}).`,
+    `${campaign ? 'From this campaign' : `Over the last ${r.basis.days} days`}: ${VERDICT[p.word].word.toLowerCase()}, ${signed(p.change)} points per person.`,
+    `${campaign ? 'In this campaign' : `In the last ${r.basis.days} days`}: ${share(r.moved.climbed, r.basis.people)} moved up a level, ${share(r.moved.slipped, r.basis.people)} down (${VERDICT[v.word].word.toLowerCase()}).`,
     '',
     'What stands out:',
     ...findings(r, { campaign }).map((f) => `- ${f.value}${f.unit ? ` ${f.unit}` : ''} ${f.headline} (${f.sub}).`),
   ].join('\n');
+}
+
+// The organisation's period: a month, two months or a quarter. The pulse,
+// the story, the lists and the exports all read the window chosen here.
+const PERIODS = [
+  { days: 30, title: 'Monthly' },
+  { days: 60, title: 'Every two months' },
+  { days: 90, title: 'Quarterly' },
+];
+function PeriodPicker({ days, onDays }) {
+  return (
+    <div role="radiogroup" aria-label="Period" data-bp-period style={{ alignSelf: 'flex-start', display: 'inline-flex', gap: 2, padding: 2, borderRadius: 9, background: 'var(--chip)' }}>
+      {PERIODS.map((p) => {
+        const on = p.days === days;
+        return (
+          <button key={p.days} type="button" role="radio" aria-checked={on} data-bp-days={p.days} title={`${p.title}: the last ${p.days} days`} onClick={() => onDays(p.days)} style={{ height: 22, padding: '0 8px', borderRadius: 7, border: 'none', cursor: on ? 'default' : 'pointer', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap', background: on ? '#0F172A' : 'transparent', color: on ? '#FFFFFF' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.18)' : 'none' }}>
+            {p.days} days
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -218,7 +240,7 @@ function ExportMenu({ items }) {
  * Departments) and the Export menu in its corner, and under them a strip
  * saying whether people are improving; below, the story in three parts.
  */
-export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
+export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDays }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
   const { CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK } = shell;
   const scopeKey = campaign ? campaign.id : 'org';
@@ -242,10 +264,11 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const openFinding = (f) => set({ detail: f.id, detailView: { dept: f.link?.dept || null, q: '', page: 0, deptQ: '', deptPage: 0 } });
 
   const parts = story(r, { campaign: Boolean(campaign) });
-  const when = campaign ? 'in this campaign' : 'in the last 30 days';
+  const days = r.basis.days; // the organisation's period; null for a campaign
+  const when = campaign ? 'in this campaign' : `in the last ${days} days`;
   const opened = state.detail ? [...parts.wrong, ...parts.right, ...parts.next].find((f) => f.id === state.detail) : null;
   const deptOpen = tab === 'departments' && canSeePeople && state.depts.open && r.departments.some((d) => d.name === state.depts.open) ? state.depts.open : null;
-  const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
+  const title = campaign ? `The big picture: ${campaign.name}` : `The big picture: the organisation, last ${days} days`;
   const scopeName = campaign ? campaign.name : 'organisation';
   const scopeTitle = campaign ? campaign.name : 'The organisation';
   const file = (...what) => xlsxName('big picture', scopeName, ...what);
@@ -285,7 +308,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   }
   const exportItems = [
     ...here,
-    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(file('report'), reportBook(r, { title: `The Big Picture · ${scopeTitle}`, scope: campaign ? `${campaign.name} · started ${campaign.started}` : 'The organisation · last 30 days', withPeople: canSeePeople, campaign })) },
+    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(file('report'), reportBook(r, { title: `The Big Picture · ${scopeTitle}`, scope: campaign ? `${campaign.name} · started ${campaign.started}` : `The organisation · last ${days} days`, withPeople: canSeePeople, campaign })) },
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(summaryText(r, title, Boolean(campaign))).catch(() => {}) },
   ];
 
@@ -317,9 +340,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
           The big picture
         </div>
         <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{campaign ? campaign.name : 'The organisation'}</div>
-        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>
-          {campaign ? `Started ${campaign.started}` : 'Last 30 days'}
-        </div>
+        {campaign || !onDays
+          ? <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{campaign ? `Started ${campaign.started}` : `Last ${days} days`}</div>
+          : <PeriodPicker days={days} onDays={onDays} />}
       </div>
       <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
         <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
@@ -331,7 +354,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, fontSize: 11, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             <span aria-hidden style={{ width: 3, height: 14, borderRadius: 2, background: 'var(--bp-accent)', flexShrink: 0 }} />
             {campaign ? 'Campaign Pulse' : 'Security Pulse'}
-            <span style={{ fontWeight: 600, color: 'var(--muted)' }}>{campaign ? `· since ${campaign.started}` : '· last 6 months'}</span>
+            <span style={{ fontWeight: 600, color: 'var(--muted)' }}>{campaign ? `· since ${campaign.started}` : `· last ${days} days`}</span>
           </span>
           {toolbar}
         </div>
@@ -396,7 +419,7 @@ export function BigPictureTeaser({ r, onOpen }) {
   return (
     <div data-bp-teaser style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: 16, padding: '14px 16px' }}>
       <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>The big picture</span>
-      <span style={{ ...small, marginTop: 2 }}>The last 30 days on the board</span>
+      <span style={{ ...small, marginTop: 2 }}>The last {r.basis.days} days on the board</span>
       <div style={{ flex: 1, minHeight: 0, maxHeight: 250, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
         {top.map((f) => {
           return (

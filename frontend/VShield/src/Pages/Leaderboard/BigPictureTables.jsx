@@ -70,10 +70,11 @@ export function Pager({ page, pages, total, size, onPage, what = 'people' }) {
 
 // A column heading that sorts its column; again, the other way.
 function SortHead({ label, k, sort, onSort, align = 'left' }) {
+  const justify = { left: 'flex-start', center: 'center', right: 'flex-end' }[align];
   const on = sort.key === k;
   const Icon = sort.dir === 'asc' ? ArrowUp : ArrowDown;
   return (
-    <button type="button" onClick={() => onSort(k)} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'right' ? 'flex-end' : 'flex-start', gap: 3, width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', textAlign: align, ...head, color: on ? 'var(--text)' : 'var(--muted)', lineHeight: 1.2 }}>
+    <button type="button" onClick={() => onSort(k)} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ display: 'flex', alignItems: 'center', justifyContent: justify, gap: 3, width: '100%', padding: 0, border: 'none', background: 'none', cursor: 'pointer', textAlign: align, ...head, color: on ? 'var(--text)' : 'var(--muted)', lineHeight: 1.2 }}>
       {label}
       {on && <Icon size={10} strokeWidth={3} aria-hidden style={{ flexShrink: 0 }} />}
     </button>
@@ -83,10 +84,11 @@ function SortHead({ label, k, sort, onSort, align = 'left' }) {
 
 // A soft chip with a dot in its colour: what stands out, or a chance.
 // `width` gives every chip in a column the same size; what it says sits in
-// its middle.
+// its middle. Its tint lies on the page's own surface, so it reads the same
+// on a selected (tinted) card.
 export function Chip({ color, children, width, title }) {
   return (
-    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, width, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, width, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: `linear-gradient(${wash(color, 0.13)}, ${wash(color, 0.13)}), var(--base)`, fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: color }} />
       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
     </span>
@@ -96,7 +98,7 @@ export function Chip({ color, children, width, title }) {
 // What stands out about a person (standsOut in bigPictureViews.js, as the
 // export says it), on a chip as wide as the longest name, with what it
 // means on hover.
-const FLAG_W = 118;
+const FLAG_W = 128;
 function Flag({ x, ink }) {
   const s = standsOut(x);
   return s ? <Chip color={s.bad ? ink.bad : ink.good} width={FLAG_W} title={s.hint}>{s.text}</Chip> : <span style={small}>—</span>;
@@ -112,14 +114,22 @@ function RankPlate({ n }) {
 // the name, their department, when the list spans departments (`dept`). A
 // card, as on the Leaderboard; `flat` is a plain line, for a pane that is
 // already a box. `noRank` leaves rank out; `center` sets points, change and
-// what stands out in the middle of their columns.
-export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, noRank = false, flat = false, dept = true, center = false }) {
+// what stands out in the middle of their columns. With `onPick`, the card
+// itself picks the person for export (click, Enter or Space): no tick, the
+// card shows it.
+export function PersonRow({ x, ink, cols, rowH = 44, first = false, picked = false, note = null, noRank = false, flat = false, dept = true, center = false, onPick = null }) {
   const level = LEVEL_BY_ID[x.levelId];
   const justify = center ? 'center' : 'flex-start';
   const look = flat ? { borderTop: first ? 'none' : '1px solid var(--hair)', background: picked ? 'var(--bp-soft)' : 'transparent' } : card(picked);
+  const pick = onPick ? {
+    tabIndex: 0,
+    'aria-selected': picked,
+    title: picked ? 'Selected for export: click to leave out' : 'Click to select for export',
+    onClick: onPick,
+    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(); } },
+  } : null;
   return (
-    <div role="row" data-bp-person={x.key} className={flat ? undefined : 'lb-row'} style={{ flexShrink: 0, height: rowH, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', ...look }}>
-      {tick}
+    <div role="row" data-bp-person={x.key} {...pick} className={flat ? undefined : onPick ? 'lb-row bp-pick' : 'lb-row'} style={{ flexShrink: 0, height: rowH, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', ...look, cursor: onPick ? 'pointer' : undefined }}>
       {!noRank && <span style={{ display: 'flex' }}><RankPlate n={x.rank} /></span>}
       <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <span title={level ? rankName(level) : undefined} style={{ flexShrink: 0, display: 'grid', placeItems: 'center', width: 26 }}>{level && <LevelBadge level={level} size={26} tilt={false} decorative />}</span>
@@ -137,9 +147,10 @@ export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false,
   );
 }
 
-// tick, rank, the person, points, change, what stands out: spread across the
-// width so no side is left empty, each read from its left
-const PEOPLE_COLS = '18px 56px minmax(0,2.2fr) minmax(92px,0.9fr) minmax(72px,0.7fr) minmax(170px,1.3fr)';
+// rank and the person on the left, taking the room; points, change and
+// what stands out at set widths against the right edge, each in the middle
+// of its column under its name (as inside a finding)
+const PEOPLE_COLS = '56px minmax(0,1fr) 88px 72px 140px';
 const ROW_H = 46;
 
 /**
@@ -158,13 +169,9 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
   const change = (patch) => onView({ ...view, page: 0, ...patch });
   const onSort = (key) => change({ sort: { key, dir: view.sort.key === key && view.sort.dir === 'asc' ? 'desc' : 'asc' } });
 
-  const pagePicked = shown.length > 0 && shown.every((x) => selected.has(x.key));
+  // nothing selected: Export takes everyone shown; click cards to take only them
   const allPicked = rows.length > 0 && rows.every((x) => selected.has(x.key));
-  const togglePage = () => {
-    const next = new Set(selected);
-    shown.forEach((x) => (pagePicked ? next.delete(x.key) : next.add(x.key)));
-    onSelected(next);
-  };
+  const link = { border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, color: 'var(--text)', textDecoration: 'underline' };
   const toggle = (key) => {
     const next = new Set(selected);
     if (next.has(key)) next.delete(key); else next.add(key);
@@ -189,32 +196,29 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
           <option value="all">All levels</option>
           {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.brief}</option>)}
         </select>
-        <span style={{ marginLeft: 'auto', ...small, whiteSpace: 'nowrap' }}>
+        <span data-bp-picked style={{ marginLeft: 'auto', ...small, whiteSpace: 'nowrap' }}>
           {selected.size > 0
-            ? <><strong style={{ color: 'var(--text)' }}>{count(selected.size)}</strong> selected · <button type="button" onClick={() => onSelected(new Set())} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, textDecoration: 'underline' }}>Clear</button></>
-            : 'Tick people to export only them'}
+            ? <>
+                <strong style={{ color: 'var(--text)' }}>{count(selected.size)}</strong> selected
+                {!allPicked && <> · <button type="button" data-bp-select-all onClick={() => onSelected(new Set([...selected, ...rows.map((x) => x.key)]))} style={link}>Select all {count(rows.length)}</button></>}
+                {' · '}<button type="button" data-bp-clear onClick={() => onSelected(new Set())} style={link}>Clear</button>
+              </>
+            : 'Click people to export only them'}
         </span>
       </div>
 
-      {pagePicked && !allPicked && rows.length > shown.length && (
-        <div style={{ flexShrink: 0, ...small, fontSize: 10, padding: '6px 12px', borderRadius: 9, background: 'var(--bp-soft)', color: 'var(--text)' }}>
-          All {shown.length} on this page are selected. <button type="button" data-bp-select-all onClick={() => onSelected(new Set([...selected, ...rows.map((x) => x.key)]))} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontSize: 10, fontWeight: 800, color: 'var(--text)', textDecoration: 'underline' }}>Select all {count(rows.length)} that match</button>
-        </div>
-      )}
-
       <div role="table" aria-label="People" aria-rowcount={rows.length} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: PEOPLE_COLS, alignItems: 'center', gap: 12, padding: '0 13px 8px' }}>
-          <Tick checked={pagePicked} mixed={shown.some((x) => selected.has(x.key))} onChange={togglePage} label="Select everyone on this page" />
           <SortHead label="Rank" k="rank" sort={view.sort} onSort={onSort} />
           <span style={head}>Person</span>
-          <SortHead label="Points" k="points" sort={view.sort} onSort={onSort} />
-          <SortHead label="Change" k="change" sort={view.sort} onSort={onSort} />
-          <span style={head}>Stands out</span>
+          <SortHead label="Points" k="points" sort={view.sort} onSort={onSort} align="center" />
+          <SortHead label="Change" k="change" sort={view.sort} onSort={onSort} align="center" />
+          <span style={{ ...head, textAlign: 'center' }}>Stands out</span>
         </div>
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
           {shown.map((x) => (
-            <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} dept={view.dept === 'all'} picked={selected.has(x.key)} tick={<Tick checked={selected.has(x.key)} onChange={() => toggle(x.key)} label={`Select ${x.name || x.key}`} />} />
+            <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} center dept={view.dept === 'all'} picked={selected.has(x.key)} onPick={() => toggle(x.key)} />
           ))}
         </div>
         <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} />
@@ -302,7 +306,7 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
   );
 }
 
-const DEPT_PEOPLE_COLS = '56px minmax(0,2.2fr) minmax(92px,0.9fr) minmax(72px,0.7fr) minmax(170px,1.3fr)';
+const DEPT_PEOPLE_COLS = PEOPLE_COLS;
 // what the department's row said, kept in its header
 const DEPT_STATS = [
   ['People', (d) => count(d.people)],
@@ -363,11 +367,11 @@ export function DepartmentPeople({ r, name, view, onView, onBack, isDark, ink })
       </div>
       <div role="table" aria-label={`People in ${name}`} aria-rowcount={rows.length} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_PEOPLE_COLS, alignItems: 'center', gap: 12, padding: '0 13px 8px', ...head }}>
-          <span>Rank</span><span>Person</span><span>Points</span><span>Change</span><span>Stands out</span>
+          <span>Rank</span><span>Person</span><span style={{ textAlign: 'center' }}>Points</span><span style={{ textAlign: 'center' }}>Change</span><span style={{ textAlign: 'center' }}>Stands out</span>
         </div>
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
-          {shown.map((x) => <PersonRow key={x.key} x={x} ink={ink} cols={DEPT_PEOPLE_COLS} rowH={ROW_H} dept={false} />)}
+          {shown.map((x) => <PersonRow key={x.key} x={x} ink={ink} cols={DEPT_PEOPLE_COLS} rowH={ROW_H} center dept={false} />)}
         </div>
         <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} />
       </div>

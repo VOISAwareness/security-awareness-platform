@@ -83,7 +83,7 @@ const FONT_IMPORT = `
   .bp-finding .bp-go svg { transition: transform .2s ease; }
   .bp-finding:hover .bp-go svg { transform: translateX(3px); }
   .bp-finding:hover .bp-go { color: var(--text) !important; }
-  .bp-finding:focus-visible, .bp-row:focus-visible, .bp-link:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .bp-finding:focus-visible, .bp-row:focus-visible, .bp-link:focus-visible, .bp-pick:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .bp-link:hover { text-decoration: underline; }
 
   /* Badges: lift on hover; rows lift a little too */
@@ -189,11 +189,12 @@ const LURES = [
 const REGIONS = ['EMEA', 'APAC', 'Americas'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// 42 more so the rail has a realistic 50 ongoing campaigns to scroll through.
+// 42 more so the rail has a realistic 50 ongoing campaigns to scroll through,
+// one every two days back over the quarter, so 30, 60 and 90 days differ.
 const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_, k) => {
   const [lure, type] = LURES[k % LURES.length];
   const region = REGIONS[Math.floor(k / LURES.length)];
-  const started = new Date(Date.UTC(2026, 8, 22 - k));
+  const started = new Date(Date.UTC(2026, 8, 22 - 2 * k));
   const total = 600 + ((k * 397) % 2600);
   return {
     id: `CMP-${(((k + 1) * 2654435761) >>> 0).toString(16).slice(0, 6)}`,
@@ -792,6 +793,7 @@ const Leaderboard = () => {
   const [pickedView, setView] = useState('global'); // 'global' | 'campaign' | 'reports'
   const view = (pickedView === 'campaign' && canCampaigns) || (pickedView === 'reports' && canReports) ? pickedView : 'global';
   const [pictureOf, setPictureOf] = useState('org'); // The Big Picture: 'org' or a campaign id
+  const [pictureDays, setPictureDays] = useState(30); // the organisation's period: 30, 60 or 90 days
   const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
@@ -833,8 +835,8 @@ const Leaderboard = () => {
     const people = [top.first, top.second, top.third, ...rows]
       .filter((p) => p && p.points !== null && p.points !== undefined)
       .map((p) => ({ key: p.email || `${p.name}|${p.rank}`, name: p.name, email: p.email || '', dept: p.dept, points: Number(p.points) }));
-    return bigPicture(pictureItems, people, { rules: rules.points });
-  }, [canReports, pictureItems, globalBoard, rules.points]);
+    return bigPicture(pictureItems, people, { days: pictureDays, rules: rules.points });
+  }, [canReports, pictureItems, globalBoard, rules.points, pictureDays]);
   const pictureCampaign = CAMPAIGNS.find((c) => c.id === pictureOf) || null;
   const campaignPicture = useMemo(() => {
     if (!pictureCampaign || view !== 'reports') return null;
@@ -1065,7 +1067,7 @@ const Leaderboard = () => {
             {view === 'reports' && (
               <CampaignList
                 label="The big picture of"
-                org={{ title: 'The organisation', sub: 'Last 30 days, everyone on the board', listLabel: 'Or one campaign' }}
+                org={{ title: 'The organisation', sub: `Last ${pictureDays} days, everyone on the board`, listLabel: 'Or one campaign' }}
                 campaigns={CAMPAIGNS}
                 selected={pictureOf}
                 onSelect={setPictureOf}
@@ -1083,6 +1085,7 @@ const Leaderboard = () => {
               isDark={isDark}
               canSeePeople={canSeePeople}
               shell={{ CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK }}
+              onDays={setPictureDays}
             />
           )}
 

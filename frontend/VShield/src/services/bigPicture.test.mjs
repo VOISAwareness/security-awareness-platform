@@ -112,3 +112,11 @@ test('history: today’s points and every dated change, for whether people are i
   const changed = r.people.reduce((a, x) => a + x.change, 0);
   assert.equal(inWindow, changed);
 });
+
+test('the organisation over 30, 60 or 90 days: a longer period takes in more campaigns', () => {
+  const [a, b, c] = [30, 60, 90].map((days) => bigPicture(ITEMS, PEOPLE, { days }));
+  assert.deepEqual([a, b, c].map((r) => r.basis.days), [30, 60, 90]);
+  assert.ok(a.basis.campaigns <= b.basis.campaigns && b.basis.campaigns <= c.basis.campaigns);
+  const emails = (r) => r.people.reduce((n, x) => n + x.campaigns, 0) / r.people.length;
+  assert.ok(emails(c) >= emails(a), 'about three emails a month each, so more over a quarter');
+});
