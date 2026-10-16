@@ -50,7 +50,7 @@ export function Pager({ page, pages, total, size, onPage, what = 'people' }) {
   const cell = (on) => ({ minWidth: 26, height: 26, padding: '0 6px', borderRadius: 8, border: on ? 'none' : '1px solid var(--hair)', background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', fontVariantNumeric: 'tabular-nums' });
   return (
     <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 10, borderTop: '1px solid var(--hair)' }}>
-      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total === 1 && what === 'people' ? 'person' : what}</span>
+      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total !== 1 ? what : what === 'people' ? 'person' : what.replace(/s$/, '')}</span>
       {pages > 1 && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button type="button" aria-label="Previous page" disabled={page === 0} onClick={() => onPage(page - 1)} style={{ ...cell(false), opacity: page === 0 ? 0.4 : 1 }}><ChevronLeft size={12} strokeWidth={2.8} /></button>
@@ -81,19 +81,23 @@ function SortHead({ label, k, sort, onSort, align = 'left' }) {
 
 
 // A soft chip with a dot in its colour: what stands out, or a chance.
-export function Chip({ color, children }) {
+// `width` gives every chip in a column the same size.
+export function Chip({ color, children, width, title }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: color }} />
       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
     </span>
   );
 }
 
-// What stands out about a person (standsOut in bigPictureViews.js, as the export says it).
+// What stands out about a person (standsOut in bigPictureViews.js, as the
+// export says it), on a chip as wide as the longest name, with what it
+// means on hover.
+const FLAG_W = 118;
 function Flag({ x, ink }) {
   const s = standsOut(x);
-  return s ? <Chip color={s.bad ? ink.bad : ink.good}>{s.text}</Chip> : <span style={small}>—</span>;
+  return s ? <Chip color={s.bad ? ink.bad : ink.good} width={FLAG_W} title={s.hint}>{s.text}</Chip> : <span style={small}>—</span>;
 }
 
 // A rank on a plate, as on the Leaderboard.
@@ -217,7 +221,7 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
 // The departments table: [key, heading, how to show it].
 const DEPT_FIELDS = [
   ['people', 'People', (d) => count(d.people)],
-  ['perPerson', 'Points each', null],
+  ['perPerson', 'Points each', (d) => signed(d.perPerson)],
   ['belowZeroShare', 'Below zero', (d) => share(d.belowZero, d.people)],
   ['slippedShare', 'Slipped', (d) => share(d.slipped, d.tookPart)],
   ['reportRate', 'Reported', (d) => pc(d.reportRate)],
@@ -230,15 +234,13 @@ const D_ROW_H = 44;
  * Set of department names; `onOpen(name)` (admins only) opens its people,
  * from anywhere on the row but its checkbox.
  */
-export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark, ink }) {
+export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark }) {
   const rows = useMemo(() => departmentsShown(r, view), [r, view]);
   const [box, size] = useFitRows(D_ROW_H, 3, ROW_GAP);
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const page = Math.min(view.page || 0, pages - 1);
   const shown = rows.slice(page * size, (page + 1) * size);
-  const maxPer = Math.max(1, ...r.departments.map((d) => Math.abs(d.perPerson)));
-  const twoWay = r.departments.some((d) => d.perPerson < 0) && r.departments.some((d) => d.perPerson > 0); // else the bars start at the left
-  const cols = `18px minmax(0,1.7fr) minmax(52px,0.5fr) minmax(130px,1.1fr) repeat(4, minmax(62px,0.6fr))${onOpen ? ' 16px' : ''}`;
+  const cols = `18px minmax(0,1.7fr) repeat(6, minmax(62px,0.6fr))${onOpen ? ' 16px' : ''}`;
   const change = (patch) => onView({ ...view, page: 0, ...patch });
   const sortBy = (key) => change({ sort: { key, dir: view.sort.key === key && view.sort.dir === 'asc' ? 'desc' : 'asc' } });
   const allPicked = rows.length > 0 && rows.every((d) => selected.has(d.name));
@@ -281,17 +283,9 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
                 {onOpen
                   ? <button type="button" data-bp-dept-open={d.name} onClick={(e) => { e.stopPropagation(); onOpen(d.name); }} aria-label={`See the people in ${d.name}`} style={{ minWidth: 0, padding: 0, border: 'none', background: 'none', color: 'var(--text)', textAlign: 'left', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{d.name}</button>
                   : <span style={{ fontSize: 11, fontWeight: 800, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>}
-                {DEPT_FIELDS.map(([k, , show]) => (k === 'perPerson' ? (
-                  <span key={k} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr)', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{signed(d.perPerson)}</span>
-                    <span aria-hidden style={{ position: 'relative', maxWidth: 110, height: 6, borderRadius: 999, background: 'var(--track)' }}>
-                      {twoWay && <span style={{ position: 'absolute', left: '50%', top: -2, bottom: -2, width: 1.5, marginLeft: -0.75, borderRadius: 1, background: 'var(--muted)', opacity: 0.55 }} />}
-                      <span style={{ position: 'absolute', top: 0, bottom: 0, borderRadius: 4, background: d.perPerson >= 0 ? ink.good : ink.bad, ...(!twoWay ? { left: 0 } : d.perPerson >= 0 ? { left: '50%' } : { right: '50%' }), width: `${Math.max(2, (Math.abs(d.perPerson) / maxPer) * (twoWay ? 50 : 100))}%` }} />
-                    </span>
-                  </span>
-                ) : (
-                  <span key={k} style={{ fontSize: 10.5, fontWeight: k === 'people' ? 800 : 600, fontVariantNumeric: 'tabular-nums' }}>{show(d)}</span>
-                )))}
+                {DEPT_FIELDS.map(([k, , show]) => (
+                  <span key={k} style={{ fontSize: 10.5, fontWeight: k === 'people' || k === 'perPerson' ? 800 : 600, fontVariantNumeric: 'tabular-nums' }}>{show(d)}</span>
+                ))}
                 {onOpen && <ChevronRight size={14} strokeWidth={2.4} aria-hidden style={{ justifySelf: 'end', color: 'var(--muted)' }} />}
               </div>
             );
