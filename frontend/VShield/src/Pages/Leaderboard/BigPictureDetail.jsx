@@ -41,25 +41,7 @@ const ROW_H = 42; // one row height in both panes, so their lines meet
 function Heads({ cols, children }) {
   return <div role="row" style={{ flexShrink: 0, height: 30, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderBottom: '1px solid var(--hair)', whiteSpace: 'nowrap', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{children}</div>;
 }
-// A forecast finding's people show their record: what they did with the
-// emails they got, the clicks for a level down, the reports for a level up
-// (their chance is in the export, with the formula). With one email (a
-// campaign), what they did with it.
-const did = (x) => (x.gave ? 'Gave details away' : x.clicked ? 'Clicked' : x.reported ? 'Reported' : 'No action');
-const RECORD = {
-  mayDrop: { text: (x) => `Clicked ${count(x.clicked)} of ${count(x.campaigns)}`, tone: (x) => (x.clicked ? 'bad' : 'steady') },
-  mayClimb: { text: (x) => `Reported ${count(x.reported)} of ${count(x.campaigns)}`, tone: (x) => (x.reported ? 'good' : 'steady') },
-};
-const recordText = (x, how) => (!x.campaigns ? 'No emails yet' : x.campaigns === 1 ? did(x) : how.text(x));
-// the colour says what the words say: clicks red, reports teal, nothing either way grey
-const recordTone = (x, how) => (!x.campaigns ? 'steady' : x.campaigns === 1 ? (x.clicked ? 'bad' : x.reported ? 'good' : 'steady') : how.tone(x));
-const recordHint = (x) => `Got ${count(x.campaigns)} ${x.campaigns === 1 ? 'email' : 'emails'}: reported ${count(x.reported)}, clicked ${count(x.clicked)}${x.gave ? `, gave details away ${count(x.gave)}` : ''}`;
-
-const STEADY_INK = '#94A3B8';
-function Record({ x, how, ink }) {
-  const tone = recordTone(x, how);
-  return <Chip color={tone === 'steady' ? STEADY_INK : ink[tone]} width={128} title={x.campaigns ? recordHint(x) : 'Not sent a phishing email yet'}>{recordText(x, how)}</Chip>;
-}
+const STEADY_INK = '#94A3B8'; // neither good nor bad
 
 // A department's health (health() in bigPictureViews.js): Protected,
 // Holding or Exposed, with its Report and Hook Rates on hover.
@@ -102,7 +84,6 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
   const team = f.link?.dept || null;
-  const record = RECORD[f.link?.show];
   const backRef = useRef(null);
   useEffect(() => { backRef.current?.focus(); }, []);
   useEffect(() => {
@@ -196,10 +177,10 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             label="People"
             tools={<Find value={view.q} onChange={(q) => setView({ ...view, q, page: 0 })} label="Find a person" isDark={isDark} />}
           >
-            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>{record ? 'Their record' : 'Stands out'}</span></Heads>
+            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>Stands out</span></Heads>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} note={record ? <Record x={x} how={record} ink={ink} /> : null} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />
