@@ -83,7 +83,7 @@ const FONT_IMPORT = `
   .bp-finding .bp-go svg { transition: transform .2s ease; }
   .bp-finding:hover .bp-go svg { transform: translateX(3px); }
   .bp-finding:hover .bp-go { color: var(--text) !important; }
-  .bp-finding:focus-visible, .bp-row:focus-visible, .bp-link:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .bp-finding:focus-visible, .bp-row:focus-visible, .bp-link:focus-visible, .bp-pick:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .bp-link:hover { text-decoration: underline; }
 
   /* Badges: lift on hover; rows lift a little too */
