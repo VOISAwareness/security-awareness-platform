@@ -42,7 +42,8 @@ export function Tick({ checked, mixed = false, onChange, label }) {
   return <input ref={ref} type="checkbox" checked={checked} onChange={onChange} aria-label={label} style={{ width: 14, height: 14, margin: 0, cursor: 'pointer', accentColor: 'var(--bp-accent)' }} />;
 }
 
-// "1–12 of 30,000"  ‹ 1 2 3 … 2,500 ›
+// "1–12 of 30,000"  ‹ 1 2 3 … 2,500 ›, always one height (buttons or not),
+// so two pagers side by side line up.
 export function Pager({ page, pages, total, size, onPage, what = 'people' }) {
   const from = total ? page * size + 1 : 0;
   const to = Math.min(total, (page + 1) * size);
@@ -50,7 +51,7 @@ export function Pager({ page, pages, total, size, onPage, what = 'people' }) {
   const cell = (on) => ({ minWidth: 26, height: 26, padding: '0 6px', borderRadius: 8, border: on ? 'none' : '1px solid var(--hair)', background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', fontVariantNumeric: 'tabular-nums' });
   return (
     <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 10, borderTop: '1px solid var(--hair)' }}>
-      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total !== 1 ? what : what === 'people' ? 'person' : what.replace(/s$/, '')}</span>
+      <span style={{ ...small, lineHeight: '26px' }}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total !== 1 ? what : what === 'people' ? 'person' : what.replace(/s$/, '')}</span>
       {pages > 1 && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button type="button" aria-label="Previous page" disabled={page === 0} onClick={() => onPage(page - 1)} style={{ ...cell(false), opacity: page === 0 ? 0.4 : 1 }}><ChevronLeft size={12} strokeWidth={2.8} /></button>
@@ -105,11 +106,12 @@ function RankPlate({ n }) {
   return <span className="vs-rank" style={{ minWidth: 32, height: 24, padding: '0 7px', boxSizing: 'border-box', borderRadius: 8, display: 'inline-grid', placeItems: 'center', fontSize: 11, fontWeight: 800, lineHeight: 1, background: 'var(--plate)', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{num(n)}</span>;
 }
 
-// One person: rank, badge, name with department and level, points, change,
-// and what stands out (or `note`, when the list is about one thing). A card,
-// as on the Leaderboard; `flat` is a plain line, for a pane that is already
-// a box. `noRank` leaves rank out.
-export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, noRank = false, flat = false }) {
+// One person: rank, badge (its level's name on hover), name, points, change,
+// and what stands out (or `note`, when the list is about one thing). Under
+// the name, their department, when the list spans departments (`dept`). A
+// card, as on the Leaderboard; `flat` is a plain line, for a pane that is
+// already a box. `noRank` leaves rank out.
+export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, noRank = false, flat = false, dept = true }) {
   const level = LEVEL_BY_ID[x.levelId];
   const look = flat ? { borderTop: first ? 'none' : '1px solid var(--hair)', background: picked ? 'var(--bp-soft)' : 'transparent' } : card(picked);
   return (
@@ -117,10 +119,10 @@ export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false,
       {tick}
       {!noRank && <span style={{ display: 'flex' }}><RankPlate n={x.rank} /></span>}
       <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        {level ? <LevelBadge level={level} size={26} tilt={false} decorative /> : <span style={{ width: 21 }} />}
+        <span title={level ? rankName(level) : undefined} style={{ flexShrink: 0, display: 'grid', placeItems: 'center', width: 26 }}>{level && <LevelBadge level={level} size={26} tilt={false} decorative />}</span>
         <span style={{ minWidth: 0 }}>
           <span style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name || x.key}</span>
-          <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.dept} · {rankName(level)}</span>
+          {dept && <span style={{ display: 'block', marginTop: 1, ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.dept}</span>}
         </span>
       </span>
       <span style={{ display: 'flex' }}><PointsPlate pts={pts(x.points)} compact /></span>
@@ -209,7 +211,7 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
           {shown.map((x) => (
-            <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} picked={selected.has(x.key)} tick={<Tick checked={selected.has(x.key)} onChange={() => toggle(x.key)} label={`Select ${x.name || x.key}`} />} />
+            <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} dept={view.dept === 'all'} picked={selected.has(x.key)} tick={<Tick checked={selected.has(x.key)} onChange={() => toggle(x.key)} label={`Select ${x.name || x.key}`} />} />
           ))}
         </div>
         <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} />
@@ -362,7 +364,7 @@ export function DepartmentPeople({ r, name, view, onView, onBack, isDark, ink })
         </div>
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
-          {shown.map((x) => <PersonRow key={x.key} x={x} ink={ink} cols={DEPT_PEOPLE_COLS} rowH={ROW_H} />)}
+          {shown.map((x) => <PersonRow key={x.key} x={x} ink={ink} cols={DEPT_PEOPLE_COLS} rowH={ROW_H} dept={false} />)}
         </div>
         <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} />
       </div>
