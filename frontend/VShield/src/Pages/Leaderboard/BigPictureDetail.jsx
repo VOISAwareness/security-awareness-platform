@@ -13,10 +13,11 @@ import { TONE_ART } from './bigPictureArt';
 // panes). Below it,
 // two panes side by side: the departments, each with its share (so a team
 // of 40 and a team of 4,000 compare fairly), and, for admins, the people in
-// whichever department is picked. The department list scrolls and the
-// people come a page at a time, each searchable, so it reads the same at
-// 100 people or 30,000. The same view serves the organisation and a single
-// campaign; the Export menu offers the finding as one file.
+// whichever department is picked. The two panes are built alike (a header,
+// column names, rows of one height, a pager), so their lines meet across the
+// page; both come a page at a time and are searchable, so it reads the same
+// at 100 people or 30,000. The same view serves the organisation and a
+// single campaign; the Export menu offers the finding as one file.
 
 const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
@@ -26,7 +27,15 @@ const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const CHAPTER = { bad: 'Needs attention', good: 'Going well', watch: 'What could happen next' };
 // the person, points, change, and what stands out (or a chance), each read from its left
 const PEOPLE_COLS = 'minmax(0,1.7fr) minmax(84px,0.8fr) minmax(62px,0.6fr) minmax(150px,1.3fr)';
-const P_ROW_H = 42;
+// a department, its number, its bar
+const DEPT_COLS = 'minmax(0,1fr) 64px minmax(48px,0.7fr)';
+const VALUE_HEAD = { count: 'Share', rate: 'Reported', points: 'Points each' };
+const ROW_H = 42; // one row height in both panes, so their lines meet
+
+// A pane's column names, the same height in both panes.
+function Heads({ cols, children }) {
+  return <div role="row" style={{ flexShrink: 0, height: 30, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderBottom: '1px solid var(--hair)', whiteSpace: 'nowrap', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{children}</div>;
+}
 // The forecast findings list each person's own chance, from the formula.
 const CHANCE = { mayDrop: ['pDrop', 'bad', 'of a level down'], mayClimb: ['pUp', 'good', 'of a level up'] };
 
@@ -61,7 +70,7 @@ function Pane({ title, n, children, tools, label }) {
   );
 }
 
-/** `view` is { dept, q, page, deptQ }, kept by the sheet so Export knows it. */
+/** `view` is { dept, q, page, deptQ, deptPage }, kept by the sheet so Export knows it. */
 export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDark, ink, onBack }) {
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
@@ -76,7 +85,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   }, [onBack]);
 
   const people = useMemo(() => findingPeople(b, view, Boolean(team)), [b, view, team]);
-  const [peopleBox, peopleSize] = useFitRows(P_ROW_H);
+  const [peopleBox, peopleSize] = useFitRows(ROW_H);
   const pages = Math.max(1, Math.ceil(people.length / peopleSize));
   const page = Math.min(view.page, pages - 1);
   const shown = people.slice(page * peopleSize, (page + 1) * peopleSize);
@@ -88,9 +97,15 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const depts = dq ? b.departments.filter((d) => d.name.toLowerCase().includes(dq)) : b.departments;
   const pick = !team && canSeePeople; // departments narrow the people
   const everyone = r.people.length;
+  const pinned = pick && !dq; // "All departments" leads every page
+  const [deptBox, deptFit] = useFitRows(ROW_H);
+  const deptSize = Math.max(1, deptFit - (pinned ? 1 : 0));
+  const deptPages = Math.max(1, Math.ceil(depts.length / deptSize));
+  const deptPage = Math.min(view.deptPage || 0, deptPages - 1);
+  const deptShown = depts.slice(deptPage * deptSize, (deptPage + 1) * deptSize);
 
   const pickDept = (name) => setView({ ...view, dept: name, page: 0 });
-  const row = (on, mark) => ({ width: '100%', height: 40, display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr) 44px', alignItems: 'center', gap: 12, padding: '0 14px 0 11px', border: 'none', borderLeft: `3px solid ${on ? 'var(--bp-accent)' : 'transparent'}`, borderBottom: '1px solid var(--hair)', background: on || mark ? 'var(--bp-soft)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: pick ? 'pointer' : 'default' });
+  const row = (on, mark, first) => ({ width: '100%', flexShrink: 0, height: ROW_H, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: DEPT_COLS, alignItems: 'center', gap: 12, padding: '0 12px 0 9px', border: 'none', borderLeft: `3px solid ${on ? 'var(--bp-accent)' : 'transparent'}`, borderTop: first ? 'none' : '1px solid var(--hair)', background: on || mark ? 'var(--bp-soft)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: pick ? 'pointer' : 'default' });
   const peopleTitle = team ? `People in ${team}` : view.dept ? `People in ${view.dept}` : 'Everyone in this finding';
 
   return (
@@ -109,12 +124,9 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
         <img src={TONE_ART[f.tone]} alt="" width={24} height={24} style={{ flexShrink: 0 }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={eyebrow}>{CHAPTER[f.tone]}</div>
-          {/* "3.8% are below zero" reads as a sentence; "IT Security gained the most ground" takes its "+14 pts each" as a tag */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, minWidth: 0 }}>
-            <span style={{ minWidth: 0, fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {f.unit ? f.headline : `${f.value} ${f.headline}`}
-            </span>
-            {f.unit && <span style={{ flexShrink: 0, height: 20, display: 'inline-flex', alignItems: 'center', padding: '0 8px', borderRadius: 999, background: 'var(--base)', fontSize: 10, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{f.value} {f.unit}</span>}
+          {/* "3.8% are below zero" reads as a sentence; a team's finding ("IT Security gained the most ground") says it without points: each team's are on the departments pane */}
+          <div style={{ marginTop: 2, minWidth: 0, fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {f.unit ? f.headline : `${f.value} ${f.headline}`}
           </div>
         </div>
       </div>
@@ -124,32 +136,36 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
         <Pane
           title="Departments"
           n={b.departments.length}
-          tools={b.departments.length > 8 ? <Find value={view.deptQ} onChange={(deptQ) => setView({ ...view, deptQ })} label="Find a department" isDark={isDark} /> : null}
+          tools={b.departments.length > 8 ? <Find value={view.deptQ} onChange={(deptQ) => setView({ ...view, deptQ, deptPage: 0 })} label="Find a department" isDark={isDark} /> : null}
         >
-          <div className="lb-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            {pick && !dq && (
-              <button type="button" data-bp-detail-dept="" onClick={() => pickDept(null)} title={`${count(b.people.length)} of ${count(everyone)} people`} style={row(!view.dept, false)}>
+          <Heads cols={DEPT_COLS}><span>Department</span><span>{VALUE_HEAD[b.kind]}</span><span /></Heads>
+          <div ref={deptBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {pinned && (
+              <button type="button" data-bp-detail-dept="" onClick={() => pickDept(null)} title={`${count(b.people.length)} of ${count(everyone)} people`} style={row(!view.dept, false, true)}>
                 <span style={{ minWidth: 0, fontSize: 11, fontWeight: 800 }}>All departments</span>
+                <strong style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{share(b.people.length, everyone)}</strong>
                 <span />
-                <strong style={{ fontSize: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{share(b.people.length, everyone)}</strong>
               </button>
             )}
-            {depts.map((d) => {
+            {deptShown.map((d, i) => {
               const Tag = pick ? 'button' : 'div';
               const v = b.kind === 'count' ? d.share : Math.abs(d.value);
               const fill = b.kind === 'points' ? (d.value >= 0 ? ink.good : ink.bad) : tone;
               const on = pick && view.dept === d.name;
               return (
-                <Tag key={d.name} {...(pick ? { type: 'button', onClick: () => pickDept(d.name), 'aria-pressed': on } : null)} data-bp-detail-dept={d.name} className={pick ? 'bp-row' : undefined} title={b.kind === 'count' ? `${count(d.value)} of ${count(d.size)} people` : `${count(d.size)} ${d.size === 1 ? 'person' : 'people'}`} style={row(on, d.mark)}>
+                <Tag key={d.name} {...(pick ? { type: 'button', onClick: () => pickDept(d.name), 'aria-pressed': on } : null)} data-bp-detail-dept={d.name} className={pick ? 'bp-row' : undefined} title={b.kind === 'count' ? `${count(d.value)} of ${count(d.size)} people` : `${count(d.size)} ${d.size === 1 ? 'person' : 'people'}`} style={row(on, d.mark, !pinned && i === 0)}>
                   <span style={{ minWidth: 0, fontSize: 11, fontWeight: d.mark ? 900 : 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                  <span aria-hidden style={{ height: 4, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
+                  <strong style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{value(d)}</strong>
+                  <span aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(2, (v / max) * 100)}%`, borderRadius: 999, background: fill, opacity: team && !d.mark ? 0.45 : 1 }} />
                   </span>
-                  <strong style={{ fontSize: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{value(d)}</strong>
                 </Tag>
               );
             })}
             {!depts.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No department matches.</div>}
+          </div>
+          <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
+            <Pager page={deptPage} pages={deptPages} total={depts.length} size={deptSize} onPage={(p) => setView({ ...view, deptPage: p })} what="departments" />
           </div>
         </Pane>
 
@@ -160,12 +176,10 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             label="People"
             tools={<Find value={view.q} onChange={(q) => setView({ ...view, q, page: 0 })} label="Find a person" isDark={isDark} />}
           >
-            <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: PEOPLE_COLS, gap: 12, padding: '8px 12px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              <span>Person</span><span>Points</span><span>Change</span><span>{chance ? 'Chance after one more email' : 'Stands out'}</span>
-            </div>
+            <Heads cols={PEOPLE_COLS}><span>Person</span><span>Points</span><span>Change</span><span>{chance ? 'Chance after one more email' : 'Stands out'}</span></Heads>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={P_ROW_H} first={i === 0} flat noRank note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />

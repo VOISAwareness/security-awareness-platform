@@ -53,23 +53,25 @@ export function findingPeople(b, view, team = false) {
 }
 
 // What stands out about a person: the first that applies, and whether it is bad news.
+// Short names in two families, zero and levels, so they read alike in a
+// column, each with what it means in full (the lists' tooltip).
 const FLAGS = [
-  [(x) => x.fellBelowZero, 'Fell below zero', true],
-  [(x) => x.belowZero, 'Below zero', true],
-  [(x) => x.nearZero, '1 click from below zero', true],
-  [(x) => x.nearSlip, '1 click from a level down', true],
-  [(x) => x.moved === 'down', 'Slipped a level', true],
-  [(x) => x.gave > 0, 'Gave details away', true],
-  [(x) => x.campaigns > 0 && x.reported === 0, 'Never reported', true],
-  [(x) => x.backAbove, 'Back above zero', false],
-  [(x) => x.moved === 'up', 'Climbed a level', false],
-  [(x) => x.nearUp, '1 report from a level up', false],
+  [(x) => x.fellBelowZero, 'Fell below zero', true, 'Went below zero in the period shown'],
+  [(x) => x.belowZero, 'Below zero', true, 'Their points are below zero'],
+  [(x) => x.nearZero, 'Near zero', true, 'One more click takes them below zero'],
+  [(x) => x.nearSlip, 'Near level down', true, 'One more click takes them down a level'],
+  [(x) => x.moved === 'down', 'Slipped a level', true, 'Went down a level in the period shown'],
+  [(x) => x.gave > 0, 'Gave details', true, 'Gave their details away on a phishing page'],
+  [(x) => x.campaigns > 0 && x.reported === 0, 'Never reported', true, 'Got phishing emails and reported none'],
+  [(x) => x.backAbove, 'Back above zero', false, 'Came back above zero in the period shown'],
+  [(x) => x.moved === 'up', 'Climbed a level', false, 'Went up a level in the period shown'],
+  [(x) => x.nearUp, 'Near level up', false, 'One more report takes them up a level'],
 ];
 
-/** What stands out about a person, as the lists and the export say it: { text, bad }, or null. */
+/** What stands out about a person, as the lists and the export say it: { text, bad, hint }, or null. */
 export function standsOut(x) {
   const f = FLAGS.find(([test]) => test(x));
-  return f ? { text: f[1], bad: f[2] } : null;
+  return f ? { text: f[1], bad: f[2], hint: f[3] } : null;
 }
 
 /**

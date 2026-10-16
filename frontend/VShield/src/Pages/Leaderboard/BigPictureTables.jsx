@@ -50,7 +50,7 @@ export function Pager({ page, pages, total, size, onPage, what = 'people' }) {
   const cell = (on) => ({ minWidth: 26, height: 26, padding: '0 6px', borderRadius: 8, border: on ? 'none' : '1px solid var(--hair)', background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', fontVariantNumeric: 'tabular-nums' });
   return (
     <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 10, borderTop: '1px solid var(--hair)' }}>
-      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total === 1 && what === 'people' ? 'person' : what}</span>
+      <span style={small}><strong style={{ color: 'var(--text)' }}>{num(from)}–{num(to)}</strong> of {num(total)} {total !== 1 ? what : what === 'people' ? 'person' : what.replace(/s$/, '')}</span>
       {pages > 1 && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button type="button" aria-label="Previous page" disabled={page === 0} onClick={() => onPage(page - 1)} style={{ ...cell(false), opacity: page === 0 ? 0.4 : 1 }}><ChevronLeft size={12} strokeWidth={2.8} /></button>
@@ -81,19 +81,23 @@ function SortHead({ label, k, sort, onSort, align = 'left' }) {
 
 
 // A soft chip with a dot in its colour: what stands out, or a chance.
-export function Chip({ color, children }) {
+// `width` gives every chip in a column the same size.
+export function Chip({ color, children, width, title }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: color }} />
       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
     </span>
   );
 }
 
-// What stands out about a person (standsOut in bigPictureViews.js, as the export says it).
+// What stands out about a person (standsOut in bigPictureViews.js, as the
+// export says it), on a chip as wide as the longest name, with what it
+// means on hover.
+const FLAG_W = 118;
 function Flag({ x, ink }) {
   const s = standsOut(x);
-  return s ? <Chip color={s.bad ? ink.bad : ink.good}>{s.text}</Chip> : <span style={small}>—</span>;
+  return s ? <Chip color={s.bad ? ink.bad : ink.good} width={FLAG_W} title={s.hint}>{s.text}</Chip> : <span style={small}>—</span>;
 }
 
 // A rank on a plate, as on the Leaderboard.

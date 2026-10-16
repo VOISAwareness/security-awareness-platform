@@ -226,7 +226,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     scope: scopeKey,
     tab: 'overview',
     detail: null, // the finding opened, by id
-    detailView: { dept: null, q: '', page: 0, deptQ: '' },
+    detailView: { dept: null, q: '', page: 0, deptQ: '', deptPage: 0 },
     people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' }, page: 0 },
     picked: new Set(),
     depts: { sort: { key: 'perPerson', dir: 'asc' }, q: '', page: 0, open: null, openView: { q: '', page: 0 } },
@@ -239,7 +239,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
 
   const openDept = (name) => set({ depts: { ...state.depts, open: name, openView: { q: '', page: 0 } } });
   const closeDept = () => set({ depts: { ...state.depts, open: null } });
-  const openFinding = (f) => set({ detail: f.id, detailView: { dept: f.link?.dept || null, q: '', page: 0, deptQ: '' } });
+  const openFinding = (f) => set({ detail: f.id, detailView: { dept: f.link?.dept || null, q: '', page: 0, deptQ: '', deptPage: 0 } });
 
   const parts = story(r, { campaign: Boolean(campaign) });
   const when = campaign ? 'in this campaign' : 'in the last 30 days';
