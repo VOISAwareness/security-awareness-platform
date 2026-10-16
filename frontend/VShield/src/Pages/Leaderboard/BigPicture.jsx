@@ -7,7 +7,7 @@ import { departmentsShown, findingPeople, peopleFiltered, peopleShown, verdict }
 import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { progress } from '../../services/bigPictureTrend';
 import { FindingDetail } from './BigPictureDetail';
-import { DepartmentTable, PeopleTable } from './BigPictureTables';
+import { DepartmentPeople, DepartmentTable, PeopleTable } from './BigPictureTables';
 import { REPORT_INK } from './reportInk';
 import { TONE_ART, TONE_TINT, VERDICT_ART } from './bigPictureArt';
 
@@ -229,7 +229,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     detailView: { dept: null, q: '', page: 0, deptQ: '' },
     people: { show: 'all', dept: 'all', level: 'all', q: '', sort: { key: 'points', dir: 'asc' }, page: 0 },
     picked: new Set(),
-    depts: { sort: { key: 'perPerson', dir: 'asc' }, q: '', page: 0 },
+    depts: { sort: { key: 'perPerson', dir: 'asc' }, q: '', page: 0, open: null, openView: { q: '', page: 0 } },
     deptPicked: new Set(),
   });
   const [kept, setState] = useState(fresh);
@@ -237,14 +237,14 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const { tab } = state;
   const set = (patch) => setState({ ...state, ...patch });
 
-  const pinpoint = ({ show = 'all', dept = 'all', q = '' }) => {
-    set({ tab: 'people', detail: null, people: { ...state.people, show, dept, level: 'all', q, page: 0 } });
-  };
+  const openDept = (name) => set({ depts: { ...state.depts, open: name, openView: { q: '', page: 0 } } });
+  const closeDept = () => set({ depts: { ...state.depts, open: null } });
   const openFinding = (f) => set({ detail: f.id, detailView: { dept: f.link?.dept || null, q: '', page: 0, deptQ: '' } });
 
   const parts = story(r, { campaign: Boolean(campaign) });
   const when = campaign ? 'in this campaign' : 'in the last 30 days';
   const opened = state.detail ? [...parts.wrong, ...parts.right, ...parts.next].find((f) => f.id === state.detail) : null;
+  const deptOpen = tab === 'departments' && canSeePeople && state.depts.open && r.departments.some((d) => d.name === state.depts.open) ? state.depts.open : null;
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
   const scopeTitle = campaign ? campaign.name : 'The organisation';
@@ -274,7 +274,11 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     const list = ticked ? r.people.filter((x) => state.picked.has(x.key)) : peopleShown(r, state.people);
     here.push({ id: ticked ? 'people-selected' : 'people-shown', Icon: Users, label: ticked ? 'Selected people' : peopleFiltered(state.people) ? 'People shown' : 'Everyone', meta: count(list.length), run: () => downloadXlsx(file(ticked ? 'selected people' : 'people'), peopleBook(list, { scope: scopeTitle, what: ticked ? 'Selected people' : peopleFiltered(state.people) ? 'People shown with your filters' : 'Everyone' })) });
   }
-  if (tab === 'departments') {
+  if (deptOpen) {
+    const list = peopleShown(r, { show: 'all', dept: deptOpen, level: 'all', q: state.depts.openView.q, sort: { key: 'points', dir: 'asc' } });
+    here.push({ id: 'department-people', Icon: Users, label: 'This department', meta: `${deptOpen} · ${count(list.length)}`, run: () => downloadXlsx(file(deptOpen, 'people'), peopleBook(list, { scope: scopeTitle, what: state.depts.openView.q.trim() ? `People in ${deptOpen} matching your search` : `People in ${deptOpen}` })) });
+  }
+  if (tab === 'departments' && !deptOpen) {
     const ticked = state.deptPicked.size > 0;
     const list = ticked ? r.departments.filter((d) => state.deptPicked.has(d.name)) : departmentsShown(r, state.depts);
     here.push({ id: ticked ? 'departments-selected' : 'departments-shown', Icon: Building2, label: ticked ? 'Selected departments' : state.depts.q.trim() ? 'Departments shown' : 'All departments', meta: count(list.length), run: () => downloadXlsx(file(ticked ? 'selected departments' : 'departments'), departmentsBook(list, { scope: scopeTitle, what: ticked ? 'Selected departments' : state.depts.q.trim() ? 'Departments shown with your search' : 'All departments' })) });
@@ -286,9 +290,8 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   ];
 
   // The top-right corner: the tabs, and Export beside them. Inside a finding
-  // the tabs step aside: its own panes split it by department and person,
-  // and the back button leads out.
-  const inFinding = tab === 'overview' && Boolean(opened);
+  // or an opened department the tabs step aside: the back button leads out.
+  const inFinding = (tab === 'overview' && Boolean(opened)) || Boolean(deptOpen);
   const toolbar = (
     <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
       {!inFinding && <div role="tablist" aria-label="The big picture" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: 2, borderRadius: 10, background: 'var(--track)' }}>
@@ -358,7 +361,19 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
         {tab === 'people' && canSeePeople && (
           <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} isDark={isDark} ink={ink} />
         )}
-        {tab === 'departments' && (
+        {deptOpen && (
+          <DepartmentPeople
+            key={`${scopeKey}-${deptOpen}`}
+            r={r}
+            name={deptOpen}
+            view={state.depts.openView}
+            onView={(openView) => set({ depts: { ...state.depts, openView } })}
+            onBack={closeDept}
+            isDark={isDark}
+            ink={ink}
+          />
+        )}
+        {tab === 'departments' && !deptOpen && (
           <DepartmentTable
             r={r}
             view={state.depts}
@@ -366,7 +381,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
             isDark={isDark}
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
-            onPeople={canSeePeople ? (dept) => pinpoint({ dept }) : null}
+            onOpen={canSeePeople ? openDept : null}
             ink={ink}
           />
         )}

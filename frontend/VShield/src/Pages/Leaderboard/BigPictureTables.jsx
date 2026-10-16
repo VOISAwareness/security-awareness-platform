@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, ChevronLeft, ChevronRight, Search, Users } from 'lucide-react';
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
@@ -12,8 +12,9 @@ import { useFitRows } from './useFitRows';
 // department by department. Built for tens of thousands: a page that fits
 // the screen at a time, a few columns that matter (the export has them all),
 // filters and search to find anyone, and selection that can take in every
-// match, not just the page. What they show (and what is selected) is what
-// the one Export menu offers to download.
+// match, not just the page. A department opens, from anywhere on its row
+// but its checkbox, to its people (admins). What they show (and what is
+// selected) is what the one Export menu offers to download.
 
 const num = (n) => Math.round(n).toLocaleString('en-US');
 const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${num(Math.abs(n))}`;
@@ -104,7 +105,8 @@ export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false,
   );
 }
 
-const PEOPLE_COLS = '18px 52px minmax(0,2.2fr) 70px 66px minmax(0,1.3fr)';
+// tick, rank, the person (taking the room), points, change, and what stands out against the right edge
+const PEOPLE_COLS = '18px 52px minmax(0,1fr) 76px 70px minmax(150px,210px)';
 const ROW_H = 44;
 
 /**
@@ -174,12 +176,12 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
           <span style={head}>Person</span>
           <SortHead label="Points" k="points" sort={view.sort} onSort={onSort} />
           <SortHead label="Change" k="change" sort={view.sort} onSort={onSort} />
-          <span style={head}>Stands out</span>
+          <span style={{ ...head, textAlign: 'right' }}>Stands out</span>
         </div>
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
           {shown.map((x, i) => (
-            <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} first={i === 0} picked={selected.has(x.key)} tick={<Tick checked={selected.has(x.key)} onChange={() => toggle(x.key)} label={`Select ${x.name || x.key}`} />} />
+            <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} first={i === 0} end picked={selected.has(x.key)} tick={<Tick checked={selected.has(x.key)} onChange={() => toggle(x.key)} label={`Select ${x.name || x.key}`} />} />
           ))}
         </div>
         <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} />
@@ -201,9 +203,10 @@ const D_ROW_H = 42;
 
 /**
  * Department by department. `view` holds { sort, q, page }; `selected` is a
- * Set of department names; `onPeople(name)` (admins only) opens its people.
+ * Set of department names; `onOpen(name)` (admins only) opens its people,
+ * from anywhere on the row but its checkbox.
  */
-export function DepartmentTable({ r, view, onView, selected, onSelected, onPeople, isDark, ink }) {
+export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark, ink }) {
   const rows = useMemo(() => departmentsShown(r, view), [r, view]);
   const [box, size] = useFitRows(D_ROW_H);
   const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -211,7 +214,7 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onPeopl
   const shown = rows.slice(page * size, (page + 1) * size);
   const maxPer = Math.max(1, ...r.departments.map((d) => Math.abs(d.perPerson)));
   const twoWay = r.departments.some((d) => d.perPerson < 0) && r.departments.some((d) => d.perPerson > 0); // else the bars start at the left
-  const cols = `18px minmax(0,1.8fr) 64px 120px repeat(4, 74px)${onPeople ? ' 72px' : ''}`;
+  const cols = `18px minmax(0,1.8fr) 64px 120px repeat(4, 74px)${onOpen ? ' 16px' : ''}`;
   const change = (patch) => onView({ ...view, page: 0, ...patch });
   const sortBy = (key) => change({ sort: { key, dir: view.sort.key === key && view.sort.dir === 'asc' ? 'desc' : 'asc' } });
   const allPicked = rows.length > 0 && rows.every((d) => selected.has(d.name));
@@ -241,16 +244,19 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onPeopl
           <Tick checked={allPicked} mixed={selected.size > 0} onChange={toggleAll} label="Select every department" />
           <SortHead label="Department" k="name" sort={view.sort} onSort={sortBy} align="left" />
           {DEPT_FIELDS.map(([k, label]) => <SortHead key={k} label={label} k={k} sort={view.sort} onSort={sortBy} />)}
-          {onPeople && <span />}
+          {onOpen && <span />}
         </div>
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No department matches.</div>}
           {shown.map((d, i) => {
             const on = selected.has(d.name);
             return (
-              <div key={d.name} role="row" data-bp-dept={d.name} style={{ height: D_ROW_H, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderTop: i ? '1px solid var(--hair)' : 'none', background: on ? 'var(--bp-soft)' : 'transparent' }}>
-                <Tick checked={on} onChange={() => toggle(d.name)} label={`Select ${d.name}`} />
-                <span style={{ fontSize: 11, fontWeight: 800, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+              <div key={d.name} role="row" data-bp-dept={d.name} className={onOpen ? 'bp-row' : undefined} onClick={onOpen ? () => onOpen(d.name) : undefined} title={onOpen ? `See the people in ${d.name}` : undefined} style={{ height: D_ROW_H, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderTop: i ? '1px solid var(--hair)' : 'none', background: on ? 'var(--bp-soft)' : 'transparent', cursor: onOpen ? 'pointer' : 'default' }}>
+                {/* the checkbox selects; it never opens the department */}
+                <span onClick={(e) => e.stopPropagation()} style={{ display: 'grid', placeItems: 'center' }}><Tick checked={on} onChange={() => toggle(d.name)} label={`Select ${d.name}`} /></span>
+                {onOpen
+                  ? <button type="button" data-bp-dept-open={d.name} onClick={(e) => { e.stopPropagation(); onOpen(d.name); }} aria-label={`See the people in ${d.name}`} style={{ minWidth: 0, padding: 0, border: 'none', background: 'none', color: 'var(--text)', textAlign: 'left', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{d.name}</button>
+                  : <span style={{ fontSize: 11, fontWeight: 800, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>}
                 {DEPT_FIELDS.map(([k, , show]) => (k === 'perPerson' ? (
                   <span key={k} style={{ display: 'grid', gridTemplateColumns: '1fr 40px', alignItems: 'center', gap: 6 }}>
                     <span aria-hidden style={{ position: 'relative', height: 6, borderRadius: 999, background: twoWay ? 'none' : 'var(--track)' }}>
@@ -262,17 +268,72 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onPeopl
                 ) : (
                   <span key={k} style={{ fontSize: 10.5, fontWeight: k === 'people' ? 800 : 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{show(d)}</span>
                 )))}
-                {onPeople && (
-                  <button type="button" onClick={() => onPeople(d.name)} aria-label={`See the people in ${d.name}`} style={{ justifySelf: 'end', display: 'inline-flex', alignItems: 'center', gap: 4, height: 24, padding: '0 8px', borderRadius: 8, border: '1px solid var(--hair)', background: 'transparent', color: 'var(--text)', fontSize: 9.5, fontWeight: 800, cursor: 'pointer' }}>
-                    <Users size={11} strokeWidth={2.6} aria-hidden />People
-                  </button>
-                )}
+                {onOpen && <ChevronRight size={14} strokeWidth={2.4} aria-hidden style={{ justifySelf: 'end', color: 'var(--muted)' }} />}
               </div>
             );
           })}
         </div>
         <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} what="departments" />
       </div>
+    </div>
+  );
+}
+
+const DEPT_PEOPLE_COLS = '52px minmax(0,1fr) 76px 70px minmax(150px,210px)';
+const DP_ROW_H = 42;
+
+/**
+ * One department opened (admins): its people, bottom of the board first,
+ * with the People tab's columns (rank, the person, points, change, what
+ * stands out), searchable and a page at a time. `view` is { q, page }; the
+ * back button (or Esc) returns to the departments.
+ */
+export function DepartmentPeople({ r, name, view, onView, onBack, isDark, ink }) {
+  const rows = useMemo(() => peopleShown(r, { show: 'all', dept: name, level: 'all', q: view.q, sort: { key: 'points', dir: 'asc' } }), [r, name, view.q]);
+  const [box, size] = useFitRows(DP_ROW_H);
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const page = Math.min(view.page || 0, pages - 1);
+  const shown = rows.slice(page * size, (page + 1) * size);
+  const backRef = useRef(null);
+  useEffect(() => { backRef.current?.focus(); }, []);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onBack(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onBack]);
+  return (
+    <div data-bp-dept-people={name} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ flexShrink: 0, height: 52, display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px 0 9px', borderRadius: 14, background: 'var(--plate)' }}>
+        <button ref={backRef} type="button" data-bp-back onClick={onBack} aria-label="Back to the departments" title="Back to the departments (Esc)" className="bp-row" style={{ flexShrink: 0, width: 34, height: 34, display: 'grid', placeItems: 'center', borderRadius: 10, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', cursor: 'pointer' }}>
+          <ChevronLeft size={16} strokeWidth={2.6} aria-hidden />
+        </button>
+        <span aria-hidden style={{ flexShrink: 0, width: 26, height: 26, display: 'grid', placeItems: 'center', borderRadius: 8, background: 'var(--bp-soft)', color: 'var(--bp-ink)' }}><Building2 size={14} strokeWidth={2.4} /></span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...head, letterSpacing: '0.1em' }}>Department</div>
+          <div style={{ marginTop: 2, fontSize: 13, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
+        </div>
+      </div>
+      <section aria-label={`People in ${name}`} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', border: '1px solid var(--hair)', borderRadius: 14, overflow: 'hidden' }}>
+        <header style={{ flexShrink: 0, height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 14px', borderBottom: '1px solid var(--hair)' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--text)' }}>People in {name}</span>
+          <span style={{ height: 18, display: 'inline-flex', alignItems: 'center', padding: '0 7px', borderRadius: 999, background: 'var(--track)', fontSize: 9, fontWeight: 800, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{count(rows.length)}</span>
+          <label style={{ position: 'relative', width: 168, marginLeft: 'auto' }}>
+            <span className="sr-only">Find a person</span>
+            <Search size={12} strokeWidth={2.4} aria-hidden style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+            <input type="search" value={view.q} onChange={(e) => onView({ ...view, q: e.target.value, page: 0 })} placeholder="Find a person" style={{ ...control(isDark), height: 28, width: '100%', boxSizing: 'border-box', paddingLeft: 26, fontSize: 10, fontWeight: 600 }} />
+          </label>
+        </header>
+        <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_PEOPLE_COLS, gap: 12, padding: '8px 12px', borderBottom: '1px solid var(--hair)', ...head }}>
+          <span>Rank</span><span>Person</span><span style={{ textAlign: 'right' }}>Points</span><span style={{ textAlign: 'right' }}>Change</span><span style={{ textAlign: 'right' }}>Stands out</span>
+        </div>
+        <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
+          {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={DEPT_PEOPLE_COLS} rowH={DP_ROW_H} first={i === 0} end />)}
+        </div>
+        <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
+          <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ ...view, page: p })} />
+        </div>
+      </section>
     </div>
   );
 }
