@@ -43,6 +43,8 @@ export const PEOPLE_COLUMNS = Object.freeze([
   { label: 'Stands out', value: (x) => standsOut(x)?.text || '', width: 26 },
   { label: 'Chance of a level down after one more email', value: (x) => x.pDrop || null, kind: 'pct', width: 16 },
   { label: 'Chance of a level up after one more email', value: (x) => x.pUp || null, kind: 'pct', width: 16 },
+  { label: 'Points to spare before a level down', value: (x) => (x.pDrop > 0 ? x.spare : null), kind: 'int', width: 14 },
+  { label: 'Points to go to a level up', value: (x) => (x.pUp > 0 ? x.toGo : null), kind: 'int', width: 14 },
 ]);
 
 export const DEPARTMENT_COLUMNS = Object.freeze([
@@ -179,6 +181,7 @@ export function reportBook(r, { title, scope, withPeople = false, campaign = nul
         ['One click from a level down', 'Close enough to the bottom of their level that one more click would drop them a level.'],
         ['One report from a level up', 'Close enough to the next level that one more report would lift them to it.'],
         ['Chance after one more email', "Each person's own click rate (for a level down) or report rate (for a level up), pulled toward everyone's average when their record is short."],
+        ['Points to spare / to go', 'For those one email from a change: how far they are above the start of their level, or short of the next one.'],
         ['Likely range', 'If people behave as their record says, the real number lands in this range 9 times out of 10.'],
         ['Source', source],
       ],

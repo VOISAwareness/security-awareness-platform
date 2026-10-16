@@ -88,3 +88,16 @@ test('breakdown: a campaign finding works the same way', () => {
   assert.ok(b.people.length > 0);
   assert.equal(b.departments.reduce((a, d) => a + d.value, 0), b.people.length);
 });
+
+test('breakdown: the forecast lists the most likely first, each with how close they are', () => {
+  const r = bigPicture(ITEMS, PEOPLE);
+  for (const [id, field, chance] of [['mayDrop', 'spare', 'pDrop'], ['mayClimb', 'toGo', 'pUp']]) {
+    const f = findings(r).find((x) => x.link?.show === id);
+    if (!f) continue;
+    const { people } = breakdown(r, f);
+    assert.ok(people.length > 0 && people.every((x) => x[chance] > 0 && Number.isFinite(x[field]) && x[field] >= 0), `${id}: everyone has ${field}`);
+    assert.ok(people.every((x, i, l) => i === 0 || l[i - 1][chance] >= x[chance]), `${id}: most likely first`);
+  }
+  const drop = r.people.filter((x) => x.pDrop > 0);
+  assert.ok(drop.every((x) => x.spare < 80), 'one click, or one with details given, takes them below the line');
+});

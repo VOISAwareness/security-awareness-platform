@@ -32,7 +32,8 @@ const PEOPLE_COLS = 'minmax(0,1fr) 88px 72px 140px';
 const mid = { textAlign: 'center' };
 // a department, its people in this finding, and its number
 const DEPT_COLS = 'minmax(0,1fr) 64px 76px';
-const VALUE_HEAD = { count: 'Share', rate: 'Reported', points: 'Points each' };
+// a count finding's number is the share of each department's people in it
+const VALUE_HEAD = { count: '% of dept', rate: 'Reported', points: 'Points each' };
 const num11 = { fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' };
 const ROW_H = 42; // one row height in both panes, so their lines meet
 
@@ -40,12 +41,18 @@ const ROW_H = 42; // one row height in both panes, so their lines meet
 function Heads({ cols, children }) {
   return <div role="row" style={{ flexShrink: 0, height: 30, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', borderBottom: '1px solid var(--hair)', whiteSpace: 'nowrap', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{children}</div>;
 }
-// The forecast findings list each person's own chance, from the formula.
-const CHANCE = { mayDrop: ['pDrop', 'bad', 'of a level down'], mayClimb: ['pUp', 'good', 'of a level up'] };
+// The forecast findings list how close each person is to the line: the
+// points they have to spare before a level down, or still to go to a level
+// up (their chance is in the export, with the formula).
+const pts = (n) => `${count(n)} ${n === 1 ? 'pt' : 'pts'}`;
+const CLOSE = {
+  mayDrop: { tone: 'bad', text: (x) => (x.spare > 0 ? `${pts(x.spare)} to spare` : 'On the line'), hint: 'Points above the start of their level: one more click could take them below it' },
+  mayClimb: { tone: 'good', text: (x) => `${pts(x.toGo)} to go`, hint: 'Points short of the next level: one more report could lift them to it' },
+};
 
-// One person's chance, e.g. "34% of a level down".
-function Chance({ p, color, what }) {
-  return <Chip color={color} width={136}><strong style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{p > 0 && p < 0.005 ? '<1%' : pc(p)}</strong> {what}</Chip>;
+// How close one person is, e.g. "12 pts to spare".
+function Close({ x, how, ink }) {
+  return <Chip color={ink[how.tone]} width={118} title={how.hint}>{how.text(x)}</Chip>;
 }
 
 // A small search box for a pane's header.
@@ -79,7 +86,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const reduce = useReducedMotion();
   const b = useMemo(() => breakdown(r, f), [r, f]);
   const team = f.link?.dept || null;
-  const chance = CHANCE[f.link?.show];
+  const close = CLOSE[f.link?.show];
   const backRef = useRef(null);
   useEffect(() => { backRef.current?.focus(); }, []);
   useEffect(() => {
@@ -172,10 +179,10 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             label="People"
             tools={<Find value={view.q} onChange={(q) => setView({ ...view, q, page: 0 })} label="Find a person" isDark={isDark} />}
           >
-            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>{chance ? 'Chance' : 'Stands out'}</span></Heads>
+            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>{close ? 'How close' : 'Stands out'}</span></Heads>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} note={close ? <Close x={x} how={close} ink={ink} /> : null} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />
