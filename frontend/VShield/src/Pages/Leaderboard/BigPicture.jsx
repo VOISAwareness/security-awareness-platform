@@ -286,9 +286,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
   const here = [];
   if (tab === 'overview' && opened) {
     const b = breakdown(r, opened);
-    const team = Boolean(opened.link?.dept);
-    const list = canSeePeople ? findingPeople(b, state.detailView, team) : null;
-    const narrowed = state.detailView.dept && !team ? state.detailView.dept : null;
+    // the department shown: the one picked, or a team finding's own team
+    const narrowed = state.detailView.dept || opened.link?.dept || null;
+    const list = canSeePeople ? findingPeople(b, { ...state.detailView, dept: narrowed }) : null;
     const howMany = list ? `${count(list.length)} ${list.length === 1 ? 'person' : 'people'}` : `${b.departments.length} depts`;
     here.push({ id: 'finding', Icon: FileSpreadsheet, label: 'This finding', meta: narrowed ? `${narrowed} · ${howMany}` : howMany, run: () => downloadXlsx(file(opened.headline, narrowed), findingBook(opened, b, list, { scope: scopeTitle, chapter: CHAPTER_OF[opened.tone], dept: narrowed })) });
   }
@@ -382,7 +382,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
           </div>
         )}
         {tab === 'people' && canSeePeople && (
-          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} isDark={isDark} ink={ink} />
+          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} onExport={(list) => downloadXlsx(file('selected people'), peopleBook(list, { scope: scopeTitle, what: 'Selected people' }))} isDark={isDark} ink={ink} />
         )}
         {deptOpen && (
           <DepartmentPeople
@@ -405,6 +405,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
             onOpen={canSeePeople ? openDept : null}
+            onExport={(list) => downloadXlsx(file('selected departments'), departmentsBook(list, { scope: scopeTitle, what: 'Selected departments' }))}
           />
         )}
       </div>

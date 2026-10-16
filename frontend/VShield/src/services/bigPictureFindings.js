@@ -188,7 +188,8 @@ export function breakdown(r, f) {
     const departments = r.departments
       .map((d) => ({ name: d.name, value: value(d), size: d.people, mark: d.name === team, ...record(d.name) }))
       .sort((a, b) => (f.id === 'worstTeam' ? a.value - b.value : b.value - a.value) || a.name.localeCompare(b.name));
-    return { kind, people: r.people.filter((x) => x.dept === team), departments };
+    // everyone, so any department's people can be opened; the view starts on the team
+    return { kind, people: r.people, departments };
   }
   const test = f.link?.show ? PEOPLE_FILTERS.find((x) => x.id === f.link.show)?.test : null;
   const list = test ? r.people.filter(test) : [];

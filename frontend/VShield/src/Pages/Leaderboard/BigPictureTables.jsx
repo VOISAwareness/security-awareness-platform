@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, Download, ListChecks, MousePointerClick, Search } from 'lucide-react';
 
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
@@ -35,11 +35,34 @@ const wash = (hex, a) => {
 
 const control = (isDark) => ({ height: 30, borderRadius: 9, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 700, padding: '0 8px', outline: 'none', colorScheme: isDark ? 'dark' : 'light', minWidth: 0 });
 
-// A checkbox that can show "some of these".
-export function Tick({ checked, mixed = false, onChange, label }) {
-  const ref = useRef(null);
-  useEffect(() => { if (ref.current) ref.current.indeterminate = mixed && !checked; }, [mixed, checked]);
-  return <input ref={ref} type="checkbox" checked={checked} onChange={onChange} aria-label={label} style={{ width: 14, height: 14, margin: 0, cursor: 'pointer', accentColor: 'var(--bp-accent)' }} />;
+// What is selected for export, said plainly, with what can be done about
+// it: select every match, clear, or export them now. With nothing selected
+// it says how selecting works (`hint`). `tools` sit at its right end.
+const action = (primary = false) => ({ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 11px', borderRadius: 9, border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'var(--base)', color: primary ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' });
+function SelectionLine({ n, total, noun, allIn, onAll, onClear, onExport, hint, tools = null }) {
+  const word = n === 1 ? noun[0] : noun[1];
+  return (
+    <div data-bp-selection style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 6 }}>
+      {n > 0 ? (
+        <>
+          <span data-bp-picked style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 11px 0 9px', borderRadius: 9, background: 'var(--bp-soft)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap' }}>
+            <CheckCircle2 size={14} strokeWidth={2.6} aria-hidden style={{ color: 'var(--bp-ink)' }} />{count(n)} {word} selected
+          </span>
+          {!allIn && <button type="button" data-bp-select-all onClick={onAll} style={action()}>Select all {count(total)}</button>}
+          <button type="button" data-bp-clear onClick={onClear} style={action()}>Clear</button>
+          <span style={{ marginLeft: 'auto' }} />
+          {tools}
+          <button type="button" data-bp-export-selected onClick={onExport} style={action(true)}><Download size={12} strokeWidth={2.6} aria-hidden />Export {count(n)} {word}</button>
+        </>
+      ) : (
+        <>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...small, fontSize: 10 }}><MousePointerClick size={13} strokeWidth={2.4} aria-hidden />{hint}</span>
+          <span style={{ marginLeft: 'auto' }} />
+          {tools}
+        </>
+      )}
+    </div>
+  );
 }
 
 // "1–12 of 30,000"  ‹ 1 2 3 … 2,500 ›, always one height (buttons or not),
@@ -157,7 +180,7 @@ const ROW_H = 46;
  * Everyone, one by one. `view` holds the filters, sort and page ({ show,
  * dept, level, q, sort, page }); `selected` is a Set of person keys.
  */
-export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink }) {
+export function PeopleTable({ r, view, onView, selected, onSelected, onExport, isDark, ink }) {
   const rows = useMemo(() => peopleShown(r, view), [r, view]);
   const counts = useMemo(() => Object.fromEntries(PEOPLE_FILTERS.map((f) => [f.id, r.people.filter(f.test).length])), [r.people]);
   const depts = useMemo(() => [...new Set(r.people.map((x) => x.dept))].sort(), [r.people]);
@@ -171,7 +194,6 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
 
   // nothing selected: Export takes everyone shown; click cards to take only them
   const allPicked = rows.length > 0 && rows.every((x) => selected.has(x.key));
-  const link = { border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, color: 'var(--text)', textDecoration: 'underline' };
   const toggle = (key) => {
     const next = new Set(selected);
     if (next.has(key)) next.delete(key); else next.add(key);
@@ -196,16 +218,18 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
           <option value="all">All levels</option>
           {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.brief}</option>)}
         </select>
-        <span data-bp-picked style={{ marginLeft: 'auto', ...small, whiteSpace: 'nowrap' }}>
-          {selected.size > 0
-            ? <>
-                <strong style={{ color: 'var(--text)' }}>{count(selected.size)}</strong> selected
-                {!allPicked && <> · <button type="button" data-bp-select-all onClick={() => onSelected(new Set([...selected, ...rows.map((x) => x.key)]))} style={link}>Select all {count(rows.length)}</button></>}
-                {' · '}<button type="button" data-bp-clear onClick={() => onSelected(new Set())} style={link}>Clear</button>
-              </>
-            : 'Click people to export only them'}
-        </span>
       </div>
+
+      <SelectionLine
+        n={selected.size}
+        total={rows.length}
+        noun={['person', 'people']}
+        allIn={allPicked}
+        onAll={() => onSelected(new Set([...selected, ...rows.map((x) => x.key)]))}
+        onClear={() => onSelected(new Set())}
+        onExport={() => onExport(r.people.filter((x) => selected.has(x.key)))}
+        hint="Click people to select them for export · with none selected, Export takes everyone shown"
+      />
 
       <div role="table" aria-label="People" aria-rowcount={rows.length} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: PEOPLE_COLS, alignItems: 'center', gap: 12, padding: '0 13px 8px' }}>
@@ -243,24 +267,31 @@ const D_ROW_H = 44;
  * Set of department names; `onOpen(name)` (admins only) opens its people,
  * from anywhere on the row but its checkbox.
  */
-export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark }) {
+export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, onExport, isDark }) {
   const rows = useMemo(() => departmentsShown(r, view), [r, view]);
   const [box, size] = useFitRows(D_ROW_H, 3, ROW_GAP);
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const page = Math.min(view.page || 0, pages - 1);
   const shown = rows.slice(page * size, (page + 1) * size);
-  const cols = `18px minmax(0,1.7fr) repeat(6, minmax(62px,0.6fr))${onOpen ? ' 16px' : ''}`;
+  // A click opens a department (admins); "Select departments" turns clicks
+  // into selecting, for export, until Done. Without opening, clicks select.
+  const [selecting, setSelecting] = useState(selected.size > 0);
+  const picking = !onOpen || selecting;
+  const cols = `minmax(0,1.7fr) repeat(6, minmax(62px,0.6fr))${onOpen ? ' 16px' : ''}`;
   const change = (patch) => onView({ ...view, page: 0, ...patch });
   const sortBy = (key) => change({ sort: { key, dir: view.sort.key === key && view.sort.dir === 'asc' ? 'desc' : 'asc' } });
   const allPicked = rows.length > 0 && rows.every((d) => selected.has(d.name));
-  const toggleAll = () => onSelected(allPicked ? new Set() : new Set(rows.map((d) => d.name)));
   const toggle = (name) => {
     const next = new Set(selected);
     if (next.has(name)) next.delete(name); else next.add(name);
     onSelected(next);
   };
+  const done = () => { setSelecting(false); onSelected(new Set()); };
+  const modeButton = onOpen && (selecting
+    ? <button type="button" data-bp-select-done onClick={done} style={action()}>Done</button>
+    : <button type="button" data-bp-select-mode onClick={() => setSelecting(true)} style={action()}><ListChecks size={13} strokeWidth={2.4} aria-hidden />Select departments</button>);
   return (
-    <div data-bp-departments style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div data-bp-departments data-bp-selecting={picking ? 'true' : undefined} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
         <label style={{ position: 'relative', width: 200 }}>
           <span className="sr-only">Search departments</span>
@@ -268,15 +299,20 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
           <input type="search" value={view.q} onChange={(e) => change({ q: e.target.value })} placeholder="Find a department" style={{ ...control(isDark), width: '100%', boxSizing: 'border-box', paddingLeft: 28, fontWeight: 600 }} />
         </label>
         <span style={small}>Least ground gained per person first</span>
-        <span style={{ marginLeft: 'auto', ...small, whiteSpace: 'nowrap' }}>
-          {selected.size > 0
-            ? <><strong style={{ color: 'var(--text)' }}>{selected.size}</strong> selected · <button type="button" onClick={() => onSelected(new Set())} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', ...small, fontWeight: 800, textDecoration: 'underline' }}>Clear</button></>
-            : 'Tick departments to export only them'}
-        </span>
       </div>
+      <SelectionLine
+        n={selected.size}
+        total={rows.length}
+        noun={['department', 'departments']}
+        allIn={allPicked}
+        onAll={() => onSelected(new Set([...selected, ...rows.map((d) => d.name)]))}
+        onClear={() => onSelected(new Set())}
+        onExport={() => onExport(r.departments.filter((d) => selected.has(d.name)))}
+        hint={picking ? 'Click departments to select them for export' : 'Click a department to see its people'}
+        tools={modeButton}
+      />
       <div role="table" aria-label="Departments" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 13px 8px' }}>
-          <Tick checked={allPicked} mixed={selected.size > 0} onChange={toggleAll} label="Select every department" />
           <SortHead label="Department" k="name" sort={view.sort} onSort={sortBy} />
           {DEPT_FIELDS.map(([k, label]) => <SortHead key={k} label={label} k={k} sort={view.sort} onSort={sortBy} />)}
           {onOpen && <span />}
@@ -285,17 +321,22 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
           {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No department matches.</div>}
           {shown.map((d) => {
             const on = selected.has(d.name);
+            const select = picking ? {
+              tabIndex: 0,
+              'aria-selected': on,
+              title: on ? 'Selected for export: click to leave out' : 'Click to select for export',
+              onClick: () => toggle(d.name),
+              onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(d.name); } },
+            } : { onClick: () => onOpen(d.name), title: `See the people in ${d.name}` };
             return (
-              <div key={d.name} role="row" data-bp-dept={d.name} className="lb-row" onClick={onOpen ? () => onOpen(d.name) : undefined} title={onOpen ? `See the people in ${d.name}` : undefined} style={{ flexShrink: 0, height: D_ROW_H, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', ...card(on), cursor: onOpen ? 'pointer' : 'default' }}>
-                {/* the checkbox selects; it never opens the department */}
-                <span onClick={(e) => e.stopPropagation()} style={{ display: 'grid', placeItems: 'center' }}><Tick checked={on} onChange={() => toggle(d.name)} label={`Select ${d.name}`} /></span>
-                {onOpen
-                  ? <button type="button" data-bp-dept-open={d.name} onClick={(e) => { e.stopPropagation(); onOpen(d.name); }} aria-label={`See the people in ${d.name}`} style={{ minWidth: 0, padding: 0, border: 'none', background: 'none', color: 'var(--text)', textAlign: 'left', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{d.name}</button>
-                  : <span style={{ fontSize: 11, fontWeight: 800, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>}
+              <div key={d.name} role="row" data-bp-dept={d.name} {...select} className={picking ? 'lb-row bp-pick' : 'lb-row'} style={{ flexShrink: 0, height: D_ROW_H, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', ...card(on), cursor: 'pointer' }}>
+                {picking
+                  ? <span style={{ fontSize: 11, fontWeight: 800, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+                  : <button type="button" data-bp-dept-open={d.name} onClick={(e) => { e.stopPropagation(); onOpen(d.name); }} aria-label={`See the people in ${d.name}`} style={{ minWidth: 0, padding: 0, border: 'none', background: 'none', color: 'var(--text)', textAlign: 'left', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{d.name}</button>}
                 {DEPT_FIELDS.map(([k, , show]) => (
                   <span key={k} style={{ fontSize: 10.5, fontWeight: k === 'people' || k === 'perPerson' ? 800 : 600, fontVariantNumeric: 'tabular-nums' }}>{show(d)}</span>
                 ))}
-                {onOpen && <ChevronRight size={14} strokeWidth={2.4} aria-hidden style={{ justifySelf: 'end', color: 'var(--muted)' }} />}
+                {onOpen && (picking ? <span /> : <ChevronRight size={14} strokeWidth={2.4} aria-hidden style={{ justifySelf: 'end', color: 'var(--muted)' }} />)}
               </div>
             );
           })}

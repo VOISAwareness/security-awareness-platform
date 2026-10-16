@@ -63,3 +63,13 @@ test('health: reports against clicks, in a word', () => {
   assert.equal(all.reportRate, sum('reported') / sum('emails'));
   assert.ok(r.departments.every((d) => !d.emails || ['Protected', 'Holding', 'Exposed'].includes(health(d).word)));
 });
+
+test('findingPeople: a team finding opens on its team, and on any other department', () => {
+  const f = findings(R).find((x) => x.link?.dept);
+  const b = breakdown(R, f);
+  const team = f.link.dept;
+  const other = b.departments.find((d) => d.name !== team).name;
+  assert.ok(findingPeople(b, { dept: team, q: '' }).every((x) => x.dept === team));
+  assert.equal(findingPeople(b, { dept: team, q: '' }).length, R.people.filter((x) => x.dept === team).length);
+  assert.ok(findingPeople(b, { dept: other, q: '' }).every((x) => x.dept === other));
+});
