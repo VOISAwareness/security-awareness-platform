@@ -27,9 +27,10 @@ const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const CHAPTER = { bad: 'Needs attention', good: 'Going well', watch: 'What could happen next' };
 // the person, points, change, and what stands out (or a chance), each read from its left
 const PEOPLE_COLS = 'minmax(0,1.7fr) minmax(84px,0.8fr) minmax(62px,0.6fr) minmax(150px,1.3fr)';
-// a department, its number, its bar
-const DEPT_COLS = 'minmax(0,1fr) 64px minmax(48px,0.7fr)';
+// a department, its people in this finding, and its number
+const DEPT_COLS = 'minmax(0,1fr) 64px 76px';
 const VALUE_HEAD = { count: 'Share', rate: 'Reported', points: 'Points each' };
+const num11 = { fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' };
 const ROW_H = 42; // one row height in both panes, so their lines meet
 
 // A pane's column names, the same height in both panes.
@@ -90,9 +91,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const page = Math.min(view.page, pages - 1);
   const shown = people.slice(page * peopleSize, (page + 1) * peopleSize);
 
-  const tone = f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : isDark ? '#8F88F2' : '#6C63E8'; // indigo, as the hourglass
   const value = (d) => (b.kind === 'count' ? share(d.value, d.size) : b.kind === 'rate' ? pc(d.value) : signed(d.value));
-  const max = Math.max(1e-6, ...b.departments.map((d) => (b.kind === 'count' ? d.share : Math.abs(d.value))));
   const dq = view.deptQ.trim().toLowerCase();
   const depts = dq ? b.departments.filter((d) => d.name.toLowerCase().includes(dq)) : b.departments;
   const pick = !team && canSeePeople; // departments narrow the people
@@ -138,27 +137,23 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
           n={b.departments.length}
           tools={b.departments.length > 8 ? <Find value={view.deptQ} onChange={(deptQ) => setView({ ...view, deptQ, deptPage: 0 })} label="Find a department" isDark={isDark} /> : null}
         >
-          <Heads cols={DEPT_COLS}><span>Department</span><span>{VALUE_HEAD[b.kind]}</span><span /></Heads>
+          <Heads cols={DEPT_COLS}><span>Department</span><span>People</span><span>{VALUE_HEAD[b.kind]}</span></Heads>
           <div ref={deptBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {pinned && (
               <button type="button" data-bp-detail-dept="" onClick={() => pickDept(null)} title={`${count(b.people.length)} of ${count(everyone)} people`} style={row(!view.dept, false, true)}>
                 <span style={{ minWidth: 0, fontSize: 11, fontWeight: 800 }}>All departments</span>
-                <strong style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{share(b.people.length, everyone)}</strong>
-                <span />
+                <span style={num11}>{count(b.people.length)}</span>
+                <strong style={num11}>{share(b.people.length, everyone)}</strong>
               </button>
             )}
             {deptShown.map((d, i) => {
               const Tag = pick ? 'button' : 'div';
-              const v = b.kind === 'count' ? d.share : Math.abs(d.value);
-              const fill = b.kind === 'points' ? (d.value >= 0 ? ink.good : ink.bad) : tone;
               const on = pick && view.dept === d.name;
               return (
-                <Tag key={d.name} {...(pick ? { type: 'button', onClick: () => pickDept(d.name), 'aria-pressed': on } : null)} data-bp-detail-dept={d.name} className={pick ? 'bp-row' : undefined} title={b.kind === 'count' ? `${count(d.value)} of ${count(d.size)} people` : `${count(d.size)} ${d.size === 1 ? 'person' : 'people'}`} style={row(on, d.mark, !pinned && i === 0)}>
+                <Tag key={d.name} {...(pick ? { type: 'button', onClick: () => pickDept(d.name), 'aria-pressed': on } : null)} data-bp-detail-dept={d.name} className={pick ? 'bp-row' : undefined} title={b.kind === 'count' ? `${count(d.value)} of ${count(d.size)} people in ${d.name}` : undefined} style={row(on, d.mark, !pinned && i === 0)}>
                   <span style={{ minWidth: 0, fontSize: 11, fontWeight: d.mark ? 900 : 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                  <strong style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{value(d)}</strong>
-                  <span aria-hidden style={{ height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-                    <span style={{ display: 'block', height: '100%', width: `${Math.max(2, (v / max) * 100)}%`, borderRadius: 999, background: fill, opacity: team && !d.mark ? 0.45 : 1 }} />
-                  </span>
+                  <span style={num11}>{count(b.kind === 'count' ? d.value : d.size)}</span>
+                  <strong style={num11}>{value(d)}</strong>
                 </Tag>
               );
             })}

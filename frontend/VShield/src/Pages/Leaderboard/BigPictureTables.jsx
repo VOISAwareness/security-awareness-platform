@@ -221,7 +221,7 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
 // The departments table: [key, heading, how to show it].
 const DEPT_FIELDS = [
   ['people', 'People', (d) => count(d.people)],
-  ['perPerson', 'Points each', null],
+  ['perPerson', 'Points each', (d) => signed(d.perPerson)],
   ['belowZeroShare', 'Below zero', (d) => share(d.belowZero, d.people)],
   ['slippedShare', 'Slipped', (d) => share(d.slipped, d.tookPart)],
   ['reportRate', 'Reported', (d) => pc(d.reportRate)],
@@ -234,15 +234,13 @@ const D_ROW_H = 44;
  * Set of department names; `onOpen(name)` (admins only) opens its people,
  * from anywhere on the row but its checkbox.
  */
-export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark, ink }) {
+export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark }) {
   const rows = useMemo(() => departmentsShown(r, view), [r, view]);
   const [box, size] = useFitRows(D_ROW_H, 3, ROW_GAP);
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const page = Math.min(view.page || 0, pages - 1);
   const shown = rows.slice(page * size, (page + 1) * size);
-  const maxPer = Math.max(1, ...r.departments.map((d) => Math.abs(d.perPerson)));
-  const twoWay = r.departments.some((d) => d.perPerson < 0) && r.departments.some((d) => d.perPerson > 0); // else the bars start at the left
-  const cols = `18px minmax(0,1.7fr) minmax(52px,0.5fr) minmax(130px,1.1fr) repeat(4, minmax(62px,0.6fr))${onOpen ? ' 16px' : ''}`;
+  const cols = `18px minmax(0,1.7fr) repeat(6, minmax(62px,0.6fr))${onOpen ? ' 16px' : ''}`;
   const change = (patch) => onView({ ...view, page: 0, ...patch });
   const sortBy = (key) => change({ sort: { key, dir: view.sort.key === key && view.sort.dir === 'asc' ? 'desc' : 'asc' } });
   const allPicked = rows.length > 0 && rows.every((d) => selected.has(d.name));
@@ -285,17 +283,9 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
                 {onOpen
                   ? <button type="button" data-bp-dept-open={d.name} onClick={(e) => { e.stopPropagation(); onOpen(d.name); }} aria-label={`See the people in ${d.name}`} style={{ minWidth: 0, padding: 0, border: 'none', background: 'none', color: 'var(--text)', textAlign: 'left', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{d.name}</button>
                   : <span style={{ fontSize: 11, fontWeight: 800, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>}
-                {DEPT_FIELDS.map(([k, , show]) => (k === 'perPerson' ? (
-                  <span key={k} style={{ display: 'grid', gridTemplateColumns: '36px minmax(0,1fr)', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{signed(d.perPerson)}</span>
-                    <span aria-hidden style={{ position: 'relative', maxWidth: 110, height: 6, borderRadius: 999, background: 'var(--track)' }}>
-                      {twoWay && <span style={{ position: 'absolute', left: '50%', top: -2, bottom: -2, width: 1.5, marginLeft: -0.75, borderRadius: 1, background: 'var(--muted)', opacity: 0.55 }} />}
-                      <span style={{ position: 'absolute', top: 0, bottom: 0, borderRadius: 4, background: d.perPerson >= 0 ? ink.good : ink.bad, ...(!twoWay ? { left: 0 } : d.perPerson >= 0 ? { left: '50%' } : { right: '50%' }), width: `${Math.max(2, (Math.abs(d.perPerson) / maxPer) * (twoWay ? 50 : 100))}%` }} />
-                    </span>
-                  </span>
-                ) : (
-                  <span key={k} style={{ fontSize: 10.5, fontWeight: k === 'people' ? 800 : 600, fontVariantNumeric: 'tabular-nums' }}>{show(d)}</span>
-                )))}
+                {DEPT_FIELDS.map(([k, , show]) => (
+                  <span key={k} style={{ fontSize: 10.5, fontWeight: k === 'people' || k === 'perPerson' ? 800 : 600, fontVariantNumeric: 'tabular-nums' }}>{show(d)}</span>
+                ))}
                 {onOpen && <ChevronRight size={14} strokeWidth={2.4} aria-hidden style={{ justifySelf: 'end', color: 'var(--muted)' }} />}
               </div>
             );

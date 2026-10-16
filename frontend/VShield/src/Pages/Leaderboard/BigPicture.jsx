@@ -382,7 +382,6 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
             onOpen={canSeePeople ? openDept : null}
-            ink={ink}
           />
         )}
       </div>
