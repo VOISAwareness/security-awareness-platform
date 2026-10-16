@@ -52,6 +52,26 @@ export function findingPeople(b, view, team = false) {
   return list;
 }
 
+// What stands out about a person: the first that applies, and whether it is bad news.
+const FLAGS = [
+  [(x) => x.fellBelowZero, 'Fell below zero', true],
+  [(x) => x.belowZero, 'Below zero', true],
+  [(x) => x.nearZero, '1 click from below zero', true],
+  [(x) => x.nearSlip, '1 click from a level down', true],
+  [(x) => x.moved === 'down', 'Slipped a level', true],
+  [(x) => x.gave > 0, 'Gave details away', true],
+  [(x) => x.campaigns > 0 && x.reported === 0, 'Never reported', true],
+  [(x) => x.backAbove, 'Back above zero', false],
+  [(x) => x.moved === 'up', 'Climbed a level', false],
+  [(x) => x.nearUp, '1 report from a level up', false],
+];
+
+/** What stands out about a person, as the lists and the export say it: { text, bad }, or null. */
+export function standsOut(x) {
+  const f = FLAGS.find(([test]) => test(x));
+  return f ? { text: f[1], bad: f[2] } : null;
+}
+
 /**
  * Which way the board moved, in a word, from the share of people who took
  * part that moved up a level against the share that moved down:

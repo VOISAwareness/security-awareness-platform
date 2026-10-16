@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronDown, ChevronRight, Copy, Download, FileSpreadsheet, FileText, LayoutGrid, Minus, Users } from 'lucide-react';
 
 import { breakdown, count, findings, share, story } from '../../services/bigPictureFindings';
-import { departmentsCsv, findingCsv, peopleCsv, reportCsv } from '../../services/bigPictureExport';
+import { departmentsBook, findingBook, peopleBook, reportBook } from '../../services/bigPictureExport';
 import { departmentsShown, findingPeople, peopleFiltered, peopleShown, verdict } from '../../services/bigPictureViews';
-import { csvName, downloadCsv } from '../../services/csv';
+import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { progress } from '../../services/bigPictureTrend';
 import { FindingDetail } from './BigPictureDetail';
 import { DepartmentTable, PeopleTable } from './BigPictureTables';
@@ -86,6 +86,7 @@ function ProgressStrip({ r, campaign, ink, isDark }) {
 }
 
 // The three parts of the story, in reading order.
+const CHAPTER_OF = { bad: 'Needs attention', good: 'Going well', watch: 'What could happen next' };
 const CHAPTERS = [
   { id: 'wrong', title: 'Needs attention', sub: (when) => `What went wrong ${when}`, tone: 'bad' },
   { id: 'right', title: 'Going well', sub: (when) => `What went right ${when}`, tone: 'good' },
@@ -246,7 +247,8 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
   const opened = state.detail ? [...parts.wrong, ...parts.right, ...parts.next].find((f) => f.id === state.detail) : null;
   const title = campaign ? `The big picture: ${campaign.name}` : 'The big picture: the organisation, last 30 days';
   const scopeName = campaign ? campaign.name : 'organisation';
-  const file = (...what) => csvName('big picture', scopeName, ...what);
+  const scopeTitle = campaign ? campaign.name : 'The organisation';
+  const file = (...what) => xlsxName('big picture', scopeName, ...what);
   const tokens = isDark
     ? { '--bp-accent': '#5EEAD4', '--bp-soft': 'rgba(94,234,212,0.14)', '--bp-ink': '#5EEAD4' }
     : { '--bp-accent': '#0F766E', '--bp-soft': '#D5F5F0', '--bp-ink': '#0F766E' };
@@ -265,21 +267,21 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell }) {
     const list = canSeePeople ? findingPeople(b, state.detailView, team) : null;
     const narrowed = state.detailView.dept && !team ? state.detailView.dept : null;
     const howMany = list ? `${count(list.length)} ${list.length === 1 ? 'person' : 'people'}` : `${b.departments.length} depts`;
-    here.push({ id: 'finding', Icon: FileSpreadsheet, label: 'This finding', meta: narrowed ? `${narrowed} · ${howMany}` : howMany, run: () => downloadCsv(file(opened.headline, narrowed), findingCsv(opened, b, list)) });
+    here.push({ id: 'finding', Icon: FileSpreadsheet, label: 'This finding', meta: narrowed ? `${narrowed} · ${howMany}` : howMany, run: () => downloadXlsx(file(opened.headline, narrowed), findingBook(opened, b, list, { scope: scopeTitle, chapter: CHAPTER_OF[opened.tone], dept: narrowed })) });
   }
   if (tab === 'people' && canSeePeople) {
     const ticked = state.picked.size > 0;
     const list = ticked ? r.people.filter((x) => state.picked.has(x.key)) : peopleShown(r, state.people);
-    here.push({ id: ticked ? 'people-selected' : 'people-shown', Icon: Users, label: ticked ? 'Selected people' : peopleFiltered(state.people) ? 'People shown' : 'Everyone', meta: count(list.length), run: () => downloadCsv(file(ticked ? 'selected people' : 'people'), peopleCsv(list)) });
+    here.push({ id: ticked ? 'people-selected' : 'people-shown', Icon: Users, label: ticked ? 'Selected people' : peopleFiltered(state.people) ? 'People shown' : 'Everyone', meta: count(list.length), run: () => downloadXlsx(file(ticked ? 'selected people' : 'people'), peopleBook(list, { scope: scopeTitle, what: ticked ? 'Selected people' : peopleFiltered(state.people) ? 'People shown with your filters' : 'Everyone' })) });
   }
   if (tab === 'departments') {
     const ticked = state.deptPicked.size > 0;
     const list = ticked ? r.departments.filter((d) => state.deptPicked.has(d.name)) : departmentsShown(r, state.depts);
-    here.push({ id: ticked ? 'departments-selected' : 'departments-shown', Icon: Building2, label: ticked ? 'Selected departments' : state.depts.q.trim() ? 'Departments shown' : 'All departments', meta: count(list.length), run: () => downloadCsv(file(ticked ? 'selected departments' : 'departments'), departmentsCsv(list)) });
+    here.push({ id: ticked ? 'departments-selected' : 'departments-shown', Icon: Building2, label: ticked ? 'Selected departments' : state.depts.q.trim() ? 'Departments shown' : 'All departments', meta: count(list.length), run: () => downloadXlsx(file(ticked ? 'selected departments' : 'departments'), departmentsBook(list, { scope: scopeTitle, what: ticked ? 'Selected departments' : state.depts.q.trim() ? 'Departments shown with your search' : 'All departments' })) });
   }
   const exportItems = [
     ...here,
-    { id: 'report', Icon: FileText, label: 'Full report', meta: 'CSV', run: () => downloadCsv(file('report'), reportCsv(r, { title, withPeople: canSeePeople, campaign: Boolean(campaign) })) },
+    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(file('report'), reportBook(r, { title: `The Big Picture · ${scopeTitle}`, scope: campaign ? `${campaign.name} · started ${campaign.started}` : 'The organisation · last 30 days', withPeople: canSeePeople, campaign })) },
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(summaryText(r, title, Boolean(campaign))).catch(() => {}) },
   ];
 
