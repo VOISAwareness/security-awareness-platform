@@ -45,8 +45,8 @@ export function departmentsShown(r, view) {
 }
 
 /** A finding's people (`b` from breakdown()), narrowed to `view.dept` and `view.q`. */
-export function findingPeople(b, view, team = false) {
-  let list = view.dept && !team ? b.people.filter((x) => x.dept === view.dept) : b.people;
+export function findingPeople(b, view) {
+  let list = view.dept ? b.people.filter((x) => x.dept === view.dept) : b.people;
   const q = matches(view.q);
   if (q) list = list.filter(q);
   return list;

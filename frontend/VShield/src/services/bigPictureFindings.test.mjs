@@ -77,7 +77,7 @@ test('breakdown: a team finding marks the team among every department', () => {
   const b = breakdown(r, team);
   assert.equal(b.departments.length, r.departments.length);
   assert.equal(b.departments.filter((d) => d.mark).length, 1);
-  assert.ok(b.people.every((x) => x.dept === team.link.dept));
+  assert.equal(b.people.length, r.people.length, 'everyone, so any department can be opened');
   assert.ok(['points', 'rate'].includes(b.kind));
 });
 

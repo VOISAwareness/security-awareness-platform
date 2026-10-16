@@ -92,7 +92,9 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
     return () => window.removeEventListener('keydown', onKey);
   }, [onBack]);
 
-  const people = useMemo(() => findingPeople(b, view, Boolean(team)), [b, view, team]);
+  // the department whose people are shown: the one picked, or a team finding's own team
+  const picked = view.dept || team;
+  const people = useMemo(() => findingPeople(b, { ...view, dept: picked }), [b, view, picked]);
   const [peopleBox, peopleSize] = useFitRows(ROW_H);
   const pages = Math.max(1, Math.ceil(people.length / peopleSize));
   const page = Math.min(view.page, pages - 1);
@@ -101,10 +103,10 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const value = (d) => (b.kind === 'count' ? count(d.value) : b.kind === 'rate' ? pc(d.value) : signed(d.value));
   const dq = view.deptQ.trim().toLowerCase();
   const depts = dq ? b.departments.filter((d) => d.name.toLowerCase().includes(dq)) : b.departments;
-  const pick = !team && canSeePeople; // departments narrow the people
+  const pick = canSeePeople; // departments narrow the people (a team finding starts on its team)
   const everyone = r.people.length;
   const overall = useMemo(() => recordOf(r.departments), [r.departments]); // the whole organisation or campaign
-  const pinned = pick && !dq; // "All departments" leads every page
+  const pinned = pick && !team && !dq; // "All departments" leads every page (not for a team's finding)
   const [deptBox, deptFit] = useFitRows(ROW_H);
   const deptSize = Math.max(1, deptFit - (pinned ? 1 : 0));
   const deptPages = Math.max(1, Math.ceil(depts.length / deptSize));
@@ -112,8 +114,8 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
   const deptShown = depts.slice(deptPage * deptSize, (deptPage + 1) * deptSize);
 
   const pickDept = (name) => setView({ ...view, dept: name, page: 0 });
-  const row = (on, mark, first) => ({ width: '100%', flexShrink: 0, height: ROW_H, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: DEPT_COLS, alignItems: 'center', gap: 12, padding: '0 12px 0 9px', border: 'none', borderLeft: `3px solid ${on ? 'var(--bp-accent)' : 'transparent'}`, borderTop: first ? 'none' : '1px solid var(--hair)', background: on || mark ? 'var(--bp-soft)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: pick ? 'pointer' : 'default' });
-  const peopleTitle = team ? `People in ${team}` : view.dept ? `People in ${view.dept}` : 'Everyone in this finding';
+  const row = (on, mark, first) => ({ width: '100%', flexShrink: 0, height: ROW_H, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: DEPT_COLS, alignItems: 'center', gap: 12, padding: '0 12px 0 9px', border: 'none', borderLeft: `3px solid ${on ? 'var(--bp-accent)' : 'transparent'}`, borderTop: first ? 'none' : '1px solid var(--hair)', background: on || (mark && !pick) ? 'var(--bp-soft)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: pick ? 'pointer' : 'default' });
+  const peopleTitle = picked ? `People in ${picked}` : 'Everyone in this finding';
 
   return (
     <motion.div
@@ -155,7 +157,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             )}
             {deptShown.map((d, i) => {
               const Tag = pick ? 'button' : 'div';
-              const on = pick && view.dept === d.name;
+              const on = pick && picked === d.name;
               return (
                 <Tag key={d.name} {...(pick ? { type: 'button', onClick: () => pickDept(d.name), 'aria-pressed': on } : null)} data-bp-detail-dept={d.name} className={pick ? 'bp-row' : undefined} title={b.kind === 'count' ? `${count(d.value)} of ${count(d.size)} people in ${d.name}` : undefined} style={row(on, d.mark, !pinned && i === 0)}>
                   <span style={{ minWidth: 0, fontSize: 11, fontWeight: d.mark ? 900 : 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
@@ -180,7 +182,7 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>Stands out</span></Heads>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!picked} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />

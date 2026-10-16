@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, Check, ChevronDown, ChevronRight, Copy, Download, FileSpreadsheet, FileText, LayoutGrid, Minus, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Building2, CalendarDays, Check, ChevronDown, ChevronRight, Copy, Download, FileSpreadsheet, FileText, LayoutGrid, Minus, Users } from 'lucide-react';
 
 import { breakdown, count, findings, share, story } from '../../services/bigPictureFindings';
 import { departmentsBook, findingBook, peopleBook, reportBook } from '../../services/bigPictureExport';
@@ -153,8 +153,9 @@ function summaryText(r, title, campaign) {
   ].join('\n');
 }
 
-// The organisation's period: a month, two months or a quarter. The pulse,
-// the story, the lists and the exports all read the window chosen here.
+// The organisation's period: a month, two months or a quarter, chosen on
+// the top row beside the Security Pulse it sets. The pulse, the story, the
+// lists and the exports all read the window chosen here.
 const PERIODS = [
   { days: 30, title: 'Monthly' },
   { days: 60, title: 'Every two months' },
@@ -162,11 +163,12 @@ const PERIODS = [
 ];
 function PeriodPicker({ days, onDays }) {
   return (
-    <div role="radiogroup" aria-label="Period" data-bp-period style={{ alignSelf: 'flex-start', display: 'inline-flex', gap: 2, padding: 2, borderRadius: 9, background: 'var(--chip)' }}>
+    <div role="radiogroup" aria-label="Period" data-bp-period style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2, padding: 2, borderRadius: 10, background: 'var(--track)' }}>
+      <CalendarDays size={12} strokeWidth={2.4} aria-hidden style={{ margin: '0 4px 0 6px', color: 'var(--muted)' }} />
       {PERIODS.map((p) => {
         const on = p.days === days;
         return (
-          <button key={p.days} type="button" role="radio" aria-checked={on} data-bp-days={p.days} title={`${p.title}: the last ${p.days} days`} onClick={() => onDays(p.days)} style={{ height: 22, padding: '0 8px', borderRadius: 7, border: 'none', cursor: on ? 'default' : 'pointer', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap', background: on ? '#0F172A' : 'transparent', color: on ? '#FFFFFF' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.18)' : 'none' }}>
+          <button key={p.days} type="button" role="radio" aria-checked={on} data-bp-days={p.days} title={`${p.title}: the last ${p.days} days`} onClick={() => onDays(p.days)} style={{ height: 26, padding: '0 10px', borderRadius: 8, border: 'none', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.12)' : 'none' }}>
             {p.days} days
           </button>
         );
@@ -286,9 +288,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
   const here = [];
   if (tab === 'overview' && opened) {
     const b = breakdown(r, opened);
-    const team = Boolean(opened.link?.dept);
-    const list = canSeePeople ? findingPeople(b, state.detailView, team) : null;
-    const narrowed = state.detailView.dept && !team ? state.detailView.dept : null;
+    // the department shown: the one picked, or a team finding's own team
+    const narrowed = state.detailView.dept || opened.link?.dept || null;
+    const list = canSeePeople ? findingPeople(b, { ...state.detailView, dept: narrowed }) : null;
     const howMany = list ? `${count(list.length)} ${list.length === 1 ? 'person' : 'people'}` : `${b.departments.length} depts`;
     here.push({ id: 'finding', Icon: FileSpreadsheet, label: 'This finding', meta: narrowed ? `${narrowed} · ${howMany}` : howMany, run: () => downloadXlsx(file(opened.headline, narrowed), findingBook(opened, b, list, { scope: scopeTitle, chapter: CHAPTER_OF[opened.tone], dept: narrowed })) });
   }
@@ -340,9 +342,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
           The big picture
         </div>
         <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.16, color: 'var(--text)' }}>{campaign ? campaign.name : 'The organisation'}</div>
-        {campaign || !onDays
-          ? <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{campaign ? `Started ${campaign.started}` : `Last ${days} days`}</div>
-          : <PeriodPicker days={days} onDays={onDays} />}
+        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', lineHeight: 1.35, maxWidth: 196 }}>{campaign ? `Started ${campaign.started}` : `Last ${days} days`}</div>
       </div>
       <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
         <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
@@ -354,8 +354,9 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, fontSize: 11, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             <span aria-hidden style={{ width: 3, height: 14, borderRadius: 2, background: 'var(--bp-accent)', flexShrink: 0 }} />
             {campaign ? 'Campaign Pulse' : 'Security Pulse'}
-            <span style={{ fontWeight: 600, color: 'var(--muted)' }}>{campaign ? `· since ${campaign.started}` : `· last ${days} days`}</span>
+            {(campaign || !onDays) && <span style={{ fontWeight: 600, color: 'var(--muted)' }}>{campaign ? `· since ${campaign.started}` : `· last ${days} days`}</span>}
           </span>
+          {!campaign && onDays && <PeriodPicker days={days} onDays={onDays} />}
           {toolbar}
         </div>
         <ProgressStrip r={r} campaign={Boolean(campaign)} ink={ink} isDark={isDark} />
@@ -382,7 +383,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
           </div>
         )}
         {tab === 'people' && canSeePeople && (
-          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} isDark={isDark} ink={ink} />
+          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} onExport={(list) => downloadXlsx(file('selected people'), peopleBook(list, { scope: scopeTitle, what: 'Selected people' }))} isDark={isDark} ink={ink} />
         )}
         {deptOpen && (
           <DepartmentPeople
@@ -405,6 +406,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
             onOpen={canSeePeople ? openDept : null}
+            onExport={(list) => downloadXlsx(file('selected departments'), departmentsBook(list, { scope: scopeTitle, what: 'Selected departments' }))}
           />
         )}
       </div>
