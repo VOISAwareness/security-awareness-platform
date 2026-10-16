@@ -5,7 +5,7 @@ import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
 import { GROUPS, PEOPLE_FILTERS } from '../../services/bigPicture';
 import { count, share } from '../../services/bigPictureFindings';
-import { departmentsShown, peopleShown } from '../../services/bigPictureViews';
+import { departmentsShown, peopleShown, standsOut } from '../../services/bigPictureViews';
 import { useFitRows } from './useFitRows';
 
 // The Big Picture's lists: everyone one by one (People, for admins) and
@@ -68,25 +68,13 @@ function SortHead({ label, k, sort, onSort, align = 'right' }) {
 }
 
 
-// What stands out about a person: the first that applies.
-const FLAGS = [
-  [(x) => x.fellBelowZero, 'Fell below zero', true],
-  [(x) => x.belowZero, 'Below zero', true],
-  [(x) => x.nearZero, '1 click from below zero', true],
-  [(x) => x.nearSlip, '1 click from a level down', true],
-  [(x) => x.moved === 'down', 'Slipped a level', true],
-  [(x) => x.gave > 0, 'Gave details away', true],
-  [(x) => x.campaigns > 0 && x.reported === 0, 'Never reported', true],
-  [(x) => x.backAbove, 'Back above zero', false],
-  [(x) => x.moved === 'up', 'Climbed a level', false],
-  [(x) => x.nearUp, '1 report from a level up', false],
-];
+// What stands out about a person (standsOut in bigPictureViews.js, as the export says it).
 function Flag({ x, ink }) {
-  const f = FLAGS.find(([test]) => test(x));
-  if (!f) return <span style={small}>—</span>;
+  const s = standsOut(x);
+  if (!s) return <span style={small}>—</span>;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 10, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-      <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: f[2] ? ink.bad : ink.good }} />{f[1]}
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: s.bad ? ink.bad : ink.good }} />{s.text}
     </span>
   );
 }
