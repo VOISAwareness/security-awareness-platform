@@ -4,7 +4,7 @@ import { ChevronLeft, Search } from 'lucide-react';
 
 import { breakdown, count, share } from '../../services/bigPictureFindings';
 import { findingPeople } from '../../services/bigPictureViews';
-import { Pager, PersonRow } from './BigPictureTables';
+import { Chip, Pager, PersonRow } from './BigPictureTables';
 import { useFitRows } from './useFitRows';
 import { TONE_ART } from './bigPictureArt';
 
@@ -24,20 +24,15 @@ const pc = (v) => `${Math.round((v || 0) * 100)}%`;
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const CHAPTER = { bad: 'Needs attention', good: 'Going well', watch: 'What could happen next' };
-// rank, the person (taking the room), points, change, and what stands out against the right edge
-const PEOPLE_COLS = 'minmax(0,1fr) 72px 64px minmax(140px,200px)';
+// the person, points, change, and what stands out (or a chance), each read from its left
+const PEOPLE_COLS = 'minmax(0,1.7fr) minmax(84px,0.8fr) minmax(62px,0.6fr) minmax(150px,1.3fr)';
 const P_ROW_H = 42;
 // The forecast findings list each person's own chance, from the formula.
 const CHANCE = { mayDrop: ['pDrop', 'bad', 'of a level down'], mayClimb: ['pUp', 'good', 'of a level up'] };
 
 // One person's chance, e.g. "34% of a level down".
 function Chance({ p, color, what }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 10, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-      <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: color }} />
-      <strong style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{p > 0 && p < 0.005 ? '<1%' : pc(p)}</strong>{what}
-    </span>
-  );
+  return <Chip color={color}><strong style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{p > 0 && p < 0.005 ? '<1%' : pc(p)}</strong> {what}</Chip>;
 }
 
 // A small search box for a pane's header.
@@ -166,11 +161,11 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
             tools={<Find value={view.q} onChange={(q) => setView({ ...view, q, page: 0 })} label="Find a person" isDark={isDark} />}
           >
             <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: PEOPLE_COLS, gap: 12, padding: '8px 12px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              <span>Person</span><span style={{ textAlign: 'right' }}>Points</span><span style={{ textAlign: 'right' }}>Change</span><span style={{ textAlign: 'right' }}>{chance ? 'Chance after one more email' : 'Stands out'}</span>
+              <span>Person</span><span>Points</span><span>Change</span><span>{chance ? 'Chance after one more email' : 'Stands out'}</span>
             </div>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={P_ROW_H} first={i === 0} end noRank note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={P_ROW_H} first={i === 0} flat noRank note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />
