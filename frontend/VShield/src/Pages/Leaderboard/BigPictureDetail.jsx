@@ -25,8 +25,11 @@ const pc = (v) => `${Math.round((v || 0) * 100)}%`;
 const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
 const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
 const CHAPTER = { bad: 'Needs attention', good: 'Going well', watch: 'What could happen next' };
-// the person, points, change, and what stands out (or a chance), each read from its left
-const PEOPLE_COLS = 'minmax(0,1.7fr) minmax(84px,0.8fr) minmax(62px,0.6fr) minmax(150px,1.3fr)';
+// the person takes the room; points, change and what stands out (or a
+// chance) keep set widths against the right edge, each in the middle of its
+// column under its name
+const PEOPLE_COLS = 'minmax(0,1fr) 88px 72px 140px';
+const mid = { textAlign: 'center' };
 // a department, its people in this finding, and its number
 const DEPT_COLS = 'minmax(0,1fr) 64px 76px';
 const VALUE_HEAD = { count: 'Share', rate: 'Reported', points: 'Points each' };
@@ -42,7 +45,7 @@ const CHANCE = { mayDrop: ['pDrop', 'bad', 'of a level down'], mayClimb: ['pUp',
 
 // One person's chance, e.g. "34% of a level down".
 function Chance({ p, color, what }) {
-  return <Chip color={color}><strong style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{p > 0 && p < 0.005 ? '<1%' : pc(p)}</strong> {what}</Chip>;
+  return <Chip color={color} width={136}><strong style={{ fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{p > 0 && p < 0.005 ? '<1%' : pc(p)}</strong> {what}</Chip>;
 }
 
 // A small search box for a pane's header.
@@ -56,13 +59,13 @@ function Find({ value, onChange, label, isDark }) {
   );
 }
 
-// A pane: a header line (title, count, a search), then its body.
-function Pane({ title, n, children, tools, label }) {
+// A pane: a header line (title, a search), then its body. How many it
+// holds is on its pager.
+function Pane({ title, children, tools, label }) {
   return (
     <section aria-label={label || title} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', border: '1px solid var(--hair)', borderRadius: 14, overflow: 'hidden' }}>
       <header style={{ flexShrink: 0, height: 44, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px 0 14px', borderBottom: '1px solid var(--hair)' }}>
         <span style={{ minWidth: 0, fontSize: 11.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
-        {n !== undefined && <span style={{ flexShrink: 0, height: 18, display: 'inline-flex', alignItems: 'center', padding: '0 7px', borderRadius: 999, background: 'var(--track)', fontSize: 9, fontWeight: 800, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{count(n)}</span>}
         <span style={{ marginLeft: 'auto' }} />
         {tools}
       </header>
@@ -134,7 +137,6 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: canSeePeople ? 'minmax(0,0.9fr) minmax(0,1.7fr)' : 'minmax(0,1fr)', gap: 14 }}>
         <Pane
           title="Departments"
-          n={b.departments.length}
           tools={b.departments.length > 8 ? <Find value={view.deptQ} onChange={(deptQ) => setView({ ...view, deptQ, deptPage: 0 })} label="Find a department" isDark={isDark} /> : null}
         >
           <Heads cols={DEPT_COLS}><span>Department</span><span>People</span><span>{VALUE_HEAD[b.kind]}</span></Heads>
@@ -167,14 +169,13 @@ export function FindingDetail({ f, r, view, onView: setView, canSeePeople, isDar
         {canSeePeople && (
           <Pane
             title={peopleTitle}
-            n={people.length}
             label="People"
             tools={<Find value={view.q} onChange={(q) => setView({ ...view, q, page: 0 })} label="Find a person" isDark={isDark} />}
           >
-            <Heads cols={PEOPLE_COLS}><span>Person</span><span>Points</span><span>Change</span><span>{chance ? 'Chance after one more email' : 'Stands out'}</span></Heads>
+            <Heads cols={PEOPLE_COLS}><span>Person</span><span style={mid}>Points</span><span style={mid}>Change</span><span style={mid}>{chance ? 'Chance' : 'Stands out'}</span></Heads>
             <div ref={peopleBox} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {!people.length && <div style={{ ...small, fontSize: 10.5, padding: '16px 14px' }}>No one matches.</div>}
-              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank dept={!team && !view.dept} note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
+              {shown.map((x, i) => <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} first={i === 0} flat noRank center dept={!team && !view.dept} note={chance ? <Chance p={x[chance[0]]} color={ink[chance[1]]} what={chance[2]} /> : null} />)}
             </div>
             <div style={{ flexShrink: 0, padding: '0 12px 10px' }}>
               <Pager page={page} pages={pages} total={people.length} size={peopleSize} onPage={(p) => setView({ ...view, page: p })} />

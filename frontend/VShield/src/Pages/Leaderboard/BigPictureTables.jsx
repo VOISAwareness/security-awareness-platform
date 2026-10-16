@@ -82,10 +82,11 @@ function SortHead({ label, k, sort, onSort, align = 'left' }) {
 
 
 // A soft chip with a dot in its colour: what stands out, or a chance.
-// `width` gives every chip in a column the same size.
+// `width` gives every chip in a column the same size; what it says sits in
+// its middle.
 export function Chip({ color, children, width, title }) {
   return (
-    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, width, maxWidth: '100%', minWidth: 0, height: 22, padding: '0 9px', boxSizing: 'border-box', borderRadius: 999, background: wash(color, 0.13), fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: color }} />
       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
     </span>
@@ -110,9 +111,11 @@ function RankPlate({ n }) {
 // and what stands out (or `note`, when the list is about one thing). Under
 // the name, their department, when the list spans departments (`dept`). A
 // card, as on the Leaderboard; `flat` is a plain line, for a pane that is
-// already a box. `noRank` leaves rank out.
-export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, noRank = false, flat = false, dept = true }) {
+// already a box. `noRank` leaves rank out; `center` sets points, change and
+// what stands out in the middle of their columns.
+export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false, picked = false, note = null, noRank = false, flat = false, dept = true, center = false }) {
   const level = LEVEL_BY_ID[x.levelId];
+  const justify = center ? 'center' : 'flex-start';
   const look = flat ? { borderTop: first ? 'none' : '1px solid var(--hair)', background: picked ? 'var(--bp-soft)' : 'transparent' } : card(picked);
   return (
     <div role="row" data-bp-person={x.key} className={flat ? undefined : 'lb-row'} style={{ flexShrink: 0, height: rowH, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 12px', ...look }}>
@@ -125,11 +128,11 @@ export function PersonRow({ x, ink, cols, tick = null, rowH = 44, first = false,
           {dept && <span style={{ display: 'block', marginTop: 1, ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.dept}</span>}
         </span>
       </span>
-      <span style={{ display: 'flex' }}><PointsPlate pts={pts(x.points)} compact /></span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+      <span style={{ display: 'flex', justifyContent: justify }}><PointsPlate pts={pts(x.points)} compact /></span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: justify, gap: 3, fontSize: 10.5, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
         {x.change ? <>{x.change > 0 ? <ArrowUpRight size={12} strokeWidth={3} color={ink.good} aria-hidden /> : <ArrowDownRight size={12} strokeWidth={3} color={ink.bad} aria-hidden />}{signed(x.change)}</> : <span style={small}>—</span>}
       </span>
-      <span style={{ display: 'flex', minWidth: 0 }}>{note ?? <Flag x={x} ink={ink} />}</span>
+      <span style={{ display: 'flex', justifyContent: justify, minWidth: 0 }}>{note ?? <Flag x={x} ink={ink} />}</span>
     </div>
   );
 }
