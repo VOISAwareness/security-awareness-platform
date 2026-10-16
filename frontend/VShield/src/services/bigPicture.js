@@ -111,9 +111,9 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
   const followed = focus ? items.find((x) => x.campaign.id === focus) || null : null;
   const end = now ?? Math.max(...items.map((x) => dateOf(x.campaign.started)));
   const window = followed ? [followed] : items.filter((x) => end - dateOf(x.campaign.started) <= days * DAY);
-  // Sample: everyone gets about three of the window's campaigns, as a real
-  // programme sends a few emails a month, not all of them.
-  const share = Math.min(1, 3 / Math.max(1, window.length));
+  // Sample: everyone gets about three of the window's campaigns a month, as
+  // a real programme sends a few emails a month, not all of them.
+  const share = Math.min(1, (3 * days) / 30 / Math.max(1, window.length));
   const takesPart = (p, c) => Boolean(followed) || hash01(`${p.key}|${c.id}|in`) < share;
 
   // Each person in each campaign: how likely they were to click or report
@@ -317,11 +317,11 @@ export const PEOPLE_FILTERS = Object.freeze([
   { id: 'slipped', label: 'Slipped a level', test: (x) => x.moved === 'down' },
   { id: 'oneClick', label: 'One click from a level down or below zero', test: (x) => x.nearSlip || x.nearZero },
   { id: 'nearZero', label: 'One click from below zero', test: (x) => x.nearZero },
-  { id: 'nearSlip', label: 'One click from a level down', test: (x) => x.nearSlip },
+  { id: 'nearSlip', label: '1 click to drop a level', test: (x) => x.nearSlip },
   { id: 'gave', label: 'Gave details away', test: (x) => x.gave > 0 },
   { id: 'clicked', label: 'Clicked at least once', test: (x) => x.clicked > 0 },
   { id: 'neverReported', label: 'Took part, never reported', test: (x) => x.campaigns > 0 && x.reported === 0 },
-  { id: 'nearUp', label: 'One report from a level up', test: (x) => x.nearUp },
+  { id: 'nearUp', label: '1 report to climb a level', test: (x) => x.nearUp },
   { id: 'mayDrop', label: 'Could drop a level after one more email', test: (x) => x.pDrop > 0 },
   { id: 'mayClimb', label: 'Could move up a level after one more email', test: (x) => x.pUp > 0 },
   { id: 'reachedStrong', label: 'Reached Phish Catcher or above', test: (x) => (x.groupNow === 'strong' || x.groupNow === 'top') && x.group !== 'strong' && x.group !== 'top' },

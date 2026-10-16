@@ -42,7 +42,7 @@ test('the Summary reads top to bottom: the pulse, the period, the forecast, the 
   const { sheets } = read(reportBook(R, { title: 'The Big Picture · The organisation', scope: 'The organisation · last 30 days' }));
   const s = sheets.Summary;
   assert.equal(s.rows[0][0], 'The Big Picture · The organisation');
-  for (const h of ['Security Pulse · last 6 months', 'The last 30 days', 'If everyone gets one more email', 'What&apos;s in this workbook']) assert.ok(s.rows.some((r) => r[0] === h), h);
+  for (const h of ['Security Pulse · last 30 days', 'The last 30 days', 'If everyone gets one more email', 'What&apos;s in this workbook']) assert.ok(s.rows.some((r) => r[0] === h), h);
   assert.ok(['Improving', 'Steady', 'Declining'].includes(find(s, 'Verdict')[1]));
   assert.equal(find(s, 'People on the board')[1], R.basis.population);
   assert.equal(find(s, 'Took part')[1], R.basis.people);

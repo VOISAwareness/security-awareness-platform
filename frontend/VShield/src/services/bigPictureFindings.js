@@ -102,7 +102,7 @@ export function story(r, { campaign = false } = {}) {
   const below = P.filter(pick('belowZero'));
   if (below.length) {
     const fell = P.filter(pick('fellBelowZero')).length;
-    wrong.push(about('belowZero', 'bad', 100, below, all, 'are below zero', fell ? ` · ${count(fell)} fell there ${campaign ? 'in this campaign' : 'in the last 30 days'}` : ''));
+    wrong.push(about('belowZero', 'bad', 100, below, all, 'are below zero', fell ? ` · ${count(fell)} fell there ${campaign ? 'in this campaign' : `in the last ${r.basis.days} days`}` : ''));
   }
   const gave = P.filter(pick('gave'));
   if (gave.length) wrong.push(about('gave', 'bad', 95, gave, took, 'gave their details away'));

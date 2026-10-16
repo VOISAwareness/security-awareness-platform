@@ -43,3 +43,11 @@ test('progress: six months for the organisation, the campaign itself for one cam
   assert.deepEqual(progress({ people, history: { ...history, n: 4, total: 400 }, points }, { campaign: true }), { word: 'steady', change: -2.5, from: 102.5, to: 100, earned: 20, lost: 22.5 });
   assert.equal(progress({ people: [{ change: -30 }], history, points }, { campaign: true }).word, 'slipping');
 });
+
+test('progress: the organisation reads its own period (30, 60 or 90 days)', () => {
+  const history = { total: 1000, n: 10, end: END, ledger: [{ at: END - 20 * DAY, points: 100, earned: 150, lost: 50 }, { at: END - 50 * DAY, points: 200, earned: 200, lost: 0 }, { at: END - 80 * DAY, points: 300, earned: 300, lost: 0 }] };
+  assert.equal(progress({ history, basis: { days: 30 } }).change, 10, 'the last 30 days: the 20-day change only');
+  assert.equal(progress({ history, basis: { days: 60 } }).change, 30);
+  assert.equal(progress({ history, basis: { days: 90 } }).change, 60);
+  assert.equal(progress({ history, basis: { days: 30 } }).earned, 15);
+});

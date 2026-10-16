@@ -96,7 +96,7 @@ export function Chip({ color, children, width, title }) {
 // What stands out about a person (standsOut in bigPictureViews.js, as the
 // export says it), on a chip as wide as the longest name, with what it
 // means on hover.
-const FLAG_W = 118;
+const FLAG_W = 128;
 function Flag({ x, ink }) {
   const s = standsOut(x);
   return s ? <Chip color={s.bad ? ink.bad : ink.good} width={FLAG_W} title={s.hint}>{s.text}</Chip> : <span style={small}>—</span>;
