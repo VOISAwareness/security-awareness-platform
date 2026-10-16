@@ -75,6 +75,24 @@ export function standsOut(x) {
 }
 
 /**
+ * How a group holds up against phishing, from what it did with the emails
+ * it got: 'Protected' when its reports are at least double its clicks,
+ * 'Holding' when they at least match them, 'Exposed' when clicks outnumber
+ * reports. With its Report Rate and Hook Rate; null when it got no emails.
+ */
+export function health({ reported = 0, clicked = 0, emails = 0 } = {}) {
+  if (!emails) return null;
+  const word = reported > 0 && reported >= 2 * clicked ? 'Protected' : reported >= clicked ? 'Holding' : 'Exposed';
+  return { word, reportRate: reported / emails, clickRate: clicked / emails };
+}
+
+/** Many groups (departments) as one: their emails, reports and clicks added up, for health(). */
+export function recordOf(groups) {
+  const add = (k) => groups.reduce((a, g) => a + (g[k] || 0), 0);
+  return { reported: add('reported'), clicked: add('clicked'), emails: add('emails') };
+}
+
+/**
  * Which way the board moved, in a word, from the share of people who took
  * part that moved up a level against the share that moved down:
  * 'improving', 'steady' or 'slipping', with both shares.

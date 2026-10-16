@@ -68,7 +68,7 @@ test('breakdown: the people behind a finding, by department', () => {
   assert.ok(b.people.every((x) => x.belowZero));
   assert.equal(b.departments.reduce((a, d) => a + d.value, 0), b.people.length);
   assert.ok(b.departments.every((d) => d.share > 0 && d.share <= 1 && d.value <= d.size));
-  assert.ok(b.departments.every((d, i, l) => i === 0 || l[i - 1].share >= d.share), 'highest share first');
+  assert.ok(b.departments.every((d, i, l) => i === 0 || l[i - 1].value >= d.value), 'most people first');
 });
 
 test('breakdown: a team finding marks the team among every department', () => {
