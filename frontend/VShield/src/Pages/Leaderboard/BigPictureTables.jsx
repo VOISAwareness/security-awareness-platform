@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, Download, ListChecks, MousePointerClick, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, ListChecks, MousePointerClick, Search, X } from 'lucide-react';
 
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
@@ -85,10 +85,11 @@ function Tip({ id, title, sub, caret = false }) {
 }
 
 // While some are selected, a bar floats up over the foot of the list: how
-// many, Select all, Clear and Export them now (`tools` before Export). It
-// slides away when the selection is cleared.
+// many, Select all and Clear (and `tools`). Exporting stays with the one
+// Export button at the top, which counts the selection. The bar slides
+// away when the selection is cleared.
 const onInk = { height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 11px', borderRadius: 9, border: '1px solid color-mix(in srgb, var(--ink-on) 28%, transparent)', background: 'transparent', color: 'inherit', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' };
-function SelectionBar({ n, total, noun, allIn, onAll, onClear, onExport, tools = null }) {
+function SelectionBar({ n, total, noun, allIn, onAll, onClear, tools = null }) {
   const reduce = useReducedMotion();
   const word = n === 1 ? noun[0] : noun[1];
   return (
@@ -110,7 +111,6 @@ function SelectionBar({ n, total, noun, allIn, onAll, onClear, onExport, tools =
           {!allIn && <button type="button" data-bp-select-all onClick={onAll} style={onInk}>Select all {count(total)}</button>}
           <button type="button" data-bp-clear onClick={onClear} style={onInk}>Clear</button>
           {tools}
-          <button type="button" data-bp-export-selected onClick={onExport} style={{ ...onInk, border: 'none', background: 'var(--bp-accent)', color: 'var(--ink-on)' }}><Download size={12} strokeWidth={2.6} aria-hidden />Export {count(n)} {word}</button>
         </motion.div>
       )}
     </AnimatePresence>
@@ -232,7 +232,7 @@ const ROW_H = 46;
  * Everyone, one by one. `view` holds the filters, sort and page ({ show,
  * dept, level, q, sort, page }); `selected` is a Set of person keys.
  */
-export function PeopleTable({ r, view, onView, selected, onSelected, onExport, isDark, ink }) {
+export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink }) {
   const rows = useMemo(() => peopleShown(r, view), [r, view]);
   const depts = useMemo(() => [...new Set(r.people.map((x) => x.dept))].sort(), [r.people]);
 
@@ -279,7 +279,6 @@ export function PeopleTable({ r, view, onView, selected, onSelected, onExport, i
         allIn={allPicked}
         onAll={() => onSelected(new Set([...selected, ...rows.map((x) => x.key)]))}
         onClear={() => onSelected(new Set())}
-        onExport={() => onExport(r.people.filter((x) => selected.has(x.key)))}
       />
 
       <div role="table" aria-label="People" aria-rowcount={rows.length} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -318,7 +317,7 @@ const D_ROW_H = 44;
  * Set of department names; `onOpen(name)` (admins only) opens its people,
  * from anywhere on the row but its checkbox.
  */
-export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, onExport, isDark }) {
+export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen, isDark }) {
   const rows = useMemo(() => departmentsShown(r, view), [r, view]);
   const [box, size] = useFitRows(D_ROW_H, 3, ROW_GAP);
   const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -345,7 +344,7 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
     <div data-bp-departments data-bp-selecting={picking ? 'true' : undefined} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!onOpen && <Tip id="departments-pick" title="Click departments to select them for export" sub="With none selected, Export takes every department shown." />}
       {onOpen && !selecting && <Tip id="departments" caret title="Click a department to see its people" sub="To export several, use Select departments, then click the ones you want." />}
-      {onOpen && selecting && <Tip id="departments-select" caret title="Click departments to select them" sub="Export them from the bar below. Done when you're finished." />}
+      {onOpen && selecting && <Tip id="departments-select" caret title="Click departments to select them" sub="Then take them from Export at the top. Done when you're finished." />}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
         <label style={{ position: 'relative', width: 200 }}>
           <span className="sr-only">Search departments</span>
@@ -362,7 +361,6 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
         allIn={allPicked}
         onAll={() => onSelected(new Set([...selected, ...rows.map((d) => d.name)]))}
         onClear={() => onSelected(new Set())}
-        onExport={() => onExport(r.departments.filter((d) => selected.has(d.name)))}
       />
       <div role="table" aria-label="Departments" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 13px 8px' }}>

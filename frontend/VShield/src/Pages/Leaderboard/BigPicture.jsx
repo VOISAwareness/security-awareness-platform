@@ -182,7 +182,7 @@ function PeriodPicker({ days, onDays }) {
  * looking at first, then the full report, then a summary to paste. `items`
  * are { id, label, meta, Icon, run, doneLabel, apart }.
  */
-function ExportMenu({ items }) {
+function ExportMenu({ items, picked = 0 }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(null); // the item just run, for a moment
   const box = useRef(null);
@@ -207,7 +207,9 @@ function ExportMenu({ items }) {
   return (
     <div ref={box} style={{ position: 'relative' }}>
       <button type="button" data-bp-export onClick={() => (open ? close() : setOpen(true))} aria-haspopup="menu" aria-expanded={open} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px 0 12px', borderRadius: 8, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-        <Download size={13} strokeWidth={2.6} aria-hidden /> Export <ChevronDown size={13} strokeWidth={2.6} aria-hidden style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }} />
+        <Download size={13} strokeWidth={2.6} aria-hidden /> Export
+        {picked > 0 && <span data-bp-export-count aria-label={`${picked} selected`} title={`${picked} selected: Export takes them`} style={{ minWidth: 18, height: 18, padding: '0 5px', boxSizing: 'border-box', display: 'inline-grid', placeItems: 'center', borderRadius: 999, background: 'var(--bp-accent)', color: 'var(--ink-on)', fontSize: 9.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{count(picked)}</span>}
+        <ChevronDown size={13} strokeWidth={2.6} aria-hidden style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }} />
       </button>
       {open && (
         <div role="menu" aria-label="Export" data-bp-export-menu style={{ position: 'absolute', right: 0, top: 34, width: 268, zIndex: 30, padding: 5, borderRadius: 12, border: '1px solid var(--hair)', background: 'var(--base)', boxShadow: '0 16px 36px rgba(15,23,42,0.16)' }}>
@@ -330,7 +332,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
           );
         })}
       </div>}
-      <ExportMenu items={exportItems} />
+      <ExportMenu items={exportItems} picked={tab === 'people' && canSeePeople ? state.picked.size : tab === 'departments' && !deptOpen ? state.deptPicked.size : 0} />
     </div>
   );
 
@@ -383,7 +385,7 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
           </div>
         )}
         {tab === 'people' && canSeePeople && (
-          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} onExport={(list) => downloadXlsx(file('selected people'), peopleBook(list, { scope: scopeTitle, what: 'Selected people' }))} isDark={isDark} ink={ink} />
+          <PeopleTable r={r} view={state.people} onView={(people) => set({ people })} selected={state.picked} onSelected={(picked) => set({ picked })} isDark={isDark} ink={ink} />
         )}
         {deptOpen && (
           <DepartmentPeople
@@ -406,7 +408,6 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
             selected={state.deptPicked}
             onSelected={(deptPicked) => set({ deptPicked })}
             onOpen={canSeePeople ? openDept : null}
-            onExport={(list) => downloadXlsx(file('selected departments'), departmentsBook(list, { scope: scopeTitle, what: 'Selected departments' }))}
           />
         )}
       </div>
