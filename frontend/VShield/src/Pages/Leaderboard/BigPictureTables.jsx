@@ -182,7 +182,6 @@ const ROW_H = 46;
  */
 export function PeopleTable({ r, view, onView, selected, onSelected, onExport, isDark, ink }) {
   const rows = useMemo(() => peopleShown(r, view), [r, view]);
-  const counts = useMemo(() => Object.fromEntries(PEOPLE_FILTERS.map((f) => [f.id, r.people.filter(f.test).length])), [r.people]);
   const depts = useMemo(() => [...new Set(r.people.map((x) => x.dept))].sort(), [r.people]);
 
   const [box, size] = useFitRows(ROW_H, 3, ROW_GAP);
@@ -208,7 +207,7 @@ export function PeopleTable({ r, view, onView, selected, onSelected, onExport, i
           <input type="search" value={view.q} onChange={(e) => change({ q: e.target.value })} placeholder="Find a person" style={{ ...control(isDark), width: '100%', boxSizing: 'border-box', paddingLeft: 28, fontWeight: 600 }} />
         </label>
         <select aria-label="Show" value={view.show} onChange={(e) => change({ show: e.target.value })} style={{ ...control(isDark), width: 210 }}>
-          {PEOPLE_FILTERS.map((f) => <option key={f.id} value={f.id}>{f.label} · {count(counts[f.id])}</option>)}
+          {PEOPLE_FILTERS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
         </select>
         <select aria-label="Department" value={view.dept} onChange={(e) => change({ dept: e.target.value })} style={{ ...control(isDark), width: 170 }}>
           <option value="all">All departments</option>
