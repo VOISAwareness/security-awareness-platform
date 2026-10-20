@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, Download, ListChecks, MousePointerClick, Search } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, Download, ListChecks, MousePointerClick, Search, X } from 'lucide-react';
 
 import LevelBadge from '../../GlobalComponents/LevelBadge';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
@@ -35,33 +36,84 @@ const wash = (hex, a) => {
 
 const control = (isDark) => ({ height: 30, borderRadius: 9, border: '1px solid var(--hair)', background: 'var(--rail)', color: 'var(--text)', fontSize: 10.5, fontWeight: 700, padding: '0 8px', outline: 'none', colorScheme: isDark ? 'dark' : 'light', minWidth: 0 });
 
-// What is selected for export, said plainly, with what can be done about
-// it: select every match, clear, or export them now. With nothing selected
-// it says how selecting works (`hint`). `tools` sit at its right end.
 const action = (primary = false) => ({ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 11px', borderRadius: 9, border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'var(--base)', color: primary ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' });
-function SelectionLine({ n, total, noun, allIn, onAll, onClear, onExport, hint, tools = null }) {
+
+// A tip that slides in when a list opens, says how it works, and goes by
+// itself after a few seconds (it waits while the pointer is on it; its ×
+// closes it), so it never sits on the page for good. Each shows once per
+// visit (`id`). `caret` points it up at the button above its right end.
+const tipsSeen = new Set();
+const TIP_MS = 4500;
+function Tip({ id, title, sub, caret = false }) {
+  const reduce = useReducedMotion();
+  const [open, setOpen] = useState(() => !tipsSeen.has(id));
+  const [hold, setHold] = useState(false);
+  useEffect(() => { tipsSeen.add(id); }, [id]);
+  useEffect(() => {
+    if (!open || hold) return undefined;
+    const t = setTimeout(() => setOpen(false), TIP_MS);
+    return () => clearTimeout(t);
+  }, [open, hold]);
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key={id}
+          role="status"
+          data-bp-tip={id}
+          onMouseEnter={() => setHold(true)}
+          onMouseLeave={() => setHold(false)}
+          initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }}
+          transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1], delay: reduce ? 0 : 0.3 }}
+          style={{ position: 'absolute', top: 40, right: 0, zIndex: 6, width: 290, boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', gap: 9, padding: '10px 8px 13px 11px', borderRadius: 12, background: 'var(--ink)', color: 'var(--ink-on)', boxShadow: '0 12px 28px rgba(15,23,42,0.24)', transformOrigin: 'top right' }}
+        >
+          {caret && <span aria-hidden style={{ position: 'absolute', top: -5, right: 40, width: 10, height: 10, borderRadius: 2, background: 'var(--ink)', transform: 'rotate(45deg)' }} />}
+          <span aria-hidden style={{ flexShrink: 0, width: 26, height: 26, display: 'grid', placeItems: 'center', borderRadius: 8, background: 'color-mix(in srgb, var(--ink-on) 14%, transparent)' }}><MousePointerClick size={14} strokeWidth={2.4} /></span>
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 11, fontWeight: 800, lineHeight: 1.3 }}>{title}</span>
+            <span style={{ display: 'block', marginTop: 2, fontSize: 9.5, fontWeight: 600, lineHeight: 1.4, opacity: 0.75 }}>{sub}</span>
+          </span>
+          <button type="button" aria-label="Close the tip" onClick={() => setOpen(false)} style={{ flexShrink: 0, width: 22, height: 22, display: 'grid', placeItems: 'center', padding: 0, border: 'none', borderRadius: 6, background: 'transparent', color: 'inherit', opacity: 0.7, cursor: 'pointer' }}><X size={13} strokeWidth={2.6} /></button>
+          {/* how long it stays: a thin line that runs down, and holds while hovered */}
+          <motion.span aria-hidden key={hold ? 'hold' : 'run'} initial={{ scaleX: 1 }} animate={{ scaleX: hold ? 1 : 0 }} transition={{ duration: hold ? 0 : TIP_MS / 1000, ease: 'linear', delay: hold || reduce ? 0 : 0.3 }} style={{ position: 'absolute', left: 12, right: 12, bottom: 5, height: 2, borderRadius: 2, background: 'var(--bp-accent)', transformOrigin: 'left', opacity: 0.9 }} />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// While some are selected, a bar floats up over the foot of the list: how
+// many, Select all, Clear and Export them now (`tools` before Export). It
+// slides away when the selection is cleared.
+const onInk = { height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 11px', borderRadius: 9, border: '1px solid color-mix(in srgb, var(--ink-on) 28%, transparent)', background: 'transparent', color: 'inherit', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' };
+function SelectionBar({ n, total, noun, allIn, onAll, onClear, onExport, tools = null }) {
+  const reduce = useReducedMotion();
   const word = n === 1 ? noun[0] : noun[1];
   return (
-    <div data-bp-selection style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 6 }}>
-      {n > 0 ? (
-        <>
-          <span data-bp-picked style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 11px 0 9px', borderRadius: 9, background: 'var(--bp-soft)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap' }}>
-            <CheckCircle2 size={14} strokeWidth={2.6} aria-hidden style={{ color: 'var(--bp-ink)' }} />{count(n)} {word} selected
+    <AnimatePresence>
+      {n > 0 && (
+        <motion.div
+          data-bp-selection
+          role="region"
+          aria-label="Selected for export"
+          initial={reduce ? { opacity: 0, x: '-50%' } : { opacity: 0, y: 18, x: '-50%' }}
+          animate={{ opacity: 1, y: 0, x: '-50%' }}
+          exit={reduce ? { opacity: 0, x: '-50%' } : { opacity: 0, y: 18, x: '-50%' }}
+          transition={{ duration: 0.24, ease: [0.2, 0.8, 0.2, 1] }}
+          style={{ position: 'absolute', left: '50%', bottom: 50, zIndex: 6, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 6px 6px 12px', borderRadius: 14, background: 'var(--ink)', color: 'var(--ink-on)', boxShadow: '0 14px 32px rgba(15,23,42,0.28)', whiteSpace: 'nowrap' }}
+        >
+          <span data-bp-picked style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginRight: 4, fontSize: 10.5, fontWeight: 800 }}>
+            <CheckCircle2 size={14} strokeWidth={2.6} aria-hidden />{count(n)} {word} selected
           </span>
-          {!allIn && <button type="button" data-bp-select-all onClick={onAll} style={action()}>Select all {count(total)}</button>}
-          <button type="button" data-bp-clear onClick={onClear} style={action()}>Clear</button>
-          <span style={{ marginLeft: 'auto' }} />
+          {!allIn && <button type="button" data-bp-select-all onClick={onAll} style={onInk}>Select all {count(total)}</button>}
+          <button type="button" data-bp-clear onClick={onClear} style={onInk}>Clear</button>
           {tools}
-          <button type="button" data-bp-export-selected onClick={onExport} style={action(true)}><Download size={12} strokeWidth={2.6} aria-hidden />Export {count(n)} {word}</button>
-        </>
-      ) : (
-        <>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...small, fontSize: 10 }}><MousePointerClick size={13} strokeWidth={2.4} aria-hidden />{hint}</span>
-          <span style={{ marginLeft: 'auto' }} />
-          {tools}
-        </>
+          <button type="button" data-bp-export-selected onClick={onExport} style={{ ...onInk, border: 'none', background: 'var(--bp-accent)', color: 'var(--ink-on)' }}><Download size={12} strokeWidth={2.6} aria-hidden />Export {count(n)} {word}</button>
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 }
 
@@ -199,7 +251,8 @@ export function PeopleTable({ r, view, onView, selected, onSelected, onExport, i
     onSelected(next);
   };
   return (
-    <div data-bp-people style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div data-bp-people style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Tip id="people" title="Click people to select them for export" sub="With none selected, Export takes everyone shown." />
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
         <label style={{ position: 'relative', width: 200 }}>
           <span className="sr-only">Search people</span>
@@ -219,7 +272,7 @@ export function PeopleTable({ r, view, onView, selected, onSelected, onExport, i
         </select>
       </div>
 
-      <SelectionLine
+      <SelectionBar
         n={selected.size}
         total={rows.length}
         noun={['person', 'people']}
@@ -227,7 +280,6 @@ export function PeopleTable({ r, view, onView, selected, onSelected, onExport, i
         onAll={() => onSelected(new Set([...selected, ...rows.map((x) => x.key)]))}
         onClear={() => onSelected(new Set())}
         onExport={() => onExport(r.people.filter((x) => selected.has(x.key)))}
-        hint="Click people to select them for export · with none selected, Export takes everyone shown"
       />
 
       <div role="table" aria-label="People" aria-rowcount={rows.length} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -287,10 +339,13 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
   };
   const done = () => { setSelecting(false); onSelected(new Set()); };
   const modeButton = onOpen && (selecting
-    ? <button type="button" data-bp-select-done onClick={done} style={action()}>Done</button>
-    : <button type="button" data-bp-select-mode onClick={() => setSelecting(true)} style={action()}><ListChecks size={13} strokeWidth={2.4} aria-hidden />Select departments</button>);
+    ? <button type="button" data-bp-select-done onClick={done} style={{ ...action(true), marginLeft: 'auto' }}>Done</button>
+    : <button type="button" data-bp-select-mode onClick={() => setSelecting(true)} style={{ ...action(), marginLeft: 'auto' }}><ListChecks size={13} strokeWidth={2.4} aria-hidden />Select departments</button>);
   return (
-    <div data-bp-departments data-bp-selecting={picking ? 'true' : undefined} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div data-bp-departments data-bp-selecting={picking ? 'true' : undefined} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {!onOpen && <Tip id="departments-pick" title="Click departments to select them for export" sub="With none selected, Export takes every department shown." />}
+      {onOpen && !selecting && <Tip id="departments" caret title="Click a department to see its people" sub="To export several, use Select departments, then click the ones you want." />}
+      {onOpen && selecting && <Tip id="departments-select" caret title="Click departments to select them" sub="Export them from the bar below. Done when you're finished." />}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
         <label style={{ position: 'relative', width: 200 }}>
           <span className="sr-only">Search departments</span>
@@ -298,8 +353,9 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
           <input type="search" value={view.q} onChange={(e) => change({ q: e.target.value })} placeholder="Find a department" style={{ ...control(isDark), width: '100%', boxSizing: 'border-box', paddingLeft: 28, fontWeight: 600 }} />
         </label>
         <span style={small}>Least ground gained per person first</span>
+        {modeButton}
       </div>
-      <SelectionLine
+      <SelectionBar
         n={selected.size}
         total={rows.length}
         noun={['department', 'departments']}
@@ -307,8 +363,6 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
         onAll={() => onSelected(new Set([...selected, ...rows.map((d) => d.name)]))}
         onClear={() => onSelected(new Set())}
         onExport={() => onExport(r.departments.filter((d) => selected.has(d.name)))}
-        hint={picking ? 'Click departments to select them for export' : 'Click a department to see its people'}
-        tools={modeButton}
       />
       <div role="table" aria-label="Departments" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 13px 8px' }}>
