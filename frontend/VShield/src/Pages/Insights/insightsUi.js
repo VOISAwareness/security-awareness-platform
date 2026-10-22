@@ -108,12 +108,6 @@ export function didParts({ delivered, reported, clicked, compromised }, ink, isD
   ];
 }
 
-/** Each value averaged with the `k - 1` before it (fewer at the start). */
-export const rolling = (values, k = 3) => values.map((_, i) => {
-  const run = values.slice(Math.max(0, i - k + 1), i + 1);
-  return run.reduce((a, v) => a + v, 0) / run.length;
-});
-
 // Insights' colours, checked for colour-blind separation and contrast on
 // both themes: indigo for risk (darker for more on the light theme,
 // brighter on the dark), teal for better and for reporting, a soft orange

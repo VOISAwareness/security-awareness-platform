@@ -173,103 +173,80 @@ export function BarcodeMeter({ value, color, n = 54, height = 24, reduce, label 
   );
 }
 
-// a smooth line through the points that never overshoots them (monotone cubic)
-function smooth(pts) {
-  if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : '';
-  const n = pts.length;
-  const dx = []; const m = [];
-  for (let i = 0; i < n - 1; i += 1) { dx.push(pts[i + 1][0] - pts[i][0]); m.push((pts[i + 1][1] - pts[i][1]) / dx[i]); }
-  const t = [m[0]];
-  for (let i = 1; i < n - 1; i += 1) t.push(m[i - 1] * m[i] <= 0 ? 0 : (3 * (dx[i - 1] + dx[i])) / ((2 * dx[i] + dx[i - 1]) / m[i - 1] + (dx[i] + 2 * dx[i - 1]) / m[i]));
-  t.push(m[n - 2]);
-  let d = `M${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < n - 1; i += 1) {
-    const h = dx[i] / 3;
-    d += ` C${pts[i][0] + h},${pts[i][1] + h * t[i]} ${pts[i + 1][0] - h},${pts[i + 1][1] - h * t[i + 1]} ${pts[i + 1][0]},${pts[i + 1][1]}`;
-  }
-  return d;
-}
 const monthOf = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
 
-// a column with rounded top corners, standing on the baseline
-const column = (x, top, w, base, r) => {
-  const k = Math.max(0, Math.min(r, w / 2, base - top));
-  return `M${x},${base} V${top + k} Q${x},${top} ${x + k},${top} H${x + w - k} Q${x + w},${top} ${x + w},${top + k} V${base} Z`;
-};
-
 /**
- * Score columns: a rounded column for each step, the steps in the period
- * (`lit`) in full colour and the rest softer, with `line` drawn over them on
- * the same scale (the three-month average, or the whole company against a
- * department) and the newest value on a bubble. Hover a column for its
- * numbers.
+ * A staircase: the first step's value as a dot, then for each step a bar
+ * from where the value was to where it went, in `good` when it fell and
+ * `bad` when it rose, joined by a dashed tread; the steps in the period
+ * (`lit`) in full colour, the first value and the newest on labels. Hover a
+ * step for its numbers.
  */
-export function ScoreBars({ at, values, lit, color, soft, format, top, line, reduce, tipHead, valueLabel = 'Risk score' }) {
-  const id = useId().replace(/:/g, '');
+export function Staircase({ at, values, lit, start, good, bad, format, reduce, tipHead, valueLabel = 'Risk score' }) {
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
-  const L = 26; const R = 4; const T = 30; const B = 20;
+  const L = 26; const R = 6; const T = 34; const B = 20;
   const n = values.length;
+  const lo = Math.floor(Math.min(...values)) - 1; const hi = Math.ceil(Math.max(...values)) + 1;
   const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
   const slot = n ? pw / n : 0;
-  const bw = Math.max(6, Math.min(34, slot * 0.6));
+  const bw = Math.max(6, Math.min(30, slot * 0.6));
   const cx = (i) => L + slot * (i + 0.5);
-  const base = T + ph;
-  const y = (v) => base - (Math.max(0, Math.min(v, top)) / top) * ph;
-  const pts = line ? line.values.map((v, i) => [cx(i), y(v)]) : [];
+  const y = (v) => T + ph - ((v - lo) / (hi - lo || 1)) * ph;
   const last = n - 1;
-  const at2 = hover ?? last;
-  const prev = at2 > 0 ? values[at2] - values[at2 - 1] : null;
+  const step = (i) => (i ? values[i] - values[i - 1] : null);
+  const fell = values[last] - values[0];
   return (
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
       {w > 0 && h > 0 && (
-        <svg width={w} height={h} role="img" aria-label={`${valueLabel} by month, ${format(values[0])} to ${format(values[last])}${line ? `; ${line.label} as a line` : ''}`} style={{ display: 'block', overflow: 'visible' }}>
-          <defs>
-            <linearGradient id={`${id}c`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={light(color, 30)} />
-              <stop offset="100%" stopColor={color} />
-            </linearGradient>
-          </defs>
-          {[0, top / 2, top].map((v) => (
+        <svg width={w} height={h} role="img" aria-label={`${valueLabel} by month, from ${format(values[0])} to ${format(values[last])}: ${values.slice(1).filter((v, i) => v < values[i]).length} of ${n - 1} months lower than the one before`} style={{ display: 'block', overflow: 'visible' }}>
+          {[lo, Math.round((lo + hi) / 2), hi].map((v) => (
             <g key={v}>
-              <line x1={L} x2={w - R} y1={y(v)} y2={y(v)} stroke="var(--grid)" strokeWidth={1} strokeDasharray={v ? '3 4' : undefined} />
-              <text x={L - 8} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{format(v, true)}</text>
+              <line x1={L} x2={w - R} y1={y(v)} y2={y(v)} stroke="var(--grid)" strokeDasharray={v === lo ? undefined : '3 4'} />
+              <text x={L - 8} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{v}</text>
             </g>
           ))}
           {values.map((v, i) => {
             const on = lit[i] || hover === i;
+            const d = step(i);
+            const x = cx(i) - bw / 2;
+            const top = d === null ? 0 : Math.min(y(values[i - 1]), y(v));
+            const ht = d === null ? 0 : Math.max(3, Math.abs(y(v) - y(values[i - 1])));
             return (
               <g key={at[i]} onMouseEnter={() => setHover(i)}>
-                <rect x={cx(i) - slot / 2} y={T - 10} width={slot} height={ph + 10 + B} fill={hover === i ? 'var(--plate)' : 'transparent'} rx={10} />
-                <motion.path
-                  d={column(cx(i) - bw / 2, y(v), bw, base, 7)}
-                  fill={on ? `url(#${id}c)` : soft}
-                  initial={{ scaleY: reduce ? 1 : 0 }}
-                  animate={{ scaleY: 1 }}
-                  transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 180, damping: 24, delay: 0.12 + 0.04 * i }}
-                  style={{ transformBox: 'fill-box', transformOrigin: 'bottom', transition: 'fill .2s ease' }}
-                />
+                <rect x={cx(i) - slot / 2} y={T - 14} width={slot} height={ph + 14 + B} rx={10} fill={hover === i ? 'var(--plate)' : 'transparent'} />
+                {d === null
+                  ? <motion.circle cx={cx(i)} cy={y(v)} r={5.5} fill={start} stroke="var(--base)" strokeWidth={2} initial={{ scale: reduce ? 1 : 0 }} animate={{ scale: 1 }} transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.1, ease: EASE }} />
+                  : (
+                    <>
+                      <motion.line x1={cx(i - 1) + (i === 1 ? 0 : bw / 2)} x2={x} y1={y(values[i - 1])} y2={y(values[i - 1])} stroke="var(--muted)" strokeOpacity={0.6} strokeDasharray="2 3" initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.1 + 0.07 * i }} />
+                      <motion.rect
+                        x={x} y={top} width={bw} height={ht} rx={Math.min(5, ht / 2, bw / 2)}
+                        fill={d > 0 ? bad : good}
+                        initial={{ scaleY: reduce ? 1 : 0, opacity: 0 }}
+                        animate={{ scaleY: 1, opacity: on ? 1 : 0.72 }}
+                        transition={reduce ? { duration: 0 } : { scaleY: { ...SPRING, stiffness: 200, damping: 22, delay: 0.15 + 0.07 * i }, opacity: { duration: 0.2, delay: hover === null ? 0.15 + 0.07 * i : 0 } }}
+                        style={{ transformBox: 'fill-box', transformOrigin: d > 0 ? 'bottom' : 'top' }}
+                      />
+                    </>
+                  )}
                 <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthOf(at[i])}</text>
               </g>
             );
           })}
-          {line && (
-            <g pointerEvents="none">
-              <motion.path d={smooth(pts)} fill="none" stroke={line.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduce ? 0 : 1, ease: EASE, delay: reduce ? 0 : 0.55 }} />
-              {pts.map((pt, i) => <motion.circle key={at[i]} cx={pt[0]} cy={pt[1]} r={hover === i ? 4.5 : 3} fill="var(--base)" stroke={line.color} strokeWidth={2} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.7 + 0.05 * i }} />)}
-            </g>
-          )}
         </svg>
       )}
       {w > 0 && hover === null && (
-        <motion.span initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.9, duration: 0.35, ease: EASE }} style={{ position: 'absolute', left: cx(last), top: y(values[last]) - 8, transform: 'translate(-50%, -100%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)', pointerEvents: 'none' }}>{format(values[last])}</motion.span>
+        <motion.span initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1, duration: 0.35 }} style={{ pointerEvents: 'none' }}>
+          <span style={{ position: 'absolute', left: Math.max(4, cx(0) - 10), top: y(values[0]) - 30, height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--plate)', border: '1px solid var(--hair)', fontSize: 10, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{format(values[0])} a year ago</span>
+          <span style={{ position: 'absolute', left: Math.min(cx(last) + bw / 2, w - 4), top: y(values[last]) + 10, transform: 'translateX(-100%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)' }}>{format(values[last])} now <span style={{ opacity: 0.7 }}>{fell <= 0 ? '▼' : '▲'}{Math.abs(fell).toFixed(1)}</span></span>
+        </motion.span>
       )}
       {hover !== null && (
-        <Tip x={cx(hover)} y={Math.min(y(values[hover]), line ? y(line.values[hover]) : Infinity) - 4} w={w}>
+        <Tip x={cx(hover)} y={Math.min(y(values[hover]), hover ? y(values[hover - 1]) : Infinity) - 6} w={w}>
           <div style={tipTitle}>{tipHead(at[hover])}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: color }} />{valueLabel}<strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(values[hover])}</strong></div>
-          {line && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 10, height: 2, borderRadius: 2, background: line.color }} />{line.label}<strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(line.values[hover])}</strong></div>}
-          {prev !== null && <div style={tipLine}>{Math.abs(prev) < 0.05 ? 'Level with the month before' : `${prev < 0 ? 'Down' : 'Up'} ${Math.abs(prev).toFixed(1)} on the month before`}</div>}
+          <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 10, fontWeight: 700 }}>{valueLabel}<strong style={{ marginLeft: 'auto' }}>{format(values[hover])}</strong></div>
+          <div style={tipLine}>{step(hover) === null ? 'Where the year starts' : Math.abs(step(hover)) < 0.05 ? 'Level with the month before' : `${step(hover) < 0 ? 'Down' : 'Up'} ${Math.abs(step(hover)).toFixed(1)} on the month before`}</div>
         </Tip>
       )}
     </div>

@@ -5,10 +5,10 @@ import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Chip } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { Blocks, Card, CompareBars, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, ScoreBars, StepFunnel } from './InsightsCharts';
+import { Blocks, Card, CompareBars, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Staircase, StepFunnel } from './InsightsCharts';
 import { Delta, HealthChip, LureTile, Meter } from './InsightsBits';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
-import { EASE, STEADY_INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskWord, rolling, small, tierInk, times } from './insightsUi';
+import { EASE, STEADY_INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskWord, small, tierInk, times } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -207,7 +207,6 @@ function MoveChips({ moved, ink }) {
 export function RiskProfile({ ctx, frame }) {
   const { p, ink, isDark, reduce, open } = ctx;
   const colors = tierInk(isDark);
-  const top = Math.ceil(Math.max(...p.trend.map((s) => s.score)) / 5) * 5 + 5;
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const maxDriver = Math.max(...DRIVERS.map((d) => p.now.drivers[d.id]), 1);
@@ -231,9 +230,9 @@ export function RiskProfile({ ctx, frame }) {
         { label: 'Moved down a level', value: num(p.now.improved), sub: `${num(p.now.slipped)} moved up` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="Risk over the year" sub="Thirty days at a time · lower is safer" action={<Legend items={[{ label: 'Risk score', color: ink.risk }, { label: '3-month average', color: 'var(--text)', line: true }]} />} style={{ gridColumn: 'span 7' }}>
+      <Card i={3} reduce={reduce} title="Risk over the year" sub={`Thirty days at a time · ${p.trend.at(-1).score <= p.trend[0].score ? 'down' : 'up'} ${Math.abs(p.trend.at(-1).score - p.trend[0].score).toFixed(1)} pts in a year, ${p.trend.slice(1).filter((s, i) => s.score < p.trend[i].score).length} of ${p.trend.length - 1} months lower than the one before`} action={<Legend items={[{ label: 'Month it fell', color: ink.good }, { label: 'Month it rose', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <ScoreBars at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} line={{ label: 'Three-month average', values: rolling(p.trend.map((s) => s.score)), color: 'var(--text)' }} color={ink.risk} soft="var(--soft-risk)" format={scoreText} top={top} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.risk} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="Did people get safer?" sub={`Each risk level now, and its change over the last ${p.basis.days} days${p.moved?.joined ? ` · ${num(p.moved.joined)} joined` : ''}`} action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>

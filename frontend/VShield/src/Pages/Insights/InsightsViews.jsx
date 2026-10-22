@@ -7,9 +7,9 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, ScoreBars, TileMap } from './InsightsCharts';
+import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, Staircase, TileMap } from './InsightsCharts';
 import { Explain, HealthChip, LureTile, PerClickHow } from './InsightsBits';
-import { EASE, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, rolling, small, times } from './insightsUi';
+import { EASE, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -42,7 +42,6 @@ export function OverviewView({ ctx, list }) {
   const lo = Math.min(...scores); const hi = Math.max(...scores);
   const ramp = riskRamp(isDark, lo, hi);
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
-  const top = Math.ceil(Math.max(...p.trend.map((s) => s.score)) / 5) * 5 + 5;
   const c = p.now.cohorts;
   const n = m.now;
   const fg = isDark ? '#0F172A' : '#FFFFFF';
@@ -50,9 +49,9 @@ export function OverviewView({ ctx, list }) {
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
-      <Card i={0} reduce={reduce} title="Risk over the year" sub="Everyone's risk level, averaged · lower is safer" action={<Legend items={[{ label: 'Risk score', color: ink.risk }, { label: '3-month average', color: 'var(--text)', line: true }]} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
+      <Card i={0} reduce={reduce} title="Risk over the year" sub="Everyone's risk level, averaged · lower is safer" action={<Legend items={[{ label: 'Month it fell', color: ink.good }, { label: 'Month it rose', color: ink.bad }]} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <ScoreBars at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} line={{ label: 'Three-month average', values: rolling(p.trend.map((s) => s.score)), color: 'var(--text)' }} color={ink.risk} soft="var(--soft-risk)" format={scoreText} top={top} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.risk} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
         <Insight tone={dc?.good === false ? ink.bad : ink.good} sub={`${num(p.now.highRisk)} people at high risk · ${num(p.now.improved)} moved down a level, ${num(p.now.slipped)} up`}>
           {dc ? `Risk is ${dc.dir === 'down' ? 'down' : dc.dir === 'up' ? 'up' : 'steady'}${dc.dir === 'flat' ? '' : ` ${dc.shown}`} in ${p.basis.days} days, at ${scoreText(p.now.score)} of 100` : `Risk is at ${scoreText(p.now.score)} of 100`}
