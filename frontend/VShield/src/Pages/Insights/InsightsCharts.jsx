@@ -276,6 +276,83 @@ export function ScoreBars({ at, values, lit, color, soft, format, top, line, red
   );
 }
 
+/**
+ * The gap, step by step: for each step a column from the zero line (the
+ * `base` series, e.g. the whole company) up when `values` sat above it, in
+ * `bad`, or down when below, in `good`; the steps in the period in full
+ * colour, the newest gap on a bubble. Hover a step for both scores.
+ */
+export function GapBars({ at, values, base, lit, good, bad, reduce, tipHead, valueLabel, baseLabel, unit = 'pts' }) {
+  const [box, { w, h }] = useSize();
+  const [hover, setHover] = useState(null);
+  const L = 34; const R = 4; const T = 30; const B = 20;
+  const gaps = values.map((v, i) => v - base[i]);
+  const lim = Math.max(0.5, Math.ceil(Math.max(...gaps.map((g) => Math.abs(g))) * 2 + 0.5) / 2);
+  const n = gaps.length;
+  const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
+  const slot = n ? pw / n : 0;
+  const bw = Math.max(6, Math.min(30, slot * 0.56));
+  const cx = (i) => L + slot * (i + 0.5);
+  const y = (g) => T + ph / 2 - (g / lim) * (ph / 2);
+  const zero = y(0);
+  const last = n - 1;
+  const signed = (g) => `${g > 0.05 ? '+' : g < -0.05 ? '−' : ''}${Math.abs(g).toFixed(1)}`;
+  const bar = (i) => {
+    const g = gaps[i]; const top = Math.min(zero, y(g)); const ht = Math.max(2, Math.abs(y(g) - zero));
+    const r = Math.min(7, bw / 2, ht);
+    const x = cx(i) - bw / 2;
+    // rounded at the far end only, square on the zero line
+    return g >= 0
+      ? `M${x},${zero} V${top + r} Q${x},${top} ${x + r},${top} H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${zero} Z`
+      : `M${x},${zero} V${top + ht - r} Q${x},${top + ht} ${x + r},${top + ht} H${x + bw - r} Q${x + bw},${top + ht} ${x + bw},${top + ht - r} V${zero} Z`;
+  };
+  return (
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
+      {w > 0 && h > 0 && (
+        <svg width={w} height={h} role="img" aria-label={`${valueLabel} against ${baseLabel}, month by month: ${gaps.map((g) => signed(g)).join(', ')} ${unit}`} style={{ display: 'block', overflow: 'visible' }}>
+          {[lim, -lim].map((g) => (
+            <g key={g}>
+              <line x1={L} x2={w - R} y1={y(g)} y2={y(g)} stroke="var(--grid)" strokeDasharray="3 4" />
+              <text x={L - 8} y={y(g) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{signed(g)}</text>
+            </g>
+          ))}
+          {gaps.map((g, i) => {
+            const on = lit[i] || hover === i;
+            return (
+              <g key={at[i]} onMouseEnter={() => setHover(i)}>
+                <rect x={cx(i) - slot / 2} y={T - 10} width={slot} height={ph + 10 + B} rx={10} fill={hover === i ? 'var(--plate)' : 'transparent'} />
+                <motion.path
+                  d={bar(i)}
+                  fill={g > 0 ? bad : good}
+                  initial={{ scaleY: reduce ? 1 : 0, opacity: 0 }}
+                  animate={{ scaleY: 1, opacity: on ? 1 : 0.72 }}
+                  transition={reduce ? { duration: 0 } : { scaleY: { ...SPRING, stiffness: 180, damping: 24, delay: 0.12 + 0.04 * i }, opacity: { duration: 0.2 } }}
+                  style={{ transformBox: 'fill-box', transformOrigin: g >= 0 ? 'bottom' : 'top' }}
+                />
+                <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthOf(at[i])}</text>
+              </g>
+            );
+          })}
+          <line x1={L} x2={w - R} y1={zero} y2={zero} stroke="var(--text)" strokeWidth={1.5} pointerEvents="none" />
+          <text x={L - 8} y={zero + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 800, fill: 'var(--text)' }}>0</text>
+        </svg>
+      )}
+      {w > 0 && hover === null && (
+        <motion.span initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.9, duration: 0.35, ease: EASE }} style={{ position: 'absolute', left: Math.min(cx(last), w - 44), top: gaps[last] >= 0 ? y(gaps[last]) - 8 : y(gaps[last]) + 8, transform: gaps[last] >= 0 ? 'translate(-50%, -100%)' : 'translate(-50%, 0)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)', pointerEvents: 'none' }}>{signed(gaps[last])} {unit}</motion.span>
+      )}
+      {w > 0 && <span style={{ position: 'absolute', left: L + 6, top: zero + 4, ...small, fontSize: 8.5, fontWeight: 700, pointerEvents: 'none' }}>{baseLabel}</span>}
+      {hover !== null && (
+        <Tip x={cx(hover)} y={Math.min(zero, y(gaps[hover])) - 4} w={w}>
+          <div style={tipTitle}>{tipHead(at[hover])}</div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 10, fontWeight: 700 }}>{valueLabel}<strong style={{ marginLeft: 'auto' }}>{values[hover].toFixed(1)}</strong></div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 3, fontSize: 10, fontWeight: 700 }}>{baseLabel}<strong style={{ marginLeft: 'auto' }}>{base[hover].toFixed(1)}</strong></div>
+          <div style={tipLine}>{Math.abs(gaps[hover]) < 0.05 ? 'Level with it' : `${Math.abs(gaps[hover]).toFixed(1)} ${unit} ${gaps[hover] > 0 ? 'riskier' : 'safer'}`}</div>
+        </Tip>
+      )}
+    </div>
+  );
+}
+
 /** A plain sentence under a chart: what it shows, and a line of detail. */
 export function Insight({ children, sub, tone }) {
   return (
@@ -450,98 +527,6 @@ export function PillColumns({ items, color, soft, reduce, onOpen, label }) {
 }
 
 /**
- * Who moved between levels, as a ladder: the levels side by side from the
- * safest to the riskiest, with the people on each now and at the start;
- * between each pair, an arc over the top for those who moved up to the
- * riskier level (in `bad`) and one underneath for those who moved down to
- * the safer (in `good`), as thick as the people on it and with their number
- * on it. Hover a level for who stayed.
- */
-export function LevelLadder({ links, order, colors, words, good, bad, reduce }) {
-  const [box, { w, h }] = useSize();
-  const [hover, setHover] = useState(null);
-  const sumOf = (pick) => links.filter(pick).reduce((a, l) => a + l.n, 0);
-  const levels = order.map((k) => ({ k, was: sumOf((l) => l.from === k), now: sumOf((l) => l.to === k), stayed: sumOf((l) => l.from === k && l.to === k) }));
-  const gaps = order.slice(0, -1).map((k, i) => ({ i, up: sumOf((l) => l.from === k && l.to === order[i + 1]), down: sumOf((l) => l.from === order[i + 1] && l.to === k) }));
-  const most = Math.max(...gaps.flatMap((g) => [g.up, g.down]), 1);
-  const nw = Math.min(150, Math.max(70, (w - 3 * 44) / 4));
-  const gap = (w - 4 * nw) / 3;
-  const nh = Math.min(64, Math.max(48, h - 92));
-  const top = (h - nh) / 2; const bottom = top + nh;
-  const lift = Math.min(34, top - 12);
-  const xl = (i) => i * (nw + gap);
-  const thick = (v) => 2 + 7 * (v / most);
-  const tag = (x, y, text, tone) => (
-    <span style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--base)', boxShadow: `inset 0 0 0 1.5px ${tone}, 0 4px 10px rgba(15,23,42,0.12)`, fontSize: 10, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
-      <span aria-hidden style={{ fontSize: 8.5, color: tone }}>{text[0]}</span>{text.slice(1)}
-    </span>
-  );
-  return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-      {w > 0 && h > 0 && (
-        <>
-          <svg width={w} height={h} role="img" aria-label={gaps.map((g) => `${g.up} up from ${words[order[g.i]]} to ${words[order[g.i + 1]]}, ${g.down} down`).join('; ')} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-            <defs>
-              {[['up', bad], ['down', good]].map(([k, c]) => (
-                <marker key={k} id={`ladder-${k}`} viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
-                  <path d="M0,0 L10,5 L0,10 Z" fill={c} />
-                </marker>
-              ))}
-            </defs>
-            {gaps.map((g, k) => {
-              const a = xl(g.i) + nw - 16; const b = xl(g.i + 1) + 16; const m = (a + b) / 2;
-              return (
-                <g key={g.i}>
-                  {g.up > 0 && <motion.path d={`M${a},${top - 2} Q${m},${top - 2 - lift * 2} ${b},${top - 2}`} fill="none" stroke={bad} strokeWidth={thick(g.up)} strokeLinecap="round" markerEnd="url(#ladder-up)" initial={{ pathLength: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }} animate={{ pathLength: 1, opacity: 0.9 }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE, delay: reduce ? 0 : 0.35 + 0.12 * k }} />}
-                  {g.down > 0 && <motion.path d={`M${b},${bottom + 2} Q${m},${bottom + 2 + lift * 2} ${a},${bottom + 2}`} fill="none" stroke={good} strokeWidth={thick(g.down)} strokeLinecap="round" markerEnd="url(#ladder-down)" initial={{ pathLength: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }} animate={{ pathLength: 1, opacity: 0.9 }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE, delay: reduce ? 0 : 0.5 + 0.12 * k }} />}
-                </g>
-              );
-            })}
-          </svg>
-          {gaps.map((g) => {
-            const m = (xl(g.i) + nw - 16 + xl(g.i + 1) + 16) / 2;
-            return (
-              <motion.span key={g.i} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 0.9 + 0.1 * g.i }}>
-                {g.up > 0 && tag(m, top - 2 - lift, `▲${g.up.toLocaleString('en-US')}`, bad)}
-                {g.down > 0 && tag(m, bottom + 2 + lift, `▼${g.down.toLocaleString('en-US')}`, good)}
-              </motion.span>
-            );
-          })}
-          {levels.map((lv, i) => {
-            const d = lv.now - lv.was;
-            return (
-              <motion.div
-                key={lv.k}
-                tabIndex={0}
-                aria-label={`${words[lv.k]}: ${lv.now} now, ${lv.was} at the start, ${lv.stayed} stayed`}
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-                onFocus={() => setHover(i)}
-                onBlur={() => setHover(null)}
-                initial={{ opacity: 0, scale: reduce ? 1 : 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : 0.08 * i, ease: EASE }}
-                style={{ position: 'absolute', left: xl(i), top, width: nw, height: nh, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 11px', borderRadius: 14, background: 'var(--plate)', border: '1px solid var(--hair)', boxShadow: hover === i ? 'var(--lift)' : 'none', outline: 'none' }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, fontWeight: 800 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: colors[lv.k] }} />{words[lv.k]}</span>
-                <span className="vs-rank" style={{ fontSize: 17, fontWeight: 900, lineHeight: 1 }}>{lv.now.toLocaleString('en-US')}</span>
-                <span style={{ ...small, fontSize: 8.5, whiteSpace: 'nowrap' }}>{d === 0 ? 'no change' : `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString('en-US')} since the start`}</span>
-              </motion.div>
-            );
-          })}
-          {hover !== null && (
-            <Tip x={xl(hover) + nw / 2} y={top} w={w}>
-              <div style={tipTitle}>{words[levels[hover].k]} risk</div>
-              <div style={tipLine}>{levels[hover].stayed.toLocaleString('en-US')} stayed · {levels[hover].was.toLocaleString('en-US')} at the start</div>
-            </Tip>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
  * Rows of stacked parts on one scale: each row's parts side by side, as
  * long as their values, with a 2px gap and the value on a part wide enough
  * to hold it; a row's total before its bar.
@@ -626,101 +611,6 @@ export function StepFunnel({ steps, color, reduce }) {
             );
           })}
         </svg>
-      )}
-    </div>
-  );
-}
-
-/**
- * Where each group stands on two rates, `x` across and `y` up: a bubble per
- * group, as big as its `size` and coloured by `fill`, with the averages
- * crossing the map and splitting it into four named corners (`corners`,
- * top-left, top-right, bottom-left, bottom-right; the top-left washed in
- * `good`'s soft tint and the bottom-right in `bad`'s). Hover a bubble for
- * its numbers; a click opens it, growing it with `layoutIdOf`.
- */
-export function BubbleMap({ items, avg, fill, ink, axes, corners, format, reduce, onOpen, layoutIdOf, tip }) {
-  const [box, { w, h }] = useSize();
-  const [hover, setHover] = useState(null);
-  const L = 44; const R = 10; const T = 26; const B = 46;
-  const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
-  const STEP = 0.02;
-  const lo = (v) => Math.floor((Math.min(...v) - 0.015) / STEP) * STEP;
-  const hi = (v) => Math.ceil((Math.max(...v) + 0.015) / STEP) * STEP;
-  const xs = [...items.map((it) => it.x), avg.x]; const ys = [...items.map((it) => it.y), avg.y];
-  const [x0, x1, y0, y1] = [lo(xs), hi(xs), lo(ys), hi(ys)];
-  const X = (v) => L + ((v - x0) / (x1 - x0 || 1)) * pw;
-  const Y = (v) => T + ph - ((v - y0) / (y1 - y0 || 1)) * ph;
-  const ticks = (a, b) => { const out = []; for (let v = a; v <= b + 1e-9; v += STEP) out.push(Math.round(v * 1000) / 1000); const k = Math.ceil(out.length / 6); return out.filter((_, i) => i % k === 0); };
-  const biggest = Math.max(...items.map((it) => it.size), 1);
-  const rOf = (it) => 12 + 14 * Math.sqrt(it.size / biggest);
-  const ax = X(avg.x); const ay = Y(avg.y);
-  const shown = items.find((it) => it.key === hover);
-  const corner = (c, i) => {
-    const right = i % 2 === 1; const low = i > 1;
-    return (
-      <span key={c.title} style={{ position: 'absolute', [right ? 'right' : 'left']: right ? R : L, [low ? 'bottom' : 'top']: low ? 0 : 2, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
-        {c.tone && <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: c.tone }} />}
-        {right ? <>{c.sub && <span style={{ ...small, fontSize: 9 }}>{c.sub} ·</span>}{c.title}</> : <>{c.title}{c.sub && <span style={{ ...small, fontSize: 9 }}>· {c.sub}</span>}</>}
-      </span>
-    );
-  };
-  return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
-      {w > 0 && h > 0 && (
-        <>
-          <svg width={w} height={h} aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-            <rect x={L} y={T} width={Math.max(0, ax - L)} height={Math.max(0, ay - T)} rx={12} fill="var(--good-soft)" opacity={0.75} />
-            <rect x={ax} y={ay} width={Math.max(0, L + pw - ax)} height={Math.max(0, T + ph - ay)} rx={12} fill="var(--bad-soft)" opacity={0.75} />
-            {ticks(x0, x1).map((v) => (
-              <g key={`x${v}`}>
-                <line x1={X(v)} x2={X(v)} y1={T} y2={T + ph} stroke="var(--grid)" />
-                <text x={X(v)} y={T + ph + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{format(v)}</text>
-              </g>
-            ))}
-            {ticks(y0, y1).map((v) => (
-              <g key={`y${v}`}>
-                <line x1={L} x2={L + pw} y1={Y(v)} y2={Y(v)} stroke="var(--grid)" />
-                <text x={L - 8} y={Y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{format(v)}</text>
-              </g>
-            ))}
-            <line x1={ax} x2={ax} y1={T} y2={T + ph} stroke="var(--muted)" strokeOpacity={0.7} strokeDasharray="4 4" />
-            <line x1={L} x2={L + pw} y1={ay} y2={ay} stroke="var(--muted)" strokeOpacity={0.7} strokeDasharray="4 4" />
-            <text x={ax + 5} y={T + ph - 6} style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>Company {format(avg.x)}</text>
-            <text x={L + pw - 4} y={ay - 6} textAnchor="end" style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>Company {format(avg.y)}</text>
-            <text x={L + pw / 2} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 800, fill: 'var(--text)' }}>{axes.x} →</text>
-            <text transform={`translate(10, ${T}) rotate(-90)`} textAnchor="end" style={{ fontSize: 9, fontWeight: 800, fill: 'var(--text)' }}>{axes.y} →</text>
-          </svg>
-          {corners.map(corner)}
-          {items.map((it, k) => {
-            const r = rOf(it);
-            const on = hover === it.key;
-            return (
-              <motion.button
-                key={it.key}
-                type="button"
-                layoutId={layoutIdOf?.(it)}
-                data-ins-bubble={it.key}
-                aria-label={`${it.label}: ${tip(it).slice(1).join('; ')}. Open its profile`}
-                onMouseEnter={() => setHover(it.key)}
-                onFocus={() => setHover(it.key)}
-                onBlur={() => setHover(null)}
-                onClick={(e) => { e.stopPropagation(); onOpen?.(it.key); }}
-                initial={{ opacity: 0, scale: reduce ? 1 : 0.2 }}
-                animate={{ opacity: 1, scale: on ? 1.14 : 1 }}
-                transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 260, damping: 20, delay: hover ? 0 : 0.15 + 0.035 * k }}
-                style={{ position: 'absolute', left: X(it.x) - r, top: Y(it.y) - r, width: 2 * r, height: 2 * r, zIndex: on ? 5 : 2, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 999, border: '2px solid var(--base)', background: `radial-gradient(circle at 32% 28%, rgba(255,255,255,0.38), rgba(255,255,255,0) 58%), ${fill(it)}`, color: ink(it), boxShadow: on ? '0 12px 26px rgba(15,23,42,0.26)' : '0 4px 10px rgba(15,23,42,0.12)', fontSize: r > 18 ? 9.5 : 8, fontWeight: 900, letterSpacing: '0.02em', cursor: 'pointer' }}
-              >
-                {it.code}
-              </motion.button>
-            );
-          })}
-          {shown && (
-            <Tip x={X(shown.x)} y={Y(shown.y) - rOf(shown) - 2} w={w}>
-              {tip(shown).map((line, i) => <div key={line} style={i ? tipLine : tipTitle}>{line}</div>)}
-            </Tip>
-          )}
-        </>
       )}
     </div>
   );

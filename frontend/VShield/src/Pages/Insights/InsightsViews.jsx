@@ -5,11 +5,11 @@ import { ArrowUpRight, ChevronRight } from 'lucide-react';
 import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
-import { TONE_ART, TONE_TINT } from '../Leaderboard/bigPictureArt';
+import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, BubbleMap, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, ScoreBars, TileMap } from './InsightsCharts';
+import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, ScoreBars, TileMap } from './InsightsCharts';
 import { Explain, HealthChip, LureTile, PerClickHow } from './InsightsBits';
-import { EASE, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, rolling, small, times } from './insightsUi';
+import { EASE, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, rolling, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -26,7 +26,7 @@ const pts = (c) => c && { ...c, shown: c.shown.replace('×', ' pts').replace(' m
 
 // a clay piece on its tone's wash, for the rows of what changed
 function ToneArt({ tone, isDark }) {
-  const tint = (isDark ? TONE_TINT.dark : TONE_TINT.light)[tone];
+  const tint = (isDark ? TINT.dark : TINT.light)[tone];
   return (
     <span aria-hidden style={{ width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center', background: tint.wash, border: `1px solid ${tint.edge}` }}>
       <img src={TONE_ART[tone]} alt="" width={20} height={20} style={{ objectFit: 'contain' }} />
@@ -50,9 +50,9 @@ export function OverviewView({ ctx, list }) {
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
-      <Card i={0} reduce={reduce} title="Risk over the year" sub="Everyone's risk level, averaged · lower is safer" action={<Legend items={[{ label: 'Risk score', color: ink.bad }, { label: '3-month average', color: 'var(--text)', line: true }]} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
+      <Card i={0} reduce={reduce} title="Risk over the year" sub="Everyone's risk level, averaged · lower is safer" action={<Legend items={[{ label: 'Risk score', color: ink.risk }, { label: '3-month average', color: 'var(--text)', line: true }]} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <ScoreBars at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} line={{ label: 'Three-month average', values: rolling(p.trend.map((s) => s.score)), color: 'var(--text)' }} color={ink.bad} soft="var(--soft-bad)" format={scoreText} top={top} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+          <ScoreBars at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} line={{ label: 'Three-month average', values: rolling(p.trend.map((s) => s.score)), color: 'var(--text)' }} color={ink.risk} soft="var(--soft-risk)" format={scoreText} top={top} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
         <Insight tone={dc?.good === false ? ink.bad : ink.good} sub={`${num(p.now.highRisk)} people at high risk · ${num(p.now.improved)} moved down a level, ${num(p.now.slipped)} up`}>
           {dc ? `Risk is ${dc.dir === 'down' ? 'down' : dc.dir === 'up' ? 'up' : 'steady'}${dc.dir === 'flat' ? '' : ` ${dc.shown}`} in ${p.basis.days} days, at ${scoreText(p.now.score)} of 100` : `Risk is at ${scoreText(p.now.score)} of 100`}
@@ -223,43 +223,74 @@ function ChangeRows({ rows, ink, isDark, reduce, open }) {
   );
 }
 
+// Reported against clicked, a row per department: an orange dot where its
+// clicks sit, a teal dot where its reports sit, on one scale, joined; the
+// best habit (most reports over clicks) first. Each row grows into the
+// department's profile; hover shows its numbers.
+function HabitRows({ rows, ink, isDark, reduce, open }) {
+  const [hover, setHover] = useState(null);
+  const top = Math.ceil(Math.max(...rows.flatMap((r) => [r.clicked, r.reported]), 0.1) * 10) / 10;
+  const ticks = Array.from({ length: Math.round(top * 10) + 1 }, (_, k) => k / 10);
+  const at = (v) => `${(v / top) * 100}%`;
+  const COLS = '24px minmax(0,1.05fr) minmax(0,2.4fr) 58px 12px';
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }} onMouseLeave={() => setHover(null)}>
+      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800 }}>
+        <span />
+        <span>Department</span>
+        <span style={{ position: 'relative', height: 12 }}>{ticks.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), transform: t === 0 ? 'none' : t === top ? 'translateX(-100%)' : 'translateX(-50%)', fontWeight: 600 }}>{pc(t)}</span>)}</span>
+        <span style={{ textAlign: 'right' }} title="Reported minus clicked, in points">Gap</span>
+        <span />
+      </div>
+      {rows.map((r, k) => {
+        const on = hover === r.name;
+        const lo = Math.min(r.clicked, r.reported); const hi = Math.max(r.clicked, r.reported);
+        const gap = Math.round((r.reported - r.clicked) * 100);
+        return (
+          <motion.button
+            key={r.name}
+            type="button"
+            layoutId={`dept-${r.name}`}
+            className="ins-row"
+            data-ins-habit={r.name}
+            onClick={() => open('department', r.name, `dept-${r.name}`)}
+            onMouseEnter={() => setHover(r.name)}
+            onFocus={() => setHover(r.name)}
+            aria-label={`${r.name}: reported ${pc1(r.reported)}, clicked ${pc1(r.clicked)}. Open its profile`}
+            initial={{ opacity: 0, x: reduce ? 0 : 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.15 + 0.025 * k, ease: EASE }}
+            style={{ flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+          >
+            <DeptCrest code={deptCode(r.name)} size={24} compact metal={isDark ? 'steelDark' : 'steel'} />
+            <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+            <span aria-hidden style={{ position: 'relative', height: 16 }}>
+              {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), top: -6, bottom: -6, width: 1, background: 'var(--grid)' }} />)}
+              <motion.span initial={{ left: reduce ? at(lo) : '0%', width: reduce ? at(hi - lo) : '0%' }} animate={{ left: at(lo), width: at(hi - lo) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.25 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 5, height: 6, borderRadius: 999, background: r.reported >= r.clicked ? 'var(--soft-good)' : 'var(--soft-bad)' }} />
+              {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => (
+                <motion.span key={key} initial={{ left: reduce ? at(r[key]) : '0%' }} animate={{ left: at(r[key]) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.25 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 2, width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }}>
+                  {on && <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', [key === 'reported' ? 'bottom' : 'top']: 15, fontSize: 9, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{pc(r[key])}</span>}
+                </motion.span>
+              ))}
+            </span>
+            <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: 8.5, marginLeft: 2 }}>pts</span></span>
+            <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DepartmentsView({ ctx }) {
   const { m, p, ink, isDark, reduce, open } = ctx;
-  const scores = p.departments.map((d) => d.score);
-  const lo = Math.min(...scores); const hi = Math.max(...scores);
-  const ramp = riskRamp(isDark, lo, hi);
   const camp = Object.fromEntries(m.departments.map((d) => [d.name, d]));
-  const items = p.departments.filter((d) => camp[d.name]?.recipients).map((d) => ({ key: d.name, label: d.name, code: deptCode(d.name), x: camp[d.name].clickRate, y: camp[d.name].reportRate, size: d.people, value: d.score }));
+  const habits = p.departments.filter((d) => camp[d.name]?.recipients).map((d) => ({ name: d.name, clicked: camp[d.name].clickRate, reported: camp[d.name].reportRate })).sort((a, b) => (b.reported - b.clicked) - (a.reported - a.clicked) || a.name.localeCompare(b.name));
   const rows = p.departments.map((d) => ({ name: d.name, score: d.score, delta: d.score - (d.scoreBefore ?? d.score) })).sort((a, b) => a.delta - b.delta || a.name.localeCompare(b.name));
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
-      <Card i={0} reduce={reduce} title="How each department behaves" sub={`Clicked against reported, last ${m.basis.days} days · each bubble opens its profile`} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
-          <BubbleMap
-            items={items}
-            avg={{ x: m.now.hooked, y: m.now.reportRate }}
-            fill={(it) => ramp.fill(it.value)}
-            ink={(it) => ramp.ink(it.value)}
-            axes={{ x: 'Clicked (Hook Rate)', y: 'Reported (Report Rate)' }}
-            corners={[
-              { title: 'Alert', sub: 'Click less, report more', tone: ink.good },
-              { title: 'Speak up, but get caught', sub: 'Click more, report more' },
-              { title: 'Quiet', sub: 'Click less, report less' },
-              { title: 'Exposed', sub: 'Click more, report less', tone: ink.bad },
-            ]}
-            format={pc}
-            reduce={reduce}
-            layoutIdOf={(it) => `dept-${it.key}`}
-            onOpen={(name) => open('department', name, `dept-${name}`)}
-            tip={(it) => [it.label, `Clicked ${pc1(it.x)} · reported ${pc1(it.y)}`, `Risk score ${scoreText(it.value)} · ${num(it.size)} people`]}
-          />
-        </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, ...small, fontSize: 9 }}>
-          <span>Colour: risk score, {scoreText(lo)}</span>
-          <span aria-hidden style={{ display: 'flex', gap: 2 }}>{ramp.steps.map((c) => <span key={c} style={{ width: 18, height: 6, borderRadius: 3, background: c }} />)}</span>
-          <span>{scoreText(hi)}</span>
-          <span style={{ marginLeft: 'auto' }}>Size: its people · dashed lines: the company</span>
-        </div>
+      <Card i={0} reduce={reduce} title="How each department behaves" sub={`Reported against clicked, last ${m.basis.days} days · gap: reported minus clicked · best first`} action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
+        <HabitRows rows={habits} ink={ink} isDark={isDark} reduce={reduce} open={open} />
       </Card>
       <Card i={1} reduce={reduce} title="Who got safer, who got riskier" sub={`Change in risk score over the last ${m.basis.days} days · each opens its profile`} style={{ gridColumn: 'span 5' }} data-ins-movers>
         <ChangeRows rows={rows} ink={ink} isDark={isDark} reduce={reduce} open={open} />

@@ -116,7 +116,7 @@ export function Explain({ label, children, onDark = false }) {
         onBlur={hide}
         onKeyDown={(e) => { if (e.key === 'Escape') hide(); }}
         onClick={(e) => { e.stopPropagation(); if (at) hide(); else show(); }}
-        style={{ flexShrink: 0, width: 17, height: 17, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 999, border: 'none', background: onDark ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.08)', color: 'inherit', cursor: 'help' }}
+        style={{ flexShrink: 0, width: 17, height: 17, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 999, border: 'none', background: onDark ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.08)', color: onDark ? 'inherit' : 'var(--text)', cursor: 'help' }}
       >
         <Info size={11} strokeWidth={2.6} aria-hidden />
       </button>

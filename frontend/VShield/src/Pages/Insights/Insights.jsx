@@ -11,7 +11,6 @@ import { organisation } from '../../services/sampleOrganisation';
 import { insightsBook, insightsSummary } from '../../services/insightsExport';
 import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { ExportMenu } from '../Leaderboard/BigPicture';
-import { REPORT_INK } from '../Leaderboard/reportInk';
 import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
 import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
@@ -20,7 +19,7 @@ import { BarcodeMeter, RingGauge, Segmented } from './InsightsCharts';
 import { Count, Delta, Explain, PerClickHow } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, HEALTH_RULE, change, eyebrow, num, pc, pc1, riskWord, small, swap, times } from './insightsUi';
+import { EASE, HEALTH_RULE, INK, change, eyebrow, num, pc, pc1, riskWord, small, swap, times } from './insightsUi';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -101,7 +100,7 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 const HEALTH_LOOK = {
   Protected: { art: ClayGoingWell, tile: 'linear-gradient(140deg,#CFF3E6 0%,#E6FAF2 55%,#F2FCF8 100%)', glow: 'rgba(13,148,136,0.16)' },
   Holding: { art: ClayTrendFlat, tile: 'linear-gradient(140deg,#E3E1FF 0%,#EFEEFF 55%,#F7F6FF 100%)', glow: 'rgba(99,102,241,0.16)' },
-  Exposed: { art: ClayAttention, tile: 'linear-gradient(140deg,#FFD9D6 0%,#FFE9E7 55%,#FFF4F3 100%)', glow: 'rgba(229,72,77,0.16)' },
+  Exposed: { art: ClayAttention, tile: 'linear-gradient(140deg,#FFE2C8 0%,#FFEFE0 55%,#FFF8F1 100%)', glow: 'rgba(224,123,46,0.18)' },
 };
 function HealthTile({ m, ink, reduce }) {
   const n = m.now;
@@ -144,7 +143,7 @@ function RiskKpi({ p, ink, reduce, onOpen }) {
   const dc = change(p.now.score, p.before?.score, { kind: 'times', better: 'down' });
   return (
     <motion.button type="button" className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px 8px 10px', borderRadius: 14, border: 'none', background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
-      <RingGauge value={p.now.score} size={66} stroke={6} color={ink.bad} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`}>
+      <RingGauge value={p.now.score} size={66} stroke={6} color={ink.risk} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`}>
         <span className="vs-rank" style={{ display: 'block', fontSize: 15, fontWeight: 900 }}><Count value={p.now.score} format={(v) => v.toFixed(1)} reduce={reduce} /></span>
         <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: 2 }}>/ 100</span>
       </RingGauge>
@@ -176,7 +175,7 @@ const Insights = () => {
   const { isDark, hasAccess } = useUserType() || {};
   const navigate = useNavigate();
   const reduce = useReducedMotion();
-  const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
+  const ink = isDark ? INK.dark : INK.light;
   // a department's people are admins' to see, as on the Big Picture
   const canSeePeople = Boolean(hasAccess && hasAccess('leaderboard-people'));
   const [days, setDays] = useState(30);
@@ -213,7 +212,7 @@ const Insights = () => {
   const b = m.before;
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const kpis = [
-    { id: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.bad, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
+    { id: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.risk, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
     { id: 'hooked', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails clicked', share: n.hooked, delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), color: ink.bad, hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
     { id: 'reported', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails reported', share: n.reportRate, delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), color: ink.good, hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
   ];
@@ -225,8 +224,8 @@ const Insights = () => {
   ];
 
   const vars = isDark
-    ? { '--bg': 'transparent', '--base': '#1C1E24', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.10)', '--hair-strong': 'rgba(255,255,255,0.18)', '--track': 'rgba(255,255,255,0.10)', '--tick': 'rgba(255,255,255,0.14)', '--grid': 'rgba(255,255,255,0.08)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.06)', '--chip': 'rgba(255,255,255,0.08)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(255,255,255,0.16)', '--soft-good': 'rgba(22,163,148,0.38)', '--good-soft': 'rgba(22,163,148,0.16)', '--bad-soft': 'rgba(232,99,95,0.14)', '--bp-accent': '#5EEAD4' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(229,72,77,0.28)', '--soft-good': 'rgba(13,148,136,0.30)', '--good-soft': '#E3F6F2', '--bad-soft': '#FDECEC', '--bp-accent': '#0F766E' };
+    ? { '--bg': 'transparent', '--base': '#1C1E24', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.10)', '--hair-strong': 'rgba(255,255,255,0.18)', '--track': 'rgba(255,255,255,0.10)', '--tick': 'rgba(255,255,255,0.14)', '--grid': 'rgba(255,255,255,0.08)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.06)', '--chip': 'rgba(255,255,255,0.08)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(255,255,255,0.16)', '--soft-risk': 'rgba(255,255,255,0.16)', '--soft-good': 'rgba(22,163,148,0.38)', '--good-soft': 'rgba(22,163,148,0.16)', '--bad-soft': 'rgba(224,123,46,0.16)', '--bp-accent': '#5EEAD4' }
+    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(224,123,46,0.30)', '--soft-risk': 'rgba(82,87,204,0.22)', '--soft-good': 'rgba(13,148,136,0.30)', '--good-soft': '#E3F6F2', '--bad-soft': '#FDF0E6', '--bp-accent': '#0F766E' };
 
   let body;
   if (top) {
