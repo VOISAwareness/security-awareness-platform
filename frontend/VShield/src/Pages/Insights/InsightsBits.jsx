@@ -1,6 +1,6 @@
 import { createElement, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Info } from 'lucide-react';
 
 import { Chip } from '../Leaderboard/BigPictureTables';
@@ -37,6 +37,13 @@ export function LureTile({ type, size = 32, tone }) {
   );
 }
 
+// A bar's fill: set at its width and grown in from the left by a CSS
+// animation of its transform, which the browser runs without script or
+// layout; a later change of width eases across.
+export function Fill({ width, color, delay = 0, radius = 999 }) {
+  return <span className="ins-grow-x" style={{ '--d': `${Math.min(delay, 0.45)}s`, display: 'block', height: '100%', width, borderRadius: radius, background: color, transformOrigin: 'left', transition: 'width .5s ease' }} />;
+}
+
 /** A number over a thin bar that grows in from nothing. */
 export function Meter({ value, max, color, label, sub, delay = 0, reduce, height = 6 }) {
   const w = `${Math.max(0, Math.min(1, max > 0 ? (value || 0) / max : 0)) * 100}%`;
@@ -47,7 +54,7 @@ export function Meter({ value, max, color, label, sub, delay = 0, reduce, height
         {sub && <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
       </span>
       <span aria-hidden style={{ height, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-        <motion.span initial={{ width: reduce ? w : 0 }} animate={{ width: w }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: color }} />
+        <Fill width={w} color={color} delay={delay} reduce={reduce} />
       </span>
     </span>
   );
@@ -59,7 +66,7 @@ export function InlineBar({ value, max, color, label, delay = 0, reduce }) {
   return (
     <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
       <span aria-hidden style={{ flex: 1, minWidth: 0, height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-        <motion.span initial={{ width: reduce ? w : 0 }} animate={{ width: w }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: color }} />
+        <Fill width={w} color={color} delay={delay} reduce={reduce} />
       </span>
       <span className="vs-rank" style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
     </span>
@@ -71,30 +78,21 @@ export function Heads({ cols, children, pad = 13 }) {
   return <div role="row" style={{ flexShrink: 0, height: 28, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 14, padding: `0 ${pad}px`, borderBottom: '1px solid var(--hair)', ...heads }}>{children}</div>;
 }
 
-// A number that counts to its new value when the period changes.
-function useTween(target, reduce, ms = 700) {
-  const [v, setV] = useState(target);
-  const cur = useRef(target);
-  useEffect(() => {
-    if (reduce || !Number.isFinite(target)) return undefined;
-    const from = Number.isFinite(cur.current) ? cur.current : target;
-    const start = performance.now();
-    let raf = 0;
-    const step = (t) => {
-      const k = Math.min(1, (t - start) / ms);
-      const x = from + (target - from) * (1 - (1 - k) ** 4);
-      cur.current = x;
-      setV(x);
-      if (k < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, reduce, ms]);
-  return reduce || !Number.isFinite(target) ? target : v;
-}
-/** `format(value)`, counting from the last value shown. */
+/**
+ * `format(value)`, counting from the last value shown. A motion value writes
+ * the text straight into the page, so nothing re-renders while it counts.
+ */
 export function Count({ value, format, reduce }) {
-  return format(useTween(value, reduce));
+  const ok = Number.isFinite(value);
+  const mv = useMotionValue(ok ? value : 0);
+  const text = useTransform(mv, (v) => format(v));
+  useEffect(() => {
+    if (!ok) return undefined;
+    if (reduce) { mv.set(value); return undefined; }
+    const run = animate(mv, value, { duration: 0.7, ease: [0.16, 1, 0.3, 1] });
+    return () => run.stop();
+  }, [ok, value, reduce, mv]);
+  return ok ? <motion.span>{text}</motion.span> : format(value);
 }
 
 const EXPLAIN_W = 290;

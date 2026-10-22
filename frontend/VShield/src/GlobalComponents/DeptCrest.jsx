@@ -3,7 +3,8 @@ import { useId } from 'react';
 // A department's crest, standing in for a badge: a shield in the podium's
 // gold, silver or bronze (steel in the list), with its people and its short
 // code. `shine` sweeps a band of light across it now and then; `compact`
-// (list sizes) drops the people and lets the code fill the shield.
+// (list sizes) drops the people and lets the code fill the shield; `flat`
+// drops its shadow, for long lists where the shadow costs more than it shows.
 const CREST = {
   gold: { stops: ['#FBE08A', '#E9B949', '#B98420'], edge: '#8F620C', ink: '#4A3400', rim: 'rgba(255,255,255,0.45)' },
   silver: { stops: ['#F8F9FB', '#CDD3DC', '#98A2AE'], edge: '#727D8A', ink: '#2F3742', rim: 'rgba(255,255,255,0.6)' },
@@ -13,12 +14,12 @@ const CREST = {
 };
 const SHIELD = 'M50 3 L93 18 V57 C93 85 74 103 50 113 C26 103 7 85 7 57 V18 Z';
 
-const DeptCrest = ({ code, size, metal = 'steel', edge, shine = false, compact = false }) => {
+const DeptCrest = ({ code, size, metal = 'steel', edge, shine = false, compact = false, flat = false }) => {
   const id = useId().replace(/:/g, '');
   const c = CREST[metal];
   const text = String(code || '').slice(0, 3);
   return (
-    <svg width={Math.round(size * 0.86)} height={size} viewBox="0 0 100 116" aria-hidden style={{ display: 'block', overflow: 'visible', filter: 'drop-shadow(0 6px 8px rgba(15,23,42,0.22))' }}>
+    <svg width={Math.round(size * 0.86)} height={size} viewBox="0 0 100 116" aria-hidden style={{ display: 'block', overflow: 'visible', filter: flat ? 'none' : 'drop-shadow(0 6px 8px rgba(15,23,42,0.22))' }}>
       <defs>
         <linearGradient id={`${id}g`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={c.stops[0]} />

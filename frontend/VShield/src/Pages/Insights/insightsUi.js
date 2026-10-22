@@ -86,16 +86,18 @@ export const EASE = [0.22, 1, 0.36, 1];
 export const SPRING = { type: 'spring', stiffness: 520, damping: 42, mass: 0.9 };
 // A card pops in: it rises a little, grows to size and comes into focus,
 // one after another.
+// Only opacity and transforms move: the browser hands those to the GPU,
+// where a blur or a size would repaint or re-lay the page every frame.
 export const rise = (reduce, i = 0) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.97, filter: reduce ? 'none' : 'blur(6px)' },
-  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
-  transition: { duration: reduce ? 0.01 : 0.5, delay: reduce ? 0 : 0.05 * i, ease: EASE },
+  initial: { opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  transition: { duration: reduce ? 0.01 : 0.4, delay: reduce ? 0 : 0.035 * i, ease: EASE },
 });
 export const swap = (reduce) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 10, filter: reduce ? 'none' : 'blur(8px)' },
-  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-  exit: { opacity: 0, y: reduce ? 0 : -8, filter: reduce ? 'none' : 'blur(6px)' },
-  transition: { duration: reduce ? 0.12 : 0.38, ease: EASE },
+  initial: { opacity: 0, y: reduce ? 0 : 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: reduce ? 0 : -6, transition: { duration: reduce ? 0.08 : 0.18, ease: EASE } },
+  transition: { duration: reduce ? 0.12 : 0.34, ease: EASE },
 });
 
 // What people did with the emails: reported, ignored, clicked, gave details away.

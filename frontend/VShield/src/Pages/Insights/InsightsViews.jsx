@@ -8,7 +8,7 @@ import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, Staircase, TileMap } from './InsightsCharts';
-import { Explain, HealthChip, LureTile, PerClickHow } from './InsightsBits';
+import { Explain, Fill, HealthChip, LureTile, PerClickHow } from './InsightsBits';
 import { EASE, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
@@ -82,8 +82,8 @@ export function OverviewView({ ctx, list }) {
       <motion.section
         data-ins-spot
         aria-label="When phishing lands"
-        initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.96, filter: reduce ? 'none' : 'blur(8px)' }}
-        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
         style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: fg, background: isDark ? 'radial-gradient(120% 80% at 100% 0%, #E0E7FF 0%, #FFFFFF 55%)' : 'radial-gradient(120% 85% at 100% 0%, #2B2F6B 0%, #111217 52%, #0A0A0C 100%)' }}
       >
@@ -128,13 +128,10 @@ export function OverviewView({ ctx, list }) {
             <motion.button
               key={f.id}
               type="button"
-              className="ins-find"
+              className="ins-find ins-in-x"
               data-ins-finding={f.id}
               onClick={(e) => { e.stopPropagation(); open(f.view, f.view === 'risk' || f.view === 'training' ? null : f.focus); }}
-              initial={{ opacity: 0, x: reduce ? 0 : 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : 0.35 + 0.06 * k, ease: EASE }}
-              style={{ flex: '1 1 0', minHeight: 0, maxHeight: 56, display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto 14px', alignItems: 'center', gap: 11, padding: '0 8px', margin: '0 -8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+              style={{ '--d': `${0.15 + 0.04 * k}s`, flex: '1 1 0', minHeight: 0, maxHeight: 56, display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto 14px', alignItems: 'center', gap: 11, padding: '0 8px', margin: '0 -8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
             >
               <ToneArt tone={f.tone} isDark={isDark} />
               <span style={{ minWidth: 0 }}>
@@ -177,7 +174,7 @@ export function OverviewView({ ctx, list }) {
 // Who got safer and who got riskier over the period: a bar either side of
 // zero for each department, the most improved first; each row opens its
 // profile.
-function ChangeRows({ rows, ink, isDark, reduce, open }) {
+function ChangeRows({ rows, ink, isDark, open }) {
   const most = Math.max(...rows.map((r) => Math.abs(r.delta)), 0.1);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
@@ -195,23 +192,20 @@ function ChangeRows({ rows, ink, isDark, reduce, open }) {
           <motion.button
             key={r.name}
             type="button"
-            className="ins-row"
+            className="ins-row ins-in-x"
             data-ins-change={r.name}
             onClick={() => open('department', r.name)}
             aria-label={`${r.name}: risk score ${r.score.toFixed(1)}, ${r.delta <= 0 ? 'down' : 'up'} ${Math.abs(r.delta).toFixed(1)} points. Open its profile`}
-            initial={{ opacity: 0, x: reduce ? 0 : 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.2 + 0.025 * k, ease: EASE }}
-            style={{ flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
-            <DeptCrest code={deptCode(r.name)} size={24} compact metal={isDark ? 'steelDark' : 'steel'} />
+            <DeptCrest code={deptCode(r.name)} size={24} compact flat metal={isDark ? 'steelDark' : 'steel'} />
             <span style={{ minWidth: 0 }}>
               <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
               <span style={{ display: 'block', ...small, fontSize: 8.5, marginTop: 1 }}>Risk score {r.score.toFixed(1)}</span>
             </span>
             <span aria-hidden style={{ position: 'relative', height: 12 }}>
               <span style={{ position: 'absolute', left: '50%', top: -4, bottom: -4, width: 1, background: 'var(--hair-strong)' }} />
-              <motion.span initial={{ width: reduce ? wd : 0 }} animate={{ width: wd }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : 0.3 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 0, height: 12, [r.delta < 0 ? 'right' : 'left']: '50%', minWidth: 3, borderRadius: r.delta < 0 ? '6px 2px 2px 6px' : '2px 6px 6px 2px', background: tone }} />
+              <span className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, position: 'absolute', top: 0, height: 12, width: wd, [r.delta < 0 ? 'right' : 'left']: '50%', transformOrigin: r.delta < 0 ? 'right' : 'left', minWidth: 3, borderRadius: r.delta < 0 ? '6px 2px 2px 6px' : '2px 6px 6px 2px', background: tone, transition: 'width .5s ease' }} />
             </span>
             <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{Math.abs(r.delta) < 0.05 ? '0.0' : `${r.delta < 0 ? '−' : '+'}${Math.abs(r.delta).toFixed(1)}`}</span>
             <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
@@ -226,7 +220,7 @@ function ChangeRows({ rows, ink, isDark, reduce, open }) {
 // clicks sit, a teal dot where its reports sit, on one scale, joined; the
 // best habit (most reports over clicks) first. Each row grows into the
 // department's profile; hover shows its numbers.
-function HabitRows({ rows, ink, isDark, reduce, open }) {
+function HabitRows({ rows, ink, isDark, open }) {
   const [hover, setHover] = useState(null);
   const top = Math.ceil(Math.max(...rows.flatMap((r) => [r.clicked, r.reported]), 0.1) * 10) / 10;
   const ticks = Array.from({ length: Math.round(top * 10) + 1 }, (_, k) => k / 10);
@@ -250,26 +244,23 @@ function HabitRows({ rows, ink, isDark, reduce, open }) {
             key={r.name}
             type="button"
             layoutId={`dept-${r.name}`}
-            className="ins-row"
+            className="ins-row ins-in-x"
             data-ins-habit={r.name}
             onClick={() => open('department', r.name, `dept-${r.name}`)}
             onMouseEnter={() => setHover(r.name)}
             onFocus={() => setHover(r.name)}
             aria-label={`${r.name}: reported ${pc1(r.reported)}, clicked ${pc1(r.clicked)}. Open its profile`}
-            initial={{ opacity: 0, x: reduce ? 0 : 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.15 + 0.025 * k, ease: EASE }}
-            style={{ flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
-            <DeptCrest code={deptCode(r.name)} size={24} compact metal={isDark ? 'steelDark' : 'steel'} />
+            <DeptCrest code={deptCode(r.name)} size={24} compact flat metal={isDark ? 'steelDark' : 'steel'} />
             <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
             <span aria-hidden style={{ position: 'relative', height: 16 }}>
               {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), top: -6, bottom: -6, width: 1, background: 'var(--grid)' }} />)}
-              <motion.span initial={{ left: reduce ? at(lo) : '0%', width: reduce ? at(hi - lo) : '0%' }} animate={{ left: at(lo), width: at(hi - lo) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.25 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 5, height: 6, borderRadius: 999, background: r.reported >= r.clicked ? 'var(--soft-good)' : 'var(--soft-bad)' }} />
+              <span className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, position: 'absolute', top: 5, height: 6, left: at(lo), width: at(hi - lo), transformOrigin: r.reported >= r.clicked ? 'left' : 'right', borderRadius: 999, background: r.reported >= r.clicked ? 'var(--soft-good)' : 'var(--soft-bad)', transition: 'left .5s ease, width .5s ease' }} />
               {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => (
-                <motion.span key={key} initial={{ left: reduce ? at(r[key]) : '0%' }} animate={{ left: at(r[key]) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.25 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 2, width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }}>
+                <span key={key} className="ins-pop" style={{ '--d': `${(key === 'clicked' ? 0.15 : 0.3) + Math.min(0.015 * k, 0.24)}s`, position: 'absolute', top: 2, left: at(r[key]), width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)', transition: 'left .5s ease' }}>
                   {on && <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', [key === 'reported' ? 'bottom' : 'top']: 15, fontSize: 9, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{pc(r[key])}</span>}
-                </motion.span>
+                </span>
               ))}
             </span>
             <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: 8.5, marginLeft: 2 }}>pts</span></span>
@@ -289,10 +280,10 @@ export function DepartmentsView({ ctx }) {
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
       <Card i={0} reduce={reduce} title="How each department behaves" sub={`Reported against clicked, last ${m.basis.days} days · gap: reported minus clicked · best first`} action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
-        <HabitRows rows={habits} ink={ink} isDark={isDark} reduce={reduce} open={open} />
+        <HabitRows rows={habits} ink={ink} isDark={isDark} open={open} />
       </Card>
       <Card i={1} reduce={reduce} title="Who got safer, who got riskier" sub={`Change in risk score over the last ${m.basis.days} days · each opens its profile`} style={{ gridColumn: 'span 5' }} data-ins-movers>
-        <ChangeRows rows={rows} ink={ink} isDark={isDark} reduce={reduce} open={open} />
+        <ChangeRows rows={rows} ink={ink} isDark={isDark} open={open} />
       </Card>
     </div>
   );
@@ -317,13 +308,10 @@ export function CampaignsView({ ctx }) {
             key={l.type}
             type="button"
             layoutId={`lure-${l.type}`}
-            className="ins-card ins-open"
+            className="ins-card ins-open ins-rise"
             data-ins-lure={l.type}
             onClick={() => open('lure', l.type, `lure-${l.type}`)}
-            initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.04 * k, ease: EASE }}
-            style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: k === 0 ? 'var(--bad-soft)' : 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${0.04 * k}s`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: k === 0 ? 'var(--bad-soft)' : 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <LureTile type={l.type} size={28} tone={k === 0 ? 'var(--base)' : undefined} />
@@ -334,7 +322,7 @@ export function CampaignsView({ ctx }) {
               <span style={small}>clicked</span>
             </span>
             <span aria-hidden style={{ height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-              <motion.span initial={{ width: reduce ? `${(l.hooked / maxHook) * 100}%` : 0 }} animate={{ width: `${(l.hooked / maxHook) * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.3 + 0.05 * k, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: ink.bad }} />
+              <Fill width={`${(l.hooked / maxHook) * 100}%`} color={ink.bad} delay={0.25 + 0.04 * k} reduce={reduce} />
             </span>
             <span style={{ ...small, fontSize: 9 }}>{l.campaigns} {l.campaigns === 1 ? 'campaign' : 'campaigns'} · {times(l.perClick)} reports per click</span>
           </motion.button>
@@ -347,15 +335,12 @@ export function CampaignsView({ ctx }) {
             key={c.id}
             type="button"
             layoutId={`camp-${c.id}`}
-            className="ins-card ins-open"
+            className="ins-card ins-open ins-rise"
             data-ins-campaign={c.id}
             onClick={() => open('campaign', c.id, `camp-${c.id}`)}
             onMouseEnter={() => setHover(c.id)}
             onMouseLeave={() => setHover(null)}
-            initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.15 + 0.035 * k, ease: EASE }}
-            style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${0.1 + 0.025 * k}s`, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
             <span style={{ display: 'flex', alignItems: 'flex-start', gap: 9, width: '100%' }}>
               <LureTile type={c.type} size={28} />

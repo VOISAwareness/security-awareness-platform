@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { startTransition, useMemo, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Copy, FileText, GraduationCap, LayoutGrid, MousePointerClick, Users } from 'lucide-react';
@@ -60,13 +60,29 @@ const FONT_IMPORT = `
   .ins-col:hover > span:first-child { background: var(--track) !important; }
   .ins-page button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
+  /* Entrances for the many small things (rows, bars, dots, tiles, cards in a
+     grid), as CSS animations of transform and opacity: the browser runs them
+     on its compositor, so they stay smooth while a new view is being built.
+     'backwards' holds the first frame through the delay and then lets go, so
+     a grow-in can move the element afterwards. --d is each one's delay. */
+  @keyframes ins-in-x { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+  @keyframes ins-rise { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes ins-pop-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
+  @keyframes ins-pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: none; } }
+  @keyframes ins-grow-x { from { transform: scaleX(0); } to { transform: none; } }
+  .ins-in-x { animation: ins-in-x .32s cubic-bezier(.22,1,.36,1) var(--d, 0s) backwards; }
+  .ins-rise { animation: ins-rise .42s cubic-bezier(.22,1,.36,1) var(--d, 0s) backwards; }
+  .ins-pop-in { animation: ins-pop-in .4s cubic-bezier(.22,1,.36,1) var(--d, 0s) backwards; }
+  .ins-pop { animation: ins-pop .36s cubic-bezier(.34,1.56,.64,1) var(--d, 0s) backwards; }
+  .ins-grow-x { animation: ins-grow-x .55s cubic-bezier(.22,1,.36,1) var(--d, 0s) backwards; }
+
   /* The clay pieces float, very slowly */
   @keyframes ins-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
   .ins-float { animation: ins-float 7s ease-in-out infinite; }
 
   @media (prefers-reduced-motion: reduce) {
     .ins-card, .ins-kpi, .ins-row, .ins-go, .ins-find, .ins-arrow, .ins-go-arrow { transition: none !important; }
-    .ins-float { animation: none !important; }
+    .ins-float, .ins-in-x, .ins-rise, .ins-pop-in, .ins-pop, .ins-grow-x { animation: none !important; }
   }
 `;
 
@@ -177,8 +193,12 @@ const Insights = () => {
   const ink = isDark ? INK.dark : INK.light;
   // a department's people are admins' to see, as on the Big Picture
   const canSeePeople = Boolean(hasAccess && hasAccess('leaderboard-people'));
+  // what the switches show changes at once; what they change renders in the
+  // background (a transition), so a big view never freezes what is moving
   const [days, setDays] = useState(30);
+  const [shownDays, setShownDays] = useState(30);
   const [tab, setTab] = useState('overview');
+  const [shownTab, setShownTab] = useState('overview');
   const [trail, setTrail] = useState([]); // the profiles opened, in order: { kind, key, layoutId, label }
   const [view, setView] = useState({ page: 0 });
 
@@ -194,16 +214,16 @@ const Insights = () => {
   // open a profile: on top of the trail, or in place of the one on show
   const open = (kind, key = null, layoutId = null, replace = false) => {
     const step = { kind, key, layoutId, label: labelOf(kind, key) };
-    setTrail((t) => (replace ? [...t.slice(0, -1), step] : [...t, step]));
+    startTransition(() => setTrail((t) => (replace ? [...t.slice(0, -1), step] : [...t, step])));
   };
-  const go = (id) => { setTrail([]); setTab(id); setView({ page: 0 }); };
+  const go = (id) => { setShownTab(id); startTransition(() => { setTrail([]); setTab(id); setView({ page: 0 }); }); };
   const top = trail.at(-1);
   const tabLabel = TABS.find((t) => t.id === tab)?.label || 'Insights';
   const frame = {
     layoutId: top?.layoutId,
     trail: [{ label: tabLabel }, ...trail.map((t) => ({ label: t.label }))],
-    onCrumb: (k) => setTrail((t) => t.slice(0, k)),
-    onBack: () => setTrail((t) => t.slice(0, -1)),
+    onCrumb: (k) => startTransition(() => setTrail((t) => t.slice(0, k))),
+    onBack: () => startTransition(() => setTrail((t) => t.slice(0, -1))),
   };
   const ctx = { m, p, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
 
@@ -266,10 +286,10 @@ const Insights = () => {
           {/* the arm: the period, the tabs and Export; under them, four measures */}
           <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP + 4}px 20px`, background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Segmented id="ins-period" label="Period" value={days} options={PERIODS} onChange={(d) => { setDays(d); setView({ page: 0 }); }} reduce={reduce} />
+              <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView({ page: 0 }); }); }} reduce={reduce} />
               <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.basis.campaigns} campaigns · against the {days} days before</span>
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Segmented id="ins-tab" label="Insights" value={top ? null : tab} options={TABS} onChange={go} reduce={reduce} tabs />
+                <Segmented id="ins-tab" label="Insights" value={top ? null : shownTab} options={TABS} onChange={go} reduce={reduce} tabs />
                 <ExportMenu items={exportItems} />
               </span>
             </div>
