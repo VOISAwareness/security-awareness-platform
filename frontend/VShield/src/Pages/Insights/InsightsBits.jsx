@@ -40,8 +40,9 @@ export function LureTile({ type, size = 32, tone }) {
 // A bar's fill: set at its width and grown in from the left by a CSS
 // animation of its transform, which the browser runs without script or
 // layout; a later change of width eases across.
-export function Fill({ width, color, delay = 0, radius = 999 }) {
-  return <span className="ins-grow-x" style={{ '--d': `${Math.min(delay, 0.45)}s`, display: 'block', height: '100%', width, borderRadius: radius, background: color, transformOrigin: 'left', transition: 'width .5s ease' }} />;
+// `grow` false when the row around it already moves in: one animated layer, not two.
+export function Fill({ width, color, delay = 0, radius = 999, grow = true }) {
+  return <span className={grow ? 'ins-grow-x' : undefined} style={{ '--d': `${Math.min(delay, 0.45)}s`, display: 'block', height: '100%', width, borderRadius: radius, background: color, transformOrigin: 'left', transition: 'width .5s ease' }} />;
 }
 
 /** A number over a thin bar that grows in from nothing. */
@@ -61,12 +62,12 @@ export function Meter({ value, max, color, label, sub, delay = 0, reduce, height
 }
 
 /** A thin bar with its value at its end, on one line with the rest of a row. */
-export function InlineBar({ value, max, color, label, delay = 0, reduce }) {
+export function InlineBar({ value, max, color, label, delay = 0, reduce, grow = true }) {
   const w = `${Math.max(0, Math.min(1, max > 0 ? (value || 0) / max : 0)) * 100}%`;
   return (
     <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
       <span aria-hidden style={{ flex: 1, minWidth: 0, height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-        <Fill width={w} color={color} delay={delay} reduce={reduce} />
+        <Fill width={w} color={color} delay={delay} reduce={reduce} grow={grow} />
       </span>
       <span className="vs-rank" style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
     </span>

@@ -121,6 +121,9 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 // window leaves it (the app draws at 90%, so that is about 940), where every
 // card has room. Shorter windows scroll.
 const MIN_H = 930;
+// The Departments tab has two rows of charts, so the page is taller there
+// and scrolls.
+const MIN_H_TALL = 1500;
 
 // The corner tile: the programme's health, from reports against clicks
 // (health() in bigPictureViews.js). Its clay emblem on the left, its word
@@ -290,7 +293,7 @@ const Insights = () => {
           a short window (a laptop at 125%) it scrolls here instead of
           squeezing its cards; layoutScroll keeps the grow-ins true when it has. */}
       <motion.div layoutScroll className="ins-page" data-ins-page={top ? `${top.kind}` : tab} style={{ ...vars, position: 'relative', background: 'var(--bg-edge)', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}>
-      <div className="ins-sheet" style={{ position: 'relative', isolation: 'isolate', height: '100%', minHeight: MIN_H, boxSizing: 'border-box', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="ins-sheet" style={{ position: 'relative', isolation: 'isolate', height: '100%', minHeight: !top && tab === 'departments' ? MIN_H_TALL : MIN_H, boxSizing: 'border-box', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* the page's light, on a layer of its own: painted once, not again
             under everything that moves */}
         <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: -1, background: 'var(--bg)', transform: 'translateZ(0)', pointerEvents: 'none' }} />
