@@ -182,7 +182,7 @@ function PeriodPicker({ days, onDays }) {
  * looking at first, then the full report, then a summary to paste. `items`
  * are { id, label, meta, Icon, run, doneLabel, apart }.
  */
-function ExportMenu({ items, picked = 0 }) {
+export function ExportMenu({ items, picked = 0 }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(null); // the item just run, for a moment
   const box = useRef(null);

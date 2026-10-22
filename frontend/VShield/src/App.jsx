@@ -23,8 +23,8 @@ import EmailIDsAndDomains from './Pages/EmailIDsandDomains/EmailIDsAndDomains';
 // 🌟 Import Landing Page Catalogue Page
 import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalogue';
 
-// 🌟 Dashboard and Analytics Page
-import DashboardAndAnalytics from './Pages/DashboardAndAnalytics/DashboardAndAnalytics';
+// 🌟 Insights (the analytics page)
+import Insights from './Pages/Insights/Insights';
 
 // 🌟 Campaign lifecycle pages (wired to the backend)
 import Campaigns from './Pages/Campaigns/Campaigns';
@@ -118,8 +118,8 @@ function App() {
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/requests-approvals" element={<RequestAndApprovals />} />
 
-            {/* 🌟 Dashboard And Analytics Route */}
-            <Route path="/analytics" element={<DashboardAndAnalytics />} />
+            {/* 🌟 Insights Route */}
+            <Route path="/analytics" element={<Insights />} />
 
             {/* 🌟 Leaderboard Route — opened from the My Space LEADERBOARD button (no nav item) */}
             <Route
