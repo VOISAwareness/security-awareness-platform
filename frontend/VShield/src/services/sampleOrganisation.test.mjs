@@ -29,6 +29,8 @@ test('every step adds up from its departments, and no count is negative', () => 
     const tr = s.training;
     assert.ok(tr.assigned >= tr.started && tr.started >= tr.completed && tr.completed >= tr.passed);
     assert.ok(Object.values(s.drivers).every((n) => n >= 0));
+    assert.equal(s.cohorts.trained + s.cohorts.untrained, s.people);
+    assert.ok(s.cohorts.trainedClicks / s.cohorts.trained < s.cohorts.untrainedClicks / s.cohorts.untrained, 'the trained click less');
   }
 });
 

@@ -42,9 +42,11 @@ export function riskScore(tiers) {
 
 /**
  * The organisation over `steps` thirty-day steps up to `end`, oldest first.
- * Each step: { to, people, tiers, improved, slipped, drivers, training,
- * departments }, where tiers and drivers are as they stood at its end, and
- * improved, slipped and training are what happened during it.
+ * Each step: { to, people, tiers, cohorts, improved, slipped, drivers,
+ * training, departments }, where tiers, cohorts (who has finished their
+ * training, and how many on each side clicked in the step's simulations)
+ * and drivers are as they stood at its end, and improved, slipped and
+ * training are what happened during it.
  */
 export function organisation({ end, steps = 12, depts = DEPTS } = {}) {
   return Array.from({ length: steps }, (_, i) => {
@@ -65,23 +67,36 @@ export function organisation({ end, steps = 12, depts = DEPTS } = {}) {
       const completed = Math.round(started * Math.min(0.98, (0.84 + 0.05 * t + wobble(0.03)) * (0.92 + 0.08 * learner)));
       const passed = Math.round(completed * (0.9 + r() * 0.07));
       const quizScore = Math.min(96, 68 + 9 * learner + 5 * t + wobble(2));
+      // who has finished their training, and how often each side clicked
+      // in the simulations (drawn apart, so the numbers above stay put)
+      const rc = random(104729 * (i + 3) + d);
+      const trained = Math.round(people * Math.min(0.94, (0.56 + 0.26 * t + (rc() - 0.5) * 0.04) * (0.9 + 0.1 * learner)));
+      const cohorts = {
+        trained,
+        untrained: people - trained,
+        trainedClicks: Math.round(trained * (0.092 - 0.018 * t + (rc() - 0.5) * 0.012) * risky),
+        untrainedClicks: Math.round((people - trained) * (0.212 - 0.02 * t + (rc() - 0.5) * 0.02) * risky),
+      };
       return {
         name,
         index: d,
         people,
         tiers,
+        cohorts,
         training: { assigned, started, completed, passed, quizScore, badges: Math.round(completed * (0.38 + r() * 0.14)), points: Math.round(completed * (58 + r() * 18)) },
       };
     });
     const sum = (f) => departments.reduce((a, x) => a + f(x), 0);
     const tiers = Object.fromEntries(TIERS.map((k) => [k, sum((x) => x.tiers[k])]));
     const people = sum((x) => x.people);
+    const cohorts = Object.fromEntries(['trained', 'untrained', 'trainedClicks', 'untrainedClicks'].map((k) => [k, sum((x) => x.cohorts[k])]));
     const tr = (k) => sum((x) => x.training[k]);
     const completed = tr('completed');
     return {
       to: end - (steps - 1 - i) * STEP_DAYS * DAY,
       people,
       tiers,
+      cohorts,
       improved: Math.round(people * (0.064 + 0.012 * t + wobble(0.006))),
       slipped: Math.round(people * (0.05 - 0.01 * t + wobble(0.005))),
       drivers: {

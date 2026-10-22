@@ -85,6 +85,7 @@ const campaignRow = ({ campaign, report }) => ({
   firstReport: report.timing.firstReport,
   medianReport: report.timing.medianReport,
   beatClick: report.timing.firstReport < report.timing.firstClick,
+  departments: (report.departments || []).map((d) => ({ name: d.name, recipients: d.recipients, clicked: d.clicked, reported: d.reported, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) })),
 });
 
 /**
@@ -134,6 +135,19 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     const row = (byDept[d.name] ||= { name: d.name, recipients: 0, clicked: 0, reported: 0, compromised: 0 });
     row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
   }));
+  // each department's clicks on each kind of lure, and each lure's departments
+  const pairs = {};
+  shown.forEach((x) => (x.report.departments || []).forEach((d) => {
+    const type = x.campaign.type || 'Other';
+    const row = (pairs[`${d.name}|${type}`] ||= { name: d.name, type, recipients: 0, clicked: 0, reported: 0 });
+    row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported;
+  }));
+  const crossed = Object.values(pairs).map((x) => ({ ...x, hooked: rate(x.clicked, x.recipients), reportRate: rate(x.reported, x.recipients) }));
+  const group = (key) => crossed.reduce((a, x) => { (a[x[key]] ||= []).push(x); return a; }, {});
+  const byHook = (a, b) => (b.hooked ?? 0) - (a.hooked ?? 0) || a.name.localeCompare(b.name) || a.type.localeCompare(b.type);
+  const deptLures = Object.fromEntries(Object.entries(group('name')).map(([k, v]) => [k, v.sort(byHook)]));
+  const lureDepts = Object.fromEntries(Object.entries(group('type')).map(([k, v]) => [k, v.sort(byHook)]));
+
   const departments = Object.values(byDept)
     .map((d) => ({ ...d, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) }))
     .sort((a, b) => (b.clickRate ?? 0) - (a.clickRate ?? 0) || a.name.localeCompare(b.name));
@@ -148,6 +162,8 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     months,
     motivators,
     departments,
+    deptLures,
+    lureDepts,
     arrival: { now: arrival(shown.map((x) => x.report)), before: earlier.length ? arrival(earlier.map((x) => x.report)) : null },
   };
 }
@@ -183,6 +199,53 @@ export function arrival(reports, { minutes = 120 } = {}) {
 }
 
 /**
+ * Who moved between risk tiers from `start` to `end` (counts by tier), as
+ * links { from, to, n }: everyone stays, moves one tier up or down, or
+ * joined (new people start as moderate: they have not reported yet). The
+ * moves are the fewest that turn `start` into `end`, plus as many more each
+ * way as make `down` (people who moved to a lower tier) reach `churn`, until
+ * the people and risk APIs record each move.
+ */
+export function movement(start, end, churn = 0) {
+  const s = TIERS.map((t) => start[t] || 0);
+  const e = TIERS.map((t) => end[t] || 0);
+  const joined = Math.max(0, e.reduce((a, b) => a + b, 0) - s.reduce((a, b) => a + b, 0));
+  const fit = [...e];
+  fit[1] -= joined; // the joiners land in moderate
+  // net moves from tier i to tier i + 1 (towards more risk), from the bottom up
+  const net = [];
+  let carry = 0;
+  for (let i = 0; i < TIERS.length - 1; i += 1) { carry = s[i] + carry - fit[i]; net.push(carry); }
+  const back = net.reduce((a, x) => a + Math.max(0, -x), 0);
+  const extra = Math.max(0, churn - back);
+  const room = net.map((_, i) => Math.min(s[i], s[i + 1]));
+  const roomAll = room.reduce((a, b) => a + b, 0) || 1;
+  const both = room.map((r) => Math.round((extra * r) / roomAll));
+  const up = net.map((x, i) => Math.max(0, x) + both[i]); // i -> i + 1
+  const down = net.map((x, i) => Math.max(0, -x) + both[i]); // i + 1 -> i
+  const links = [];
+  TIERS.forEach((t, i) => {
+    const stay = s[i] - (up[i] || 0) - (i ? down[i - 1] : 0);
+    links.push({ from: t, to: t, n: Math.max(0, stay) });
+    if (i < TIERS.length - 1) {
+      links.push({ from: t, to: TIERS[i + 1], n: up[i] });
+      links.push({ from: TIERS[i + 1], to: t, n: down[i] });
+    }
+  });
+  if (joined) links.push({ from: 'joined', to: 'moderate', n: joined });
+  return { links: links.filter((l) => l.n > 0), joined, up: up.reduce((a, b) => a + b, 0), down: down.reduce((a, b) => a + b, 0) };
+}
+
+const cohortOf = (c) => c && ({
+  trained: c.trained,
+  untrained: c.untrained,
+  trainedShare: rate(c.trained, c.trained + c.untrained),
+  trainedRate: rate(c.trainedClicks, c.trained), // of those who finished their training, clicked in the step's simulations
+  untrainedRate: rate(c.untrainedClicks, c.untrained),
+  times: c.trained && c.trainedClicks ? (c.untrainedClicks / c.untrained) / (c.trainedClicks / c.trained) : null, // how many times as likely to click untrained
+});
+
+/**
  * People over the last `days` days: `org` is organisation() output (thirty
  * days a step, oldest first). Tiers, the risk score, the high-risk count and
  * the drivers are as they stand at the end of the period (and at its start,
@@ -196,7 +259,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
   const shown = org.slice(-k);
   const earlier = org.slice(Math.max(0, org.length - 2 * k), org.length - k);
   const sum = (steps, f) => steps.reduce((a, s) => a + f(s), 0);
-  const snap = (s) => s && ({ people: s.people, tiers: s.tiers, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, drivers: s.drivers });
+  const snap = (s) => s && ({ people: s.people, tiers: s.tiers, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, drivers: s.drivers, cohorts: cohortOf(s.cohorts) });
   const flows = (steps) => {
     if (!steps.length) return null;
     const tr = (key) => sum(steps, (s) => s.training[key]);
@@ -220,8 +283,11 @@ export function peopleInsights(org, { days = 30 } = {}) {
       name: d.name,
       people: d.people,
       tiers: d.tiers,
+      tiersBefore: was ? was.tiers : null,
       score: riskScore(d.tiers),
       scoreBefore: was ? riskScore(was.tiers) : null,
+      cohorts: cohortOf(d.cohorts),
+      trend: org.map((st) => riskScore(st.departments[d.index].tiers)),
       highRisk: d.tiers.high + d.tiers.critical,
       training: {
         assigned: tr('assigned'), completed, badges: tr('badges'), points: tr('points'),
@@ -230,12 +296,17 @@ export function peopleInsights(org, { days = 30 } = {}) {
       },
     };
   }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const now = { ...snap(last), ...flows(shown) };
+  // who moved between tiers over the period: its moves set who improved and who slipped
+  const moved = startOf ? movement(startOf.tiers, last.tiers, now.improved) : null;
+  if (moved) { now.improved = moved.down; now.slipped = moved.up; }
   return {
     basis: { days, steps: k, end: last.to },
-    now: { ...snap(last), ...flows(shown) },
+    now,
     before: startOf ? { ...snap(startOf), ...flows(earlier) } : null,
+    moved,
     departments,
-    trend: org.map((s) => ({ to: s.to, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
+    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
     tiers: TIERS,
   };
 }
@@ -245,27 +316,30 @@ const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100
 export const lureName = (type) => (/ lure$/i.test(type) ? `${type}s` : `${type} emails`);
 
 /**
- * What stands out, as a short list, the most telling first: each a
- * sentence, its number on a chip, the tab it opens (`view`) and what to show
- * there (`focus`): a department, a lure or a campaign. `p` is
- * peopleInsights() output, for the departments (left out without it). `tone` is 'bad', 'good' or 'watch' (the Big Picture's clay art).
+ * What changed, as a short list, the most telling first: each a fact in a
+ * few words, its number on a chip, whether it is better or worse (`tone`:
+ * 'good', 'bad' or 'watch', the Big Picture's clay art), and what it opens
+ * (`view`: 'department', 'lure', 'risk' or 'training'; `focus`: which one).
+ * `p` is peopleInsights() output; without it, only the campaigns' findings.
  * It reports; it never says what to do.
  */
 export function standsOut(m, p = null) {
   const out = [];
-  const riskiest = p?.departments[0];
-  if (riskiest) out.push({ id: 'riskiestDept', tone: 'bad', chip: `${Math.round(riskiest.score)} / 100`, title: 'The highest risk score', sub: `${riskiest.name} · ${riskiest.highRisk.toLocaleString('en-US')} people at high risk`, view: 'people', focus: riskiest.name });
+  const pts = (v) => `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} pts`;
+  const moved = p ? p.departments.filter((d) => d.scoreBefore !== null).map((d) => ({ d, by: d.score - d.scoreBefore })) : [];
+  const rose = [...moved].sort((a, b) => b.by - a.by)[0];
+  if (rose && rose.by > 0.05) out.push({ id: 'riskRose', tone: 'bad', chip: pts(rose.by), title: 'Risk rose the most', sub: `${rose.d.name} · risk score now ${Math.round(rose.d.score)}, ${rose.d.highRisk.toLocaleString('en-US')} at high risk`, view: 'department', focus: rose.d.name });
+  const fell = [...moved].sort((a, b) => a.by - b.by)[0];
+  if (fell && fell.by < -0.05) out.push({ id: 'riskFell', tone: 'good', chip: pts(fell.by), title: 'Risk fell the most', sub: `${fell.d.name} · risk score down to ${Math.round(fell.d.score)}`, view: 'department', focus: fell.d.name });
+  if (p?.before) {
+    const by = p.now.highRisk - p.before.highRisk;
+    if (by) out.push({ id: 'highRisk', tone: by < 0 ? 'good' : 'bad', chip: `${by > 0 ? '+' : '−'}${Math.abs(by).toLocaleString('en-US')}`, title: `${by < 0 ? 'Fewer' : 'More'} people at high risk`, sub: `${p.now.highRisk.toLocaleString('en-US')} people clicked more than once or gave details away`, view: 'risk', focus: 'highRisk' });
+  }
   const top = m.lures[0];
-  if (top && m.lures.length > 1) out.push({ id: 'topLure', tone: 'bad', chip: `${pc(top.hooked)} clicked`, title: 'Fooled the most people', sub: `${lureName(top.type)} · the highest Hook Rate`, view: 'lures', focus: top.type });
-  const better = p ? [...p.departments].filter((d) => d.scoreBefore !== null).sort((a, b) => (a.score - a.scoreBefore) - (b.score - b.scoreBefore))[0] : null;
-  if (better && better.score < better.scoreBefore) out.push({ id: 'improvedDept', tone: 'good', chip: `−${(better.scoreBefore - better.score).toFixed(1)} pts`, title: 'The most improved', sub: `${better.name} · risk score down to ${Math.round(better.score)}`, view: 'people', focus: better.name });
+  if (top && m.lures.length > 1) out.push({ id: 'topLure', tone: 'bad', chip: `${pc(top.hooked)} clicked`, title: 'Fooled the most people', sub: `${lureName(top.type)} · the highest Hook Rate`, view: 'lure', focus: top.type });
+  const c = p?.now.cohorts;
+  if (c?.times) out.push({ id: 'trained', tone: 'good', chip: `${c.times.toFixed(1)}× less`, title: 'Trained people click less', sub: `${pc(c.trainedRate)} of the trained clicked, ${pc(c.untrainedRate)} of the rest`, view: 'training', focus: 'cohorts' });
   const gave = [...m.lures].filter((l) => l.gaveOfClicks !== null && l.compromised > 0).sort((a, b) => b.gaveOfClicks - a.gaveOfClicks)[0];
-  if (gave) out.push({ id: 'gaveLure', tone: 'bad', chip: `${pc(gave.gaveOfClicks)} of clicks`, title: 'The most details given away', sub: `${lureName(gave.type)} · of those who clicked`, view: 'lures', focus: gave.type });
-  const caught = [...m.lures].filter((l) => l.perClick !== null).sort((a, b) => b.perClick - a.perClick)[0];
-  if (caught && m.lures.length > 1) out.push({ id: 'caughtLure', tone: 'good', chip: `${caught.perClick.toFixed(1)}× per click`, title: 'The most reported', sub: `${lureName(caught.type)} · reports for every click`, view: 'lures', focus: caught.type });
-  const slow = [...m.campaigns].sort((a, b) => b.medianReport - a.medianReport)[0];
-  if (slow) out.push({ id: 'slowest', tone: 'watch', chip: `${slow.medianReport} min`, title: 'The slowest to be reported', sub: `${slow.name} · until half the reports were in`, view: 'response', focus: slow.id });
-  const fast = m.campaigns.filter((c) => c.beatClick).sort((a, b) => a.firstReport - b.firstReport)[0];
-  if (fast) out.push({ id: 'fastest', tone: 'good', chip: `${fast.firstReport} min`, title: 'Reported before anyone clicked', sub: `${fast.name} · the first report`, view: 'response', focus: fast.id });
+  if (gave) out.push({ id: 'gaveLure', tone: 'bad', chip: `${pc(gave.gaveOfClicks)} of clicks`, title: 'The most details given away', sub: `${lureName(gave.type)} · of those who clicked`, view: 'lure', focus: gave.type });
   return out;
 }
