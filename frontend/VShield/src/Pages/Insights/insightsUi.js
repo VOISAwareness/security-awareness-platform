@@ -87,9 +87,9 @@ export const SPRING = { type: 'spring', stiffness: 520, damping: 42, mass: 0.9 }
 // A card pops in: it rises a little, grows to size and comes into focus,
 // one after another.
 export const rise = (reduce, i = 0) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.96, filter: reduce ? 'none' : 'blur(8px)' },
+  initial: { opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.97, filter: reduce ? 'none' : 'blur(6px)' },
   animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
-  transition: { duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.07 * i, ease: EASE },
+  transition: { duration: reduce ? 0.01 : 0.5, delay: reduce ? 0 : 0.05 * i, ease: EASE },
 });
 export const swap = (reduce) => ({
   initial: { opacity: 0, y: reduce ? 0 : 10, filter: reduce ? 'none' : 'blur(8px)' },

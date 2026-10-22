@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Copy, FileText, GraduationCap, LayoutGrid, Mail, MousePointerClick, Users } from 'lucide-react';
+import { Copy, FileText, GraduationCap, LayoutGrid, MousePointerClick, Users } from 'lucide-react';
 
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../../services/sampleCampaigns';
@@ -16,10 +16,10 @@ import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
 import ClayTrendFlat from '../../assets/LeaderboardAssets/ClayTrendFlat.png';
 import { BarcodeMeter, RingGauge, Segmented } from './InsightsCharts';
-import { Count, Delta, Explain, PerClickHow } from './InsightsBits';
+import { Count, Delta } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, HEALTH_RULE, INK, change, eyebrow, num, pc, pc1, riskWord, small, swap, times } from './insightsUi';
+import { EASE, INK, change, eyebrow, num, pc, pc1, riskWord, small, swap } from './insightsUi';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -42,7 +42,8 @@ import { EASE, HEALTH_RULE, INK, change, eyebrow, num, pc, pc1, riskWord, small,
 
 const FONT_IMPORT = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&display=swap');
-  .ins-page { font-family: 'Inter', system-ui, sans-serif; }
+  .ins-page { font-family: 'Inter', system-ui, sans-serif; scrollbar-width: thin; }
+  .ins-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--hair-strong) transparent; }
 
   /* Cards settle on hover; what opens something lifts a little and its arrow nudges */
   .ins-card { transition: box-shadow .25s ease, border-color .25s ease, background-color .25s ease; }
@@ -95,6 +96,10 @@ const PERIODS = [
 // the training API reports them.
 const TRAINING = { programmes: dashboardData.trainingPrograms };
 
+// The shortest the page gets: what a 900px-high window leaves it, where
+// every card has room.
+const MIN_H = 840;
+
 // The corner tile: the programme's health, in its own colour, with its clay
 // piece; reports for every click and its change; reports against clicks.
 const HEALTH_LOOK = {
@@ -107,21 +112,15 @@ function HealthTile({ m, ink, reduce }) {
   const h = n.health;
   const look = HEALTH_LOOK[h?.word] || HEALTH_LOOK.Holding;
   const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
-  const d = change(n.perClick, m.before?.perClick, { kind: 'times', better: 'up' });
   return (
-    <div data-ins-health={h?.word || 'none'} title={HEALTH_RULE} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', padding: '15px 18px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: L_R, overflow: 'hidden', background: look.tile, transition: 'background .4s ease' }}>
+    <div data-ins-health={h?.word || 'none'} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', padding: '15px 18px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: L_R, overflow: 'hidden', background: look.tile, transition: 'background .4s ease' }}>
       <span aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 170, height: 170, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
       <AnimatePresence mode="wait" initial={false}>
         <motion.img key={h?.word} className="ins-float" src={look.art} alt="" aria-hidden width={78} height={78} initial={{ opacity: 0, scale: reduce ? 1 : 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.7 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'absolute', right: 14, top: 18, objectFit: 'contain', filter: 'drop-shadow(0 10px 14px rgba(15,23,42,0.14))' }} />
       </AnimatePresence>
       <div style={{ position: 'relative' }}>
         <div style={{ ...eyebrow, color: '#334155' }}>Programme health · last {m.basis.days} days</div>
-        <div className="vs-rank" style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1, marginTop: 9, color: 'var(--text)' }}>{h?.word || '—'}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#334155' }}><strong style={{ color: 'var(--text)' }}><Count value={n.perClick} format={times} reduce={reduce} /></strong> reports for every click</span>
-          <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
-          <Delta c={d} ink={ink} title={`Against the ${m.basis.days} days before`} />
-        </div>
+        <div className="vs-rank" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1, marginTop: 12, color: 'var(--text)' }}>{h?.word || '—'}</div>
       </div>
       <div style={{ position: 'relative' }}>
         <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
@@ -246,15 +245,15 @@ const Insights = () => {
     <>
       <style>{FONT_IMPORT}</style>
 
-      {/* Fills <main> exactly; nothing inside lets the page itself scroll. */}
-      <div className="ins-page" data-ins-page={top ? `${top.kind}` : tab} style={{ ...vars, position: 'relative', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Fills <main> exactly. The sheet never gets shorter than MIN_H, so on
+          a short window (a laptop at 125%) it scrolls here instead of
+          squeezing its cards; layoutScroll keeps the grow-ins true when it has. */}
+      <motion.div layoutScroll className="ins-page" data-ins-page={top ? `${top.kind}` : tab} style={{ ...vars, position: 'relative', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}>
+      <div className="ins-sheet" style={{ position: 'relative', height: '100%', minHeight: MIN_H, boxSizing: 'border-box', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* top black bar */}
-        <div style={{ background: isDark ? '#FFFFFF' : '#000000', color: isDark ? '#000000' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', flexShrink: 0 }}>
+        <div style={{ background: isDark ? '#FFFFFF' : '#000000', color: isDark ? '#000000' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', padding: '0 18px', flexShrink: 0 }}>
           <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Insights</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', opacity: 0.72 }}>
-            <Mail size={12} strokeWidth={2.4} aria-hidden /> {num(p.now.people)} people · campaigns up to {m.campaigns[0]?.started}
-          </span>
         </div>
 
         {/* the sheet, in its L */}
@@ -292,6 +291,7 @@ const Insights = () => {
           </div>
         </div>
       </div>
+      </motion.div>
     </>
   );
 };

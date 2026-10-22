@@ -382,14 +382,22 @@ export function TileMap({ items, fill, ink, onOpen, reduce, tip, layoutIdOf }) {
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
   const total = items.reduce((a, it) => a + it.weight, 0) || 1;
-  const tiles = w > 0 && h > 0 ? squarify([...items].sort((a, b) => b.weight - a.weight).map((it) => ({ ...it, area: (it.weight / total) * w * h })), { x: 0, y: 0, w, h }) : [];
+  // laid out on the box's shape rounded to a quarter, then stretched to fit:
+  // a few pixels more or less (fonts landing, a resize) stretch the tiles a
+  // little instead of shuffling them
+  const shape = w > 0 && h > 0 ? Math.max(0.5, Math.round((w / h) * 4) / 4) : 0;
+  const tiles = shape ? squarify([...items].sort((a, b) => b.weight - a.weight || a.key.localeCompare(b.key)).map((it) => ({ ...it, area: (it.weight / total) * shape })), { x: 0, y: 0, w: shape, h: 1 })
+    .map((t) => ({ ...t, x: (t.x / shape) * w, y: t.y * h, w: (t.w / shape) * w, h: t.h * h, at: { left: `calc(${(t.x / shape) * 100}% + 2px)`, top: `calc(${t.y * 100}% + 2px)`, width: `calc(${(t.w / shape) * 100}% - 4px)`, height: `calc(${t.h * 100}% - 4px)` } })) : [];
   const shown = tiles.find((t) => t.key === hover);
   return (
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
       {tiles.map((t, k) => {
         const big = t.w > 92 && t.h > 58;
-        const fits = t.w > 54 && t.h > 30;
-        const name = t.short && t.label.length * 5.8 > (t.w - 22) * (big ? 1.7 : 1) ? t.short : t.label;
+        const fits = t.w > 34 && t.h > 26;
+        const narrow = t.w <= 56; // just the short name and a smaller number
+        const flat = fits && !narrow && t.h < 48; // too short for two lines: name and number side by side
+        const name = t.short && (narrow || t.label.length * 5.8 > (t.w - 22 - (flat ? 36 : 0)) * (big ? 1.7 : 1)) ? t.short : t.label;
+
         return (
           <motion.button
             key={t.key}
@@ -403,10 +411,10 @@ export function TileMap({ items, fill, ink, onOpen, reduce, tip, layoutIdOf }) {
             initial={{ opacity: 0, scale: reduce ? 1 : 0.85 }}
             animate={{ opacity: 1, scale: hover === t.key ? 1.035 : 1 }}
             transition={{ duration: reduce ? 0 : 0.45, delay: reduce || hover ? 0 : 0.1 + 0.035 * k, ease: EASE }}
-            style={{ position: 'absolute', left: t.x + 2, top: t.y + 2, width: Math.max(0, t.w - 4), height: Math.max(0, t.h - 4), zIndex: hover === t.key ? 3 : 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', padding: fits ? '8px 9px' : 0, border: 'none', borderRadius: 12, background: `linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%), ${fill(t)}`, color: ink(t), textAlign: 'left', cursor: 'pointer', boxShadow: hover === t.key ? '0 14px 28px rgba(15,23,42,0.22)' : '0 1px 0 rgba(255,255,255,0.25) inset' }}
+            style={{ position: 'absolute', ...t.at, zIndex: hover === t.key ? 3 : 1, overflow: 'hidden', display: 'flex', flexDirection: flat ? 'row' : 'column', justifyContent: 'space-between', alignItems: flat ? 'center' : 'flex-start', gap: flat ? 6 : 0, padding: fits ? (flat ? '0 9px' : narrow ? '7px 6px' : '8px 9px') : 0, border: 'none', borderRadius: 12, background: `linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%), ${fill(t)}`, color: ink(t), textAlign: 'left', cursor: 'pointer', boxShadow: hover === t.key ? '0 14px 28px rgba(15,23,42,0.22)' : '0 1px 0 rgba(255,255,255,0.25) inset' }}
           >
-            {fits && <span style={{ maxWidth: '100%', fontSize: 9.5, fontWeight: 800, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: big ? 2 : 1, WebkitBoxOrient: 'vertical' }}>{name}</span>}
-            {fits && <span className="vs-rank" style={{ fontSize: big ? 20 : 14, fontWeight: 900, lineHeight: 1 }}>{t.text}</span>}
+            {fits && <span style={{ minWidth: 0, maxWidth: '100%', fontSize: 9.5, fontWeight: 800, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: big ? 2 : 1, WebkitBoxOrient: 'vertical' }}>{name}</span>}
+            {fits && <span className="vs-rank" style={{ flexShrink: 0, fontSize: big ? 20 : flat || narrow ? 12 : 14, fontWeight: 900, lineHeight: 1 }}>{t.text}</span>}
           </motion.button>
         );
       })}

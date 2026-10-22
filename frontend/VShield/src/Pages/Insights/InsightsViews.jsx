@@ -98,7 +98,7 @@ export function OverviewView({ ctx, list }) {
           <Explain label="What reports for every click means" onDark><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
         </span>
         <span style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, marginTop: 3, color: dim }}>{num(n.reported)} reported ÷ {num(n.clicked)} clicked · {num(n.delivered)} emails, last {m.basis.days} days</span>
-        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
+        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={30} onDark legendCols={2} />
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
@@ -158,7 +158,7 @@ export function OverviewView({ ctx, list }) {
               <span className="vs-rank" style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
               <span style={{ fontSize: 10.5, fontWeight: 700 }}>less likely to click once trained</span>
             </span>
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
               <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={24} />
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
