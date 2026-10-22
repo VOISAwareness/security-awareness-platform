@@ -183,3 +183,36 @@ export function PerClickHow({ n, days, campaigns, ink }) {
     </>
   );
 }
+
+/** What the risk score means and how it is worked out; for an Explain. */
+export function RiskHow({ score, days, colors }) {
+  const levels = [
+    ['low', 'Low', 'reported phishing and never clicked'],
+    ['moderate', 'Moderate', 'clicked once, or never reported'],
+    ['high', 'High', 'clicked more than once'],
+    ['critical', 'Critical', 'gave details away'],
+  ];
+  const bands = [['low', 'Under 20'], ['moderate', '20 to 35'], ['high', '35 to 60'], ['critical', '60 and over']];
+  return (
+    <>
+      <span style={{ display: 'block', ...eyebrow }}>Risk score</span>
+      <span style={{ display: 'block', fontSize: 11, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>
+        How exposed the company is to phishing, from 0 (no one at risk) to 100 (everyone at the highest level). Lower is safer.
+      </span>
+      <span style={{ display: 'block', ...small, fontSize: 9.5, fontWeight: 700, marginTop: 9, color: 'var(--text)' }}>Each person has a level, from their phishing record:</span>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5 }}>
+        {levels.map(([k, word, rule]) => (
+          <span key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 9.5, lineHeight: 1.35 }}>
+            <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 2, background: colors[k], transform: 'translateY(-1px)' }} />
+            <span><strong>{word}</strong> <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{rule}</span></span>
+          </span>
+        ))}
+      </span>
+      <span style={{ display: 'block', ...small, fontSize: 9.5, marginTop: 8, lineHeight: 1.45 }}>The score averages everyone: low counts 0, moderate 33, high 67, critical 100.</span>
+      <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hair)', fontSize: 9, fontWeight: 700 }}>
+        {bands.map(([k, range]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: 2, background: colors[k] }} />{range}</span>)}
+      </span>
+      {Number.isFinite(score) && <span style={{ display: 'block', ...small, fontSize: 9.5, marginTop: 6 }}>Now {score.toFixed(1)}; the arrow beside it is the change over the last {days} days.</span>}
+    </>
+  );
+}

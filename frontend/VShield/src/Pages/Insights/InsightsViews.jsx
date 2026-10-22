@@ -7,9 +7,9 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, RiskRing, Staircase, TileMap } from './InsightsCharts';
+import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, RiskRing, Segmented, Staircase, TileMap } from './InsightsCharts';
 import { Explain, Fill, HealthChip, LureTile, PerClickHow } from './InsightsBits';
-import { EASE, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
+import { EASE, SPANS, TIER_WORD, TINT, cardTitle, change, day, didParts, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -45,20 +45,23 @@ export function OverviewView({ ctx, list }) {
   // the phishing card sits with the others, washed in its health's colour:
   // emerald while Protected, amber while Holding or Exposed
   const spot = (isDark ? TINT.dark : TINT.light)[n.health?.word === 'Protected' ? 'good' : 'bad'];
+  const [span, setSpan] = useState(12);
+  const shownTrend = p.trend.slice(-span);
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
-      <Card i={0} reduce={reduce} title="Risk over the year" sub="Everyone's risk level, averaged · lower is safer" action={<Legend items={[{ label: 'Month it fell', color: ink.good }, { label: 'Month it rose', color: ink.bad }]} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.risk} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+      <Card i={0} reduce={reduce} title="Risk score over time" action={<Segmented id="ins-range-ov" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
+          <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
-        <Insight tone={dc?.good === false ? ink.bad : ink.good} sub={`${num(p.now.highRisk)} people at high risk · ${num(p.now.improved)} moved down a level, ${num(p.now.slipped)} up`}>
-          {dc ? `Risk is ${dc.dir === 'down' ? 'down' : dc.dir === 'up' ? 'up' : 'steady'}${dc.dir === 'flat' ? '' : ` ${dc.shown}`} in ${p.basis.days} days, at ${scoreText(p.now.score)} of 100` : `Risk is at ${scoreText(p.now.score)} of 100`}
-        </Insight>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+          <Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} />
+          <span style={{ marginLeft: 'auto', ...small, fontSize: 9.5 }}>{dc ? <>Last {p.basis.days} days: <strong style={{ color: 'var(--text)' }}>{dc.dir === 'down' ? 'down' : dc.dir === 'up' ? 'up' : 'steady'}{dc.dir === 'flat' ? '' : ` ${dc.shown}`}</strong></> : null}</span>
+        </div>
       </Card>
 
       {/* where is the risk? */}
-      <Card i={1} reduce={reduce} title="Where the risk sits" sub="Each department · size is its people, colour its risk" onOpen={() => go('departments')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-map>
+      <Card i={1} reduce={reduce} title="Risk by department" sub="Size is headcount" onOpen={() => go('departments')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-map>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
           <TileMap
             items={p.departments.map((d) => ({ key: d.name, label: d.name, short: deptCode(d.name), weight: d.people, value: d.score, text: scoreText(d.score) }))}
@@ -84,29 +87,29 @@ export function OverviewView({ ctx, list }) {
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
         style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
       >
-        <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={58} height={58} style={{ position: 'absolute', right: 10, top: 8, objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
-        <span style={{ position: 'relative', ...eyebrow }}>When phishing lands</span>
-        <span style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
-          <span className="vs-rank" style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
-        </span>
-        <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, marginTop: 5 }}>
-          reports for every click
-          <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
-        </span>
-        <span style={{ position: 'relative', ...small, marginTop: 3 }}>{num(n.reported)} reported ÷ {num(n.clicked)} clicked · {num(n.delivered)} emails, last {m.basis.days} days</span>
-        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
-          <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={30} legendCols={2} />
-        </div>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.25)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-            See the campaigns <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden />
+        <header style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={cardTitle}>Reports per click</span>
+          <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ marginLeft: 'auto', height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 10px 0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            See campaigns <ArrowUpRight size={12} strokeWidth={2.6} aria-hidden />
           </button>
-          <span style={{ marginLeft: 'auto' }}><HealthChip h={n.health} ink={ink} width={86} /></span>
+        </header>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+          <span style={{ minWidth: 0 }}>
+            <span className="vs-rank" style={{ display: 'block', fontSize: 42, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, marginTop: 6 }}>
+              reports for every click
+              <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
+            </span>
+          </span>
+          <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={60} height={60} style={{ marginLeft: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
+        </div>
+        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 10 }}>
+          <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={28} legendCols={2} />
         </div>
       </motion.section>
 
       {/* what fools us */}
-      <Card i={3} reduce={reduce} title="What fools us" sub="Hook Rate by lure · each opens its profile" onOpen={() => go('campaigns')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-lures>
+      <Card i={3} reduce={reduce} title="Click rate by lure" onOpen={() => go('campaigns')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-lures>
         <PillColumns
           items={m.lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `Hook Rate ${pc1(l.hooked)} · gave details ${pc(l.gaveOfClicks)} of clicks`, `Reported ${pc(l.reportRate)} · ${times(l.perClick)} reports per click`] }))}
           color={ink.bad}
@@ -118,7 +121,7 @@ export function OverviewView({ ctx, list }) {
       </Card>
 
       {/* what changed */}
-      <Card i={4} reduce={reduce} title="What changed" sub={`In the last ${m.basis.days} days · each opens where it happened`} style={{ gridColumn: 'span 5' }} data-ins-changes>
+      <Card i={4} reduce={reduce} title="What changed" style={{ gridColumn: 'span 5' }} data-ins-changes>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
           {list.slice(0, 5).map((f, k) => (
             <motion.button
@@ -144,7 +147,7 @@ export function OverviewView({ ctx, list }) {
       </Card>
 
       {/* is training paying off? */}
-      <Card i={5} reduce={reduce} title="Is training paying off?" sub="Clicked in the period's simulations" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
+      <Card i={5} reduce={reduce} title="Training impact" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
         {c && (
           <>
             <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
@@ -230,10 +233,10 @@ export function DepartmentsView({ ctx }) {
   const ring = p.departments.filter((d) => Number.isFinite(d.scoreBefore)).map((d) => ({ key: d.name, label: d.name, code: deptCode(d.name), now: d.score, before: d.scoreBefore }));
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
-      <Card i={0} reduce={reduce} title="How each department behaves" sub={`Reported against clicked, last ${m.basis.days} days · gap: reported minus clicked · best first`} action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
+      <Card i={0} reduce={reduce} title="Reported vs clicked" sub="Best first" action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
         <HabitRows rows={habits} ink={ink} isDark={isDark} open={open} />
       </Card>
-      <Card i={1} reduce={reduce} title="Who got safer, who got riskier" sub={`Each department's risk score, now and ${m.basis.days} days ago · closer to the centre is safer`} action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 5' }} data-ins-movers>
+      <Card i={1} reduce={reduce} title="Risk change by department" sub="Closer to the centre is safer" action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 5' }} data-ins-movers>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
           <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} />
         </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarClock, ChevronLeft, ChevronRight, FileX, MailX, MousePointerClick, Users } from 'lucide-react';
 
@@ -5,10 +6,10 @@ import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Chip } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { Blocks, Card, CompareBars, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Staircase, StepFunnel } from './InsightsCharts';
+import { Blocks, Card, CompareBars, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel } from './InsightsCharts';
 import { Delta, Fill, HealthChip, InlineBar, LureTile, Meter } from './InsightsBits';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
-import { EASE, STEADY_INK, TIER_TEXT, TIER_WORD, TINT, change, day, glow, heads, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, times } from './insightsUi';
+import { EASE, SPANS, STEADY_INK, TIER_TEXT, TIER_WORD, TINT, change, day, glow, heads, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, times } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -213,7 +214,9 @@ export function RiskProfile({ ctx, frame }) {
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const maxDriver = Math.max(...DRIVERS.map((d) => p.now.drivers[d.id]), 1);
-  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors) }));
+  const [span, setSpan] = useState(12);
+  const shownTrend = p.trend.slice(-span);
+  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend.at(-13) || p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors) }));
   const biggest = makeup[0].parts.reduce((a, x) => (x.value > a.value ? x : a));
   const maxScore = Math.max(...p.departments.map((d) => d.score)) * 1.1;
   const [fit, size] = useFitRows(40, 3, 0);
@@ -233,21 +236,21 @@ export function RiskProfile({ ctx, frame }) {
         { label: 'Moved down a level', value: num(p.now.improved), sub: `${num(p.now.slipped)} moved up` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="Risk over the year" sub={`Thirty days at a time · ${p.trend.at(-1).score <= p.trend[0].score ? 'down' : 'up'} ${Math.abs(p.trend.at(-1).score - p.trend[0].score).toFixed(1)} pts in a year, ${p.trend.slice(1).filter((s, i) => s.score < p.trend[i].score).length} of ${p.trend.length - 1} months lower than the one before`} action={<Legend items={[{ label: 'Month it fell', color: ink.good }, { label: 'Month it rose', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+      <Card i={3} reduce={reduce} title="Risk score over time" action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} /><Segmented id="ins-range-risk" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} /></span>} style={{ gridColumn: 'span 7' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
+          <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="Did people get safer?" sub={`Each risk level now, and its change over the last ${p.basis.days} days${p.moved?.joined ? ` · ${num(p.moved.joined)} joined` : ''}`} action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
+      <Card i={4} reduce={reduce} title="Risk levels" action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
         {p.moved && <LevelTiles moved={p.moved} colors={colors} ink={ink} reduce={reduce} />}
       </Card>
-      <Card i={5} reduce={reduce} title="What makes up the score" sub="Points each level adds to the risk score · now against a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
+      <Card i={5} reduce={reduce} title="Score breakdown" sub="Now vs a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <MakeupBars rows={makeup} max={Math.max(...makeup.map((r) => r.total)) * 1.04} reduce={reduce} format={scoreText} />
           <Insight tone={colors[biggest.key]} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
         </div>
       </Card>
-      <Card i={6} reduce={reduce} title="What drives it" sub="People, as things stand" style={{ gridColumn: 'span 3' }}>
+      <Card i={6} reduce={reduce} title="Risk drivers" style={{ gridColumn: 'span 3' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
           {DRIVERS.map((dr, k) => {
             const v = p.now.drivers[dr.id];
@@ -262,7 +265,7 @@ export function RiskProfile({ ctx, frame }) {
           })}
         </div>
       </Card>
-      <Card i={7} reduce={reduce} title="Departments" sub="The riskiest first · each opens its profile" style={{ gridColumn: 'span 4' }}>
+      <Card i={7} reduce={reduce} title="Departments" sub="Riskiest first" style={{ gridColumn: 'span 4' }}>
         <div ref={fit} style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {p.departments.slice(0, size).map((d, k) => (
             <Row key={d.name} k={k} reduce={reduce} cols="22px minmax(0,1fr) 92px 12px" onClick={() => open('department', d.name)} label={`${d.name}, risk score ${scoreText(d.score)}. Open its profile`}>
@@ -313,28 +316,28 @@ export function DepartmentProfile({ ctx, frame, name }) {
         </button>
       ) : null}
     >
-      <Card i={3} reduce={reduce} title="Its risk against the company's" sub={`How far above or below the whole company, thirty days at a time · now ${Math.abs(diff).toFixed(1)} pts ${diff > 0 ? 'riskier' : 'safer'}`} action={<Legend items={[{ label: 'Riskier than the company', color: ink.bad }, { label: 'Safer', color: ink.good }]} />} style={{ gridColumn: 'span 7' }} data-ins-gap>
+      <Card i={3} reduce={reduce} title="Compared with company" action={<Legend items={[{ label: 'Riskier than the company', color: ink.bad }, { label: 'Safer', color: ink.good }]} />} style={{ gridColumn: 'span 7' }} data-ins-gap>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <GapBars at={p.trend.map((s) => s.to)} values={d.trend} base={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} good={ink.good} bad={ink.bad} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} valueLabel={name.length > 18 ? 'This department' : name} baseLabel="The whole company" />
+          <GapBars at={p.trend.slice(-12).map((s) => s.to)} values={d.trend.slice(-12)} base={p.trend.slice(-12).map((s) => s.score)} lit={p.trend.slice(-12).map((s) => s.inPeriod)} good={ink.good} bad={ink.bad} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} valueLabel={name.length > 18 ? 'This department' : name} baseLabel="The whole company" />
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="How risky its people are" sub="Its people by risk level, as things stand" style={{ gridColumn: 'span 5' }}>
+      <Card i={4} reduce={reduce} title="People by risk level" style={{ gridColumn: 'span 5' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
           <Blocks parts={['low', 'moderate', 'high', 'critical'].map((t) => ({ key: t, label: `${TIER_WORD[t]} · ${num(d.tiers[t])}`, value: d.tiers[t], color: colors[t], text: num(d.tiers[t]) }))} reduce={reduce} height={28} legendCols={4} />
           <Insight tone={diff > 0 ? ink.bad : ink.good} sub={`Company-wide, ${pc(p.now.highRisk / p.now.people)} of people are at high risk`}>{pc(d.highRisk / d.people)} of {name} {d.highRisk === 1 ? 'is' : 'are'} at high risk</Insight>
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="What fools this team" sub="Hook Rate by lure · each opens its profile" style={{ gridColumn: 'span 5' }}>
+      <Card i={5} reduce={reduce} title="Click rate by lure" style={{ gridColumn: 'span 5' }}>
         {lures.length
           ? <PillColumns items={lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `${num(l.clicked)} of ${num(l.recipients)} clicked · ${pc(l.reportRate)} reported`] }))} color={ink.bad} soft="var(--soft-bad)" reduce={reduce} onOpen={(type) => open('lure', type)} label="clicked. Open the lure" />
           : <p style={{ ...small, fontSize: 11 }}>No campaigns reached this team in the period.</p>}
       </Card>
-      <Card i={6} reduce={reduce} title="Does training help here?" sub="Clicked in the period's simulations" style={{ gridColumn: 'span 4' }}>
+      <Card i={6} reduce={reduce} title="Training impact" style={{ gridColumn: 'span 4' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={28} />}
         </div>
       </Card>
-      <Card i={7} reduce={reduce} title="When phishing lands" sub="What its people did with the period's emails" style={{ gridColumn: 'span 3' }}>
+      <Card i={7} reduce={reduce} title="What people did" style={{ gridColumn: 'span 3' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           {camp ? <Blocks parts={didParts({ delivered: camp.recipients, reported: camp.reported, clicked: camp.clicked, compromised: camp.compromised }, ink, isDark)} reduce={reduce} height={26} legendCols={2} /> : <p style={{ ...small, fontSize: 11 }}>No emails in the period.</p>}
         </div>
@@ -370,13 +373,13 @@ export function LureProfile({ ctx, frame, type }) {
         { label: 'Health', node: <HealthChip h={l.health} ink={ink} />, sub: `${times(l.perClick)} reports per click` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="What people did with it" sub="Every email of this kind in the period" style={{ gridColumn: 'span 6' }}>
+      <Card i={3} reduce={reduce} title="What people did" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={40} legendCols={4} />
           <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people who got one clicked it</Insight>
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="Against the other lures" sub="Hook Rate · each opens its profile" style={{ gridColumn: 'span 6' }}>
+      <Card i={4} reduce={reduce} title="All lures" sub="Click rate" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {m.lures.map((x, k) => (
             <Row key={x.type} k={k} reduce={reduce} height={34} cols="24px minmax(0,1fr) minmax(0,1.6fr) 12px" onClick={x.type === type ? null : () => open('lure', x.type, null, true)} label={`${x.type}: Hook Rate ${pc1(x.hooked)}. Open its profile`}>
@@ -388,7 +391,7 @@ export function LureProfile({ ctx, frame, type }) {
           ))}
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="The teams it fooled most" sub="Hook Rate · each opens its department" style={{ gridColumn: 'span 6' }}>
+      <Card i={5} reduce={reduce} title="Most affected departments" sub="Click rate" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {depts.map((x, k) => (
             <Row key={x.name} k={k} reduce={reduce} height={34} cols="22px minmax(0,1fr) minmax(0,1.4fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${pc1(x.hooked)} clicked. Open its profile`}>
@@ -400,7 +403,7 @@ export function LureProfile({ ctx, frame, type }) {
           ))}
         </div>
       </Card>
-      <Card i={6} reduce={reduce} title="Its campaigns" sub="Newest first · each opens its profile" style={{ gridColumn: 'span 6' }}>
+      <Card i={6} reduce={reduce} title="Campaigns" sub="Newest first" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {camps.slice(0, 6).map((c, k) => (
             <Row key={c.id} k={k} reduce={reduce} height={46} cols="minmax(0,1.4fr) minmax(0,1fr) 92px 12px" onClick={() => open('campaign', c.id)} label={`${c.name}. Open its profile`}>
@@ -472,13 +475,13 @@ export function CampaignProfile({ ctx, frame, id }) {
         { label: 'Health', node: <HealthChip h={c.health} ink={ink} />, sub: `First report after ${mins(c.firstReport)}` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="What people did" sub="Every email this campaign delivered" style={{ gridColumn: 'span 7' }}>
+      <Card i={3} reduce={reduce} title="What people did" style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(c, ink, isDark)} reduce={reduce} height={44} legendCols={4} />
           <Insight tone={c.perClick >= 2 ? ink.good : ink.bad} sub={`Half the reports were in ${mins(c.medianReport)} after it went out`}>{times(c.perClick)} reports for every click</Insight>
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="Against the average" sub={`Every campaign in the last ${m.basis.days} days`} style={{ gridColumn: 'span 5' }}>
+      <Card i={4} reduce={reduce} title="Compared with average" style={{ gridColumn: 'span 5' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <VersusBars
             reduce={reduce}
@@ -490,7 +493,7 @@ export function CampaignProfile({ ctx, frame, id }) {
           />
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="Its departments" sub="Clicked and reported · each opens its department" action={<Legend items={[{ label: 'Clicked', color: ink.bad }, { label: 'Reported', color: ink.good }]} />} style={{ gridColumn: 'span 12' }}>
+      <Card i={5} reduce={reduce} title="Departments" action={<Legend items={[{ label: 'Clicked', color: ink.bad }, { label: 'Reported', color: ink.good }]} />} style={{ gridColumn: 'span 12' }}>
         <div className="ins-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'min-content', columnGap: 24, marginTop: 6 }}>
           {depts.map((x, k) => (
             <Row key={x.name} k={k > 1 ? 1 : 0} reduce={reduce} height={36} cols="22px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}. Open its profile`}>
@@ -542,18 +545,18 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
         { label: 'Badges', value: num(t.badges), sub: `${num(t.points)} points earned` },
       ]}
     >
-      <Card i={embedded ? 0 : 3} reduce={reduce} title="Trained against not yet trained" sub="How often each clicked in the period's simulations" style={{ gridColumn: 'span 6' }}>
+      <Card i={embedded ? 0 : 3} reduce={reduce} title="Trained vs untrained" sub="Click rate in simulations" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 6, marginTop: 10 }}>
           {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={26} />}
           {c && <Insight tone={ink.good} sub="Across every department; each has its own on its profile">Of every 100 trained people, {Math.round(c.trainedRate * 100)} clicked; of every 100 others, {Math.round(c.untrainedRate * 100)}</Insight>}
         </div>
       </Card>
-      <Card i={embedded ? 1 : 4} reduce={reduce} title="From assigned to passed" sub={`Training assigned in the last ${p.basis.days} days`} style={{ gridColumn: 'span 6' }}>
+      <Card i={embedded ? 1 : 4} reduce={reduce} title="Training progress" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
           <StepFunnel steps={[['assigned', 'Assigned', t.assigned], ['started', 'Started', t.started], ['completed', 'Completed', t.completed], ['passed', 'Passed', t.passed]].map(([key, label, value]) => ({ key, label, value }))} color={ink.good} reduce={reduce} />
         </div>
       </Card>
-      <Card i={embedded ? 2 : 5} reduce={reduce} title="Departments" sub="The most complete first · each opens its profile" style={{ gridColumn: 'span 5' }} data-ins-train-depts>
+      <Card i={embedded ? 2 : 5} reduce={reduce} title="Departments" sub="Most complete first" style={{ gridColumn: 'span 5' }} data-ins-train-depts>
         <RowHeads cols={DEPT_COLS}><span /><span>Department</span><span>Completed</span><span style={{ textAlign: 'right' }}>Quiz</span><span /></RowHeads>
         <div className="ins-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {depts.map((d, k) => (
@@ -567,7 +570,7 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
           ))}
         </div>
       </Card>
-      <Card i={embedded ? 3 : 6} reduce={reduce} title="Programmes" sub="Each training programme, since it began" style={{ gridColumn: 'span 7' }} data-ins-programmes>
+      <Card i={embedded ? 3 : 6} reduce={reduce} title="Programmes" style={{ gridColumn: 'span 7' }} data-ins-programmes>
         <RowHeads cols={PROG_COLS}><span>Programme</span><span>Completed</span><span style={{ textAlign: 'right' }}>Pass rate</span><span style={{ textAlign: 'right' }}>Status</span></RowHeads>
         <div className="ins-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {training.programmes.map((pr, k) => (

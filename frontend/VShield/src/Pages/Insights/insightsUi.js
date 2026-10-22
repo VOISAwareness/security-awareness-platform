@@ -88,6 +88,9 @@ export const lureIcon = (type) => LURE_ICON[type] || Mail;
 // "Finance lure" -> "Finance", "Credential theft" -> "Credentials", for tight labels
 export const lureShort = (type) => (type === 'Credential theft' ? 'Credentials' : type.replace(/ lure$/i, ''));
 
+// How far back the risk score is drawn: a year or two.
+export const SPANS = [{ id: 12, label: '1Y', title: 'The last year' }, { id: 24, label: '2Y', title: 'The last two years' }];
+
 // How things move: one easing for everything, a spring for things that
 // slide between places, and a short blur-and-rise for what comes in.
 export const EASE = [0.22, 1, 0.36, 1];

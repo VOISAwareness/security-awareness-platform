@@ -14,12 +14,11 @@ import { ExportMenu } from '../Leaderboard/BigPicture';
 import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
 import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
-import ClayTrendFlat from '../../assets/LeaderboardAssets/ClayTrendFlat.png';
-import { BarcodeMeter, RingGauge, Segmented } from './InsightsCharts';
-import { Count, Delta } from './InsightsBits';
+import { BandGauge, BarcodeMeter, Segmented } from './InsightsCharts';
+import { Count, Delta, Explain, RiskHow } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap } from './insightsUi';
+import { EASE, INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk } from './insightsUi';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -123,61 +122,69 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 // card has room. Shorter windows scroll.
 const MIN_H = 930;
 
-// The corner tile: the programme's health on its own soft gradient, lifted
-// by a shadow in its colour, its word with a faint glow of the same; its
-// clay piece; reports against clicks. It stays light on both themes.
+// The corner tile: the programme's health, from reports against clicks
+// (health() in bigPictureViews.js). Its clay emblem on the left, its word
+// and what it means on the right, on a soft gradient in its colour with a
+// shadow of the same; all three change with it (Holding's shield is the
+// Protected one turned amber). Light on both themes.
 const HEALTH_LOOK = {
-  Protected: { art: ClayGoingWell, tile: 'linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)', lift: '0 20px 40px rgba(16,185,129,0.15)', glow: 'rgba(16,185,129,0.20)', word: '0 0 20px rgba(16,185,129,0.3)' },
-  Holding: { art: ClayTrendFlat, tile: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', lift: '0 20px 40px rgba(245,158,11,0.15)', glow: 'rgba(245,158,11,0.20)', word: '0 0 20px rgba(245,158,11,0.3)' },
-  Exposed: { art: ClayAttention, tile: 'linear-gradient(135deg,#FEF2F2 0%,#FEE2E2 100%)', lift: '0 20px 40px rgba(220,38,38,0.15)', glow: 'rgba(220,38,38,0.18)', word: '0 0 20px rgba(220,38,38,0.25)' },
+  Protected: { word: 'Protected', says: 'Twice as many reports as clicks, or more', art: ClayGoingWell, tile: 'linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)', lift: '0 20px 40px rgba(16,185,129,0.15)', glow: 'rgba(16,185,129,0.20)', shine: '0 0 20px rgba(16,185,129,0.3)' },
+  Holding: { word: 'Holding', says: 'About as many reports as clicks', art: ClayGoingWell, tint: 'hue-rotate(-118deg) saturate(1.35) brightness(1.04)', tile: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', lift: '0 20px 40px rgba(245,158,11,0.15)', glow: 'rgba(245,158,11,0.20)', shine: '0 0 20px rgba(245,158,11,0.3)' },
+  Exposed: { word: 'Not protected', says: 'More clicks than reports', art: ClayAttention, tile: 'linear-gradient(135deg,#FEF2F2 0%,#FEE2E2 100%)', lift: '0 20px 40px rgba(220,38,38,0.15)', glow: 'rgba(220,38,38,0.18)', shine: '0 0 20px rgba(220,38,38,0.25)' },
 };
 function HealthTile({ m, reduce }) {
-  const ink = INK.light; // the tile is light on both themes
-  const n = m.now;
-  const h = n.health;
+  const h = m.now.health;
   const look = HEALTH_LOOK[h?.word] || HEALTH_LOOK.Holding;
-  const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
+  const swapIn = { initial: { opacity: 0, y: reduce ? 0 : 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: reduce ? 0 : -6 }, transition: { duration: reduce ? 0 : 0.3, ease: EASE } };
   return (
-    <div data-ins-health={h?.word || 'none'} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', padding: '15px 18px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: L_R, overflow: 'hidden', background: look.tile, boxShadow: look.lift, transition: 'background .4s ease, box-shadow .4s ease' }}>
-      <span aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 170, height: 170, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
+    <div data-ins-health={h?.word || 'none'} role="status" aria-label={`Last ${m.basis.days} days: ${look.word}. ${look.says}`} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', padding: '0 18px 0 14px', display: 'flex', alignItems: 'center', gap: 14, borderRadius: L_R, overflow: 'hidden', background: look.tile, boxShadow: look.lift, transition: 'background .4s ease, box-shadow .4s ease' }}>
+      <span aria-hidden style={{ position: 'absolute', left: -50, top: -40, width: 200, height: 200, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
       <AnimatePresence mode="wait" initial={false}>
-        <motion.img key={h?.word} className="ins-float" src={look.art} alt="" aria-hidden width={78} height={78} initial={{ opacity: 0, scale: reduce ? 1 : 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.7 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'absolute', right: 14, top: 18, objectFit: 'contain', filter: 'drop-shadow(0 10px 14px rgba(15,23,42,0.14))' }} />
+        <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={92} height={92} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
       </AnimatePresence>
-      <div style={{ position: 'relative' }}>
-        <div style={{ ...eyebrow, color: '#334155' }}>Programme health · last {m.basis.days} days</div>
-        <div className="vs-rank" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1, marginTop: 12, color: 'var(--text)', textShadow: look.word }}>{h?.word || '—'}</div>
-      </div>
-      <div style={{ position: 'relative' }}>
-        <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
-          <motion.span initial={false} animate={{ width: `${share * 100}%` }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE }} style={{ flexShrink: 0, background: ink.good }} />
-          <span style={{ flex: 1, background: ink.bad }} />
-        </span>
-        <span style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, fontWeight: 700, color: '#475569' }}>
-          <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong> of emails</span>
-          <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
-        </span>
-      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0 }}>
+          <div style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</div>
+          <div className="vs-rank" style={{ fontSize: look.word.length > 10 ? 22 : 28, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: 7, color: 'var(--text)', textShadow: look.shine }}>{look.word}</div>
+          <div style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.4, marginTop: 6, color: '#475569' }}>{look.says}</div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
 
-// Along the arm: the risk score on its ring, and three measures on barcode
-// meters; each opens where it is explained.
-function RiskKpi({ p, ink, isDark, reduce, onOpen }) {
+// Along the arm: the risk score on a half gauge in its bands, with what it
+// means behind an "i", and how the period's emails were answered; then three
+// measures on barcode meters. Each opens where it is explained.
+function RiskKpi({ p, m, ink, isDark, reduce, onOpen }) {
   const dc = change(p.now.score, p.before?.score, { kind: 'times', better: 'down' });
+  const colors = tierInk(isDark);
   const tone = riskInk(p.now.score, isDark);
+  const h = m.now.health;
+  const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
+  const bands = [{ to: 20, color: colors.low }, { to: 35, color: colors.moderate }, { to: 60, color: colors.high }, { to: 100, color: colors.critical }];
   return (
-    <motion.button type="button" className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px 8px 10px', borderRadius: 14, border: 'none', background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
-      <RingGauge value={p.now.score} size={66} stroke={6} color={tone} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`}>
-        <span className="vs-rank" style={{ display: 'block', fontSize: 15, fontWeight: 900, textShadow: glow(tone, isDark, 0.35) }}><Count value={p.now.score} format={(v) => v.toFixed(1)} reduce={reduce} /></span>
-        <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: 2 }}>/ 100</span>
-      </RingGauge>
-      <span style={{ minWidth: 0 }}>
-        <span style={{ ...eyebrow, display: 'block' }}>Risk score</span>
-        <span style={{ display: 'block', fontSize: 14, fontWeight: 800, marginTop: 4, whiteSpace: 'nowrap' }}>{riskWord(p.now.score)}</span>
-        <span style={{ display: 'inline-flex', marginTop: 5 }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
+    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }} aria-label={`Risk score ${p.now.score.toFixed(1)} of 100, ${riskWord(p.now.score)}. Open the risk view`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px 10px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: 'pointer', outline: 'none' }}>
+      <BandGauge value={p.now.score} bands={bands} size={108} stroke={9} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`} glowing={glow(tone, isDark, 0.35)} />
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={eyebrow}>Risk score</span>
+          <Explain label="What the risk score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
+          <span style={{ marginLeft: 'auto' }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 16, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: tone }} />{riskWord(p.now.score)}</span>
+        <span>
+          <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
+            <span className="ins-grow-x" style={{ '--d': '0.25s', flexShrink: 0, width: `${share * 100}%`, borderRadius: 999, background: ink.good, transformOrigin: 'left', transition: 'width .5s ease' }} />
+            <span className="ins-grow-x" style={{ '--d': '0.35s', flex: 1, borderRadius: 999, background: ink.bad, transformOrigin: 'right' }} />
+          </span>
+          <span style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, ...small, fontSize: 9 }}>
+            <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong></span>
+            <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
+          </span>
+        </span>
       </span>
-    </motion.button>
+    </motion.div>
   );
 }
 function BarKpi({ k, i, ink, reduce }) {
@@ -216,7 +223,7 @@ const Insights = () => {
   const items = useMemo(() => [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) })), []);
   const m = useMemo(() => insights(items, { days }), [items, days]);
   // The sample organisation, thirty days at a time, until the people and risk APIs report it.
-  const org = useMemo(() => organisation({ end: m.basis.end }), [m.basis.end]);
+  const org = useMemo(() => organisation({ end: m.basis.end, steps: 24 }), [m.basis.end]);
   const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
   const list = useMemo(() => standsOut(m, p), [m, p]);
 
@@ -252,11 +259,13 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
 
-  // Depth from a soft light at the top of the page; panels and cards as
-  // glass over it. --base stays a solid, for tooltips, pills and rings.
+  // Depth from a soft light at the top of the page; the panel and cards in
+  // the colours glass would give over it (a faint white over the dark), but
+  // solid, so nothing has to be blended again while it moves. --base is a
+  // solid for tooltips, pills and rings.
   const vars = isDark
-    ? { '--bg': 'radial-gradient(circle at top center, #1A1D29 0%, #0B0F19 60%, #070A12 100%)', '--sheet': 'rgba(255,255,255,0.02)', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', '--card-edge': 'rgba(255,255,255,0.08)', '--base': '#151926', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
-    : { '--bg': 'radial-gradient(circle at top center, #FFFFFF 0%, #F3F5F9 60%, #EBEEF3 100%)', '--sheet': 'rgba(255,255,255,0.72)', '--card': 'linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.86) 100%)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
+    ? { '--bg': 'radial-gradient(circle at top center, #1A1D29 0%, #0B0F19 60%, #070A12 100%)', '--bg-edge': '#070A12', '--sheet': '#11141E', '--card': 'linear-gradient(180deg, #1A1D27 0%, #13161F 100%)', '--card-edge': 'rgba(255,255,255,0.08)', '--base': '#151926', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
+    : { '--bg': 'radial-gradient(circle at top center, #FFFFFF 0%, #F3F5F9 60%, #EBEEF3 100%)', '--bg-edge': '#EBEEF3', '--sheet': '#FBFCFD', '--card': '#FFFFFF', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
 
   let body;
   if (top) {
@@ -280,8 +289,11 @@ const Insights = () => {
       {/* Fills <main> exactly. The sheet never gets shorter than MIN_H, so on
           a short window (a laptop at 125%) it scrolls here instead of
           squeezing its cards; layoutScroll keeps the grow-ins true when it has. */}
-      <motion.div layoutScroll className="ins-page" data-ins-page={top ? `${top.kind}` : tab} style={{ ...vars, position: 'relative', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}>
-      <div className="ins-sheet" style={{ position: 'relative', height: '100%', minHeight: MIN_H, boxSizing: 'border-box', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <motion.div layoutScroll className="ins-page" data-ins-page={top ? `${top.kind}` : tab} style={{ ...vars, position: 'relative', background: 'var(--bg-edge)', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}>
+      <div className="ins-sheet" style={{ position: 'relative', isolation: 'isolate', height: '100%', minHeight: MIN_H, boxSizing: 'border-box', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* the page's light, on a layer of its own: painted once, not again
+            under everything that moves */}
+        <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: -1, background: 'var(--bg)', transform: 'translateZ(0)', pointerEvents: 'none' }} />
 
         {/* top bar: black on the light theme; on the dark one, glass like the
             cards rather than the white the other pages turn it */}
@@ -297,17 +309,16 @@ const Insights = () => {
           </svg>
 
           {/* the arm: the period, the tabs and Export; under them, four measures */}
-          <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP + 4}px 20px`, background: 'var(--sheet)', borderTop: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+          <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP}px 20px`, background: 'var(--sheet)', borderTop: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
               <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView({ page: 0 }); }); }} reduce={reduce} />
-              <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.basis.campaigns} campaigns · against the {days} days before</span>
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Segmented id="ins-tab" label="Insights" value={top ? null : shownTab} options={TABS} onChange={go} reduce={reduce} tabs />
                 <ExportMenu items={exportItems} />
               </span>
             </div>
-            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) repeat(3, minmax(0,1fr))', gap: 10 }}>
-              <RiskKpi p={p} ink={ink} isDark={isDark} reduce={reduce} onOpen={() => open('risk')} />
+            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.65fr) repeat(3, minmax(0,1fr))', gap: 10 }}>
+              <RiskKpi p={p} m={m} ink={ink} isDark={isDark} reduce={reduce} onOpen={() => open('risk')} />
               {kpis.map((k, i) => <BarKpi key={k.id} k={k} i={i + 1} ink={ink} reduce={reduce} />)}
             </div>
           </div>
