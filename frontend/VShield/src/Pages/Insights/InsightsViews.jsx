@@ -9,7 +9,7 @@ import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, Staircase, TileMap } from './InsightsCharts';
 import { Explain, Fill, HealthChip, LureTile, PerClickHow } from './InsightsBits';
-import { EASE, INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
+import { EASE, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -42,11 +42,9 @@ export function OverviewView({ ctx, list }) {
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const c = p.now.cohorts;
   const n = m.now;
-  // the phishing card is dark on both themes: deep slate on the light one,
-  // glass on the dark one, never white
-  const fg = '#F1F5F9';
-  const dim = 'rgba(241,245,249,0.6)';
-  const onCard = INK.dark;
+  // the phishing card sits with the others, washed in its health's colour:
+  // emerald while Protected, amber while Holding or Exposed
+  const spot = (isDark ? TINT.dark : TINT.light)[n.health?.word === 'Protected' ? 'good' : 'bad'];
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
@@ -84,27 +82,26 @@ export function OverviewView({ ctx, list }) {
         initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
-        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: fg, border: isDark ? '1px solid var(--card-edge)' : 'none', background: isDark ? 'radial-gradient(120% 85% at 100% 0%, rgba(16,185,129,0.10) 0%, rgba(255,255,255,0.035) 55%, rgba(255,255,255,0.015) 100%)' : 'radial-gradient(120% 85% at 100% 0%, #16302C 0%, #111622 52%, #0B0F19 100%)', boxShadow: isDark ? 'none' : '0 18px 40px rgba(11,15,25,0.18)' }}
+        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
       >
-        <span aria-hidden style={{ position: 'absolute', left: -70, bottom: -90, width: 240, height: 240, borderRadius: 999, background: `radial-gradient(closest-side, ${isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.20)'}, transparent)` }} />
-        <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={58} height={58} style={{ position: 'absolute', right: 10, top: 8, objectFit: 'contain', filter: 'drop-shadow(0 10px 16px rgba(0,0,0,0.35))' }} />
-        <span style={{ position: 'relative', ...eyebrow, color: dim }}>When phishing lands</span>
+        <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={58} height={58} style={{ position: 'absolute', right: 10, top: 8, objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
+        <span style={{ position: 'relative', ...eyebrow }}>When phishing lands</span>
         <span style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
           <span className="vs-rank" style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
         </span>
         <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, marginTop: 5 }}>
           reports for every click
-          <Explain label="What reports for every click means" onDark><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
+          <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
         </span>
-        <span style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, marginTop: 3, color: dim }}>{num(n.reported)} reported ÷ {num(n.clicked)} clicked · {num(n.delivered)} emails, last {m.basis.days} days</span>
+        <span style={{ position: 'relative', ...small, marginTop: 3 }}>{num(n.reported)} reported ÷ {num(n.clicked)} clicked · {num(n.delivered)} emails, last {m.basis.days} days</span>
         <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
-          <Blocks parts={didParts(n, onCard, true)} reduce={reduce} height={30} onDark legendCols={2} />
+          <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={30} legendCols={2} />
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
           <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.25)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
             See the campaigns <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden />
           </button>
-          <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.10)' }}>{n.health?.word}</span>
+          <span style={{ marginLeft: 'auto' }}><HealthChip h={n.health} ink={ink} width={86} /></span>
         </div>
       </motion.section>
 
