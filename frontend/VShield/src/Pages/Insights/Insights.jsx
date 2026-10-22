@@ -17,7 +17,7 @@ import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
 import ClayTrendFlat from '../../assets/LeaderboardAssets/ClayTrendFlat.png';
 import { BarcodeMeter, RingGauge, Segmented } from './InsightsCharts';
-import { Count, Delta } from './InsightsBits';
+import { Count, Delta, Explain, PerClickHow } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
 import { EASE, HEALTH_RULE, change, eyebrow, num, pc, pc1, riskWord, small, swap, times } from './insightsUi';
@@ -120,6 +120,7 @@ function HealthTile({ m, ink, reduce }) {
         <div className="vs-rank" style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1, marginTop: 9, color: 'var(--text)' }}>{h?.word || '—'}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
           <span style={{ fontSize: 10.5, fontWeight: 700, color: '#334155' }}><strong style={{ color: 'var(--text)' }}><Count value={n.perClick} format={times} reduce={reduce} /></strong> reports for every click</span>
+          <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
           <Delta c={d} ink={ink} title={`Against the ${m.basis.days} days before`} />
         </div>
       </div>

@@ -1,12 +1,14 @@
 import { createElement, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
+import { Info } from 'lucide-react';
 
 import { Chip } from '../Leaderboard/BigPictureTables';
-import { EASE, HEALTH_RULE, STEADY_INK, healthInk, heads, lureIcon, pc, small } from './insightsUi';
+import { EASE, HEALTH_RULE, STEADY_INK, eyebrow, healthInk, heads, lureIcon, num, pc, small, times } from './insightsUi';
 
 // Small pieces Insights' views and profiles share: a change on a chip, a
-// health chip, a lure's icon tile, a thin labelled bar, column names, and a
-// number that counts to its new value.
+// health chip, a lure's icon tile, a thin labelled bar, column names, a
+// number that counts to its new value, and an "i" that explains a number.
 
 /** A change against something, on a small chip: its arrow, its size, better or worse. */
 export function Delta({ c, ink, title, onDark = false }) {
@@ -80,4 +82,93 @@ function useTween(target, reduce, ms = 700) {
 /** `format(value)`, counting from the last value shown. */
 export function Count({ value, format, reduce }) {
   return format(useTween(value, reduce));
+}
+
+const EXPLAIN_W = 290;
+/**
+ * A small "i" by a number: on hover, focus or a tap, a card saying what the
+ * number means and how it is worked out. The card opens on the page itself,
+ * so a card that clips what it holds never clips it.
+ */
+export function Explain({ label, children, onDark = false }) {
+  const btn = useRef(null);
+  const [at, setAt] = useState(null);
+  const show = () => {
+    const page = btn.current?.closest('.ins-page');
+    if (!page) return;
+    const r = btn.current.getBoundingClientRect(); const pr = page.getBoundingClientRect();
+    const left = Math.max(8, Math.min(r.left - pr.left - 14, pr.width - EXPLAIN_W - 8));
+    const roomBelow = pr.bottom - r.bottom > 250;
+    setAt({ page, left, top: roomBelow ? r.bottom - pr.top + 8 : null, bottom: roomBelow ? null : pr.bottom - r.top + 8 });
+  };
+  const hide = () => setAt(null);
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        data-ins-explain
+        aria-label={label}
+        aria-expanded={Boolean(at)}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        onKeyDown={(e) => { if (e.key === 'Escape') hide(); }}
+        onClick={(e) => { e.stopPropagation(); if (at) hide(); else show(); }}
+        style={{ flexShrink: 0, width: 17, height: 17, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 999, border: 'none', background: onDark ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.08)', color: 'inherit', cursor: 'help' }}
+      >
+        <Info size={11} strokeWidth={2.6} aria-hidden />
+      </button>
+      {at && createPortal(
+        <motion.div
+          role="tooltip"
+          data-ins-explained
+          initial={{ opacity: 0, y: at.top === null ? -4 : 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.16, ease: EASE }}
+          style={{ position: 'absolute', left: at.left, top: at.top ?? undefined, bottom: at.bottom ?? undefined, width: EXPLAIN_W, zIndex: 60, boxSizing: 'border-box', padding: '12px 14px', borderRadius: 14, background: 'var(--base)', border: '1px solid var(--hair)', boxShadow: '0 20px 44px rgba(15,23,42,0.24)', color: 'var(--text)', pointerEvents: 'none' }}
+        >
+          {children}
+        </motion.div>,
+        at.page,
+      )}
+    </>
+  );
+}
+
+/**
+ * What "reports for every click" means and how it is worked out, from the
+ * period's counts; for an Explain.
+ */
+export function PerClickHow({ n, days, campaigns, ink }) {
+  const rules = [
+    ['Protected', ink.good, '2 or more: at least two people raise the alarm for everyone caught out'],
+    ['Holding', STEADY_INK, '1 to 2: as many report it as click it, or more'],
+    ['Exposed', ink.bad, 'below 1: more people click it than report it'],
+  ];
+  return (
+    <>
+      <span style={{ display: 'block', ...eyebrow }}>Reports for every click</span>
+      <span style={{ display: 'block', fontSize: 11, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>
+        Of the simulated phishing emails people got in the last {days} days, how many they reported to security for every one they clicked.
+      </span>
+      <span style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 5, marginTop: 9, padding: '8px 10px', borderRadius: 10, background: 'var(--plate)', fontSize: 11, fontWeight: 700 }}>
+        <strong className="vs-rank" style={{ fontSize: 13 }}>{num(n.reported)}</strong> reported
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>÷</span>
+        <strong className="vs-rank" style={{ fontSize: 13 }}>{num(n.clicked)}</strong> clicked
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--muted)' }}>=</span>
+        <strong className="vs-rank" style={{ fontSize: 13 }}>{times(n.perClick)}</strong>
+      </span>
+      <span style={{ display: 'block', ...small, marginTop: 6 }}>From {num(n.delivered)} emails delivered by {campaigns} {campaigns === 1 ? 'campaign' : 'campaigns'}.</span>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hair)' }}>
+        {rules.map(([word, color, rule]) => (
+          <span key={word} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 9.5, lineHeight: 1.35 }}>
+            <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 999, background: color, transform: 'translateY(-1px)' }} />
+            <span><strong>{word}</strong> <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{rule}</span></span>
+          </span>
+        ))}
+      </span>
+    </>
+  );
 }

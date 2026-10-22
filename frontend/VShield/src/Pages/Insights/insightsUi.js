@@ -107,3 +107,9 @@ export function didParts({ delivered, reported, clicked, compromised }, ink, isD
     { key: 'gave', label: 'Gave details away', value: compromised, color: isDark ? '#F7B0A9' : '#A8262B', text: num(compromised) },
   ];
 }
+
+/** Each value averaged with the `k - 1` before it (fewer at the start). */
+export const rolling = (values, k = 3) => values.map((_, i) => {
+  const run = values.slice(Math.max(0, i - k + 1), i + 1);
+  return run.reduce((a, v) => a + v, 0) / run.length;
+});

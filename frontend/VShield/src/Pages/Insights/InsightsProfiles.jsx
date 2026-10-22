@@ -6,9 +6,10 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Chip } from '../Leaderboard/BigPictureTables';
 import { TONE_TINT } from '../Leaderboard/bigPictureArt';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { Blocks, Card, CompareBars, Insight, Legend, LevelFlow, PillColumns, RingGauge, StackColumns, StepFunnel, TexturedTrend } from './InsightsCharts';
+import { Blocks, Card, CompareBars, Insight, Legend, LevelLadder, MakeupBars, PillColumns, RingGauge, ScoreBars, StepFunnel } from './InsightsCharts';
 import { Delta, HealthChip, LureTile, Meter } from './InsightsBits';
-import { EASE, STEADY_INK, TIER_WORD, change, day, didParts, eyebrow, lureShort, mins, num, openInk, pc, pc1, riskWord, small, tierInk, times } from './insightsUi';
+import { TIER_WEIGHT } from '../../services/sampleOrganisation';
+import { EASE, STEADY_INK, TIER_WORD, change, day, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskWord, rolling, small, tierInk, times } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -25,10 +26,8 @@ import { EASE, STEADY_INK, TIER_WORD, change, day, didParts, eyebrow, lureShort,
 //     programme.
 // Everything in a profile leads on: a department, a lure, a campaign.
 
-const DAY = 86400000;
 const LAYOUT = { type: 'spring', stiffness: 210, damping: 30, mass: 0.9 };
 const pts = (c) => c && { ...c, shown: c.shown.replace('×', ' pts').replace(' min', '') };
-const monthShort = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
 const ordinal = (n) => `${n}${n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'}`;
 const scoreText = (v, tick) => (Number.isFinite(v) ? (tick ? `${Math.round(v)}` : v.toFixed(1)) : '—');
 
@@ -142,6 +141,29 @@ const DRIVERS = [
 
 // ------------------------------------------------------------------ risk
 
+// The points each level adds to a risk score: its people's share times
+// its weight (moderate 33, high 67, critical 100); low adds none.
+function makeupOf(step, colors, isDark) {
+  const text = isDark ? { moderate: '#F8FAFC', high: '#1C1E24', critical: '#1C1E24' } : { moderate: '#5B1A1E', high: '#FFFFFF', critical: '#FFFFFF' };
+  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: text[t] }));
+}
+
+// How many moved down a level and how many up, as two chips that also say
+// which colour is which.
+function MoveChips({ moved, ink }) {
+  const chip = (arrow, n, word, tone, soft) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 22, padding: '0 9px', borderRadius: 999, background: soft, fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap' }}>
+      <span aria-hidden style={{ fontSize: 8.5, color: tone }}>{arrow}</span>{num(n)} {word}
+    </span>
+  );
+  return (
+    <span style={{ display: 'inline-flex', gap: 6 }}>
+      {chip('▼', moved.down, 'safer', ink.good, 'var(--good-soft)')}
+      {chip('▲', moved.up, 'riskier', ink.bad, 'var(--bad-soft)')}
+    </span>
+  );
+}
+
 export function RiskProfile({ ctx, frame }) {
   const { p, ink, isDark, reduce, open } = ctx;
   const colors = tierInk(isDark);
@@ -149,6 +171,8 @@ export function RiskProfile({ ctx, frame }) {
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const maxDriver = Math.max(...DRIVERS.map((d) => p.now.drivers[d.id]), 1);
+  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors, isDark) }));
+  const biggest = makeup[0].parts.reduce((a, x) => (x.value > a.value ? x : a));
   const maxScore = Math.max(...p.departments.map((d) => d.score)) * 1.1;
   const [fit, size] = useFitRows(40, 3, 0);
   return (
@@ -167,19 +191,20 @@ export function RiskProfile({ ctx, frame }) {
         { label: 'Moved down a level', value: num(p.now.improved), sub: `${num(p.now.slipped)} moved up` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="Risk over the year" sub="Thirty days at a time · lower is safer" style={{ gridColumn: 'span 7' }}>
+      <Card i={3} reduce={reduce} title="Risk over the year" sub="Thirty days at a time · lower is safer" action={<Legend items={[{ label: 'Risk score', color: ink.bad }, { label: '3-month average', color: 'var(--text)', line: true }]} />} style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <TexturedTrend at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} from={p.basis.end - p.basis.days * DAY} color={ink.bad} format={scoreText} top={top} pill={dc && `${dc.dir === 'down' ? '▼' : dc.dir === 'up' ? '▲' : '●'} ${dc.shown} · last ${p.basis.days} days`} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+          <ScoreBars at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} line={{ label: 'Three-month average', values: rolling(p.trend.map((s) => s.score)), color: 'var(--text)' }} color={ink.bad} soft="var(--soft-bad)" format={scoreText} top={top} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="Who moved between levels" sub={`From the start of the last ${p.basis.days} days to now`} action={<Legend items={[{ label: 'Down a level', color: ink.good }, { label: 'Up a level', color: ink.bad }, { label: 'Joined', color: openInk(isDark) }]} />} style={{ gridColumn: 'span 5' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
-          {p.moved && <LevelFlow links={p.moved.links} order={['critical', 'high', 'moderate', 'low']} colors={colors} words={TIER_WORD} good={ink.good} bad={ink.bad} joinedColor={openInk(isDark)} reduce={reduce} />}
+      <Card i={4} reduce={reduce} title="Who moved between levels" sub={`Since the start of the last ${p.basis.days} days${p.moved?.joined ? ` · ${num(p.moved.joined)} joined, at moderate` : ''}`} action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
+          {p.moved && <LevelLadder links={p.moved.links} order={['low', 'moderate', 'high', 'critical']} colors={colors} words={TIER_WORD} good={ink.good} bad={ink.bad} reduce={reduce} />}
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="People at risk, month by month" sub={`Moderate risk or higher · the last ${p.basis.days} days in full colour`} action={<Legend items={['critical', 'high', 'moderate'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 12 }}>
-          <StackColumns columns={p.trend.map((s) => ({ key: s.to, label: monthShort(s.to), values: s.tiers, current: s.inPeriod }))} order={['critical', 'high', 'moderate']} colors={colors} words={TIER_WORD} reduce={reduce} tipHead={(c) => `Thirty days to ${day(c.key)}`} />
+      <Card i={5} reduce={reduce} title="What makes up the score" sub="Points each level adds to the risk score · now against a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
+          <MakeupBars rows={makeup} max={Math.max(...makeup.map((r) => r.total)) * 1.04} reduce={reduce} format={scoreText} />
+          <Insight tone={ink.bad} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
         </div>
       </Card>
       <Card i={6} reduce={reduce} title="What drives it" sub="People, as things stand" style={{ gridColumn: 'span 3' }}>
@@ -249,9 +274,9 @@ export function DepartmentProfile({ ctx, frame, name }) {
         </button>
       ) : null}
     >
-      <Card i={3} reduce={reduce} title="Its risk against the company's" sub="Thirty days at a time · lower is safer" action={<Legend items={[{ label: name.length > 18 ? 'This department' : name, color: ink.bad, line: true }, { label: 'The whole company', color: 'var(--muted)', line: true, faint: true }]} />} style={{ gridColumn: 'span 7' }}>
+      <Card i={3} reduce={reduce} title="Its risk against the company's" sub={`Thirty days at a time · ${Math.abs(diff).toFixed(1)} pts ${diff > 0 ? 'above' : 'below'} the company now`} action={<Legend items={[{ label: name.length > 18 ? 'This department' : name, color: ink.bad }, { label: 'The whole company', color: 'var(--text)', line: true }]} />} style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <TexturedTrend at={p.trend.map((s) => s.to)} values={d.trend} compare={{ label: 'The whole company', values: p.trend.map((s) => s.score) }} from={p.basis.end - p.basis.days * DAY} color={ink.bad} format={scoreText} top={top} pill={`${Math.abs(diff).toFixed(1)} pts ${diff > 0 ? 'above' : 'below'} the company`} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} valueLabel={name.length > 18 ? 'This department' : name} />
+          <ScoreBars at={p.trend.map((s) => s.to)} values={d.trend} lit={p.trend.map((s) => s.inPeriod)} line={{ label: 'The whole company', values: p.trend.map((s) => s.score), color: 'var(--text)' }} color={ink.bad} soft="var(--soft-bad)" format={scoreText} top={top} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} valueLabel={name.length > 18 ? 'This department' : name} />
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="How risky its people are" sub="Its people by risk level, as things stand" style={{ gridColumn: 'span 5' }}>

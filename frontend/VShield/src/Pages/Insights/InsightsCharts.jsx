@@ -113,15 +113,6 @@ export function Tip({ x, y, w, children, edge, below = false }) {
 const tipTitle = { fontSize: 10.5, fontWeight: 800, color: 'var(--text)' };
 const tipLine = { ...small, fontSize: 9.5, marginTop: 3 };
 
-/** A floating pill, for the one thing a chart wants you to see. */
-function Pill({ x, y, children, tone }) {
-  return (
-    <div style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -100%)', zIndex: 4, pointerEvents: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, background: 'var(--base)', border: '1px solid var(--hair)', boxShadow: '0 8px 18px rgba(15,23,42,0.12)', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap', color: 'var(--text)' }}>
-      {tone && <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: tone }} />}{children}
-    </div>
-  );
-}
-
 /**
  * A ring gauge: the share of `max` as a gradient arc over a quiet track,
  * ticks round the edge lit as far as the arc goes; what sits in the middle
@@ -198,96 +189,87 @@ function smooth(pts) {
   }
   return d;
 }
-// the value at time t, read straight between the points either side
-const along = (at, values, t) => {
-  if (t <= at[0]) return values[0];
-  for (let i = 1; i < at.length; i += 1) if (t <= at[i]) return values[i - 1] + ((values[i] - values[i - 1]) * (t - at[i - 1])) / (at[i] - at[i - 1]);
-  return values.at(-1);
-};
 const monthOf = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
 
+// a column with rounded top corners, standing on the baseline
+const column = (x, top, w, base, r) => {
+  const k = Math.max(0, Math.min(r, w / 2, base - top));
+  return `M${x},${base} V${top + k} Q${x},${top} ${x + k},${top} H${x + w - k} Q${x + w},${top} ${x + w},${top + k} V${base} Z`;
+};
+
 /**
- * A textured trend: a field of thin bars following the series, lit in
- * `color` inside the period on show (from `from` on), with the series as a
- * smooth line over it, a floating pill naming the change over the period,
- * and the newest value at the end. `compare` adds a quiet second line (the
- * company, against a department). Hover a point for its numbers.
+ * Score columns: a rounded column for each step, the steps in the period
+ * (`lit`) in full colour and the rest softer, with `line` drawn over them on
+ * the same scale (the three-month average, or the whole company against a
+ * department) and the newest value on a bubble. Hover a column for its
+ * numbers.
  */
-export function TexturedTrend({ at, values, from, color, format, top, pill, reduce, tipHead, compare, valueLabel = 'Risk score' }) {
+export function ScoreBars({ at, values, lit, color, soft, format, top, line, reduce, tipHead, valueLabel = 'Risk score' }) {
   const id = useId().replace(/:/g, '');
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
-  const L = 24; const R = 34; const T = 30; const B = 18;
+  const L = 26; const R = 4; const T = 30; const B = 20;
+  const n = values.length;
   const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
-  const start = at[0]; const end = at.at(-1);
-  const x = (t) => L + ((t - start) / (end - start || 1)) * pw;
-  const y = (v) => T + ph - (Math.max(0, Math.min(v, top)) / top) * ph;
-  const pts = at.map((t, i) => [x(t), y(values[i])]);
-  const bars = Math.max(10, Math.floor(pw / 6));
-  const fromX = x(Math.max(from, start));
-  const last = pts.at(-1);
-  const onMove = (e) => {
-    const mx = e.clientX - e.currentTarget.getBoundingClientRect().left + L;
-    let best = 0;
-    pts.forEach((p, i) => { if (Math.abs(p[0] - mx) < Math.abs(pts[best][0] - mx)) best = i; });
-    setHover(best);
-  };
+  const slot = n ? pw / n : 0;
+  const bw = Math.max(6, Math.min(34, slot * 0.6));
+  const cx = (i) => L + slot * (i + 0.5);
+  const base = T + ph;
+  const y = (v) => base - (Math.max(0, Math.min(v, top)) / top) * ph;
+  const pts = line ? line.values.map((v, i) => [cx(i), y(v)]) : [];
+  const last = n - 1;
+  const at2 = hover ?? last;
+  const prev = at2 > 0 ? values[at2] - values[at2 - 1] : null;
   return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
       {w > 0 && h > 0 && (
-        <svg width={w} height={h} role="img" aria-label={`${valueLabel}: ${format(values.at(-1))} now${pill ? `; ${pill}` : ''}`} style={{ display: 'block', overflow: 'visible' }}>
+        <svg width={w} height={h} role="img" aria-label={`${valueLabel} by month, ${format(values[0])} to ${format(values[last])}${line ? `; ${line.label} as a line` : ''}`} style={{ display: 'block', overflow: 'visible' }}>
           <defs>
-            <linearGradient id={`${id}in`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.85} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.12} />
+            <linearGradient id={`${id}c`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={light(color, 30)} />
+              <stop offset="100%" stopColor={color} />
             </linearGradient>
           </defs>
-          {[0, top / 2, top].map((v) => <text key={v} x={L - 8} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{format(v, true)}</text>)}
-          {Array.from({ length: bars }, (_, k) => {
-            const bx = L + (k / (bars - 1)) * pw;
-            const t = start + ((bx - L) / pw) * (end - start);
-            const v = along(at, values, t) * 0.94;
-            const inside = bx >= fromX - 0.5;
+          {[0, top / 2, top].map((v) => (
+            <g key={v}>
+              <line x1={L} x2={w - R} y1={y(v)} y2={y(v)} stroke="var(--grid)" strokeWidth={1} strokeDasharray={v ? '3 4' : undefined} />
+              <text x={L - 8} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{format(v, true)}</text>
+            </g>
+          ))}
+          {values.map((v, i) => {
+            const on = lit[i] || hover === i;
             return (
-              <motion.rect
-                key={k}
-                x={bx - 1.25}
-                width={2.5}
-                rx={1.25}
-                fill={inside ? `url(#${id}in)` : 'var(--tick)'}
-                initial={{ y: T + ph, height: 0 }}
-                animate={{ y: y(v), height: Math.max(2, T + ph - y(v)) }}
-                transition={reduce ? { duration: 0 } : { duration: 0.7, delay: 0.1 + 0.006 * k, ease: EASE }}
-              />
+              <g key={at[i]} onMouseEnter={() => setHover(i)}>
+                <rect x={cx(i) - slot / 2} y={T - 10} width={slot} height={ph + 10 + B} fill={hover === i ? 'var(--plate)' : 'transparent'} rx={10} />
+                <motion.path
+                  d={column(cx(i) - bw / 2, y(v), bw, base, 7)}
+                  fill={on ? `url(#${id}c)` : soft}
+                  initial={{ scaleY: reduce ? 1 : 0 }}
+                  animate={{ scaleY: 1 }}
+                  transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 180, damping: 24, delay: 0.12 + 0.04 * i }}
+                  style={{ transformBox: 'fill-box', transformOrigin: 'bottom', transition: 'fill .2s ease' }}
+                />
+                <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthOf(at[i])}</text>
+              </g>
             );
           })}
-          <line x1={fromX} x2={fromX} y1={T - 6} y2={T + ph} stroke={color} strokeOpacity={0.35} strokeWidth={1} />
-          {compare && <motion.path d={smooth(at.map((t, i) => [x(t), y(compare.values[i])]))} fill="none" stroke="var(--muted)" strokeOpacity={0.6} strokeWidth={1.5} strokeLinecap="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 1.1, ease: EASE }} />}
-          <motion.path d={smooth(pts)} fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 1.2, ease: EASE, delay: reduce ? 0 : 0.2 }} />
-          {at.map((t, i) => (i === 0 || new Date(t).getUTCMonth() !== new Date(at[i - 1]).getUTCMonth()) && <text key={t} x={x(t)} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{monthOf(t)}</text>)}
-          <motion.g initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1 }}>
-            <circle cx={last[0]} cy={last[1]} r={5} fill={color} stroke="var(--base)" strokeWidth={2.5} />
-            <text x={last[0] + 9} y={last[1] + 4} style={{ fontSize: 11, fontWeight: 800, fill: 'var(--text)' }}>{format(values.at(-1))}</text>
-          </motion.g>
-          {hover !== null && (
+          {line && (
             <g pointerEvents="none">
-              <line x1={pts[hover][0]} x2={pts[hover][0]} y1={T - 6} y2={T + ph} stroke="var(--muted)" strokeOpacity={0.4} strokeWidth={1} />
-              <circle cx={pts[hover][0]} cy={pts[hover][1]} r={5} fill={color} stroke="var(--base)" strokeWidth={2.5} />
+              <motion.path d={smooth(pts)} fill="none" stroke={line.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduce ? 0 : 1, ease: EASE, delay: reduce ? 0 : 0.55 }} />
+              {pts.map((pt, i) => <motion.circle key={at[i]} cx={pt[0]} cy={pt[1]} r={hover === i ? 4.5 : 3} fill="var(--base)" stroke={line.color} strokeWidth={2} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.7 + 0.05 * i }} />)}
             </g>
           )}
-          <rect x={L} y={T - 6} width={pw} height={ph + 6} fill="transparent" onMouseMove={onMove} onMouseLeave={() => setHover(null)} />
         </svg>
       )}
-      {w > 0 && pill && hover === null && (
-        <motion.div initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 1.2, duration: 0.4, ease: EASE }}>
-          <Pill x={Math.min(w - 90, Math.max(90, (fromX + L + pw) / 2))} y={T - 2} tone={color}>{pill}</Pill>
-        </motion.div>
+      {w > 0 && hover === null && (
+        <motion.span initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.9, duration: 0.35, ease: EASE }} style={{ position: 'absolute', left: cx(last), top: y(values[last]) - 8, transform: 'translate(-50%, -100%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)', pointerEvents: 'none' }}>{format(values[last])}</motion.span>
       )}
       {hover !== null && (
-        <Tip x={pts[hover][0]} y={pts[hover][1]} w={w}>
+        <Tip x={cx(hover)} y={Math.min(y(values[hover]), line ? y(line.values[hover]) : Infinity) - 4} w={w}>
           <div style={tipTitle}>{tipHead(at[hover])}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: color }} />{valueLabel}<strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(values[hover])}</strong></div>
-          {compare && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--muted)' }} />{compare.label}<strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(compare.values[hover])}</strong></div>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: color }} />{valueLabel}<strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(values[hover])}</strong></div>
+          {line && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 10, height: 2, borderRadius: 2, background: line.color }} />{line.label}<strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(line.values[hover])}</strong></div>}
+          {prev !== null && <div style={tipLine}>{Math.abs(prev) < 0.05 ? 'Level with the month before' : `${prev < 0 ? 'Down' : 'Up'} ${Math.abs(prev).toFixed(1)} on the month before`}</div>}
         </Tip>
       )}
     </div>
@@ -468,133 +450,120 @@ export function PillColumns({ items, color, soft, reduce, onOpen, label }) {
 }
 
 /**
- * Stacked columns: one rounded track per step, filled from the bottom by
- * its segments in order with a 2px gap between, the steps in the period in
- * full colour and the rest quieter. Hover a column for its numbers.
+ * Who moved between levels, as a ladder: the levels side by side from the
+ * safest to the riskiest, with the people on each now and at the start;
+ * between each pair, an arc over the top for those who moved up to the
+ * riskier level (in `bad`) and one underneath for those who moved down to
+ * the safer (in `good`), as thick as the people on it and with their number
+ * on it. Hover a level for who stayed.
  */
-export function StackColumns({ columns, order, colors, words, reduce, tipHead }) {
-  const [box, { w }] = useSize();
+export function LevelLadder({ links, order, colors, words, good, bad, reduce }) {
+  const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
-  const n = columns.length;
-  const sum = (c) => order.reduce((a, k) => a + (c.values[k] || 0), 0);
-  const max = Math.max(...columns.map(sum), 1) * 1.06;
+  const sumOf = (pick) => links.filter(pick).reduce((a, l) => a + l.n, 0);
+  const levels = order.map((k) => ({ k, was: sumOf((l) => l.from === k), now: sumOf((l) => l.to === k), stayed: sumOf((l) => l.from === k && l.to === k) }));
+  const gaps = order.slice(0, -1).map((k, i) => ({ i, up: sumOf((l) => l.from === k && l.to === order[i + 1]), down: sumOf((l) => l.from === order[i + 1] && l.to === k) }));
+  const most = Math.max(...gaps.flatMap((g) => [g.up, g.down]), 1);
+  const nw = Math.min(150, Math.max(70, (w - 3 * 44) / 4));
+  const gap = (w - 4 * nw) / 3;
+  const nh = Math.min(64, Math.max(48, h - 92));
+  const top = (h - nh) / 2; const bottom = top + nh;
+  const lift = Math.min(34, top - 12);
+  const xl = (i) => i * (nw + gap);
+  const thick = (v) => 2 + 7 * (v / most);
+  const tag = (x, y, text, tone) => (
+    <span style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--base)', boxShadow: `inset 0 0 0 1.5px ${tone}, 0 4px 10px rgba(15,23,42,0.12)`, fontSize: 10, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+      <span aria-hidden style={{ fontSize: 8.5, color: tone }}>{text[0]}</span>{text.slice(1)}
+    </span>
+  );
   return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', gap: 6 }} onMouseLeave={() => setHover(null)}>
-      {columns.map((c, i) => {
-        const hgt = `${(sum(c) / max) * 100}%`;
-        const lit = c.current || hover === i;
-        return (
-          <div key={c.key} onMouseEnter={() => setHover(i)} style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 3, borderRadius: 11, background: hover === i ? 'var(--track)' : 'var(--plate)', transition: 'background .15s ease' }}>
-              <motion.span
-                initial={{ height: reduce ? hgt : '0%' }}
-                animate={{ height: hgt }}
-                transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 170, damping: 24, delay: 0.15 + 0.035 * i }}
-                style={{ display: 'flex', flexDirection: 'column-reverse', gap: 2, opacity: lit ? 1 : 0.45, transition: 'opacity .2s ease' }}
-              >
-                {order.map((k) => <span key={k} style={{ flex: `${c.values[k] || 0} 1 0`, minHeight: 3, borderRadius: 7, background: colors[k] }} />)}
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      {w > 0 && h > 0 && (
+        <>
+          <svg width={w} height={h} role="img" aria-label={gaps.map((g) => `${g.up} up from ${words[order[g.i]]} to ${words[order[g.i + 1]]}, ${g.down} down`).join('; ')} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+            <defs>
+              {[['up', bad], ['down', good]].map(([k, c]) => (
+                <marker key={k} id={`ladder-${k}`} viewBox="0 0 10 10" refX="7" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 Z" fill={c} />
+                </marker>
+              ))}
+            </defs>
+            {gaps.map((g, k) => {
+              const a = xl(g.i) + nw - 16; const b = xl(g.i + 1) + 16; const m = (a + b) / 2;
+              return (
+                <g key={g.i}>
+                  {g.up > 0 && <motion.path d={`M${a},${top - 2} Q${m},${top - 2 - lift * 2} ${b},${top - 2}`} fill="none" stroke={bad} strokeWidth={thick(g.up)} strokeLinecap="round" markerEnd="url(#ladder-up)" initial={{ pathLength: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }} animate={{ pathLength: 1, opacity: 0.9 }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE, delay: reduce ? 0 : 0.35 + 0.12 * k }} />}
+                  {g.down > 0 && <motion.path d={`M${b},${bottom + 2} Q${m},${bottom + 2 + lift * 2} ${a},${bottom + 2}`} fill="none" stroke={good} strokeWidth={thick(g.down)} strokeLinecap="round" markerEnd="url(#ladder-down)" initial={{ pathLength: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }} animate={{ pathLength: 1, opacity: 0.9 }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE, delay: reduce ? 0 : 0.5 + 0.12 * k }} />}
+                </g>
+              );
+            })}
+          </svg>
+          {gaps.map((g) => {
+            const m = (xl(g.i) + nw - 16 + xl(g.i + 1) + 16) / 2;
+            return (
+              <motion.span key={g.i} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 0.9 + 0.1 * g.i }}>
+                {g.up > 0 && tag(m, top - 2 - lift, `▲${g.up.toLocaleString('en-US')}`, bad)}
+                {g.down > 0 && tag(m, bottom + 2 + lift, `▼${g.down.toLocaleString('en-US')}`, good)}
               </motion.span>
-            </span>
-            <span style={{ ...small, fontSize: 9, textAlign: 'center', fontWeight: c.current ? 800 : 600, color: c.current ? 'var(--text)' : 'var(--muted)' }}>{c.label}</span>
-          </div>
-        );
-      })}
-      {hover !== null && w > 0 && (
-        <Tip x={((hover + 0.5) / n) * w} y={8} w={w} below>
-          <div style={tipTitle}>{tipHead(columns[hover])}</div>
-          {order.map((k) => <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: colors[k] }} />{words[k]}<strong style={{ marginLeft: 'auto', paddingLeft: 14 }}>{Math.round(columns[hover].values[k]).toLocaleString('en-US')}</strong></div>)}
-        </Tip>
+            );
+          })}
+          {levels.map((lv, i) => {
+            const d = lv.now - lv.was;
+            return (
+              <motion.div
+                key={lv.k}
+                tabIndex={0}
+                aria-label={`${words[lv.k]}: ${lv.now} now, ${lv.was} at the start, ${lv.stayed} stayed`}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                onFocus={() => setHover(i)}
+                onBlur={() => setHover(null)}
+                initial={{ opacity: 0, scale: reduce ? 1 : 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : 0.08 * i, ease: EASE }}
+                style={{ position: 'absolute', left: xl(i), top, width: nw, height: nh, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 11px', borderRadius: 14, background: 'var(--plate)', border: '1px solid var(--hair)', boxShadow: hover === i ? 'var(--lift)' : 'none', outline: 'none' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, fontWeight: 800 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: colors[lv.k] }} />{words[lv.k]}</span>
+                <span className="vs-rank" style={{ fontSize: 17, fontWeight: 900, lineHeight: 1 }}>{lv.now.toLocaleString('en-US')}</span>
+                <span style={{ ...small, fontSize: 8.5, whiteSpace: 'nowrap' }}>{d === 0 ? 'no change' : `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString('en-US')} since the start`}</span>
+              </motion.div>
+            );
+          })}
+          {hover !== null && (
+            <Tip x={xl(hover) + nw / 2} y={top} w={w}>
+              <div style={tipTitle}>{words[levels[hover].k]} risk</div>
+              <div style={tipLine}>{levels[hover].stayed.toLocaleString('en-US')} stayed · {levels[hover].was.toLocaleString('en-US')} at the start</div>
+            </Tip>
+          )}
+        </>
       )}
     </div>
   );
 }
 
 /**
- * Who moved between levels: the levels at the start on the left, now on the
- * right, a ribbon for every move as wide as the people in it. Moves to a
- * lower level in `good`, to a higher one in `bad`, staying put quiet.
- * Hover a ribbon for how many.
+ * Rows of stacked parts on one scale: each row's parts side by side, as
+ * long as their values, with a 2px gap and the value on a part wide enough
+ * to hold it; a row's total before its bar.
  */
-export function LevelFlow({ links, order, colors, words, good, bad, joinedColor, reduce }) {
-  const [box, { w, h }] = useSize();
-  const [hover, setHover] = useState(null);
-  const NODE = 12; const GAP = 10; const LABEL = 92;
-  const left = [...order, 'joined'].filter((k) => links.some((l) => l.from === k));
-  const right = order.filter((k) => links.some((l) => l.to === k));
-  const total = links.reduce((a, l) => a + l.n, 0) || 1;
-  const usable = (side) => Math.max(1, h - GAP * (side.length - 1));
-  const scale = Math.min(usable(left) / total, usable(right) / total);
-  const place = (side, key) => {
-    const pos = {}; let y = 0;
-    side.forEach((k) => { const n = links.filter((l) => l[key] === k).reduce((a, l) => a + l.n, 0); pos[k] = { y, h: n * scale, n }; y += n * scale + GAP; });
-    return pos;
-  };
-  const L = place(left, 'from'); const Rt = place(right, 'to');
-  // each label's middle, pushed apart so two small levels never overlap
-  const spread = (side, pos) => {
-    const c = side.map((k) => ({ k, y: pos[k].y + pos[k].h / 2 }));
-    for (let i = 1; i < c.length; i += 1) c[i].y = Math.max(c[i].y, c[i - 1].y + 26);
-    const over = c.length ? c.at(-1).y - (h - 12) : 0;
-    if (over > 0) { c.at(-1).y -= over; for (let i = c.length - 2; i >= 0; i -= 1) c[i].y = Math.min(c[i].y, c[i + 1].y - 26); }
-    return Object.fromEntries(c.map((x) => [x.k, x.y]));
-  };
-  const LY = spread(left, L); const RY = spread(right, Rt);
-  const x0 = LABEL; const x1 = Math.max(x0 + 40, w - LABEL);
-  const outAt = Object.fromEntries(left.map((k) => [k, L[k].y]));
-  const inAt = Object.fromEntries(right.map((k) => [k, Rt[k].y]));
-  const rank = (k) => (k === 'joined' ? 99 : order.indexOf(k));
-  const ribbons = [...links].sort((a, b) => rank(a.from) - rank(b.from) || rank(a.to) - rank(b.to)).map((l) => {
-    const th = l.n * scale;
-    const y0 = outAt[l.from]; outAt[l.from] += th;
-    const y1 = inAt[l.to]; inAt[l.to] += th;
-    const kind = l.from === 'joined' ? 'joined' : l.from === l.to ? 'stay' : rank(l.to) > rank(l.from) ? 'down' : 'up';
-    return { ...l, th, y0, y1, kind };
-  });
-  const fillOf = (r) => (r.kind === 'down' ? good : r.kind === 'up' ? bad : r.kind === 'joined' ? joinedColor : 'var(--tick)');
-  const mx = (x0 + NODE + x1) / 2;
-  const tip = hover !== null ? ribbons[hover] : null;
+export function MakeupBars({ rows, max, reduce, format }) {
   return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-      {w > 0 && h > 0 && (
-        <svg width={w} height={h} role="img" aria-label={ribbons.filter((r) => r.kind !== 'stay').map((r) => `${r.n} from ${words[r.from] || r.from} to ${words[r.to]}`).join('; ')} style={{ display: 'block', overflow: 'visible' }}>
-          {ribbons.map((r, k) => {
-            const a = x0 + NODE; const b = x1;
-            const d = `M${a},${r.y0} C${mx},${r.y0} ${mx},${r.y1} ${b},${r.y1} L${b},${r.y1 + r.th} C${mx},${r.y1 + r.th} ${mx},${r.y0 + r.th} ${a},${r.y0 + r.th} Z`;
-            return (
-              <motion.path
-                key={`${r.from}-${r.to}`}
-                d={d}
-                fill={fillOf(r)}
-                onMouseEnter={() => setHover(k)}
-                onMouseLeave={() => setHover(null)}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: hover === null ? (r.kind === 'stay' ? 0.6 : 0.72) : hover === k ? 0.95 : 0.16 }}
-                transition={{ duration: reduce ? 0 : 0.5, delay: reduce || hover !== null ? 0 : 0.3 + 0.05 * k }}
-              />
-            );
-          })}
-          {left.map((k, i) => (
-            <g key={`l${k}`}>
-              <motion.rect x={x0} y={L[k].y} width={NODE} rx={4} fill={k === 'joined' ? joinedColor : colors[k]} initial={{ height: reduce ? Math.max(2, L[k].h) : 0 }} animate={{ height: Math.max(2, L[k].h) }} transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.05 * i }} />
-              <text x={x0 - 10} y={LY[k] - 2} textAnchor="end" style={{ fontSize: 10, fontWeight: 800, fill: 'var(--text)' }}>{k === 'joined' ? 'Joined' : words[k]}</text>
-              <text x={x0 - 10} y={LY[k] + 10} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{L[k].n.toLocaleString('en-US')}</text>
-            </g>
-          ))}
-          {right.map((k, i) => (
-            <g key={`r${k}`}>
-              <motion.rect x={x1} y={Rt[k].y} width={NODE} rx={4} fill={colors[k]} initial={{ height: reduce ? Math.max(2, Rt[k].h) : 0 }} animate={{ height: Math.max(2, Rt[k].h) }} transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.05 * i }} />
-              <text x={x1 + NODE + 10} y={RY[k] - 2} style={{ fontSize: 10, fontWeight: 800, fill: 'var(--text)' }}>{words[k]}</text>
-              <text x={x1 + NODE + 10} y={RY[k] + 10} style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{Rt[k].n.toLocaleString('en-US')}</text>
-            </g>
-          ))}
-        </svg>
-      )}
-      {tip && (
-        <Tip x={mx} y={(tip.y0 + tip.y1) / 2 + tip.th / 2} w={w}>
-          <div style={tipTitle}>{tip.n.toLocaleString('en-US')} {tip.kind === 'stay' ? `stayed ${words[tip.to]}` : tip.kind === 'joined' ? 'joined, as moderate' : `moved ${tip.kind === 'down' ? 'to a lower level' : 'to a higher level'}`}</div>
-          {tip.kind !== 'stay' && tip.kind !== 'joined' && <div style={tipLine}>From {words[tip.from]} to {words[tip.to]}</div>}
-        </Tip>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {rows.map((r, k) => (
+        <div key={r.key} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr)', alignItems: 'center', gap: 12 }}>
+          <span>
+            <span style={{ display: 'block', ...small, fontSize: 9 }}>{r.label}</span>
+            <span className="vs-rank" style={{ display: 'block', fontSize: 18, fontWeight: 900, lineHeight: 1.1 }}>{format(r.total)}</span>
+          </span>
+          <span style={{ position: 'relative', height: 30, display: 'flex' }}>
+            <motion.span initial={{ width: reduce ? `${(r.total / max) * 100}%` : '0%' }} animate={{ width: `${(r.total / max) * 100}%` }} transition={{ duration: reduce ? 0 : 0.9, delay: reduce ? 0 : 0.2 + 0.15 * k, ease: EASE }} style={{ display: 'flex', gap: 2, height: '100%', overflow: 'hidden' }}>
+              {r.parts.map((pt) => (
+                <span key={pt.key} title={`${pt.label}: ${format(pt.value)}`} style={{ flex: `${pt.value} 1 0`, minWidth: 4, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: pt.color, color: pt.ink, fontSize: 10, fontWeight: 800, overflow: 'hidden', whiteSpace: 'nowrap' }}>{pt.value / max > 0.08 ? format(pt.value) : ''}</span>
+              ))}
+            </motion.span>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -662,22 +631,97 @@ export function StepFunnel({ steps, color, reduce }) {
   );
 }
 
-/** A small smooth line with a soft wash under it and its newest point marked. */
-export function Spark({ values, color, width = 120, height = 34, reduce }) {
-  const id = useId().replace(/:/g, '');
-  const v = values.filter(Number.isFinite);
-  if (v.length < 2) return null;
-  const lo = Math.min(...v); const hi = Math.max(...v);
-  const pts = v.map((x, i) => [3 + (i / (v.length - 1)) * (width - 6), 4 + (1 - (x - lo) / (hi - lo || 1)) * (height - 8)]);
-  const d = smooth(pts);
+/**
+ * Where each group stands on two rates, `x` across and `y` up: a bubble per
+ * group, as big as its `size` and coloured by `fill`, with the averages
+ * crossing the map and splitting it into four named corners (`corners`,
+ * top-left, top-right, bottom-left, bottom-right; the top-left washed in
+ * `good`'s soft tint and the bottom-right in `bad`'s). Hover a bubble for
+ * its numbers; a click opens it, growing it with `layoutIdOf`.
+ */
+export function BubbleMap({ items, avg, fill, ink, axes, corners, format, reduce, onOpen, layoutIdOf, tip }) {
+  const [box, { w, h }] = useSize();
+  const [hover, setHover] = useState(null);
+  const L = 44; const R = 10; const T = 26; const B = 46;
+  const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
+  const STEP = 0.02;
+  const lo = (v) => Math.floor((Math.min(...v) - 0.015) / STEP) * STEP;
+  const hi = (v) => Math.ceil((Math.max(...v) + 0.015) / STEP) * STEP;
+  const xs = [...items.map((it) => it.x), avg.x]; const ys = [...items.map((it) => it.y), avg.y];
+  const [x0, x1, y0, y1] = [lo(xs), hi(xs), lo(ys), hi(ys)];
+  const X = (v) => L + ((v - x0) / (x1 - x0 || 1)) * pw;
+  const Y = (v) => T + ph - ((v - y0) / (y1 - y0 || 1)) * ph;
+  const ticks = (a, b) => { const out = []; for (let v = a; v <= b + 1e-9; v += STEP) out.push(Math.round(v * 1000) / 1000); const k = Math.ceil(out.length / 6); return out.filter((_, i) => i % k === 0); };
+  const biggest = Math.max(...items.map((it) => it.size), 1);
+  const rOf = (it) => 12 + 14 * Math.sqrt(it.size / biggest);
+  const ax = X(avg.x); const ay = Y(avg.y);
+  const shown = items.find((it) => it.key === hover);
+  const corner = (c, i) => {
+    const right = i % 2 === 1; const low = i > 1;
+    return (
+      <span key={c.title} style={{ position: 'absolute', [right ? 'right' : 'left']: right ? R : L, [low ? 'bottom' : 'top']: low ? 0 : 2, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+        {c.tone && <span aria-hidden style={{ width: 7, height: 7, borderRadius: 999, background: c.tone }} />}
+        {right ? <>{c.sub && <span style={{ ...small, fontSize: 9 }}>{c.sub} ·</span>}{c.title}</> : <>{c.title}{c.sub && <span style={{ ...small, fontSize: 9 }}>· {c.sub}</span>}</>}
+      </span>
+    );
+  };
   return (
-    <svg width={width} height={height} aria-hidden style={{ display: 'block', overflow: 'visible' }}>
-      <defs>
-        <linearGradient id={`${id}s`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.22} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient>
-      </defs>
-      <path d={`${d} L${pts.at(-1)[0]},${height} L${pts[0][0]},${height} Z`} fill={`url(#${id}s)`} />
-      <motion.path d={d} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 0.9, ease: EASE, delay: reduce ? 0 : 0.2 }} />
-      <circle cx={pts.at(-1)[0]} cy={pts.at(-1)[1]} r={3} fill={color} stroke="var(--base)" strokeWidth={1.5} />
-    </svg>
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
+      {w > 0 && h > 0 && (
+        <>
+          <svg width={w} height={h} aria-hidden style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+            <rect x={L} y={T} width={Math.max(0, ax - L)} height={Math.max(0, ay - T)} rx={12} fill="var(--good-soft)" opacity={0.75} />
+            <rect x={ax} y={ay} width={Math.max(0, L + pw - ax)} height={Math.max(0, T + ph - ay)} rx={12} fill="var(--bad-soft)" opacity={0.75} />
+            {ticks(x0, x1).map((v) => (
+              <g key={`x${v}`}>
+                <line x1={X(v)} x2={X(v)} y1={T} y2={T + ph} stroke="var(--grid)" />
+                <text x={X(v)} y={T + ph + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{format(v)}</text>
+              </g>
+            ))}
+            {ticks(y0, y1).map((v) => (
+              <g key={`y${v}`}>
+                <line x1={L} x2={L + pw} y1={Y(v)} y2={Y(v)} stroke="var(--grid)" />
+                <text x={L - 8} y={Y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{format(v)}</text>
+              </g>
+            ))}
+            <line x1={ax} x2={ax} y1={T} y2={T + ph} stroke="var(--muted)" strokeOpacity={0.7} strokeDasharray="4 4" />
+            <line x1={L} x2={L + pw} y1={ay} y2={ay} stroke="var(--muted)" strokeOpacity={0.7} strokeDasharray="4 4" />
+            <text x={ax + 5} y={T + ph - 6} style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>Company {format(avg.x)}</text>
+            <text x={L + pw - 4} y={ay - 6} textAnchor="end" style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>Company {format(avg.y)}</text>
+            <text x={L + pw / 2} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 800, fill: 'var(--text)' }}>{axes.x} →</text>
+            <text transform={`translate(10, ${T}) rotate(-90)`} textAnchor="end" style={{ fontSize: 9, fontWeight: 800, fill: 'var(--text)' }}>{axes.y} →</text>
+          </svg>
+          {corners.map(corner)}
+          {items.map((it, k) => {
+            const r = rOf(it);
+            const on = hover === it.key;
+            return (
+              <motion.button
+                key={it.key}
+                type="button"
+                layoutId={layoutIdOf?.(it)}
+                data-ins-bubble={it.key}
+                aria-label={`${it.label}: ${tip(it).slice(1).join('; ')}. Open its profile`}
+                onMouseEnter={() => setHover(it.key)}
+                onFocus={() => setHover(it.key)}
+                onBlur={() => setHover(null)}
+                onClick={(e) => { e.stopPropagation(); onOpen?.(it.key); }}
+                initial={{ opacity: 0, scale: reduce ? 1 : 0.2 }}
+                animate={{ opacity: 1, scale: on ? 1.14 : 1 }}
+                transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 260, damping: 20, delay: hover ? 0 : 0.15 + 0.035 * k }}
+                style={{ position: 'absolute', left: X(it.x) - r, top: Y(it.y) - r, width: 2 * r, height: 2 * r, zIndex: on ? 5 : 2, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 999, border: '2px solid var(--base)', background: `radial-gradient(circle at 32% 28%, rgba(255,255,255,0.38), rgba(255,255,255,0) 58%), ${fill(it)}`, color: ink(it), boxShadow: on ? '0 12px 26px rgba(15,23,42,0.26)' : '0 4px 10px rgba(15,23,42,0.12)', fontSize: r > 18 ? 9.5 : 8, fontWeight: 900, letterSpacing: '0.02em', cursor: 'pointer' }}
+              >
+                {it.code}
+              </motion.button>
+            );
+          })}
+          {shown && (
+            <Tip x={X(shown.x)} y={Y(shown.y) - rOf(shown) - 2} w={w}>
+              {tip(shown).map((line, i) => <div key={line} style={i ? tipLine : tipTitle}>{line}</div>)}
+            </Tip>
+          )}
+        </>
+      )}
+    </div>
   );
 }
