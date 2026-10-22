@@ -35,7 +35,7 @@ gamification and executive reporting — built on AWS serverless services.
 
 ## High-Level Architecture
 
-![Security Awareness Platform — AWS high-level architecture](docs/architecture.png)
+![Security Awareness Platform — AWS high-level architecture](docs/AwarenessHLD.png)
 
 **Figure 1 — Target AWS architecture for the productionised version** (vector copy:
 [`docs/architecture.svg`](docs/architecture.svg)). Running cost:
