@@ -336,7 +336,7 @@ export function DepartmentProfile({ ctx, frame, name }) {
       </Card>
       <Card i={7} reduce={reduce} title="When phishing lands" sub="What its people did with the period's emails" style={{ gridColumn: 'span 3' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
-          {camp ? <Blocks parts={didParts({ delivered: camp.recipients, reported: camp.reported, clicked: camp.clicked, compromised: camp.compromised }, ink, isDark)} reduce={reduce} height={30} legendCols={1} /> : <p style={{ ...small, fontSize: 11 }}>No emails in the period.</p>}
+          {camp ? <Blocks parts={didParts({ delivered: camp.recipients, reported: camp.reported, clicked: camp.clicked, compromised: camp.compromised }, ink, isDark)} reduce={reduce} height={26} legendCols={2} /> : <p style={{ ...small, fontSize: 11 }}>No emails in the period.</p>}
         </div>
       </Card>
     </ProfileShell>

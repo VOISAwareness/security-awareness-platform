@@ -116,9 +116,10 @@ const PERIODS = [
 // the training API reports them.
 const TRAINING = { programmes: dashboardData.trainingPrograms };
 
-// The shortest the page gets: what a 900px-high window leaves it, where
-// every card has room.
-const MIN_H = 840;
+// The shortest the page gets, in the page's own pixels: what a 900px-high
+// window leaves it (the app draws at 90%, so that is about 940), where every
+// card has room. Shorter windows scroll.
+const MIN_H = 930;
 
 // The corner tile: the programme's health on its own soft gradient, lifted
 // by a shadow in its colour, its word with a faint glow of the same; its
