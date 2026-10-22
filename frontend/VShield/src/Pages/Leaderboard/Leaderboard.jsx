@@ -127,7 +127,7 @@ const FONT_IMPORT = `
 
 // --- sample data -------------------------------------------------------------
 
-// FIRST, LAST, DEPTS and person() live in services/sampleCampaigns.js, shared with Mission Control.
+// FIRST, LAST, DEPTS and person() live in services/sampleCampaigns.js, shared with Insights.
 
 // Every participant, ranked. Points fall off steeply at the top and flatten
 // out down the field, the way a real leaderboard does.

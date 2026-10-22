@@ -161,7 +161,7 @@ const PERIODS = [
   { days: 60, title: 'Every two months' },
   { days: 90, title: 'Quarterly' },
 ];
-export function PeriodPicker({ days, onDays }) {
+function PeriodPicker({ days, onDays }) {
   return (
     <div role="radiogroup" aria-label="Period" data-bp-period style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2, padding: 2, borderRadius: 10, background: 'var(--track)' }}>
       <CalendarDays size={12} strokeWidth={2.4} aria-hidden style={{ margin: '0 4px 0 6px', color: 'var(--muted)' }} />

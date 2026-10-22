@@ -1,6 +1,6 @@
 /**
  * Sample people and campaigns, shared by the Leaderboard (its boards and the
- * Big Picture) and Mission Control, until the server lists real campaigns.
+ * Big Picture) and Insights, until the server lists real campaigns.
  * Everything is fixed, so the same screen shows the same numbers every time.
  */
 
@@ -68,3 +68,20 @@ const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_,
 });
 
 export const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
+
+// Campaigns that ended, one every two days through the quarter before
+// (from 30 Jun back), so Insights can set a period against the one before
+// it and draw six months of trend. Not on the Leaderboard's lists.
+export const PAST_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length + 4 }, (_, k) => {
+  const [lure, type] = LURES[(k * 5 + 3) % LURES.length];
+  const region = REGIONS[k % REGIONS.length];
+  const started = new Date(Date.UTC(2026, 5, 30 - 2 * k));
+  return {
+    id: `CMP-${(((k + 101) * 2246822519) >>> 0).toString(16).slice(0, 6)}`,
+    name: `${lure} (${region})`,
+    type,
+    started: `${started.getUTCDate()} ${MONTHS[started.getUTCMonth()]}`,
+    total: 700 + ((k * 571) % 2400),
+    seed: 60 + k,
+  };
+});
