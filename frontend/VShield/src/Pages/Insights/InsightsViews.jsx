@@ -9,7 +9,7 @@ import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, Staircase, TileMap } from './InsightsCharts';
 import { Explain, Fill, HealthChip, LureTile, PerClickHow } from './InsightsBits';
-import { EASE, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, small, times } from './insightsUi';
+import { EASE, INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -38,14 +38,15 @@ function ToneArt({ tone, isDark }) {
 
 export function OverviewView({ ctx, list }) {
   const { m, p, ink, isDark, reduce, open, go } = ctx;
-  const scores = p.departments.map((d) => d.score);
-  const lo = Math.min(...scores); const hi = Math.max(...scores);
-  const ramp = riskRamp(isDark, lo, hi);
+  const bands = riskBands(isDark);
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const c = p.now.cohorts;
   const n = m.now;
-  const fg = isDark ? '#0F172A' : '#FFFFFF';
-  const dim = isDark ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.62)';
+  // the phishing card is dark on both themes: deep slate on the light one,
+  // glass on the dark one, never white
+  const fg = '#F1F5F9';
+  const dim = 'rgba(241,245,249,0.6)';
+  const onCard = INK.dark;
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
@@ -63,18 +64,16 @@ export function OverviewView({ ctx, list }) {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
           <TileMap
             items={p.departments.map((d) => ({ key: d.name, label: d.name, short: deptCode(d.name), weight: d.people, value: d.score, text: scoreText(d.score) }))}
-            fill={(t) => ramp.fill(t.value)}
-            ink={(t) => ramp.ink(t.value)}
+            fill={(t) => bands.fill(t.value)}
+            ink={(t) => bands.ink(t.value)}
             reduce={reduce}
             layoutIdOf={(t) => `dept-${t.key}`}
             onOpen={(name) => open('department', name, `dept-${name}`)}
             tip={(t) => { const d = p.departments.find((x) => x.name === t.key); return [d.name, `Risk score ${scoreText(d.score)} · ${num(d.highRisk)} at high risk`, `${num(d.people)} people · open its profile`]; }}
           />
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, ...small, fontSize: 9 }}>
-          <span>Lower risk · {scoreText(lo)}</span>
-          <span aria-hidden style={{ display: 'flex', gap: 2 }}>{ramp.steps.map((s) => <span key={s} style={{ width: 18, height: 6, borderRadius: 3, background: s }} />)}</span>
-          <span>{scoreText(hi)} · higher</span>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, ...small, fontSize: 9 }}>
+          {bands.tiers.map((t, k) => <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: t.color }} /><strong style={{ color: 'var(--text)', fontWeight: 700 }}>{TIER_WORD[t.key]}</strong>{['under 20', '20–35', '35–60', '60+'][k]}</span>)}
         </div>
       </Card>
 
@@ -85,9 +84,9 @@ export function OverviewView({ ctx, list }) {
         initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
-        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: fg, background: isDark ? 'radial-gradient(120% 80% at 100% 0%, #E0E7FF 0%, #FFFFFF 55%)' : 'radial-gradient(120% 85% at 100% 0%, #2B2F6B 0%, #111217 52%, #0A0A0C 100%)' }}
+        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: fg, border: isDark ? '1px solid var(--card-edge)' : 'none', background: isDark ? 'radial-gradient(120% 85% at 100% 0%, rgba(16,185,129,0.10) 0%, rgba(255,255,255,0.035) 55%, rgba(255,255,255,0.015) 100%)' : 'radial-gradient(120% 85% at 100% 0%, #16302C 0%, #111622 52%, #0B0F19 100%)', boxShadow: isDark ? 'none' : '0 18px 40px rgba(11,15,25,0.18)' }}
       >
-        <span aria-hidden style={{ position: 'absolute', left: -70, bottom: -90, width: 240, height: 240, borderRadius: 999, background: `radial-gradient(closest-side, ${isDark ? 'rgba(13,148,136,0.18)' : 'rgba(22,163,148,0.24)'}, transparent)` }} />
+        <span aria-hidden style={{ position: 'absolute', left: -70, bottom: -90, width: 240, height: 240, borderRadius: 999, background: `radial-gradient(closest-side, ${isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.20)'}, transparent)` }} />
         <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={58} height={58} style={{ position: 'absolute', right: 10, top: 8, objectFit: 'contain', filter: 'drop-shadow(0 10px 16px rgba(0,0,0,0.35))' }} />
         <span style={{ position: 'relative', ...eyebrow, color: dim }}>When phishing lands</span>
         <span style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
@@ -99,13 +98,13 @@ export function OverviewView({ ctx, list }) {
         </span>
         <span style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, marginTop: 3, color: dim }}>{num(n.reported)} reported ÷ {num(n.clicked)} clicked · {num(n.delivered)} emails, last {m.basis.days} days</span>
         <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
-          <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={30} onDark legendCols={2} />
+          <Blocks parts={didParts(n, onCard, true)} reduce={reduce} height={30} onDark legendCols={2} />
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" data-ins-spot-open onClick={() => go('campaigns')} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: fg, color: isDark ? '#FFFFFF' : '#0A0A0C', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+          <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.25)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
             See the campaigns <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden />
           </button>
-          <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, padding: '4px 9px', borderRadius: 999, background: isDark ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.12)' }}>{n.health?.word}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.10)' }}>{n.health?.word}</span>
         </div>
       </motion.section>
 
@@ -181,7 +180,7 @@ function ChangeRows({ rows, ink, isDark, open }) {
       <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', gap: 10, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800 }}>
         <span />
         <span>Department · risk now</span>
-        <span style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: ink.good }}>← Safer</span><span style={{ color: ink.bad }}>Riskier →</span></span>
+        <span style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: ink.good }} />← Safer</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Riskier →<span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: ink.bad }} /></span></span>
         <span style={{ textAlign: 'right' }}>Change</span>
         <span />
       </div>
@@ -311,7 +310,7 @@ export function CampaignsView({ ctx }) {
             className="ins-card ins-open ins-rise"
             data-ins-lure={l.type}
             onClick={() => open('lure', l.type, `lure-${l.type}`)}
-            style={{ '--d': `${0.04 * k}s`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: k === 0 ? 'var(--bad-soft)' : 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${0.04 * k}s`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--card-edge)', background: k === 0 ? 'var(--bad-soft)' : 'var(--card)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <LureTile type={l.type} size={28} tone={k === 0 ? 'var(--base)' : undefined} />
@@ -340,7 +339,7 @@ export function CampaignsView({ ctx }) {
             onClick={() => open('campaign', c.id, `camp-${c.id}`)}
             onMouseEnter={() => setHover(c.id)}
             onMouseLeave={() => setHover(null)}
-            style={{ '--d': `${0.1 + 0.025 * k}s`, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${0.1 + 0.025 * k}s`, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--card-edge)', background: 'var(--card)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
             <span style={{ display: 'flex', alignItems: 'flex-start', gap: 9, width: '100%' }}>
               <LureTile type={c.type} size={28} />

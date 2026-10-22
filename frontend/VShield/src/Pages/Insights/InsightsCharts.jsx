@@ -28,7 +28,7 @@ export function Card({ title, sub, action, children, i = 0, reduce, style, layou
       {...rise(reduce, i)}
       className={`ins-card${onOpen ? ' ins-open' : ''}`}
       onClick={onOpen ? (e) => { if (!e.defaultPrevented) onOpen(); } : undefined}
-      style={{ position: 'relative', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--hair)', background: 'var(--base)', cursor: onOpen ? 'pointer' : 'default', ...style }}
+      style={{ position: 'relative', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
       {...rest}
     >
       {(title || action || onOpen) && (
@@ -51,7 +51,7 @@ export function Card({ title, sub, action, children, i = 0, reduce, style, layou
 /** A quiet pill that leads somewhere. */
 export function GoTo({ label, onClick, dark = false, ...rest }) {
   return (
-    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--hair)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--base)', color: dark ? 'inherit' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--card-edge)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--ghost)', color: dark ? 'inherit' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
       {label} <ArrowUpRight className="ins-go-arrow" size={12} strokeWidth={2.6} aria-hidden />
     </button>
   );
@@ -88,9 +88,9 @@ export function Segmented({ id, label, value, options, onChange, reduce, tabs = 
             data-ins-option={`${id}:${o.id}`}
             title={o.title}
             onClick={() => onChange(o.id)}
-            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--text)' : 'var(--muted)', transition: 'color .2s ease' }}
+            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
           >
-            {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--base)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
+            {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--pill)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {o.Icon && <o.Icon size={12} strokeWidth={2.4} aria-hidden />}{o.label}
             </span>

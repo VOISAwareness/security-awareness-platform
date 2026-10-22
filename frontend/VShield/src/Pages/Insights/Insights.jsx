@@ -19,7 +19,7 @@ import { BarcodeMeter, RingGauge, Segmented } from './InsightsCharts';
 import { Count, Delta } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, INK, change, eyebrow, num, pc, pc1, riskWord, small, swap } from './insightsUi';
+import { EASE, INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap } from './insightsUi';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -59,6 +59,10 @@ const FONT_IMPORT = `
   .ins-crumb:hover { color: var(--text) !important; text-decoration: underline; }
   .ins-col:hover > span:first-child { background: var(--track) !important; }
   .ins-page button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  /* Vodafone red is kept for what you act on: the key buttons */
+  .ins-page [data-bp-export] { background: var(--brand) !important; color: #FFFFFF !important; box-shadow: 0 6px 16px rgba(230,0,0,0.22); transition: filter .15s ease; }
+  .ins-page [data-bp-export]:hover, .ins-cta:hover { filter: brightness(1.06); }
 
   /* Entrances for the many small things (rows, bars, dots, tiles, cards in a
      grid), as CSS animations of transform and opacity: the browser runs them
@@ -116,27 +120,29 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 // every card has room.
 const MIN_H = 840;
 
-// The corner tile: the programme's health, in its own colour, with its clay
-// piece; reports for every click and its change; reports against clicks.
+// The corner tile: the programme's health on its own soft gradient, lifted
+// by a shadow in its colour, its word with a faint glow of the same; its
+// clay piece; reports against clicks. It stays light on both themes.
 const HEALTH_LOOK = {
-  Protected: { art: ClayGoingWell, tile: 'linear-gradient(140deg,#CFF3E6 0%,#E6FAF2 55%,#F2FCF8 100%)', glow: 'rgba(13,148,136,0.16)' },
-  Holding: { art: ClayTrendFlat, tile: 'linear-gradient(140deg,#E3E1FF 0%,#EFEEFF 55%,#F7F6FF 100%)', glow: 'rgba(99,102,241,0.16)' },
-  Exposed: { art: ClayAttention, tile: 'linear-gradient(140deg,#FFE2C8 0%,#FFEFE0 55%,#FFF8F1 100%)', glow: 'rgba(224,123,46,0.18)' },
+  Protected: { art: ClayGoingWell, tile: 'linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)', lift: '0 20px 40px rgba(16,185,129,0.15)', glow: 'rgba(16,185,129,0.20)', word: '0 0 20px rgba(16,185,129,0.3)' },
+  Holding: { art: ClayTrendFlat, tile: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', lift: '0 20px 40px rgba(245,158,11,0.15)', glow: 'rgba(245,158,11,0.20)', word: '0 0 20px rgba(245,158,11,0.3)' },
+  Exposed: { art: ClayAttention, tile: 'linear-gradient(135deg,#FEF2F2 0%,#FEE2E2 100%)', lift: '0 20px 40px rgba(220,38,38,0.15)', glow: 'rgba(220,38,38,0.18)', word: '0 0 20px rgba(220,38,38,0.25)' },
 };
-function HealthTile({ m, ink, reduce }) {
+function HealthTile({ m, reduce }) {
+  const ink = INK.light; // the tile is light on both themes
   const n = m.now;
   const h = n.health;
   const look = HEALTH_LOOK[h?.word] || HEALTH_LOOK.Holding;
   const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
   return (
-    <div data-ins-health={h?.word || 'none'} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', padding: '15px 18px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: L_R, overflow: 'hidden', background: look.tile, transition: 'background .4s ease' }}>
+    <div data-ins-health={h?.word || 'none'} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', padding: '15px 18px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRadius: L_R, overflow: 'hidden', background: look.tile, boxShadow: look.lift, transition: 'background .4s ease, box-shadow .4s ease' }}>
       <span aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 170, height: 170, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
       <AnimatePresence mode="wait" initial={false}>
         <motion.img key={h?.word} className="ins-float" src={look.art} alt="" aria-hidden width={78} height={78} initial={{ opacity: 0, scale: reduce ? 1 : 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.7 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'absolute', right: 14, top: 18, objectFit: 'contain', filter: 'drop-shadow(0 10px 14px rgba(15,23,42,0.14))' }} />
       </AnimatePresence>
       <div style={{ position: 'relative' }}>
         <div style={{ ...eyebrow, color: '#334155' }}>Programme health · last {m.basis.days} days</div>
-        <div className="vs-rank" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1, marginTop: 12, color: 'var(--text)' }}>{h?.word || '—'}</div>
+        <div className="vs-rank" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1, marginTop: 12, color: 'var(--text)', textShadow: look.word }}>{h?.word || '—'}</div>
       </div>
       <div style={{ position: 'relative' }}>
         <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
@@ -154,12 +160,13 @@ function HealthTile({ m, ink, reduce }) {
 
 // Along the arm: the risk score on its ring, and three measures on barcode
 // meters; each opens where it is explained.
-function RiskKpi({ p, ink, reduce, onOpen }) {
+function RiskKpi({ p, ink, isDark, reduce, onOpen }) {
   const dc = change(p.now.score, p.before?.score, { kind: 'times', better: 'down' });
+  const tone = riskInk(p.now.score, isDark);
   return (
     <motion.button type="button" className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px 8px 10px', borderRadius: 14, border: 'none', background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
-      <RingGauge value={p.now.score} size={66} stroke={6} color={ink.risk} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`}>
-        <span className="vs-rank" style={{ display: 'block', fontSize: 15, fontWeight: 900 }}><Count value={p.now.score} format={(v) => v.toFixed(1)} reduce={reduce} /></span>
+      <RingGauge value={p.now.score} size={66} stroke={6} color={tone} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`}>
+        <span className="vs-rank" style={{ display: 'block', fontSize: 15, fontWeight: 900, textShadow: glow(tone, isDark, 0.35) }}><Count value={p.now.score} format={(v) => v.toFixed(1)} reduce={reduce} /></span>
         <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: 2 }}>/ 100</span>
       </RingGauge>
       <span style={{ minWidth: 0 }}>
@@ -178,7 +185,7 @@ function BarKpi({ k, i, ink, reduce }) {
         <span style={{ marginLeft: 'auto' }}><Delta c={k.delta} ink={ink} title="Against the period before" /></span>
       </span>
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
-        <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
+        <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', textShadow: k.glow || 'none' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
         <span style={{ ...small, fontSize: 9.5 }}>{k.unit}</span>
       </span>
       <BarcodeMeter value={k.share} color={k.color} reduce={reduce} height={22} label={`${k.label}: ${pc(k.share)}`} />
@@ -231,9 +238,9 @@ const Insights = () => {
   const b = m.before;
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const kpis = [
-    { id: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.risk, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
+    { id: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.danger, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
     { id: 'hooked', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails clicked', share: n.hooked, delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), color: ink.bad, hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'reported', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails reported', share: n.reportRate, delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), color: ink.good, hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'reported', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails reported', share: n.reportRate, delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), color: ink.good, glow: glow('#10B981', isDark), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
   ];
 
   const title = 'Insights';
@@ -242,9 +249,11 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
 
+  // Depth from a soft light at the top of the page; panels and cards as
+  // glass over it. --base stays a solid, for tooltips, pills and rings.
   const vars = isDark
-    ? { '--bg': 'transparent', '--base': '#1C1E24', '--text': '#F1F5F9', '--muted': '#9AA6B2', '--hair': 'rgba(255,255,255,0.10)', '--hair-strong': 'rgba(255,255,255,0.18)', '--track': 'rgba(255,255,255,0.10)', '--tick': 'rgba(255,255,255,0.14)', '--grid': 'rgba(255,255,255,0.08)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.06)', '--chip': 'rgba(255,255,255,0.08)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(255,255,255,0.16)', '--soft-risk': 'rgba(255,255,255,0.16)', '--soft-good': 'rgba(22,163,148,0.38)', '--good-soft': 'rgba(22,163,148,0.16)', '--bad-soft': 'rgba(224,123,46,0.16)', '--bp-accent': '#5EEAD4' }
-    : { '--bg': '#F1F4F8', '--base': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(224,123,46,0.30)', '--soft-risk': 'rgba(82,87,204,0.22)', '--soft-good': 'rgba(13,148,136,0.30)', '--good-soft': '#E3F6F2', '--bad-soft': '#FDF0E6', '--bp-accent': '#0F766E' };
+    ? { '--bg': 'radial-gradient(circle at top center, #1A1D29 0%, #0B0F19 60%, #070A12 100%)', '--sheet': 'rgba(255,255,255,0.02)', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)', '--card-edge': 'rgba(255,255,255,0.08)', '--base': '#151926', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
+    : { '--bg': 'radial-gradient(circle at top center, #FFFFFF 0%, #F3F5F9 60%, #EBEEF3 100%)', '--sheet': 'rgba(255,255,255,0.72)', '--card': 'linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.86) 100%)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
 
   let body;
   if (top) {
@@ -278,13 +287,13 @@ const Insights = () => {
 
         {/* the sheet, in its L */}
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          <HealthTile m={m} ink={ink} reduce={reduce} />
+          <HealthTile m={m} reduce={reduce} />
           <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
-            <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
+            <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--sheet)" />
           </svg>
 
           {/* the arm: the period, the tabs and Export; under them, four measures */}
-          <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP + 4}px 20px`, background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+          <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP + 4}px 20px`, background: 'var(--sheet)', borderTop: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
               <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView({ page: 0 }); }); }} reduce={reduce} />
               <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.basis.campaigns} campaigns · against the {days} days before</span>
@@ -294,13 +303,13 @@ const Insights = () => {
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) repeat(3, minmax(0,1fr))', gap: 10 }}>
-              <RiskKpi p={p} ink={ink} reduce={reduce} onOpen={() => open('risk')} />
+              <RiskKpi p={p} ink={ink} isDark={isDark} reduce={reduce} onOpen={() => open('risk')} />
               {kpis.map((k, i) => <BarKpi key={k.id} k={k} i={i + 1} ink={ink} reduce={reduce} />)}
             </div>
           </div>
 
           {/* the base: the tab on show, or a profile grown out of it */}
-          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 16px 16px', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 16px 16px', background: 'var(--sheet)', borderLeft: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderBottom: '1px solid var(--card-edge)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
             <LayoutGroup id="insights">
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div key={top ? `p-${trail.length}-${top.kind}-${top.key}` : `v-${tab}`} {...(top ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 0, transition: { duration: 0.18 } } } : swap(reduce))} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

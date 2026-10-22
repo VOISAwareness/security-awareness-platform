@@ -155,8 +155,8 @@ export function Explain({ label, children, onDark = false }) {
 export function PerClickHow({ n, days, campaigns, ink }) {
   const rules = [
     ['Protected', ink.good, '2 or more: at least two people raise the alarm for everyone caught out'],
-    ['Holding', STEADY_INK, '1 to 2: as many report it as click it, or more'],
-    ['Exposed', ink.bad, 'below 1: more people click it than report it'],
+    ['Holding', ink.bad, '1 to 2: as many report it as click it, or more'],
+    ['Exposed', ink.alert, 'below 1: more people click it than report it'],
   ];
   return (
     <>

@@ -8,7 +8,7 @@ import { useFitRows } from '../Leaderboard/useFitRows';
 import { Blocks, Card, CompareBars, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Staircase, StepFunnel } from './InsightsCharts';
 import { Delta, Fill, HealthChip, InlineBar, LureTile, Meter } from './InsightsBits';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
-import { EASE, STEADY_INK, TIER_WORD, TINT, change, day, heads, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskWord, small, tierInk, times } from './insightsUi';
+import { EASE, STEADY_INK, TIER_TEXT, TIER_WORD, TINT, change, day, glow, heads, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, times } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -43,7 +43,7 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.22, delay: reduce || embedded ? 0 : 0.08 }} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!embedded && (
         <nav aria-label="Where you are" style={{ flexShrink: 0, height: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button type="button" className="ins-go" data-ins-back onClick={onBack} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 11px 0 7px', borderRadius: 999, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+          <button type="button" className="ins-go" data-ins-back onClick={onBack} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 11px 0 7px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
             <ChevronLeft size={14} strokeWidth={2.6} aria-hidden /> Back
           </button>
           <span aria-hidden style={{ width: 1, height: 16, background: 'var(--hair)' }} />
@@ -71,7 +71,7 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'stretch', gap: 8 }}>
           {figures.map((f) => (
-            <span key={f.label} style={{ minWidth: 112, padding: '8px 12px', borderRadius: 12, background: 'var(--base)', border: '1px solid var(--hair)' }}>
+            <span key={f.label} style={{ minWidth: 112, padding: '8px 12px', borderRadius: 12, background: 'var(--card)', border: '1px solid var(--card-edge)' }}>
               <span style={{ ...eyebrow, display: 'block', fontSize: 8 }}>{f.label}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
                 {f.node || <span className="vs-rank" style={{ fontSize: 18, fontWeight: 900, lineHeight: 1 }}>{f.value}</span>}
@@ -97,7 +97,7 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.15 } }}
       transition={{ layout: reduce ? { duration: 0 } : LAYOUT, duration: reduce ? 0 : 0.35, ease: EASE }}
-      style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px 14px 14px', borderRadius: 18, border: '1px solid var(--hair)', background: 'var(--base)', boxShadow: '0 24px 60px rgba(15,23,42,0.10)' }}
+      style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px 14px 14px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', boxShadow: 'var(--lift)' }}
     >
       {content}
     </motion.div>
@@ -125,10 +125,11 @@ function RowHeads({ cols, children }) {
 const arrow = <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />;
 
 // The risk score as a ring, with its number in it.
-function ScoreRing({ score, ink, reduce, size = 56 }) {
+function ScoreRing({ score, isDark, reduce, size = 56 }) {
+  const tone = riskInk(score, isDark);
   return (
-    <RingGauge value={score} size={size} stroke={size < 50 ? 4 : 6} color={ink.risk} reduce={reduce} label={`Risk score ${scoreText(score)} of 100`}>
-      <span className="vs-rank" style={{ display: 'block', fontSize: size > 60 ? 18 : size < 50 ? 11 : 14, fontWeight: 900 }}>{scoreText(score)}</span>
+    <RingGauge value={score} size={size} stroke={size < 50 ? 4 : 6} color={tone} reduce={reduce} label={`Risk score ${scoreText(score)} of 100`}>
+      <span className="vs-rank" style={{ display: 'block', fontSize: size > 60 ? 18 : size < 50 ? 11 : 14, fontWeight: 900, textShadow: glow(tone, isDark, 0.35) }}>{scoreText(score)}</span>
       <span style={{ display: 'block', fontSize: size < 50 ? 6.5 : 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: size < 50 ? 1 : 2 }}>/ 100</span>
     </RingGauge>
   );
@@ -145,9 +146,8 @@ const DRIVERS = [
 
 // The points each level adds to a risk score: its people's share times
 // its weight (moderate 33, high 67, critical 100); low adds none.
-function makeupOf(step, colors, isDark) {
-  const text = isDark ? { moderate: '#F8FAFC', high: '#F8FAFC', critical: '#1C1E24' } : { moderate: '#1E1B4B', high: '#FFFFFF', critical: '#FFFFFF' };
-  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: text[t] }));
+function makeupOf(step, colors) {
+  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: TIER_TEXT[t] }));
 }
 
 // Each risk level as a tile, the riskiest first: its people now, their
@@ -176,7 +176,7 @@ function LevelTiles({ moved, colors, ink, reduce }) {
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: colors[lv.k] }} />{TIER_WORD[lv.k]} risk</span>
             <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em' }}>{num(lv.now)}</span>
             <span aria-hidden style={{ height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-              <Fill width={`${(lv.now / everyone) * 100}%`} color={lv.k === 'low' ? STEADY_INK : colors[lv.k]} delay={0.3 + 0.06 * i} reduce={reduce} />
+              <Fill width={`${(lv.now / everyone) * 100}%`} color={colors[lv.k]} delay={0.3 + 0.06 * i} reduce={reduce} />
             </span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
               <span style={{ ...small, fontSize: 9, whiteSpace: 'nowrap' }}>{pc(lv.now / everyone)} of people</span>
@@ -213,7 +213,7 @@ export function RiskProfile({ ctx, frame }) {
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const maxDriver = Math.max(...DRIVERS.map((d) => p.now.drivers[d.id]), 1);
-  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors, isDark) }));
+  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors) }));
   const biggest = makeup[0].parts.reduce((a, x) => (x.value > a.value ? x : a));
   const maxScore = Math.max(...p.departments.map((d) => d.score)) * 1.1;
   const [fit, size] = useFitRows(40, 3, 0);
@@ -223,7 +223,7 @@ export function RiskProfile({ ctx, frame }) {
       tone="watch"
       reduce={reduce}
       isDark={isDark}
-      art={<ScoreRing score={p.now.score} ink={ink} reduce={reduce} size={64} />}
+      art={<ScoreRing score={p.now.score} isDark={isDark} reduce={reduce} size={64} />}
       eyebrowText="The organisation"
       title={`${riskWord(p.now.score)} · risk score ${scoreText(p.now.score)}`}
       sub={`${num(p.now.people)} people · everyone's risk level, averaged on 0 to 100`}
@@ -235,7 +235,7 @@ export function RiskProfile({ ctx, frame }) {
     >
       <Card i={3} reduce={reduce} title="Risk over the year" sub={`Thirty days at a time · ${p.trend.at(-1).score <= p.trend[0].score ? 'down' : 'up'} ${Math.abs(p.trend.at(-1).score - p.trend[0].score).toFixed(1)} pts in a year, ${p.trend.slice(1).filter((s, i) => s.score < p.trend[i].score).length} of ${p.trend.length - 1} months lower than the one before`} action={<Legend items={[{ label: 'Month it fell', color: ink.good }, { label: 'Month it rose', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.risk} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="Did people get safer?" sub={`Each risk level now, and its change over the last ${p.basis.days} days${p.moved?.joined ? ` · ${num(p.moved.joined)} joined` : ''}`} action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
@@ -244,7 +244,7 @@ export function RiskProfile({ ctx, frame }) {
       <Card i={5} reduce={reduce} title="What makes up the score" sub="Points each level adds to the risk score · now against a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <MakeupBars rows={makeup} max={Math.max(...makeup.map((r) => r.total)) * 1.04} reduce={reduce} format={scoreText} />
-          <Insight tone={ink.risk} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
+          <Insight tone={colors[biggest.key]} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
         </div>
       </Card>
       <Card i={6} reduce={reduce} title="What drives it" sub="People, as things stand" style={{ gridColumn: 'span 3' }}>
@@ -255,7 +255,7 @@ export function RiskProfile({ ctx, frame }) {
             return (
               <div key={dr.id} style={{ display: 'grid', gridTemplateColumns: '28px minmax(0,1fr) auto', alignItems: 'center', gap: 9 }}>
                 <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--plate)' }}><dr.Icon size={13} strokeWidth={2.4} /></span>
-                <Meter value={v} max={maxDriver} color={ink.risk} label={num(v)} sub={dr.label} delay={0.4 + 0.05 * k} reduce={reduce} height={4} />
+                <Meter value={v} max={maxDriver} color={ink.neutral} label={num(v)} sub={dr.label} delay={0.4 + 0.05 * k} reduce={reduce} height={4} />
                 <Delta c={c && { ...c, shown: c.shown.replace(' min', '') }} ink={ink} />
               </div>
             );
@@ -268,7 +268,7 @@ export function RiskProfile({ ctx, frame }) {
             <Row key={d.name} k={k} reduce={reduce} cols="22px minmax(0,1fr) 92px 12px" onClick={() => open('department', d.name)} label={`${d.name}, risk score ${scoreText(d.score)}. Open its profile`}>
               <DeptCrest code={deptCode(d.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{d.name}</span>
-              <Meter value={d.score} max={maxScore} color={ink.risk} label={scoreText(d.score)} delay={0.4 + 0.04 * k} reduce={reduce} height={4} />
+              <Meter value={d.score} max={maxScore} color={riskInk(d.score, isDark)} label={scoreText(d.score)} delay={0.4 + 0.04 * k} reduce={reduce} height={4} />
               {arrow}
             </Row>
           ))}
@@ -303,12 +303,12 @@ export function DepartmentProfile({ ctx, frame, name }) {
       title={name}
       sub={`${num(d.people)} people · the ${ordinal(rank)} highest risk of ${p.departments.length} departments`}
       figures={[
-        { label: 'Risk score', node: <ScoreRing score={d.score} ink={ink} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
+        { label: 'Risk score', node: <ScoreRing score={d.score} isDark={isDark} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
         { label: 'At high risk', value: num(d.highRisk), sub: `${pc1(d.highRisk / d.people)} of its people` },
         { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${c.times.toFixed(1)}× less likely to click` : '' },
       ]}
       action={canSeePeople ? (
-        <button type="button" className="ins-go" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <button type="button" className="ins-cta" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           <Users size={13} strokeWidth={2.4} aria-hidden /> See its people
         </button>
       ) : null}
