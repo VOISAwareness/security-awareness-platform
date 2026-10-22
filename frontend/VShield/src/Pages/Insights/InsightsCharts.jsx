@@ -598,3 +598,96 @@ export function StepFunnel({ steps, color, reduce }) {
     </div>
   );
 }
+
+/**
+ * The risk ring: every group on a spoke around the whole's score, closer to
+ * the centre safer. On each spoke a small open ring where the group stood
+ * before and a dot where it stands now, joined by a tail: `good` when it
+ * moved in, `bad` when it moved out. Behind them, rings every two points,
+ * the stretch past `threshold` washed in `bad`'s tint, and the whole's
+ * score as a dashed ring. Hover a spoke for its numbers; a click opens it.
+ */
+export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onOpen, tipHead, days }) {
+  const [box, { w, h }] = useSize();
+  const [hover, setHover] = useState(null);
+  const S = Math.min(w, h);
+  const cx = w / 2; const cy = h / 2;
+  const r1 = Math.max(40, S / 2 - 36); const r0 = r1 * 0.3;
+  const all = items.flatMap((it) => [it.now, it.before]).concat(whole.now);
+  const lo = Math.floor((Math.min(...all) - 0.5) / 2) * 2; const hi = Math.ceil((Math.max(...all) + 0.5) / 2) * 2;
+  const R = (v) => r0 + ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo || 1)) * (r1 - r0);
+  const order = [...items].sort((a, b) => b.now - a.now || a.key.localeCompare(b.key));
+  const n = order.length;
+  const ang = (i) => ((-90 + (i / n) * 360) * Math.PI) / 180;
+  const at = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const toneOf = (it) => { const d = it.now - it.before; return d < -0.05 ? good : d > 0.05 ? bad : neutral; };
+  const ringPath = (r) => `M${cx - r},${cy} a${r},${r} 0 1 0 ${2 * r},0 a${r},${r} 0 1 0 ${-2 * r},0`;
+  const steps = []; for (let v = lo; v <= hi; v += 2) steps.push(v);
+  const shown = hover !== null ? order[hover] : null;
+  const wd = whole.before !== undefined && whole.before !== null ? whole.now - whole.before : null;
+  return (
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
+      {w > 0 && h > 0 && (
+        <svg width={w} height={h} role="img" aria-label={order.map((it) => `${it.label} ${it.now.toFixed(1)}, ${it.before.toFixed(1)} before`).join('; ')} style={{ display: 'block', overflow: 'visible' }}>
+          {threshold > lo && threshold < hi && <path d={`${ringPath(R(hi))} ${ringPath(R(threshold))}`} fill={bad} fillOpacity={0.06} fillRule="evenodd" />}
+          {steps.map((v) => <circle key={v} cx={cx} cy={cy} r={R(v)} fill="none" stroke={v === threshold ? bad : 'var(--grid)'} strokeOpacity={v === threshold ? 0.45 : 1} strokeWidth={v === threshold ? 1.2 : 1} strokeDasharray={v === threshold ? undefined : '2 4'} />)}
+          {steps.filter((v) => v > lo).map((v) => { const [tx, ty] = at(R(v), ang(0.5)); return <text key={`t${v}`} x={tx} y={ty + 3} textAnchor="middle" style={{ fontSize: 8, fontWeight: 600, fill: 'var(--muted)', paintOrder: 'stroke', stroke: 'var(--base)', strokeWidth: 3 }}>{v}</text>; })}
+          <circle cx={cx} cy={cy} r={R(whole.now)} fill="none" stroke="var(--text)" strokeOpacity={0.5} strokeWidth={1.3} strokeDasharray="5 4" />
+          {order.map((it, i) => {
+            const a = ang(i);
+            const dim = hover !== null && hover !== i;
+            const [sx, sy] = at(r0 - 4, a); const [ex, ey] = at(r1 + 6, a);
+            const [bx, by] = at(R(it.before), a); const [nx, ny] = at(R(it.now), a);
+            const [lx, ly] = at(r1 + 20, a);
+            const d = it.now - it.before;
+            const c = toneOf(it);
+            return (
+              <g
+                key={it.key}
+                role="button"
+                tabIndex={0}
+                aria-label={`${it.label}: risk score ${it.now.toFixed(1)}, ${Math.abs(d) < 0.05 ? 'no change' : `${d < 0 ? 'down' : 'up'} ${Math.abs(d).toFixed(1)}`} on ${days} days ago. Open its profile`}
+                onMouseEnter={() => setHover(i)}
+                onFocus={() => setHover(i)}
+                onBlur={() => setHover(null)}
+                onClick={() => onOpen?.(it.key)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(it.key); } }}
+                style={{ cursor: 'pointer', outline: 'none', opacity: dim ? 0.3 : 1, transition: 'opacity .2s ease' }}
+              >
+                <line x1={sx} y1={sy} x2={ex} y2={ey} stroke={hover === i ? 'var(--hair-strong)' : 'var(--grid)'} strokeWidth={1} />
+                <line x1={sx} y1={sy} x2={lx} y2={ly} stroke="transparent" strokeWidth={22} />
+                <line className="ins-fade" x1={bx} y1={by} x2={nx} y2={ny} stroke={c} strokeOpacity={0.45} strokeWidth={5} strokeLinecap="round" style={{ '--d': `${0.25 + 0.025 * i}s` }} />
+                <circle cx={bx} cy={by} r={3} fill="var(--base)" stroke={neutral} strokeWidth={1.5} />
+                <circle className="ins-pop" cx={nx} cy={ny} r={hover === i ? 8 : 6.5} fill={c} stroke="var(--base)" strokeWidth={2} style={{ '--d': `${0.3 + 0.025 * i}s`, transformBox: 'fill-box', transformOrigin: 'center', transition: 'r .15s ease' }} />
+                <text x={lx} y={ly - 1} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 800, fill: 'var(--text)' }}>{it.code}</text>
+                <text x={lx} y={ly + 11} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>
+                  <tspan fill={c}>{d < -0.05 ? '▼' : d > 0.05 ? '▲' : '●'}</tspan> {Math.abs(d).toFixed(1)}
+                </text>
+              </g>
+            );
+          })}
+          <circle cx={cx} cy={cy} r={r0 - 8} fill="var(--base)" stroke="var(--hair)" />
+        </svg>
+      )}
+      {w > 0 && h > 0 && (
+        <div style={{ position: 'absolute', left: cx, top: cy, transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+          <div className="vs-rank" style={{ fontSize: Math.max(14, Math.min(24, r0 * 0.36)), fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)' }}>{whole.now.toFixed(1)}</div>
+          <div style={{ ...small, fontSize: 7.5, fontWeight: 800, letterSpacing: '0.08em', marginTop: 3 }}>COMPANY</div>
+          {wd !== null && <div style={{ fontSize: 8.5, fontWeight: 800, marginTop: 2, color: 'var(--text)' }}><span style={{ color: wd <= 0 ? good : bad }}>{wd < -0.05 ? '▼' : wd > 0.05 ? '▲' : '●'}</span> {Math.abs(wd).toFixed(1)}</div>}
+        </div>
+      )}
+      {shown && (() => {
+        const i = order.indexOf(shown); const [tx, ty] = at(R(shown.now), ang(i)); const d = shown.now - shown.before;
+        return (
+          <Tip x={tx} y={ty - 10} w={w}>
+            <div style={tipTitle}>{tipHead(shown)}</div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: 10, fontWeight: 700 }}>Risk score now<strong style={{ marginLeft: 'auto' }}>{shown.now.toFixed(1)}</strong></div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 3, fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{days} days ago<strong style={{ marginLeft: 'auto', color: 'var(--text)' }}>{shown.before.toFixed(1)}</strong></div>
+            <div style={tipLine}>{Math.abs(d) < 0.05 ? 'No change' : `${d < 0 ? 'Safer' : 'Riskier'} by ${Math.abs(d).toFixed(1)} pts · open its profile`}</div>
+          </Tip>
+        );
+      })()}
+    </div>
+  );
+}
+
