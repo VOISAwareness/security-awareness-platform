@@ -8,8 +8,8 @@ import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, Staircase, TileMap } from './InsightsCharts';
-import { Explain, HealthChip, LureTile, PerClickHow } from './InsightsBits';
-import { EASE, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskRamp, small, times } from './insightsUi';
+import { Explain, Fill, HealthChip, LureTile, PerClickHow } from './InsightsBits';
+import { EASE, INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -38,14 +38,15 @@ function ToneArt({ tone, isDark }) {
 
 export function OverviewView({ ctx, list }) {
   const { m, p, ink, isDark, reduce, open, go } = ctx;
-  const scores = p.departments.map((d) => d.score);
-  const lo = Math.min(...scores); const hi = Math.max(...scores);
-  const ramp = riskRamp(isDark, lo, hi);
+  const bands = riskBands(isDark);
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const c = p.now.cohorts;
   const n = m.now;
-  const fg = isDark ? '#0F172A' : '#FFFFFF';
-  const dim = isDark ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.62)';
+  // the phishing card is dark on both themes: deep slate on the light one,
+  // glass on the dark one, never white
+  const fg = '#F1F5F9';
+  const dim = 'rgba(241,245,249,0.6)';
+  const onCard = INK.dark;
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
@@ -63,18 +64,16 @@ export function OverviewView({ ctx, list }) {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
           <TileMap
             items={p.departments.map((d) => ({ key: d.name, label: d.name, short: deptCode(d.name), weight: d.people, value: d.score, text: scoreText(d.score) }))}
-            fill={(t) => ramp.fill(t.value)}
-            ink={(t) => ramp.ink(t.value)}
+            fill={(t) => bands.fill(t.value)}
+            ink={(t) => bands.ink(t.value)}
             reduce={reduce}
             layoutIdOf={(t) => `dept-${t.key}`}
             onOpen={(name) => open('department', name, `dept-${name}`)}
             tip={(t) => { const d = p.departments.find((x) => x.name === t.key); return [d.name, `Risk score ${scoreText(d.score)} · ${num(d.highRisk)} at high risk`, `${num(d.people)} people · open its profile`]; }}
           />
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, ...small, fontSize: 9 }}>
-          <span>Lower risk · {scoreText(lo)}</span>
-          <span aria-hidden style={{ display: 'flex', gap: 2 }}>{ramp.steps.map((s) => <span key={s} style={{ width: 18, height: 6, borderRadius: 3, background: s }} />)}</span>
-          <span>{scoreText(hi)} · higher</span>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, ...small, fontSize: 9 }}>
+          {bands.tiers.map((t, k) => <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: t.color }} /><strong style={{ color: 'var(--text)', fontWeight: 700 }}>{TIER_WORD[t.key]}</strong>{['under 20', '20–35', '35–60', '60+'][k]}</span>)}
         </div>
       </Card>
 
@@ -82,12 +81,12 @@ export function OverviewView({ ctx, list }) {
       <motion.section
         data-ins-spot
         aria-label="When phishing lands"
-        initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.96, filter: reduce ? 'none' : 'blur(8px)' }}
-        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
-        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: fg, background: isDark ? 'radial-gradient(120% 80% at 100% 0%, #E0E7FF 0%, #FFFFFF 55%)' : 'radial-gradient(120% 85% at 100% 0%, #2B2F6B 0%, #111217 52%, #0A0A0C 100%)' }}
+        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: fg, border: isDark ? '1px solid var(--card-edge)' : 'none', background: isDark ? 'radial-gradient(120% 85% at 100% 0%, rgba(16,185,129,0.10) 0%, rgba(255,255,255,0.035) 55%, rgba(255,255,255,0.015) 100%)' : 'radial-gradient(120% 85% at 100% 0%, #16302C 0%, #111622 52%, #0B0F19 100%)', boxShadow: isDark ? 'none' : '0 18px 40px rgba(11,15,25,0.18)' }}
       >
-        <span aria-hidden style={{ position: 'absolute', left: -70, bottom: -90, width: 240, height: 240, borderRadius: 999, background: `radial-gradient(closest-side, ${isDark ? 'rgba(13,148,136,0.18)' : 'rgba(22,163,148,0.24)'}, transparent)` }} />
+        <span aria-hidden style={{ position: 'absolute', left: -70, bottom: -90, width: 240, height: 240, borderRadius: 999, background: `radial-gradient(closest-side, ${isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.20)'}, transparent)` }} />
         <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={58} height={58} style={{ position: 'absolute', right: 10, top: 8, objectFit: 'contain', filter: 'drop-shadow(0 10px 16px rgba(0,0,0,0.35))' }} />
         <span style={{ position: 'relative', ...eyebrow, color: dim }}>When phishing lands</span>
         <span style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
@@ -98,14 +97,14 @@ export function OverviewView({ ctx, list }) {
           <Explain label="What reports for every click means" onDark><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
         </span>
         <span style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, marginTop: 3, color: dim }}>{num(n.reported)} reported ÷ {num(n.clicked)} clicked · {num(n.delivered)} emails, last {m.basis.days} days</span>
-        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
-          <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={30} onDark legendCols={2} />
+        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
+          <Blocks parts={didParts(n, onCard, true)} reduce={reduce} height={30} onDark legendCols={2} />
         </div>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-          <button type="button" data-ins-spot-open onClick={() => go('campaigns')} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: fg, color: isDark ? '#FFFFFF' : '#0A0A0C', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+          <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.25)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
             See the campaigns <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden />
           </button>
-          <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, padding: '4px 9px', borderRadius: 999, background: isDark ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.12)' }}>{n.health?.word}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,0.10)' }}>{n.health?.word}</span>
         </div>
       </motion.section>
 
@@ -128,13 +127,10 @@ export function OverviewView({ ctx, list }) {
             <motion.button
               key={f.id}
               type="button"
-              className="ins-find"
+              className="ins-find ins-in-x"
               data-ins-finding={f.id}
               onClick={(e) => { e.stopPropagation(); open(f.view, f.view === 'risk' || f.view === 'training' ? null : f.focus); }}
-              initial={{ opacity: 0, x: reduce ? 0 : 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : 0.35 + 0.06 * k, ease: EASE }}
-              style={{ flex: '1 1 0', minHeight: 0, maxHeight: 56, display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto 14px', alignItems: 'center', gap: 11, padding: '0 8px', margin: '0 -8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+              style={{ '--d': `${0.15 + 0.04 * k}s`, flex: '1 1 0', minHeight: 0, maxHeight: 56, display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) auto 14px', alignItems: 'center', gap: 11, padding: '0 8px', margin: '0 -8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
             >
               <ToneArt tone={f.tone} isDark={isDark} />
               <span style={{ minWidth: 0 }}>
@@ -158,7 +154,7 @@ export function OverviewView({ ctx, list }) {
               <span className="vs-rank" style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
               <span style={{ fontSize: 10.5, fontWeight: 700 }}>less likely to click once trained</span>
             </span>
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
               <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={24} />
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
@@ -177,14 +173,14 @@ export function OverviewView({ ctx, list }) {
 // Who got safer and who got riskier over the period: a bar either side of
 // zero for each department, the most improved first; each row opens its
 // profile.
-function ChangeRows({ rows, ink, isDark, reduce, open }) {
+function ChangeRows({ rows, ink, isDark, open }) {
   const most = Math.max(...rows.map((r) => Math.abs(r.delta)), 0.1);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
       <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', gap: 10, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800 }}>
         <span />
         <span>Department · risk now</span>
-        <span style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: ink.good }}>← Safer</span><span style={{ color: ink.bad }}>Riskier →</span></span>
+        <span style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: ink.good }} />← Safer</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Riskier →<span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: ink.bad }} /></span></span>
         <span style={{ textAlign: 'right' }}>Change</span>
         <span />
       </div>
@@ -195,23 +191,20 @@ function ChangeRows({ rows, ink, isDark, reduce, open }) {
           <motion.button
             key={r.name}
             type="button"
-            className="ins-row"
+            className="ins-row ins-in-x"
             data-ins-change={r.name}
             onClick={() => open('department', r.name)}
             aria-label={`${r.name}: risk score ${r.score.toFixed(1)}, ${r.delta <= 0 ? 'down' : 'up'} ${Math.abs(r.delta).toFixed(1)} points. Open its profile`}
-            initial={{ opacity: 0, x: reduce ? 0 : 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.2 + 0.025 * k, ease: EASE }}
-            style={{ flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
-            <DeptCrest code={deptCode(r.name)} size={24} compact metal={isDark ? 'steelDark' : 'steel'} />
+            <DeptCrest code={deptCode(r.name)} size={24} compact flat metal={isDark ? 'steelDark' : 'steel'} />
             <span style={{ minWidth: 0 }}>
               <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
               <span style={{ display: 'block', ...small, fontSize: 8.5, marginTop: 1 }}>Risk score {r.score.toFixed(1)}</span>
             </span>
             <span aria-hidden style={{ position: 'relative', height: 12 }}>
               <span style={{ position: 'absolute', left: '50%', top: -4, bottom: -4, width: 1, background: 'var(--hair-strong)' }} />
-              <motion.span initial={{ width: reduce ? wd : 0 }} animate={{ width: wd }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : 0.3 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 0, height: 12, [r.delta < 0 ? 'right' : 'left']: '50%', minWidth: 3, borderRadius: r.delta < 0 ? '6px 2px 2px 6px' : '2px 6px 6px 2px', background: tone }} />
+              <span className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, position: 'absolute', top: 0, height: 12, width: wd, [r.delta < 0 ? 'right' : 'left']: '50%', transformOrigin: r.delta < 0 ? 'right' : 'left', minWidth: 3, borderRadius: r.delta < 0 ? '6px 2px 2px 6px' : '2px 6px 6px 2px', background: tone, transition: 'width .5s ease' }} />
             </span>
             <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{Math.abs(r.delta) < 0.05 ? '0.0' : `${r.delta < 0 ? '−' : '+'}${Math.abs(r.delta).toFixed(1)}`}</span>
             <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
@@ -226,7 +219,7 @@ function ChangeRows({ rows, ink, isDark, reduce, open }) {
 // clicks sit, a teal dot where its reports sit, on one scale, joined; the
 // best habit (most reports over clicks) first. Each row grows into the
 // department's profile; hover shows its numbers.
-function HabitRows({ rows, ink, isDark, reduce, open }) {
+function HabitRows({ rows, ink, isDark, open }) {
   const [hover, setHover] = useState(null);
   const top = Math.ceil(Math.max(...rows.flatMap((r) => [r.clicked, r.reported]), 0.1) * 10) / 10;
   const ticks = Array.from({ length: Math.round(top * 10) + 1 }, (_, k) => k / 10);
@@ -250,26 +243,23 @@ function HabitRows({ rows, ink, isDark, reduce, open }) {
             key={r.name}
             type="button"
             layoutId={`dept-${r.name}`}
-            className="ins-row"
+            className="ins-row ins-in-x"
             data-ins-habit={r.name}
             onClick={() => open('department', r.name, `dept-${r.name}`)}
             onMouseEnter={() => setHover(r.name)}
             onFocus={() => setHover(r.name)}
             aria-label={`${r.name}: reported ${pc1(r.reported)}, clicked ${pc1(r.clicked)}. Open its profile`}
-            initial={{ opacity: 0, x: reduce ? 0 : 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.15 + 0.025 * k, ease: EASE }}
-            style={{ flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
-            <DeptCrest code={deptCode(r.name)} size={24} compact metal={isDark ? 'steelDark' : 'steel'} />
+            <DeptCrest code={deptCode(r.name)} size={24} compact flat metal={isDark ? 'steelDark' : 'steel'} />
             <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
             <span aria-hidden style={{ position: 'relative', height: 16 }}>
               {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), top: -6, bottom: -6, width: 1, background: 'var(--grid)' }} />)}
-              <motion.span initial={{ left: reduce ? at(lo) : '0%', width: reduce ? at(hi - lo) : '0%' }} animate={{ left: at(lo), width: at(hi - lo) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.25 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 5, height: 6, borderRadius: 999, background: r.reported >= r.clicked ? 'var(--soft-good)' : 'var(--soft-bad)' }} />
+              <span className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, position: 'absolute', top: 5, height: 6, left: at(lo), width: at(hi - lo), transformOrigin: r.reported >= r.clicked ? 'left' : 'right', borderRadius: 999, background: r.reported >= r.clicked ? 'var(--soft-good)' : 'var(--soft-bad)', transition: 'left .5s ease, width .5s ease' }} />
               {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => (
-                <motion.span key={key} initial={{ left: reduce ? at(r[key]) : '0%' }} animate={{ left: at(r[key]) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.25 + 0.025 * k, ease: EASE }} style={{ position: 'absolute', top: 2, width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }}>
+                <span key={key} className="ins-pop" style={{ '--d': `${(key === 'clicked' ? 0.15 : 0.3) + Math.min(0.015 * k, 0.24)}s`, position: 'absolute', top: 2, left: at(r[key]), width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)', transition: 'left .5s ease' }}>
                   {on && <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', [key === 'reported' ? 'bottom' : 'top']: 15, fontSize: 9, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{pc(r[key])}</span>}
-                </motion.span>
+                </span>
               ))}
             </span>
             <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: 8.5, marginLeft: 2 }}>pts</span></span>
@@ -289,10 +279,10 @@ export function DepartmentsView({ ctx }) {
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
       <Card i={0} reduce={reduce} title="How each department behaves" sub={`Reported against clicked, last ${m.basis.days} days · gap: reported minus clicked · best first`} action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
-        <HabitRows rows={habits} ink={ink} isDark={isDark} reduce={reduce} open={open} />
+        <HabitRows rows={habits} ink={ink} isDark={isDark} open={open} />
       </Card>
       <Card i={1} reduce={reduce} title="Who got safer, who got riskier" sub={`Change in risk score over the last ${m.basis.days} days · each opens its profile`} style={{ gridColumn: 'span 5' }} data-ins-movers>
-        <ChangeRows rows={rows} ink={ink} isDark={isDark} reduce={reduce} open={open} />
+        <ChangeRows rows={rows} ink={ink} isDark={isDark} open={open} />
       </Card>
     </div>
   );
@@ -317,13 +307,10 @@ export function CampaignsView({ ctx }) {
             key={l.type}
             type="button"
             layoutId={`lure-${l.type}`}
-            className="ins-card ins-open"
+            className="ins-card ins-open ins-rise"
             data-ins-lure={l.type}
             onClick={() => open('lure', l.type, `lure-${l.type}`)}
-            initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.04 * k, ease: EASE }}
-            style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: k === 0 ? 'var(--bad-soft)' : 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${0.04 * k}s`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--card-edge)', background: k === 0 ? 'var(--bad-soft)' : 'var(--card)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <LureTile type={l.type} size={28} tone={k === 0 ? 'var(--base)' : undefined} />
@@ -334,7 +321,7 @@ export function CampaignsView({ ctx }) {
               <span style={small}>clicked</span>
             </span>
             <span aria-hidden style={{ height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-              <motion.span initial={{ width: reduce ? `${(l.hooked / maxHook) * 100}%` : 0 }} animate={{ width: `${(l.hooked / maxHook) * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.3 + 0.05 * k, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: ink.bad }} />
+              <Fill width={`${(l.hooked / maxHook) * 100}%`} color={ink.bad} delay={0.25 + 0.04 * k} reduce={reduce} />
             </span>
             <span style={{ ...small, fontSize: 9 }}>{l.campaigns} {l.campaigns === 1 ? 'campaign' : 'campaigns'} · {times(l.perClick)} reports per click</span>
           </motion.button>
@@ -347,15 +334,12 @@ export function CampaignsView({ ctx }) {
             key={c.id}
             type="button"
             layoutId={`camp-${c.id}`}
-            className="ins-card ins-open"
+            className="ins-card ins-open ins-rise"
             data-ins-campaign={c.id}
             onClick={() => open('campaign', c.id, `camp-${c.id}`)}
             onMouseEnter={() => setHover(c.id)}
             onMouseLeave={() => setHover(null)}
-            initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.15 + 0.035 * k, ease: EASE }}
-            style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            style={{ '--d': `${0.1 + 0.025 * k}s`, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 16, border: '1px solid var(--card-edge)', background: 'var(--card)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
           >
             <span style={{ display: 'flex', alignItems: 'flex-start', gap: 9, width: '100%' }}>
               <LureTile type={c.type} size={28} />

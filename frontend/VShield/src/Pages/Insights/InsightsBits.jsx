@@ -1,6 +1,6 @@
 import { createElement, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Info } from 'lucide-react';
 
 import { Chip } from '../Leaderboard/BigPictureTables';
@@ -37,6 +37,13 @@ export function LureTile({ type, size = 32, tone }) {
   );
 }
 
+// A bar's fill: set at its width and grown in from the left by a CSS
+// animation of its transform, which the browser runs without script or
+// layout; a later change of width eases across.
+export function Fill({ width, color, delay = 0, radius = 999 }) {
+  return <span className="ins-grow-x" style={{ '--d': `${Math.min(delay, 0.45)}s`, display: 'block', height: '100%', width, borderRadius: radius, background: color, transformOrigin: 'left', transition: 'width .5s ease' }} />;
+}
+
 /** A number over a thin bar that grows in from nothing. */
 export function Meter({ value, max, color, label, sub, delay = 0, reduce, height = 6 }) {
   const w = `${Math.max(0, Math.min(1, max > 0 ? (value || 0) / max : 0)) * 100}%`;
@@ -47,8 +54,21 @@ export function Meter({ value, max, color, label, sub, delay = 0, reduce, height
         {sub && <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
       </span>
       <span aria-hidden style={{ height, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-        <motion.span initial={{ width: reduce ? w : 0 }} animate={{ width: w }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: color }} />
+        <Fill width={w} color={color} delay={delay} reduce={reduce} />
       </span>
+    </span>
+  );
+}
+
+/** A thin bar with its value at its end, on one line with the rest of a row. */
+export function InlineBar({ value, max, color, label, delay = 0, reduce }) {
+  const w = `${Math.max(0, Math.min(1, max > 0 ? (value || 0) / max : 0)) * 100}%`;
+  return (
+    <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span aria-hidden style={{ flex: 1, minWidth: 0, height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
+        <Fill width={w} color={color} delay={delay} reduce={reduce} />
+      </span>
+      <span className="vs-rank" style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
     </span>
   );
 }
@@ -58,48 +78,39 @@ export function Heads({ cols, children, pad = 13 }) {
   return <div role="row" style={{ flexShrink: 0, height: 28, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 14, padding: `0 ${pad}px`, borderBottom: '1px solid var(--hair)', ...heads }}>{children}</div>;
 }
 
-// A number that counts to its new value when the period changes.
-function useTween(target, reduce, ms = 700) {
-  const [v, setV] = useState(target);
-  const cur = useRef(target);
-  useEffect(() => {
-    if (reduce || !Number.isFinite(target)) return undefined;
-    const from = Number.isFinite(cur.current) ? cur.current : target;
-    const start = performance.now();
-    let raf = 0;
-    const step = (t) => {
-      const k = Math.min(1, (t - start) / ms);
-      const x = from + (target - from) * (1 - (1 - k) ** 4);
-      cur.current = x;
-      setV(x);
-      if (k < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, reduce, ms]);
-  return reduce || !Number.isFinite(target) ? target : v;
-}
-/** `format(value)`, counting from the last value shown. */
+/**
+ * `format(value)`, counting from the last value shown. A motion value writes
+ * the text straight into the page, so nothing re-renders while it counts.
+ */
 export function Count({ value, format, reduce }) {
-  return format(useTween(value, reduce));
+  const ok = Number.isFinite(value);
+  const mv = useMotionValue(ok ? value : 0);
+  const text = useTransform(mv, (v) => format(v));
+  useEffect(() => {
+    if (!ok) return undefined;
+    if (reduce) { mv.set(value); return undefined; }
+    const run = animate(mv, value, { duration: 0.7, ease: [0.16, 1, 0.3, 1] });
+    return () => run.stop();
+  }, [ok, value, reduce, mv]);
+  return ok ? <motion.span>{text}</motion.span> : format(value);
 }
 
 const EXPLAIN_W = 290;
 /**
  * A small "i" by a number: on hover, focus or a tap, a card saying what the
- * number means and how it is worked out. The card opens on the page itself,
- * so a card that clips what it holds never clips it.
+ * number means and how it is worked out. The card opens on the page's
+ * sheet, so a card that clips what it holds never clips it.
  */
 export function Explain({ label, children, onDark = false }) {
   const btn = useRef(null);
   const [at, setAt] = useState(null);
   const show = () => {
-    const page = btn.current?.closest('.ins-page');
+    const page = btn.current?.closest('.ins-sheet');
     if (!page) return;
     const r = btn.current.getBoundingClientRect(); const pr = page.getBoundingClientRect();
     const left = Math.max(8, Math.min(r.left - pr.left - 14, pr.width - EXPLAIN_W - 8));
-    const roomBelow = pr.bottom - r.bottom > 250;
-    setAt({ page, left, top: roomBelow ? r.bottom - pr.top + 8 : null, bottom: roomBelow ? null : pr.bottom - r.top + 8 });
+    const below = window.innerHeight - r.bottom > 250;
+    setAt({ page, left, top: below ? r.bottom - pr.top + 8 : r.top - pr.top - 8, below });
   };
   const hide = () => setAt(null);
   return (
@@ -124,10 +135,10 @@ export function Explain({ label, children, onDark = false }) {
         <motion.div
           role="tooltip"
           data-ins-explained
-          initial={{ opacity: 0, y: at.top === null ? -4 : 4 }}
+          initial={{ opacity: 0, y: at.below ? 4 : -4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.16, ease: EASE }}
-          style={{ position: 'absolute', left: at.left, top: at.top ?? undefined, bottom: at.bottom ?? undefined, width: EXPLAIN_W, zIndex: 60, boxSizing: 'border-box', padding: '12px 14px', borderRadius: 14, background: 'var(--base)', border: '1px solid var(--hair)', boxShadow: '0 20px 44px rgba(15,23,42,0.24)', color: 'var(--text)', pointerEvents: 'none' }}
+          style={{ position: 'absolute', left: at.left, top: at.top, translate: at.below ? '0 0' : '0 -100%', width: EXPLAIN_W, zIndex: 60, boxSizing: 'border-box', padding: '12px 14px', borderRadius: 14, background: 'var(--base)', border: '1px solid var(--hair)', boxShadow: '0 20px 44px rgba(15,23,42,0.24)', color: 'var(--text)', pointerEvents: 'none' }}
         >
           {children}
         </motion.div>,
@@ -144,8 +155,8 @@ export function Explain({ label, children, onDark = false }) {
 export function PerClickHow({ n, days, campaigns, ink }) {
   const rules = [
     ['Protected', ink.good, '2 or more: at least two people raise the alarm for everyone caught out'],
-    ['Holding', STEADY_INK, '1 to 2: as many report it as click it, or more'],
-    ['Exposed', ink.bad, 'below 1: more people click it than report it'],
+    ['Holding', ink.bad, '1 to 2: as many report it as click it, or more'],
+    ['Exposed', ink.alert, 'below 1: more people click it than report it'],
   ];
   return (
     <>

@@ -6,9 +6,9 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Chip } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
 import { Blocks, Card, CompareBars, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Staircase, StepFunnel } from './InsightsCharts';
-import { Delta, HealthChip, LureTile, Meter } from './InsightsBits';
+import { Delta, Fill, HealthChip, InlineBar, LureTile, Meter } from './InsightsBits';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
-import { EASE, STEADY_INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskWord, small, tierInk, times } from './insightsUi';
+import { EASE, STEADY_INK, TIER_TEXT, TIER_WORD, TINT, change, day, glow, heads, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, times } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -25,7 +25,9 @@ import { EASE, STEADY_INK, TIER_WORD, TINT, change, day, didParts, eyebrow, lure
 //     programme.
 // Everything in a profile leads on: a department, a lure, a campaign.
 
-const LAYOUT = { type: 'spring', stiffness: 210, damping: 30, mass: 0.9 };
+// the grow-in: quick and settling without a bounce, so the content it scales
+// is never on show long enough to look squeezed
+const LAYOUT = { type: 'tween', duration: 0.4, ease: [0.22, 1, 0.36, 1] };
 const pts = (c) => c && { ...c, shown: c.shown.replace('×', ' pts').replace(' min', '') };
 const ordinal = (n) => `${n}${n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'}`;
 const scoreText = (v, tick) => (Number.isFinite(v) ? (tick ? `${Math.round(v)}` : v.toFixed(1)) : '—');
@@ -38,10 +40,10 @@ const scoreText = (v, tick) => (Number.isFinite(v) ? (tick ? `${Math.round(v)}` 
 export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch', art, eyebrowText, title, sub, figures, action, children, reduce, isDark, embedded = false }) {
   const tint = (isDark ? TINT.dark : TINT.light)[tone];
   const content = (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce || embedded ? 0 : 0.2 }} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.22, delay: reduce || embedded ? 0 : 0.08 }} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!embedded && (
         <nav aria-label="Where you are" style={{ flexShrink: 0, height: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button type="button" className="ins-go" data-ins-back onClick={onBack} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 11px 0 7px', borderRadius: 999, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+          <button type="button" className="ins-go" data-ins-back onClick={onBack} style={{ height: 28, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 11px 0 7px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
             <ChevronLeft size={14} strokeWidth={2.6} aria-hidden /> Back
           </button>
           <span aria-hidden style={{ width: 1, height: 16, background: 'var(--hair)' }} />
@@ -60,7 +62,7 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
           </ol>
         </nav>
       )}
-      <motion.header initial={{ opacity: 0, y: reduce ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.25, ease: EASE }} style={{ flexShrink: 0, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', borderRadius: 16, background: tint.wash, border: `1px solid ${tint.edge}` }}>
+      <motion.header initial={{ opacity: 0, y: reduce ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, delay: reduce ? 0 : 0.06, ease: EASE }} style={{ flexShrink: 0, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', borderRadius: 16, background: tint.wash, border: `1px solid ${tint.edge}` }}>
         {art}
         <span style={{ minWidth: 0 }}>
           <span style={{ ...eyebrow, display: 'block' }}>{eyebrowText}</span>
@@ -69,7 +71,7 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'stretch', gap: 8 }}>
           {figures.map((f) => (
-            <span key={f.label} style={{ minWidth: 112, padding: '8px 12px', borderRadius: 12, background: 'var(--base)', border: '1px solid var(--hair)' }}>
+            <span key={f.label} style={{ minWidth: 112, padding: '8px 12px', borderRadius: 12, background: 'var(--card)', border: '1px solid var(--card-edge)' }}>
               <span style={{ ...eyebrow, display: 'block', fontSize: 8 }}>{f.label}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
                 {f.node || <span className="vs-rank" style={{ fontSize: 18, fontWeight: 900, lineHeight: 1 }}>{f.value}</span>}
@@ -95,7 +97,7 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.15 } }}
       transition={{ layout: reduce ? { duration: 0 } : LAYOUT, duration: reduce ? 0 : 0.35, ease: EASE }}
-      style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px 14px 14px', borderRadius: 18, border: '1px solid var(--hair)', background: 'var(--base)', boxShadow: '0 24px 60px rgba(15,23,42,0.10)' }}
+      style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px 14px 14px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', boxShadow: 'var(--lift)' }}
     >
       {content}
     </motion.div>
@@ -103,29 +105,31 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
 }
 
 // A row that opens something, in a list inside a profile.
-function Row({ onClick, children, cols, k, reduce, height = 40, label }) {
-  const Tag = onClick ? motion.button : motion.div;
+function Row({ onClick, children, cols, k, height = 40, label }) {
+  const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       {...(onClick ? { type: 'button', onClick: (e) => { e.stopPropagation(); onClick(); }, 'aria-label': label } : {})}
-      className={onClick ? 'ins-row' : undefined}
-      initial={{ opacity: 0, x: reduce ? 0 : 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.3 + 0.04 * k, ease: EASE }}
-      style={{ flexShrink: 0, height, width: '100%', boxSizing: 'border-box', display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 10px', margin: 0, border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: onClick ? 'pointer' : 'default' }}
+      className={onClick ? 'ins-row ins-in-x' : 'ins-in-x'}
+      style={{ '--d': `${Math.min(0.12 + 0.02 * k, 0.32)}s`, flexShrink: 0, height, width: '100%', boxSizing: 'border-box', display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 10px', margin: 0, border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: onClick ? 'pointer' : 'default' }}
     >
       {children}
     </Tag>
   );
 }
 const nameStyle = { minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+// Column names over a list of Rows, on the same grid and padding.
+function RowHeads({ cols, children }) {
+  return <div aria-hidden style={{ flexShrink: 0, height: 26, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 10px', marginTop: 8, borderBottom: '1px solid var(--hair)', ...heads }}>{children}</div>;
+}
 const arrow = <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />;
 
 // The risk score as a ring, with its number in it.
-function ScoreRing({ score, ink, reduce, size = 56 }) {
+function ScoreRing({ score, isDark, reduce, size = 56 }) {
+  const tone = riskInk(score, isDark);
   return (
-    <RingGauge value={score} size={size} stroke={size < 50 ? 4 : 6} color={ink.risk} reduce={reduce} label={`Risk score ${scoreText(score)} of 100`}>
-      <span className="vs-rank" style={{ display: 'block', fontSize: size > 60 ? 18 : size < 50 ? 11 : 14, fontWeight: 900 }}>{scoreText(score)}</span>
+    <RingGauge value={score} size={size} stroke={size < 50 ? 4 : 6} color={tone} reduce={reduce} label={`Risk score ${scoreText(score)} of 100`}>
+      <span className="vs-rank" style={{ display: 'block', fontSize: size > 60 ? 18 : size < 50 ? 11 : 14, fontWeight: 900, textShadow: glow(tone, isDark, 0.35) }}>{scoreText(score)}</span>
       <span style={{ display: 'block', fontSize: size < 50 ? 6.5 : 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: size < 50 ? 1 : 2 }}>/ 100</span>
     </RingGauge>
   );
@@ -142,9 +146,8 @@ const DRIVERS = [
 
 // The points each level adds to a risk score: its people's share times
 // its weight (moderate 33, high 67, critical 100); low adds none.
-function makeupOf(step, colors, isDark) {
-  const text = isDark ? { moderate: '#F8FAFC', high: '#F8FAFC', critical: '#1C1E24' } : { moderate: '#1E1B4B', high: '#FFFFFF', critical: '#FFFFFF' };
-  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: text[t] }));
+function makeupOf(step, colors) {
+  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: TIER_TEXT[t] }));
 }
 
 // Each risk level as a tile, the riskiest first: its people now, their
@@ -167,13 +170,13 @@ function LevelTiles({ moved, colors, ink, reduce }) {
             title={`${num(lv.was)} at the start, ${num(lv.stayed)} of them still ${TIER_WORD[lv.k].toLowerCase()}`}
             initial={{ opacity: 0, y: reduce ? 0 : 10, scale: reduce ? 1 : 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.25 + 0.07 * i, ease: EASE }}
+            transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.12 + 0.05 * i, ease: EASE }}
             style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6, padding: '11px 12px', borderRadius: 14, background: 'var(--plate)' }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: colors[lv.k] }} />{TIER_WORD[lv.k]} risk</span>
             <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em' }}>{num(lv.now)}</span>
             <span aria-hidden style={{ height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-              <motion.span initial={{ width: reduce ? `${(lv.now / everyone) * 100}%` : 0 }} animate={{ width: `${(lv.now / everyone) * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.4 + 0.07 * i, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: lv.k === 'low' ? STEADY_INK : colors[lv.k] }} />
+              <Fill width={`${(lv.now / everyone) * 100}%`} color={colors[lv.k]} delay={0.3 + 0.06 * i} reduce={reduce} />
             </span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
               <span style={{ ...small, fontSize: 9, whiteSpace: 'nowrap' }}>{pc(lv.now / everyone)} of people</span>
@@ -210,7 +213,7 @@ export function RiskProfile({ ctx, frame }) {
   const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const maxDriver = Math.max(...DRIVERS.map((d) => p.now.drivers[d.id]), 1);
-  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors, isDark) }));
+  const makeup = [['now', 'Now', p.trend.at(-1)], ['year', 'A year ago', p.trend[0]]].map(([key, label, st]) => ({ key, label, total: st.score, parts: makeupOf(st, colors) }));
   const biggest = makeup[0].parts.reduce((a, x) => (x.value > a.value ? x : a));
   const maxScore = Math.max(...p.departments.map((d) => d.score)) * 1.1;
   const [fit, size] = useFitRows(40, 3, 0);
@@ -220,7 +223,7 @@ export function RiskProfile({ ctx, frame }) {
       tone="watch"
       reduce={reduce}
       isDark={isDark}
-      art={<ScoreRing score={p.now.score} ink={ink} reduce={reduce} size={64} />}
+      art={<ScoreRing score={p.now.score} isDark={isDark} reduce={reduce} size={64} />}
       eyebrowText="The organisation"
       title={`${riskWord(p.now.score)} · risk score ${scoreText(p.now.score)}`}
       sub={`${num(p.now.people)} people · everyone's risk level, averaged on 0 to 100`}
@@ -232,16 +235,16 @@ export function RiskProfile({ ctx, frame }) {
     >
       <Card i={3} reduce={reduce} title="Risk over the year" sub={`Thirty days at a time · ${p.trend.at(-1).score <= p.trend[0].score ? 'down' : 'up'} ${Math.abs(p.trend.at(-1).score - p.trend[0].score).toFixed(1)} pts in a year, ${p.trend.slice(1).filter((s, i) => s.score < p.trend[i].score).length} of ${p.trend.length - 1} months lower than the one before`} action={<Legend items={[{ label: 'Month it fell', color: ink.good }, { label: 'Month it rose', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.risk} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
+          <Staircase at={p.trend.map((s) => s.to)} values={p.trend.map((s) => s.score)} lit={p.trend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="Did people get safer?" sub={`Each risk level now, and its change over the last ${p.basis.days} days${p.moved?.joined ? ` · ${num(p.moved.joined)} joined` : ''}`} action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
         {p.moved && <LevelTiles moved={p.moved} colors={colors} ink={ink} reduce={reduce} />}
       </Card>
       <Card i={5} reduce={reduce} title="What makes up the score" sub="Points each level adds to the risk score · now against a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <MakeupBars rows={makeup} max={Math.max(...makeup.map((r) => r.total)) * 1.04} reduce={reduce} format={scoreText} />
-          <Insight tone={ink.risk} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
+          <Insight tone={colors[biggest.key]} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
         </div>
       </Card>
       <Card i={6} reduce={reduce} title="What drives it" sub="People, as things stand" style={{ gridColumn: 'span 3' }}>
@@ -252,7 +255,7 @@ export function RiskProfile({ ctx, frame }) {
             return (
               <div key={dr.id} style={{ display: 'grid', gridTemplateColumns: '28px minmax(0,1fr) auto', alignItems: 'center', gap: 9 }}>
                 <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--plate)' }}><dr.Icon size={13} strokeWidth={2.4} /></span>
-                <Meter value={v} max={maxDriver} color={ink.risk} label={num(v)} sub={dr.label} delay={0.4 + 0.05 * k} reduce={reduce} height={4} />
+                <Meter value={v} max={maxDriver} color={ink.neutral} label={num(v)} sub={dr.label} delay={0.4 + 0.05 * k} reduce={reduce} height={4} />
                 <Delta c={c && { ...c, shown: c.shown.replace(' min', '') }} ink={ink} />
               </div>
             );
@@ -260,12 +263,12 @@ export function RiskProfile({ ctx, frame }) {
         </div>
       </Card>
       <Card i={7} reduce={reduce} title="Departments" sub="The riskiest first · each opens its profile" style={{ gridColumn: 'span 4' }}>
-        <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+        <div ref={fit} style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {p.departments.slice(0, size).map((d, k) => (
             <Row key={d.name} k={k} reduce={reduce} cols="22px minmax(0,1fr) 92px 12px" onClick={() => open('department', d.name)} label={`${d.name}, risk score ${scoreText(d.score)}. Open its profile`}>
-              <DeptCrest code={deptCode(d.name)} size={22} compact metal={isDark ? 'steelDark' : 'steel'} />
+              <DeptCrest code={deptCode(d.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{d.name}</span>
-              <Meter value={d.score} max={maxScore} color={ink.risk} label={scoreText(d.score)} delay={0.4 + 0.04 * k} reduce={reduce} height={4} />
+              <Meter value={d.score} max={maxScore} color={riskInk(d.score, isDark)} label={scoreText(d.score)} delay={0.4 + 0.04 * k} reduce={reduce} height={4} />
               {arrow}
             </Row>
           ))}
@@ -300,12 +303,12 @@ export function DepartmentProfile({ ctx, frame, name }) {
       title={name}
       sub={`${num(d.people)} people · the ${ordinal(rank)} highest risk of ${p.departments.length} departments`}
       figures={[
-        { label: 'Risk score', node: <ScoreRing score={d.score} ink={ink} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
+        { label: 'Risk score', node: <ScoreRing score={d.score} isDark={isDark} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
         { label: 'At high risk', value: num(d.highRisk), sub: `${pc1(d.highRisk / d.people)} of its people` },
         { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${c.times.toFixed(1)}× less likely to click` : '' },
       ]}
       action={canSeePeople ? (
-        <button type="button" className="ins-go" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', borderRadius: 999, border: 'none', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <button type="button" className="ins-cta" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: 10.5, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           <Users size={13} strokeWidth={2.4} aria-hidden /> See its people
         </button>
       ) : null}
@@ -327,12 +330,12 @@ export function DepartmentProfile({ ctx, frame, name }) {
           : <p style={{ ...small, fontSize: 11 }}>No campaigns reached this team in the period.</p>}
       </Card>
       <Card i={6} reduce={reduce} title="Does training help here?" sub="Clicked in the period's simulations" style={{ gridColumn: 'span 4' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={28} />}
         </div>
       </Card>
       <Card i={7} reduce={reduce} title="When phishing lands" sub="What its people did with the period's emails" style={{ gridColumn: 'span 3' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           {camp ? <Blocks parts={didParts({ delivered: camp.recipients, reported: camp.reported, clicked: camp.clicked, compromised: camp.compromised }, ink, isDark)} reduce={reduce} height={30} legendCols={1} /> : <p style={{ ...small, fontSize: 11 }}>No emails in the period.</p>}
         </div>
       </Card>
@@ -368,13 +371,13 @@ export function LureProfile({ ctx, frame, type }) {
       ]}
     >
       <Card i={3} reduce={reduce} title="What people did with it" sub="Every email of this kind in the period" style={{ gridColumn: 'span 6' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={40} legendCols={4} />
           <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people who got one clicked it</Insight>
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="Against the other lures" sub="Hook Rate · each opens its profile" style={{ gridColumn: 'span 6' }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {m.lures.map((x, k) => (
             <Row key={x.type} k={k} reduce={reduce} height={34} cols="24px minmax(0,1fr) minmax(0,1.6fr) 12px" onClick={x.type === type ? null : () => open('lure', x.type, null, true)} label={`${x.type}: Hook Rate ${pc1(x.hooked)}. Open its profile`}>
               <LureTile type={x.type} size={22} />
@@ -386,10 +389,10 @@ export function LureProfile({ ctx, frame, type }) {
         </div>
       </Card>
       <Card i={5} reduce={reduce} title="The teams it fooled most" sub="Hook Rate · each opens its department" style={{ gridColumn: 'span 6' }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {depts.map((x, k) => (
             <Row key={x.name} k={k} reduce={reduce} height={34} cols="22px minmax(0,1fr) minmax(0,1.4fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${pc1(x.hooked)} clicked. Open its profile`}>
-              <DeptCrest code={deptCode(x.name)} size={22} compact metal={isDark ? 'steelDark' : 'steel'} />
+              <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{x.name}</span>
               <Meter value={x.hooked} max={maxDept} color={ink.bad} label={pc1(x.hooked)} sub={`${num(x.clicked)} of ${num(x.recipients)}`} delay={0.4 + 0.04 * k} reduce={reduce} height={5} />
               {arrow}
@@ -398,7 +401,7 @@ export function LureProfile({ ctx, frame, type }) {
         </div>
       </Card>
       <Card i={6} reduce={reduce} title="Its campaigns" sub="Newest first · each opens its profile" style={{ gridColumn: 'span 6' }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {camps.slice(0, 6).map((c, k) => (
             <Row key={c.id} k={k} reduce={reduce} height={46} cols="minmax(0,1.4fr) minmax(0,1fr) 92px 12px" onClick={() => open('campaign', c.id)} label={`${c.name}. Open its profile`}>
               <span style={{ minWidth: 0 }}>
@@ -434,7 +437,7 @@ function VersusBars({ groups, max, reduce }) {
               <div key={r.key} style={{ display: 'grid', gridTemplateColumns: '82px minmax(0,1fr) 44px', alignItems: 'center', gap: 10, marginTop: k ? 6 : 0 }}>
                 <span style={{ ...small, fontSize: 9, fontWeight: k ? 600 : 800, color: k ? 'var(--muted)' : 'var(--text)' }}>{r.label}</span>
                 <span style={{ height: 14, borderRadius: 7, background: 'var(--plate)', overflow: 'hidden' }}>
-                  <motion.span initial={{ width: reduce ? wd : '0%' }} animate={{ width: wd }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.3 + 0.1 * (gi * 2 + k), ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 7, background: r.color }} />
+                  <Fill width={wd} color={r.color} delay={0.25 + 0.08 * (gi * 2 + k)} reduce={reduce} radius={7} />
                 </span>
                 <span className="vs-rank" style={{ fontSize: 11.5, fontWeight: 900, textAlign: 'right' }}>{r.text}</span>
               </div>
@@ -470,13 +473,13 @@ export function CampaignProfile({ ctx, frame, id }) {
       ]}
     >
       <Card i={3} reduce={reduce} title="What people did" sub="Every email this campaign delivered" style={{ gridColumn: 'span 7' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(c, ink, isDark)} reduce={reduce} height={44} legendCols={4} />
           <Insight tone={c.perClick >= 2 ? ink.good : ink.bad} sub={`Half the reports were in ${mins(c.medianReport)} after it went out`}>{times(c.perClick)} reports for every click</Insight>
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="Against the average" sub={`Every campaign in the last ${m.basis.days} days`} style={{ gridColumn: 'span 5' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', marginTop: 8 }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <VersusBars
             reduce={reduce}
             max={Math.max(c.hooked, avg.hooked, c.reportRate, avg.reportRate) * 1.1}
@@ -488,10 +491,10 @@ export function CampaignProfile({ ctx, frame, id }) {
         </div>
       </Card>
       <Card i={5} reduce={reduce} title="Its departments" sub="Clicked and reported · each opens its department" action={<Legend items={[{ label: 'Clicked', color: ink.bad }, { label: 'Reported', color: ink.good }]} />} style={{ gridColumn: 'span 12' }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'min-content', columnGap: 24, marginTop: 6 }}>
+        <div className="ins-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'min-content', columnGap: 24, marginTop: 6 }}>
           {depts.map((x, k) => (
             <Row key={x.name} k={k > 1 ? 1 : 0} reduce={reduce} height={36} cols="22px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}. Open its profile`}>
-              <DeptCrest code={deptCode(x.name)} size={22} compact metal={isDark ? 'steelDark' : 'steel'} />
+              <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{x.name}</span>
               <Meter value={x.clickRate} max={maxRate} color={ink.bad} label={pc1(x.clickRate)} delay={0.4 + 0.03 * k} reduce={reduce} height={4} />
               <Meter value={x.reportRate} max={maxRate} color={ink.good} label={pc1(x.reportRate)} delay={0.45 + 0.03 * k} reduce={reduce} height={4} />
@@ -507,6 +510,8 @@ export function CampaignProfile({ ctx, frame, id }) {
 // -------------------------------------------------------------- training
 
 const STATUS = { Good: 'good', Average: 'steady', 'Needs Work': 'bad' };
+const DEPT_COLS = '22px minmax(0,1fr) minmax(0,1.1fr) 40px 12px';
+const PROG_COLS = 'minmax(0,1.4fr) minmax(0,1.2fr) 64px 96px';
 const STATUS_WORD = { Good: 'Good', Average: 'Average', 'Needs Work': 'Needs work' };
 
 export function TrainingProfile({ ctx, frame, embedded = false, training }) {
@@ -515,7 +520,6 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
   const c = p.now.cohorts;
   const tb = p.before?.training;
   const depts = [...p.departments].sort((a, b) => (b.training.completion ?? 0) - (a.training.completion ?? 0));
-  const [fit, size] = useFitRows(34, 3, 0);
   return (
     <ProfileShell
       {...frame}
@@ -539,7 +543,7 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
       ]}
     >
       <Card i={embedded ? 0 : 3} reduce={reduce} title="Trained against not yet trained" sub="How often each clicked in the period's simulations" style={{ gridColumn: 'span 6' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 6, marginTop: 10 }}>
           {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={26} />}
           {c && <Insight tone={ink.good} sub="Across every department; each has its own on its profile">Of every 100 trained people, {Math.round(c.trainedRate * 100)} clicked; of every 100 others, {Math.round(c.untrainedRate * 100)}</Insight>}
         </div>
@@ -549,26 +553,28 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
           <StepFunnel steps={[['assigned', 'Assigned', t.assigned], ['started', 'Started', t.started], ['completed', 'Completed', t.completed], ['passed', 'Passed', t.passed]].map(([key, label, value]) => ({ key, label, value }))} color={ink.good} reduce={reduce} />
         </div>
       </Card>
-      <Card i={embedded ? 2 : 5} reduce={reduce} title="Departments" sub="The most complete first · each opens its profile" style={{ gridColumn: 'span 5' }}>
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }}>
-          {depts.slice(0, 6).map((d, k) => (
-            <Row key={d.name} k={k} reduce={reduce} height={34} cols="22px minmax(0,1fr) minmax(0,1.2fr) 40px 12px" onClick={() => open('department', d.name)} label={`${d.name}: ${pc(d.training.completion)} completed. Open its profile`}>
-              <DeptCrest code={deptCode(d.name)} size={22} compact metal={isDark ? 'steelDark' : 'steel'} />
+      <Card i={embedded ? 2 : 5} reduce={reduce} title="Departments" sub="The most complete first · each opens its profile" style={{ gridColumn: 'span 5' }} data-ins-train-depts>
+        <RowHeads cols={DEPT_COLS}><span /><span>Department</span><span>Completed</span><span style={{ textAlign: 'right' }}>Quiz</span><span /></RowHeads>
+        <div className="ins-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {depts.map((d, k) => (
+            <Row key={d.name} k={k} reduce={reduce} height={34} cols={DEPT_COLS} onClick={() => open('department', d.name)} label={`${d.name}: ${pc(d.training.completion)} completed, quiz ${Number.isFinite(d.training.quizScore) ? d.training.quizScore.toFixed(0) : '—'}. Open its profile`}>
+              <DeptCrest code={deptCode(d.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{d.name}</span>
-              <Meter value={d.training.completion} max={1} color={ink.good} label={pc(d.training.completion)} delay={0.4 + 0.04 * k} reduce={reduce} height={4} />
-              <span style={{ fontSize: 10, fontWeight: 800, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{Number.isFinite(d.training.quizScore) ? d.training.quizScore.toFixed(0) : '—'}</span>
+              <InlineBar value={d.training.completion} max={1} color={ink.good} label={pc(d.training.completion)} delay={0.4 + 0.03 * k} reduce={reduce} />
+              <span className="vs-rank" style={{ fontSize: 11.5, fontWeight: 900, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{Number.isFinite(d.training.quizScore) ? d.training.quizScore.toFixed(0) : '—'}</span>
               {arrow}
             </Row>
           ))}
         </div>
       </Card>
-      <Card i={embedded ? 3 : 6} reduce={reduce} title="Programmes" sub="Each training programme, since it began" style={{ gridColumn: 'span 7' }}>
-        <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }}>
-          {training.programmes.slice(0, size).map((pr, k) => (
-            <Row key={pr.program} k={k} reduce={reduce} height={34} cols="minmax(0,1.5fr) minmax(0,1fr) 54px 96px">
+      <Card i={embedded ? 3 : 6} reduce={reduce} title="Programmes" sub="Each training programme, since it began" style={{ gridColumn: 'span 7' }} data-ins-programmes>
+        <RowHeads cols={PROG_COLS}><span>Programme</span><span>Completed</span><span style={{ textAlign: 'right' }}>Pass rate</span><span style={{ textAlign: 'right' }}>Status</span></RowHeads>
+        <div className="ins-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {training.programmes.map((pr, k) => (
+            <Row key={pr.program} k={k} reduce={reduce} height={34} cols={PROG_COLS}>
               <span style={nameStyle}>{pr.program}</span>
-              <Meter value={pr.completion} max={100} color={ink.good} label={`${pr.completion}%`} sub="completed" delay={0.4 + 0.03 * k} reduce={reduce} height={4} />
-              <span style={{ fontSize: 10, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{pr.pass}% <span style={{ ...small, fontSize: 8.5 }}>pass</span></span>
+              <InlineBar value={pr.completion} max={100} color={ink.good} label={`${pr.completion}%`} delay={0.4 + 0.03 * k} reduce={reduce} />
+              <span className="vs-rank" style={{ fontSize: 11.5, fontWeight: 900, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pr.pass}%</span>
               <span style={{ display: 'flex', justifyContent: 'flex-end' }}><Chip color={STATUS[pr.status] === 'steady' ? STEADY_INK : ink[STATUS[pr.status]]} width={92}>{STATUS_WORD[pr.status] || pr.status}</Chip></span>
             </Row>
           ))}

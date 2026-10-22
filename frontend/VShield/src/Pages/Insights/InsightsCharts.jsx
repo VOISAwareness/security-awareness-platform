@@ -28,7 +28,7 @@ export function Card({ title, sub, action, children, i = 0, reduce, style, layou
       {...rise(reduce, i)}
       className={`ins-card${onOpen ? ' ins-open' : ''}`}
       onClick={onOpen ? (e) => { if (!e.defaultPrevented) onOpen(); } : undefined}
-      style={{ position: 'relative', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--hair)', background: 'var(--base)', cursor: onOpen ? 'pointer' : 'default', ...style }}
+      style={{ position: 'relative', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
       {...rest}
     >
       {(title || action || onOpen) && (
@@ -51,7 +51,7 @@ export function Card({ title, sub, action, children, i = 0, reduce, style, layou
 /** A quiet pill that leads somewhere. */
 export function GoTo({ label, onClick, dark = false, ...rest }) {
   return (
-    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--hair)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--base)', color: dark ? 'inherit' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--card-edge)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--ghost)', color: dark ? 'inherit' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
       {label} <ArrowUpRight className="ins-go-arrow" size={12} strokeWidth={2.6} aria-hidden />
     </button>
   );
@@ -88,9 +88,9 @@ export function Segmented({ id, label, value, options, onChange, reduce, tabs = 
             data-ins-option={`${id}:${o.id}`}
             title={o.title}
             onClick={() => onChange(o.id)}
-            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--text)' : 'var(--muted)', transition: 'color .2s ease' }}
+            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
           >
-            {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--base)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
+            {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--pill)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {o.Icon && <o.Icon size={12} strokeWidth={2.4} aria-hidden />}{o.label}
             </span>
@@ -152,21 +152,16 @@ export function RingGauge({ value, max = 100, size = 64, stroke = 7, color, redu
  */
 export function BarcodeMeter({ value, color, n = 54, height = 24, reduce, label }) {
   const at = Math.round(clamp(value) * n);
+  // the lines are drawn once and revealed left to right by one clip, rather
+  // than each line animating on its own
   return (
-    <span role="img" aria-label={label} style={{ position: 'relative', height, width: '100%', minWidth: 0, display: 'flex', alignItems: 'stretch', gap: 2, paddingTop: 8, boxSizing: 'border-box' }}>
-      {Array.from({ length: n }, (_, k) => {
-        const lit = k < at;
-        return (
-          <motion.span
-            key={k}
-            initial={{ opacity: reduce ? 1 : 0, scaleY: reduce ? 1 : 0.4 }}
-            animate={{ opacity: lit ? 0.3 + 0.7 * ((k + 1) / Math.max(1, at)) : 1, scaleY: 1 }}
-            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.15 + 0.008 * k, ease: EASE }}
-            style={{ flex: '1 1 0', minWidth: 0, maxWidth: 3, borderRadius: 2, transformOrigin: 'bottom', background: lit ? color : 'var(--tick)' }}
-          />
-        );
-      })}
-      <motion.span aria-hidden initial={{ left: reduce ? `${(at / n) * 100}%` : '0%' }} animate={{ left: `${(at / n) * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, ease: EASE, delay: reduce ? 0 : 0.15 }} style={{ position: 'absolute', top: 2, bottom: 0, width: 2, marginLeft: -1, borderRadius: 2, background: color }}>
+    <span role="img" aria-label={label} style={{ position: 'relative', height, width: '100%', minWidth: 0, display: 'block', paddingTop: 8, boxSizing: 'border-box' }}>
+      <motion.span initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE, delay: reduce ? 0 : 0.1 }} style={{ height: '100%', display: 'flex', alignItems: 'stretch', gap: 2 }}>
+        {Array.from({ length: n }, (_, k) => (
+          <span key={k} style={{ flex: '1 1 0', minWidth: 0, maxWidth: 3, borderRadius: 2, background: k < at ? color : 'var(--tick)', opacity: k < at ? 0.3 + 0.7 * ((k + 1) / Math.max(1, at)) : 1, transition: 'background-color .3s ease, opacity .3s ease' }} />
+        ))}
+      </motion.span>
+      <motion.span aria-hidden initial={{ left: reduce ? `${(at / n) * 100}%` : '0%' }} animate={{ left: `${(at / n) * 100}%` }} transition={{ duration: reduce ? 0 : 0.7, ease: EASE, delay: reduce ? 0 : 0.1 }} style={{ position: 'absolute', top: 2, bottom: 0, width: 2, marginLeft: -1, borderRadius: 2, background: color }}>
         <span style={{ position: 'absolute', left: '50%', top: -4, width: 8, height: 8, marginLeft: -4, borderRadius: 999, background: color, boxShadow: '0 0 0 2px var(--plate)' }} />
       </motion.span>
     </span>
@@ -219,7 +214,7 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
                   ? <motion.circle cx={cx(i)} cy={y(v)} r={5.5} fill={start} stroke="var(--base)" strokeWidth={2} initial={{ scale: reduce ? 1 : 0 }} animate={{ scale: 1 }} transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.1, ease: EASE }} />
                   : (
                     <>
-                      <motion.line x1={cx(i - 1) + (i === 1 ? 0 : bw / 2)} x2={x} y1={y(values[i - 1])} y2={y(values[i - 1])} stroke="var(--muted)" strokeOpacity={0.6} strokeDasharray="2 3" initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.1 + 0.07 * i }} />
+                      <motion.line x1={cx(i - 1) + (i === 1 ? 0 : bw / 2)} x2={x} y1={y(values[i - 1])} y2={y(values[i - 1])} stroke="var(--muted)" strokeOpacity={0.6} strokeDasharray="2 3" initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.08 + 0.035 * i }} />
                       <motion.rect
                         x={x} y={top} width={bw} height={ht} rx={Math.min(5, ht / 2, bw / 2)}
                         fill={d > 0 ? bad : good}
@@ -382,14 +377,22 @@ export function TileMap({ items, fill, ink, onOpen, reduce, tip, layoutIdOf }) {
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
   const total = items.reduce((a, it) => a + it.weight, 0) || 1;
-  const tiles = w > 0 && h > 0 ? squarify([...items].sort((a, b) => b.weight - a.weight).map((it) => ({ ...it, area: (it.weight / total) * w * h })), { x: 0, y: 0, w, h }) : [];
+  // laid out on the box's shape rounded to a quarter, then stretched to fit:
+  // a few pixels more or less (fonts landing, a resize) stretch the tiles a
+  // little instead of shuffling them
+  const shape = w > 0 && h > 0 ? Math.max(0.5, Math.round((w / h) * 4) / 4) : 0;
+  const tiles = shape ? squarify([...items].sort((a, b) => b.weight - a.weight || a.key.localeCompare(b.key)).map((it) => ({ ...it, area: (it.weight / total) * shape })), { x: 0, y: 0, w: shape, h: 1 })
+    .map((t) => ({ ...t, x: (t.x / shape) * w, y: t.y * h, w: (t.w / shape) * w, h: t.h * h, at: { left: `calc(${(t.x / shape) * 100}% + 2px)`, top: `calc(${t.y * 100}% + 2px)`, width: `calc(${(t.w / shape) * 100}% - 4px)`, height: `calc(${t.h * 100}% - 4px)` } })) : [];
   const shown = tiles.find((t) => t.key === hover);
   return (
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
       {tiles.map((t, k) => {
         const big = t.w > 92 && t.h > 58;
-        const fits = t.w > 54 && t.h > 30;
-        const name = t.short && t.label.length * 5.8 > (t.w - 22) * (big ? 1.7 : 1) ? t.short : t.label;
+        const fits = t.w > 34 && t.h > 26;
+        const narrow = t.w <= 56; // just the short name and a smaller number
+        const flat = fits && !narrow && t.h < 48; // too short for two lines: name and number side by side
+        const name = t.short && (narrow || t.label.length * 5.8 > (t.w - 22 - (flat ? 36 : 0)) * (big ? 1.7 : 1)) ? t.short : t.label;
+
         return (
           <motion.button
             key={t.key}
@@ -400,13 +403,13 @@ export function TileMap({ items, fill, ink, onOpen, reduce, tip, layoutIdOf }) {
             onMouseEnter={() => setHover(t.key)}
             onFocus={() => setHover(t.key)}
             onClick={(e) => { e.stopPropagation(); onOpen?.(t.key); }}
-            initial={{ opacity: 0, scale: reduce ? 1 : 0.85 }}
-            animate={{ opacity: 1, scale: hover === t.key ? 1.035 : 1 }}
-            transition={{ duration: reduce ? 0 : 0.45, delay: reduce || hover ? 0 : 0.1 + 0.035 * k, ease: EASE }}
-            style={{ position: 'absolute', left: t.x + 2, top: t.y + 2, width: Math.max(0, t.w - 4), height: Math.max(0, t.h - 4), zIndex: hover === t.key ? 3 : 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', padding: fits ? '8px 9px' : 0, border: 'none', borderRadius: 12, background: `linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%), ${fill(t)}`, color: ink(t), textAlign: 'left', cursor: 'pointer', boxShadow: hover === t.key ? '0 14px 28px rgba(15,23,42,0.22)' : '0 1px 0 rgba(255,255,255,0.25) inset' }}
+            className="ins-pop-in"
+            animate={{ scale: hover === t.key ? 1.035 : 1 }}
+            transition={{ duration: reduce ? 0 : 0.22, ease: EASE }}
+            style={{ '--d': `${0.05 + 0.02 * k}s`, position: 'absolute', ...t.at, zIndex: hover === t.key ? 3 : 1, overflow: 'hidden', display: 'flex', flexDirection: flat ? 'row' : 'column', justifyContent: 'space-between', alignItems: flat ? 'center' : 'flex-start', gap: flat ? 6 : 0, padding: fits ? (flat ? '0 9px' : narrow ? '7px 6px' : '8px 9px') : 0, border: 'none', borderRadius: 12, background: `linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%), ${fill(t)}`, color: ink(t), textAlign: 'left', cursor: 'pointer', boxShadow: hover === t.key ? '0 14px 28px rgba(15,23,42,0.22)' : '0 1px 0 rgba(255,255,255,0.25) inset' }}
           >
-            {fits && <span style={{ maxWidth: '100%', fontSize: 9.5, fontWeight: 800, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: big ? 2 : 1, WebkitBoxOrient: 'vertical' }}>{name}</span>}
-            {fits && <span className="vs-rank" style={{ fontSize: big ? 20 : 14, fontWeight: 900, lineHeight: 1 }}>{t.text}</span>}
+            {fits && <span style={{ minWidth: 0, maxWidth: '100%', fontSize: 9.5, fontWeight: 800, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: big ? 2 : 1, WebkitBoxOrient: 'vertical' }}>{name}</span>}
+            {fits && <span className="vs-rank" style={{ flexShrink: 0, fontSize: big ? 20 : flat || narrow ? 12 : 14, fontWeight: 900, lineHeight: 1 }}>{t.text}</span>}
           </motion.button>
         );
       })}
@@ -427,18 +430,15 @@ export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols 
   const total = parts.reduce((a, p) => a + p.value, 0) || 1;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div role="img" aria-label={parts.map((p) => `${p.label} ${Math.round((p.value / total) * 100)}%`).join(', ')} style={{ display: 'flex', gap: 4, height }}>
-        {parts.map((p, k) => (
-          <motion.span
+      <motion.div role="img" aria-label={parts.map((p) => `${p.label} ${Math.round((p.value / total) * 100)}%`).join(', ')} initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.15, ease: EASE }} style={{ display: 'flex', gap: 4, height }}>
+        {parts.map((p) => (
+          <span
             key={p.key}
             title={`${p.label}: ${p.text}`}
-            initial={{ flexGrow: reduce ? p.value : 0 }}
-            animate={{ flexGrow: p.value }}
-            transition={{ duration: reduce ? 0 : 0.9, delay: reduce ? 0 : 0.2 + 0.08 * k, ease: EASE }}
-            style={{ flexBasis: 0, minWidth: 8, borderRadius: 10, background: `linear-gradient(180deg, ${light(p.color, 22)}, ${p.color})`, boxShadow: onDark ? 'none' : '0 1px 0 rgba(255,255,255,0.3) inset' }}
+            style={{ flex: `${p.value} 1 0`, minWidth: 8, borderRadius: 10, background: `linear-gradient(180deg, ${light(p.color, 22)}, ${p.color})`, boxShadow: onDark ? 'none' : '0 1px 0 rgba(255,255,255,0.3) inset', transition: 'flex-grow .5s ease' }}
           />
         ))}
-      </div>
+      </motion.div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${legendCols}, minmax(0,1fr))`, gap: '8px 14px' }}>
         {parts.map((p) => (
           <span key={p.key} style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -482,12 +482,18 @@ export function PillColumns({ items, color, soft, reduce, onOpen, label }) {
           >
             <span style={{ position: 'relative', flex: 1, minHeight: 0, width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 5, borderRadius: 16, background: 'var(--plate)' }}>
               <motion.span
-                initial={{ height: reduce ? hgt : '0%' }}
-                animate={{ height: hgt }}
-                transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 170, damping: 22, delay: 0.15 + 0.06 * i }}
-                style={{ position: 'relative', display: 'block', minHeight: 8, borderRadius: 11, background: strong ? `linear-gradient(180deg, ${light(color, 28)}, ${color})` : soft, transition: 'background .2s ease' }}
+                initial={{ scaleY: reduce ? 1 : 0 }}
+                animate={{ scaleY: 1 }}
+                transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 170, damping: 22, delay: 0.12 + 0.05 * i }}
+                style={{ display: 'block', height: hgt, minHeight: 8, borderRadius: 11, transformOrigin: 'bottom', background: strong ? `linear-gradient(180deg, ${light(color, 28)}, ${color})` : soft, transition: 'background .2s ease, height .5s ease' }}
+              />
+              <motion.span
+                initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.25 + 0.04 * i }}
+                style={{ position: 'absolute', left: '50%', bottom: `calc((100% - 10px) * ${(x.value || 0) / max} + 11px)`, marginLeft: -40, width: 80, display: 'flex', justifyContent: 'center', pointerEvents: 'none', transition: 'bottom .5s ease' }}
               >
-                <span style={{ position: 'absolute', left: '50%', top: -26, transform: 'translateX(-50%)', height: 20, padding: '0 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: strong ? 'var(--ink)' : 'var(--base)', color: strong ? 'var(--ink-on)' : 'var(--text)', boxShadow: '0 4px 10px rgba(15,23,42,0.12)', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{x.text}</span>
+                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: strong ? 'var(--ink)' : 'var(--base)', color: strong ? 'var(--ink-on)' : 'var(--text)', boxShadow: '0 4px 10px rgba(15,23,42,0.12)', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{x.text}</span>
               </motion.span>
             </span>
             <span style={{ ...small, fontSize: 9.5, fontWeight: 700, textAlign: 'center', color: strong ? 'var(--text)' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
@@ -518,7 +524,7 @@ export function MakeupBars({ rows, max, reduce, format }) {
             <span className="vs-rank" style={{ display: 'block', fontSize: 18, fontWeight: 900, lineHeight: 1.1 }}>{format(r.total)}</span>
           </span>
           <span style={{ position: 'relative', height: 30, display: 'flex' }}>
-            <motion.span initial={{ width: reduce ? `${(r.total / max) * 100}%` : '0%' }} animate={{ width: `${(r.total / max) * 100}%` }} transition={{ duration: reduce ? 0 : 0.9, delay: reduce ? 0 : 0.2 + 0.15 * k, ease: EASE }} style={{ display: 'flex', gap: 2, height: '100%', overflow: 'hidden' }}>
+            <motion.span initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.12 + 0.08 * k, ease: EASE }} style={{ display: 'flex', gap: 2, height: '100%', width: `${(r.total / max) * 100}%`, overflow: 'hidden', transition: 'width .5s ease' }}>
               {r.parts.map((pt) => (
                 <span key={pt.key} title={`${pt.label}: ${format(pt.value)}`} style={{ flex: `${pt.value} 1 0`, minWidth: 4, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: pt.color, color: pt.ink, fontSize: 10, fontWeight: 800, overflow: 'hidden', whiteSpace: 'nowrap' }}>{pt.value / max > 0.08 ? format(pt.value) : ''}</span>
               ))}
@@ -544,7 +550,7 @@ export function CompareBars({ rows, reduce, max, height = 30 }) {
               {r.sub && <span style={{ ...small, fontSize: 9 }}>{r.sub}</span>}
             </div>
             <div style={{ height, borderRadius: 10, background: 'var(--plate)', overflow: 'hidden' }}>
-              <motion.div initial={{ width: reduce ? wd : '0%' }} animate={{ width: wd }} transition={{ duration: reduce ? 0 : 0.9, delay: reduce ? 0 : 0.25 + 0.12 * k, ease: EASE }} style={{ height: '100%', minWidth: 58, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 10, boxSizing: 'border-box', background: `linear-gradient(90deg, ${light(r.color, 40)}, ${r.color})` }}>
+              <motion.div initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.12 + 0.08 * k, ease: EASE }} style={{ height: '100%', width: wd, transition: 'width .5s ease', minWidth: 58, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 10, boxSizing: 'border-box', background: `linear-gradient(90deg, ${light(r.color, 40)}, ${r.color})` }}>
                 <span className="vs-rank" style={{ fontSize: 13, fontWeight: 900, color: '#FFFFFF' }}>{r.text}</span>
               </motion.div>
             </div>
@@ -574,7 +580,7 @@ export function StepFunnel({ steps, color, reduce }) {
         <svg width={w} height={h} role="img" aria-label={steps.map((s) => `${s.label} ${s.value}`).join(', ')} style={{ display: 'block', overflow: 'visible' }}>
           {steps.slice(0, -1).map((s, i) => {
             const xa = i * (colW + gap) + colW; const xb = xa + gap;
-            return <motion.path key={`b${s.key}`} d={`M${xa},${yOf(s.value)} L${xb},${yOf(steps[i + 1].value)} L${xb},${T + ph} L${xa},${T + ph} Z`} fill={color} initial={{ opacity: 0 }} animate={{ opacity: 0.14 }} transition={{ duration: reduce ? 0 : 0.6, delay: reduce ? 0 : 0.5 + 0.1 * i }} />;
+            return <motion.path key={`b${s.key}`} d={`M${xa},${yOf(s.value)} L${xb},${yOf(steps[i + 1].value)} L${xb},${T + ph} L${xa},${T + ph} Z`} fill={color} initial={{ opacity: 0 }} animate={{ opacity: 0.14 }} transition={{ duration: reduce ? 0 : 0.6, delay: reduce ? 0 : 0.3 + 0.06 * i }} />;
           })}
           {steps.map((s, i) => {
             const x = i * (colW + gap); const y = yOf(s.value);
