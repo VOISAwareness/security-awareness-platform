@@ -71,6 +71,9 @@ export function campaignReport(campaign, { depts = [], personAt = () => ({ name:
     return { name, recipients: n, reported: rep, clicked: clk, compromised: comp, reportRate: pct(rep, n), clickRate: pct(clk, n), net };
   }).sort((a, b) => b.reportRate - a.reportRate || a.name.localeCompare(b.name));
 
+  // drawn last, so the numbers above stay as they were
+  const complained = Math.round(delivered * (0.0003 + r() * 0.0009)); // marked it as spam or complained
+
   const earned = reported * pointsOf(rules, 'Reported') + trained * pointsOf(rules, 'Trained');
   const lost = clicked * Math.abs(pointsOf(rules, 'Clicked')) + compromised * Math.abs(pointsOf(rules, 'Compromised'));
 
@@ -90,6 +93,7 @@ export function campaignReport(campaign, { depts = [], personAt = () => ({ name:
     compromised,
     reported,
     trained,
+    complained,
     rates: {
       open: pct(opened, delivered),
       click: pct(clicked, delivered),

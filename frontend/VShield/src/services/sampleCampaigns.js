@@ -67,7 +67,11 @@ const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_,
   };
 });
 
-export const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
+// What each campaign leans on to get a click, for Insights' motivators.
+export const MOTIVATORS = Object.freeze(['Urgency', 'Authority', 'Reward', 'Curiosity', 'Fear']);
+const motivated = (c, k) => ({ ...c, motivator: MOTIVATORS[(k * 3 + c.seed) % MOTIVATORS.length] });
+
+export const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS].map(motivated);
 
 // Campaigns that ended, one every two days through the quarter before
 // (from 30 Jun back), so Insights can set a period against the one before
@@ -84,4 +88,4 @@ export const PAST_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length
     total: 700 + ((k * 571) % 2400),
     seed: 60 + k,
   };
-});
+}).map(motivated);

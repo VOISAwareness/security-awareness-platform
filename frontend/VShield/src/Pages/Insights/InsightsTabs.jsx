@@ -1,20 +1,22 @@
 import { createElement, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDownUp } from 'lucide-react';
+import { Award, CalendarClock, FileX, MailX, MousePointerClick } from 'lucide-react';
 
 import { Chip, Pager } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { Card, Segmented } from './InsightsCharts';
-import { useSize } from './useSize';
-import { EASE, HEALTH_RULE, STEADY_INK, change, eyebrow, heads, healthInk, lureIcon, mins, num, pc, pc1, rise, small, swap, times } from './insightsUi';
+import { ArrivalChart, Card, Columns, Legend, LineChart, PeopleGrid } from './InsightsCharts';
+import { EASE, HEALTH_RULE, STEADY_INK, TIER_RULE, TIER_WORD, change, day, eyebrow, heads, healthInk, lureIcon, lureShort, mins, num, openInk, pc, pc1, small, swap, tierInk, times } from './insightsUi';
 
-// Insights' three tabs past the overview, each a bento of cards:
+// Insights' tabs past the overview, each a bento of cards:
+//   - People & risk: the risk score over the year; where everyone stands
+//     by risk tier; each department, the riskiest first; what drives the
+//     risk;
+//   - Campaigns: from send to report; opened, clicked and reported over
+//     time; how fast reports come in; each campaign; what works on people;
 //   - Lures: every kind of lure in a table, the most convincing first; the
 //     one picked opens beside it with its campaigns;
-//   - Response: each campaign's first ten minutes as a race, first click
-//     against first report; beside it, who was first and how many minutes
-//     the first report took;
-//   - Learning: the training funnel; the learning moments after a click, by
+//   - Learning: the training funnel and its scores; quiz scores beside
+//     reporting; each department; the learning moments after a click, by
 //     lure; and each training programme.
 // They report; they never say what to do.
 
@@ -88,7 +90,6 @@ export function Delta({ c, ink, title }) {
 // ---------------------------------------------------------------- lures
 
 const LURE_COLS = 'minmax(0,1.35fr) minmax(0,1fr) 78px 78px minmax(0,1.15fr) 96px';
-const ROW_H = 46;
 
 export function LuresTab({ m, view, onView, ink, reduce }) {
   const pick = m.lures.find((l) => l.type === view.lure) || m.lures[0];
@@ -212,91 +213,221 @@ function LureDetail({ m, lure, page, onPage, ink, reduce }) {
   );
 }
 
-// ---------------------------------------------------------------- response
+// ---------------------------------------------------------------- people
 
-const RACE = 10; // the race shows each campaign's first ten minutes
-const TICKS = [0, 2, 4, 6, 8, 10];
-const RESP_COLS = 'minmax(0,1.1fr) minmax(0,1.6fr) 104px minmax(0,0.85fr) 56px';
-const at = (t) => `${(Math.min(t, RACE) / RACE) * 100}%`;
+const DAY = 86400000;
+const DEPT_COLS = 'minmax(0,1.25fr) minmax(0,1.15fr) 104px minmax(0,1.1fr)';
+const DEPT_H = 44;
+const scoreText = (v, tick) => (Number.isFinite(v) ? (tick ? `${v}` : v.toFixed(1)) : '—');
 
-// One runner: a line from the send to its minute, and a dot with the minute in it.
-function Lane({ top, t, color, label, delay, reduce }) {
-  const x = at(t);
+// Where people stand: the hundred squares, and beside them each tier with
+// its rule, how many, and its change since the start of the period.
+function WhereTheyStand({ p, ink, isDark, reduce, i, style, compact = false }) {
+  const colors = tierInk(isDark);
+  const [picked, setPicked] = useState(null);
+  const n = p.now;
+  const b = p.before;
   return (
-    <>
-      <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: top + 6, height: 3, borderRadius: 999, background: 'var(--track)' }} />
-      <motion.span aria-hidden initial={{ width: reduce ? x : '0%' }} animate={{ width: x }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: EASE }} style={{ position: 'absolute', left: 0, top: top + 6, height: 3, borderRadius: 999, background: color, opacity: 0.45 }} />
-      <motion.span title={`${label}: ${t} min after the send`} initial={{ left: reduce ? x : '0%' }} animate={{ left: x }} transition={{ duration: reduce ? 0 : 0.7, delay: reduce ? 0 : delay, ease: EASE }} style={{ position: 'absolute', top, width: 16, height: 16, marginLeft: -8, borderRadius: 999, display: 'grid', placeItems: 'center', background: color, boxShadow: '0 0 0 2px var(--row)', color: '#FFFFFF', fontSize: 8.5, fontWeight: 900, lineHeight: 1 }}>
-        {t > RACE ? '10+' : t}
-      </motion.span>
-    </>
+    <Card i={i} reduce={reduce} title="Where people stand" sub={`${num(n.people)} people by risk tier · each square is 1%`} style={style} data-ins-people>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'auto minmax(0,1fr)', alignItems: 'center', gap: compact ? 14 : 20, marginTop: 12 }}>
+        <div style={{ height: '100%', minHeight: 0, display: 'flex', alignItems: 'center' }}>
+          <PeopleGrid tiers={p.tiers} counts={n.tiers} colors={colors} reduce={reduce} picked={picked} onPick={setPicked} size={compact ? 'md' : 'lg'} />
+        </div>
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: compact ? 6 : 9 }}>
+          {[...p.tiers].reverse().map((t) => {
+            const c = change(n.tiers[t] / n.people, b ? b.tiers[t] / b.people : null, { kind: 'pct', better: t === 'low' ? 'up' : 'down' });
+            return (
+              <div key={t} onMouseEnter={() => setPicked(t)} onMouseLeave={() => setPicked(null)} style={{ display: 'grid', gridTemplateColumns: '10px minmax(0,1fr) auto', alignItems: 'center', gap: 8, padding: '3px 6px', margin: '0 -6px', borderRadius: 8, background: picked === t ? 'var(--track)' : 'transparent', transition: 'background .15s ease' }}>
+                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: colors[t] }} />
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800 }}>{TIER_WORD[t]} <span style={{ ...small, fontWeight: 700 }}>· {num(n.tiers[t])}</span></span>
+                  {!compact && <span style={{ display: 'block', ...small, fontSize: 9, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TIER_RULE[t]}</span>}
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span className="vs-rank" style={{ fontSize: 12.5, fontWeight: 900 }}>{pc(n.tiers[t] / n.people)}</span>
+                  {!compact && <Delta c={c} ink={ink} title="Share of people, against the start of the period" />}
+                </span>
+              </div>
+            );
+          })}
+          <span style={{ ...small, fontSize: 9.5, marginTop: 2 }}>
+            <strong style={{ color: 'var(--text)' }}>{num(n.improved)}</strong> moved to a lower tier · <strong style={{ color: 'var(--text)' }}>{num(n.slipped)}</strong> to a higher one
+          </span>
+        </div>
+      </div>
+    </Card>
   );
 }
 
-function Who({ c, ink }) {
-  if (c.firstReport === c.firstClick) return <Chip color={STEADY_INK} width={100}>Same minute</Chip>;
-  return c.beatClick
-    ? <Chip color={ink.good} width={100} title="The first report came in before anyone clicked">Report first</Chip>
-    : <Chip color={ink.bad} width={100} title="Someone clicked before the first report came in">Click first</Chip>;
+// The risk score, thirty days at a time over the year, the period marked.
+function RiskOverTime({ p, ink, reduce, isDark, i, style, title = 'Risk score over the year' }) {
+  const top = Math.max(10, Math.ceil(Math.max(...p.trend.map((s) => s.score)) / 5) * 5 + 5);
+  const ticks = Array.from({ length: Math.floor(top / 10) + 1 }, (_, k) => k * 10);
+  const c = change(p.now.score, p.before?.score, { kind: 'times', better: 'down' });
+  return (
+    <Card i={i} reduce={reduce} title={title} sub="Everyone's risk tier on 0 to 100, averaged · lower is safer" action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="vs-rank" style={{ fontSize: 20, fontWeight: 900, lineHeight: 1 }}>{scoreText(p.now.score)}</span><Delta c={c && { ...c, shown: c.shown.replace('×', ' pts') }} ink={ink} title="Against the start of the period" /></span>} style={style} data-ins-risk>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
+        <LineChart at={p.trend.map((s) => s.to)} series={[{ id: 'score', label: 'Risk score', color: ink.bad, values: p.trend.map((s) => s.score) }]} from={p.basis.end - p.basis.days * DAY} days={p.basis.days} format={scoreText} top={top} ticks={ticks} area reduce={reduce} isDark={isDark} tipHead={(t) => `Thirty days to ${day(t)}`} />
+      </div>
+    </Card>
+  );
 }
 
-const SHOW = [{ id: 'all', label: 'All' }, { id: 'first', label: 'Reported first' }, { id: 'click', label: 'Clicked first' }];
-const SORT = [{ id: 'newest', label: 'Newest' }, { id: 'fastest', label: 'Fastest', Icon: ArrowDownUp, title: 'Fastest first report first' }];
+const DRIVERS = [
+  { id: 'repeatClickers', label: 'Repeat clickers', sub: 'Clicked more than once', Icon: MousePointerClick },
+  { id: 'neverReported', label: 'Never reported', sub: 'Not one report, ever', Icon: MailX },
+  { id: 'overdueTraining', label: 'Overdue training', sub: 'Assigned, past its date', Icon: CalendarClock },
+  { id: 'quizFailures', label: 'Failed the quiz again', sub: 'More than one fail', Icon: FileX },
+];
 
-export function ResponseTab({ m, view, onView, ink, reduce }) {
-  const keep = view.show === 'first' ? (c) => c.beatClick : view.show === 'click' ? (c) => !c.beatClick && c.firstClick !== c.firstReport : () => true;
-  const filtered = m.campaigns.filter(keep);
-  const rows = view.sort === 'fastest' ? [...filtered].sort((a, b) => a.firstReport - b.firstReport || a.medianReport - b.medianReport) : filtered;
-  const halfMax = Math.max(60, Math.ceil(Math.max(0, ...m.campaigns.map((c) => c.medianReport)) / 10) * 10);
-  const [fit, size] = useFitRows(ROW_H, 3, ROW_GAP);
+export function PeopleTab({ m, p, view, onView, ink, reduce, isDark }) {
+  const [fit, size] = useFitRows(DEPT_H, 3, ROW_GAP);
+  const rows = p.departments;
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const focusAt = view.dept ? rows.findIndex((d) => d.name === view.dept) : -1;
+  const page = Math.min(pages - 1, view.deptPage ?? (focusAt >= 0 ? Math.floor(focusAt / size) : 0));
+  const maxScore = Math.max(...rows.map((d) => d.score), 1) * 1.1;
+  const camp = Object.fromEntries(m.departments.map((d) => [d.name, d]));
+  const maxDriver = Math.max(...DRIVERS.map((d) => p.now.drivers[d.id]), 1);
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr) minmax(0,1.15fr)', gap: 14 }}>
+      <RiskOverTime i={0} p={p} ink={ink} reduce={reduce} isDark={isDark} style={{ gridColumn: 'span 7' }} />
+      <WhereTheyStand i={1} p={p} ink={ink} isDark={isDark} reduce={reduce} style={{ gridColumn: 'span 5' }} />
+      <Card i={2} reduce={reduce} title="Departments" sub="The riskiest first · risk score, people at high risk, and how they handled the period's emails" style={{ gridColumn: 'span 7' }} data-ins-depts>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+          <Heads cols={DEPT_COLS}><span>Department</span><span>Risk score</span><span>At high risk</span><span>Clicks against reports</span></Heads>
+          <div ref={fit} role="rowgroup" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: ROW_GAP, paddingTop: 8 }}>
+            {rows.slice(page * size, page * size + size).map((d, k) => {
+              const on = view.dept === d.name;
+              const c = camp[d.name];
+              const dc = change(d.score, d.scoreBefore, { kind: 'times', better: 'down' });
+              return (
+                <motion.div key={d.name} role="row" data-ins-dept={d.name} {...enter(k, reduce)} style={{ height: DEPT_H, flexShrink: 0, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: DEPT_COLS, alignItems: 'center', gap: 14, padding: '0 12px', borderRadius: 12, border: `1px solid ${on ? 'var(--sel-edge)' : 'var(--row-hair)'}`, background: on ? 'var(--sel)' : 'var(--row)' }}>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+                    <span style={{ display: 'block', ...small, marginTop: 2 }}>{num(d.people)} people</span>
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ flex: 1, minWidth: 0 }}><Meter value={d.score} max={maxScore} color={ink.bad} label={scoreText(d.score)} delay={0.1 + 0.03 * k} reduce={reduce} height={5} /></span>
+                    <Delta c={dc && { ...dc, shown: dc.shown.replace('×', '') }} ink={ink} title="Against the start of the period" />
+                  </span>
+                  <span>
+                    <span className="vs-rank" style={{ fontSize: 13, fontWeight: 900 }}>{num(d.highRisk)}</span>
+                    <span style={{ display: 'block', ...small, marginTop: 2 }}>{pc(d.highRisk / d.people)} of them</span>
+                  </span>
+                  {c ? <Tug clicked={c.clicked} reported={c.reported} ink={ink} delay={0.12 + 0.03 * k} reduce={reduce} /> : <span style={small}>No emails in the period</span>}
+                </motion.div>
+              );
+            })}
+          </div>
+          <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(deptPage) => onView({ deptPage })} what="departments" />
+        </div>
+      </Card>
+      <Card i={3} reduce={reduce} title="What drives the risk" sub={`People behind it, as things stand · against the start of the last ${p.basis.days} days`} style={{ gridColumn: 'span 5' }} data-ins-drivers>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
+          {DRIVERS.map((dr, k) => {
+            const v = p.now.drivers[dr.id];
+            const c = change(v, p.before?.drivers[dr.id], { kind: 'min', better: 'down' });
+            return (
+              <motion.div key={dr.id} {...enter(k, reduce)} style={{ flex: '1 1 0', minHeight: 0, maxHeight: 72, display: 'grid', gridTemplateColumns: '36px minmax(0,1fr) minmax(0,0.9fr) auto', alignItems: 'center', gap: 12, borderTop: k ? '1px solid var(--hair)' : 'none' }}>
+                <span aria-hidden style={{ width: 36, height: 36, borderRadius: 11, display: 'grid', placeItems: 'center', background: 'var(--plate)', color: 'var(--text)' }}><dr.Icon size={16} strokeWidth={2.3} /></span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 11.5, fontWeight: 800 }}>{dr.label}</span>
+                  <span style={{ display: 'block', ...small, marginTop: 2 }}>{dr.sub}</span>
+                </span>
+                <Meter value={v} max={maxDriver} color={ink.bad} label={num(v)} sub={`${pc1(v / p.now.people)} of people`} delay={0.15 + 0.05 * k} reduce={reduce} height={5} />
+                <Delta c={c && { ...c, shown: c.shown.replace(' min', '') }} ink={ink} title="People, against the start of the period" />
+              </motion.div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- campaigns
+
+const CAMP_COLS = 'minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) 62px 62px 96px';
+const CAMP_H = 40;
+const pcAxis = (v, tick) => (Number.isFinite(v) ? (tick ? `${Math.round(v * 100)}%` : pc(v)) : '—');
+
+// From send to report: each step of the period's emails, its number and
+// its share of those delivered, the bars falling away left to right.
+function EmailFlow({ m, ink, reduce }) {
+  const n = m.now;
+  const steps = [
+    { id: 'sent', label: 'Sent', value: n.sent, share: null, color: 'var(--text)' },
+    { id: 'delivered', label: 'Delivered', value: n.delivered, share: n.deliveryRate, of: 'of sent', color: 'var(--text)' },
+    { id: 'opened', label: 'Opened', value: n.opened, share: n.openRate, color: openInk(false) },
+    { id: 'clicked', label: 'Clicked', value: n.clicked, share: n.hooked, color: ink.bad },
+    { id: 'gave', label: 'Gave details', value: n.compromised, share: n.compromised / n.delivered, color: ink.bad },
+    { id: 'reported', label: 'Reported', value: n.reported, share: n.reportRate, color: ink.good },
+    { id: 'complained', label: 'Complaints', value: n.complained, share: n.complaintRate, color: STEADY_INK, exact: true },
+  ];
+  return (
+    <div data-ins-flow style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: `repeat(${steps.length}, minmax(0,1fr))`, gap: 10 }}>
+      {steps.map((st, k) => (
+        <motion.div key={st.id} initial={{ opacity: 0, y: reduce ? 0 : 12, scale: reduce ? 1 : 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.05 * k, ease: EASE }} style={{ minWidth: 0, padding: '10px 14px 11px', borderRadius: 14, background: 'var(--plate)' }}>
+          <div style={{ ...eyebrow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.label}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 6, whiteSpace: 'nowrap' }}>
+            <span className="vs-rank" style={{ fontSize: 18, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{num(st.value)}</span>
+            <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.share === null ? 'emails' : `${st.exact ? `${(st.share * 100).toFixed(2)}%` : pc1(st.share)} ${st.of || ''}`}</span>
+          </div>
+          <span aria-hidden style={{ display: 'block', height: 4, marginTop: 9, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
+            <motion.span initial={{ width: reduce ? `${(st.value / n.sent) * 100}%` : 0 }} animate={{ width: `${Math.max(1.5, (st.value / n.sent) * 100)}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.2 + 0.06 * k, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: st.color }} />
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+export function CampaignsTab({ m, view, onView, ink, reduce, isDark }) {
+  const [fit, size] = useFitRows(CAMP_H, 3, ROW_GAP);
+  const rows = m.campaigns;
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const focusAt = view.campaign ? rows.findIndex((c) => c.id === view.campaign) : -1;
   const page = Math.min(pages - 1, view.page ?? (focusAt >= 0 ? Math.floor(focusAt / size) : 0));
-  const dot = (color) => <span aria-hidden style={{ width: 9, height: 9, borderRadius: 999, background: color }} />;
+  const maxRate = Math.max(...rows.map((c) => Math.max(c.hooked || 0, c.reportRate || 0)), 0.01);
+  const a = m.arrival.now;
+  const months = m.months;
+  const top = Math.min(1, Math.ceil(Math.max(...months.flatMap((x) => [x.openRate || 0, x.reportRate || 0, x.hooked || 0])) * 10 + 1) / 10);
+  const series = [
+    { id: 'open', label: 'Opened', color: openInk(isDark), values: months.map((x) => x.openRate) },
+    { id: 'report', label: 'Reported', color: ink.good, values: months.map((x) => x.reportRate) },
+    { id: 'click', label: 'Clicked', color: ink.bad, values: months.map((x) => x.hooked) },
+  ];
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
-      <Card
-        i={0}
-        reduce={reduce}
-        title="The race to the first report"
-        sub="Each campaign's first ten minutes: the first click against the first report"
-        action={<span style={{ display: 'flex', gap: 8 }}><Segmented id="ins-show" label="Show" value={view.show} options={SHOW} onChange={(show) => onView({ show, page: 0, campaign: null })} reduce={reduce} /><Segmented id="ins-sort" label="Order" value={view.sort} options={SORT} onChange={(sort) => onView({ sort, page: 0, campaign: null })} reduce={reduce} /></span>}
-        style={{ gridColumn: 'span 8' }}
-        data-ins-race
-      >
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
-          {[[ink.bad, 'First click'], [ink.good, 'First report']].map(([c, l]) => <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...small, fontWeight: 700, color: 'var(--text)' }}>{dot(c)} {l}</span>)}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...small, fontWeight: 700, color: 'var(--text)' }}><span aria-hidden style={{ width: 14, height: 5, borderRadius: 999, background: STEADY_INK }} /> Half the reports in</span>
-          <span style={small}>Minutes after the send, in each dot</span>
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'auto minmax(0,0.85fr) minmax(0,1.15fr)', gap: 14 }}>
+      <EmailFlow m={m} ink={ink} reduce={reduce} />
+      <Card i={1} reduce={reduce} title="Opened, clicked and reported" sub="Of the emails delivered, thirty days at a time over six months" action={<Legend items={series.map((x) => ({ label: x.label, color: x.color, line: true }))} />} style={{ gridColumn: 'span 7' }} data-ins-engagement>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
+          <LineChart at={months.map((x) => x.to)} series={series} from={m.basis.from} days={m.basis.days} format={pcAxis} top={top} ticks={Array.from({ length: Math.round(top * 5) + 1 }, (_, k) => k * 0.2).filter((v) => v <= top + 1e-9)} reduce={reduce} isDark={isDark} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          <Heads cols={RESP_COLS}>
-            <span>Campaign</span>
-            <span style={{ position: 'relative', height: '100%', marginRight: 8 }}>
-              {TICKS.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), top: '50%', transform: 'translate(-50%,-50%)' }}>{t === RACE ? '10 min' : t}</span>)}
-            </span>
-            <span style={{ textAlign: 'center' }}>Who was first</span>
-            <span>Half the reports in</span>
-            <span style={{ textAlign: 'right' }}>Per click</span>
-          </Heads>
+      </Card>
+      <Card i={2} reduce={reduce} title="How fast reports come in" sub={`Of all the reports, how many were in by each minute after the send · ${pc(a.by15)} in 15 minutes, ${pc(a.by60)} within the hour`} action={<Legend items={[{ label: 'This period', color: ink.good, line: true }, { label: 'The period before', color: 'var(--muted)', line: true, faint: true }]} />} style={{ gridColumn: 'span 5' }} data-ins-arrival>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
+          <ArrivalChart now={a} before={m.arrival.before} color={ink.good} reduce={reduce} isDark={isDark} />
+        </div>
+      </Card>
+      <Card i={3} reduce={reduce} title="Campaign by campaign" sub="Newest first · how many clicked and reported, and how fast the reports came" style={{ gridColumn: 'span 7' }} data-ins-camps>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+          <Heads cols={CAMP_COLS}><span>Campaign</span><span>Hook Rate</span><span>Report Rate</span><span>First report</span><span>Half in</span><span style={{ textAlign: 'center' }}>Health</span></Heads>
           <div ref={fit} role="rowgroup" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: ROW_GAP, paddingTop: 8 }}>
-            {rows.length === 0 && <p style={{ ...small, fontSize: 11, margin: '10px 2px' }}>No campaign in this period went that way.</p>}
-            {rows.slice(page * size, page * size + size).map((c, i) => {
+            {rows.slice(page * size, page * size + size).map((c, k) => {
               const on = view.campaign === c.id;
               return (
-                <motion.div key={c.id} role="row" data-ins-campaign={c.id} {...enter(i, reduce)} style={{ height: ROW_H, flexShrink: 0, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: RESP_COLS, alignItems: 'center', gap: 14, padding: '0 12px', borderRadius: 12, border: `1px solid ${on ? 'var(--sel-edge)' : 'var(--row-hair)'}`, background: on ? 'var(--sel)' : 'var(--row)' }}>
+                <motion.div key={c.id} role="row" data-ins-campaign={c.id} {...enter(k, reduce)} style={{ height: CAMP_H, flexShrink: 0, boxSizing: 'border-box', display: 'grid', gridTemplateColumns: CAMP_COLS, alignItems: 'center', gap: 14, padding: '0 12px', borderRadius: 12, border: `1px solid ${on ? 'var(--sel-edge)' : 'var(--row-hair)'}`, background: on ? 'var(--sel)' : 'var(--row)' }}>
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
                     <span style={{ display: 'block', ...small, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.type} · {c.started}</span>
                   </span>
-                  <span role="img" aria-label={`First click after ${c.firstClick} min, first report after ${c.firstReport} min`} style={{ position: 'relative', height: 32, marginRight: 8 }}>
-                    {TICKS.map((t) => <span key={t} aria-hidden style={{ position: 'absolute', left: at(t), top: 0, bottom: 0, width: 1, background: 'var(--hair)' }} />)}
-                    <Lane top={0} t={c.firstClick} color={ink.bad} label="First click" delay={0.1 + 0.03 * i} reduce={reduce} />
-                    <Lane top={16} t={c.firstReport} color={ink.good} label="First report" delay={0.18 + 0.03 * i} reduce={reduce} />
-                  </span>
-                  <span style={{ display: 'flex', justifyContent: 'center' }}><Who c={c} ink={ink} /></span>
-                  <Meter value={c.medianReport} max={halfMax} color={STEADY_INK} label={mins(c.medianReport)} delay={0.15 + 0.03 * i} reduce={reduce} height={5} />
-                  <span style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{times(c.perClick)}</span>
+                  <Meter value={c.hooked} max={maxRate} color={ink.bad} label={pc1(c.hooked)} delay={0.1 + 0.03 * k} reduce={reduce} height={5} />
+                  <Meter value={c.reportRate} max={maxRate} color={ink.good} label={pc1(c.reportRate)} delay={0.14 + 0.03 * k} reduce={reduce} height={5} />
+                  <span style={{ fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{mins(c.firstReport)}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{mins(c.medianReport)}</span>
+                  <span style={{ display: 'flex', justifyContent: 'center' }}><HealthChip h={c.health} ink={ink} /></span>
                 </motion.div>
               );
             })}
@@ -304,159 +435,120 @@ export function ResponseTab({ m, view, onView, ink, reduce }) {
           <Pager page={page} pages={pages} total={rows.length} size={size} onPage={(p) => onView({ page: p })} what="campaigns" />
         </div>
       </Card>
-      <div style={{ gridColumn: 'span 4', minHeight: 0, display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 14 }}>
-        <WhoFirst m={m} ink={ink} reduce={reduce} />
-        <FirstReportDots m={m} ink={ink} reduce={reduce} />
-      </div>
+      <Card i={4} reduce={reduce} title="What works on people" sub="Hook Rate by what the email leaned on, the strongest first" style={{ gridColumn: 'span 5' }} data-ins-motivators>
+        <Columns
+          items={m.motivators.map((x) => ({ key: x.motivator, label: x.motivator, value: x.hooked, text: pc(x.hooked), tip: [x.motivator, `Hook Rate ${pc1(x.hooked)} · reported ${pc(x.reportRate)}`, `${x.campaigns} ${x.campaigns === 1 ? 'campaign' : 'campaigns'} · ${num(x.delivered)} emails`] }))}
+          color={ink.bad}
+          reduce={reduce}
+          label="clicked"
+        />
+      </Card>
     </div>
-  );
-}
-
-// Who was first, as one bar split three ways, with how many under it.
-function WhoFirst({ m, ink, reduce }) {
-  const n = m.campaigns.length || 1;
-  const parts = [
-    { id: 'report', label: 'Report first', count: m.campaigns.filter((c) => c.beatClick).length, color: ink.good },
-    { id: 'same', label: 'Same minute', count: m.campaigns.filter((c) => c.firstReport === c.firstClick).length, color: STEADY_INK },
-    { id: 'click', label: 'Click first', count: m.campaigns.filter((c) => !c.beatClick && c.firstReport !== c.firstClick).length, color: ink.bad },
-  ];
-  return (
-    <Card i={1} reduce={reduce} title="Who was first" sub="The first report against the first click">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 12 }}>
-        <span className="vs-rank" style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{parts[0].count}<span style={{ fontSize: 16, color: 'var(--muted)' }}> of {m.campaigns.length}</span></span>
-        <span style={{ ...small, fontSize: 10 }}>reported before anyone clicked</span>
-      </div>
-      <div aria-hidden style={{ display: 'flex', gap: 2, height: 10, marginTop: 12, borderRadius: 999, overflow: 'hidden' }}>
-        {parts.filter((p) => p.count).map((p, i) => (
-          <motion.span key={p.id} initial={{ flexGrow: reduce ? p.count : 0 }} animate={{ flexGrow: p.count }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.2 + 0.1 * i, ease: EASE }} style={{ flexBasis: 0, minWidth: 4, background: p.color }} />
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 14, marginTop: 9, flexWrap: 'wrap' }}>
-        {parts.map((p) => (
-          <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: 'var(--text)' }}>
-            <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: p.color }} />{p.label} <span style={small}>{p.count} · {pc(p.count / n)}</span>
-          </span>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// Minutes to the first report: one dot per campaign, stacked over its minute,
-// as large as the card lets them be.
-function FirstReportDots({ m, ink, reduce }) {
-  const [hover, setHover] = useState(null);
-  const [box, { w, h }] = useSize();
-  const cols = Array.from({ length: RACE }, (_, k) => m.campaigns.filter((c) => Math.min(c.firstReport, RACE) === k + 1));
-  const tallest = Math.max(1, ...cols.map((c) => c.length));
-  const gap = 4;
-  const dot = Math.max(6, Math.min(28, (w - gap * (RACE - 1)) / RACE - 6, (h - gap * (tallest - 1)) / tallest));
-  const middle = m.now.firstReport;
-  const shown = hover ? m.campaigns.find((c) => c.id === hover) : null;
-  return (
-    <Card i={2} reduce={reduce} title="Minutes to the first report" sub={shown ? `${shown.name}: ${shown.firstReport} min` : `One dot per campaign · the middle campaign took ${mins(middle)}`}>
-      <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap, marginTop: 12 }} onMouseLeave={() => setHover(null)}>
-        {cols.map((list, k) => (
-          <div key={k} style={{ flex: '1 1 0', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', gap }}>
-            {list.map((c, r) => (
-              <motion.span
-                key={c.id}
-                title={`${c.name}: first report after ${c.firstReport} min`}
-                onMouseEnter={() => setHover(c.id)}
-                initial={{ scale: reduce ? 1 : 0 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.2 + 0.04 * k + 0.03 * r, ease: EASE }}
-                style={{ flexShrink: 0, width: dot, height: dot, borderRadius: 999, background: c.beatClick ? ink.good : 'var(--soft-good)', opacity: hover && hover !== c.id ? 0.35 : 1, transition: 'opacity .15s ease', cursor: 'default' }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div aria-hidden style={{ flexShrink: 0, display: 'flex', gap, marginTop: 6 }}>
-        {cols.map((_, k) => <span key={k} style={{ flex: '1 1 0', textAlign: 'center', ...small, fontSize: 9, fontWeight: k + 1 === Math.round(middle) ? 800 : 600, color: k + 1 === Math.round(middle) ? 'var(--text)' : 'var(--muted)' }}>{k + 1 === RACE ? '10+' : k + 1}</span>)}
-      </div>
-      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', gap: 14, marginTop: 6, ...small, fontSize: 9 }}>
-        <span>Minutes after the send</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: ink.good }} />Reported before a click</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--soft-good)' }} />After a click</span>
-      </div>
-    </Card>
   );
 }
 
 // ---------------------------------------------------------------- learning
 
-const PROG_COLS = 'minmax(0,1.5fr) minmax(0,1fr) 52px 52px 100px';
-const PROG_H = 38;
+const PROG_COLS = 'minmax(0,1.5fr) minmax(0,1fr) 44px 44px 100px';
+const PROG_H = 36;
 const STATUS = { Good: 'good', Average: 'steady', 'Needs Work': 'bad' };
 const STATUS_WORD = { Good: 'Good', Average: 'Average', 'Needs Work': 'Needs work' };
+const LDEPT_COLS = 'minmax(0,1.3fr) minmax(0,1.1fr) 44px 52px 60px';
 
-export function LearningTab({ m, training, view, onView, ink, reduce }) {
+export function LearningTab({ m, p, training, view, onView, ink, reduce, isDark }) {
+  const t = p.now.training;
+  const tb = p.before?.training;
   const byLure = [...m.lures].filter((l) => l.learned !== null).sort((a, b) => b.learned - a.learned);
-  const first = training.funnel[0]?.value || 0;
-  const [fit, size] = useFitRows(PROG_H, 3, 0);
+  const [fitP, sizeP] = useFitRows(PROG_H, 2, 0);
   const progs = training.programmes;
-  const pages = Math.max(1, Math.ceil(progs.length / size));
-  const page = Math.min(view.progPage, pages - 1);
+  const pagesP = Math.max(1, Math.ceil(progs.length / sizeP));
+  const pageP = Math.min(view.progPage, pagesP - 1);
+  const depts = [...p.departments].sort((a, b) => (b.training.completion ?? 0) - (a.training.completion ?? 0));
+  const [fitD, sizeD] = useFitRows(PROG_H, 2, 0);
+  const pagesD = Math.max(1, Math.ceil(depts.length / sizeD));
+  const pageD = Math.min(view.ldeptPage ?? 0, pagesD - 1);
+  const funnel = [['Assigned', t.assigned, 'assigned'], ['Started', t.started, 'started'], ['Completed', t.completed, 'completed'], ['Passed', t.passed, 'passed']];
+  const quiz = p.trend.slice(-m.months.length);
+  const series = [
+    { id: 'quiz', label: 'Quiz score', color: openInk(isDark), values: quiz.map((s) => s.quizScore / 100) },
+    { id: 'report', label: 'Report Rate', color: ink.good, values: m.months.map((x) => x.reportRate) },
+  ];
+  const tiles = [
+    ...funnel.map(([label, v, key], k) => ({ id: key, label, value: num(v), sub: k ? `${pc(t.assigned ? v / t.assigned : null)} of assigned` : 'people', bar: t.assigned ? v / t.assigned : 0, c: change(k ? v / t.assigned : v, tb ? (k ? tb[key] / tb.assigned : tb[key]) : null, { kind: k ? 'pct' : 'min', better: 'up' }) })),
+    { id: 'quiz', label: 'Quiz score', value: Number.isFinite(t.quizScore) ? t.quizScore.toFixed(1) : '—', sub: 'average, of 100', bar: (t.quizScore || 0) / 100, c: change(t.quizScore, tb?.quizScore, { kind: 'times', better: 'up' }) },
+    { id: 'badges', label: 'Badges · points', value: num(t.badges), sub: `${num(t.points)} points earned`, bar: null, c: change(t.badges, tb?.badges, { kind: 'min', better: 'up' }) },
+  ];
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'auto minmax(0,1fr)', gap: 14 }}>
-      {/* the training funnel: everyone assigned training, step by step */}
-      <div data-ins-funnel style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: `repeat(${training.funnel.length}, minmax(0,1fr))`, gap: 14 }}>
-        {training.funnel.map((s, i) => {
-          const prev = training.funnel[i - 1];
-          return (
-            <motion.div key={s.name} {...rise(reduce, i)} className="ins-card" style={{ position: 'relative', minWidth: 0, padding: '12px 16px 14px', borderRadius: 16, border: '1px solid var(--hair)', background: 'var(--base)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={eyebrow}>{s.name}</span>
-                {prev && <span title={`${num(prev.value - s.value)} fewer than ${prev.name.toLowerCase()}`} style={{ ...small, fontSize: 9, fontWeight: 800 }}>−{num(prev.value - s.value)} from {prev.name.toLowerCase()}</span>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-                <span className="vs-rank" style={{ fontSize: 24, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{num(s.value)}</span>
-                <span style={small}>{i ? `${pc(first ? s.value / first : null)} of assigned` : 'people assigned'}</span>
-              </div>
-              <span aria-hidden style={{ display: 'block', height: 6, marginTop: 10, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-                <motion.span initial={{ width: reduce ? `${(s.value / first) * 100}%` : 0 }} animate={{ width: `${(s.value / first) * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.15 + 0.08 * i, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: ink.good }} />
-              </span>
-            </motion.div>
-          );
-        })}
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'auto minmax(0,0.85fr) minmax(0,1.15fr)', gap: 14 }}>
+      <div data-ins-funnel style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: `repeat(${tiles.length}, minmax(0,1fr))`, gap: 10 }}>
+        {tiles.map((x, k) => (
+          <motion.div key={x.id} initial={{ opacity: 0, y: reduce ? 0 : 12, scale: reduce ? 1 : 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.05 * k, ease: EASE }} style={{ minWidth: 0, padding: '10px 14px 11px', borderRadius: 14, background: 'var(--plate)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ ...eyebrow, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
+              <span style={{ marginLeft: 'auto' }}><Delta c={x.c && { ...x.c, shown: x.c.shown.replace(' min', '').replace('×', '') }} ink={ink} title="Against the period before" /></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 6, whiteSpace: 'nowrap' }}>
+              <span className="vs-rank" style={{ fontSize: 18, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{x.value}</span>
+              <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.sub}</span>
+            </div>
+            {x.bar !== null
+              ? <span aria-hidden style={{ display: 'block', height: 4, marginTop: 9, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}><motion.span initial={{ width: reduce ? `${x.bar * 100}%` : 0 }} animate={{ width: `${x.bar * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.2 + 0.06 * k, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: x.id === 'quiz' ? openInk(isDark) : ink.good }} /></span>
+              : <span style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, ...small, fontSize: 9 }}><Award size={11} strokeWidth={2.4} aria-hidden /> Badges awarded</span>}
+          </motion.div>
+        ))}
       </div>
-
-      <Card i={4} reduce={reduce} title="Learning moments by lure" sub={`Of those who clicked, how many finished the training that followed · last ${m.basis.days} days`} style={{ gridColumn: 'span 5' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          {byLure.map((l, i) => (
-            <motion.div key={l.type} {...enter(i, reduce)} style={{ flex: '1 1 0', minHeight: 0, maxHeight: 64, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', alignItems: 'center', gap: 14, borderTop: i ? '1px solid var(--hair)' : 'none' }}>
-              <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <LureTile type={l.type} size={30} />
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.type}</span>
-                  <span style={{ display: 'block', ...small, marginTop: 2, whiteSpace: 'nowrap' }}>{num(l.trained)} of {num(l.clicked)} who clicked</span>
-                </span>
-              </span>
-              <Meter value={l.learned} max={1} color={ink.good} label={pc(l.learned)} sub="trained" delay={0.1 + 0.04 * i} reduce={reduce} />
-            </motion.div>
-          ))}
+      <Card i={1} reduce={reduce} title="Quiz scores and reporting" sub="Does learning show up as reporting? Thirty days at a time" action={<Legend items={series.map((x) => ({ label: x.label, color: x.color, line: true }))} />} style={{ gridColumn: 'span 6' }} data-ins-quiz>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
+          <LineChart at={m.months.map((x) => x.to)} series={series} from={m.basis.from} days={m.basis.days} format={pcAxis} top={1} ticks={[0, 0.25, 0.5, 0.75, 1]} reduce={reduce} isDark={isDark} tipHead={(at) => `Thirty days to ${day(at)}`} />
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="Programmes" sub="Each training programme · all assigned training" style={{ gridColumn: 'span 7' }}>
+      <Card i={2} reduce={reduce} title="Learning moments by lure" sub="Of those who clicked, how many finished the training that followed" style={{ gridColumn: 'span 6' }} data-ins-learned>
+        <Columns
+          items={byLure.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.learned, text: pc(l.learned), tip: [l.type, `${num(l.trained)} of ${num(l.clicked)} who clicked finished the training`] }))}
+          color={ink.good}
+          soft="var(--soft-good)"
+          reduce={reduce}
+          label="of those who clicked finished the training"
+        />
+      </Card>
+      <Card i={3} reduce={reduce} title="Departments" sub={`Training in the last ${p.basis.days} days, the most complete first`} style={{ gridColumn: 'span 6' }} data-ins-ldepts>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
+          <Heads cols={LDEPT_COLS}><span>Department</span><span>Completed</span><span>Quiz</span><span>Badges</span><span>Points</span></Heads>
+          <div ref={fitD} role="rowgroup" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            {depts.slice(pageD * sizeD, pageD * sizeD + sizeD).map((d, k) => (
+              <motion.div key={d.name} role="row" {...enter(k, reduce)} style={{ flex: '1 1 0', minHeight: PROG_H, maxHeight: 48, display: 'grid', gridTemplateColumns: LDEPT_COLS, alignItems: 'center', gap: 14, padding: '0 13px', borderBottom: '1px solid var(--hair)' }}>
+                <span style={{ minWidth: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+                <Meter value={d.training.completion} max={1} color={ink.good} label={pc(d.training.completion)} delay={0.1 + 0.03 * k} reduce={reduce} height={4} />
+                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{Number.isFinite(d.training.quizScore) ? d.training.quizScore.toFixed(0) : '—'}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{num(d.training.badges)}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{num(d.training.points)}</span>
+              </motion.div>
+            ))}
+          </div>
+          {pagesD > 1 && <Pager page={pageD} pages={pagesD} total={depts.length} size={sizeD} onPage={(ldeptPage) => onView({ ldeptPage })} what="departments" />}
+        </div>
+      </Card>
+      <Card i={4} reduce={reduce} title="Programmes" sub="Each training programme, since it began" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
           <Heads cols={PROG_COLS}><span>Programme</span><span>Completion</span><span>Pass</span><span>Score</span><span style={{ textAlign: 'center' }}>Status</span></Heads>
-          <div ref={fit} role="rowgroup" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            {progs.slice(page * size, page * size + size).map((p, i) => (
-              <motion.div key={p.program} role="row" {...enter(i, reduce)} style={{ flex: '1 1 0', minHeight: PROG_H, maxHeight: 50, display: 'grid', gridTemplateColumns: PROG_COLS, alignItems: 'center', gap: 14, padding: '0 13px', borderBottom: '1px solid var(--hair)' }}>
-                <span style={{ minWidth: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.program}</span>
-                <Meter value={p.completion} max={100} color={ink.good} label={`${p.completion}%`} delay={0.1 + 0.03 * i} reduce={reduce} height={4} />
-                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{p.pass}%</span>
-                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{p.score}</span>
+          <div ref={fitP} role="rowgroup" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            {progs.slice(pageP * sizeP, pageP * sizeP + sizeP).map((pr, k) => (
+              <motion.div key={pr.program} role="row" {...enter(k, reduce)} style={{ flex: '1 1 0', minHeight: PROG_H, maxHeight: 48, display: 'grid', gridTemplateColumns: PROG_COLS, alignItems: 'center', gap: 14, padding: '0 13px', borderBottom: '1px solid var(--hair)' }}>
+                <span style={{ minWidth: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pr.program}</span>
+                <Meter value={pr.completion} max={100} color={ink.good} label={`${pr.completion}%`} delay={0.1 + 0.03 * k} reduce={reduce} height={4} />
+                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{pr.pass}%</span>
+                <span style={{ fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{pr.score}</span>
                 <span style={{ display: 'flex', justifyContent: 'center' }}>
-                  <Chip color={STATUS[p.status] === 'steady' ? STEADY_INK : ink[STATUS[p.status]]} width={96}>{STATUS_WORD[p.status] || p.status}</Chip>
+                  <Chip color={STATUS[pr.status] === 'steady' ? STEADY_INK : ink[STATUS[pr.status]]} width={96}>{STATUS_WORD[pr.status] || pr.status}</Chip>
                 </span>
               </motion.div>
             ))}
           </div>
-          {pages > 1 && <Pager page={page} pages={pages} total={progs.length} size={size} onPage={(progPage) => onView({ progPage })} what="programmes" />}
+          {pagesP > 1 && <Pager page={pageP} pages={pagesP} total={progs.length} size={sizeP} onPage={(progPage) => onView({ progPage })} what="programmes" />}
         </div>
       </Card>
     </div>
   );
 }
+
+export { RiskOverTime, WhereTheyStand };

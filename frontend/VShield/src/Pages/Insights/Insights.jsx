@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, ChevronRight, Copy, FileText, LayoutGrid, Mail, MousePointerClick, Timer, GraduationCap } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, Copy, FileText, GraduationCap, LayoutGrid, Mail, MousePointerClick, Send, Users } from 'lucide-react';
 
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../../services/sampleCampaigns';
 import { campaignReport } from '../../services/sampleReports';
-import { insights, standsOut } from '../../services/insights';
+import { insights, peopleInsights, standsOut } from '../../services/insights';
+import { organisation } from '../../services/sampleOrganisation';
 import { insightsBook, insightsSummary } from '../../services/insightsExport';
 import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { ExportMenu } from '../Leaderboard/BigPicture';
@@ -16,26 +17,28 @@ import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
 import ClayNext from '../../assets/LeaderboardAssets/ClayNext.png';
 import ClayTrendFlat from '../../assets/LeaderboardAssets/ClayTrendFlat.png';
-import { Barcode, Card, DotMatrix, GoTo, LureColumns, Segmented, TrendChart } from './InsightsCharts';
-import { Delta, LearningTab, LuresTab, ResponseTab } from './InsightsTabs';
-import { EASE, HEALTH_RULE, STEADY_INK, change, eyebrow, healthInk, num, pc, pc1, small, swap, times } from './insightsUi';
+import { ArrivalChart, Barcode, Card, Columns, GoTo, Segmented } from './InsightsCharts';
+import { CampaignsTab, Delta, LearningTab, LuresTab, PeopleTab, RiskOverTime, WhereTheyStand } from './InsightsTabs';
+import { EASE, HEALTH_RULE, STEADY_INK, change, eyebrow, lureShort, num, pc, pc1, small, swap, times } from './insightsUi';
 
 // =============================================================================
-// Insights: how the phishing programme itself is doing.
+// Insights: how the organisation stands against phishing, for leaders.
 //
-// The Big Picture (on the Leaderboard) is about people: who, where, which
-// level. Insights is about the programme: which lures fool people, how fast
-// the organisation spots them, and whether the learning sticks. So nothing
-// here repeats it: no risk scores, no departments, no people.
+// Everything the old analytics page showed, redrawn, with what the
+// programme has learnt since: the people (risk tiers, the risk score, each
+// department, what drives the risk), the campaigns (from send to report,
+// what was opened, clicked and reported, how fast reports come in, what
+// works on people), the lures, and the learning (the funnel, quiz scores
+// beside reporting, each department and programme). The Big Picture keeps
+// the person-by-person view; this is the whole organisation.
 //
 // The Leaderboard's sheet, in its L shape: the programme's health sits in the
 // colour tile in the corner, its clay shield beside it; along the arm, the
 // period (30, 60 or 90 days), the tabs and Export, over four measures, each
-// with its change on the period before and a tick for every campaign; below,
-// a bento of cards. The overview: the trend, the lures, the response, every
-// campaign, what stands out, the learning; the other tabs go deeper into
-// each. Every card leads somewhere; what changes moves, and nothing moves
-// for those who ask for less. It reports; it never says what to do.
+// with its change on the period before and a tick for each step; below, a
+// bento of cards that pop in one after another. Every card leads somewhere;
+// nothing moves for those who ask for less. It reports; it never says what
+// to do.
 // =============================================================================
 
 const FONT_IMPORT = `
@@ -75,8 +78,9 @@ const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(
 
 const TABS = [
   { id: 'overview', label: 'Overview', Icon: LayoutGrid },
+  { id: 'people', label: 'People & risk', Icon: Users },
+  { id: 'campaigns', label: 'Campaigns', Icon: Send },
   { id: 'lures', label: 'Lures', Icon: MousePointerClick },
-  { id: 'response', label: 'Response', Icon: Timer },
   { id: 'learning', label: 'Learning', Icon: GraduationCap },
 ];
 const PERIODS = [
@@ -85,13 +89,10 @@ const PERIODS = [
   { id: 90, label: '90 days', title: 'Quarterly: the last 90 days' },
 ];
 
-// The training programme's figures: the sample the old analytics page showed,
-// until the training API reports them.
-const TRAINING = {
-  funnel: dashboardData.funnelData.map(({ name, value }) => ({ name, value })),
-  programmes: dashboardData.trainingPrograms,
-};
-const FRESH = { lure: null, lurePage: 0, campaign: null, show: 'all', sort: 'newest', page: 0, progPage: 0 };
+// The training programmes: the sample the old analytics page showed, until
+// the training API reports them.
+const TRAINING = { programmes: dashboardData.trainingPrograms };
+const FRESH = { lure: null, lurePage: 0, campaign: null, page: 0, dept: null, deptPage: 0, ldeptPage: 0, progPage: 0 };
 
 // A number that counts to its new value when the period changes.
 function useTween(target, reduce, ms = 700) {
@@ -183,65 +184,56 @@ function Kpi({ k, i, ink, reduce, days }) {
   );
 }
 
-// The dark card: the response in one big number at a time, turning over on
-// its own every few seconds (and holding still while you look at it).
+// The dark card: how fast the organisation spots a phishing email. The
+// minutes to the first report, the curve of reports coming in (half in by
+// the marked minute), and what that means: how many were in within the
+// hour, and how many campaigns were reported before anyone clicked.
 function Spotlight({ m, ink, reduce, isDark, onOpen, i }) {
   const n = m.now;
-  const facts = [
-    { id: 'first', label: 'First report', value: n.firstReport, unit: 'min', format: (v) => (Number.isFinite(v) ? `${Math.round(v)}` : '—'), sub: 'From the send to the first report, in the middle campaign', d: change(n.firstReport, m.before?.firstReport, { kind: 'min', better: 'down' }) },
-    { id: 'beat', label: 'Reported before a click', value: n.beatClick, unit: `of ${n.campaigns}`, format: (v) => `${Math.round(v)}`, sub: 'Campaigns spotted early enough to pull the email', d: null },
-    { id: 'half', label: 'Half the reports in', value: n.halfReported, unit: 'min', format: (v) => (Number.isFinite(v) ? `${Math.round(v)}` : '—'), sub: 'Until half of all the reports had come in', d: change(n.halfReported, m.before?.halfReported, { kind: 'min', better: 'down' }) },
-  ];
-  const [at, setAt] = useState(0);
-  const [held, setHeld] = useState(false);
-  useEffect(() => {
-    if (reduce || held) return undefined;
-    const t = setTimeout(() => setAt((x) => (x + 1) % facts.length), 6000);
-    return () => clearTimeout(t);
-  }, [at, held, reduce, facts.length]);
-  const f = facts[at];
+  const a = m.arrival.now;
   const fg = isDark ? '#0F172A' : '#FFFFFF';
-  const dim = isDark ? 'rgba(15,23,42,0.55)' : 'rgba(255,255,255,0.58)';
+  const dim = isDark ? 'rgba(15,23,42,0.58)' : 'rgba(255,255,255,0.6)';
+  const d = change(n.firstReport, m.before?.firstReport, { kind: 'min', better: 'down' });
+  const facts = [
+    ['Half in by', `${a.half ?? '—'} min`],
+    ['Within the hour', pc(a.by60)],
+    ['Before any click', `${n.beatClick} of ${n.campaigns}`],
+  ];
   return (
     <motion.section
       className="ins-spot"
-      data-ins-spot={f.id}
+      data-ins-spot
       aria-label="The response"
-      initial={{ opacity: 0, y: reduce ? 0 : 10, filter: reduce ? 'none' : 'blur(6px)' }}
-      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      transition={{ duration: reduce ? 0.01 : 0.5, delay: reduce ? 0 : 0.05 * i, ease: EASE }}
-      onMouseEnter={() => setHeld(true)}
-      onMouseLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
-      onBlur={() => setHeld(false)}
-      style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 16px', borderRadius: 16, color: fg, background: isDark ? 'radial-gradient(120% 80% at 100% 0%, #E0E7FF 0%, #FFFFFF 55%)' : 'radial-gradient(120% 85% at 100% 0%, #2B2F6B 0%, #111217 52%, #0A0A0C 100%)' }}
+      initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.96, filter: reduce ? 'none' : 'blur(8px)' }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.07 * i, ease: EASE }}
+      style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 16, color: fg, background: isDark ? 'radial-gradient(120% 80% at 100% 0%, #E0E7FF 0%, #FFFFFF 55%)' : 'radial-gradient(120% 85% at 100% 0%, #2B2F6B 0%, #111217 52%, #0A0A0C 100%)' }}
     >
       <span aria-hidden style={{ position: 'absolute', left: -60, bottom: -80, width: 220, height: 220, borderRadius: 999, background: `radial-gradient(closest-side, ${isDark ? 'rgba(13,148,136,0.18)' : 'rgba(22,163,148,0.22)'}, transparent)` }} />
-      <img className="ins-float" src={ClayNext} alt="" aria-hidden width={58} height={58} style={{ position: 'absolute', right: 14, top: 14, objectFit: 'contain', filter: 'drop-shadow(0 10px 16px rgba(0,0,0,0.35))' }} />
-      <span style={{ position: 'relative', ...eyebrow, color: dim }}>The response</span>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={f.id} initial={{ opacity: 0, y: reduce ? 0 : 18, filter: reduce ? 'none' : 'blur(8px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: reduce ? 0 : -18, filter: reduce ? 'none' : 'blur(8px)' }} transition={{ duration: reduce ? 0.1 : 0.45, ease: EASE }} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{f.label}</span>
-          <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-            <span className="vs-rank" style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}><Count value={f.value} format={f.format} reduce={reduce} /></span>
-            <span className="vs-rank" style={{ fontSize: 18, fontWeight: 900, color: dim }}>{f.unit}</span>
-          </span>
-          <span style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.45, marginTop: 6, color: dim, maxWidth: 220 }}>{f.sub}</span>
-          {f.d && <span style={{ marginTop: 8, '--chip': isDark ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.10)', '--text': fg }}><Delta c={f.d} ink={ink} title={`Against the ${m.basis.days} days before`} /></span>}
-        </motion.div>
-      </AnimatePresence>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button type="button" data-ins-spot-open onClick={onOpen} style={{ height: 30, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: fg, color: isDark ? '#FFFFFF' : '#0A0A0C', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
-          See the response <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden />
-        </button>
-        <span role="tablist" aria-label="Facts" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
-          {facts.map((x, k) => (
-            <button key={x.id} type="button" role="tab" aria-selected={k === at} aria-label={x.label} onClick={() => setAt(k)} style={{ position: 'relative', width: k === at ? 22 : 7, height: 7, padding: 0, border: 'none', borderRadius: 999, background: isDark ? 'rgba(15,23,42,0.18)' : 'rgba(255,255,255,0.26)', overflow: 'hidden', cursor: 'pointer', transition: 'width .35s cubic-bezier(.22,1,.36,1)' }}>
-              {k === at && <motion.span key={`${at}-${held}`} initial={{ width: reduce || held ? '100%' : '0%' }} animate={{ width: '100%' }} transition={{ duration: reduce || held ? 0 : 6, ease: 'linear' }} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 999, background: fg }} />}
-            </button>
-          ))}
-        </span>
+      <img className="ins-float" src={ClayNext} alt="" aria-hidden width={50} height={50} style={{ position: 'absolute', right: 14, top: 12, objectFit: 'contain', filter: 'drop-shadow(0 10px 16px rgba(0,0,0,0.35))' }} />
+      <span style={{ position: 'relative', ...eyebrow, color: dim }}>How fast reports come in</span>
+      <span style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
+        <span className="vs-rank" style={{ fontSize: 46, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}><Count value={n.firstReport} format={(v) => (Number.isFinite(v) ? `${Math.round(v)}` : '—')} reduce={reduce} /></span>
+        <span className="vs-rank" style={{ fontSize: 15, fontWeight: 900, color: dim }}>min</span>
+      </span>
+      <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 10, fontWeight: 700 }}>
+        to the first report
+        {d && <span style={{ '--chip': isDark ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.10)', '--text': fg }}><Delta c={d} ink={ink} title={`Against the ${m.basis.days} days before`} /></span>}
+      </span>
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', margin: '10px -2px 8px' }}>
+        <ArrivalChart now={a} before={null} color={ink.good} reduce={reduce} isDark={isDark} mini onDark />
       </div>
+      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, paddingTop: 10, borderTop: `1px solid ${isDark ? 'rgba(15,23,42,0.10)' : 'rgba(255,255,255,0.12)'}` }}>
+        {facts.map(([k, v]) => (
+          <span key={k} style={{ minWidth: 0 }}>
+            <span className="vs-rank" style={{ display: 'block', fontSize: 15, fontWeight: 900, lineHeight: 1 }}>{v}</span>
+            <span style={{ display: 'block', fontSize: 8.5, fontWeight: 700, marginTop: 4, color: dim, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k}</span>
+          </span>
+        ))}
+      </div>
+      <button type="button" data-ins-spot-open onClick={onOpen} style={{ position: 'relative', alignSelf: 'flex-start', marginTop: 12, height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 12px', borderRadius: 999, border: 'none', background: fg, color: isDark ? '#FFFFFF' : '#0A0A0C', fontSize: 10.5, fontWeight: 800, cursor: 'pointer' }}>
+        See the campaigns <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden />
+      </button>
     </motion.section>
   );
 }
@@ -285,12 +277,12 @@ function StandsOut({ list, ink, isDark, reduce, onOpen, i }) {
 }
 
 // The learning, in brief: the learning moments after a click, and how far
-// assigned training gets.
-function LearningCard({ m, ink, reduce, onOpen, i }) {
+// the period's training got.
+function LearningCard({ m, p, ink, reduce, onOpen, i }) {
   const n = m.now;
-  const first = TRAINING.funnel[0]?.value || 0;
-  const steps = TRAINING.funnel.slice(1);
-  const needs = TRAINING.programmes.filter((p) => p.status === 'Needs Work').length;
+  const t = p.now.training;
+  const steps = [['Started', t.started], ['Completed', t.completed], ['Passed', t.passed]];
+  const needs = TRAINING.programmes.filter((x) => x.status === 'Needs Work').length;
   return (
     <Card i={i} reduce={reduce} title="Does the learning stick" action={<GoTo label="Learning" onClick={onOpen} data-ins-go="learning" />} style={{ gridColumn: 'span 3' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
@@ -302,17 +294,17 @@ function LearningCard({ m, ink, reduce, onOpen, i }) {
         <motion.span initial={{ width: reduce ? pc(n.learned) : '0%' }} animate={{ width: pc(n.learned) }} transition={{ duration: reduce ? 0 : 0.9, delay: reduce ? 0 : 0.3, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: ink.good }} />
       </span>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 9, marginTop: 12 }}>
-        <span style={{ ...eyebrow, fontSize: 8 }}>All assigned training</span>
-        {steps.map((s) => (
-          <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '70px minmax(0,1fr) 34px', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700 }}>{s.name}</span>
+        <span style={{ ...eyebrow, fontSize: 8 }}>{num(t.assigned)} trainings assigned in the period</span>
+        {steps.map(([name, v]) => (
+          <div key={name} style={{ display: 'grid', gridTemplateColumns: '70px minmax(0,1fr) 34px', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700 }}>{name}</span>
             <span aria-hidden style={{ height: 4, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-              <motion.span initial={{ width: reduce ? `${(s.value / first) * 100}%` : 0 }} animate={{ width: `${(s.value / first) * 100}%` }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.4, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: 'var(--muted)' }} />
+              <motion.span initial={{ width: reduce ? pc(v / t.assigned) : '0%' }} animate={{ width: pc(v / t.assigned) }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.4, ease: EASE }} style={{ display: 'block', height: '100%', borderRadius: 999, background: 'var(--muted)' }} />
             </span>
-            <span style={{ fontSize: 10, fontWeight: 800, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pc(first ? s.value / first : null)}</span>
+            <span style={{ fontSize: 10, fontWeight: 800, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pc(t.assigned ? v / t.assigned : null)}</span>
           </div>
         ))}
-        <span style={{ ...small, fontSize: 9.5 }}><strong style={{ color: 'var(--text)' }}>{needs}</strong> {needs === 1 ? 'programme needs' : 'programmes need'} work</span>
+        <span style={{ ...small, fontSize: 9.5 }}>Quiz score <strong style={{ color: 'var(--text)' }}>{Number.isFinite(t.quizScore) ? t.quizScore.toFixed(0) : '—'}</strong> · <strong style={{ color: 'var(--text)' }}>{needs}</strong> {needs === 1 ? 'programme needs' : 'programmes need'} work</span>
       </div>
     </Card>
   );
@@ -329,25 +321,34 @@ const Insights = () => {
   // Sample campaigns (and those that ended before them) until the reports API lists real ones.
   const items = useMemo(() => [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) })), []);
   const m = useMemo(() => insights(items, { days }), [items, days]);
-  const list = useMemo(() => standsOut(m), [m]);
+  // The sample organisation, thirty days at a time, until the people and risk APIs report it.
+  const org = useMemo(() => organisation({ end: m.basis.end }), [m.basis.end]);
+  const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
+  const list = useMemo(() => standsOut(m, p), [m, p]);
   const oldestFirst = useMemo(() => [...m.campaigns].reverse(), [m]);
 
   const go = (id, patch = {}) => { setTab(id); setView({ ...FRESH, ...patch }); };
   const patchView = (patch) => setView((v) => ({ ...v, ...patch }));
-  const openFinding = (f) => go(f.view, f.view === 'lures' ? { lure: f.focus } : { campaign: f.focus, page: null });
+  const openFinding = (f) => {
+    if (f.view === 'people') go('people', { dept: f.focus, deptPage: null });
+    else if (f.view === 'lures') go('lures', { lure: f.focus });
+    else go('campaigns', { campaign: f.focus, page: null });
+  };
 
   const n = m.now;
   const b = m.before;
+  const pn = p.now;
+  const pb = p.before;
   const kpis = [
-    { id: 'hooked', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'clicked', delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), spark: oldestFirst.map((c) => c.hooked), color: ink.bad, hint: 'Clicked, of the emails delivered' },
-    { id: 'reported', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'reported', delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), spark: oldestFirst.map((c) => c.reportRate), color: ink.good, hint: 'Reported, of the emails delivered' },
-    { id: 'first', label: 'First report', value: n.firstReport, format: (v) => (Number.isFinite(v) ? `${Math.round(v)}` : '—'), unit: 'min', delta: change(n.firstReport, b?.firstReport, { kind: 'min', better: 'down' }), spark: oldestFirst.map((c) => c.firstReport), color: 'var(--text)', hint: 'Minutes from the send to the first report, in the middle campaign' },
-    { id: 'delivered', label: 'Emails delivered', value: n.delivered, format: num, unit: `${pc1(n.deliveryRate)} of sent`, delta: null, spark: oldestFirst.map((c) => c.delivered), color: 'var(--text)', hint: 'Emails that reached an inbox, campaign by campaign' },
+    { id: 'risk', label: 'Risk score', value: pn.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), unit: 'of 100', delta: (() => { const c = change(pn.score, pb?.score, { kind: 'times', better: 'down' }); return c && { ...c, shown: c.shown.replace('×', ' pts') }; })(), spark: p.trend.map((s) => s.score), color: ink.bad, hint: "Everyone's risk tier on 0 to 100, averaged; lower is safer" },
+    { id: 'highRisk', label: 'People at high risk', value: pn.highRisk, format: num, unit: `${pc1(pn.highRisk / pn.people)} of people`, delta: (() => { const c = change(pn.highRisk, pb?.highRisk, { kind: 'min', better: 'down' }); return c && { ...c, shown: c.shown.replace(' min', '') }; })(), spark: p.trend.map((s) => s.highRisk), color: ink.bad, hint: 'People in the high and critical tiers: clicked more than once, or gave details away' },
+    { id: 'hooked', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'clicked', delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), spark: oldestFirst.map((c) => c.hooked), color: ink.bad, hint: 'Clicked, of the emails delivered, campaign by campaign' },
+    { id: 'reported', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'reported', delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), spark: oldestFirst.map((c) => c.reportRate), color: ink.good, hint: 'Reported, of the emails delivered, campaign by campaign' },
   ];
 
   const title = 'Insights';
   const exportItems = [
-    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(xlsxName('insights', `last ${days} days`), insightsBook(m, list, TRAINING, { title: `${title} · last ${days} days` })) },
+    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(xlsxName('insights', `last ${days} days`), insightsBook(m, list, TRAINING, { title: `${title} · last ${days} days`, p })) },
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
 
@@ -358,33 +359,26 @@ const Insights = () => {
   const body = {
     overview: (
       <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}>
-        <Card i={0} reduce={reduce} title="Reports for every click" sub="A fortnight at a time over six months · 2× and above is Protected" style={{ gridColumn: 'span 5' }} data-ins-trend>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
-            <TrendChart trend={m.trend} from={m.basis.from} end={m.basis.end} days={days} ink={ink} reduce={reduce} isDark={isDark} />
-          </div>
+        <RiskOverTime i={0} p={p} ink={ink} reduce={reduce} isDark={isDark} style={{ gridColumn: 'span 5' }} />
+        <WhereTheyStand i={1} p={p} ink={ink} isDark={isDark} reduce={reduce} style={{ gridColumn: 'span 4' }} compact />
+        <Spotlight i={2} m={m} ink={ink} reduce={reduce} isDark={isDark} onOpen={() => go('campaigns')} />
+        <Card i={3} reduce={reduce} title="What fools people" sub="Hook Rate by lure, the most convincing first" action={<GoTo label="Lures" onClick={() => go('lures')} data-ins-go="lures" />} style={{ gridColumn: 'span 5' }} data-ins-lures>
+          <Columns
+            items={m.lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `Hook Rate ${pc1(l.hooked)} · gave details ${pc(l.gaveOfClicks)} of clicks`, `Reported ${pc(l.reportRate)} · ${times(l.perClick)} reports per click`] }))}
+            color={ink.bad}
+            reduce={reduce}
+            label="clicked. See it on the Lures tab"
+            onOpen={(lure) => go('lures', { lure })}
+          />
         </Card>
-        <Card i={1} reduce={reduce} title="What fools people" sub="Hook Rate by lure, the most convincing first" action={<GoTo label="Lures" onClick={() => go('lures')} data-ins-go="lures" />} style={{ gridColumn: 'span 4' }} data-ins-lures>
-          <LureColumns lures={m.lures} ink={ink} reduce={reduce} onOpen={(lure) => go('lures', { lure })} />
-        </Card>
-        <Spotlight i={2} m={m} ink={ink} reduce={reduce} isDark={isDark} onOpen={() => go('response')} />
-        <Card
-          i={3}
-          reduce={reduce}
-          title="Campaign by campaign"
-          sub="Reports for every click · a dot for each half"
-          action={<span style={{ display: 'flex', gap: 12 }}>{['Protected', 'Holding', 'Exposed'].map((w) => <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 700, color: 'var(--text)' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: healthInk(w, ink) }} />{w}</span>)}</span>}
-          style={{ gridColumn: 'span 5' }}
-          data-ins-campaigns
-        >
-          <DotMatrix campaigns={oldestFirst} ink={ink} reduce={reduce} onOpen={(campaign) => go('response', { campaign, page: null })} />
-        </Card>
-        <StandsOut i={4} list={{ items: list, days }} ink={ink} isDark={isDark} reduce={reduce} onOpen={openFinding} />
-        <LearningCard i={5} m={m} ink={ink} reduce={reduce} onOpen={() => go('learning')} />
+        <StandsOut i={4} list={{ items: list.slice(0, 5), days }} ink={ink} isDark={isDark} reduce={reduce} onOpen={openFinding} />
+        <LearningCard i={5} m={m} p={p} ink={ink} reduce={reduce} onOpen={() => go('learning')} />
       </div>
     ),
+    people: <PeopleTab m={m} p={p} view={view} onView={patchView} ink={ink} reduce={reduce} isDark={isDark} />,
+    campaigns: <CampaignsTab m={m} view={view} onView={patchView} ink={ink} reduce={reduce} isDark={isDark} />,
     lures: <LuresTab m={m} view={view} onView={patchView} ink={ink} reduce={reduce} />,
-    response: <ResponseTab m={m} view={view} onView={patchView} ink={ink} reduce={reduce} />,
-    learning: <LearningTab m={m} training={TRAINING} view={view} onView={patchView} ink={ink} reduce={reduce} />,
+    learning: <LearningTab m={m} p={p} training={TRAINING} view={view} onView={patchView} ink={ink} reduce={reduce} isDark={isDark} />,
   };
 
   return (
@@ -412,8 +406,8 @@ const Insights = () => {
           {/* the arm: the period, the tabs and Export; under them, four measures */}
           <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP + 4}px 20px`, background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Segmented id="ins-period" label="Period" value={days} options={PERIODS} onChange={(d) => { setDays(d); setView((v) => ({ ...v, lurePage: 0, page: 0, campaign: null })); }} reduce={reduce} />
-              <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.basis.campaigns} campaigns · changes against the {days} days before</span>
+              <Segmented id="ins-period" label="Period" value={days} options={PERIODS} onChange={(d) => { setDays(d); setView((v) => ({ ...v, lurePage: 0, page: 0, campaign: null, deptPage: 0, ldeptPage: 0 })); }} reduce={reduce} />
+              <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.basis.campaigns} campaigns · {num(pn.people)} people · against the {days} days before</span>
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Segmented id="ins-tab" label="Insights" value={tab} options={TABS} onChange={(id) => go(id)} reduce={reduce} tabs />
                 <ExportMenu items={exportItems} />

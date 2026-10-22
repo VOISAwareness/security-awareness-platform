@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { insights, median, standsOut, summary } from './insights.js';
+import { arrival, insights, median, peopleInsights, standsOut, summary } from './insights.js';
 import { campaignReport } from './sampleReports.js';
-import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
+import { CAMPAIGNS, DEPTS, MOTIVATORS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
+import { organisation, riskScore } from './sampleOrganisation.js';
 
 const ITEMS = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((campaign) => ({ campaign, report: campaignReport(campaign, { depts: DEPTS, personAt: person }) }));
 const DAY = 86400000;
@@ -68,13 +69,62 @@ function monthDay(started) {
   return [MONTHS.indexOf(mon), Number(d)];
 }
 
-test('what stands out: a short list, each opening its lens, never advice', () => {
+const ORG = organisation({ end: insights(ITEMS).basis.end });
+
+test('months, motivators and departments add up to the period', () => {
+  const m = insights(ITEMS, { days: 60 });
+  assert.equal(m.months.length, 6);
+  assert.equal(m.months.at(-1).to, m.basis.end);
+  assert.ok(m.months.filter((x) => x.inPeriod).length === 2, 'sixty days is the last two months');
+  assert.equal(m.motivators.reduce((a, x) => a + x.campaigns, 0), m.now.campaigns);
+  assert.ok(m.motivators.every((x) => MOTIVATORS.includes(x.motivator)));
+  assert.ok(m.motivators.every((x, i, all) => i === 0 || all[i - 1].hooked >= x.hooked));
+  assert.equal(m.departments.reduce((a, d) => a + d.recipients, 0), m.now.delivered);
+  assert.ok(m.departments.every((d) => d.clickRate >= 0 && d.reportRate <= 1));
+  assert.ok(m.now.complaintRate > 0 && m.now.complaintRate < 0.01 && m.now.openRate > m.now.hooked);
+});
+
+test('arrival: the share of reports in only grows, from none to most within two hours', () => {
   const m = insights(ITEMS, { days: 30 });
-  const list = standsOut(m);
-  assert.ok(list.length >= 3 && list.length <= 5);
-  assert.ok(list.every((f) => ['lures', 'response'].includes(f.view) && f.focus && f.chip && f.title && f.title.length <= 32 && ['bad', 'good', 'watch'].includes(f.tone)));
+  const { curve, half, by15, by60, first } = m.arrival.now;
+  assert.equal(curve.length, 121);
+  assert.equal(curve[0].share, 0);
+  assert.ok(curve.every((p, i) => i === 0 || p.share >= curve[i - 1].share));
+  assert.ok(curve.at(-1).share > 0.6 && curve.at(-1).share <= 1);
+  assert.ok(half > first && half < 120 && by15 < 0.5 && by60 >= 0.5);
+  assert.equal(arrival([]).half, null);
+  assert.ok(m.arrival.before);
+});
+
+test('people: the period at its end against its start, and what happened in it', () => {
+  for (const days of [30, 60, 90]) {
+    const p = peopleInsights(ORG, { days });
+    const k = days / 30;
+    assert.equal(p.basis.steps, k);
+    assert.equal(p.now.people, ORG.at(-1).people);
+    assert.equal(p.before.people, ORG.at(-1 - k).people);
+    assert.equal(p.now.score, riskScore(ORG.at(-1).tiers));
+    assert.equal(p.now.improved, ORG.slice(-k).reduce((a, s) => a + s.improved, 0));
+    assert.equal(p.now.training.assigned, ORG.slice(-k).reduce((a, s) => a + s.training.assigned, 0));
+    assert.equal(p.before.training.assigned, ORG.slice(-2 * k, -k).reduce((a, s) => a + s.training.assigned, 0));
+    assert.equal(p.departments.reduce((a, d) => a + d.training.assigned, 0), p.now.training.assigned);
+    assert.ok(p.departments.every((d, i, all) => i === 0 || all[i - 1].score >= d.score), 'the riskiest first');
+    assert.equal(p.trend.filter((s) => s.inPeriod).length, k);
+  }
+});
+
+test('what stands out: a short list, the most telling first, each opening its tab, never advice', () => {
+  const m = insights(ITEMS, { days: 30 });
+  const p = peopleInsights(ORG, { days: 30 });
+  const alone = standsOut(m);
+  assert.ok(alone.length >= 3 && alone.every((f) => f.view !== 'people'), 'without people, no departments');
+  const list = standsOut(m, p);
+  assert.equal(list[0].id, 'riskiestDept');
+  assert.equal(list[0].focus, p.departments[0].name);
+  assert.ok(list.every((f) => ['people', 'lures', 'response'].includes(f.view) && f.focus && f.chip && f.title && f.title.length <= 32 && ['bad', 'good', 'watch'].includes(f.tone)));
   assert.ok(list.filter((f) => f.view === 'lures').every((f) => m.lures.some((l) => l.type === f.focus)));
   assert.ok(list.filter((f) => f.view === 'response').every((f) => m.campaigns.some((c) => c.id === f.focus)));
+  assert.ok(list.filter((f) => f.view === 'people').every((f) => p.departments.some((d) => d.name === f.focus)));
   const words = list.map((f) => `${f.title} ${f.sub}`).join(' ').toLowerCase();
   assert.ok(!/\b(should|must|recommend|consider)\b/.test(words), 'reports, never advises');
 });

@@ -40,6 +40,21 @@ export function change(now, before, { kind, better }) {
   return { dir, shown, good: dir === better };
 }
 
+// Risk tiers: low risk stays quiet; the three risk tiers run light to dark
+// red (checked as an ordered ramp on both themes). Always with their words.
+export const TIER_WORD = { low: 'Low', moderate: 'Moderate', high: 'High', critical: 'Critical' };
+export const TIER_RULE = {
+  low: 'Reported, and never clicked',
+  moderate: 'Clicked once, or never reported',
+  high: 'Clicked more than once',
+  critical: 'Gave details away',
+};
+export const tierInk = (isDark) => (isDark
+  ? { low: 'rgba(255,255,255,0.16)', moderate: '#963A3B', high: '#E2625C', critical: '#F7B0A9' }
+  : { low: '#D5DBE3', moderate: '#EBA09A', high: '#D9534F', critical: '#8E1C24' });
+// Opened, beside clicked (red) and reported (teal) on one chart.
+export const openInk = (isDark) => (isDark ? '#7C7FF2' : '#6366F1');
+
 const LURE_ICON = { 'Credential theft': KeyRound, 'Finance lure': Banknote, 'HR lure': Users, 'IT lure': Monitor, 'Event lure': CalendarDays, 'Delivery lure': Package, 'Business lure': Briefcase };
 export const lureIcon = (type) => LURE_ICON[type] || Mail;
 // "Finance lure" -> "Finance", "Credential theft" -> "Credentials", for tight labels
@@ -49,10 +64,12 @@ export const lureShort = (type) => (type === 'Credential theft' ? 'Credentials' 
 // slide between places, and a short blur-and-rise for what comes in.
 export const EASE = [0.22, 1, 0.36, 1];
 export const SPRING = { type: 'spring', stiffness: 520, damping: 42, mass: 0.9 };
+// A card pops in: it rises a little, grows to size and comes into focus,
+// one after another.
 export const rise = (reduce, i = 0) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 10, filter: reduce ? 'none' : 'blur(6px)' },
-  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-  transition: { duration: reduce ? 0.01 : 0.5, delay: reduce ? 0 : 0.05 * i, ease: EASE },
+  initial: { opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.96, filter: reduce ? 'none' : 'blur(8px)' },
+  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
+  transition: { duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.07 * i, ease: EASE },
 });
 export const swap = (reduce) => ({
   initial: { opacity: 0, y: reduce ? 0 : 10, filter: reduce ? 'none' : 'blur(8px)' },

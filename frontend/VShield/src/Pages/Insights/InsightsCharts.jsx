@@ -3,15 +3,14 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 
 import { useSize } from './useSize';
-import { EASE, SPRING, cardTitle, day, healthInk, lureShort, pc, pc1, rise, small, times } from './insightsUi';
+import { EASE, SPRING, TIER_RULE, TIER_WORD, cardTitle, rise, small } from './insightsUi';
 
 // Insights' building blocks: the bento card, the sliding switch, and the
-// four charts (tick-bar sparkline, trend line, lure columns, dot matrix).
-// Thin marks, hairline solid grids, a 2px surface ring on end dots; every
+// charts (tick-bar sparkline, line chart, rounded columns, the people grid,
+// how fast reports come in). Thin marks, hairline solid grids, a 2px surface
+// ring on end dots, a legend wherever there is more than one series; every
 // mark has a hover with its numbers, and every value is also in the tables
 // and the export. Text stays in the text inks; colour sits on the marks.
-
-const STEP = 14 * 86400000; // the trend's points are a fortnight apart
 
 /** A bento card: a title, a line under it, an action in the corner, then its body. */
 export function Card({ title, sub, action, children, i = 0, reduce, style, ...rest }) {
@@ -37,6 +36,19 @@ export function GoTo({ label, onClick, ...rest }) {
     <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: '1px solid var(--hair)', background: 'var(--base)', color: 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
       {label} <ArrowUpRight size={12} strokeWidth={2.6} aria-hidden />
     </button>
+  );
+}
+
+/** A legend: a short line or dot in each series' colour, then its name. */
+export function Legend({ items }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      {items.map((x) => (
+        <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 9.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+          <span aria-hidden style={{ width: x.line ? 14 : 8, height: x.line ? 3 : 8, borderRadius: 999, background: x.color, opacity: x.faint ? 0.45 : 1 }} />{x.label}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -82,11 +94,11 @@ function Tip({ x, y, w, children, edge }) {
 }
 const tipTitle = { fontSize: 10.5, fontWeight: 800, color: 'var(--text)' };
 const tipLine = { ...small, fontSize: 9.5, marginTop: 3 };
+const tipRow = { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, fontWeight: 700, color: 'var(--text)' };
 
 /**
- * A sparkline of ticks, one per campaign, oldest to newest, in the quiet
- * ink; the newest in `color` with a dot on top. From zero, so a tick's
- * height is its value.
+ * A sparkline of ticks, oldest to newest, in the quiet ink; the newest in
+ * `color` with a dot on top. From zero, so a tick's height is its value.
  */
 export function Barcode({ values, color, reduce, height = 26, label }) {
   const max = Math.max(...values.filter(Number.isFinite), 0.0001);
@@ -126,74 +138,82 @@ function smooth(pts) {
   }
   return d;
 }
+const monthOf = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
 
 /**
- * Reports for every click, a fortnight at a time: a line with a soft wash under it,
- * the period on show as a band, the newest week labelled. Hover a week for
- * its numbers.
+ * Lines over time on one axis: each series { id, label, color, values }
+ * (one value per point of `at`, null where there is none), the first with a
+ * soft wash under it if `area`; the period on show (`from` on) as a band;
+ * each line's newest value at its end. Hover a point for every series' value.
+ * `format` writes a value; `top` is the axis' top, `ticks` its lines.
  */
-export function TrendChart({ trend, from, end, days, ink, reduce, isDark }) {
+export function LineChart({ at, series, from, days, format, top, ticks, area = false, reduce, isDark, tipHead }) {
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
-  const L = 26; const R = 36; const T = 20; const B = 18;
+  const L = 30; const R = 40; const T = 20; const B = 18;
   const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
-  const start = trend[0].to - STEP;
+  const step = at.length > 1 ? at[1] - at[0] : 1;
+  const start = at[0] - step / 2; const end = at.at(-1);
   const x = (t) => L + ((t - start) / (end - start)) * pw;
-  const top = Math.max(3, Math.ceil(Math.max(0, ...trend.map((p) => p.perClick || 0)) + 0.2));
-  const y = (v) => T + ph - (Math.min(v, top) / top) * ph;
-  const pts = trend.filter((p) => p.perClick !== null).map((p) => [x(p.to), y(p.perClick), p]);
-  const line = smooth(pts.map(([a, b]) => [a, b]));
-  const area = pts.length ? `${line} L${pts.at(-1)[0]},${T + ph} L${pts[0][0]},${T + ph} Z` : '';
-  const last = pts.at(-1);
-  const months = trend.filter((p, i) => i === 0 || new Date(p.to).getUTCMonth() !== new Date(trend[i - 1].to).getUTCMonth()).slice(1);
-  const bandX = x(Math.max(from, start));
+  const y = (v) => T + ph - (Math.min(Math.max(v, 0), top) / top) * ph;
+  const lines = series.map((s) => ({ ...s, pts: at.map((t, i) => (Number.isFinite(s.values[i]) ? [x(t), y(s.values[i]), i] : null)).filter(Boolean) }));
+  const first = lines[0];
+  const bandX = Math.max(L, x(from));
   const onMove = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const mx = e.clientX - r.left;
-    let best = null;
-    pts.forEach((p) => { if (!best || Math.abs(p[0] - mx) < Math.abs(best[0] - mx)) best = p; });
+    const mx = e.clientX - e.currentTarget.getBoundingClientRect().left + L;
+    let best = 0;
+    at.forEach((t, i) => { if (Math.abs(x(t) - mx) < Math.abs(x(at[best]) - mx)) best = i; });
     setHover(best);
   };
+  // end labels never sit on top of each other
+  const ends = lines.filter((l) => l.pts.length).map((l) => ({ id: l.id, y: l.pts.at(-1)[1], text: format(l.values[l.pts.at(-1)[2]]) })).sort((a, b) => a.y - b.y);
+  ends.forEach((e, i) => { if (i && e.y - ends[i - 1].y < 12) e.y = ends[i - 1].y + 12; });
   return (
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
       {w > 0 && h > 0 && (
-        <svg width={w} height={h} role="img" aria-label={`Reports for every click, a fortnight at a time; the newest fortnight ${times(last?.[2].perClick)}`} style={{ display: 'block', overflow: 'visible' }}>
-          <defs>
-            <linearGradient id="ins-wash" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={ink.good} stopOpacity={isDark ? 0.28 : 0.18} />
-              <stop offset="100%" stopColor={ink.good} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <motion.rect initial={false} animate={{ x: bandX, width: Math.max(0, L + pw - bandX) }} transition={reduce ? { duration: 0 } : { duration: 0.6, ease: EASE }} y={T - 14} height={ph + 14} rx={8} fill="var(--band)" />
+        <svg width={w} height={h} role="img" aria-label={series.map((s) => `${s.label}: ${format(s.values.at(-1))} in the newest`).join('; ')} style={{ display: 'block', overflow: 'visible' }}>
+          {area && (
+            <defs>
+              <linearGradient id={`ins-wash-${first.id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={first.color} stopOpacity={isDark ? 0.26 : 0.16} />
+                <stop offset="100%" stopColor={first.color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+          )}
+          <motion.rect initial={false} animate={{ x: bandX, width: Math.max(0, L + pw - bandX + 6) }} transition={reduce ? { duration: 0 } : { duration: 0.6, ease: EASE }} y={T - 14} height={ph + 14} rx={8} fill="var(--band)" />
           <motion.text initial={false} animate={{ x: bandX + 8 }} transition={reduce ? { duration: 0 } : { duration: 0.6, ease: EASE }} y={T - 3} style={{ fontSize: 9, fontWeight: 800, fill: 'var(--muted)' }}>Last {days} days</motion.text>
-          {Array.from({ length: top + 1 }, (_, v) => (
+          {ticks.map((v) => (
             <g key={v}>
               <line x1={L} x2={L + pw} y1={y(v)} y2={y(v)} stroke="var(--grid)" strokeWidth={1} />
-              <text x={L - 7} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{v}×</text>
+              <text x={L - 7} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{format(v, true)}</text>
             </g>
           ))}
-          {months.map((p) => <text key={p.to} x={x(p.to)} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{new Date(p.to).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })}</text>)}
-          <motion.path d={area} fill="url(#ins-wash)" initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.5 }} />
-          <motion.path d={line} fill="none" stroke={ink.good} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 1.2, ease: EASE }} />
-          {last && (
-            <motion.g initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: reduce ? 0 : 1.1 }}>
-              <circle cx={last[0]} cy={last[1]} r={4.5} fill={ink.good} stroke="var(--base)" strokeWidth={2} />
-              <text x={last[0] + 9} y={last[1] + 3.5} style={{ fontSize: 10.5, fontWeight: 800, fill: 'var(--text)' }}>{times(last[2].perClick)}</text>
-            </motion.g>
-          )}
-          {hover && (
+          {at.map((t, i) => (i === 0 || new Date(t).getUTCMonth() !== new Date(at[i - 1]).getUTCMonth()) && <text key={t} x={x(t)} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{monthOf(t)}</text>)}
+          {area && first.pts.length > 1 && <motion.path d={`${smooth(first.pts)} L${first.pts.at(-1)[0]},${T + ph} L${first.pts[0][0]},${T + ph} Z`} fill={`url(#ins-wash-${first.id})`} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.5 }} />}
+          {lines.map((l, k) => (
+            <g key={l.id}>
+              <motion.path d={smooth(l.pts)} fill="none" stroke={l.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 1.1, delay: reduce ? 0 : 0.1 + 0.12 * k, ease: EASE }} />
+              {l.pts.length > 0 && <motion.circle cx={l.pts.at(-1)[0]} cy={l.pts.at(-1)[1]} r={4} fill={l.color} stroke="var(--base)" strokeWidth={2} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1 }} />}
+            </g>
+          ))}
+          {ends.map((e) => <motion.text key={e.id} x={L + pw + 9} y={e.y + 3.5} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1 }} style={{ fontSize: 10, fontWeight: 800, fill: 'var(--text)' }}>{e.text}</motion.text>)}
+          {hover !== null && (
             <g pointerEvents="none">
-              <line x1={hover[0]} x2={hover[0]} y1={T} y2={T + ph} stroke="var(--muted)" strokeOpacity={0.35} strokeWidth={1} />
-              <circle cx={hover[0]} cy={hover[1]} r={4.5} fill={ink.good} stroke="var(--base)" strokeWidth={2} />
+              <line x1={x(at[hover])} x2={x(at[hover])} y1={T} y2={T + ph} stroke="var(--muted)" strokeOpacity={0.35} strokeWidth={1} />
+              {lines.map((l) => Number.isFinite(l.values[hover]) && <circle key={l.id} cx={x(at[hover])} cy={y(l.values[hover])} r={4} fill={l.color} stroke="var(--base)" strokeWidth={2} />)}
             </g>
           )}
           <rect x={L} y={T - 14} width={pw} height={ph + 14} fill="transparent" onMouseMove={onMove} onMouseLeave={() => setHover(null)} />
         </svg>
       )}
-      {hover && (
-        <Tip x={hover[0]} y={hover[1]} w={w}>
-          <div style={tipTitle}>{times(hover[2].perClick)} reports per click</div>
-          <div style={tipLine}>Fortnight to {day(hover[2].to)} · {hover[2].campaigns} {hover[2].campaigns === 1 ? 'campaign' : 'campaigns'}</div>
+      {hover !== null && (
+        <Tip x={x(at[hover])} y={Math.min(...lines.map((l) => (Number.isFinite(l.values[hover]) ? y(l.values[hover]) : T + ph)))} w={w}>
+          <div style={tipTitle}>{tipHead(at[hover], hover)}</div>
+          {lines.map((l) => (
+            <div key={l.id} style={tipRow}>
+              <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: l.color }} />{l.label} <strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{format(l.values[hover])}</strong>
+            </div>
+          ))}
         </Tip>
       )}
     </div>
@@ -201,50 +221,49 @@ export function TrendChart({ trend, from, end, days, ink, reduce, isDark }) {
 }
 
 /**
- * The Hook Rate of each kind of lure as a column in its own rounded track,
- * the most convincing first and in full colour, the rest quieter. Hover for
- * the rest of its numbers; a click opens it on the Lures tab.
+ * Columns, each in its own rounded track, the biggest first and in full
+ * colour, the rest quieter: `items` are { key, label, value, text, tip }.
+ * Hover for its numbers; a click opens it.
  */
-export function LureColumns({ lures, ink, reduce, onOpen }) {
+export function Columns({ items, color, soft = 'var(--soft-bad)', reduce, onOpen, label }) {
   const [hover, setHover] = useState(null);
   const [box, { w }] = useSize();
-  const max = Math.max(...lures.map((l) => l.hooked || 0), 0.0001) * 1.22;
-  const n = lures.length;
+  const max = Math.max(...items.map((x) => x.value || 0), 0.0001) * 1.22;
+  const n = items.length;
+  const Tag = onOpen ? 'button' : 'div';
   return (
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', gap: 8, marginTop: 12 }} onMouseLeave={() => setHover(null)}>
-      {lures.map((l, i) => {
-        const hgt = `${((l.hooked || 0) / max) * 100}%`;
+      {items.map((x, i) => {
+        const hgt = `${((x.value || 0) / max) * 100}%`;
         return (
-          <button
-            key={l.type}
-            type="button"
+          <Tag
+            key={x.key}
+            {...(onOpen ? { type: 'button', onClick: () => onOpen(x.key) } : { tabIndex: 0 })}
             className="ins-col"
-            data-ins-lure-col={l.type}
-            aria-label={`${l.type}: Hook Rate ${pc1(l.hooked)}. See it on the Lures tab`}
+            data-ins-col={x.key}
+            aria-label={`${x.label}: ${x.text} ${label}`}
             onMouseEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
-            onClick={() => onOpen(l.type)}
-            style={{ flex: '1 1 0', minWidth: 0, maxWidth: 76, display: 'flex', flexDirection: 'column', gap: 7, padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+            style={{ flex: '1 1 0', minWidth: 0, maxWidth: 104, display: 'flex', flexDirection: 'column', gap: 7, padding: 0, border: 'none', background: 'none', cursor: onOpen ? 'pointer' : 'default' }}
           >
             <span className="ins-track" style={{ position: 'relative', flex: 1, minHeight: 0, width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 4, borderRadius: 14, background: 'var(--plate)' }}>
               <motion.span
                 initial={{ height: reduce ? hgt : '0%' }}
                 animate={{ height: hgt }}
                 transition={reduce ? { duration: 0 } : { ...SPRING, stiffness: 180, damping: 24, delay: 0.15 + 0.06 * i }}
-                style={{ position: 'relative', display: 'block', minHeight: 6, borderRadius: 10, background: i === 0 ? ink.bad : 'var(--soft-bad)' }}
+                style={{ position: 'relative', display: 'block', minHeight: 6, borderRadius: 10, background: i === 0 ? color : soft }}
               />
-              <span style={{ position: 'absolute', left: 0, right: 0, top: 8, textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: 'var(--text)' }}>{pc(l.hooked)}</span>
+              <span style={{ position: 'absolute', left: 0, right: 0, top: 8, textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: 'var(--text)' }}>{x.text}</span>
             </span>
-            <span style={{ ...small, fontSize: 9.5, fontWeight: 700, textAlign: 'center', color: i === 0 ? 'var(--text)' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lureShort(l.type)}</span>
-          </button>
+            <span style={{ ...small, fontSize: 9.5, fontWeight: 700, textAlign: 'center', color: i === 0 ? 'var(--text)' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
+          </Tag>
         );
       })}
-      {hover !== null && w > 0 && (
+      {hover !== null && w > 0 && items[hover].tip && (
         <Tip x={((hover + 0.5) / n) * w} y={30} w={w} edge={4}>
-          <div style={tipTitle}>{lures[hover].type}</div>
-          <div style={tipLine}>Hook Rate {pc1(lures[hover].hooked)} · gave details {pc(lures[hover].gaveOfClicks)} of clicks</div>
-          <div style={tipLine}>Reported {pc(lures[hover].reportRate)} · {times(lures[hover].perClick)} reports per click</div>
+          <div style={tipTitle}>{items[hover].tip[0]}</div>
+          {items[hover].tip.slice(1).map((line) => <div key={line} style={tipLine}>{line}</div>)}
         </Tip>
       )}
     </div>
@@ -252,69 +271,101 @@ export function LureColumns({ lures, ink, reduce, onOpen }) {
 }
 
 /**
- * Every campaign in the period as a column of dots, oldest to newest: one
- * dot for each half a report per click, coloured by its health; the rest of
- * the column in the quiet ink. Hover for its numbers; a click opens its race
- * on the Response tab.
+ * Everyone as a hundred squares, filled by risk tier in order (low first),
+ * each square one per cent of people. Hover a tier in the legend, or a
+ * square, to pick its squares out.
  */
-export function DotMatrix({ campaigns, ink, reduce, onOpen }) {
+export function PeopleGrid({ tiers, counts, colors, reduce, picked, onPick, size = 'md' }) {
+  const total = tiers.reduce((a, t) => a + (counts[t] || 0), 0) || 1;
+  // a hundred squares shared out by the largest remainder, so they add up
+  const raw = tiers.map((t) => ((counts[t] || 0) / total) * 100);
+  const cells = raw.map(Math.floor);
+  let left = 100 - cells.reduce((a, b) => a + b, 0);
+  raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { cells[i] += 1; left -= 1; } });
+  const squares = tiers.flatMap((t, i) => Array.from({ length: cells[i] }, () => t));
+  const gap = size === 'lg' ? 4 : 3;
+  return (
+    <div role="img" aria-label={tiers.map((t, i) => `${TIER_WORD[t]} ${cells[i]}%`).join(', ')} style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap, aspectRatio: '1', height: '100%', maxHeight: '100%', maxWidth: '100%' }}>
+      {squares.map((t, k) => {
+        const col = k % 10; const row = Math.floor(k / 10);
+        return (
+          <motion.span
+            key={k}
+            title={`${TIER_WORD[t]}: ${TIER_RULE[t].toLowerCase()}`}
+            onMouseEnter={() => onPick?.(t)}
+            onMouseLeave={() => onPick?.(null)}
+            initial={{ scale: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }}
+            animate={{ scale: 1, opacity: picked && picked !== t ? 0.25 : 1 }}
+            transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.15 + 0.022 * (col + row), ease: EASE }}
+            style={{ borderRadius: size === 'lg' ? 5 : 4, background: colors[t] }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * How fast reports come in: the share of all the reports in, minute by
+ * minute over the first two hours after the send, now (with a soft wash) and
+ * the period before (fainter); the minute half were in marked. Hover for
+ * the share in by any minute. `dark` draws it for the dark card, small.
+ */
+export function ArrivalChart({ now, before, color, reduce, isDark, mini = false, onDark = false }) {
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
-  const ROWS = 10; // 0.5× each, up to 5×
-  const n = campaigns.length;
-  const L = 22;
-  const colW = n ? (w - L) / n : 0;
-  const rowH = h / ROWS;
-  const s = Math.max(3, Math.min(9, colW * 0.6, rowH * 0.62));
+  const L = mini ? 0 : 34; const R = mini ? 0 : 12; const T = mini ? 6 : 14; const B = mini ? 2 : 18;
+  const pw = Math.max(0, w - L - R); const ph = Math.max(0, h - T - B);
+  const MAX = now.curve.length - 1;
+  const x = (t) => L + (t / MAX) * pw;
+  const y = (v) => T + ph - v * ph;
+  const path = (c) => smooth(c.filter((p, i) => i % 3 === 0 || i === MAX).map((p) => [x(p.t), y(p.share)]));
+  const ink = onDark ? (isDark ? '#0F172A' : '#FFFFFF') : color;
+  const half = now.half;
+  const onMove = (e) => setHover(Math.max(0, Math.min(MAX, Math.round(((e.clientX - e.currentTarget.getBoundingClientRect().left) / pw) * MAX))));
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 12 }}>
-      <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
-        {[1, 2, 3, 4, 5].map((v) => <span key={v} aria-hidden style={{ position: 'absolute', left: 0, width: L - 6, textAlign: 'right', top: h - v * 2 * rowH + rowH / 2, transform: 'translateY(-50%)', ...small, fontSize: 9, fontVariantNumeric: 'tabular-nums' }}>{v}×</span>)}
-        <div style={{ position: 'absolute', left: L, right: 0, top: 0, bottom: 0, display: 'flex' }}>
-          {w > 0 && campaigns.map((c, i) => {
-            const filled = Math.min(ROWS, Math.round((c.perClick || 0) / 0.5));
-            const color = healthInk(c.health?.word, ink);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                data-ins-dots={c.id}
-                aria-label={`${c.name}, started ${c.started}: ${times(c.perClick)} reports for every click, ${c.health?.word}. See its race`}
-                onMouseEnter={() => setHover(i)}
-                onFocus={() => setHover(i)}
-                onBlur={() => setHover(null)}
-                onClick={() => onOpen(c.id)}
-                style={{ flex: '1 1 0', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column-reverse', alignItems: 'center', padding: 0, border: 'none', borderRadius: 6, background: hover === i ? 'var(--track)' : 'transparent', cursor: 'pointer', transition: 'background .15s ease' }}
-              >
-                {Array.from({ length: ROWS }, (_, r) => (
-                  <span key={r} style={{ height: rowH, display: 'grid', placeItems: 'center' }}>
-                    <motion.span
-                      initial={{ scale: reduce ? 1 : 0, opacity: reduce ? 1 : 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.2 + 0.018 * i + 0.012 * r, ease: EASE }}
-                      style={{ display: 'block', width: s, height: s, borderRadius: 999, background: r < filled ? color : 'var(--tick)' }}
-                    />
-                  </span>
-                ))}
-              </button>
-            );
-          })}
-        </div>
-        {hover !== null && (
-          <Tip x={L + (hover + 0.5) * colW} y={h - Math.min(ROWS, Math.round((campaigns[hover].perClick || 0) / 0.5)) * rowH} w={w}>
-            <div style={tipTitle}>{campaigns[hover].name}</div>
-            <div style={tipLine}>{campaigns[hover].type} · started {campaigns[hover].started}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 10, fontWeight: 700, color: 'var(--text)' }}>
-              <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: healthInk(campaigns[hover].health?.word, ink) }} />
-              {times(campaigns[hover].perClick)} reports per click · {campaigns[hover].health?.word}
-            </div>
-          </Tip>
-        )}
-      </div>
-      <div aria-hidden style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', paddingLeft: L, marginTop: 6, ...small, fontSize: 9 }}>
-        <span>{campaigns[0]?.started}</span>
-        <span>{campaigns.at(-1)?.started}</span>
-      </div>
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      {w > 0 && h > 0 && (
+        <svg width={w} height={h} role="img" aria-label={`Half the reports were in by ${half} minutes; ${Math.round(now.by60 * 100)}% within the hour`} style={{ display: 'block', overflow: 'visible' }}>
+          <defs>
+            <linearGradient id={`ins-arrive-${mini ? 'm' : 'f'}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={ink} stopOpacity={onDark ? 0.28 : isDark ? 0.26 : 0.16} />
+              <stop offset="100%" stopColor={ink} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          {!mini && [0, 0.25, 0.5, 0.75, 1].map((v) => (
+            <g key={v}>
+              <line x1={L} x2={L + pw} y1={y(v)} y2={y(v)} stroke="var(--grid)" strokeWidth={1} />
+              <text x={L - 7} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{v * 100}%</text>
+            </g>
+          ))}
+          {!mini && [0, 15, 30, 60, 90, 120].map((t) => <text key={t} x={x(t)} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{t === 120 ? '2 h' : t === 60 ? '1 h' : `${t} min`}</text>)}
+          {before && !mini && <motion.path d={path(before.curve)} fill="none" stroke="var(--muted)" strokeOpacity={0.55} strokeWidth={1.5} strokeLinecap="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 1.1, ease: EASE }} />}
+          <motion.path d={`${path(now.curve)} L${x(MAX)},${y(0)} L${x(0)},${y(0)} Z`} fill={`url(#ins-arrive-${mini ? 'm' : 'f'})`} initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.6 }} />
+          <motion.path d={path(now.curve)} fill="none" stroke={ink} strokeWidth={2} strokeLinecap="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 1.2, delay: reduce ? 0 : 0.15, ease: EASE }} />
+          {half !== null && (
+            <motion.g initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1 }}>
+              <line x1={x(half)} x2={x(half)} y1={y(0.5)} y2={y(0)} stroke={ink} strokeOpacity={0.5} strokeWidth={1} />
+              <circle cx={x(half)} cy={y(0.5)} r={4.5} fill={ink} stroke={onDark ? (isDark ? '#FFFFFF' : '#111217') : 'var(--base)'} strokeWidth={2} />
+              {!mini && <text x={x(half) + 9} y={y(0.5) + 4} style={{ fontSize: 10, fontWeight: 800, fill: 'var(--text)' }}>Half in by {half} min</text>}
+            </motion.g>
+          )}
+          {!mini && hover !== null && (
+            <g pointerEvents="none">
+              <line x1={x(hover)} x2={x(hover)} y1={T} y2={T + ph} stroke="var(--muted)" strokeOpacity={0.35} strokeWidth={1} />
+              <circle cx={x(hover)} cy={y(now.curve[hover].share)} r={4} fill={ink} stroke="var(--base)" strokeWidth={2} />
+            </g>
+          )}
+          {!mini && <rect x={L} y={T} width={pw} height={ph} fill="transparent" onMouseMove={onMove} onMouseLeave={() => setHover(null)} />}
+        </svg>
+      )}
+      {!mini && hover !== null && (
+        <Tip x={x(hover)} y={y(now.curve[hover].share)} w={w}>
+          <div style={tipTitle}>By {hover} min after the send</div>
+          <div style={tipRow}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: ink }} />This period <strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{Math.round(now.curve[hover].share * 100)}% in</strong></div>
+          {before && <div style={tipRow}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--muted)', opacity: 0.6 }} />The period before <strong style={{ marginLeft: 'auto', paddingLeft: 12 }}>{Math.round(before.curve[hover].share * 100)}% in</strong></div>}
+        </Tip>
+      )}
     </div>
   );
 }
