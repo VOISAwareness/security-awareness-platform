@@ -20,6 +20,7 @@ import ReportsChart from '../../assets/LeaderboardAssets/ReportsChart.png';
 import { BigPictureSheet, BigPictureTeaser } from './BigPicture';
 import { CampaignList } from './CampaignList';
 import { PointsPlate } from './PointsPlate';
+import { CAMPAIGNS, DEPTS, person } from '../../services/sampleCampaigns';
 import { campaignReport } from '../../services/sampleReports';
 import { bigPicture } from '../../services/bigPicture';
 
@@ -126,27 +127,7 @@ const FONT_IMPORT = `
 
 // --- sample data -------------------------------------------------------------
 
-const FIRST = ['Aditi', 'David', 'Noura', 'Priya', 'Marco', 'Sara', 'Liang', 'Tom', 'Elena', 'Omar', 'Mei', 'Yuki',
-  'Hassan', 'Lena', 'Raj', 'Sofia', 'Kwame', 'Ana', 'Ivan', 'Chloe', 'Ben', 'Fatima', 'Noah', 'Grace'];
-const LAST = ['Rao', 'Kim', 'Ali', 'Nair', 'Bellini', 'Nasser', 'Wei', 'Okafor', 'Petrova', 'Haddad', 'Chen', 'Tanaka',
-  'Mensah', 'Fischer', 'Patel', 'Rossi', 'Silva', 'Dubois', 'Carter', 'Zahra', 'Weber', 'Lee', 'Novak', 'Iyer'];
-// The same departments as the people directory (MasterUserData.json), so a
-// campaign's Top departments shows the company's departments, yours included.
-const DEPTS = [
-  'AIDA', 'CARE', 'Finance Operations', 'Network Engineering', 'Supply Chain Management', 'Cyber Security',
-  'Cloud Infrastructure', 'IT Operations', 'Procurement', 'Human Resources', 'Legal & Compliance', 'Sales & Enterprise',
-  'Digital Products', 'Marketing & Communications', 'Executive Board', 'IT Security',
-];
-
-// 24 x 24 distinct first/last pairs (5 is coprime with 24, so no repeats
-// until index 576).
-function person(i) {
-  const a = i % FIRST.length;
-  const b = Math.floor(i / FIRST.length);
-  const first = FIRST[a];
-  const last = LAST[(a + b * 5) % LAST.length];
-  return { name: `${first} ${last}`, dept: DEPTS[(i * 7 + b) % DEPTS.length], initials: `${first[0]}${last[0]}` };
-}
+// FIRST, LAST, DEPTS and person() live in services/sampleCampaigns.js, shared with Mission Control.
 
 // Every participant, ranked. Points fall off steeply at the top and flatten
 // out down the field, the way a real leaderboard does.
@@ -166,48 +147,8 @@ function buildBoard(seed, total) {
 }
 
 
-const NAMED_CAMPAIGNS = [
-  { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1 },
-  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance lure', started: '5 Oct', total: 1860, youRank: 7, seed: 2 },
-  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT lure', started: '4 Oct', total: 3120, youRank: 21, seed: 3 },
-  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR lure', started: '2 Oct', total: 980, youRank: 4, seed: 4 },
-  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT lure', started: '1 Oct', total: 2240, youRank: 13, seed: 5 },
-  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance lure', started: '29 Sep', total: 1440, youRank: 18, seed: 6 },
-  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR lure', started: '27 Sep', total: 1710, youRank: 9, seed: 7 },
-  { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8 },
-];
+// The sample campaigns (CAMPAIGNS) live in services/sampleCampaigns.js too.
 
-const LURES = [
-  ['Password Expiry Warning', 'Credential theft'], ['Shared Document Request', 'Credential theft'],
-  ['Parcel Delivery Failed', 'Delivery lure'], ['Expense Claim Rejected', 'Finance lure'],
-  ['MFA Reset Required', 'Credential theft'], ['Annual Bonus Letter', 'HR lure'],
-  ['IT Asset Audit', 'IT lure'], ['Conference Invitation', 'Event lure'],
-  ['Salary Revision', 'HR lure'], ['Security Patch Install', 'IT lure'],
-  ['Wire Transfer Approval', 'Finance lure'], ['Holiday Calendar 2027', 'HR lure'],
-  ['OneDrive Storage Full', 'IT lure'], ['Customer Complaint Escalation', 'Business lure'],
-];
-const REGIONS = ['EMEA', 'APAC', 'Americas'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// 42 more so the rail has a realistic 50 ongoing campaigns to scroll through,
-// one every two days back over the quarter, so 30, 60 and 90 days differ.
-const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_, k) => {
-  const [lure, type] = LURES[k % LURES.length];
-  const region = REGIONS[Math.floor(k / LURES.length)];
-  const started = new Date(Date.UTC(2026, 8, 22 - 2 * k));
-  const total = 600 + ((k * 397) % 2600);
-  return {
-    id: `CMP-${(((k + 1) * 2654435761) >>> 0).toString(16).slice(0, 6)}`,
-    name: `${lure} (${region})`,
-    type,
-    started: `${started.getUTCDate()} ${MONTHS[started.getUTCMonth()]}`,
-    total,
-    youRank: 4 + ((k * 11) % 26),
-    seed: 9 + k,
-  };
-});
-
-const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS];
 
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
