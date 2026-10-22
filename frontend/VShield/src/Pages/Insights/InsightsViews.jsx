@@ -7,7 +7,7 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, Staircase, TileMap } from './InsightsCharts';
+import { Blocks, Card, CompareBars, Insight, Legend, PillColumns, RingGauge, RiskRing, Staircase, TileMap } from './InsightsCharts';
 import { Explain, Fill, HealthChip, LureTile, PerClickHow } from './InsightsBits';
 import { EASE, TIER_WORD, TINT, change, day, didParts, eyebrow, lureShort, num, pc, pc1, riskBands, small, times } from './insightsUi';
 
@@ -167,51 +167,6 @@ export function OverviewView({ ctx, list }) {
 
 // ---------------------------------------------------------- departments
 
-// Who got safer and who got riskier over the period: a bar either side of
-// zero for each department, the most improved first; each row opens its
-// profile.
-function ChangeRows({ rows, ink, isDark, open }) {
-  const most = Math.max(...rows.map((r) => Math.abs(r.delta)), 0.1);
-  return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', gap: 10, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800 }}>
-        <span />
-        <span>Department · risk now</span>
-        <span style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: ink.good }} />← Safer</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>Riskier →<span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: ink.bad }} /></span></span>
-        <span style={{ textAlign: 'right' }}>Change</span>
-        <span />
-      </div>
-      {rows.map((r, k) => {
-        const wd = `${(Math.abs(r.delta) / most) * 50}%`;
-        const tone = r.delta < -0.05 ? ink.good : r.delta > 0.05 ? ink.bad : 'var(--muted)';
-        return (
-          <motion.button
-            key={r.name}
-            type="button"
-            className="ins-row ins-in-x"
-            data-ins-change={r.name}
-            onClick={() => open('department', r.name)}
-            aria-label={`${r.name}: risk score ${r.score.toFixed(1)}, ${r.delta <= 0 ? 'down' : 'up'} ${Math.abs(r.delta).toFixed(1)} points. Open its profile`}
-            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) minmax(0,1.25fr) 50px 12px', alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
-          >
-            <DeptCrest code={deptCode(r.name)} size={24} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-            <span style={{ minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-              <span style={{ display: 'block', ...small, fontSize: 8.5, marginTop: 1 }}>Risk score {r.score.toFixed(1)}</span>
-            </span>
-            <span aria-hidden style={{ position: 'relative', height: 12 }}>
-              <span style={{ position: 'absolute', left: '50%', top: -4, bottom: -4, width: 1, background: 'var(--hair-strong)' }} />
-              <span className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, position: 'absolute', top: 0, height: 12, width: wd, [r.delta < 0 ? 'right' : 'left']: '50%', transformOrigin: r.delta < 0 ? 'right' : 'left', minWidth: 3, borderRadius: r.delta < 0 ? '6px 2px 2px 6px' : '2px 6px 6px 2px', background: tone, transition: 'width .5s ease' }} />
-            </span>
-            <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{Math.abs(r.delta) < 0.05 ? '0.0' : `${r.delta < 0 ? '−' : '+'}${Math.abs(r.delta).toFixed(1)}`}</span>
-            <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
-          </motion.button>
-        );
-      })}
-    </div>
-  );
-}
-
 // Reported against clicked, a row per department: an orange dot where its
 // clicks sit, a teal dot where its reports sit, on one scale, joined; the
 // best habit (most reports over clicks) first. Each row grows into the
@@ -272,14 +227,22 @@ export function DepartmentsView({ ctx }) {
   const { m, p, ink, isDark, reduce, open } = ctx;
   const camp = Object.fromEntries(m.departments.map((d) => [d.name, d]));
   const habits = p.departments.filter((d) => camp[d.name]?.recipients).map((d) => ({ name: d.name, clicked: camp[d.name].clickRate, reported: camp[d.name].reportRate })).sort((a, b) => (b.reported - b.clicked) - (a.reported - a.clicked) || a.name.localeCompare(b.name));
-  const rows = p.departments.map((d) => ({ name: d.name, score: d.score, delta: d.score - (d.scoreBefore ?? d.score) })).sort((a, b) => a.delta - b.delta || a.name.localeCompare(b.name));
+  const ring = p.departments.filter((d) => Number.isFinite(d.scoreBefore)).map((d) => ({ key: d.name, label: d.name, code: deptCode(d.name), now: d.score, before: d.scoreBefore }));
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
       <Card i={0} reduce={reduce} title="How each department behaves" sub={`Reported against clicked, last ${m.basis.days} days · gap: reported minus clicked · best first`} action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
         <HabitRows rows={habits} ink={ink} isDark={isDark} open={open} />
       </Card>
-      <Card i={1} reduce={reduce} title="Who got safer, who got riskier" sub={`Change in risk score over the last ${m.basis.days} days · each opens its profile`} style={{ gridColumn: 'span 5' }} data-ins-movers>
-        <ChangeRows rows={rows} ink={ink} isDark={isDark} open={open} />
+      <Card i={1} reduce={reduce} title="Who got safer, who got riskier" sub={`Each department's risk score, now and ${m.basis.days} days ago · closer to the centre is safer`} action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 5' }} data-ins-movers>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
+          <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} />
+        </div>
+        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', marginTop: 8, ...small, fontSize: 9 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, border: `1.5px solid ${ink.neutral}`, boxSizing: 'border-box' }} />{m.basis.days} days ago</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--muted)' }} />now</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 14, borderTop: '1.5px dashed var(--text)', opacity: 0.6 }} />the company</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 10, height: 8, borderRadius: 3, background: ink.bad, opacity: 0.3 }} />moderate risk, 20 and over</span>
+        </div>
       </Card>
     </div>
   );
