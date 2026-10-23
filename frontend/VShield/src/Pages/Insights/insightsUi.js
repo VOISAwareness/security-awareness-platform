@@ -22,7 +22,9 @@ export const day = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeri
 // Slate is the quiet neutral: averages, things that are only a measure.
 export const STEADY_INK = '#94A3B8';
 export const healthInk = (word, ink) => (word === 'Protected' ? ink.good : word === 'Exposed' ? ink.alert : ink.bad);
-export const HEALTH_RULE = 'Protected: 2 or more reports for every click · Holding: at least 1 · Exposed: fewer reports than clicks';
+// The words the page shows: the service's "Exposed" reads as "Not protected".
+export const HEALTH_WORD = { Protected: 'Protected', Holding: 'Holding', Exposed: 'Not protected' };
+export const HEALTH_RULE = 'Protected: 2 or more reports for every click · Holding: at least 1 · Not protected: fewer reports than clicks';
 
 /**
  * A change against the period before, as a chip says it: the arrow, the

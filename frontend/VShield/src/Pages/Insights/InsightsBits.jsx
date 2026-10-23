@@ -4,7 +4,7 @@ import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Info } from 'lucide-react';
 
 import { Chip } from '../Leaderboard/BigPictureTables';
-import { EASE, HEALTH_RULE, STEADY_INK, eyebrow, healthInk, heads, lureIcon, num, pc, small, times } from './insightsUi';
+import { EASE, HEALTH_RULE, HEALTH_WORD, STEADY_INK, eyebrow, healthInk, heads, lureIcon, num, pc, small, times } from './insightsUi';
 
 // Small pieces Insights' views and profiles share: a change on a chip, a
 // health chip, a lure's icon tile, a thin labelled bar, column names, a
@@ -21,10 +21,10 @@ export function Delta({ c, ink, title, onDark = false }) {
   );
 }
 
-/** Health (Protected, Holding, Exposed) on a chip, its rule on hover. */
-export function HealthChip({ h, ink, width = 92 }) {
+/** Health (Protected, Holding, Not protected) on a chip, its rule on hover. */
+export function HealthChip({ h, ink, width = 112 }) {
   if (!h) return <span style={small}>—</span>;
-  return <Chip color={healthInk(h.word, ink)} width={width} title={`Reported ${pc(h.reportRate)} of emails · clicked ${pc(h.clickRate)}. ${HEALTH_RULE}`}>{h.word}</Chip>;
+  return <Chip color={healthInk(h.word, ink)} width={width} title={`Reported ${pc(h.reportRate)} of emails · clicked ${pc(h.clickRate)}. ${HEALTH_RULE}`}>{HEALTH_WORD[h.word] ?? h.word}</Chip>;
 }
 
 const LureIcon = ({ type, ...props }) => createElement(lureIcon(type), props);
@@ -157,7 +157,7 @@ export function PerClickHow({ n, days, campaigns, ink }) {
   const rules = [
     ['Protected', ink.good, '2 or more: at least two people raise the alarm for everyone caught out'],
     ['Holding', ink.bad, '1 to 2: as many report it as click it, or more'],
-    ['Exposed', ink.alert, 'below 1: more people click it than report it'],
+    ['Not protected', ink.alert, 'below 1: more people click it than report it'],
   ];
   return (
     <>

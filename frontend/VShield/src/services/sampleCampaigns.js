@@ -4,6 +4,8 @@
  * Everything is fixed, so the same screen shows the same numbers every time.
  */
 
+import { climate } from './sampleStory.js';
+
 const FIRST = ['Aditi', 'David', 'Noura', 'Priya', 'Marco', 'Sara', 'Liang', 'Tom', 'Elena', 'Omar', 'Mei', 'Yuki',
   'Hassan', 'Lena', 'Raj', 'Sofia', 'Kwame', 'Ana', 'Ivan', 'Chloe', 'Ben', 'Fatima', 'Noah', 'Grace'];
 const LAST = ['Rao', 'Kim', 'Ali', 'Nair', 'Bellini', 'Nasser', 'Wei', 'Okafor', 'Petrova', 'Haddad', 'Chen', 'Tanaka',
@@ -71,12 +73,12 @@ const MORE_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length }, (_,
 export const MOTIVATORS = Object.freeze(['Urgency', 'Authority', 'Reward', 'Curiosity', 'Fear']);
 const motivated = (c, k) => ({ ...c, motivator: MOTIVATORS[(k * 3 + c.seed) % MOTIVATORS.length] });
 
-export const CAMPAIGNS = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS].map(motivated);
+const ONGOING = [...NAMED_CAMPAIGNS, ...MORE_CAMPAIGNS].map(motivated);
 
 // Campaigns that ended, one every two days through the quarter before
 // (from 30 Jun back), so Insights can set a period against the one before
 // it and draw six months of trend. Not on the Leaderboard's lists.
-export const PAST_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length + 4 }, (_, k) => {
+const ENDED = Array.from({ length: LURES.length * REGIONS.length + 4 }, (_, k) => {
   const [lure, type] = LURES[(k * 5 + 3) % LURES.length];
   const region = REGIONS[k % REGIONS.length];
   const started = new Date(Date.UTC(2026, 5, 30 - 2 * k));
@@ -89,3 +91,12 @@ export const PAST_CAMPAIGNS = Array.from({ length: LURES.length * REGIONS.length
     seed: 60 + k,
   };
 }).map(motivated);
+
+// The sample's story (sampleStory.js): each campaign is drawn around the
+// click and report rates of its month, counted back from the newest one.
+const dayOf = (started) => { const [d, m] = started.split(' '); return Date.UTC(2026, MONTHS.indexOf(m), Number(d)); };
+const NEWEST = Math.max(...[...ONGOING, ...ENDED].map((c) => dayOf(c.started)));
+const storied = (c) => ({ ...c, climate: climate((NEWEST - dayOf(c.started)) / 86400000) });
+
+export const CAMPAIGNS = ONGOING.map(storied);
+export const PAST_CAMPAIGNS = ENDED.map(storied);

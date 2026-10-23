@@ -16,6 +16,7 @@
  */
 import { DEPTS } from './sampleCampaigns.js';
 import { lean } from './sampleReports.js';
+import { exposure } from './sampleStory.js';
 
 export const TIERS = Object.freeze(['low', 'moderate', 'high', 'critical']);
 export const TIER_WEIGHT = Object.freeze({ low: 0, moderate: 1 / 3, high: 2 / 3, critical: 1 });
@@ -50,15 +51,21 @@ export function riskScore(tiers) {
  */
 export function organisation({ end, steps = 12, depts = DEPTS } = {}) {
   return Array.from({ length: steps }, (_, i) => {
-    const r = random(7919 * (i + 3));
-    const t = steps > 1 ? i / (steps - 1) : 1; // 0 at the oldest step, 1 at the newest
+    // seeded by how far back the step is, so a month shows the same numbers
+    // however many months are asked for
+    const back = steps - 1 - i;
+    const age = back * STEP_DAYS;
+    const r = random(7919 * (back + 3));
+    const t = Math.max(0, 1 - age / 720); // training: steady progress over two years
+    const q = exposure(age); // risk: the sample's story (sampleStory.js), 0 the best
+    const dq = q - exposure(age + STEP_DAYS); // how much riskier people got during the step
     const wobble = (size) => (r() - 0.5) * 2 * size;
     const departments = depts.map((name, d) => {
-      const people = Math.round(820 * lean(`${name}#size`, 1.3) + 6 * i);
+      const people = Math.round(820 * lean(`${name}#size`, 1.3) + 6 * Math.max(0, 24 - back)); // a few join each month
       const risky = lean(`${name}#risk`, 0.9); // some teams sit higher than others
-      const critical = Math.max(0, (0.042 - 0.016 * t + wobble(0.004)) * risky);
-      const high = Math.max(0, (0.118 - 0.034 * t + wobble(0.008)) * risky);
-      const moderate = Math.max(0, (0.30 - 0.035 * t + wobble(0.01)) * (0.85 + 0.3 * risky / 1.45));
+      const critical = Math.max(0, (0.026 + 0.016 * q + wobble(0.004)) * risky);
+      const high = Math.max(0, (0.084 + 0.034 * q + wobble(0.008)) * risky);
+      const moderate = Math.max(0, (0.265 + 0.035 * q + wobble(0.01)) * (0.85 + 0.3 * risky / 1.45));
       const tiers = { critical: Math.round(people * critical), high: Math.round(people * high), moderate: Math.round(people * moderate) };
       tiers.low = people - tiers.critical - tiers.high - tiers.moderate;
       const learner = lean(`${name}#learn`, 0.5);
@@ -69,13 +76,13 @@ export function organisation({ end, steps = 12, depts = DEPTS } = {}) {
       const quizScore = Math.min(96, 68 + 9 * learner + 5 * t + wobble(2));
       // who has finished their training, and how often each side clicked
       // in the simulations (drawn apart, so the numbers above stay put)
-      const rc = random(104729 * (i + 3) + d);
+      const rc = random(104729 * (back + 3) + d);
       const trained = Math.round(people * Math.min(0.94, (0.56 + 0.26 * t + (rc() - 0.5) * 0.04) * (0.9 + 0.1 * learner)));
       const cohorts = {
         trained,
         untrained: people - trained,
-        trainedClicks: Math.round(trained * (0.092 - 0.018 * t + (rc() - 0.5) * 0.012) * risky),
-        untrainedClicks: Math.round((people - trained) * (0.212 - 0.02 * t + (rc() - 0.5) * 0.02) * risky),
+        trainedClicks: Math.round(trained * (0.074 + 0.018 * q + (rc() - 0.5) * 0.012) * risky),
+        untrainedClicks: Math.round((people - trained) * (0.192 + 0.02 * q + (rc() - 0.5) * 0.02) * risky),
       };
       return {
         name,
@@ -97,8 +104,9 @@ export function organisation({ end, steps = 12, depts = DEPTS } = {}) {
       people,
       tiers,
       cohorts,
-      improved: Math.round(people * (0.064 + 0.012 * t + wobble(0.006))),
-      slipped: Math.round(people * (0.05 - 0.01 * t + wobble(0.005))),
+      // as many move each way, plus those the story moved: down as risk falls, up as it rises
+      improved: Math.round(people * (0.052 + 0.12 * Math.max(0, -dq) + wobble(0.003))),
+      slipped: Math.round(people * (0.052 + 0.12 * Math.max(0, dq) + wobble(0.003))),
       drivers: {
         repeatClickers: Math.round(tiers.high * (0.82 + r() * 0.1)),
         neverReported: Math.round(tiers.moderate * (0.42 + r() * 0.08)),
