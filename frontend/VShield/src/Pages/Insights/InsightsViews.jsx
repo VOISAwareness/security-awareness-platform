@@ -10,7 +10,7 @@ import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.
 import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, RiskRing, Segmented, Staircase, TileMap } from './InsightsCharts';
 import { Define, Explain, Heads, HealthChip, InlineBar, LureIcon, LureTile, PerClickHow, RowsGrid } from './InsightsBits';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { EASE, SPANS, TIER_WORD, TINT, cardTitle, change, day, didParts, heads, lureShort, num, pc, pc1, riskBands, small, tierInk, times } from './insightsUi';
+import { EASE, HEAD_H, SPANS, TIER_WORD, TINT, cardTitle, change, day, didParts, heads, lureShort, num, pc, pc1, riskBands, small, tierInk, times, TYPE } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
@@ -57,7 +57,7 @@ export function OverviewView({ ctx, list }) {
         </div>
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           <Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} />
-          <span style={{ marginLeft: 'auto', ...small, fontSize: 9.5 }}>{dc ? <>Last {p.basis.days} days: <strong style={{ color: 'var(--text)' }}>{dc.dir === 'down' ? 'down' : dc.dir === 'up' ? 'up' : 'steady'}{dc.dir === 'flat' ? '' : ` ${dc.shown}`}</strong></> : null}</span>
+          <span style={{ marginLeft: 'auto', ...small }}>{dc ? <>Last {p.basis.days} days: <strong style={{ color: 'var(--text)' }}>{dc.dir === 'down' ? 'down' : dc.dir === 'up' ? 'up' : 'steady'}{dc.dir === 'flat' ? '' : ` ${dc.shown}`}</strong></> : null}</span>
         </div>
       </Card>
 
@@ -74,7 +74,7 @@ export function OverviewView({ ctx, list }) {
             tip={(t) => { const d = p.departments.find((x) => x.name === t.key); return [d.name, `Risk Score ${scoreText(d.score)} · ${num(d.highRisk)} at high risk`, `${num(d.people)} people · open its profile`]; }}
           />
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, ...small, fontSize: 9 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, ...small }}>
           {bands.tiers.map((t, k) => <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: t.color }} /><strong style={{ color: 'var(--text)', fontWeight: 700 }}>{TIER_WORD[t.key]}</strong>{['under 20', '20–35', '35–60', '60+'][k]}</span>)}
         </div>
       </Card>
@@ -86,18 +86,18 @@ export function OverviewView({ ctx, list }) {
         initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
-        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
+        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
       >
-        <header style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <header style={{ position: 'relative', flexShrink: 0, height: HEAD_H, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={cardTitle}>Reports per click</span>
-          <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ marginLeft: 'auto', height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 10px 0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ marginLeft: 'auto', height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 10px 0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             See campaigns <ArrowUpRight size={12} strokeWidth={2.6} aria-hidden />
           </button>
         </header>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
           <span style={{ minWidth: 0 }}>
-            <span className="vs-rank ins-big" style={{ display: 'block', fontSize: 42, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, marginTop: 6 }}>
+            <span className="vs-rank ins-big" style={{ display: 'block', fontSize: TYPE.display, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: TYPE.body, fontWeight: 700, marginTop: 6 }}>
               reports for every click
               <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
             </span>
@@ -135,10 +135,10 @@ export function OverviewView({ ctx, list }) {
             >
               <ToneArt tone={f.tone} isDark={isDark} />
               <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 11, fontWeight: 800, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.title}</span>
-                <span style={{ display: 'block', ...small, fontSize: 9, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.sub}</span>
+                <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 800, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.title}</span>
+                <span style={{ display: 'block', ...small, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.sub}</span>
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, background: f.tone === 'good' ? 'var(--good-soft)' : f.tone === 'bad' ? 'var(--bad-soft)' : 'var(--chip)', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, background: f.tone === 'good' ? 'var(--good-soft)' : f.tone === 'bad' ? 'var(--bad-soft)' : 'var(--chip)', fontSize: TYPE.small, fontWeight: 800, whiteSpace: 'nowrap' }}>
                 <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: f.tone === 'good' ? ink.good : f.tone === 'bad' ? ink.bad : 'var(--muted)' }} />{f.chip}
               </span>
               <ChevronRight className="ins-arrow" size={14} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
@@ -152,15 +152,15 @@ export function OverviewView({ ctx, list }) {
         {c && (
           <>
             <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
-              <span className="vs-rank" style={{ fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
-              <span style={{ fontSize: 10.5, fontWeight: 700 }}>less likely to click once trained</span>
+              <span className="vs-rank" style={{ fontSize: TYPE.hero, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
+              <span style={{ fontSize: TYPE.body, fontWeight: 700 }}>less likely to click once trained</span>
             </span>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
               <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={24} />
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
               <RingGauge value={c.trainedShare * 100} size={36} stroke={4} color={ink.good} reduce={reduce} label={`${pc(c.trainedShare)} trained`} />
-              <span style={{ ...small, fontSize: 9.5 }}><strong style={{ color: 'var(--text)' }}>{pc(c.trainedShare)}</strong> of people have completed their training</span>
+              <span style={{ ...small }}><strong style={{ color: 'var(--text)' }}>{pc(c.trainedShare)}</strong> of people have completed their training</span>
             </div>
           </>
         )}
@@ -204,7 +204,7 @@ function DeptBoard({ rows, types, cells, ink, isDark, open, active, onActive, pa
         <span>Department</span>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Reported vs clicked <Define term="reportedVsClicked" /></span>
-          <span aria-hidden style={{ position: 'relative', height: 10, fontSize: 7.5, fontWeight: 700, letterSpacing: 0 }}>
+          <span aria-hidden style={{ position: 'relative', height: 10, fontSize: TYPE.label, fontWeight: 700, letterSpacing: 0 }}>
             {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: x(t), transform: t === 0 ? 'none' : t === top ? 'translateX(-100%)' : 'translateX(-50%)' }}>{Math.round(t * 100)}%</span>)}
           </span>
         </span>
@@ -237,23 +237,23 @@ function DeptBoard({ rows, types, cells, ink, isDark, open, active, onActive, pa
               style={{ '--d': `${Math.min(0.06 + 0.015 * k, 0.3)}s`, flex: '1 1 0', minHeight: BOARD_ROW, maxHeight: 38, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 8, background: on ? 'var(--track)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
             >
               <DeptCrest code={deptCode(r.name)} size={20} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-              <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+              <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
               <span aria-hidden style={{ position: 'relative', height: 12 }}>
                 {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: x(t), top: -4, bottom: -4, width: 1, background: 'var(--grid)' }} />)}
                 <span style={{ position: 'absolute', top: 4, height: 4, left: x(lo), width: x(hi - lo), borderRadius: 999, background: (r.reported ?? 0) >= (r.clicked ?? 0) ? 'var(--soft-good)' : 'var(--soft-bad)' }} />
                 {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => <span key={key} style={{ position: 'absolute', top: 1, left: x(r[key]), width: 10, height: 10, marginLeft: -5, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />)}
               </span>
-              <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: 8, marginLeft: 2 }}>pts</span></span>
+              <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: TYPE.label, marginLeft: 2 }}>pts</span></span>
               <span aria-hidden style={{ display: 'flex', gap: 2, height: 10 }}>
                 {['low', 'moderate', 'high', 'critical'].map((t) => <span key={t} style={{ flex: `${r.tiers[t]} 1 0`, minWidth: 3, borderRadius: 3, background: colors[t] }} />)}
               </span>
-              <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc((r.tiers.high + r.tiers.critical) / all)}</span>
+              <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc((r.tiers.high + r.tiers.critical) / all)}</span>
               <span style={heat}>
                 {types.map((t) => {
                   const c = cells[r.name]?.[t];
-                  if (!c) return <span key={t} title={`${t}: no emails`} style={{ height: 20, borderRadius: 5, background: 'var(--plate)', display: 'grid', placeItems: 'center', fontSize: 8.5, color: 'var(--muted)' }}>—</span>;
+                  if (!c) return <span key={t} title={`${t}: no emails`} style={{ height: 20, borderRadius: 5, background: 'var(--plate)', display: 'grid', placeItems: 'center', fontSize: TYPE.label, color: 'var(--muted)' }}>—</span>;
                   const k2 = c.hooked / hot;
-                  return <span key={t} title={`${r.name} · ${t}: ${num(c.clicked)} of ${num(c.recipients)} clicked`} style={{ height: 20, borderRadius: 5, background: `color-mix(in srgb, ${ink.bad} ${Math.round(10 + k2 * 80)}%, var(--base))`, display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{pc(c.hooked)}</span>;
+                  return <span key={t} title={`${r.name} · ${t}: ${num(c.clicked)} of ${num(c.recipients)} clicked`} style={{ height: 20, borderRadius: 5, background: `color-mix(in srgb, ${ink.bad} ${Math.round(10 + k2 * 80)}%, var(--base))`, display: 'grid', placeItems: 'center', fontSize: TYPE.small, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{pc(c.hooked)}</span>;
                 })}
               </span>
               <ChevronRight className="ins-arrow" size={12} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
@@ -299,7 +299,7 @@ export function DepartmentsView({ ctx }) {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
           <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} active={active} onHover={setActive} />
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', marginTop: 8, ...small, fontSize: 9 }}>
+        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', marginTop: 8, ...small }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{legendDot({ border: `1.5px solid ${ink.neutral}` })}{m.basis.days} days ago</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{legendDot({ background: 'var(--muted)' })}now</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 14, borderTop: '1.5px dashed var(--text)', opacity: 0.6 }} />the company</span>
@@ -367,22 +367,22 @@ export function CampaignsView({ ctx }) {
                 style={{ '--d': `${0.08 + 0.03 * k}s`, flex: '1 1 0', minHeight: 30, maxHeight: ROW_H, display: 'grid', gridTemplateColumns: LURE_COLS, alignItems: 'center', gap: 14, padding: '0 8px', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', boxShadow: on ? 'inset 3px 0 0 var(--brand)' : 'none', cursor: 'pointer', outline: 'none' }}
               >
                 <LureTile type={l.type} size={24} />
-                <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.type}</span>
+                <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.type}</span>
                 <InlineBar value={l.hooked} max={maxLure} color={k === 0 ? ink.bad : 'var(--soft-bad)'} label={pc1(l.hooked)} grow={false} />
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900 }}>{times(l.perClick)}</span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900 }}>{l.campaigns}</span>
+                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900 }}>{times(l.perClick)}</span>
+                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900 }}>{l.campaigns}</span>
                 <button type="button" aria-label={`Open ${l.type}`} data-ins-lure-open={l.type} onClick={(e) => { e.stopPropagation(); open('lure', l.type); }} style={{ width: 14, height: 24, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><ChevronRight size={13} strokeWidth={2.4} aria-hidden /></button>
               </div>
             );
           })}
           <div className="ins-optional-tall" style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--hair)' }}>
-            <span style={{ ...cardTitle, fontSize: 11.5, marginBottom: 10 }}>What people did{lure ? ` · ${lureShort(lure)}` : ''}</span>
+            <span style={{ ...cardTitle, fontSize: TYPE.strong, marginBottom: 10 }}>What people did{lure ? ` · ${lureShort(lure)}` : ''}</span>
             <Blocks key={lure || 'all'} parts={didParts(shownLure || m.now, ink, isDark)} reduce={reduce} height={24} legendCols={2} />
           </div>
         </div>
       </Card>
 
-      <Card i={1} reduce={reduce} title={lure ? `Campaigns · ${lure}` : 'Campaigns'} action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{lure && <button type="button" onClick={() => onView({ lure: null, page: 0 })} className="ins-go" style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>{lure} ✕</button>}<Segmented id="ins-camp-sort" label="Sort campaigns" value={sort} options={SORTS} onChange={(id) => onView({ sort: id, page: 0 })} reduce={reduce} /></span>} style={{ gridColumn: 'span 8' }} data-ins-camp-table>
+      <Card i={1} reduce={reduce} title={lure ? `Campaigns · ${lure}` : 'Campaigns'} action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{lure && <button type="button" onClick={() => onView({ lure: null, page: 0 })} className="ins-go" style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer' }}>{lure} ✕</button>}<Segmented id="ins-camp-sort" label="Sort campaigns" value={sort} options={SORTS} onChange={(id) => onView({ sort: id, page: 0 })} reduce={reduce} /></span>} style={{ gridColumn: 'span 8' }} data-ins-camp-table>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
           <Heads cols={CAMP_COLS} pad={8}><span /><span>Campaign</span><span style={{ textAlign: 'right' }}>Emails</span><span>Hook Rate</span><span>Report Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Gave details away</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Reports per click</span><span style={{ textAlign: 'right' }}>Health</span><span /></Heads>
           <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -399,14 +399,14 @@ export function CampaignsView({ ctx }) {
               >
                 <LureTile type={c.type} size={24} />
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-                  <span style={{ display: 'block', ...small, fontSize: 9, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.type} · {day(c.started)}</span>
+                  <span style={{ display: 'block', fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                  <span style={{ display: 'block', ...small, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.type} · {day(c.started)}</span>
                 </span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{num(c.delivered)}</span>
+                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{num(c.delivered)}</span>
                 <InlineBar value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} grow={false} />
                 <InlineBar value={c.reportRate} max={maxRep} color={ink.good} label={pc1(c.reportRate)} grow={false} />
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc1(c.delivered ? c.compromised / c.delivered : null)}</span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{times(c.perClick)}</span>
+                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc1(c.delivered ? c.compromised / c.delivered : null)}</span>
+                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{times(c.perClick)}</span>
                 <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} /></span>
                 <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
               </motion.button>

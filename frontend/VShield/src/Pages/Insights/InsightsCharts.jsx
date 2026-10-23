@@ -4,7 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 
 import { useSize } from './useSize';
 import { Define } from './InsightsBits';
-import { EASE, SPRING, cardTitle, rise, small } from './insightsUi';
+import { EASE, HEAD_H, SPRING, cardTitle, onScale, rise, small, TYPE } from './insightsUi';
 
 // Insights' chart kit, drawn the way the references are: bold rounded
 // shapes, texture (barcode lines, fields of dots), one lit window with a
@@ -35,12 +35,10 @@ export function Card({ title, sub, action, define, children, i = 0, reduce, styl
       {(title || action || onOpen) && (
         <header style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <span style={{ minWidth: 0 }}>
-            {define
-              ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={cardTitle}>{title}</span><Define term={define} /></span>
-              : <span style={cardTitle}>{title}</span>}
-            {sub && <span style={{ display: 'block', ...small, marginTop: 2 }}>{sub}</span>}
+            <span style={{ height: HEAD_H, display: 'flex', alignItems: 'center', gap: 6 }}><span style={cardTitle}>{title}</span>{define && <Define term={define} />}</span>
+            {sub && <span style={{ display: 'block', ...small, marginTop: -3 }}>{sub}</span>}
           </span>
-          <span style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ marginLeft: 'auto', flexShrink: 0, height: HEAD_H, display: 'flex', alignItems: 'center', gap: 8 }}>
             {action}
             {onOpen && <GoTo label={openLabel} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpen(); }} />}
           </span>
@@ -54,7 +52,7 @@ export function Card({ title, sub, action, define, children, i = 0, reduce, styl
 /** A quiet pill that leads somewhere. */
 export function GoTo({ label, onClick, dark = false, ...rest }) {
   return (
-    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--card-edge)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--ghost)', color: dark ? 'inherit' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--card-edge)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--ghost)', color: dark ? 'inherit' : 'var(--text)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
       {label} <ArrowUpRight className="ins-go-arrow" size={12} strokeWidth={2.6} aria-hidden />
     </button>
   );
@@ -65,7 +63,7 @@ export function Legend({ items }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       {items.map((x) => (
-        <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 9.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+        <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: TYPE.small, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
           <span aria-hidden style={{ width: x.line ? 14 : 8, height: x.line ? 3 : 8, borderRadius: 999, background: x.color, opacity: x.faint ? 0.5 : 1 }} />{x.label}
         </span>
       ))}
@@ -91,7 +89,7 @@ export function Segmented({ id, label, value, options, onChange, reduce, tabs = 
             data-ins-option={`${id}:${o.id}`}
             title={o.title}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(o.id); }}
-            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
+            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
           >
             {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--pill)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -108,13 +106,13 @@ export function Segmented({ id, label, value, options, onChange, reduce, tabs = 
 export function Tip({ x, y, w, children, edge, below = false }) {
   const shift = x < w * 0.25 ? '0%' : x > w * 0.75 ? '-100%' : '-50%';
   return (
-    <div role="tooltip" data-ins-tip style={{ position: 'absolute', zIndex: 20, left: x, top: y, transform: `translate(${shift}, ${below ? `${edge ?? 10}px` : `calc(-100% - ${edge ?? 10}px)`})`, pointerEvents: 'none', minWidth: 150, padding: '8px 11px', borderRadius: 12, background: 'var(--base)', border: '1px solid var(--hair)', boxShadow: '0 16px 34px rgba(15,23,42,0.18)', whiteSpace: 'nowrap', color: 'var(--text)' }}>
+    <div role="tooltip" data-ins-tip style={{ position: 'absolute', zIndex: 20, left: x, top: y, transform: `translate(${shift}, ${below ? `${edge ?? 10}px` : `calc(-100% - ${edge ?? 10}px)`})`, pointerEvents: 'none', minWidth: 150, padding: '8px 11px', borderRadius: 12, background: 'var(--glass)', backdropFilter: 'blur(12px) saturate(1.4)', WebkitBackdropFilter: 'blur(12px) saturate(1.4)', border: '1px solid var(--hair-strong)', boxShadow: '0 16px 34px rgba(15,23,42,0.18)', whiteSpace: 'nowrap', color: 'var(--text)' }}>
       {children}
     </div>
   );
 }
-const tipTitle = { fontSize: 10.5, fontWeight: 800, color: 'var(--text)' };
-const tipLine = { ...small, fontSize: 9.5, marginTop: 3 };
+const tipTitle = { fontSize: TYPE.body, fontWeight: 800, color: 'var(--text)' };
+const tipLine = { ...small, marginTop: 3 };
 
 /**
  * A ring gauge: the share of `max` as a gradient arc over a quiet track,
@@ -172,8 +170,8 @@ export function BandGauge({ value, bands, size = 112, stroke = 9, reduce, label,
         <motion.circle cx={mx} cy={my} r={stroke / 2 + 1} fill="var(--base)" stroke={color} strokeWidth={2} initial={{ opacity: reduce ? 1 : 0, scale: reduce ? 1 : 0.4 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.9 }} style={{ transformBox: 'fill-box', transformOrigin: 'center' }} />
       </svg>
       <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', lineHeight: 1 }}>
-        <span className="vs-rank" style={{ display: 'block', fontSize: Math.round(size * 0.17), fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text)', textShadow: glowing }}>{Number.isFinite(value) ? value.toFixed(1) : '—'}</span>
-        <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: 2 }}>/ 100</span>
+        <span className="vs-rank" style={{ display: 'block', fontSize: onScale(size * 0.17), fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text)', textShadow: glowing }}>{Number.isFinite(value) ? value.toFixed(1) : '—'}</span>
+        <span style={{ display: 'block', fontSize: TYPE.label, fontWeight: 800, color: 'var(--muted)', marginTop: 2 }}>/ 100</span>
       </span>
     </span>
   );
@@ -239,7 +237,7 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
           {[lo, Math.round((lo + hi) / 2), hi].map((v) => (
             <g key={v}>
               <line x1={L} x2={w - R} y1={y(v)} y2={y(v)} stroke="var(--grid)" strokeDasharray={v === lo ? undefined : '3 4'} />
-              <text x={L - 8} y={y(v) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{v}</text>
+              <text x={L - 8} y={y(v) + 3} textAnchor="end" style={{ fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{v}</text>
             </g>
           ))}
           {values.map((v, i) => {
@@ -266,7 +264,7 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
                       />
                     </>
                   )}
-                {labelled(i) && <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthLabel(at[i])}</text>}
+                {labelled(i) && <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthLabel(at[i])}</text>}
               </g>
             );
           })}
@@ -274,14 +272,14 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
       )}
       {w > 0 && hover === null && (
         <motion.span initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1, duration: 0.35 }} style={{ pointerEvents: 'none' }}>
-          <span style={{ position: 'absolute', left: Math.max(4, cx(0) - 10), top: y(values[0]) - 30, height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--plate)', border: '1px solid var(--hair)', fontSize: 10, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{format(values[0])} {sinceWord(n - 1)}</span>
-          <span style={{ position: 'absolute', left: Math.min(cx(last) + bw / 2, w - 4), top: y(values[last]) + 10, transform: 'translateX(-100%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)' }}>{format(values[last])} now <span style={{ opacity: 0.7 }}>{fell <= 0 ? '▼' : '▲'}{Math.abs(fell).toFixed(1)}</span></span>
+          <span style={{ position: 'absolute', left: Math.max(4, cx(0) - 10), top: y(values[0]) - 30, height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--plate)', border: '1px solid var(--hair)', fontSize: TYPE.body, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{format(values[0])} {sinceWord(n - 1)}</span>
+          <span style={{ position: 'absolute', left: Math.min(cx(last) + bw / 2, w - 4), top: y(values[last]) + 10, transform: 'translateX(-100%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--ink)', color: 'var(--ink-on)', fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)' }}>{format(values[last])} now <span style={{ opacity: 0.7 }}>{fell <= 0 ? '▼' : '▲'}{Math.abs(fell).toFixed(1)}</span></span>
         </motion.span>
       )}
       {hover !== null && (
         <Tip x={cx(hover)} y={Math.min(y(values[hover]), hover ? y(values[hover - 1]) : Infinity) - 6} w={w}>
           <div style={tipTitle}>{tipHead(at[hover])}</div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 10, fontWeight: 700 }}>{valueLabel}<strong style={{ marginLeft: 'auto' }}>{format(values[hover])}</strong></div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: TYPE.body, fontWeight: 700 }}>{valueLabel}<strong style={{ marginLeft: 'auto' }}>{format(values[hover])}</strong></div>
           <div style={tipLine}>{step(hover) === null ? 'Where the year starts' : Math.abs(step(hover)) < 0.05 ? 'Level with the month before' : `${step(hover) < 0 ? 'Down' : 'Up'} ${Math.abs(step(hover)).toFixed(1)} on the month before`}</div>
         </Tip>
       )}
@@ -326,7 +324,7 @@ export function GapBars({ at, values, base, lit, good, bad, reduce, tipHead, val
           {[lim, -lim].map((g) => (
             <g key={g}>
               <line x1={L} x2={w - R} y1={y(g)} y2={y(g)} stroke="var(--grid)" strokeDasharray="3 4" />
-              <text x={L - 8} y={y(g) + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{signed(g)}</text>
+              <text x={L - 8} y={y(g) + 3} textAnchor="end" style={{ fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{signed(g)}</text>
             </g>
           ))}
           {gaps.map((g, i) => {
@@ -342,23 +340,23 @@ export function GapBars({ at, values, base, lit, good, bad, reduce, tipHead, val
                   transition={reduce ? { duration: 0 } : { scaleY: { ...SPRING, stiffness: 180, damping: 24, delay: 0.12 + 0.04 * i }, opacity: { duration: 0.2 } }}
                   style={{ transformBox: 'fill-box', transformOrigin: g >= 0 ? 'bottom' : 'top' }}
                 />
-                <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthOf(at[i])}</text>
+                <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthOf(at[i])}</text>
               </g>
             );
           })}
           <line x1={L} x2={w - R} y1={zero} y2={zero} stroke="var(--text)" strokeWidth={1.5} pointerEvents="none" />
-          <text x={L - 8} y={zero + 3} textAnchor="end" style={{ fontSize: 9, fontWeight: 800, fill: 'var(--text)' }}>0</text>
+          <text x={L - 8} y={zero + 3} textAnchor="end" style={{ fontSize: TYPE.label, fontWeight: 800, fill: 'var(--text)' }}>0</text>
         </svg>
       )}
       {w > 0 && hover === null && (
-        <motion.span initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.9, duration: 0.35, ease: EASE }} style={{ position: 'absolute', left: Math.min(cx(last), w - 44), top: gaps[last] >= 0 ? y(gaps[last]) - 8 : y(gaps[last]) + 8, transform: gaps[last] >= 0 ? 'translate(-50%, -100%)' : 'translate(-50%, 0)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)', pointerEvents: 'none' }}>{signed(gaps[last])} {unit}</motion.span>
+        <motion.span initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.9, duration: 0.35, ease: EASE }} style={{ position: 'absolute', left: Math.min(cx(last), w - 44), top: gaps[last] >= 0 ? y(gaps[last]) - 8 : y(gaps[last]) + 8, transform: gaps[last] >= 0 ? 'translate(-50%, -100%)' : 'translate(-50%, 0)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--ink)', color: 'var(--ink-on)', fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)', pointerEvents: 'none' }}>{signed(gaps[last])} {unit}</motion.span>
       )}
-      {w > 0 && <span style={{ position: 'absolute', left: L + 6, top: zero + 4, ...small, fontSize: 8.5, fontWeight: 700, pointerEvents: 'none' }}>{baseLabel}</span>}
+      {w > 0 && <span style={{ position: 'absolute', left: L + 6, top: zero + 4, ...small, fontSize: TYPE.label, fontWeight: 700, pointerEvents: 'none' }}>{baseLabel}</span>}
       {hover !== null && (
         <Tip x={cx(hover)} y={Math.min(zero, y(gaps[hover])) - 4} w={w}>
           <div style={tipTitle}>{tipHead(at[hover])}</div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 10, fontWeight: 700 }}>{valueLabel}<strong style={{ marginLeft: 'auto' }}>{values[hover].toFixed(1)}</strong></div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 3, fontSize: 10, fontWeight: 700 }}>{baseLabel}<strong style={{ marginLeft: 'auto' }}>{base[hover].toFixed(1)}</strong></div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: TYPE.body, fontWeight: 700 }}>{valueLabel}<strong style={{ marginLeft: 'auto' }}>{values[hover].toFixed(1)}</strong></div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 3, fontSize: TYPE.body, fontWeight: 700 }}>{baseLabel}<strong style={{ marginLeft: 'auto' }}>{base[hover].toFixed(1)}</strong></div>
           <div style={tipLine}>{Math.abs(gaps[hover]) < 0.05 ? 'Level with it' : `${Math.abs(gaps[hover]).toFixed(1)} ${unit} ${gaps[hover] > 0 ? 'riskier' : 'safer'}`}</div>
         </Tip>
       )}
@@ -372,7 +370,7 @@ export function Insight({ children, sub, tone }) {
     <div className="ins-optional" style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, padding: '9px 12px', borderRadius: 12, border: '1px solid var(--hair)', background: 'var(--plate)' }}>
       {tone && <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 999, marginTop: 4, background: tone }} />}
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text)', lineHeight: 1.35 }}>{children}</span>
+        <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 800, color: 'var(--text)', lineHeight: 1.35 }}>{children}</span>
         {sub && <span style={{ display: 'block', ...small, marginTop: 2, lineHeight: 1.4 }}>{sub}</span>}
       </span>
     </div>
@@ -449,8 +447,8 @@ export function TileMap({ items, fill, ink, onOpen, reduce, tip, layoutIdOf }) {
             transition={{ duration: reduce ? 0 : 0.22, ease: EASE }}
             style={{ '--d': `${0.05 + 0.02 * k}s`, position: 'absolute', ...t.at, zIndex: hover === t.key ? 3 : 1, overflow: 'hidden', display: 'flex', flexDirection: flat ? 'row' : 'column', justifyContent: 'space-between', alignItems: flat ? 'center' : 'flex-start', gap: flat ? 6 : 0, padding: fits ? (flat ? '0 9px' : narrow ? '7px 6px' : '8px 9px') : 0, border: 'none', borderRadius: 12, background: `linear-gradient(160deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%), ${fill(t)}`, color: ink(t), textAlign: 'left', cursor: 'pointer', boxShadow: hover === t.key ? '0 14px 28px rgba(15,23,42,0.22)' : '0 1px 0 rgba(255,255,255,0.25) inset' }}
           >
-            {fits && <span style={{ minWidth: 0, maxWidth: '100%', fontSize: 9.5, fontWeight: 800, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: big ? 2 : 1, WebkitBoxOrient: 'vertical' }}>{name}</span>}
-            {fits && <span className="vs-rank" style={{ flexShrink: 0, fontSize: big ? 20 : flat || narrow ? 12 : 14, fontWeight: 900, lineHeight: 1 }}>{t.text}</span>}
+            {fits && <span style={{ minWidth: 0, maxWidth: '100%', fontSize: TYPE.small, fontWeight: 800, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: big ? 2 : 1, WebkitBoxOrient: 'vertical' }}>{name}</span>}
+            {fits && <span className="vs-rank" style={{ flexShrink: 0, fontSize: big ? TYPE.number : flat || narrow ? TYPE.strong : TYPE.figure, fontWeight: 900, lineHeight: 1 }}>{t.text}</span>}
           </motion.button>
         );
       })}
@@ -484,8 +482,8 @@ export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols 
         {parts.map((p) => (
           <span key={p.key} style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span aria-hidden style={{ alignSelf: 'center', flexShrink: 0, width: 8, height: 8, borderRadius: 3, background: p.color }} />
-            <span className="vs-rank" style={{ fontSize: 14, fontWeight: 900 }}>{Math.round((p.value / total) * 100)}%</span>
-            <span style={{ fontSize: 9.5, fontWeight: 700, opacity: onDark ? 0.75 : 1, color: onDark ? 'inherit' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
+            <span className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900 }}>{Math.round((p.value / total) * 100)}%</span>
+            <span style={{ fontSize: TYPE.small, fontWeight: 700, opacity: onDark ? 0.75 : 1, color: onDark ? 'inherit' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
           </span>
         ))}
       </div>
@@ -494,11 +492,61 @@ export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols 
 }
 
 /**
- * Pill columns: each item a column in its own rounded track, its value on a
- * bubble that rides the top of the bar; the first in full colour, the rest
- * quieter. Hover for its numbers; a click opens it.
+ * A donut: each part an arc of the ring, as long as its share, with a gap
+ * between; `children` sit in the middle, and a legend beside it gives each
+ * part's number and share. Hover an arc or a legend row to pick its part
+ * out. Parts are { key, label, value, color, title }.
  */
-export function PillColumns({ items, color, soft, reduce, onOpen, label }) {
+export function Donut({ parts, label, children }) {
+  const [box, { w, h }] = useSize();
+  const [hover, setHover] = useState(null);
+  const total = parts.reduce((a, p) => a + p.value, 0) || 1;
+  const size = Math.floor(Math.max(0, Math.min(h, w * 0.46, 220)));
+  const stroke = Math.max(10, Math.round(size * 0.12));
+  const r = (size - stroke) / 2 - 3;
+  const c = 2 * Math.PI * r;
+  const gap = parts.filter((p) => p.value > 0).length > 1 ? 3 : 0;
+  const arcs = parts.map((p, k) => ({ ...p, start: (parts.slice(0, k).reduce((a, x) => a + x.value, 0) / total) * c, len: (p.value / total) * c }));
+  return (
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 22 }} onMouseLeave={() => setHover(null)}>
+      {size > 40 && (
+        <span role="img" aria-label={label} className="ins-pop-in" style={{ '--d': '0.12s', position: 'relative', width: size, height: size, flexShrink: 0 }}>
+          <svg width={size} height={size} style={{ display: 'block', transform: 'rotate(-90deg)', overflow: 'visible' }}>
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--track)" strokeWidth={stroke} />
+            {arcs.map((a) => a.len > 0 && (
+              <circle
+                key={a.key}
+                cx={size / 2} cy={size / 2} r={r} fill="none"
+                stroke={a.color} strokeWidth={hover === a.key ? stroke + 5 : stroke}
+                strokeDasharray={`${Math.max(0.5, a.len - gap)} ${c}`} strokeDashoffset={-(a.start + gap / 2)}
+                onMouseEnter={() => setHover(a.key)}
+                style={{ opacity: hover && hover !== a.key ? 0.35 : 1, transition: 'opacity .2s ease, stroke-width .15s ease', cursor: 'default' }}
+              />
+            ))}
+          </svg>
+          <span style={{ position: 'absolute', inset: stroke + 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', pointerEvents: 'none' }}>{children}</span>
+        </span>
+      )}
+      <div style={{ flex: 1, minWidth: 0, maxWidth: 250, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {parts.map((p, k) => (
+          <div key={p.key} title={p.title} onMouseEnter={() => setHover(p.key)} className="ins-in-x" style={{ '--d': `${0.2 + 0.04 * k}s`, display: 'grid', gridTemplateColumns: '8px minmax(0,1fr) auto 38px', alignItems: 'center', gap: 9, height: 30, padding: '0 8px', borderRadius: 8, background: hover === p.key ? 'var(--track)' : 'none', opacity: hover && hover !== p.key ? 0.55 : 1, transition: 'background .15s ease, opacity .2s ease' }}>
+            <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: p.color }} />
+            <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
+            <span className="vs-rank" style={{ fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{p.value.toLocaleString('en-US')}</span>
+            <span style={{ ...small, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{Math.round((p.value / total) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Pill columns: each item a column in its own rounded track, its value on a
+ * bubble that rides the top of the bar; the first (or the `lit` one) in full
+ * colour, the rest quieter. Hover for its numbers; a click opens it.
+ */
+export function PillColumns({ items, color, soft, reduce, onOpen, label, lit = null }) {
   const [hover, setHover] = useState(null);
   const [box, { w }] = useSize();
   const max = Math.max(...items.map((x) => x.value || 0), 0.0001) * 1.25;
@@ -507,7 +555,7 @@ export function PillColumns({ items, color, soft, reduce, onOpen, label }) {
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', gap: 8, marginTop: 12 }} onMouseLeave={() => setHover(null)}>
       {items.map((x, i) => {
         const hgt = `${((x.value || 0) / max) * 100}%`;
-        const strong = i === 0 || hover === i;
+        const strong = (lit === null ? i === 0 : x.key === lit) || hover === i;
         const Tag = onOpen ? 'button' : 'div';
         return (
           <Tag
@@ -534,10 +582,10 @@ export function PillColumns({ items, color, soft, reduce, onOpen, label }) {
                 transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.25 + 0.04 * i }}
                 style={{ position: 'absolute', left: '50%', bottom: `calc((100% - 10px) * ${(x.value || 0) / max} + 11px)`, marginLeft: -40, width: 80, display: 'flex', justifyContent: 'center', pointerEvents: 'none', transition: 'bottom .5s ease' }}
               >
-                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: strong ? 'var(--ink)' : 'var(--base)', color: strong ? 'var(--ink-on)' : 'var(--text)', boxShadow: '0 4px 10px rgba(15,23,42,0.12)', fontSize: 9.5, fontWeight: 800, whiteSpace: 'nowrap' }}>{x.text}</span>
+                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: strong ? 'var(--ink)' : 'var(--base)', color: strong ? 'var(--ink-on)' : 'var(--text)', boxShadow: '0 4px 10px rgba(15,23,42,0.12)', fontSize: TYPE.small, fontWeight: 800, whiteSpace: 'nowrap' }}>{x.text}</span>
               </motion.span>
             </span>
-            <span style={{ ...small, fontSize: 9.5, fontWeight: 700, textAlign: 'center', color: strong ? 'var(--text)' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
+            <span style={{ ...small, fontWeight: 700, textAlign: 'center', color: strong ? 'var(--text)' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
           </Tag>
         );
       })}
@@ -561,13 +609,13 @@ export function MakeupBars({ rows, max, reduce, format }) {
       {rows.map((r, k) => (
         <div key={r.key} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr)', alignItems: 'center', gap: 12 }}>
           <span>
-            <span style={{ display: 'block', ...small, fontSize: 9 }}>{r.label}</span>
-            <span className="vs-rank" style={{ display: 'block', fontSize: 18, fontWeight: 900, lineHeight: 1.1 }}>{format(r.total)}</span>
+            <span style={{ display: 'block', ...small }}>{r.label}</span>
+            <span className="vs-rank" style={{ display: 'block', fontSize: TYPE.heading, fontWeight: 900, lineHeight: 1.1 }}>{format(r.total)}</span>
           </span>
           <span style={{ position: 'relative', height: 30, display: 'flex' }}>
             <motion.span initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.12 + 0.08 * k, ease: EASE }} style={{ display: 'flex', gap: 2, height: '100%', width: `${(r.total / max) * 100}%`, overflow: 'hidden', transition: 'width .5s ease' }}>
               {r.parts.map((pt) => (
-                <span key={pt.key} title={`${pt.label}: ${format(pt.value)}`} style={{ flex: `${pt.value} 1 0`, minWidth: 4, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: pt.color, color: pt.ink, fontSize: 10, fontWeight: 800, overflow: 'hidden', whiteSpace: 'nowrap' }}>{pt.value / max > 0.08 ? format(pt.value) : ''}</span>
+                <span key={pt.key} title={`${pt.label}: ${format(pt.value)}`} style={{ flex: `${pt.value} 1 0`, minWidth: 4, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: pt.color, color: pt.ink, fontSize: TYPE.body, fontWeight: 800, overflow: 'hidden', whiteSpace: 'nowrap' }}>{pt.value / max > 0.08 ? format(pt.value) : ''}</span>
               ))}
             </motion.span>
           </span>
@@ -587,12 +635,12 @@ export function CompareBars({ rows, reduce, max, height = 30 }) {
         return (
           <div key={r.key}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 800 }}>{r.label}</span>
-              {r.sub && <span style={{ ...small, fontSize: 9 }}>{r.sub}</span>}
+              <span style={{ fontSize: TYPE.body, fontWeight: 800 }}>{r.label}</span>
+              {r.sub && <span style={{ ...small }}>{r.sub}</span>}
             </div>
             <div className="ins-cbar" style={{ height, borderRadius: 10, background: 'var(--plate)', overflow: 'hidden' }}>
               <motion.div initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.12 + 0.08 * k, ease: EASE }} style={{ height: '100%', width: wd, transition: 'width .5s ease', minWidth: 58, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 10, boxSizing: 'border-box', background: `linear-gradient(90deg, ${light(r.color, 40)}, ${r.color})` }}>
-                <span className="vs-rank" style={{ fontSize: 13, fontWeight: 900, color: '#FFFFFF' }}>{r.text}</span>
+                <span className="vs-rank" style={{ fontSize: TYPE.title, fontWeight: 900, color: '#FFFFFF' }}>{r.text}</span>
               </motion.div>
             </div>
           </div>
@@ -628,9 +676,9 @@ export function StepFunnel({ steps, color, reduce }) {
             return (
               <g key={s.key}>
                 <motion.rect x={x} width={colW} rx={12} fill={color} fillOpacity={1 - i * 0.14} initial={{ y: T + ph, height: 0 }} animate={{ y, height: T + ph - y }} transition={reduce ? { duration: 0 } : { duration: 0.8, delay: 0.15 + 0.1 * i, ease: EASE }} />
-                <text x={x + colW / 2} y={y - 8} textAnchor="middle" className="vs-rank" style={{ fontSize: 14, fontWeight: 900, fill: 'var(--text)' }}>{s.value.toLocaleString('en-US')}</text>
-                <text x={x + colW / 2} y={h - 15} textAnchor="middle" style={{ fontSize: 10, fontWeight: 800, fill: 'var(--text)' }}>{s.label}</text>
-                <text x={x + colW / 2} y={h - 3} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: 'var(--muted)' }}>{i ? `${Math.round((s.value / first) * 100)}% of assigned` : 'people'}</text>
+                <text x={x + colW / 2} y={y - 8} textAnchor="middle" className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900, fill: 'var(--text)' }}>{s.value.toLocaleString('en-US')}</text>
+                <text x={x + colW / 2} y={h - 15} textAnchor="middle" style={{ fontSize: TYPE.body, fontWeight: 800, fill: 'var(--text)' }}>{s.label}</text>
+                <text x={x + colW / 2} y={h - 3} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)' }}>{i ? `${Math.round((s.value / first) * 100)}% of assigned` : 'people'}</text>
               </g>
             );
           })}
@@ -676,7 +724,7 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
         <svg width={w} height={h} role="img" aria-label={order.map((it) => `${it.label} ${it.now.toFixed(1)}, ${it.before.toFixed(1)} before`).join('; ')} style={{ display: 'block', overflow: 'visible' }}>
           {threshold > lo && threshold < hi && <path d={`${ringPath(R(hi))} ${ringPath(R(threshold))}`} fill={bad} fillOpacity={0.06} fillRule="evenodd" />}
           {steps.map((v) => <circle key={v} cx={cx} cy={cy} r={R(v)} fill="none" stroke={v === threshold ? bad : 'var(--grid)'} strokeOpacity={v === threshold ? 0.45 : 1} strokeWidth={v === threshold ? 1.2 : 1} strokeDasharray={v === threshold ? undefined : '2 4'} />)}
-          {steps.filter((v) => v > lo).map((v) => { const [tx, ty] = at(R(v), ang(0.5)); return <text key={`t${v}`} x={tx} y={ty + 3} textAnchor="middle" style={{ fontSize: 8, fontWeight: 600, fill: 'var(--muted)', paintOrder: 'stroke', stroke: 'var(--base)', strokeWidth: 3 }}>{v}</text>; })}
+          {steps.filter((v) => v > lo).map((v) => { const [tx, ty] = at(R(v), ang(0.5)); return <text key={`t${v}`} x={tx} y={ty + 3} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)', paintOrder: 'stroke', stroke: 'var(--base)', strokeWidth: 3 }}>{v}</text>; })}
           <circle cx={cx} cy={cy} r={R(whole.now)} fill="none" stroke="var(--text)" strokeOpacity={0.5} strokeWidth={1.3} strokeDasharray="5 4" />
           {order.map((it, i) => {
             const a = ang(i);
@@ -704,8 +752,8 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
                 <line x1={bx} y1={by} x2={nx} y2={ny} stroke={c} strokeOpacity={0.45} strokeWidth={5} strokeLinecap="round" />
                 <circle cx={bx} cy={by} r={3} fill="var(--base)" stroke={neutral} strokeWidth={1.5} />
                 <circle cx={nx} cy={ny} r={hover === i ? 8 : 6.5} fill={c} stroke="var(--base)" strokeWidth={2} style={{ transition: 'r .15s ease' }} />
-                <text x={lx} y={ly - 1} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 800, fill: 'var(--text)' }}>{it.code}</text>
-                <text x={lx} y={ly + 11} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>
+                <text x={lx} y={ly - 1} textAnchor="middle" style={{ fontSize: TYPE.small, fontWeight: 800, fill: 'var(--text)' }}>{it.code}</text>
+                <text x={lx} y={ly + 11} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: 700, fill: 'var(--muted)' }}>
                   <tspan fill={c}>{d < -0.05 ? '▼' : d > 0.05 ? '▲' : '●'}</tspan> {Math.abs(d).toFixed(1)}
                 </text>
               </g>
@@ -716,9 +764,9 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
       )}
       {w > 0 && h > 0 && (
         <div style={{ position: 'absolute', left: cx, top: cy, transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <div className="vs-rank" style={{ fontSize: Math.max(14, Math.min(24, r0 * 0.36)), fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)' }}>{whole.now.toFixed(1)}</div>
-          <div style={{ ...small, fontSize: 7.5, fontWeight: 800, letterSpacing: '0.08em', marginTop: 3 }}>COMPANY</div>
-          {wd !== null && <div style={{ fontSize: 8.5, fontWeight: 800, marginTop: 2, color: 'var(--text)' }}><span style={{ color: wd <= 0 ? good : bad }}>{wd < -0.05 ? '▼' : wd > 0.05 ? '▲' : '●'}</span> {Math.abs(wd).toFixed(1)}</div>}
+          <div className="vs-rank" style={{ fontSize: onScale(Math.max(14, Math.min(22, r0 * 0.36))), fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)' }}>{whole.now.toFixed(1)}</div>
+          <div style={{ ...small, fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.08em', marginTop: 3 }}>COMPANY</div>
+          {wd !== null && <div style={{ fontSize: TYPE.label, fontWeight: 800, marginTop: 2, color: 'var(--text)' }}><span style={{ color: wd <= 0 ? good : bad }}>{wd < -0.05 ? '▼' : wd > 0.05 ? '▲' : '●'}</span> {Math.abs(wd).toFixed(1)}</div>}
         </div>
       )}
       {shown && (() => {
@@ -726,8 +774,8 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
         return (
           <Tip x={tx} y={ty - 10} w={w}>
             <div style={tipTitle}>{tipHead(shown)}</div>
-            <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: 10, fontWeight: 700 }}>Risk Score now<strong style={{ marginLeft: 'auto' }}>{shown.now.toFixed(1)}</strong></div>
-            <div style={{ display: 'flex', gap: 14, marginTop: 3, fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{days} days ago<strong style={{ marginLeft: 'auto', color: 'var(--text)' }}>{shown.before.toFixed(1)}</strong></div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: TYPE.body, fontWeight: 700 }}>Risk Score now<strong style={{ marginLeft: 'auto' }}>{shown.now.toFixed(1)}</strong></div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 3, fontSize: TYPE.body, fontWeight: 700, color: 'var(--muted)' }}>{days} days ago<strong style={{ marginLeft: 'auto', color: 'var(--text)' }}>{shown.before.toFixed(1)}</strong></div>
             <div style={tipLine}>{Math.abs(d) < 0.05 ? 'No change' : `${d < 0 ? 'Safer' : 'Riskier'} by ${Math.abs(d).toFixed(1)} pts · open its profile`}</div>
           </Tip>
         );

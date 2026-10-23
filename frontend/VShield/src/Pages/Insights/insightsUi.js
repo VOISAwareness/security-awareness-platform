@@ -1,13 +1,19 @@
-// Insights' shared look: type styles, number formats, the health colours,
-// an icon for each kind of lure, and how things move. Plain module (no JSX),
-// so the page, its charts and its tabs share it without breaking fast
-// refresh.
+// Insights' shared look: type styles (on the one scale in insightsType.js),
+// number formats, the health colours, an icon for each kind of lure, and how
+// things move. Plain module (no JSX), so the page, its charts and its tabs
+// share it without breaking fast refresh.
 import { Banknote, Briefcase, CalendarDays, KeyRound, Mail, Monitor, Package, Users } from 'lucide-react';
 
-export const eyebrow = { fontSize: 8.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
-export const small = { fontSize: 9.5, fontWeight: 600, color: 'var(--muted)' };
-export const heads = { ...small, fontSize: 8.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' };
-export const cardTitle = { display: 'block', fontSize: 12.5, fontWeight: 800, letterSpacing: '-0.005em', color: 'var(--text)' };
+import { TYPE } from './insightsType';
+
+export { TYPE, onScale } from './insightsType';
+export const eyebrow = { fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
+export const small = { fontSize: TYPE.small, fontWeight: 600, color: 'var(--muted)' };
+export const heads = { ...small, fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' };
+export const cardTitle = { display: 'block', fontSize: TYPE.title, fontWeight: 800, letterSpacing: '-0.005em', color: 'var(--text)' };
+// A card's title line is as tall as the buttons and switches beside it, so
+// they all sit on one centre line, in every card alike.
+export const HEAD_H = 26;
 
 const none = (v) => v === null || v === undefined || !Number.isFinite(v);
 export const num = (n) => (none(n) ? '—' : Math.round(n).toLocaleString('en-US'));
