@@ -19,7 +19,7 @@ import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk } from './insightsUi';
+import { EASE, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, TYPE } from './insightsUi';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -45,9 +45,9 @@ const FONT_IMPORT = `
   .ins-page { font-family: 'Inter', system-ui, sans-serif; scrollbar-width: thin; }
   .ins-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--hair-strong) transparent; }
   /* short cards drop what they can do without, so nothing spills or scrolls */
-  @container (max-height: 250px) { .ins-optional { display: none !important; } .ins-big { font-size: 32px !important; } }
+  @container (max-height: 250px) { .ins-optional { display: none !important; } .ins-big { font-size: 30px !important; } }
   @container (max-height: 480px) { .ins-optional-tall { display: none !important; } }
-  @container (max-height: 250px) { .ins-cbar { height: 22px !important; } .ins-vs { gap: 5px !important; } .ins-vs-head { margin-bottom: 2px !important; } }
+  @container (max-height: 250px) { .ins-cbar { height: 22px !important; } .ins-vs { gap: 5px !important; } .ins-vs-head { margin-bottom: 2px !important; } .ins-vs-bar { height: 10px !important; } .ins-vs-row + .ins-vs-row { margin-top: 3px !important; } }
   @container (max-height: 460px) { .ins-prof-sub { display: none !important; } .ins-prof-head { padding-top: 7px !important; padding-bottom: 7px !important; } }
 
   /* Cards settle on hover; what opens something lifts a little and its arrow nudges */
@@ -157,8 +157,8 @@ function HealthTile({ m, reduce, capH, compact }) {
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</span><Define term="health" /></div>
-          <div className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? 18 : 22) : (look.word.length > 10 ? 22 : 28), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: 7, color: 'var(--text)', textShadow: look.shine }}>{look.word}</div>
-          <div style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.4, marginTop: 6, color: '#475569' }}>{look.says}</div>
+          <div className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? TYPE.heading : TYPE.number) : (look.word.length > 10 ? TYPE.number : TYPE.hero), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: 7, color: 'var(--text)', textShadow: look.shine }}>{look.word}</div>
+          <div style={{ fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.4, marginTop: 6, color: '#475569' }}>{look.says}</div>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -184,16 +184,16 @@ function RiskKpi({ p, m, ink, isDark, reduce, onOpen, compact }) {
           <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
           <span style={{ marginLeft: 'auto' }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: compact ? 13.5 : 16, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: tone }} />{riskWord(p.now.score)}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: compact ? TYPE.figure : TYPE.heading, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: tone }} />{riskWord(p.now.score)}</span>
         {compact ? (
-          <span style={{ ...small, fontSize: 9, whiteSpace: 'nowrap' }}>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong> · Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
+          <span style={{ ...small, whiteSpace: 'nowrap' }}>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong> · Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
         ) : (
         <span>
           <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
             <span className="ins-grow-x" style={{ '--d': '0.25s', flexShrink: 0, width: `${share * 100}%`, borderRadius: 999, background: ink.good, transformOrigin: 'left', transition: 'width .5s ease' }} />
             <span className="ins-grow-x" style={{ '--d': '0.35s', flex: 1, borderRadius: 999, background: ink.bad, transformOrigin: 'right' }} />
           </span>
-          <span style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, ...small, fontSize: 9 }}>
+          <span style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, ...small }}>
             <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong></span>
             <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
           </span>
@@ -212,8 +212,8 @@ function BarKpi({ k, i, ink, reduce, compact }) {
         <span style={{ marginLeft: 'auto' }}><Delta c={k.delta} ink={ink} title="Against the period before" /></span>
       </span>
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
-        <span className="vs-rank" style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', textShadow: k.glow || 'none' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
-        <span style={{ ...small, fontSize: 9.5 }}>{k.unit}</span>
+        <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', textShadow: k.glow || 'none' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
+        <span style={{ ...small }}>{k.unit}</span>
       </span>
       {!compact && <BarcodeMeter value={k.share} color={k.color} reduce={reduce} height={22} label={`${k.label}: ${pc(k.share)}`} />}
     </motion.div>
@@ -281,13 +281,14 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
 
-  // Depth from a soft light at the top of the page; the panel and cards in
-  // the colours glass would give over it (a faint white over the dark), but
-  // solid, so nothing has to be blended again while it moves. --base is a
-  // solid for tooltips, pills and rings.
+  // Depth from a soft light at the top of the page; the cards are the app's
+  // glass: see-through white with a thin white edge. Only what floats and
+  // holds still (tooltips, the "i" notes) blurs what is under it (--glass),
+  // so nothing moving has to be blurred again every frame. --base is a solid
+  // the colour of a card, for pills and the rings round dots.
   const vars = isDark
-    ? { '--bg': 'radial-gradient(circle at top center, #1A1D29 0%, #0B0F19 60%, #070A12 100%)', '--bg-edge': '#070A12', '--sheet': '#11141E', '--card': 'linear-gradient(180deg, #1A1D27 0%, #13161F 100%)', '--card-edge': 'rgba(255,255,255,0.08)', '--base': '#151926', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
-    : { '--bg': 'radial-gradient(circle at top center, #FFFFFF 0%, #F3F5F9 60%, #EBEEF3 100%)', '--bg-edge': '#EBEEF3', '--sheet': '#FBFCFD', '--card': '#FFFFFF', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
+    ? { '--bg': 'radial-gradient(circle at top center, #1A1D29 0%, #0B0F19 60%, #070A12 100%)', '--bg-edge': '#070A12', '--sheet': '#11141E', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.035) 100%)', '--card-edge': 'rgba(255,255,255,0.10)', '--base': '#1C1F29', '--glass': 'rgba(30,33,43,0.78)', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
+    : { '--bg': 'radial-gradient(circle at top center, #FFFFFF 0%, #F3F5F9 60%, #EBEEF3 100%)', '--bg-edge': '#EBEEF3', '--sheet': '#FBFCFD', '--card': 'rgba(255,255,255,0.9)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--glass': 'rgba(255,255,255,0.82)', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
 
   let body;
   if (top) {
@@ -319,7 +320,7 @@ const Insights = () => {
         {/* top bar: black on the light theme; on the dark one, glass like the
             cards rather than the white the other pages turn it */}
         <div style={{ background: isDark ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' : '#000000', border: isDark ? '1px solid var(--card-edge)' : 'none', boxSizing: 'border-box', color: isDark ? 'var(--text)' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', padding: '0 18px', flexShrink: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Insights</span>
+          <span style={{ fontSize: TYPE.title, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Insights</span>
         </div>
 
         {/* the sheet, in its L */}
@@ -334,7 +335,7 @@ const Insights = () => {
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
               <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView({ page: 0 }); }); }} reduce={reduce} />
               {SAMPLE && (
-                <span data-ins-sample title="These are sample numbers. Real ones take their place once the reports, people and training services send them." style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, border: '1px dashed var(--hair-strong)', color: 'var(--muted)', fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                <span data-ins-sample title="These are sample numbers. Real ones take their place once the reports, people and training services send them." style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, border: '1px dashed var(--hair-strong)', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, whiteSpace: 'nowrap' }}>
                   <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: STEADY_INK }} />
                   Sample data
                 </span>
