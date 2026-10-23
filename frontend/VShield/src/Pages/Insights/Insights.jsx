@@ -19,7 +19,7 @@ import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, HEALTH_WORD, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE } from './insightsUi';
+import { EASE, HEALTH_WORD, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
 
 // =============================================================================
@@ -350,14 +350,8 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
 
-  // Depth from a soft light at the top of the page; the cards are the app's
-  // glass: see-through white with a thin white edge. Only what floats and
-  // holds still (tooltips, the "i" notes) blurs what is under it (--glass),
-  // so nothing moving has to be blurred again every frame. --base is a solid
-  // the colour of a card, for pills and the rings round dots.
-  const vars = isDark
-    ? { '--bg': 'radial-gradient(circle at top center, #10131C 0%, #090C13 60%, #06080D 100%)', '--bg-edge': '#06080D', '--sheet': '#141824', '--sheet-edge': 'rgba(255,255,255,0.11)', '--l-shadow': 'rgba(0,0,0,0.22)', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.035) 100%)', '--card-edge': 'rgba(255,255,255,0.10)', '--base': '#1C1F29', '--glass': 'rgba(30,33,43,0.78)', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
-    : { '--bg': 'radial-gradient(circle at top center, #F6F7FA 0%, #ECEFF3 60%, #E5E8EE 100%)', '--bg-edge': '#E5E8EE', '--sheet': '#FBFCFD', '--sheet-edge': 'rgba(15,23,42,0.10)', '--l-shadow': 'rgba(15,23,42,0.035)', '--card': 'rgba(255,255,255,0.9)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--glass': 'rgba(255,255,255,0.82)', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
+  // the page's colours (insightsUi.js)
+  const vars = themeVars(isDark);
 
   let body;
   if (top) {
