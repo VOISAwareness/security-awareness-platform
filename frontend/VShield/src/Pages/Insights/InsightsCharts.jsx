@@ -87,7 +87,7 @@ export function Segmented({ id, label, value, options, onChange, reduce, tabs = 
             {...(tabs ? { 'aria-selected': on } : { 'aria-checked': on })}
             data-ins-option={`${id}:${o.id}`}
             title={o.title}
-            onClick={() => onChange(o.id)}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(o.id); }}
             style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
           >
             {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--pill)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
@@ -147,6 +147,36 @@ export function RingGauge({ value, max = 100, size = 64, stroke = 7, color, redu
 }
 
 /**
+ * A half gauge, like a speedometer: the score's bands round a half circle
+ * from 0 on the left to 100 on the right, quiet, then the stretch from 0 to
+ * the score drawn solid in its band's colour with a marker at its end; the
+ * number and "/ 100" sit inside. `bands` are { to, color } in order.
+ */
+export function BandGauge({ value, bands, size = 112, stroke = 9, reduce, label, glowing = 'none' }) {
+  const r = (size - stroke) / 2 - 1; const cx = size / 2; const cy = r + stroke / 2 + 1;
+  const h = cy + 4;
+  const at = (v) => { const t = Math.PI * (1 - Math.max(0, Math.min(100, v)) / 100); return [cx + r * Math.cos(t), cy - r * Math.sin(t)]; };
+  const arc = (a, b) => { const [x0, y0] = at(a); const [x1, y1] = at(b); return `M${x0},${y0} A${r},${r} 0 0 1 ${x1},${y1}`; };
+  const v = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+  const color = (bands.find((b) => v < b.to) || bands.at(-1)).color;
+  const [mx, my] = at(v);
+  const spans = bands.map((b, k) => ({ ...b, from: k ? bands[k - 1].to : 0 }));
+  return (
+    <span role="img" aria-label={label} style={{ position: 'relative', width: size, height: h, flexShrink: 0, display: 'block' }}>
+      <svg width={size} height={h} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+        {spans.map((b) => <path key={b.to} d={arc(b.from + (b.from ? 0.8 : 0), b.to - (b.to < 100 ? 0.8 : 0))} fill="none" stroke={b.color} strokeOpacity={0.3} strokeWidth={stroke} strokeLinecap="butt" />)}
+        <motion.path d={arc(0, Math.max(v, 0.5))} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduce ? 0 : 0.9, ease: EASE, delay: reduce ? 0 : 0.15 }} />
+        <motion.circle cx={mx} cy={my} r={stroke / 2 + 1} fill="var(--base)" stroke={color} strokeWidth={2} initial={{ opacity: reduce ? 1 : 0, scale: reduce ? 1 : 0.4 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: reduce ? 0 : 0.35, delay: reduce ? 0 : 0.9 }} style={{ transformBox: 'fill-box', transformOrigin: 'center' }} />
+      </svg>
+      <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', lineHeight: 1 }}>
+        <span className="vs-rank" style={{ display: 'block', fontSize: Math.round(size * 0.17), fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text)', textShadow: glowing }}>{Number.isFinite(value) ? value.toFixed(1) : '—'}</span>
+        <span style={{ display: 'block', fontSize: 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: 2 }}>/ 100</span>
+      </span>
+    </span>
+  );
+}
+
+/**
  * A barcode meter: a field of thin lines, lit in `color` (growing stronger)
  * up to the share `value`, quiet after it, with a marker at the share.
  */
@@ -169,6 +199,10 @@ export function BarcodeMeter({ value, color, n = 54, height = 24, reduce, label 
 }
 
 const monthOf = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+// a month's name, with its year when it is January ("Jan ’26")
+const monthLabel = (t) => { const d = new Date(t); return d.getUTCMonth() === 0 ? `Jan ’${String(d.getUTCFullYear()).slice(2)}` : monthOf(t); };
+// how long ago a run of monthly steps began
+const sinceWord = (months) => (months >= 23 ? 'two years ago' : months >= 11 ? 'a year ago' : `${months} months ago`);
 
 /**
  * A staircase: the first step's value as a dot, then for each step a bar
@@ -191,6 +225,10 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
   const last = n - 1;
   const step = (i) => (i ? values[i] - values[i - 1] : null);
   const fell = values[last] - values[0];
+  // with two years of months, every third month is named, counting back
+  // from the newest; January carries its year
+  const every = n > 14 ? 3 : 1;
+  const labelled = (i) => (last - i) % every === 0;
   return (
     <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
       {w > 0 && h > 0 && (
@@ -225,7 +263,7 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
                       />
                     </>
                   )}
-                <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthOf(at[i])}</text>
+                {labelled(i) && <text x={cx(i)} y={h - 4} textAnchor="middle" style={{ fontSize: 9, fontWeight: lit[i] ? 800 : 600, fill: lit[i] ? 'var(--text)' : 'var(--muted)' }}>{monthLabel(at[i])}</text>}
               </g>
             );
           })}
@@ -233,7 +271,7 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
       )}
       {w > 0 && hover === null && (
         <motion.span initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 1.1, duration: 0.35 }} style={{ pointerEvents: 'none' }}>
-          <span style={{ position: 'absolute', left: Math.max(4, cx(0) - 10), top: y(values[0]) - 30, height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--plate)', border: '1px solid var(--hair)', fontSize: 10, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{format(values[0])} a year ago</span>
+          <span style={{ position: 'absolute', left: Math.max(4, cx(0) - 10), top: y(values[0]) - 30, height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--plate)', border: '1px solid var(--hair)', fontSize: 10, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{format(values[0])} {sinceWord(n - 1)}</span>
           <span style={{ position: 'absolute', left: Math.min(cx(last) + bw / 2, w - 4), top: y(values[last]) + 10, transform: 'translateX(-100%)', height: 20, padding: '0 8px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--ink)', color: 'var(--ink-on)', fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 14px rgba(15,23,42,0.18)' }}>{format(values[last])} now <span style={{ opacity: 0.7 }}>{fell <= 0 ? '▼' : '▲'}{Math.abs(fell).toFixed(1)}</span></span>
         </motion.span>
       )}
@@ -626,7 +664,7 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
   const shown = hover !== null ? order[hover] : null;
   const wd = whole.before !== undefined && whole.before !== null ? whole.now - whole.before : null;
   return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
+    <div ref={box} className="ins-pop-in" style={{ '--d': '0.12s', position: 'relative', flex: 1, minHeight: 0 }} onMouseLeave={() => setHover(null)}>
       {w > 0 && h > 0 && (
         <svg width={w} height={h} role="img" aria-label={order.map((it) => `${it.label} ${it.now.toFixed(1)}, ${it.before.toFixed(1)} before`).join('; ')} style={{ display: 'block', overflow: 'visible' }}>
           {threshold > lo && threshold < hi && <path d={`${ringPath(R(hi))} ${ringPath(R(threshold))}`} fill={bad} fillOpacity={0.06} fillRule="evenodd" />}
@@ -656,9 +694,9 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
               >
                 <line x1={sx} y1={sy} x2={ex} y2={ey} stroke={hover === i ? 'var(--hair-strong)' : 'var(--grid)'} strokeWidth={1} />
                 <line x1={sx} y1={sy} x2={lx} y2={ly} stroke="transparent" strokeWidth={22} />
-                <line className="ins-fade" x1={bx} y1={by} x2={nx} y2={ny} stroke={c} strokeOpacity={0.45} strokeWidth={5} strokeLinecap="round" style={{ '--d': `${0.25 + 0.025 * i}s` }} />
+                <line x1={bx} y1={by} x2={nx} y2={ny} stroke={c} strokeOpacity={0.45} strokeWidth={5} strokeLinecap="round" />
                 <circle cx={bx} cy={by} r={3} fill="var(--base)" stroke={neutral} strokeWidth={1.5} />
-                <circle className="ins-pop" cx={nx} cy={ny} r={hover === i ? 8 : 6.5} fill={c} stroke="var(--base)" strokeWidth={2} style={{ '--d': `${0.3 + 0.025 * i}s`, transformBox: 'fill-box', transformOrigin: 'center', transition: 'r .15s ease' }} />
+                <circle cx={nx} cy={ny} r={hover === i ? 8 : 6.5} fill={c} stroke="var(--base)" strokeWidth={2} style={{ transition: 'r .15s ease' }} />
                 <text x={lx} y={ly - 1} textAnchor="middle" style={{ fontSize: 9.5, fontWeight: 800, fill: 'var(--text)' }}>{it.code}</text>
                 <text x={lx} y={ly + 11} textAnchor="middle" style={{ fontSize: 8.5, fontWeight: 700, fill: 'var(--muted)' }}>
                   <tspan fill={c}>{d < -0.05 ? '▼' : d > 0.05 ? '▲' : '●'}</tspan> {Math.abs(d).toFixed(1)}

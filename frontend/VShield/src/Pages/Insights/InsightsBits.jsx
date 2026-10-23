@@ -40,8 +40,9 @@ export function LureTile({ type, size = 32, tone }) {
 // A bar's fill: set at its width and grown in from the left by a CSS
 // animation of its transform, which the browser runs without script or
 // layout; a later change of width eases across.
-export function Fill({ width, color, delay = 0, radius = 999 }) {
-  return <span className="ins-grow-x" style={{ '--d': `${Math.min(delay, 0.45)}s`, display: 'block', height: '100%', width, borderRadius: radius, background: color, transformOrigin: 'left', transition: 'width .5s ease' }} />;
+// `grow` false when the row around it already moves in: one animated layer, not two.
+export function Fill({ width, color, delay = 0, radius = 999, grow = true }) {
+  return <span className={grow ? 'ins-grow-x' : undefined} style={{ '--d': `${Math.min(delay, 0.45)}s`, display: 'block', height: '100%', width, borderRadius: radius, background: color, transformOrigin: 'left', transition: 'width .5s ease' }} />;
 }
 
 /** A number over a thin bar that grows in from nothing. */
@@ -61,12 +62,12 @@ export function Meter({ value, max, color, label, sub, delay = 0, reduce, height
 }
 
 /** A thin bar with its value at its end, on one line with the rest of a row. */
-export function InlineBar({ value, max, color, label, delay = 0, reduce }) {
+export function InlineBar({ value, max, color, label, delay = 0, reduce, grow = true }) {
   const w = `${Math.max(0, Math.min(1, max > 0 ? (value || 0) / max : 0)) * 100}%`;
   return (
     <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
       <span aria-hidden style={{ flex: 1, minWidth: 0, height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-        <Fill width={w} color={color} delay={delay} reduce={reduce} />
+        <Fill width={w} color={color} delay={delay} reduce={reduce} grow={grow} />
       </span>
       <span className="vs-rank" style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
     </span>
@@ -180,6 +181,39 @@ export function PerClickHow({ n, days, campaigns, ink }) {
           </span>
         ))}
       </span>
+    </>
+  );
+}
+
+/** What the risk score means and how it is worked out; for an Explain. */
+export function RiskHow({ score, days, colors }) {
+  const levels = [
+    ['low', 'Low', 'reported phishing and never clicked'],
+    ['moderate', 'Moderate', 'clicked once, or never reported'],
+    ['high', 'High', 'clicked more than once'],
+    ['critical', 'Critical', 'gave details away'],
+  ];
+  const bands = [['low', 'Under 20'], ['moderate', '20 to 35'], ['high', '35 to 60'], ['critical', '60 and over']];
+  return (
+    <>
+      <span style={{ display: 'block', ...eyebrow }}>Risk score</span>
+      <span style={{ display: 'block', fontSize: 11, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>
+        How exposed the company is to phishing, from 0 (no one at risk) to 100 (everyone at the highest level). Lower is safer.
+      </span>
+      <span style={{ display: 'block', ...small, fontSize: 9.5, fontWeight: 700, marginTop: 9, color: 'var(--text)' }}>Each person has a level, from their phishing record:</span>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5 }}>
+        {levels.map(([k, word, rule]) => (
+          <span key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 9.5, lineHeight: 1.35 }}>
+            <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 2, background: colors[k], transform: 'translateY(-1px)' }} />
+            <span><strong>{word}</strong> <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{rule}</span></span>
+          </span>
+        ))}
+      </span>
+      <span style={{ display: 'block', ...small, fontSize: 9.5, marginTop: 8, lineHeight: 1.45 }}>The score averages everyone: low counts 0, moderate 33, high 67, critical 100.</span>
+      <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hair)', fontSize: 9, fontWeight: 700 }}>
+        {bands.map(([k, range]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: 2, background: colors[k] }} />{range}</span>)}
+      </span>
+      {Number.isFinite(score) && <span style={{ display: 'block', ...small, fontSize: 9.5, marginTop: 6 }}>Now {score.toFixed(1)}; the arrow beside it is the change over the last {days} days.</span>}
     </>
   );
 }
