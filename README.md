@@ -388,6 +388,7 @@ security-awareness-platform
 │   ├── architecture.png       # Figure 1 — target architecture (HD)
 │   ├── architecture.svg       # Figure 1 — vector copy
 │   ├── cost-estimate.md       # monthly/annual AWS cost for Figure 1
+│   ├── insights-guide.pdf     # Insights guide for the GMT, leadership and admins
 │   └── cicd-pipeline.png      # Figure 2 — proposed pipeline
 ├── frontend/VShield/          # React 19 + Vite app
 │   └── src/
