@@ -46,9 +46,9 @@ export const GLOSSARY = Object.freeze({
     how: 'The share of emails delivered that were reported.',
   },
   perClick: {
-    name: 'Reports per click',
-    what: 'Whether people spot phishing faster than they fall for it.',
-    how: 'Emails reported for every email clicked: 2.3× means 23 reports for every 10 clicks.',
+    name: 'Resilience Ratio',
+    what: 'How many phishing emails people report for every one they click. Higher is better.',
+    how: 'Emails reported divided by emails clicked: 2.3× means 23 reports for every 10 clicks.',
   },
   gaveDetails: {
     name: 'Gave details away',
@@ -61,9 +61,9 @@ export const GLOSSARY = Object.freeze({
     how: 'Reported it · Ignored it (neither reported nor clicked) · Clicked, no more · Gave details away (clicked, then entered details on the practice page).',
   },
   trainingImpact: {
-    name: 'Training impact',
-    what: 'Whether training changes what people do.',
-    how: 'The Hook Rate of people who have finished their training against those who have not. 2.5× means the untrained click 2.5 times as often.',
+    name: 'Training Lift',
+    what: 'How much less often trained people click. Higher is better.',
+    how: 'The Hook Rate of people who have not finished their training divided by that of people who have. 2.5× means the untrained click 2.5 times as often.',
   },
   trainingProgress: {
     name: 'Training progress',

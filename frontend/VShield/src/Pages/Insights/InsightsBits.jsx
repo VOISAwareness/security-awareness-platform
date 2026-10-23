@@ -7,7 +7,7 @@ import { Chip } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
 import { useSize } from './useSize';
 import { GLOSSARY } from '../../services/glossary';
-import { EASE, HEALTH_RULE, HEALTH_WORD, STEADY_INK, eyebrow, healthInk, heads, lureIcon, num, pc, small, times, TYPE } from './insightsUi';
+import { EASE, HEALTH_RULE, HEALTH_WORD, STEADY_INK, eyebrow, healthInk, heads, lureIcon, pc, small, TYPE } from './insightsUi';
 
 // Small pieces Insights' views and profiles share: a change on a chip, a
 // health chip, a lure's icon tile, a thin labelled bar, column names, a
@@ -171,42 +171,6 @@ export function Define({ term, onDark }) {
   const g = GLOSSARY[term];
   if (!g) return null;
   return <Explain label={`What ${g.name} means`} onDark={onDark}><Definition term={term} /></Explain>;
-}
-
-/**
- * What "reports for every click" means and how it is worked out, from the
- * period's counts; for an Explain.
- */
-export function PerClickHow({ n, days, campaigns, ink }) {
-  const rules = [
-    ['Protected', ink.good, '2 or more: at least two people raise the alarm for everyone caught out'],
-    ['Holding', ink.bad, '1 to 2: as many report it as click it, or more'],
-    ['Not protected', ink.alert, 'below 1: more people click it than report it'],
-  ];
-  return (
-    <>
-      <span style={{ display: 'block', ...eyebrow }}>Reports for every click</span>
-      <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>
-        Of the simulated phishing emails people got in the last {days} days, how many they reported to security for every one they clicked.
-      </span>
-      <span style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 5, marginTop: 9, padding: '8px 10px', borderRadius: 10, background: 'var(--plate)', fontSize: TYPE.strong, fontWeight: 700 }}>
-        <strong className="vs-rank" style={{ fontSize: TYPE.title }}>{num(n.reported)}</strong> reported
-        <span style={{ fontSize: TYPE.figure, fontWeight: 800, color: 'var(--muted)' }}>÷</span>
-        <strong className="vs-rank" style={{ fontSize: TYPE.title }}>{num(n.clicked)}</strong> clicked
-        <span style={{ fontSize: TYPE.figure, fontWeight: 800, color: 'var(--muted)' }}>=</span>
-        <strong className="vs-rank" style={{ fontSize: TYPE.title }}>{times(n.perClick)}</strong>
-      </span>
-      <span style={{ display: 'block', ...small, marginTop: 6 }}>From {num(n.delivered)} emails delivered by {campaigns} {campaigns === 1 ? 'campaign' : 'campaigns'}.</span>
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 9, paddingTop: 9, borderTop: '1px solid var(--hair)' }}>
-        {rules.map(([word, color, rule]) => (
-          <span key={word} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: TYPE.small, lineHeight: 1.35 }}>
-            <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 999, background: color, transform: 'translateY(-1px)' }} />
-            <span><strong>{word}</strong> <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{rule}</span></span>
-          </span>
-        ))}
-      </span>
-    </>
-  );
 }
 
 /** What the risk score means and how it is worked out; for an Explain. */

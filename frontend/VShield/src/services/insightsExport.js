@@ -64,7 +64,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
           { label: 'Hook Rate', value: (l) => l.hooked, kind: 'pct', width: 11 },
           { label: 'Gave details away, of clicks', value: (l) => l.gaveOfClicks, kind: 'pct', width: 16 },
           { label: 'Report Rate', value: (l) => l.reportRate, kind: 'pct', width: 11 },
-          { label: 'Reports per click', value: (l) => l.perClick, kind: 'dec', width: 12 },
+          { label: GLOSSARY.perClick.name, value: (l) => l.perClick, kind: 'dec', width: 12 },
           { label: 'Learning moments', value: (l) => l.learned, kind: 'pct', width: 12 },
           { label: 'Health', value: (l) => (l.health ? healthWord(l.health.word) : ''), width: 13 },
         ],
@@ -85,7 +85,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
           { label: 'Half reported (min)', value: (c) => c.medianReport, kind: 'int', width: 12 },
           { label: 'Reported first', value: (c) => (c.beatClick ? 'Yes' : 'No'), width: 11 },
           { label: 'Hook Rate', value: (c) => c.hooked, kind: 'pct', width: 11 },
-          { label: 'Reports per click', value: (c) => c.perClick, kind: 'dec', width: 12 },
+          { label: GLOSSARY.perClick.name, value: (c) => c.perClick, kind: 'dec', width: 12 },
           { label: 'Learning moments', value: (c) => c.learned, kind: 'pct', width: 12 },
           { label: 'Health', value: (c) => (c.health ? healthWord(c.health.word) : ''), width: 13 },
         ],
@@ -99,7 +99,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
         columns: [
           { label: 'Fortnight to', value: (w) => new Date(w.to).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }), width: 12 },
           { label: 'Campaigns', value: (w) => w.campaigns, kind: 'int', width: 11 },
-          { label: 'Reports per click', value: (w) => (w.perClick === null ? '—' : { value: w.perClick, kind: 'dec' }), width: 14 },
+          { label: GLOSSARY.perClick.name, value: (w) => (w.perClick === null ? '—' : { value: w.perClick, kind: 'dec' }), width: 14 },
           { label: `In the last ${days} days`, value: (w) => (w.inPeriod ? 'Yes' : ''), width: 16 },
         ],
         rows: m.trend,
@@ -212,7 +212,7 @@ export function insightsSummary(m, list, title = 'Insights') {
   const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
   return [
     `${title} · last ${m.basis.days} days`,
-    `${n.campaigns} campaigns, ${n.delivered.toLocaleString('en-US')} emails delivered. Programme health: ${n.health ? healthWord(n.health.word).toLowerCase() : '—'}, ${per} reports for every click.`,
+    `${n.campaigns} campaigns, ${n.delivered.toLocaleString('en-US')} emails delivered. Programme health: ${n.health ? healthWord(n.health.word).toLowerCase() : '—'}, ${GLOSSARY.perClick.name} ${per}×.`,
     `Hook Rate ${pc(n.hooked)}, Report Rate ${pc(n.reportRate)}, first report after ${n.firstReport ?? '—'} min, learning moments ${pc(n.learned)}.`,
     '',
     'What stands out:',

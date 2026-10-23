@@ -338,7 +338,7 @@ export function standsOut(m, p = null) {
   const top = m.lures[0];
   if (top && m.lures.length > 1) out.push({ id: 'topLure', tone: 'bad', chip: `${pc(top.hooked)} clicked`, title: 'Fooled the most people', sub: `${lureName(top.type)} · the highest Hook Rate`, view: 'lure', focus: top.type });
   const c = p?.now.cohorts;
-  if (c?.times) out.push({ id: 'trained', tone: 'good', chip: `${c.times.toFixed(1)}× less`, title: 'Trained people click less', sub: `${pc(c.trainedRate)} of the trained clicked, ${pc(c.untrainedRate)} of the rest`, view: 'training', focus: 'cohorts' });
+  if (c?.times) out.push({ id: 'trained', tone: 'good', chip: `Lift ${c.times.toFixed(1)}×`, title: 'Trained people click less', sub: `${pc(c.trainedRate)} of the trained clicked, ${pc(c.untrainedRate)} of the rest`, view: 'training', focus: 'cohorts' });
   const gave = [...m.lures].filter((l) => l.gaveOfClicks !== null && l.compromised > 0).sort((a, b) => b.gaveOfClicks - a.gaveOfClicks)[0];
   if (gave) out.push({ id: 'gaveLure', tone: 'bad', chip: `${pc(gave.gaveOfClicks)} of clicks`, title: 'The most details given away', sub: `${lureName(gave.type)} · of those who clicked`, view: 'lure', focus: gave.type });
   return out;
