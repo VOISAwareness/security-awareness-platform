@@ -4,6 +4,7 @@ import ReviewPublishDashboard from './ReviewPublishDashboard';
 import imageCatalogue from "./imageCatalogue.json";
 import { api } from "../../services/api";
 import { catalogueCoverName, landingPageChoice, toEditFormData, toStoredScenario } from "../../services/scenarioMapper";
+import { typeOptions } from "../../services/campaignTypes";
 import { formFingerprint, fromDraft, reusableCoverKey, withUniqueCoverName } from "../../services/scenarioDraft";
 import { scenarioEditorOpening } from "../../services/scenarioDraftList";
 import { loadScenarioEditorOpening, openingNeedsServer, readScenarioDraftItems } from "../../services/scenarioDraftSync";
@@ -609,20 +610,7 @@ const ScenarioDetailsTab = ({
                     e.target.value
                   )
                 }
-                options={[
-                  {
-                    value: "data-entry",
-                    label: "Data Entry",
-                  },
-                  {
-                    value: "phishing",
-                    label: "Phishing Simulation",
-                  },
-                  {
-                    value: "social-engineering",
-                    label: "Social Engineering",
-                  },
-                ]}
+                options={typeOptions(formData.type)}
               />
 
               <FormSelect

@@ -22,6 +22,7 @@ import { api } from "../../services/api";
 import { currentActor } from "../../services/identity";
 import { DELETE_KINDS, cardActions, scenariosForViewer } from "../../services/scenarioOwnership";
 import { DEMO_USER } from '../../appConfig';
+import { TYPE_NAMES } from "../../services/campaignTypes";
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import { setActiveScenarioDraftId } from '../../services/scenarioDraftList';
 import {
@@ -154,14 +155,8 @@ const VODAFONE_FONT_STYLE = `
 // Filter Data
 // -----------------------------------------------------
 
-const campaignTypes = [
-  "Data Entry",
-  "Click",
-  "Credential theft",
-  "Helpdesk impersonation",
-  "Reward scam",
-  "Travel scam",
-];
+// The app's one list of campaign types (services/campaignTypes.js).
+const campaignTypes = TYPE_NAMES;
 
 const emotions = [
   "Urgency",
