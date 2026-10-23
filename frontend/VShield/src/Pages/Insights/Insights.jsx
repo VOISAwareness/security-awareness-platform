@@ -19,7 +19,8 @@ import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, TYPE } from './insightsUi';
+import { EASE, HEALTH_WORD, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE } from './insightsUi';
+import { GLOSSARY } from '../../services/glossary';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -56,6 +57,7 @@ const FONT_IMPORT = `
   .ins-open:hover .ins-go-arrow, .ins-go:hover .ins-go-arrow { transform: translate(2px, -2px); }
   .ins-go-arrow { transition: transform .2s ease; }
   .ins-kpi { transition: box-shadow .25s ease; }
+  .ins-health:focus-visible { outline: 2px solid var(--text) !important; outline-offset: 3px; }
   .ins-kpi:hover { box-shadow: var(--lift); }
   .ins-row, .ins-go, .ins-find { transition: background .15s ease, border-color .15s ease; }
   .ins-row:hover, .ins-go:hover, .ins-find:hover { background: var(--track) !important; }
@@ -104,6 +106,15 @@ const CAP_H = 156;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP;
+// The sheet's outline: one path round the whole L, so its edge and shadow
+// run unbroken from the arm into the base and round the concave corner,
+// which keeps the even gap round the tile's own corner. Half-pixel inset
+// keeps the 1px edge sharp.
+function lPath(w, h, capH) {
+  const e = 0.5; const r = L_R; const f = FILLET;
+  const x0 = CAP_W + L_GAP; const y1 = capH + L_GAP; const W = w - e; const H = h - e;
+  return `M${x0 + r},${e} H${W - r} A${r},${r} 0 0 1 ${W},${e + r} V${H - r} A${r},${r} 0 0 1 ${W - r},${H} H${e + r} A${r},${r} 0 0 1 ${e},${H - r} V${y1 + r} A${r},${r} 0 0 1 ${e + r},${y1} H${x0 - f} A${f},${f} 0 0 0 ${x0},${y1 - f} V${e + r} A${r},${r} 0 0 1 ${x0 + r},${e} Z`;
+}
 // The tile keeps its pastel in dark mode, so its words take the light theme's ink.
 const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(255,255,255,0.72)', '--track': 'rgba(15,23,42,0.08)' };
 
@@ -144,30 +155,85 @@ const HEALTH_LOOK = {
   Holding: { word: 'Holding', says: 'About as many reports as clicks', art: ClayGoingWell, tint: 'hue-rotate(-118deg) saturate(1.35) brightness(1.04)', tile: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', lift: '0 20px 40px rgba(245,158,11,0.15)', glow: 'rgba(245,158,11,0.20)', shine: '0 0 20px rgba(245,158,11,0.3)' },
   Exposed: { word: 'Not protected', says: 'More clicks than reports', art: ClayAttention, tile: 'linear-gradient(135deg,#FEF2F2 0%,#FEE2E2 100%)', lift: '0 20px 40px rgba(220,38,38,0.15)', glow: 'rgba(220,38,38,0.18)', shine: '0 0 20px rgba(220,38,38,0.25)' },
 };
+// The rule behind each health, for the back of the tile.
+const HEALTH_STEPS = [
+  { key: 'Protected', rule: '2 or more reports for every click', color: '#10B981' },
+  { key: 'Holding', rule: 'at least 1 report for every click', color: '#F59E0B' },
+  { key: 'Exposed', rule: 'fewer reports than clicks', color: '#DC2626' },
+];
 function HealthTile({ m, reduce, capH, compact }) {
+  const [over, setOver] = useState(false);
   const h = m.now.health;
+  const n = m.now;
   const look = HEALTH_LOOK[h?.word] || HEALTH_LOOK.Holding;
   const swapIn = { initial: { opacity: 0, y: reduce ? 0 : 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: reduce ? 0 : -6 }, transition: { duration: reduce ? 0 : 0.3, ease: EASE } };
+  const turn = () => setOver((o) => !o);
+  const face = { position: 'absolute', inset: 0, boxSizing: 'border-box', borderRadius: L_R, overflow: 'hidden', background: look.tile, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transition: 'background .4s ease' };
   return (
-    <div data-ins-health={h?.word || 'none'} role="status" aria-label={`Last ${m.basis.days} days: ${look.word}. ${look.says}`} style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: capH, boxSizing: 'border-box', padding: '0 18px 0 14px', display: 'flex', alignItems: 'center', gap: 14, borderRadius: L_R, overflow: 'hidden', background: look.tile, boxShadow: look.lift, transition: 'background .4s ease, box-shadow .4s ease' }}>
-      <span aria-hidden style={{ position: 'absolute', left: -50, top: -40, width: 200, height: 200, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={compact ? 64 : 92} height={compact ? 64 : 92} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
-      </AnimatePresence>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</span><Define term="health" /></div>
-          <div className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? TYPE.heading : TYPE.number) : (look.word.length > 10 ? TYPE.number : TYPE.hero), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: 7, color: 'var(--text)', textShadow: look.shine }}>{look.word}</div>
-          <div style={{ fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.4, marginTop: 6, color: '#475569' }}>{look.says}</div>
-        </motion.div>
-      </AnimatePresence>
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={over}
+      data-ins-health={h?.word || 'none'}
+      aria-label={over ? `How health is worked out: ${HEALTH_STEPS.map((s) => `${HEALTH_WORD[s.key]}, ${s.rule}`).join('; ')}. Turn back` : `Last ${m.basis.days} days: ${look.word}. ${look.says}. Show how it is worked out`}
+      title={over ? 'Click to turn back' : 'Click to see how it is worked out'}
+      onClick={turn}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); turn(); } else if (e.key === 'Escape') setOver(false); }}
+      className="ins-health"
+      style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: capH, borderRadius: L_R, perspective: 900, cursor: 'pointer', boxShadow: look.lift, transition: 'box-shadow .4s ease', outline: 'none' }}
+    >
+      <motion.div initial={false} animate={{ rotateY: over ? 180 : 0 }} transition={{ duration: reduce ? 0 : 0.6, ease: EASE }} style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
+        {/* the front: its emblem on the left, its words on the right */}
+        <div style={{ ...face, display: 'flex', alignItems: 'center', gap: 12, padding: compact ? '0 16px 0 12px' : '0 18px 0 14px' }}>
+          <span aria-hidden style={{ position: 'absolute', left: -50, top: -40, width: 200, height: 200, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={compact ? 64 : 92} height={compact ? 64 : 92} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
+          </AnimatePresence>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0, marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right' }}>
+              <span style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</span>
+              <span className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? TYPE.heading : TYPE.number) : (look.word.length > 10 ? TYPE.number : TYPE.hero), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: compact ? 4 : 7, color: 'var(--text)', textShadow: look.shine, whiteSpace: 'nowrap' }}>{look.word}</span>
+              <span style={{ maxWidth: 170, fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.4, marginTop: compact ? 3 : 6, color: '#475569', textWrap: 'balance' }}>{look.says}</span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        {/* the back: how each health is worked out, and where the period stands */}
+        <div aria-hidden={!over} style={{ ...face, transform: 'rotateY(180deg)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: compact ? 4 : 7, padding: compact ? '8px 16px' : '12px 18px' }}>
+          <span style={{ ...eyebrow, color: '#334155' }}>How health is worked out</span>
+          {HEALTH_STEPS.map((s) => {
+            const on = s.key === h?.word;
+            return (
+              <span key={s.key} style={{ display: 'grid', gridTemplateColumns: '8px 84px minmax(0,1fr)', alignItems: 'center', gap: 7, padding: '2px 6px', margin: '0 -6px', borderRadius: 7, background: on ? 'rgba(255,255,255,0.7)' : 'transparent', fontSize: TYPE.small, lineHeight: 1.3, color: on ? 'var(--text)' : '#475569' }}>
+                <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: s.color }} />
+                <strong style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{HEALTH_WORD[s.key]}</strong>
+                <span style={{ fontWeight: on ? 700 : 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.rule}</span>
+              </span>
+            );
+          })}
+          {!compact && (
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingTop: 7, borderTop: '1px solid rgba(15,23,42,0.08)', fontSize: TYPE.small, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>
+              <span>{GLOSSARY.perClick.name} <strong className="vs-rank" style={{ color: 'var(--text)' }}>{times(n.perClick)}</strong></span>
+              <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(n.reportRate)}</strong></span>
+              <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(n.hooked)}</strong></span>
+            </span>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 // Along the arm: the risk score on a half gauge in its bands, with what it
 // means behind an "i", and how the period's emails were answered; then three
-// measures on barcode meters. Each opens where it is explained.
+// measures on barcode meters. Each opens where it is explained. Every tile
+// keeps the same three rows (its name, its number, a strip under it), so
+// the names, the numbers and the strips line up across the arm; a compact
+// band drops the strips.
+const KPI_ROW = { eyebrow: 18, value: 28, foot: 22 };
+const kpiRows = (compact) => (compact ? `${KPI_ROW.eyebrow}px ${KPI_ROW.value}px` : `${KPI_ROW.eyebrow}px ${KPI_ROW.value}px ${KPI_ROW.foot}px`);
+const kpiTile = (compact) => ({ minWidth: 0, display: 'grid', alignContent: 'center', rowGap: compact ? 4 : 8, padding: compact ? '6px 14px' : '10px 14px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', outline: 'none' });
+const rowStyle = (h) => ({ height: h, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 });
+
 function RiskKpi({ p, m, ink, isDark, reduce, onOpen, compact }) {
   const dc = change(p.now.score, p.before?.score, { kind: 'times', better: 'down' });
   const colors = tierInk(isDark);
@@ -175,47 +241,50 @@ function RiskKpi({ p, m, ink, isDark, reduce, onOpen, compact }) {
   const h = m.now.health;
   const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
   const bands = [{ to: 20, color: colors.low }, { to: 35, color: colors.moderate }, { to: 60, color: colors.high }, { to: 100, color: colors.critical }];
+  const split = <span style={{ ...small, whiteSpace: 'nowrap' }}>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong> · Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>;
   return (
-    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }} aria-label={`Risk Score ${p.now.score.toFixed(1)} of 100, ${riskWord(p.now.score)}. Open the risk view`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: compact ? 10 : 16, padding: compact ? '6px 14px 6px 10px' : '10px 16px 10px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: 'pointer', outline: 'none' }}>
-      <BandGauge value={p.now.score} bands={bands} size={compact ? 72 : 108} stroke={compact ? 7 : 9} reduce={reduce} label={`Risk Score ${p.now.score.toFixed(1)} of 100`} glowing={glow(tone, isDark, 0.35)} />
-      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: compact ? 3 : 6 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={eyebrow}>Risk Score</span>
-          <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
-          <span style={{ marginLeft: 'auto' }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: compact ? TYPE.figure : TYPE.heading, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: tone }} />{riskWord(p.now.score)}</span>
-        {compact ? (
-          <span style={{ ...small, whiteSpace: 'nowrap' }}>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong> · Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
-        ) : (
-        <span>
+    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }} aria-label={`Risk Score ${p.now.score.toFixed(1)} of 100, ${riskWord(p.now.score)}. Open the risk view`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, ease: EASE }} style={{ ...kpiTile(compact), gridTemplateColumns: `${compact ? 72 : 108}px minmax(0,1fr)`, gridTemplateRows: kpiRows(compact), columnGap: compact ? 10 : 16, paddingLeft: compact ? 10 : 12 }}>
+      <span style={{ gridRow: '1 / -1', alignSelf: 'center' }}>
+        <BandGauge value={p.now.score} bands={bands} size={compact ? 72 : 108} stroke={compact ? 7 : 9} reduce={reduce} label={`Risk Score ${p.now.score.toFixed(1)} of 100`} glowing={glow(tone, isDark, 0.35)} />
+      </span>
+      <span data-ins-row="eyebrow" style={rowStyle(KPI_ROW.eyebrow)}>
+        <span style={eyebrow}>Risk Score</span>
+        <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
+        <span style={{ marginLeft: 'auto' }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
+      </span>
+      <span data-ins-row="value" style={{ ...rowStyle(KPI_ROW.value), gap: 7 }}>
+        <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: 3, background: tone }} />
+        <span style={{ fontSize: compact ? TYPE.figure : TYPE.heading, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap' }}>{riskWord(p.now.score)}</span>
+        {compact && <span style={{ marginLeft: 'auto', minWidth: 0, overflow: 'hidden' }}>{split}</span>}
+      </span>
+      {!compact && (
+        <span data-ins-row="foot" style={{ height: KPI_ROW.foot, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
             <span className="ins-grow-x" style={{ '--d': '0.25s', flexShrink: 0, width: `${share * 100}%`, borderRadius: 999, background: ink.good, transformOrigin: 'left', transition: 'width .5s ease' }} />
             <span className="ins-grow-x" style={{ '--d': '0.35s', flex: 1, borderRadius: 999, background: ink.bad, transformOrigin: 'right' }} />
           </span>
-          <span style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, ...small }}>
+          <span style={{ display: 'flex', justifyContent: 'space-between', ...small, lineHeight: 1 }}>
             <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong></span>
             <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
           </span>
         </span>
-        )}
-      </span>
+      )}
     </motion.div>
   );
 }
 function BarKpi({ k, i, ink, reduce, compact }) {
   return (
-    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi={k.id} title={k.hint} onClick={k.onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } }} aria-label={`${k.label}. Open it`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: compact ? 'center' : 'space-between', gap: compact ? 6 : 0, padding: compact ? '6px 14px' : '10px 14px 10px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', outline: 'none' }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi={k.id} title={k.hint} onClick={k.onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } }} aria-label={`${k.label}. Open it`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={{ ...kpiTile(compact), gridTemplateRows: kpiRows(compact) }}>
+      <span data-ins-row="eyebrow" style={rowStyle(KPI_ROW.eyebrow)}>
         <span style={{ ...eyebrow, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
         <Define term={k.define} />
         <span style={{ marginLeft: 'auto' }}><Delta c={k.delta} ink={ink} title="Against the period before" /></span>
       </span>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
+      <span data-ins-row="value" style={{ ...rowStyle(KPI_ROW.value), alignItems: 'baseline', paddingTop: 4, gap: 5, whiteSpace: 'nowrap' }}>
         <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', textShadow: k.glow || 'none' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
-        <span style={{ ...small }}>{k.unit}</span>
+        <span style={{ ...small, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.unit}</span>
       </span>
-      {!compact && <BarcodeMeter value={k.share} color={k.color} reduce={reduce} height={22} label={`${k.label}: ${pc(k.share)}`} />}
+      {!compact && <span data-ins-row="foot" style={{ height: KPI_ROW.foot, minWidth: 0 }}><BarcodeMeter value={k.share} color={k.color} reduce={reduce} height={KPI_ROW.foot} label={`${k.label}: ${pc(k.share)}`} /></span>}
     </motion.div>
   );
 }
@@ -236,7 +305,7 @@ const Insights = () => {
   const [trail, setTrail] = useState([]); // the profiles opened, in order: { kind, key, layoutId, label }
   const [view, setView] = useState({ page: 0 });
   // the room under the top bar: short, and the band turns compact
-  const [lBox, { h: lH }] = useSize();
+  const [lBox, { w: lW, h: lH }] = useSize();
   const compact = lH > 0 && lH < COMPACT_BELOW;
   const capH = compact ? CAP_H_COMPACT : CAP_H;
 
@@ -287,8 +356,8 @@ const Insights = () => {
   // so nothing moving has to be blurred again every frame. --base is a solid
   // the colour of a card, for pills and the rings round dots.
   const vars = isDark
-    ? { '--bg': 'radial-gradient(circle at top center, #1A1D29 0%, #0B0F19 60%, #070A12 100%)', '--bg-edge': '#070A12', '--sheet': '#11141E', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.035) 100%)', '--card-edge': 'rgba(255,255,255,0.10)', '--base': '#1C1F29', '--glass': 'rgba(30,33,43,0.78)', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
-    : { '--bg': 'radial-gradient(circle at top center, #FFFFFF 0%, #F3F5F9 60%, #EBEEF3 100%)', '--bg-edge': '#EBEEF3', '--sheet': '#FBFCFD', '--card': 'rgba(255,255,255,0.9)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--glass': 'rgba(255,255,255,0.82)', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
+    ? { '--bg': 'radial-gradient(circle at top center, #10131C 0%, #090C13 60%, #06080D 100%)', '--bg-edge': '#06080D', '--sheet': '#141824', '--sheet-edge': 'rgba(255,255,255,0.11)', '--l-shadow': 'rgba(0,0,0,0.22)', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.035) 100%)', '--card-edge': 'rgba(255,255,255,0.10)', '--base': '#1C1F29', '--glass': 'rgba(30,33,43,0.78)', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
+    : { '--bg': 'radial-gradient(circle at top center, #F6F7FA 0%, #ECEFF3 60%, #E5E8EE 100%)', '--bg-edge': '#E5E8EE', '--sheet': '#FBFCFD', '--sheet-edge': 'rgba(15,23,42,0.10)', '--l-shadow': 'rgba(15,23,42,0.035)', '--card': 'rgba(255,255,255,0.9)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--glass': 'rgba(255,255,255,0.82)', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
 
   let body;
   if (top) {
@@ -325,13 +394,18 @@ const Insights = () => {
 
         {/* the sheet, in its L */}
         <div ref={lBox} style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          {lW > 0 && lH > 0 && (
+            <svg aria-hidden width={lW} height={lH} style={{ position: 'absolute', inset: 0, zIndex: 0, display: 'block', overflow: 'visible', pointerEvents: 'none' }}>
+              {/* a soft shadow from wide, faint strokes under the sheet: a
+                  blur filter here would be redrawn under every animation */}
+              {[[22, 0.25], [12, 0.45], [5, 0.8]].map(([wd, a]) => <path key={wd} d={lPath(lW, lH, capH)} transform="translate(0 5)" fill="none" stroke="var(--l-shadow)" strokeOpacity={a} strokeWidth={wd} strokeLinejoin="round" />)}
+              <path d={lPath(lW, lH, capH)} fill="var(--sheet)" stroke="var(--sheet-edge)" strokeWidth={1} />
+            </svg>
+          )}
           <HealthTile m={m} reduce={reduce} capH={capH} compact={compact} />
-          <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: capH - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
-            <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--sheet)" />
-          </svg>
 
           {/* the arm: the period, the tabs and Export; under them, four measures */}
-          <div style={{ marginLeft: CAP_W + L_GAP, height: capH + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: compact ? 7 : 10, padding: `${compact ? 9 : 12}px 16px ${L_GAP}px 20px`, background: 'var(--sheet)', borderTop: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+          <div style={{ marginLeft: CAP_W + L_GAP, height: capH + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: compact ? 7 : 10, padding: `${compact ? 9 : 12}px 16px ${L_GAP}px 20px`, position: 'relative' }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
               <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView((v) => ({ page: 0, deptQ: v.deptQ })); }); }} reduce={reduce} />
               {SAMPLE && (
@@ -352,7 +426,7 @@ const Insights = () => {
           </div>
 
           {/* the base: the tab on show, or a profile grown out of it */}
-          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 16px 16px', background: 'var(--sheet)', borderLeft: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderBottom: '1px solid var(--card-edge)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 16px 16px' }}>
             <LayoutGroup id="insights">
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div key={top ? `p-${trail.length}-${top.kind}-${top.key}` : `v-${tab}`} {...(top ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 0, transition: { duration: 0.18 } } } : swap(reduce))} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

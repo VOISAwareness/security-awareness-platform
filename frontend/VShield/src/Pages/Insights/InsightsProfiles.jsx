@@ -8,6 +8,7 @@ import { Chip } from '../Leaderboard/BigPictureTables';
 import { Blocks, Card, CompareBars, Donut, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel } from './InsightsCharts';
 import { Delta, Fill, FitList, HealthChip, InlineBar, LureTile, Meter, RowsGrid } from './InsightsBits';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
+import { GLOSSARY } from '../../services/glossary';
 import { EASE, SPANS, STEADY_INK, TIER_RULE, TIER_TEXT, TIER_WORD, TINT, change, day, glow, heads, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, times, TYPE } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
@@ -306,7 +307,7 @@ export function DepartmentProfile({ ctx, frame, name }) {
       figures={[
         { label: 'Risk Score', node: <ScoreRing score={d.score} isDark={isDark} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
         { label: 'At high risk', value: num(d.highRisk), sub: `${pc1(d.highRisk / d.people)} of its people` },
-        { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${c.times.toFixed(1)}× less likely to click` : '' },
+        { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${GLOSSARY.trainingImpact.name} ${c.times.toFixed(1)}×` : '' },
       ]}
       action={canSeePeople ? (
         <button type="button" className="ins-cta" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -374,7 +375,7 @@ export function LureProfile({ ctx, frame, type }) {
       figures={[
         { label: 'Hook Rate', value: pc1(l.hooked), delta: <Delta c={vsAll} ink={ink} title="Against every campaign type together" />, sub: 'against every type' },
         { label: 'Gave details away', value: pc(l.gaveOfClicks), sub: 'of those who clicked' },
-        { label: 'Health', node: <HealthChip h={l.health} ink={ink} />, sub: `${times(l.perClick)} reports per click` },
+        { label: 'Health', node: <HealthChip h={l.health} ink={ink} />, sub: `${GLOSSARY.perClick.name} ${times(l.perClick)}` },
       ]}
     >
       <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 6' }}>
@@ -482,7 +483,7 @@ export function CampaignProfile({ ctx, frame, id }) {
       <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(c, ink, isDark)} reduce={reduce} height={44} legendCols={4} />
-          <Insight tone={c.perClick >= 2 ? ink.good : ink.bad} sub={`Half the reports were in ${mins(c.medianReport)} after it went out`}>{times(c.perClick)} reports for every click</Insight>
+          <Insight tone={c.perClick >= 2 ? ink.good : ink.bad} sub={`Half the reports were in ${mins(c.medianReport)} after it went out`}>{GLOSSARY.perClick.name} {times(c.perClick)}</Insight>
         </div>
       </Card>
       <Card i={4} reduce={reduce} title="Compared with average" define="vsAverage" style={{ gridColumn: 'span 5' }}>
@@ -539,7 +540,7 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
         </RingGauge>
       )}
       eyebrowText="Training"
-      title={c?.times ? `Trained people are ${c.times.toFixed(1)}× less likely to click` : 'Training'}
+      title={c?.times ? `${GLOSSARY.trainingImpact.name} · ${c.times.toFixed(1)}×` : 'Training'}
       sub={`${pc(c?.trainedShare)} of ${num(p.now.people)} people have completed their training`}
       figures={[
         { label: 'Completed', value: pc(t.completion), delta: <Delta c={change(t.completion, tb?.completion, { kind: 'pct', better: 'up' })} ink={ink} />, sub: `of ${num(t.assigned)} assigned` },

@@ -8,7 +8,8 @@ import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, Segmented, Staircase, TileMap } from './InsightsCharts';
-import { Explain, Heads, HealthChip, InlineBar, LureIcon, LureTile, MiniPager, PerClickHow, RowsGrid } from './InsightsBits';
+import { Define, Heads, HealthChip, InlineBar, LureIcon, LureTile, MiniPager, RowsGrid } from './InsightsBits';
+import { GLOSSARY } from '../../services/glossary';
 import { useSize } from './useSize';
 import { DEPT_QUESTIONS, deptOrder, deptRows, deptSays } from '../../services/deptQuestions';
 import { useFitRows } from '../Leaderboard/useFitRows';
@@ -92,19 +93,14 @@ export function OverviewView({ ctx, list }) {
         style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
       >
         <header style={{ position: 'relative', flexShrink: 0, height: HEAD_H, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={cardTitle}>Reports per click</span>
+          <span style={cardTitle}>{GLOSSARY.perClick.name}</span>
+          <Define term="perClick" />
           <button type="button" className="ins-cta" data-ins-spot-open onClick={() => go('campaigns')} style={{ marginLeft: 'auto', height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 10px 0 12px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px rgba(230,0,0,0.22)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             See campaigns <ArrowUpRight size={12} strokeWidth={2.6} aria-hidden />
           </button>
         </header>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
-          <span style={{ minWidth: 0 }}>
-            <span className="vs-rank ins-big" style={{ display: 'block', fontSize: TYPE.display, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: TYPE.body, fontWeight: 700, marginTop: 6 }}>
-              reports for every click
-              <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
-            </span>
-          </span>
+          <span className="vs-rank ins-big" title={`${num(n.reported)} reported ÷ ${num(n.clicked)} clicked`} style={{ display: 'block', fontSize: TYPE.display, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
           <img className="ins-float ins-optional" src={CampaignMegaphone} alt="" aria-hidden width={60} height={60} style={{ marginLeft: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
         </div>
         <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 10 }}>
@@ -115,7 +111,7 @@ export function OverviewView({ ctx, list }) {
       {/* what fools us */}
       <Card i={3} reduce={reduce} title="Hook Rate by campaign type" define="hookRate" onOpen={() => go('campaigns')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-lures>
         <PillColumns
-          items={m.lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `Hook Rate ${pc1(l.hooked)} · gave details ${pc(l.gaveOfClicks)} of clicks`, `Reported ${pc(l.reportRate)} · ${times(l.perClick)} reports per click`] }))}
+          items={m.lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `Hook Rate ${pc1(l.hooked)} · gave details ${pc(l.gaveOfClicks)} of clicks`, `Reported ${pc(l.reportRate)} · ${GLOSSARY.perClick.name} ${times(l.perClick)}`] }))}
           color={ink.bad}
           soft="var(--soft-bad)"
           reduce={reduce}
@@ -151,13 +147,10 @@ export function OverviewView({ ctx, list }) {
       </Card>
 
       {/* is training paying off? */}
-      <Card i={5} reduce={reduce} title="Training impact" define="trainingImpact" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
+      <Card i={5} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
         {c && (
           <>
-            <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
-              <span className="vs-rank" style={{ fontSize: TYPE.hero, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
-              <span style={{ fontSize: TYPE.body, fontWeight: 700 }}>less likely to click once trained</span>
-            </span>
+            <span className="vs-rank" style={{ display: 'block', marginTop: 10, fontSize: TYPE.hero, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
               <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={24} />
             </div>
@@ -474,7 +467,7 @@ function DeptPanel({ says, lead, row, ink, isDark, reduce }) {
           </span>
           <span className="ins-optional" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <HealthChip h={row.health} ink={ink} />
-            <span style={small}>{times(row.perClick)} reports per click</span>
+            <span style={small}>{GLOSSARY.perClick.name} {times(row.perClick)}</span>
           </span>
         </motion.div>
       ) : (
@@ -511,7 +504,7 @@ export function DepartmentsView({ ctx }) {
   const lead = {
     risk: { label: 'The company’s Risk Score', value: one(p.now.score), sub: riskWord(p.now.score) },
     change: { label: 'The company’s change', value: moved(dc), sub: `over the last ${m.basis.days} days`, color: dc === null || Math.abs(dc) < 0.05 ? null : dc < 0 ? ink.good : ink.bad },
-    reports: { label: 'The company’s reports per click', value: times(m.now.perClick), sub: m.now.health ? HEALTH_WORD[m.now.health.word] : '' },
+    reports: { label: `The company’s ${GLOSSARY.perClick.name}`, value: times(m.now.perClick), sub: m.now.health ? HEALTH_WORD[m.now.health.word] : '' },
     types: { label: 'The company’s Hook Rate', value: pc1(m.now.hooked), sub: `across ${m.lures.length} campaign types` },
   }[q];
   const shared = { rows, ink, isDark, reduce, hover, onHover: setHover, open, page: view.deptPage || 0, onPage: (pg) => onView({ deptPage: pg }) };
@@ -577,7 +570,7 @@ export function CampaignsView({ ctx }) {
     <div data-ins-camps-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
       <Card i={0} reduce={reduce} title="Hook Rate by campaign type" define="hookRate" sub={lure ? 'Showing one type · click it again for all' : 'Pick one to see only its campaigns'} style={{ gridColumn: 'span 4' }} data-ins-lure-rank>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          <Heads cols={LURE_COLS} pad={8}><span /><span>Campaign type</span><span>Hook Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Reports per click</span><span style={{ textAlign: 'right' }}>Campaigns</span><span /></Heads>
+          <Heads cols={LURE_COLS} pad={8}><span /><span>Campaign type</span><span>Hook Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>{GLOSSARY.perClick.name}</span><span style={{ textAlign: 'right' }}>Campaigns</span><span /></Heads>
           {m.lures.map((l, k) => {
             const on = lure === l.type;
             return (
@@ -611,7 +604,7 @@ export function CampaignsView({ ctx }) {
 
       <Card i={1} reduce={reduce} title={lure ? `Campaigns · ${lure}` : 'Campaigns'} action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{lure && <button type="button" onClick={() => onView({ lure: null, page: 0 })} className="ins-go" style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer' }}>{lure} ✕</button>}<Segmented id="ins-camp-sort" label="Sort campaigns" value={sort} options={SORTS} onChange={(id) => onView({ sort: id, page: 0 })} reduce={reduce} /></span>} style={{ gridColumn: 'span 8' }} data-ins-camp-table>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          <Heads cols={CAMP_COLS} pad={8}><span /><span>Campaign</span><span style={{ textAlign: 'right' }}>Emails</span><span>Hook Rate</span><span>Report Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Gave details away</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Reports per click</span><span style={{ textAlign: 'right' }}>Health</span><span /></Heads>
+          <Heads cols={CAMP_COLS} pad={8}><span /><span>Campaign</span><span style={{ textAlign: 'right' }}>Emails</span><span>Hook Rate</span><span>Report Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Gave details away</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>{GLOSSARY.perClick.name}</span><span style={{ textAlign: 'right' }}>Health</span><span /></Heads>
           <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {rows.slice(page * size, page * size + size).map((c, k) => (
               <motion.button
