@@ -1,4 +1,4 @@
-import { Fragment, startTransition, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 
@@ -8,7 +8,7 @@ import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, RiskRing, Segmented, Staircase, TileMap } from './InsightsCharts';
-import { Explain, Heads, HealthChip, InlineBar, LureTile, PerClickHow } from './InsightsBits';
+import { Define, Explain, Heads, HealthChip, InlineBar, LureIcon, LureTile, PerClickHow, RowsGrid } from './InsightsBits';
 import { useFitRows } from '../Leaderboard/useFitRows';
 import { EASE, SPANS, TIER_WORD, TINT, cardTitle, change, day, didParts, heads, lureShort, num, pc, pc1, riskBands, small, tierInk, times } from './insightsUi';
 
@@ -49,7 +49,7 @@ export function OverviewView({ ctx, list }) {
   const [span, setSpan] = useState(12);
   const shownTrend = p.trend.slice(-span);
   return (
-    <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
+    <RowsGrid data-ins-overview minRow={200} sizes={['minmax(0,1.08fr)', 'minmax(0,1fr)']}>
       {/* are we safer? */}
       <Card i={0} reduce={reduce} title="Risk Score over time" define="riskScore" action={<Segmented id="ins-range-ov" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
@@ -86,7 +86,7 @@ export function OverviewView({ ctx, list }) {
         initial={{ opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.01 : 0.6, delay: reduce ? 0 : 0.14, ease: EASE }}
-        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
+        style={{ gridColumn: 'span 3', position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px 18px 14px', borderRadius: 18, color: 'var(--text)', border: `1px solid ${spot.edge}`, background: spot.wash }}
       >
         <header style={{ position: 'relative', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={cardTitle}>Reports per click</span>
@@ -96,13 +96,13 @@ export function OverviewView({ ctx, list }) {
         </header>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
           <span style={{ minWidth: 0 }}>
-            <span className="vs-rank" style={{ display: 'block', fontSize: 42, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
+            <span className="vs-rank ins-big" style={{ display: 'block', fontSize: 42, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, marginTop: 6 }}>
               reports for every click
               <Explain label="What reports for every click means"><PerClickHow n={n} days={m.basis.days} campaigns={m.basis.campaigns} ink={ink} /></Explain>
             </span>
           </span>
-          <img className="ins-float" src={CampaignMegaphone} alt="" aria-hidden width={60} height={60} style={{ marginLeft: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
+          <img className="ins-float ins-optional" src={CampaignMegaphone} alt="" aria-hidden width={60} height={60} style={{ marginLeft: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
         </div>
         <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 10 }}>
           <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height={28} legendCols={2} />
@@ -165,177 +165,146 @@ export function OverviewView({ ctx, list }) {
           </>
         )}
       </Card>
-    </div>
+    </RowsGrid>
   );
 }
 
 // ---------------------------------------------------------- departments
 
-// Reported against clicked, a row per department: an orange dot where its
-// clicks sit, a teal dot where its reports sit, on one scale, joined; the
-// best habit (most reports over clicks) first. Each row grows into the
-// department's profile; hover shows its numbers.
-function HabitRows({ rows, ink, isDark, open }) {
-  const [hover, setHover] = useState(null);
-  const top = Math.ceil(Math.max(...rows.flatMap((r) => [r.clicked, r.reported]), 0.1) * 10) / 10;
+// The Departments tab on one sheet: a board with a row per department, and
+// the risk ring beside it. Each row reads across three views of the same
+// department: reported against clicked, its people by risk level, and its
+// Hook Rate for each campaign type. One sort orders the board; rows page to
+// fit the height, so nothing scrolls. Hovering a row lights its spoke on the
+// ring, and the other way round; a row grows into the department's profile.
+const BOARD_SORTS = [
+  { id: 'risk', label: 'Riskiest', sub: 'Riskiest first' },
+  { id: 'high', label: 'At high risk', sub: 'Most at high risk first' },
+  { id: 'reporting', label: 'Best reporting', sub: 'Most reports over clicks first' },
+  { id: 'clicks', label: 'Most clicks', sub: 'Highest Hook Rate first' },
+];
+const BOARD_ROW = 30;
+const boardCols = (n) => `22px minmax(0,1.1fr) minmax(0,1.5fr) 46px minmax(0,1.1fr) 40px minmax(0,${Math.max(1.2, n * 0.27).toFixed(2)}fr) 12px`;
+
+function DeptBoard({ rows, types, cells, ink, isDark, open, active, onActive, page, onPage }) {
+  const [fit, size] = useFitRows(BOARD_ROW, 4, 0);
+  const colors = tierInk(isDark);
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const at = Math.min(page, pages - 1);
+  const top = Math.ceil(Math.max(...rows.flatMap((r) => [r.clicked ?? 0, r.reported ?? 0]), 0.1) * 10) / 10;
+  const x = (v) => `${((v ?? 0) / top) * 100}%`;
   const ticks = Array.from({ length: Math.round(top * 10) + 1 }, (_, k) => k / 10);
-  const at = (v) => `${(v / top) * 100}%`;
-  const COLS = '24px minmax(0,1.05fr) minmax(0,2.4fr) 58px 12px';
+  const hot = Math.max(...rows.flatMap((r) => types.map((t) => cells[r.name]?.[t]?.hooked ?? 0)), 0.01);
+  const cols = boardCols(types.length);
+  const heat = { display: 'grid', gridTemplateColumns: `repeat(${types.length}, minmax(0,1fr))`, gap: 3 };
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }} onMouseLeave={() => setHover(null)}>
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...small, fontSize: 8.5, fontWeight: 800 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }} onMouseLeave={() => onActive(null)}>
+      <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, alignItems: 'end', gap: 10, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...heads }}>
         <span />
         <span>Department</span>
-        <span style={{ position: 'relative', height: 12 }}>{ticks.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), transform: t === 0 ? 'none' : t === top ? 'translateX(-100%)' : 'translateX(-50%)', fontWeight: 600 }}>{pc(t)}</span>)}</span>
-        <span style={{ textAlign: 'right' }} title="Reported minus clicked, in points">Gap</span>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Reported vs clicked <Define term="reportedVsClicked" /></span>
+          <span aria-hidden style={{ position: 'relative', height: 10, fontSize: 7.5, fontWeight: 700, letterSpacing: 0 }}>
+            {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: x(t), transform: t === 0 ? 'none' : t === top ? 'translateX(-100%)' : 'translateX(-50%)' }}>{Math.round(t * 100)}%</span>)}
+          </span>
+        </span>
+        <span style={{ textAlign: 'right' }}>Gap</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>People by risk level <Define term="riskLevels" /></span>
+        <span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>At high risk</span>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Hook Rate by type <Define term="hookRate" /></span>
+          <span style={heat}>{types.map((t) => <button key={t} type="button" className="ins-crumb" title={`${t}: open its profile`} data-ins-board-type={t} onClick={() => open('lure', t)} style={{ border: 'none', background: 'none', padding: 0, display: 'grid', placeItems: 'center', color: 'var(--muted)', cursor: 'pointer' }}><LureIcon type={t} size={12} strokeWidth={2.2} aria-label={t} /></button>)}</span>
+        </span>
         <span />
       </div>
-      {rows.map((r, k) => {
-        const on = hover === r.name;
-        const lo = Math.min(r.clicked, r.reported); const hi = Math.max(r.clicked, r.reported);
-        const gap = Math.round((r.reported - r.clicked) * 100);
-        return (
-          <motion.button
-            key={r.name}
-            type="button"
-            layoutId={`dept-${r.name}`}
-            className="ins-row ins-in-x"
-            data-ins-habit={r.name}
-            onClick={() => open('department', r.name, `dept-${r.name}`)}
-            onMouseEnter={() => setHover(r.name)}
-            onFocus={() => setHover(r.name)}
-            aria-label={`${r.name}: reported ${pc1(r.reported)}, clicked ${pc1(r.clicked)}. Open its profile`}
-            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 42, display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
-          >
-            <DeptCrest code={deptCode(r.name)} size={24} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-            <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-            <span aria-hidden style={{ position: 'relative', height: 16 }}>
-              {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: at(t), top: -6, bottom: -6, width: 1, background: 'var(--grid)' }} />)}
-              <span className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, position: 'absolute', top: 5, height: 6, left: at(lo), width: at(hi - lo), transformOrigin: r.reported >= r.clicked ? 'left' : 'right', borderRadius: 999, background: r.reported >= r.clicked ? 'var(--soft-good)' : 'var(--soft-bad)', transition: 'left .5s ease, width .5s ease' }} />
-              {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => (
-                <span key={key} className="ins-pop" style={{ '--d': `${(key === 'clicked' ? 0.15 : 0.3) + Math.min(0.015 * k, 0.24)}s`, position: 'absolute', top: 2, left: at(r[key]), width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)', transition: 'left .5s ease' }}>
-                  {on && <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', [key === 'reported' ? 'bottom' : 'top']: 15, fontSize: 9, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{pc(r[key])}</span>}
-                </span>
-              ))}
-            </span>
-            <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: 8.5, marginLeft: 2 }}>pts</span></span>
-            <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
-          </motion.button>
-        );
-      })}
-    </div>
-  );
-}
-
-// Each department's people by risk level, the most at high risk first: one
-// bar split low, moderate, high and critical, and the share at high risk or
-// worse.
-const TIER_COLS = '22px minmax(0,1fr) minmax(0,1.9fr) 62px';
-function TierRows({ rows, colors, isDark, open }) {
-  return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-      <Heads cols={TIER_COLS} pad={8}><span /><span>Department</span><span>People by level</span><span style={{ textAlign: 'right' }}>At high risk</span></Heads>
-      {rows.map((d, k) => {
-        const all = d.tiers.low + d.tiers.moderate + d.tiers.high + d.tiers.critical || 1;
-        const high = (d.tiers.high + d.tiers.critical) / all;
-        return (
-          <button
-            key={d.name}
-            type="button"
-            className="ins-row ins-in-x"
-            data-ins-tiers={d.name}
-            onClick={() => open('department', d.name)}
-            title={['low', 'moderate', 'high', 'critical'].map((t) => `${TIER_WORD[t]} ${num(d.tiers[t])}`).join(' · ')}
-            aria-label={`${d.name}: ${pc(high)} at high risk or worse. Open its profile`}
-            style={{ '--d': `${Math.min(0.08 + 0.015 * k, 0.32)}s`, flex: '1 1 0', minHeight: 0, maxHeight: 40, display: 'grid', gridTemplateColumns: TIER_COLS, alignItems: 'center', gap: 14, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
-          >
-            <DeptCrest code={deptCode(d.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-            <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-            <span aria-hidden className="ins-grow-x" style={{ '--d': `${Math.min(0.15 + 0.015 * k, 0.4)}s`, display: 'flex', gap: 2, height: 12, transformOrigin: 'left' }}>
-              {['low', 'moderate', 'high', 'critical'].map((t) => <span key={t} style={{ flex: `${d.tiers[t]} 1 0`, minWidth: 3, borderRadius: 4, background: colors[t] }} />)}
-            </span>
-            <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc(high)}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// Which lure fools which department: a cell for each, its click rate, the
-// more clicks the deeper the amber; blank where a lure never reached the
-// department. A department opens its profile; a lure's heading opens its.
-function LureGrid({ rows, types, cells, ink, open }) {
-  const all = rows.flatMap((d) => types.map((t) => cells[d.name]?.[t]?.hooked).filter(Number.isFinite));
-  const top = Math.max(...all, 0.01);
-  const cols = `minmax(0,1.5fr) repeat(${types.length}, minmax(0,1fr))`;
-  return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, gap: 3, paddingBottom: 6, borderBottom: '1px solid var(--hair)' }}>
-        <span style={{ ...heads, alignSelf: 'center' }}>Department</span>
-        {types.map((t) => <button key={t} type="button" className="ins-crumb" data-ins-grid-lure={t} onClick={() => open('lure', t)} style={{ ...heads, border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lureShort(t)}</button>)}
+      <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {rows.slice(at * size, at * size + size).map((r, k) => {
+          const on = active === r.name;
+          const lo = Math.min(r.clicked ?? 0, r.reported ?? 0); const hi = Math.max(r.clicked ?? 0, r.reported ?? 0);
+          const gap = Math.round(((r.reported ?? 0) - (r.clicked ?? 0)) * 100);
+          const all = r.tiers.low + r.tiers.moderate + r.tiers.high + r.tiers.critical || 1;
+          return (
+            <motion.button
+              key={r.name}
+              type="button"
+              layoutId={`dept-${r.name}`}
+              className="ins-row ins-in-x"
+              data-ins-board={r.name}
+              onClick={() => open('department', r.name, `dept-${r.name}`)}
+              onMouseEnter={() => onActive(r.name)}
+              onFocus={() => onActive(r.name)}
+              aria-label={`${r.name}: Risk Score ${r.score.toFixed(1)}, reported ${pc1(r.reported)}, clicked ${pc1(r.clicked)}, ${pc(r.highShare)} at high risk. Open its profile`}
+              style={{ '--d': `${Math.min(0.06 + 0.015 * k, 0.3)}s`, flex: '1 1 0', minHeight: BOARD_ROW, maxHeight: 38, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 8, background: on ? 'var(--track)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+            >
+              <DeptCrest code={deptCode(r.name)} size={20} compact flat metal={isDark ? 'steelDark' : 'steel'} />
+              <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+              <span aria-hidden style={{ position: 'relative', height: 12 }}>
+                {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: x(t), top: -4, bottom: -4, width: 1, background: 'var(--grid)' }} />)}
+                <span style={{ position: 'absolute', top: 4, height: 4, left: x(lo), width: x(hi - lo), borderRadius: 999, background: (r.reported ?? 0) >= (r.clicked ?? 0) ? 'var(--soft-good)' : 'var(--soft-bad)' }} />
+                {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => <span key={key} style={{ position: 'absolute', top: 1, left: x(r[key]), width: 10, height: 10, marginLeft: -5, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />)}
+              </span>
+              <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: 8, marginLeft: 2 }}>pts</span></span>
+              <span aria-hidden style={{ display: 'flex', gap: 2, height: 10 }}>
+                {['low', 'moderate', 'high', 'critical'].map((t) => <span key={t} style={{ flex: `${r.tiers[t]} 1 0`, minWidth: 3, borderRadius: 3, background: colors[t] }} />)}
+              </span>
+              <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc((r.tiers.high + r.tiers.critical) / all)}</span>
+              <span style={heat}>
+                {types.map((t) => {
+                  const c = cells[r.name]?.[t];
+                  if (!c) return <span key={t} title={`${t}: no emails`} style={{ height: 20, borderRadius: 5, background: 'var(--plate)', display: 'grid', placeItems: 'center', fontSize: 8.5, color: 'var(--muted)' }}>—</span>;
+                  const k2 = c.hooked / hot;
+                  return <span key={t} title={`${r.name} · ${t}: ${num(c.clicked)} of ${num(c.recipients)} clicked`} style={{ height: 20, borderRadius: 5, background: `color-mix(in srgb, ${ink.bad} ${Math.round(10 + k2 * 80)}%, var(--base))`, display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{pc(c.hooked)}</span>;
+                })}
+              </span>
+              <ChevronRight className="ins-arrow" size={12} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
+            </motion.button>
+          );
+        })}
       </div>
-      <div className="ins-fade" style={{ '--d': '0.12s', flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: cols, gridAutoRows: 'minmax(0,1fr)', gap: 3, paddingTop: 6 }}>
-        {rows.map((d) => (
-          <Fragment key={d.name}>
-            <button type="button" className="ins-crumb" onClick={() => open('department', d.name)} style={{ minWidth: 0, border: 'none', background: 'none', padding: 0, textAlign: 'left', fontSize: 10.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>{d.name}</button>
-            {types.map((t) => {
-              const c = cells[d.name]?.[t];
-              if (!c) return <span key={t} aria-label={`${d.name}, ${t}: no emails`} style={{ borderRadius: 6, background: 'var(--plate)', display: 'grid', placeItems: 'center', fontSize: 9, color: 'var(--muted)' }}>—</span>;
-              const k = c.hooked / top;
-              return <span key={t} title={`${d.name} · ${t}: ${num(c.clicked)} of ${num(c.recipients)} clicked`} style={{ borderRadius: 6, background: `color-mix(in srgb, ${ink.bad} ${Math.round(10 + k * 80)}%, var(--base))`, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{pc(c.hooked)}</span>;
-            })}
-          </Fragment>
-        ))}
-      </div>
+      {pages > 1 && <Pager page={at} pages={pages} total={rows.length} size={size} onPage={onPage} what="departments" />}
     </div>
   );
-}
-
-// Builds its chart once it scrolls into view: the tab opens without the
-// cards below the fold, and they animate in when they are seen.
-function Reveal({ children }) {
-  const [el, setEl] = useState(null);
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    if (!el || seen) return undefined;
-    if (typeof IntersectionObserver === 'undefined') { startTransition(() => setSeen(true)); return undefined; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) startTransition(() => setSeen(true)); }, { rootMargin: '0px 0px -60px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [el, seen]);
-  return <div ref={setEl} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{seen && children}</div>;
 }
 
 export function DepartmentsView({ ctx }) {
-  const { m, p, ink, isDark, reduce, open } = ctx;
+  const { m, p, ink, isDark, reduce, open, view, onView } = ctx;
+  const [active, setActive] = useState(null);
+  const sort = view.deptSort || 'risk';
   const camp = Object.fromEntries(m.departments.map((d) => [d.name, d]));
-  const habits = p.departments.filter((d) => camp[d.name]?.recipients).map((d) => ({ name: d.name, clicked: camp[d.name].clickRate, reported: camp[d.name].reportRate })).sort((a, b) => (b.reported - b.clicked) - (a.reported - a.clicked) || a.name.localeCompare(b.name));
-  const ring = p.departments.filter((d) => Number.isFinite(d.scoreBefore)).map((d) => ({ key: d.name, label: d.name, code: deptCode(d.name), now: d.score, before: d.scoreBefore }));
-  const highShare = (d) => d.highRisk / (d.people || 1);
-  const mostHigh = [...p.departments].sort((a, b) => highShare(b) - highShare(a) || a.name.localeCompare(b.name));
+  const types = m.lures.map((l) => l.type);
   const cells = Object.fromEntries(Object.entries(m.deptLures).map(([name, list]) => [name, Object.fromEntries(list.map((x) => [x.type, x]))]));
+  const rows = p.departments.map((d) => ({
+    name: d.name,
+    score: d.score,
+    tiers: d.tiers,
+    highShare: d.highRisk / (d.people || 1),
+    clicked: camp[d.name]?.clickRate ?? null,
+    reported: camp[d.name]?.reportRate ?? null,
+  }));
+  const by = {
+    risk: (a, b) => b.score - a.score,
+    high: (a, b) => b.highShare - a.highShare,
+    reporting: (a, b) => ((b.reported ?? 0) - (b.clicked ?? 0)) - ((a.reported ?? 0) - (a.clicked ?? 0)),
+    clicks: (a, b) => (b.clicked ?? 0) - (a.clicked ?? 0),
+  }[sort];
+  rows.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
+  const ring = p.departments.filter((d) => Number.isFinite(d.scoreBefore)).map((d) => ({ key: d.name, label: d.name, code: deptCode(d.name), now: d.score, before: d.scoreBefore }));
+  const legendDot = (style) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, boxSizing: 'border-box', ...style }} />;
   return (
-    <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}>
-      <Card i={0} reduce={reduce} title="Reported vs clicked" define="reportedVsClicked" sub="Best first" action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
-        <HabitRows rows={habits} ink={ink} isDark={isDark} open={open} />
+    <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr)', gap: 14 }}>
+      <Card i={0} reduce={reduce} title="Departments" sub={BOARD_SORTS.find((s) => s.id === sort).sub} action={<Segmented id="ins-dept-sort" label="Sort departments" value={sort} options={BOARD_SORTS} onChange={(id) => onView({ deptSort: id, deptPage: 0 })} reduce={reduce} />} style={{ gridColumn: 'span 8' }} data-ins-board-card>
+        <DeptBoard rows={rows} types={types} cells={cells} ink={ink} isDark={isDark} open={open} active={active} onActive={setActive} page={view.deptPage || 0} onPage={(pg) => onView({ deptPage: pg })} />
       </Card>
-      <Card i={1} reduce={reduce} title="Risk change by department" define="riskChange" sub="Closer to the centre is safer" action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 5' }} data-ins-movers>
+      <Card i={1} reduce={reduce} title="Risk change by department" define="riskChange" sub="Closer to the centre is safer" action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 4' }} data-ins-ring>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
-          <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} />
+          <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} active={active} onHover={setActive} />
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', marginTop: 8, ...small, fontSize: 9 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, border: `1.5px solid ${ink.neutral}`, boxSizing: 'border-box' }} />{m.basis.days} days ago</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--muted)' }} />now</span>
+        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', marginTop: 8, ...small, fontSize: 9 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{legendDot({ border: `1.5px solid ${ink.neutral}` })}{m.basis.days} days ago</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{legendDot({ background: 'var(--muted)' })}now</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 14, borderTop: '1.5px dashed var(--text)', opacity: 0.6 }} />the company</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 10, height: 8, borderRadius: 3, background: ink.bad, opacity: 0.3 }} />moderate risk, 20 and over</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 10, height: 8, borderRadius: 3, background: ink.bad, opacity: 0.3 }} />20 and over</span>
         </div>
-      </Card>
-      <Card i={2} reduce={reduce} title="People by risk level" define="riskLevels" sub="Most at high risk first" action={<Legend items={['low', 'moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: tierInk(isDark)[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-tier-rows>
-        <Reveal><TierRows rows={mostHigh} colors={tierInk(isDark)} isDark={isDark} open={open} /></Reveal>
-      </Card>
-      <Card i={3} reduce={reduce} title="Hook Rate by campaign type and department" define="hookRate" sub="Most clicks first · deeper amber is more clicks" style={{ gridColumn: 'span 7' }} data-ins-lure-grid>
-        <Reveal><LureGrid rows={m.departments} types={m.lures.map((l) => l.type)} cells={cells} ink={ink} open={open} /></Reveal>
       </Card>
     </div>
   );
@@ -395,7 +364,7 @@ export function CampaignsView({ ctx }) {
                 aria-label={`${l.type}: ${pc1(l.hooked)} clicked. ${on ? 'Show every campaign type' : 'Show only its campaigns'}`}
                 onClick={() => onView({ lure: on ? null : l.type, page: 0 })}
                 onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onView({ lure: on ? null : l.type, page: 0 }); } }}
-                style={{ '--d': `${0.08 + 0.03 * k}s`, flexShrink: 0, height: ROW_H, display: 'grid', gridTemplateColumns: LURE_COLS, alignItems: 'center', gap: 14, padding: '0 8px', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', boxShadow: on ? 'inset 3px 0 0 var(--brand)' : 'none', cursor: 'pointer', outline: 'none' }}
+                style={{ '--d': `${0.08 + 0.03 * k}s`, flex: '1 1 0', minHeight: 30, maxHeight: ROW_H, display: 'grid', gridTemplateColumns: LURE_COLS, alignItems: 'center', gap: 14, padding: '0 8px', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', boxShadow: on ? 'inset 3px 0 0 var(--brand)' : 'none', cursor: 'pointer', outline: 'none' }}
               >
                 <LureTile type={l.type} size={24} />
                 <span style={{ minWidth: 0, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.type}</span>
@@ -406,7 +375,7 @@ export function CampaignsView({ ctx }) {
               </div>
             );
           })}
-          <div style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--hair)' }}>
+          <div className="ins-optional-tall" style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--hair)' }}>
             <span style={{ ...cardTitle, fontSize: 11.5, marginBottom: 10 }}>What people did{lure ? ` · ${lureShort(lure)}` : ''}</span>
             <Blocks key={lure || 'all'} parts={didParts(shownLure || m.now, ink, isDark)} reduce={reduce} height={24} legendCols={2} />
           </div>
