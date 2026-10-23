@@ -24,7 +24,7 @@ const fullForm = {
   scenarioId: 'SC-500',
   scenarioName: 'Quarterly benefits check',
   description: 'A lure about benefits enrolment.',
-  type: 'phishing',
+  type: 'click',
   targetAudience: 'remote-hybrid',
   motivator: 'urgency',
   difficulty: 'high',
@@ -43,7 +43,7 @@ test('emits exactly the stored fields and nothing else', () => {
 
 test('maps the wizard slugs to display labels', () => {
   const record = toStoredScenario(fullForm);
-  assert.equal(record.campaignType, 'Phishing Simulation');
+  assert.equal(record.campaignType, 'Click');
   assert.equal(record.targetAudience, 'Remote / Hybrid users');
   assert.equal(record.motivator, 'Urgency');
   assert.equal(record.difficulty, 'High');
@@ -111,14 +111,20 @@ test('round-trips the wizard vocabulary', () => {
 });
 
 test('passes through seeded values the wizard never offers', () => {
-  // The seed data carries "Credential theft" and "Finance Workers"; forcing
-  // those onto a wizard slug would misdescribe the scenario.
+  // The seed data carries "Finance Workers", and older scenarios "Phishing
+  // Simulation"; forcing those onto a wizard slug would misdescribe them.
   const back = toWizardFormData({
-    campaignType: 'Credential theft',
+    campaignType: 'Phishing Simulation',
     targetAudience: 'Finance Workers',
   });
-  assert.equal(back.type, 'Credential theft');
+  assert.equal(back.type, 'Phishing Simulation');
   assert.equal(back.targetAudience, 'Finance Workers');
+});
+
+test("the seeded campaign types are the builder's own now", () => {
+  const back = toWizardFormData({ campaignType: 'Credential theft' });
+  assert.equal(back.type, 'credential-theft');
+  assert.equal(toStoredScenario({ ...fullForm, type: back.type }).campaignType, 'Credential theft');
 });
 
 test('catalogueCoverName reduces a bundler path to a filename', () => {
@@ -189,7 +195,7 @@ test('coverKeyFromUrl turns a presigned uploads URL back into its key', () => {
 test('editing prefills the wizard, with the selections it can show again', () => {
   const form = toEditFormData(stored(), CATALOGUES);
   assert.equal(form.scenarioId, 'SC-500');
-  assert.equal(form.type, 'phishing');
+  assert.equal(form.type, 'click');
   assert.equal(form.emailSubject, 'Confirm your selection');
   assert.deepEqual(
     [form.coverImageSource, form.selectedCatalogueImageId, form.coverImagePreview, form.CoverImageID],

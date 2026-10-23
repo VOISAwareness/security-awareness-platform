@@ -2,7 +2,9 @@
 // number formats, the health colours, an icon for each kind of lure, and how
 // things move. Plain module (no JSX), so the page, its charts and its tabs
 // share it without breaking fast refresh.
-import { Banknote, Briefcase, CalendarDays, KeyRound, Mail, Monitor, Package, Users } from 'lucide-react';
+import { FormInput, Gift, Headset, KeyRound, Mail, MousePointerClick, Plane } from 'lucide-react';
+
+import { typeShort } from '../../services/campaignTypes';
 
 import { TYPE } from './insightsType';
 
@@ -90,11 +92,12 @@ export const glow = (hex, isDark, a = 0.3) => {
   return `0 0 20px rgba(${r},${g},${b},${a})`;
 };
 
-// An icon for each campaign type (older names ended in " lure").
-const TYPE_ICON = { 'Credential theft': KeyRound, Finance: Banknote, HR: Users, IT: Monitor, Event: CalendarDays, Delivery: Package, Business: Briefcase };
-export const lureIcon = (type) => TYPE_ICON[String(type).replace(/ lure$/i, '')] || Mail;
-// "Credential theft" -> "Credentials" (and "Finance lure" -> "Finance"), for tight labels
-export const lureShort = (type) => (type === 'Credential theft' ? 'Credentials' : type.replace(/ lure$/i, ''));
+// An icon for each campaign type (services/campaignTypes.js); a plain
+// envelope for any other ("Custom", or an older scenario's type).
+const TYPE_ICON = { 'Data Entry': FormInput, Click: MousePointerClick, 'Credential theft': KeyRound, 'Helpdesk impersonation': Headset, 'Reward scam': Gift, 'Travel scam': Plane };
+export const lureIcon = (type) => TYPE_ICON[type] || Mail;
+// "Credential theft" -> "Credentials", for tight labels
+export const lureShort = typeShort;
 
 // How far back the risk score is drawn: a year or two.
 export const SPANS = [{ id: 12, label: '1Y', title: 'The last year' }, { id: 24, label: '2Y', title: 'The last two years' }];
