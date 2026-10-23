@@ -7,17 +7,20 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, RiskRing, Segmented, Staircase, TileMap } from './InsightsCharts';
-import { Define, Explain, Heads, HealthChip, InlineBar, LureIcon, LureTile, PerClickHow, RowsGrid } from './InsightsBits';
+import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, Segmented, Staircase, TileMap } from './InsightsCharts';
+import { Explain, Heads, HealthChip, InlineBar, LureIcon, LureTile, MiniPager, PerClickHow, RowsGrid } from './InsightsBits';
+import { useSize } from './useSize';
+import { DEPT_QUESTIONS, deptOrder, deptRows, deptSays } from '../../services/deptQuestions';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { EASE, HEAD_H, SPANS, TIER_WORD, TINT, cardTitle, change, day, didParts, heads, lureShort, num, pc, pc1, riskBands, small, tierInk, times, TYPE } from './insightsUi';
+import { EASE, HEAD_H, HEALTH_WORD, SPANS, STEADY_INK, TIER_WORD, TINT, cardTitle, change, day, didParts, eyebrow, healthInk, heads, lureShort, num, pc, pc1, riskBands, riskWord, small, tierInk, tierOf, times, TYPE } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
 //     (risk over the year)? Where is the risk (the department map, what
 //     fools us)? When phishing lands, do people raise the alarm (what people
 //     do)? Is training paying off? What changed?
-//   - Departments: every department as a card, the riskiest first;
+//   - Departments: one question at a time (who is riskiest, who is
+//     changing, reports against clicks, what fools them), one chart each;
 //   - Lures & campaigns: every kind of lure, then every campaign.
 // Each card, tile and column opens its profile, most of them by growing
 // into it.
@@ -171,141 +174,365 @@ export function OverviewView({ ctx, list }) {
 
 // ---------------------------------------------------------- departments
 
-// The Departments tab on one sheet: a board with a row per department, and
-// the risk ring beside it. Each row reads across three views of the same
-// department: reported against clicked, its people by risk level, and its
-// Hook Rate for each campaign type. One sort orders the board; rows page to
-// fit the height, so nothing scrolls. Hovering a row lights its spoke on the
-// ring, and the other way round; a row grows into the department's profile.
-const BOARD_SORTS = [
-  { id: 'risk', label: 'Riskiest', sub: 'Riskiest first' },
-  { id: 'high', label: 'At high risk', sub: 'Most at high risk first' },
-  { id: 'reporting', label: 'Best reporting', sub: 'Most reports over clicks first' },
-  { id: 'clicks', label: 'Most clicks', sub: 'Highest Hook Rate first' },
-];
-const BOARD_ROW = 30;
-const boardCols = (n) => `22px minmax(0,1.1fr) minmax(0,1.5fr) 46px minmax(0,1.1fr) 40px minmax(0,${Math.max(1.2, n * 0.27).toFixed(2)}fr) 12px`;
+// The Departments tab asks one question at a time (services/deptQuestions.js):
+// who is riskiest, who is changing, reports against clicks, and what fools
+// them. Each gets one chart that fills the sheet. Switching keeps every
+// department's dot and name and slides them to their place in the next
+// chart. Beside the chart, what it says in three sentences; pointing at a
+// department shows its numbers there instead, and a click opens its
+// profile. Rows page to fit a short window, so nothing scrolls.
+const QUESTION = {
+  risk: { define: 'riskScore', sub: () => 'Risk Score now, riskiest first' },
+  change: { define: 'riskChange', sub: (days) => `Risk Score now against ${days} days ago, the most improved first` },
+  reports: { define: 'reportedVsClicked', sub: () => 'Each dot a department: clicked across, reported up' },
+  types: { define: 'hookRate', sub: () => 'Hook Rate for each campaign type, riskiest department first' },
+};
+const DQ_ROW = 22;
+const DQ_COLS = 'minmax(0,190px) minmax(0,1fr) 58px';
+const MOVE = { type: 'tween', duration: 0.5, ease: EASE };
+const one = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—');
+const moved = (v) => (!Number.isFinite(v) ? '—' : Math.abs(v) < 0.05 ? 'steady' : `${v < 0 ? '▼' : '▲'} ${Math.abs(v).toFixed(1)}`);
+const nameCell = (on) => ({ minWidth: 0, fontSize: TYPE.body, fontWeight: on ? 800 : 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' });
+const keyDot = (color) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: color }} />;
+const TIER_RANGE = { low: 'under 20', moderate: '20–35', high: '35–60', critical: '60+' };
 
-function DeptBoard({ rows, types, cells, ink, isDark, open, active, onActive, page, onPage }) {
-  const [fit, size] = useFitRows(BOARD_ROW, 4, 0);
-  const colors = tierInk(isDark);
-  const pages = Math.max(1, Math.ceil(rows.length / size));
+// The rows that fit a box (its ref first), a page at a time: all of them
+// until it is measured.
+function usePage(total, page) {
+  const [box, { h }] = useSize();
+  const size = h > 0 ? Math.max(4, Math.floor(h / DQ_ROW)) : total;
+  const pages = Math.max(1, Math.ceil(total / size));
   const at = Math.min(page, pages - 1);
-  const top = Math.ceil(Math.max(...rows.flatMap((r) => [r.clicked ?? 0, r.reported ?? 0]), 0.1) * 10) / 10;
-  const x = (v) => `${((v ?? 0) / top) * 100}%`;
-  const ticks = Array.from({ length: Math.round(top * 10) + 1 }, (_, k) => k / 10);
-  const hot = Math.max(...rows.flatMap((r) => types.map((t) => cells[r.name]?.[t]?.hooked ?? 0)), 0.01);
-  const cols = boardCols(types.length);
-  const heat = { display: 'grid', gridTemplateColumns: `repeat(${types.length}, minmax(0,1fr))`, gap: 3 };
+  return [box, { size, pages, at, from: at * size, to: at * size + size }];
+}
+
+// Who is riskiest, and who is changing: a line per department, its dot at
+// its Risk Score (from 0) or at its change (either side of none).
+function DeptLines({ rows, q, company, ink, isDark, reduce, hover, onHover, open, page, onPage }) {
+  const colors = tierInk(isDark);
+  const risk = q === 'risk';
+  const list = deptOrder(rows, q);
+  const [box, pg] = usePage(list.length, page);
+  const top = Math.max(25, Math.ceil(Math.max(...rows.map((r) => r.score)) / 5) * 5);
+  // the change either side of none, in round steps
+  const most = Math.max(...rows.map((r) => Math.abs(r.change ?? 0)), 0.5);
+  const step = most > 3 ? 2 : most > 1.5 ? 1 : 0.5;
+  const lim = Math.ceil(most / step) * step;
+  const x = (v) => (risk ? (v / top) * 100 : 50 + (v / lim) * 50);
+  const ticks = risk ? Array.from({ length: top / 5 + 1 }, (_, k) => k * 5) : Array.from({ length: (2 * lim) / step + 1 }, (_, k) => k * step - lim);
+  const tick = (v) => (risk || v === 0 ? `${v}` : `${v > 0 ? '+' : '−'}${Math.abs(v)}`);
+  const toneOf = (r) => (risk ? colors[tierOf(r.score)] : r.change <= -0.05 ? ink.good : r.change >= 0.05 ? ink.bad : STEADY_INK);
+  const move = reduce ? { duration: 0 } : MOVE;
+  const slide = 'left .5s cubic-bezier(.22,1,.36,1), width .5s cubic-bezier(.22,1,.36,1)';
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }} onMouseLeave={() => onActive(null)}>
-      <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, alignItems: 'end', gap: 10, padding: '0 8px 6px', borderBottom: '1px solid var(--hair)', ...heads }}>
-        <span />
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+      <div aria-hidden style={{ flexShrink: 0, height: 18, display: 'grid', gridTemplateColumns: DQ_COLS, gap: 14, padding: '0 8px', ...heads }}>
         <span>Department</span>
-        <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Reported vs clicked <Define term="reportedVsClicked" /></span>
-          <span aria-hidden style={{ position: 'relative', height: 10, fontSize: TYPE.label, fontWeight: 700, letterSpacing: 0 }}>
-            {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: x(t), transform: t === 0 ? 'none' : t === top ? 'translateX(-100%)' : 'translateX(-50%)' }}>{Math.round(t * 100)}%</span>)}
-          </span>
+        <span style={{ position: 'relative' }}>
+          {ticks.filter((t) => !risk || Math.abs(t - company) > top * 0.08).map((t) => <span key={t} style={{ position: 'absolute', left: `${x(t)}%`, transform: 'translateX(-50%)', letterSpacing: 0, fontVariantNumeric: 'tabular-nums', transition: 'left .5s ease' }}>{tick(t)}</span>)}
+          {risk && <span style={{ position: 'absolute', left: `${x(company)}%`, transform: 'translateX(-50%)', letterSpacing: 0, color: 'var(--text)', whiteSpace: 'nowrap' }}>Company {one(company)}</span>}
         </span>
-        <span style={{ textAlign: 'right' }}>Gap</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>People by risk level <Define term="riskLevels" /></span>
-        <span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>At high risk</span>
-        <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>Hook Rate by type <Define term="hookRate" /></span>
-          <span style={heat}>{types.map((t) => <button key={t} type="button" className="ins-crumb" title={`${t}: open its profile`} data-ins-board-type={t} onClick={() => open('lure', t)} style={{ border: 'none', background: 'none', padding: 0, display: 'grid', placeItems: 'center', color: 'var(--muted)', cursor: 'pointer' }}><LureIcon type={t} size={12} strokeWidth={2.2} aria-label={t} /></button>)}</span>
-        </span>
-        <span />
+        <span style={{ textAlign: 'right' }}>{risk ? 'Score' : 'Change'}</span>
       </div>
-      <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {rows.slice(at * size, at * size + size).map((r, k) => {
-          const on = active === r.name;
-          const lo = Math.min(r.clicked ?? 0, r.reported ?? 0); const hi = Math.max(r.clicked ?? 0, r.reported ?? 0);
-          const gap = Math.round(((r.reported ?? 0) - (r.clicked ?? 0)) * 100);
-          const all = r.tiers.low + r.tiers.moderate + r.tiers.high + r.tiers.critical || 1;
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* grid lines, and the company's score (or no change), behind the rows */}
+        <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'grid', gridTemplateColumns: DQ_COLS, gap: 14, padding: '0 8px' }}>
+          <span />
+          <span style={{ position: 'relative' }}>
+            {ticks.map((t) => <span key={t} style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(t)}%`, width: 1, background: 'var(--grid)', transition: 'left .5s ease' }} />)}
+            <span style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(risk ? company : 0)}%`, borderLeft: `1.5px ${risk ? 'dashed' : 'solid'} var(--text)`, opacity: 0.45, transition: slide }} />
+          </span>
+          <span />
+        </div>
+        <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {list.slice(pg.from, pg.to).map((r) => {
+            const v = risk ? r.score : (r.change ?? 0);
+            const from = risk ? 0 : Math.min(0, v); const to = risk ? v : Math.max(0, v);
+            const c = toneOf(r);
+            const on = hover === r.name;
+            return (
+              <motion.button
+                key={r.name}
+                type="button"
+                layoutId={`dept-${r.name}`}
+                transition={{ layout: move }}
+                data-ins-dept-row={r.name}
+                onClick={() => open('department', r.name, `dept-${r.name}`)}
+                onMouseEnter={() => onHover(r.name)}
+                onFocus={() => onHover(r.name)}
+                aria-label={`${r.name}: Risk Score ${one(r.score)}, ${moved(r.change)} on the start of the period. Open its profile`}
+                style={{ flex: '1 1 0', minHeight: DQ_ROW, maxHeight: 34, display: 'grid', gridTemplateColumns: DQ_COLS, alignItems: 'center', gap: 14, padding: '0 8px', border: 'none', borderRadius: 8, background: on ? 'var(--track)' : 'transparent', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', opacity: hover && !on ? 0.6 : 1, transition: 'opacity .2s ease, background-color .15s ease' }}
+              >
+                <motion.span layoutId={`dq-name-${r.name}`} transition={{ layout: move }} style={nameCell(on)}>{r.name}</motion.span>
+                <span aria-hidden style={{ position: 'relative', height: 12 }}>
+                  <span style={{ position: 'absolute', top: 4.5, height: 3, borderRadius: 999, left: `${x(from)}%`, width: `${Math.max(0, x(to) - x(from))}%`, background: c, opacity: 0.4, transition: `${slide}, background-color .3s ease` }} />
+                  <motion.span layoutId={`dq-dot-${r.name}`} transition={{ layout: move }} style={{ position: 'absolute', top: 0, left: `${x(v)}%`, width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />
+                </span>
+                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{risk ? one(r.score) : moved(r.change)}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ flexShrink: 0, height: 22, display: 'flex', alignItems: 'end', gap: 12, padding: '0 8px', ...small, whiteSpace: 'nowrap' }}>
+        {(risk
+          ? ['low', 'moderate', 'high', 'critical'].map((t) => [`${TIER_WORD[t]} ${TIER_RANGE[t]}`, colors[t]])
+          : [['Safer', ink.good], ['Riskier', ink.bad], ['Steady', STEADY_INK]]
+        ).map(([w, c]) => <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{keyDot(c)}{w}</span>)}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+          <span aria-hidden style={{ width: 14, borderTop: `1.5px ${risk ? 'dashed' : 'solid'} var(--text)`, opacity: 0.5 }} />{risk ? 'The company' : 'No change'}
+        </span>
+      </div>
+      {pg.pages > 1 && <MiniPager at={pg.at} pages={pg.pages} total={list.length} per={pg.size} onAt={onPage} what="departments" />}
+    </div>
+  );
+}
+
+// Reports vs clicks: a dot per department at its Hook Rate (across) and
+// Report Rate (up), on the same scale both ways, over the three healths:
+// two or more reports for every click, at least one, fewer.
+// Each dot's short name on the side with room: right, left, above or below,
+// whichever first clears the names placed before it; none when no side does
+// (the dot still shows its name when pointed at).
+const LABEL_W = 30; const LABEL_H = 11;
+function placeLabels(points) {
+  const taken = [];
+  const clash = (b) => taken.some((t) => b.x < t.x + t.w && t.x < b.x + b.w && b.y < t.y + t.h && t.y < b.y + b.h);
+  // the dots themselves are taken too
+  points.forEach((p) => taken.push({ x: p.x - 7, y: p.y - 7, w: 14, h: 14 }));
+  const out = {};
+  [...points].sort((a, b) => a.y - b.y || a.x - b.x).forEach((p) => {
+    const sides = [
+      ['right', { x: p.x + 9, y: p.y - LABEL_H / 2 }],
+      ['left', { x: p.x - 9 - LABEL_W, y: p.y - LABEL_H / 2 }],
+      ['above', { x: p.x - LABEL_W / 2, y: p.y - 9 - LABEL_H }],
+      ['below', { x: p.x - LABEL_W / 2, y: p.y + 9 }],
+    ];
+    const free = sides.find(([, b]) => !clash({ ...b, w: LABEL_W, h: LABEL_H }));
+    if (free) { taken.push({ ...free[1], w: LABEL_W, h: LABEL_H }); out[p.key] = free[0]; }
+  });
+  return out;
+}
+const LABEL_AT = {
+  right: { left: 20, top: 6 },
+  left: { right: 20, top: 6 },
+  above: { left: '50%', bottom: 20, transform: 'translateX(-50%)' },
+  below: { left: '50%', top: 20, transform: 'translateX(-50%)' },
+};
+
+function DeptScatter({ rows, ink, reduce, hover, onHover, open }) {
+  const [plot, { w, h }] = useSize();
+  const pts = rows.filter((r) => r.health && Number.isFinite(r.hooked) && Number.isFinite(r.reportRate));
+  const top = Math.max(0.1, Math.ceil(Math.max(...pts.flatMap((r) => [r.hooked, r.reportRate])) * 1.1 * 20) / 20);
+  const ticks = Array.from({ length: Math.round(top / 0.05) + 1 }, (_, k) => k * 0.05);
+  const at = (v) => (v / top) * 100;
+  const move = reduce ? { duration: 0 } : MOVE;
+  // the zones, in a 100 × 100 box with "up" at 0
+  const P = (pairs) => pairs.map(([a, b]) => `${a},${100 - b}`).join(' ');
+  const zones = [
+    { key: 'Exposed', points: P([[0, 0], [100, 0], [100, 100]]), color: ink.alert },
+    { key: 'Holding', points: P([[0, 0], [100, 100], [50, 100]]), color: ink.bad },
+    { key: 'Protected', points: P([[0, 0], [50, 100], [0, 100]]), color: ink.good },
+  ];
+  const zoneLabel = { ...heads, position: 'absolute', pointerEvents: 'none' };
+  const sides = w > 0 ? placeLabels(pts.map((r) => ({ key: r.name, x: (at(r.hooked) / 100) * w, y: (1 - at(r.reportRate) / 100) * h }))) : {};
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+      <div ref={plot} style={{ position: 'relative', flex: 1, minHeight: 0, margin: '6px 10px 26px 40px' }}>
+        <svg aria-hidden className="ins-fade" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
+          {zones.map((z) => <polygon key={z.key} points={z.points} fill={z.color} fillOpacity={0.07} />)}
+          {ticks.map((t) => <line key={`x${t}`} x1={at(t)} x2={at(t)} y1={0} y2={100} stroke="var(--grid)" vectorEffect="non-scaling-stroke" />)}
+          {ticks.map((t) => <line key={`y${t}`} x1={0} x2={100} y1={100 - at(t)} y2={100 - at(t)} stroke="var(--grid)" vectorEffect="non-scaling-stroke" />)}
+          <line x1={0} y1={100} x2={100} y2={0} stroke="var(--text)" strokeOpacity={0.35} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          <line x1={0} y1={100} x2={50} y2={0} stroke="var(--text)" strokeOpacity={0.35} strokeWidth={1.5} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span className="ins-fade" style={{ ...zoneLabel, left: 8, top: 6, color: ink.good }}>{HEALTH_WORD.Protected}</span>
+        <span className="ins-fade" style={{ ...zoneLabel, left: '58%', top: 6, color: ink.bad }}>{HEALTH_WORD.Holding}</span>
+        <span className="ins-fade" style={{ ...zoneLabel, right: 8, bottom: 8, color: ink.alert }}>{HEALTH_WORD.Exposed}</span>
+        {ticks.map((t) => <span key={`tx${t}`} aria-hidden style={{ ...small, position: 'absolute', top: '100%', marginTop: 5, left: `${at(t)}%`, transform: 'translateX(-50%)', fontVariantNumeric: 'tabular-nums' }}>{pc(t)}</span>)}
+        {ticks.map((t) => <span key={`ty${t}`} aria-hidden style={{ ...small, position: 'absolute', right: '100%', marginRight: 7, top: `${100 - at(t)}%`, transform: 'translateY(-50%)', fontVariantNumeric: 'tabular-nums' }}>{pc(t)}</span>)}
+        {pts.map((r) => {
+          const on = hover === r.name;
+          const c = healthInk(r.health.word, ink);
+          return (
+            <button
+              key={r.name}
+              type="button"
+              data-ins-dept-dot={r.name}
+              onClick={() => open('department', r.name)}
+              onMouseEnter={() => onHover(r.name)}
+              onFocus={() => onHover(r.name)}
+              aria-label={`${r.name}: ${pc1(r.hooked)} clicked, ${pc1(r.reportRate)} reported, ${HEALTH_WORD[r.health.word]}. Open its profile`}
+              style={{ position: 'absolute', left: `${at(r.hooked)}%`, top: `${100 - at(r.reportRate)}%`, width: 24, height: 24, margin: '-12px 0 0 -12px', padding: 0, border: 'none', background: 'none', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: on ? 3 : 2, opacity: hover && !on ? 0.4 : 1, transition: 'opacity .2s ease' }}
+            >
+              <motion.span layoutId={`dq-dot-${r.name}`} transition={{ layout: move }} style={{ width: 12, height: 12, borderRadius: 999, background: c, boxShadow: on ? `0 0 0 2px var(--base), 0 0 0 5px ${c}55` : '0 0 0 2px var(--base)' }} />
+              {(sides[r.name] || on) && <span className="ins-fade" style={{ '--d': '0.35s', position: 'absolute', ...LABEL_AT[sides[r.name] || 'right'], fontSize: TYPE.label, fontWeight: 800, lineHeight: 1, color: 'var(--text)', whiteSpace: 'nowrap', pointerEvents: 'none', padding: '1px 3px', borderRadius: 4, background: on ? 'var(--base)' : 'transparent' }}>{on ? r.name : deptCode(r.name)}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 14, ...small }}>
+        <span style={{ fontWeight: 800, color: 'var(--text)' }}>↑ Report Rate · Hook Rate →</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span aria-hidden style={{ width: 16, borderTop: '1.5px dashed var(--text)', opacity: 0.5 }} />2 reports for every click</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span aria-hidden style={{ width: 16, borderTop: '1.5px solid var(--text)', opacity: 0.5 }} />as many reports as clicks</span>
+      </div>
+    </div>
+  );
+}
+
+// What fools them: each department's Hook Rate for each campaign type, the
+// riskiest department first; darker is more clicked. A type's heading opens it.
+function DeptHeat({ rows, types, cells, ink, reduce, hover, onHover, open, page, onPage }) {
+  const list = deptOrder(rows, 'risk');
+  const [box, pg] = usePage(list.length, page);
+  const all = list.flatMap((r) => types.map((t) => cells[r.name]?.[t]).filter(Boolean)).map((c) => c.hooked ?? 0);
+  const hot = Math.max(...all, 0.01); const cool = Math.min(...all, hot);
+  // from the coolest cell to the hottest, curved so the few that fool most stand out
+  const heat = (v) => Math.round(6 + Math.pow((v - cool) / (hot - cool || 1), 1.6) * 84);
+  const cols = `minmax(0,190px) repeat(${types.length}, minmax(0,1fr))`;
+  const move = reduce ? { duration: 0 } : MOVE;
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
+      <div role="row" style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, alignItems: 'end', gap: 6, padding: '0 8px 6px' }}>
+        <span style={heads}>Department</span>
+        {types.map((t) => (
+          <button key={t} type="button" className="ins-crumb" data-ins-heat-type={t} title={`${t}: open its profile`} onClick={() => open('lure', t)} style={{ minWidth: 0, border: 'none', background: 'none', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: 'var(--muted)', cursor: 'pointer', ...heads, letterSpacing: 0 }}>
+            <LureIcon type={t} size={13} strokeWidth={2.2} aria-hidden />
+            <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lureShort(t)}</span>
+          </button>
+        ))}
+      </div>
+      <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {list.slice(pg.from, pg.to).map((r, k) => {
+          const on = hover === r.name;
           return (
             <motion.button
               key={r.name}
               type="button"
               layoutId={`dept-${r.name}`}
-              className="ins-row ins-in-x"
-              data-ins-board={r.name}
+              transition={{ layout: move }}
+              data-ins-heat-row={r.name}
               onClick={() => open('department', r.name, `dept-${r.name}`)}
-              onMouseEnter={() => onActive(r.name)}
-              onFocus={() => onActive(r.name)}
-              aria-label={`${r.name}: Risk Score ${r.score.toFixed(1)}, reported ${pc1(r.reported)}, clicked ${pc1(r.clicked)}, ${pc(r.highShare)} at high risk. Open its profile`}
-              style={{ '--d': `${Math.min(0.06 + 0.015 * k, 0.3)}s`, flex: '1 1 0', minHeight: BOARD_ROW, maxHeight: 38, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 10, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 8, background: on ? 'var(--track)' : 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
+              onMouseEnter={() => onHover(r.name)}
+              onFocus={() => onHover(r.name)}
+              aria-label={`${r.name}: ${types.map((t) => `${t} ${cells[r.name]?.[t] ? pc(cells[r.name][t].hooked) : 'no emails'}`).join(', ')}. Open its profile`}
+              style={{ flex: '1 1 0', minHeight: DQ_ROW, maxHeight: 34, display: 'grid', gridTemplateColumns: cols, alignItems: 'stretch', gap: 6, padding: '2px 8px', border: 'none', borderRadius: 8, background: on ? 'var(--track)' : 'transparent', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
             >
-              <DeptCrest code={deptCode(r.name)} size={20} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-              <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-              <span aria-hidden style={{ position: 'relative', height: 12 }}>
-                {ticks.map((t) => <span key={t} style={{ position: 'absolute', left: x(t), top: -4, bottom: -4, width: 1, background: 'var(--grid)' }} />)}
-                <span style={{ position: 'absolute', top: 4, height: 4, left: x(lo), width: x(hi - lo), borderRadius: 999, background: (r.reported ?? 0) >= (r.clicked ?? 0) ? 'var(--soft-good)' : 'var(--soft-bad)' }} />
-                {[['clicked', ink.bad], ['reported', ink.good]].map(([key, c]) => <span key={key} style={{ position: 'absolute', top: 1, left: x(r[key]), width: 10, height: 10, marginLeft: -5, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />)}
-              </span>
-              <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{gap > 0 ? '+' : gap < 0 ? '−' : ''}{Math.abs(gap)}<span style={{ ...small, fontSize: TYPE.label, marginLeft: 2 }}>pts</span></span>
-              <span aria-hidden style={{ display: 'flex', gap: 2, height: 10 }}>
-                {['low', 'moderate', 'high', 'critical'].map((t) => <span key={t} style={{ flex: `${r.tiers[t]} 1 0`, minWidth: 3, borderRadius: 3, background: colors[t] }} />)}
-              </span>
-              <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc((r.tiers.high + r.tiers.critical) / all)}</span>
-              <span style={heat}>
-                {types.map((t) => {
-                  const c = cells[r.name]?.[t];
-                  if (!c) return <span key={t} title={`${t}: no emails`} style={{ height: 20, borderRadius: 5, background: 'var(--plate)', display: 'grid', placeItems: 'center', fontSize: TYPE.label, color: 'var(--muted)' }}>—</span>;
-                  const k2 = c.hooked / hot;
-                  return <span key={t} title={`${r.name} · ${t}: ${num(c.clicked)} of ${num(c.recipients)} clicked`} style={{ height: 20, borderRadius: 5, background: `color-mix(in srgb, ${ink.bad} ${Math.round(10 + k2 * 80)}%, var(--base))`, display: 'grid', placeItems: 'center', fontSize: TYPE.small, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{pc(c.hooked)}</span>;
-                })}
-              </span>
-              <ChevronRight className="ins-arrow" size={12} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
+              <motion.span layoutId={`dq-name-${r.name}`} transition={{ layout: move }} style={{ ...nameCell(on), alignSelf: 'center' }}>{r.name}</motion.span>
+              {types.map((t, j) => {
+                const c = cells[r.name]?.[t];
+                const cell = { borderRadius: 6, display: 'grid', placeItems: 'center', fontSize: TYPE.small, fontWeight: 800, fontVariantNumeric: 'tabular-nums' };
+                if (!c) return <span key={t} title={`${t}: no emails`} style={{ ...cell, background: 'var(--plate)', color: 'var(--muted)', fontWeight: 600 }}>—</span>;
+                return <span key={t} className="ins-pop-in" title={`${r.name} · ${t}: ${num(c.clicked)} of ${num(c.recipients)} clicked`} style={{ ...cell, '--d': `${Math.min(0.05 + 0.02 * k + 0.03 * j, 0.5)}s`, background: `color-mix(in srgb, ${ink.bad} ${heat(c.hooked)}%, var(--base))`, color: 'var(--text)' }}>{pc(c.hooked)}</span>;
+              })}
             </motion.button>
           );
         })}
       </div>
-      {pages > 1 && <Pager page={at} pages={pages} total={rows.length} size={size} onPage={onPage} what="departments" />}
+      <div style={{ flexShrink: 0, height: 22, display: 'flex', alignItems: 'end', gap: 8, padding: '0 8px', ...small }}>
+        <span>Hook Rate</span>
+        <span>{pc(cool)}</span>
+        <span aria-hidden style={{ width: 90, height: 8, borderRadius: 999, background: `linear-gradient(90deg, color-mix(in srgb, ${ink.bad} 6%, var(--base)), color-mix(in srgb, ${ink.bad} 30%, var(--base)), ${ink.bad})`, alignSelf: 'center' }} />
+        <span>{pc(hot)}</span>
+        <span style={{ marginLeft: 'auto' }}>A type's name opens it</span>
+      </div>
+      {pg.pages > 1 && <MiniPager at={pg.at} pages={pg.pages} total={list.length} per={pg.size} onAt={onPage} what="departments" />}
     </div>
+  );
+}
+
+// What the chart says, in three sentences; or, while a department is
+// pointed at, its numbers.
+function DeptPanel({ says, lead, row, ink, isDark, reduce }) {
+  const toneInk = { good: ink.good, bad: ink.bad, watch: STEADY_INK };
+  const fade = { initial: { opacity: 0, y: reduce ? 0 : 4 }, animate: { opacity: 1, y: 0 }, transition: { duration: reduce ? 0 : 0.18, ease: EASE } };
+  const fact = (label, value, extra) => (
+    <span style={{ minWidth: 0, padding: '8px 10px', borderRadius: 10, background: 'var(--plate)' }}>
+      <span style={{ ...eyebrow, display: 'block' }}>{label}</span>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+        <span className="vs-rank" style={{ fontSize: TYPE.heading, fontWeight: 900, lineHeight: 1 }}>{value}</span>
+        {extra}
+      </span>
+    </span>
+  );
+  return (
+    <Card i={1} reduce={reduce} title={row ? 'The department' : 'What it says'} style={{ gridColumn: 'span 3' }} data-ins-dq-says>
+      {row ? (
+        <motion.div key={`d-${row.name}`} {...fade} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <DeptCrest code={deptCode(row.name)} size={30} compact flat metal={isDark ? 'steelDark' : 'steel'} />
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: TYPE.title, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
+              <span style={{ ...small, display: 'block' }}>{num(row.people)} people</span>
+            </span>
+          </span>
+          <span style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
+            {fact('Risk Score', one(row.score), <span style={{ ...small, fontWeight: 800, color: row.change <= -0.05 ? ink.good : row.change >= 0.05 ? ink.bad : 'var(--muted)', whiteSpace: 'nowrap' }}>{moved(row.change)}</span>)}
+            {fact('At high risk', pc(row.highShare))}
+            {fact('Hook Rate', pc1(row.hooked))}
+            {fact('Report Rate', pc1(row.reportRate))}
+          </span>
+          <span className="ins-optional" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <HealthChip h={row.health} ink={ink} />
+            <span style={small}>{times(row.perClick)} reports per click</span>
+          </span>
+        </motion.div>
+      ) : (
+        <motion.ul key="says" {...fade} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, margin: '10px 0 0', padding: 0, listStyle: 'none' }}>
+          <li style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--plate)' }}>
+            <span style={{ ...eyebrow, display: 'block' }}>{lead.label}</span>
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 5 }}>
+              <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', color: lead.color || 'var(--text)' }}>{lead.value}</span>
+              <span style={small}>{lead.sub}</span>
+            </span>
+          </li>
+          {says.map((s) => (
+            <li key={s.strong + s.text} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0,1fr)', gap: 10, alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--hair)' }}>
+              <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: toneInk[s.tone], transform: 'translateY(-1px)' }} />
+              <span style={{ fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.5, color: 'var(--muted)' }}><strong style={{ color: 'var(--text)', fontWeight: 800 }}>{s.strong}</strong>{s.text}</span>
+            </li>
+          ))}
+          <li className="ins-optional" style={{ ...small, marginTop: 'auto' }}>Point at a department for its numbers; click it to open its profile.</li>
+        </motion.ul>
+      )}
+    </Card>
   );
 }
 
 export function DepartmentsView({ ctx }) {
   const { m, p, ink, isDark, reduce, open, view, onView } = ctx;
-  const [active, setActive] = useState(null);
-  const sort = view.deptSort || 'risk';
-  const camp = Object.fromEntries(m.departments.map((d) => [d.name, d]));
+  const [hover, setHover] = useState(null);
+  const q = view.deptQ || 'risk';
+  const rows = deptRows(m, p);
   const types = m.lures.map((l) => l.type);
   const cells = Object.fromEntries(Object.entries(m.deptLures).map(([name, list]) => [name, Object.fromEntries(list.map((x) => [x.type, x]))]));
-  const rows = p.departments.map((d) => ({
-    name: d.name,
-    score: d.score,
-    tiers: d.tiers,
-    highShare: d.highRisk / (d.people || 1),
-    clicked: camp[d.name]?.clickRate ?? null,
-    reported: camp[d.name]?.reportRate ?? null,
-  }));
-  const by = {
-    risk: (a, b) => b.score - a.score,
-    high: (a, b) => b.highShare - a.highShare,
-    reporting: (a, b) => ((b.reported ?? 0) - (b.clicked ?? 0)) - ((a.reported ?? 0) - (a.clicked ?? 0)),
-    clicks: (a, b) => (b.clicked ?? 0) - (a.clicked ?? 0),
-  }[sort];
-  rows.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
-  const ring = p.departments.filter((d) => Number.isFinite(d.scoreBefore)).map((d) => ({ key: d.name, label: d.name, code: deptCode(d.name), now: d.score, before: d.scoreBefore }));
-  const legendDot = (style) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, boxSizing: 'border-box', ...style }} />;
+  const says = deptSays(q, rows, { company: p.now.score, days: m.basis.days, lures: m.lures, cells });
+  const dc = Number.isFinite(p.before?.score) ? p.now.score - p.before.score : null;
+  const lead = {
+    risk: { label: 'The company’s Risk Score', value: one(p.now.score), sub: riskWord(p.now.score) },
+    change: { label: 'The company’s change', value: moved(dc), sub: `over the last ${m.basis.days} days`, color: dc === null || Math.abs(dc) < 0.05 ? null : dc < 0 ? ink.good : ink.bad },
+    reports: { label: 'The company’s reports per click', value: times(m.now.perClick), sub: m.now.health ? HEALTH_WORD[m.now.health.word] : '' },
+    types: { label: 'The company’s Hook Rate', value: pc1(m.now.hooked), sub: `across ${m.lures.length} campaign types` },
+  }[q];
+  const shared = { rows, ink, isDark, reduce, hover, onHover: setHover, open, page: view.deptPage || 0, onPage: (pg) => onView({ deptPage: pg }) };
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr)', gap: 14 }}>
-      <Card i={0} reduce={reduce} title="Departments" sub={BOARD_SORTS.find((s) => s.id === sort).sub} action={<Segmented id="ins-dept-sort" label="Sort departments" value={sort} options={BOARD_SORTS} onChange={(id) => onView({ deptSort: id, deptPage: 0 })} reduce={reduce} />} style={{ gridColumn: 'span 8' }} data-ins-board-card>
-        <DeptBoard rows={rows} types={types} cells={cells} ink={ink} isDark={isDark} open={open} active={active} onActive={setActive} page={view.deptPage || 0} onPage={(pg) => onView({ deptPage: pg })} />
+      <Card
+        i={0}
+        reduce={reduce}
+        title="Departments"
+        define={QUESTION[q].define}
+        sub={QUESTION[q].sub(m.basis.days)}
+        action={<Segmented id="ins-dq" label="Question" value={q} options={DEPT_QUESTIONS} onChange={(id) => { setHover(null); onView({ deptQ: id, deptPage: 0 }); }} reduce={reduce} />}
+        style={{ gridColumn: 'span 9' }}
+        onMouseLeave={() => setHover(null)}
+        data-ins-dq-card
+      >
+        {q === 'risk' || q === 'change' ? <DeptLines {...shared} q={q} company={p.now.score} />
+          : q === 'reports' ? <DeptScatter {...shared} />
+            : <DeptHeat {...shared} types={types} cells={cells} />}
       </Card>
-      <Card i={1} reduce={reduce} title="Risk change by department" define="riskChange" sub="Closer to the centre is safer" action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 4' }} data-ins-ring>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
-          <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} active={active} onHover={setActive} />
-        </div>
-        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', marginTop: 8, ...small }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{legendDot({ border: `1.5px solid ${ink.neutral}` })}{m.basis.days} days ago</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{legendDot({ background: 'var(--muted)' })}now</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 14, borderTop: '1.5px dashed var(--text)', opacity: 0.6 }} />the company</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 10, height: 8, borderRadius: 3, background: ink.bad, opacity: 0.3 }} />20 and over</span>
-        </div>
-      </Card>
+      <DeptPanel says={says} lead={lead} row={rows.find((r) => r.name === hover) || null} ink={ink} isDark={isDark} reduce={reduce} />
     </div>
   );
 }

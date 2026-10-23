@@ -333,7 +333,7 @@ const Insights = () => {
           {/* the arm: the period, the tabs and Export; under them, four measures */}
           <div style={{ marginLeft: CAP_W + L_GAP, height: capH + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: compact ? 7 : 10, padding: `${compact ? 9 : 12}px 16px ${L_GAP}px 20px`, background: 'var(--sheet)', borderTop: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView({ page: 0 }); }); }} reduce={reduce} />
+              <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView((v) => ({ page: 0, deptQ: v.deptQ })); }); }} reduce={reduce} />
               {SAMPLE && (
                 <span data-ins-sample title="These are sample numbers. Real ones take their place once the reports, people and training services send them." style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, border: '1px dashed var(--hair-strong)', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, whiteSpace: 'nowrap' }}>
                   <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: STEADY_INK }} />
