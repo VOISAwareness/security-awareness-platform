@@ -18,7 +18,7 @@ import { BandGauge, BarcodeMeter, Segmented } from './InsightsCharts';
 import { Count, Delta, Explain, RiskHow } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk } from './insightsUi';
+import { EASE, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk } from './insightsUi';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -120,6 +120,9 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 // The shortest the page gets, in the page's own pixels: what a 900px-high
 // window leaves it (the app draws at 90%, so that is about 940), where every
 // card has room. Shorter windows scroll.
+// Every number on the page is sample data until the reports, people and
+// training APIs report real ones; a chip by the period switch says so.
+const SAMPLE = true;
 const MIN_H = 930;
 // The Departments tab has two rows of charts, so the page is taller there
 // and scrolls.
@@ -223,6 +226,7 @@ const Insights = () => {
   const [view, setView] = useState({ page: 0 });
 
   // Sample campaigns (and those that ended before them) until the reports API lists real ones.
+  // The sample tells a story (services/sampleStory.js), so 30, 60 and 90 days differ.
   const items = useMemo(() => [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) })), []);
   const m = useMemo(() => insights(items, { days }), [items, days]);
   // The sample organisation, thirty days at a time, until the people and risk APIs report it.
@@ -315,6 +319,12 @@ const Insights = () => {
           <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, padding: `12px 16px ${L_GAP}px 20px`, background: 'var(--sheet)', borderTop: '1px solid var(--card-edge)', borderRight: '1px solid var(--card-edge)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
               <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView({ page: 0 }); }); }} reduce={reduce} />
+              {SAMPLE && (
+                <span data-ins-sample title="These are sample numbers. Real ones take their place once the reports, people and training services send them." style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, border: '1px dashed var(--hair-strong)', color: 'var(--muted)', fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: STEADY_INK }} />
+                  Sample data
+                </span>
+              )}
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Segmented id="ins-tab" label="Insights" value={top ? null : shownTab} options={TABS} onChange={go} reduce={reduce} tabs />
                 <ExportMenu items={exportItems} />

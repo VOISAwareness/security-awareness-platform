@@ -115,6 +115,21 @@ test('people: the period at its end against its start, and what happened in it',
   }
 });
 
+test("the sample's story: better over 30 days, steady over 60, worse over 90", () => {
+  const at = (days) => ({ m: insights(ITEMS, { days }), p: peopleInsights(ORG, { days }) });
+  const a = at(30); const b = at(60); const c = at(90);
+  assert.deepEqual([a, b, c].map((x) => x.m.now.health.word), ['Protected', 'Holding', 'Exposed']);
+  // 30 days: fewer clicks, more reports, the risk score down, more people safer than riskier
+  assert.ok(a.m.now.hooked < a.m.before.hooked - 0.03 && a.m.now.reportRate > a.m.before.reportRate + 0.03);
+  assert.ok(a.p.now.score < a.p.before.score - 1 && a.p.now.improved > a.p.now.slipped);
+  // 60 days: about the same as the 60 before
+  assert.ok(Math.abs(b.m.now.hooked - b.m.before.hooked) < 0.02 && Math.abs(b.m.now.reportRate - b.m.before.reportRate) < 0.02);
+  assert.ok(Math.abs(b.p.now.score - b.p.before.score) < 0.5);
+  // 90 days: more clicks, fewer reports, the risk score up, more people riskier than safer
+  assert.ok(c.m.now.hooked > c.m.before.hooked + 0.03 && c.m.now.reportRate < c.m.before.reportRate - 0.03);
+  assert.ok(c.p.now.score > c.p.before.score + 1 && c.p.now.slipped > c.p.now.improved);
+});
+
 test('movement: every move adds up to where people started and where they ended', () => {
   const start = { low: 50, moderate: 30, high: 15, critical: 5 };
   const end = { low: 58, moderate: 26, high: 12, critical: 4 };

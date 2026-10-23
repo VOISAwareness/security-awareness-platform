@@ -34,6 +34,10 @@ test('every step adds up from its departments, and no count is negative', () => 
   }
 });
 
+test('a month shows the same numbers however many months are asked for', () => {
+  assert.deepEqual(organisation({ end: END, steps: 24 }).slice(-12), ORG);
+});
+
 test('the sample improves over the year, as the programme is meant to', () => {
   assert.ok(riskScore(ORG.at(-1).tiers) < riskScore(ORG[0].tiers));
 });

@@ -355,7 +355,7 @@ const SORTS = [
 ];
 const HEALTH_RANK = { Exposed: 0, Holding: 1, Protected: 2 };
 const LURE_COLS = '26px minmax(0,1fr) minmax(0,1.3fr) 40px 32px 14px';
-const CAMP_COLS = '26px minmax(0,2.1fr) 54px minmax(0,1.2fr) minmax(0,1.2fr) 72px 56px 100px 12px';
+const CAMP_COLS = '26px minmax(0,2.1fr) 54px minmax(0,1.2fr) minmax(0,1.2fr) 72px 56px 112px 12px';
 const ROW_H = 46;
 
 export function CampaignsView({ ctx }) {
@@ -438,7 +438,7 @@ export function CampaignsView({ ctx }) {
                 <InlineBar value={c.reportRate} max={maxRep} color={ink.good} label={pc1(c.reportRate)} grow={false} />
                 <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc1(c.delivered ? c.compromised / c.delivered : null)}</span>
                 <span className="vs-rank" style={{ textAlign: 'right', fontSize: 11, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{times(c.perClick)}</span>
-                <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} width={96} /></span>
+                <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} /></span>
                 <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
               </motion.button>
             ))}

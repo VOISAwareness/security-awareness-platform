@@ -43,9 +43,11 @@ export function campaignReport(campaign, { depts = [], personAt = () => ({ name:
   const sent = campaign.total;
   const delivered = sent - Math.round(sent * (0.003 + r() * 0.012));
   const opened = Math.round(delivered * (0.52 + r() * 0.2));
-  const clicked = Math.round(delivered * (0.07 + r() * 0.11));
+  // a campaign from the sample's story is drawn around its month's rates
+  const story = campaign.climate;
+  const clicked = Math.round(delivered * (story ? story.click * (0.85 + r() * 0.3) : 0.07 + r() * 0.11));
   const compromised = Math.round(clicked * (0.22 + r() * 0.2));
-  const reported = Math.round(delivered * (0.18 + r() * 0.24));
+  const reported = Math.round(delivered * (story ? story.report * (0.85 + r() * 0.3) : 0.18 + r() * 0.24));
   const trained = Math.round(clicked * (0.45 + r() * 0.4));
 
   const firstReport = 2 + Math.floor(r() * 8); // minutes after the send

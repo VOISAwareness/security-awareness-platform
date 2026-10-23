@@ -406,13 +406,13 @@ export function LureProfile({ ctx, frame, type }) {
       <Card i={6} reduce={reduce} title="Campaigns" sub="Newest first" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {camps.slice(0, 6).map((c, k) => (
-            <Row key={c.id} k={k} reduce={reduce} height={46} cols="minmax(0,1.4fr) minmax(0,1fr) 92px 12px" onClick={() => open('campaign', c.id)} label={`${c.name}. Open its profile`}>
+            <Row key={c.id} k={k} reduce={reduce} height={46} cols="minmax(0,1.4fr) minmax(0,1fr) 112px 12px" onClick={() => open('campaign', c.id)} label={`${c.name}. Open its profile`}>
               <span style={{ minWidth: 0 }}>
                 <span style={{ ...nameStyle, display: 'block' }}>{c.name}</span>
                 <span style={{ ...small, display: 'block', fontSize: 9, marginTop: 2 }}>Started {c.started}</span>
               </span>
               <Meter value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} sub="clicked" delay={0.4 + 0.04 * k} reduce={reduce} height={4} />
-              <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} width={86} /></span>
+              <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} /></span>
               {arrow}
             </Row>
           ))}
