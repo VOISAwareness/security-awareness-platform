@@ -312,7 +312,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
 }
 
 const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
-// "Business lure" -> "Business lures"; "Credential theft" -> "Credential theft emails"
+// "Finance" -> "Finance emails" (an older "Business lure" -> "Business lures")
 export const lureName = (type) => (/ lure$/i.test(type) ? `${type}s` : `${type} emails`);
 
 /**

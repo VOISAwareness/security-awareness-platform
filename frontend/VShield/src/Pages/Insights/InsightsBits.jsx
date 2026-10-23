@@ -4,6 +4,7 @@ import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { Info } from 'lucide-react';
 
 import { Chip } from '../Leaderboard/BigPictureTables';
+import { GLOSSARY } from '../../services/glossary';
 import { EASE, HEALTH_RULE, HEALTH_WORD, STEADY_INK, eyebrow, healthInk, heads, lureIcon, num, pc, small, times } from './insightsUi';
 
 // Small pieces Insights' views and profiles share: a change on a chip, a
@@ -128,7 +129,7 @@ export function Explain({ label, children, onDark = false }) {
         onBlur={hide}
         onKeyDown={(e) => { if (e.key === 'Escape') hide(); }}
         onClick={(e) => { e.stopPropagation(); if (at) hide(); else show(); }}
-        style={{ flexShrink: 0, width: 17, height: 17, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 999, border: 'none', background: onDark ? 'rgba(255,255,255,0.16)' : 'rgba(15,23,42,0.08)', color: onDark ? 'inherit' : 'var(--text)', cursor: 'help' }}
+        style={{ flexShrink: 0, width: 17, height: 17, padding: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 999, border: 'none', background: onDark ? 'rgba(255,255,255,0.16)' : 'var(--chip)', color: onDark ? 'inherit' : 'var(--text)', cursor: 'help' }}
       >
         <Info size={11} strokeWidth={2.6} aria-hidden />
       </button>
@@ -147,6 +148,27 @@ export function Explain({ label, children, onDark = false }) {
       )}
     </>
   );
+}
+
+/** A measure from the glossary: its name, what it tells you, and how it is worked out; for an Explain. */
+export function Definition({ term, children }) {
+  const g = GLOSSARY[term];
+  if (!g) return null;
+  return (
+    <>
+      <span style={{ display: 'block', ...eyebrow }}>{g.name}</span>
+      <span style={{ display: 'block', fontSize: 11, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>{g.what}</span>
+      <span style={{ display: 'block', ...small, fontSize: 9.5, lineHeight: 1.45, marginTop: 7, paddingTop: 7, borderTop: '1px solid var(--hair)' }}>{g.how}</span>
+      {children}
+    </>
+  );
+}
+
+/** The ⓘ beside a measure's name, opening its definition. */
+export function Define({ term, onDark }) {
+  const g = GLOSSARY[term];
+  if (!g) return null;
+  return <Explain label={`What ${g.name} means`} onDark={onDark}><Definition term={term} /></Explain>;
 }
 
 /**
@@ -196,9 +218,9 @@ export function RiskHow({ score, days, colors }) {
   const bands = [['low', 'Under 20'], ['moderate', '20 to 35'], ['high', '35 to 60'], ['critical', '60 and over']];
   return (
     <>
-      <span style={{ display: 'block', ...eyebrow }}>Risk score</span>
+      <span style={{ display: 'block', ...eyebrow }}>Risk Score</span>
       <span style={{ display: 'block', fontSize: 11, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>
-        How exposed the company is to phishing, from 0 (no one at risk) to 100 (everyone at the highest level). Lower is safer.
+        {GLOSSARY.riskScore.what}
       </span>
       <span style={{ display: 'block', ...small, fontSize: 9.5, fontWeight: 700, marginTop: 9, color: 'var(--text)' }}>Each person has a level, from their phishing record:</span>
       <span style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5 }}>

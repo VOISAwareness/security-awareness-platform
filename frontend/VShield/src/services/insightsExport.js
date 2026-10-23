@@ -5,18 +5,20 @@
  * every table has plain column names and real numbers people can sort, sum
  * and filter. Pure, so `node --test` can cover it.
  */
+import { GLOSSARY, HEALTH_RULE, TYPE_WORD, healthWord } from './glossary.js';
 import { workbook } from './xlsx.js';
 
 const head = (title, note) => [{ title }, { note }, { gap: true }];
 
-// The programme's measures, each with how it is worked out; `kind` formats it.
+// The programme's measures, each with how it is worked out (the glossary's
+// words where it has them); `kind` formats it.
 const MEASURES = [
   ['Campaigns', 'campaigns', 'int', 'Campaigns started in the period'],
   ['Emails delivered', 'delivered', 'int', 'Emails that reached an inbox'],
-  ['Hook Rate', 'hooked', 'pct', 'Clicked, of the emails delivered'],
-  ['Report Rate', 'reportRate', 'pct', 'Reported, of the emails delivered'],
-  ['Reports per click', 'perClick', 'dec', 'Emails reported for every email clicked'],
-  ['Gave details', 'gaveOfClicks', 'pct', 'Of those who clicked, how many went on to enter details'],
+  [GLOSSARY.hookRate.name, 'hooked', 'pct', GLOSSARY.hookRate.how],
+  [GLOSSARY.reportRate.name, 'reportRate', 'pct', GLOSSARY.reportRate.how],
+  [GLOSSARY.perClick.name, 'perClick', 'dec', GLOSSARY.perClick.how],
+  ['Gave details away, of clicks', 'gaveOfClicks', 'pct', 'Of those who clicked, how many went on to enter details on the practice page'],
   ['First report (minutes)', 'firstReport', 'dec', 'Minutes from the send to the first report, in the middle campaign'],
   ['Half the reports in (minutes)', 'halfReported', 'dec', 'Minutes until half the reports were in, in the middle campaign'],
   ['Reported before a click', 'beatClick', 'int', 'Campaigns whose first report came before anyone clicked'],
@@ -34,7 +36,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
   const cell = (s, key, kind) => (s && s[key] !== null && s[key] !== undefined ? { value: s[key], kind } : '—');
   const sheets = [
     { name: 'Summary', blocks: [
-      ...head(title, `${scope} · ${source}. Programme health: ${m.now.health?.word ?? '—'} (Protected: 2 or more reports for every click; Holding: at least 1; Exposed: fewer reports than clicks).`),
+      ...head(title, `${scope} · ${source}. Programme health: ${m.now.health ? healthWord(m.now.health.word) : '—'} (${HEALTH_RULE}).`),
       { table: {
         columns: [
           { label: 'Measure', value: (x) => x[0], width: 30 },
@@ -52,19 +54,19 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
         rows: list,
       } },
     ] },
-    { name: 'Lures', blocks: [
-      ...head('The lures', `${scope} · each kind of lure, the most convincing first.`),
+    { name: 'Campaign types', blocks: [
+      ...head('The campaign types', `${scope} · each campaign type, the most convincing first.`),
       { table: {
         columns: [
-          { label: 'Lure', value: (l) => l.type, width: 22 },
+          { label: TYPE_WORD, value: (l) => l.type, width: 22 },
           { label: 'Campaigns', value: (l) => l.campaigns, kind: 'int', width: 11 },
           { label: 'Delivered', value: (l) => l.delivered, kind: 'int', width: 11 },
           { label: 'Hook Rate', value: (l) => l.hooked, kind: 'pct', width: 11 },
-          { label: 'Gave details, of clicks', value: (l) => l.gaveOfClicks, kind: 'pct', width: 14 },
+          { label: 'Gave details away, of clicks', value: (l) => l.gaveOfClicks, kind: 'pct', width: 16 },
           { label: 'Report Rate', value: (l) => l.reportRate, kind: 'pct', width: 11 },
           { label: 'Reports per click', value: (l) => l.perClick, kind: 'dec', width: 12 },
           { label: 'Learning moments', value: (l) => l.learned, kind: 'pct', width: 12 },
-          { label: 'Health', value: (l) => l.health?.word ?? '', width: 11 },
+          { label: 'Health', value: (l) => (l.health ? healthWord(l.health.word) : ''), width: 13 },
         ],
         rows: m.lures,
         filter: true,
@@ -75,7 +77,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
       { table: {
         columns: [
           { label: 'Campaign', value: (c) => c.name, width: 36 },
-          { label: 'Lure', value: (c) => c.type, width: 18 },
+          { label: TYPE_WORD, value: (c) => c.type, width: 18 },
           { label: 'Started', value: (c) => c.started, width: 10 },
           { label: 'Delivered', value: (c) => c.delivered, kind: 'int', width: 11 },
           { label: 'First click (min)', value: (c) => c.firstClick, kind: 'int', width: 12 },
@@ -85,7 +87,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
           { label: 'Hook Rate', value: (c) => c.hooked, kind: 'pct', width: 11 },
           { label: 'Reports per click', value: (c) => c.perClick, kind: 'dec', width: 12 },
           { label: 'Learning moments', value: (c) => c.learned, kind: 'pct', width: 12 },
-          { label: 'Health', value: (c) => c.health?.word ?? '', width: 11 },
+          { label: 'Health', value: (c) => (c.health ? healthWord(c.health.word) : ''), width: 13 },
         ],
         rows: m.campaigns,
         filter: true,
@@ -210,7 +212,7 @@ export function insightsSummary(m, list, title = 'Insights') {
   const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
   return [
     `${title} · last ${m.basis.days} days`,
-    `${n.campaigns} campaigns, ${n.delivered.toLocaleString('en-US')} emails delivered. Programme health: ${(n.health?.word ?? '—').toLowerCase()}, ${per} reports for every click.`,
+    `${n.campaigns} campaigns, ${n.delivered.toLocaleString('en-US')} emails delivered. Programme health: ${n.health ? healthWord(n.health.word).toLowerCase() : '—'}, ${per} reports for every click.`,
     `Hook Rate ${pc(n.hooked)}, Report Rate ${pc(n.reportRate)}, first report after ${n.firstReport ?? '—'} min, learning moments ${pc(n.learned)}.`,
     '',
     'What stands out:',

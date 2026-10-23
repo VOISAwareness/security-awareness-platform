@@ -22,9 +22,8 @@ export const day = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeri
 // Slate is the quiet neutral: averages, things that are only a measure.
 export const STEADY_INK = '#94A3B8';
 export const healthInk = (word, ink) => (word === 'Protected' ? ink.good : word === 'Exposed' ? ink.alert : ink.bad);
-// The words the page shows: the service's "Exposed" reads as "Not protected".
-export const HEALTH_WORD = { Protected: 'Protected', Holding: 'Holding', Exposed: 'Not protected' };
-export const HEALTH_RULE = 'Protected: 2 or more reports for every click · Holding: at least 1 · Not protected: fewer reports than clicks';
+// The words people read for health come from the app's glossary.
+export { HEALTH_RULE, HEALTH_WORD } from '../../services/glossary';
 
 /**
  * A change against the period before, as a chip says it: the arrow, the
@@ -85,9 +84,10 @@ export const glow = (hex, isDark, a = 0.3) => {
   return `0 0 20px rgba(${r},${g},${b},${a})`;
 };
 
-const LURE_ICON = { 'Credential theft': KeyRound, 'Finance lure': Banknote, 'HR lure': Users, 'IT lure': Monitor, 'Event lure': CalendarDays, 'Delivery lure': Package, 'Business lure': Briefcase };
-export const lureIcon = (type) => LURE_ICON[type] || Mail;
-// "Finance lure" -> "Finance", "Credential theft" -> "Credentials", for tight labels
+// An icon for each campaign type (older names ended in " lure").
+const TYPE_ICON = { 'Credential theft': KeyRound, Finance: Banknote, HR: Users, IT: Monitor, Event: CalendarDays, Delivery: Package, Business: Briefcase };
+export const lureIcon = (type) => TYPE_ICON[String(type).replace(/ lure$/i, '')] || Mail;
+// "Credential theft" -> "Credentials" (and "Finance lure" -> "Finance"), for tight labels
 export const lureShort = (type) => (type === 'Credential theft' ? 'Credentials' : type.replace(/ lure$/i, ''));
 
 // How far back the risk score is drawn: a year or two.

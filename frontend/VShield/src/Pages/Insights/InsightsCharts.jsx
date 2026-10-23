@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 
 import { useSize } from './useSize';
+import { Define } from './InsightsBits';
 import { EASE, SPRING, cardTitle, rise, small } from './insightsUi';
 
 // Insights' chart kit, drawn the way the references are: bold rounded
@@ -21,7 +22,7 @@ const light = (c, by = 38) => `color-mix(in srgb, ${c} ${100 - by}%, white)`;
  * body. With `onOpen` the whole card leads somewhere (its profile), and with
  * `layoutId` it grows into that profile and back.
  */
-export function Card({ title, sub, action, children, i = 0, reduce, style, layoutId, onOpen, openLabel = 'Open', ...rest }) {
+export function Card({ title, sub, action, define, children, i = 0, reduce, style, layoutId, onOpen, openLabel = 'Open', ...rest }) {
   return (
     <motion.section
       layoutId={layoutId}
@@ -34,7 +35,9 @@ export function Card({ title, sub, action, children, i = 0, reduce, style, layou
       {(title || action || onOpen) && (
         <header style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <span style={{ minWidth: 0 }}>
-            <span style={cardTitle}>{title}</span>
+            {define
+              ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={cardTitle}>{title}</span><Define term={define} /></span>
+              : <span style={cardTitle}>{title}</span>}
             {sub && <span style={{ display: 'block', ...small, marginTop: 2 }}>{sub}</span>}
           </span>
           <span style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>

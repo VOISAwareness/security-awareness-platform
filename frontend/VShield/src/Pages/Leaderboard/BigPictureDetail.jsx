@@ -4,6 +4,7 @@ import { ChevronLeft, Search } from 'lucide-react';
 
 import { breakdown, count } from '../../services/bigPictureFindings';
 import { findingPeople, health, recordOf } from '../../services/bigPictureViews';
+import { healthWord } from '../../services/glossary';
 import { Chip, Pager, PersonRow } from './BigPictureTables';
 import { useFitRows } from './useFitRows';
 import { TONE_ART } from './bigPictureArt';
@@ -44,13 +45,13 @@ function Heads({ cols, children }) {
 const STEADY_INK = '#94A3B8'; // neither good nor bad
 
 // A department's health (health() in bigPictureViews.js): Protected,
-// Holding or Exposed, with its Report and Hook Rates on hover.
+// Holding or Not protected, with its Report and Hook Rates on hover.
 const HEALTH_TONE = { Protected: 'good', Holding: 'steady', Exposed: 'bad' };
 function Health({ of, ink }) {
   const h = health(of);
   if (!h) return <span style={small}>—</span>;
   const color = HEALTH_TONE[h.word] === 'steady' ? STEADY_INK : ink[HEALTH_TONE[h.word]];
-  return <Chip color={color} width={86} title={`Reported ${pc(h.reportRate)} of emails · clicked ${pc(h.clickRate)}`}>{h.word}</Chip>;
+  return <Chip color={color} width={112} title={`Reported ${pc(h.reportRate)} of emails · clicked ${pc(h.clickRate)}`}>{healthWord(h.word)}</Chip>;
 }
 
 // A small search box for a pane's header.
