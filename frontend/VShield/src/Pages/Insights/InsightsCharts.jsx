@@ -29,7 +29,7 @@ export function Card({ title, sub, action, define, children, i = 0, reduce, styl
       {...rise(reduce, i)}
       className={`ins-card${onOpen ? ' ins-open' : ''}`}
       onClick={onOpen ? (e) => { if (!e.defaultPrevented) onOpen(); } : undefined}
-      style={{ position: 'relative', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
+      style={{ position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
       {...rest}
     >
       {(title || action || onOpen) && (
@@ -369,7 +369,7 @@ export function GapBars({ at, values, base, lit, good, bad, reduce, tipHead, val
 /** A plain sentence under a chart: what it shows, and a line of detail. */
 export function Insight({ children, sub, tone }) {
   return (
-    <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, padding: '9px 12px', borderRadius: 12, border: '1px solid var(--hair)', background: 'var(--plate)' }}>
+    <div className="ins-optional" style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, padding: '9px 12px', borderRadius: 12, border: '1px solid var(--hair)', background: 'var(--plate)' }}>
       {tone && <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 999, marginTop: 4, background: tone }} />}
       <span style={{ minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'var(--text)', lineHeight: 1.35 }}>{children}</span>
@@ -590,7 +590,7 @@ export function CompareBars({ rows, reduce, max, height = 30 }) {
               <span style={{ fontSize: 10.5, fontWeight: 800 }}>{r.label}</span>
               {r.sub && <span style={{ ...small, fontSize: 9 }}>{r.sub}</span>}
             </div>
-            <div style={{ height, borderRadius: 10, background: 'var(--plate)', overflow: 'hidden' }}>
+            <div className="ins-cbar" style={{ height, borderRadius: 10, background: 'var(--plate)', overflow: 'hidden' }}>
               <motion.div initial={{ clipPath: reduce ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={{ duration: reduce ? 0 : 0.8, delay: reduce ? 0 : 0.12 + 0.08 * k, ease: EASE }} style={{ height: '100%', width: wd, transition: 'width .5s ease', minWidth: 58, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 10, boxSizing: 'border-box', background: `linear-gradient(90deg, ${light(r.color, 40)}, ${r.color})` }}>
                 <span className="vs-rank" style={{ fontSize: 13, fontWeight: 900, color: '#FFFFFF' }}>{r.text}</span>
               </motion.div>
@@ -648,9 +648,9 @@ export function StepFunnel({ steps, color, reduce }) {
  * the stretch past `threshold` washed in `bad`'s tint, and the whole's
  * score as a dashed ring. Hover a spoke for its numbers; a click opens it.
  */
-export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onOpen, tipHead, days }) {
+export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onOpen, tipHead, days, active = null, onHover }) {
   const [box, { w, h }] = useSize();
-  const [hover, setHover] = useState(null);
+  const [own, setOwn] = useState(null);
   const S = Math.min(w, h);
   const cx = w / 2; const cy = h / 2;
   const r1 = Math.max(40, S / 2 - 36); const r0 = r1 * 0.3;
@@ -658,6 +658,10 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
   const lo = Math.floor((Math.min(...all) - 0.5) / 2) * 2; const hi = Math.ceil((Math.max(...all) + 0.5) / 2) * 2;
   const R = (v) => r0 + ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo || 1)) * (r1 - r0);
   const order = [...items].sort((a, b) => b.now - a.now || a.key.localeCompare(b.key));
+  // the spoke lit: the one hovered here, else the one lit from outside
+  const lit = own !== null ? own : order.findIndex((it) => it.key === active);
+  const hover = lit >= 0 ? lit : null;
+  const setHover = (i) => { setOwn(i); onHover?.(i === null ? null : order[i].key); };
   const n = order.length;
   const ang = (i) => ((-90 + (i / n) * 360) * Math.PI) / 180;
   const at = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -687,7 +691,7 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
                 key={it.key}
                 role="button"
                 tabIndex={0}
-                aria-label={`${it.label}: risk score ${it.now.toFixed(1)}, ${Math.abs(d) < 0.05 ? 'no change' : `${d < 0 ? 'down' : 'up'} ${Math.abs(d).toFixed(1)}`} on ${days} days ago. Open its profile`}
+                aria-label={`${it.label}: Risk Score ${it.now.toFixed(1)}, ${Math.abs(d) < 0.05 ? 'no change' : `${d < 0 ? 'down' : 'up'} ${Math.abs(d).toFixed(1)}`} on ${days} days ago. Open its profile`}
                 onMouseEnter={() => setHover(i)}
                 onFocus={() => setHover(i)}
                 onBlur={() => setHover(null)}
@@ -722,7 +726,7 @@ export function RiskRing({ items, whole, good, bad, neutral, threshold = 20, onO
         return (
           <Tip x={tx} y={ty - 10} w={w}>
             <div style={tipTitle}>{tipHead(shown)}</div>
-            <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: 10, fontWeight: 700 }}>Risk score now<strong style={{ marginLeft: 'auto' }}>{shown.now.toFixed(1)}</strong></div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: 10, fontWeight: 700 }}>Risk Score now<strong style={{ marginLeft: 'auto' }}>{shown.now.toFixed(1)}</strong></div>
             <div style={{ display: 'flex', gap: 14, marginTop: 3, fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{days} days ago<strong style={{ marginLeft: 'auto', color: 'var(--text)' }}>{shown.before.toFixed(1)}</strong></div>
             <div style={tipLine}>{Math.abs(d) < 0.05 ? 'No change' : `${d < 0 ? 'Safer' : 'Riskier'} by ${Math.abs(d).toFixed(1)} pts · open its profile`}</div>
           </Tip>
