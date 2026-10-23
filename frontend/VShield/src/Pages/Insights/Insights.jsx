@@ -15,7 +15,7 @@ import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
 import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
 import { BandGauge, BarcodeMeter, Segmented } from './InsightsCharts';
-import { Count, Delta, Explain, RiskHow } from './InsightsBits';
+import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
 import { EASE, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk } from './insightsUi';
@@ -104,7 +104,7 @@ const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(
 const TABS = [
   { id: 'overview', label: 'Overview', Icon: LayoutGrid },
   { id: 'departments', label: 'Departments', Icon: Users },
-  { id: 'campaigns', label: 'Lures & campaigns', Icon: MousePointerClick },
+  { id: 'campaigns', label: 'Campaigns', Icon: MousePointerClick },
   { id: 'training', label: 'Training', Icon: GraduationCap },
 ];
 const PERIODS = [
@@ -150,7 +150,7 @@ function HealthTile({ m, reduce }) {
       </AnimatePresence>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0 }}>
-          <div style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</span><Define term="health" /></div>
           <div className="vs-rank" style={{ fontSize: look.word.length > 10 ? 22 : 28, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: 7, color: 'var(--text)', textShadow: look.shine }}>{look.word}</div>
           <div style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.4, marginTop: 6, color: '#475569' }}>{look.says}</div>
         </motion.div>
@@ -170,12 +170,12 @@ function RiskKpi({ p, m, ink, isDark, reduce, onOpen }) {
   const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
   const bands = [{ to: 20, color: colors.low }, { to: 35, color: colors.moderate }, { to: 60, color: colors.high }, { to: 100, color: colors.critical }];
   return (
-    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }} aria-label={`Risk score ${p.now.score.toFixed(1)} of 100, ${riskWord(p.now.score)}. Open the risk view`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px 10px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: 'pointer', outline: 'none' }}>
-      <BandGauge value={p.now.score} bands={bands} size={108} stroke={9} reduce={reduce} label={`Risk score ${p.now.score.toFixed(1)} of 100`} glowing={glow(tone, isDark, 0.35)} />
+    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }} aria-label={`Risk Score ${p.now.score.toFixed(1)} of 100, ${riskWord(p.now.score)}. Open the risk view`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, ease: EASE }} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px 10px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: 'pointer', outline: 'none' }}>
+      <BandGauge value={p.now.score} bands={bands} size={108} stroke={9} reduce={reduce} label={`Risk Score ${p.now.score.toFixed(1)} of 100`} glowing={glow(tone, isDark, 0.35)} />
       <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={eyebrow}>Risk score</span>
-          <Explain label="What the risk score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
+          <span style={eyebrow}>Risk Score</span>
+          <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
           <span style={{ marginLeft: 'auto' }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 16, fontWeight: 800, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: tone }} />{riskWord(p.now.score)}</span>
@@ -195,9 +195,10 @@ function RiskKpi({ p, m, ink, isDark, reduce, onOpen }) {
 }
 function BarKpi({ k, i, ink, reduce }) {
   return (
-    <motion.button type="button" className="ins-kpi" data-ins-kpi={k.id} title={k.hint} onClick={k.onOpen} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '10px 14px 10px', borderRadius: 14, border: 'none', background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}>
+    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi={k.id} title={k.hint} onClick={k.onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } }} aria-label={`${k.label}. Open it`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '10px 14px 10px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', outline: 'none' }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         <span style={{ ...eyebrow, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
+        <Define term={k.define} />
         <span style={{ marginLeft: 'auto' }}><Delta c={k.delta} ink={ink} title="Against the period before" /></span>
       </span>
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
@@ -205,7 +206,7 @@ function BarKpi({ k, i, ink, reduce }) {
         <span style={{ ...small, fontSize: 9.5 }}>{k.unit}</span>
       </span>
       <BarcodeMeter value={k.share} color={k.color} reduce={reduce} height={22} label={`${k.label}: ${pc(k.share)}`} />
-    </motion.button>
+    </motion.div>
   );
 }
 
@@ -255,9 +256,9 @@ const Insights = () => {
   const b = m.before;
   const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
   const kpis = [
-    { id: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.danger, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
-    { id: 'hooked', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails clicked', share: n.hooked, delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), color: ink.bad, hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'reported', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails reported', share: n.reportRate, delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), color: ink.good, glow: glow('#10B981', isDark), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.danger, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
+    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails clicked', share: n.hooked, delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), color: ink.bad, hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails reported', share: n.reportRate, delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), color: ink.good, glow: glow('#10B981', isDark), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
   ];
 
   const title = 'Insights';

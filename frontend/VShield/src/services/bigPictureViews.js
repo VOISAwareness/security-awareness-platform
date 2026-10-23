@@ -61,7 +61,7 @@ const FLAGS = [
   [(x) => x.nearZero, 'Near zero', true, 'One more click takes them below zero'],
   [(x) => x.nearSlip, '1 click to drop', true, 'One more click takes them down a level'],
   [(x) => x.moved === 'down', 'Slipped a level', true, 'Went down a level in the period shown'],
-  [(x) => x.gave > 0, 'Gave details', true, 'Gave their details away on a phishing page'],
+  [(x) => x.gave > 0, 'Gave details away', true, 'Gave their details away on a phishing page'],
   [(x) => x.campaigns > 0 && x.reported === 0, 'Never reported', true, 'Got phishing emails and reported none'],
   [(x) => x.backAbove, 'Back above zero', false, 'Came back above zero in the period shown'],
   [(x) => x.moved === 'up', 'Climbed a level', false, 'Went up a level in the period shown'],

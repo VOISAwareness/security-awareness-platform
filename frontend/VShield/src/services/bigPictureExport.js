@@ -17,6 +17,7 @@ import { LEVEL_BY_ID, rankName } from './levels.js';
 import { GROUPS } from './bigPicture.js';
 import { story } from './bigPictureFindings.js';
 import { progress, STEADY } from './bigPictureTrend.js';
+import { TYPE_WORD, healthWord } from './glossary.js';
 import { health, standsOut } from './bigPictureViews.js';
 import { workbook } from './xlsx.js';
 
@@ -57,7 +58,7 @@ export const DEPARTMENT_COLUMNS = Object.freeze([
   { label: 'Below zero %', value: (d) => d.belowZeroShare, kind: 'pct', width: 11 },
   { label: 'Report Rate', value: (d) => d.reportRate, kind: 'pct', width: 11 },
   { label: 'Hook Rate', value: (d) => d.clickRate, kind: 'pct', width: 11 },
-  { label: 'Health', value: (d) => health(d)?.word || '', width: 11 },
+  { label: 'Health', value: (d) => (health(d) ? healthWord(health(d).word) : ''), width: 13 },
   { label: 'Gave details away', value: (d) => d.gave, kind: 'int', width: 11 },
   { label: '1 click to drop', value: (d) => d.nearSlip, kind: 'int', width: 13 },
   { label: '1 report to climb', value: (d) => d.nearUp, kind: 'int', width: 13 },
@@ -139,11 +140,11 @@ export function reportBook(r, { title, scope, withPeople = false, campaign = nul
     } },
   ]);
 
-  add('What hooks each level', 'The Hook Rate of each kind of lure, by level group', [
+  add('What hooks each level', 'The Hook Rate of each campaign type, by level group', [
     ...head('What hooks each level', `${scope} · the share of emails of each kind that were clicked (the Hook Rate), by the level group people were in. Highest first.`),
     { table: {
       columns: [
-        { label: 'Lure', value: (l) => l.type, width: 22 },
+        { label: TYPE_WORD, value: (l) => l.type, width: 22 },
         ...GROUPS.map((g) => ({ label: g.brief, value: (l) => l.cells[g.id], kind: 'pct', width: 15 })),
         { label: 'All levels', value: (l) => l.click, kind: 'pct', width: 11 },
       ],
@@ -180,7 +181,7 @@ export function reportBook(r, { title, scope, withPeople = false, campaign = nul
         ['1 click to drop', 'Close enough to the bottom of their level that one more click would drop them a level.'],
         ['1 report to climb', 'Close enough to the next level that one more report would lift them to it.'],
         ['Chance after one more email', "Each person's own click rate (for a level down) or report rate (for a level up), pulled toward everyone's average when their record is short."],
-        ['Health', 'Protected: reports at least double the clicks. Holding: reports at least match the clicks. Exposed: more clicks than reports.'],
+        ['Health', 'Protected: reports at least double the clicks. Holding: reports at least match the clicks. Not protected: more clicks than reports.'],
         ['Likely range', 'If people behave as their record says, the real number lands in this range 9 times out of 10.'],
         ['Source', source],
       ],
@@ -237,7 +238,7 @@ const breakdownColumns = (b) => [
     ? [{ label: 'People in this finding', value: (d) => d.value, kind: 'int', width: 13 }, { label: 'Share of the department', value: (d) => d.share, kind: 'pct', width: 13 }]
     : [{ label: b.kind === 'rate' ? 'Report Rate' : 'Points change per person', value: (d) => d.value, kind: b.kind === 'rate' ? 'pct' : 'signed', width: 14 }]),
   { label: 'People in the department', value: (d) => d.size, kind: 'int', width: 13 },
-  { label: 'Health', value: (d) => health(d)?.word || '', width: 11 },
+  { label: 'Health', value: (d) => (health(d) ? healthWord(health(d).word) : ''), width: 13 },
 ];
 
 /** One finding: what it is, by department, and (for admins) its people, those on screen. */

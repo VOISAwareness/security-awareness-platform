@@ -51,7 +51,7 @@ export function OverviewView({ ctx, list }) {
   return (
     <div data-ins-overview style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1.08fr) minmax(0,1fr)', gap: 14 }}>
       {/* are we safer? */}
-      <Card i={0} reduce={reduce} title="Risk score over time" action={<Segmented id="ins-range-ov" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
+      <Card i={0} reduce={reduce} title="Risk Score over time" define="riskScore" action={<Segmented id="ins-range-ov" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
           <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
@@ -71,7 +71,7 @@ export function OverviewView({ ctx, list }) {
             reduce={reduce}
             layoutIdOf={(t) => `dept-${t.key}`}
             onOpen={(name) => open('department', name, `dept-${name}`)}
-            tip={(t) => { const d = p.departments.find((x) => x.name === t.key); return [d.name, `Risk score ${scoreText(d.score)} · ${num(d.highRisk)} at high risk`, `${num(d.people)} people · open its profile`]; }}
+            tip={(t) => { const d = p.departments.find((x) => x.name === t.key); return [d.name, `Risk Score ${scoreText(d.score)} · ${num(d.highRisk)} at high risk`, `${num(d.people)} people · open its profile`]; }}
           />
         </div>
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, ...small, fontSize: 9 }}>
@@ -110,7 +110,7 @@ export function OverviewView({ ctx, list }) {
       </motion.section>
 
       {/* what fools us */}
-      <Card i={3} reduce={reduce} title="Click rate by lure" onOpen={() => go('campaigns')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-lures>
+      <Card i={3} reduce={reduce} title="Hook Rate by campaign type" define="hookRate" onOpen={() => go('campaigns')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-lures>
         <PillColumns
           items={m.lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `Hook Rate ${pc1(l.hooked)} · gave details ${pc(l.gaveOfClicks)} of clicks`, `Reported ${pc(l.reportRate)} · ${times(l.perClick)} reports per click`] }))}
           color={ink.bad}
@@ -148,7 +148,7 @@ export function OverviewView({ ctx, list }) {
       </Card>
 
       {/* is training paying off? */}
-      <Card i={5} reduce={reduce} title="Training impact" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
+      <Card i={5} reduce={reduce} title="Training impact" define="trainingImpact" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
         {c && (
           <>
             <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 10 }}>
@@ -230,11 +230,11 @@ function HabitRows({ rows, ink, isDark, open }) {
 // Each department's people by risk level, the most at high risk first: one
 // bar split low, moderate, high and critical, and the share at high risk or
 // worse.
-const TIER_COLS = '22px minmax(0,1fr) minmax(0,1.9fr) 44px';
+const TIER_COLS = '22px minmax(0,1fr) minmax(0,1.9fr) 62px';
 function TierRows({ rows, colors, isDark, open }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-      <Heads cols={TIER_COLS} pad={8}><span /><span>Department</span><span>People by level</span><span style={{ textAlign: 'right' }}>High+</span></Heads>
+      <Heads cols={TIER_COLS} pad={8}><span /><span>Department</span><span>People by level</span><span style={{ textAlign: 'right' }}>At high risk</span></Heads>
       {rows.map((d, k) => {
         const all = d.tiers.low + d.tiers.moderate + d.tiers.high + d.tiers.critical || 1;
         const high = (d.tiers.high + d.tiers.critical) / all;
@@ -317,10 +317,10 @@ export function DepartmentsView({ ctx }) {
   const cells = Object.fromEntries(Object.entries(m.deptLures).map(([name, list]) => [name, Object.fromEntries(list.map((x) => [x.type, x]))]));
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}>
-      <Card i={0} reduce={reduce} title="Reported vs clicked" sub="Best first" action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
+      <Card i={0} reduce={reduce} title="Reported vs clicked" define="reportedVsClicked" sub="Best first" action={<Legend items={[{ label: 'Reported', color: ink.good }, { label: 'Clicked', color: ink.bad }]} />} style={{ gridColumn: 'span 7' }} data-ins-behaviour>
         <HabitRows rows={habits} ink={ink} isDark={isDark} open={open} />
       </Card>
-      <Card i={1} reduce={reduce} title="Risk change by department" sub="Closer to the centre is safer" action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 5' }} data-ins-movers>
+      <Card i={1} reduce={reduce} title="Risk change by department" define="riskChange" sub="Closer to the centre is safer" action={<Legend items={[{ label: 'Safer', color: ink.good }, { label: 'Riskier', color: ink.bad }]} />} style={{ gridColumn: 'span 5' }} data-ins-movers>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 6 }}>
           <RiskRing items={ring} whole={{ now: p.now.score, before: p.before?.score }} good={ink.good} bad={ink.bad} neutral={ink.neutral} days={m.basis.days} onOpen={(name) => open('department', name)} tipHead={(it) => it.label} />
         </div>
@@ -331,10 +331,10 @@ export function DepartmentsView({ ctx }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 10, height: 8, borderRadius: 3, background: ink.bad, opacity: 0.3 }} />moderate risk, 20 and over</span>
         </div>
       </Card>
-      <Card i={2} reduce={reduce} title="People by risk level" sub="Most at high risk first" action={<Legend items={['low', 'moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: tierInk(isDark)[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-tier-rows>
+      <Card i={2} reduce={reduce} title="People by risk level" define="riskLevels" sub="Most at high risk first" action={<Legend items={['low', 'moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: tierInk(isDark)[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-tier-rows>
         <Reveal><TierRows rows={mostHigh} colors={tierInk(isDark)} isDark={isDark} open={open} /></Reveal>
       </Card>
-      <Card i={3} reduce={reduce} title="Click rate by lure and department" sub="Most clicks first · deeper amber is more clicks" style={{ gridColumn: 'span 7' }} data-ins-lure-grid>
+      <Card i={3} reduce={reduce} title="Hook Rate by campaign type and department" define="hookRate" sub="Most clicks first · deeper amber is more clicks" style={{ gridColumn: 'span 7' }} data-ins-lure-grid>
         <Reveal><LureGrid rows={m.departments} types={m.lures.map((l) => l.type)} cells={cells} ink={ink} open={open} /></Reveal>
       </Card>
     </div>
@@ -354,7 +354,7 @@ const SORTS = [
   { id: 'health', label: 'Health' },
 ];
 const HEALTH_RANK = { Exposed: 0, Holding: 1, Protected: 2 };
-const LURE_COLS = '26px minmax(0,1fr) minmax(0,1.3fr) 40px 32px 14px';
+const LURE_COLS = '26px minmax(0,1fr) minmax(0,1.1fr) 56px 60px 14px';
 const CAMP_COLS = '26px minmax(0,2.1fr) 54px minmax(0,1.2fr) minmax(0,1.2fr) 72px 56px 112px 12px';
 const ROW_H = 46;
 
@@ -379,9 +379,9 @@ export function CampaignsView({ ctx }) {
   const maxLure = Math.max(...m.lures.map((l) => l.hooked || 0), 0.01);
   return (
     <div data-ins-camps-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: 14 }}>
-      <Card i={0} reduce={reduce} title="Click rate by lure" sub={lure ? 'Showing one lure · click it again for all' : 'Pick one to see only its campaigns'} style={{ gridColumn: 'span 4' }} data-ins-lure-rank>
+      <Card i={0} reduce={reduce} title="Hook Rate by campaign type" define="hookRate" sub={lure ? 'Showing one type · click it again for all' : 'Pick one to see only its campaigns'} style={{ gridColumn: 'span 4' }} data-ins-lure-rank>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          <Heads cols={LURE_COLS} pad={8}><span /><span>Lure</span><span>Click rate</span><span style={{ textAlign: 'right' }}>Per click</span><span style={{ textAlign: 'right' }}>Runs</span><span /></Heads>
+          <Heads cols={LURE_COLS} pad={8}><span /><span>Campaign type</span><span>Hook Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Reports per click</span><span style={{ textAlign: 'right' }}>Campaigns</span><span /></Heads>
           {m.lures.map((l, k) => {
             const on = lure === l.type;
             return (
@@ -392,7 +392,7 @@ export function CampaignsView({ ctx }) {
                 className="ins-row ins-in-x"
                 data-ins-lure={l.type}
                 aria-pressed={on}
-                aria-label={`${l.type}: ${pc1(l.hooked)} clicked. ${on ? 'Show every lure' : 'Show only its campaigns'}`}
+                aria-label={`${l.type}: ${pc1(l.hooked)} clicked. ${on ? 'Show every campaign type' : 'Show only its campaigns'}`}
                 onClick={() => onView({ lure: on ? null : l.type, page: 0 })}
                 onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onView({ lure: on ? null : l.type, page: 0 }); } }}
                 style={{ '--d': `${0.08 + 0.03 * k}s`, flexShrink: 0, height: ROW_H, display: 'grid', gridTemplateColumns: LURE_COLS, alignItems: 'center', gap: 14, padding: '0 8px', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: on ? 'var(--plate)' : 'none', boxShadow: on ? 'inset 3px 0 0 var(--brand)' : 'none', cursor: 'pointer', outline: 'none' }}
@@ -415,7 +415,7 @@ export function CampaignsView({ ctx }) {
 
       <Card i={1} reduce={reduce} title={lure ? `Campaigns · ${lure}` : 'Campaigns'} action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{lure && <button type="button" onClick={() => onView({ lure: null, page: 0 })} className="ins-go" style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 10px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>{lure} ✕</button>}<Segmented id="ins-camp-sort" label="Sort campaigns" value={sort} options={SORTS} onChange={(id) => onView({ sort: id, page: 0 })} reduce={reduce} /></span>} style={{ gridColumn: 'span 8' }} data-ins-camp-table>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          <Heads cols={CAMP_COLS} pad={8}><span /><span>Campaign</span><span style={{ textAlign: 'right' }}>Emails</span><span>Clicked</span><span>Reported</span><span style={{ textAlign: 'right' }}>Gave details</span><span style={{ textAlign: 'right' }}>Per click</span><span style={{ textAlign: 'right' }}>Health</span><span /></Heads>
+          <Heads cols={CAMP_COLS} pad={8}><span /><span>Campaign</span><span style={{ textAlign: 'right' }}>Emails</span><span>Hook Rate</span><span>Report Rate</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Gave details away</span><span style={{ textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.15 }}>Reports per click</span><span style={{ textAlign: 'right' }}>Health</span><span /></Heads>
           <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {rows.slice(page * size, page * size + size).map((c, k) => (
               <motion.button

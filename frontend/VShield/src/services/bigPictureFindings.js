@@ -121,7 +121,7 @@ export function story(r, { campaign = false } = {}) {
   if (silent.length) wrong.push({ ...about('neverReported', 'bad', 60, silent, took, 'never reported an email'), link: { show: 'neverReported' } });
   const sticky = [...r.lures].filter((l) => l.cells.strong !== null).sort((a, b) => b.cells.strong - a.cells.strong)[0];
   if (sticky && sticky.cells.strong > 0) {
-    wrong.push({ id: 'lure', tone: 'bad', weight: 50, value: pc(sticky.cells.strong), headline: `of Phish Catchers clicked ${lureName(sticky.type)}`, sub: campaign ? 'This campaign’s lure' : 'More than any other lure', detail: `${pc(sticky.cells.low)} of New Joiners and below did`, link: null });
+    wrong.push({ id: 'lure', tone: 'bad', weight: 50, value: pc(sticky.cells.strong), headline: `of Phish Catchers clicked ${lureName(sticky.type)}`, sub: campaign ? 'This campaign’s type' : 'More than any other campaign type', detail: `${pc(sticky.cells.low)} of New Joiners and below did`, link: null });
   }
 
   // going well

@@ -129,7 +129,7 @@ const arrow = <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} ar
 function ScoreRing({ score, isDark, reduce, size = 56 }) {
   const tone = riskInk(score, isDark);
   return (
-    <RingGauge value={score} size={size} stroke={size < 50 ? 4 : 6} color={tone} reduce={reduce} label={`Risk score ${scoreText(score)} of 100`}>
+    <RingGauge value={score} size={size} stroke={size < 50 ? 4 : 6} color={tone} reduce={reduce} label={`Risk Score ${scoreText(score)} of 100`}>
       <span className="vs-rank" style={{ display: 'block', fontSize: size > 60 ? 18 : size < 50 ? 11 : 14, fontWeight: 900, textShadow: glow(tone, isDark, 0.35) }}>{scoreText(score)}</span>
       <span style={{ display: 'block', fontSize: size < 50 ? 6.5 : 7.5, fontWeight: 800, color: 'var(--muted)', marginTop: size < 50 ? 1 : 2 }}>/ 100</span>
     </RingGauge>
@@ -236,21 +236,21 @@ export function RiskProfile({ ctx, frame }) {
         { label: 'Moved down a level', value: num(p.now.improved), sub: `${num(p.now.slipped)} moved up` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="Risk score over time" action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} /><Segmented id="ins-range-risk" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} /></span>} style={{ gridColumn: 'span 7' }}>
+      <Card i={3} reduce={reduce} title="Risk Score over time" define="riskScore" action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} /><Segmented id="ins-range-risk" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} /></span>} style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
           <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.neutral} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} />
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="Risk levels" action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
+      <Card i={4} reduce={reduce} title="Risk levels" define="riskLevels" action={p.moved && <MoveChips moved={p.moved} ink={ink} />} style={{ gridColumn: 'span 5' }} data-ins-moved>
         {p.moved && <LevelTiles moved={p.moved} colors={colors} ink={ink} reduce={reduce} />}
       </Card>
-      <Card i={5} reduce={reduce} title="Score breakdown" sub="Now vs a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
+      <Card i={5} reduce={reduce} title="Score breakdown" define="scoreBreakdown" sub="Now vs a year ago" action={<Legend items={['moderate', 'high', 'critical'].map((t) => ({ label: TIER_WORD[t], color: colors[t] }))} />} style={{ gridColumn: 'span 5' }} data-ins-makeup>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <MakeupBars rows={makeup} max={Math.max(...makeup.map((r) => r.total)) * 1.04} reduce={reduce} format={scoreText} />
           <Insight tone={colors[biggest.key]} sub={`A year ago they added ${scoreText(makeup[1].parts.find((x) => x.key === biggest.key).value)}`}>{biggest.label}-risk people add {scoreText(biggest.value)} of the {scoreText(makeup[0].total)} points</Insight>
         </div>
       </Card>
-      <Card i={6} reduce={reduce} title="Risk drivers" style={{ gridColumn: 'span 3' }}>
+      <Card i={6} reduce={reduce} title="Risk drivers" define="riskDrivers" style={{ gridColumn: 'span 3' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: 6 }}>
           {DRIVERS.map((dr, k) => {
             const v = p.now.drivers[dr.id];
@@ -306,7 +306,7 @@ export function DepartmentProfile({ ctx, frame, name }) {
       title={name}
       sub={`${num(d.people)} people · the ${ordinal(rank)} highest risk of ${p.departments.length} departments`}
       figures={[
-        { label: 'Risk score', node: <ScoreRing score={d.score} isDark={isDark} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
+        { label: 'Risk Score', node: <ScoreRing score={d.score} isDark={isDark} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title="Against the start of the period" />, sub: `Company ${scoreText(company)}` },
         { label: 'At high risk', value: num(d.highRisk), sub: `${pc1(d.highRisk / d.people)} of its people` },
         { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${c.times.toFixed(1)}× less likely to click` : '' },
       ]}
@@ -316,28 +316,28 @@ export function DepartmentProfile({ ctx, frame, name }) {
         </button>
       ) : null}
     >
-      <Card i={3} reduce={reduce} title="Compared with company" action={<Legend items={[{ label: 'Riskier than the company', color: ink.bad }, { label: 'Safer', color: ink.good }]} />} style={{ gridColumn: 'span 7' }} data-ins-gap>
+      <Card i={3} reduce={reduce} title="Compared with company" define="vsCompany" action={<Legend items={[{ label: 'Riskier than the company', color: ink.bad }, { label: 'Safer', color: ink.good }]} />} style={{ gridColumn: 'span 7' }} data-ins-gap>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
           <GapBars at={p.trend.slice(-12).map((s) => s.to)} values={d.trend.slice(-12)} base={p.trend.slice(-12).map((s) => s.score)} lit={p.trend.slice(-12).map((s) => s.inPeriod)} good={ink.good} bad={ink.bad} reduce={reduce} tipHead={(t) => `Thirty days to ${day(t)}`} valueLabel={name.length > 18 ? 'This department' : name} baseLabel="The whole company" />
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="People by risk level" style={{ gridColumn: 'span 5' }}>
+      <Card i={4} reduce={reduce} title="People by risk level" define="riskLevels" style={{ gridColumn: 'span 5' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
           <Blocks parts={['low', 'moderate', 'high', 'critical'].map((t) => ({ key: t, label: `${TIER_WORD[t]} · ${num(d.tiers[t])}`, value: d.tiers[t], color: colors[t], text: num(d.tiers[t]) }))} reduce={reduce} height={28} legendCols={4} />
           <Insight tone={diff > 0 ? ink.bad : ink.good} sub={`Company-wide, ${pc(p.now.highRisk / p.now.people)} of people are at high risk`}>{pc(d.highRisk / d.people)} of {name} {d.highRisk === 1 ? 'is' : 'are'} at high risk</Insight>
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="Click rate by lure" style={{ gridColumn: 'span 5' }}>
+      <Card i={5} reduce={reduce} title="Hook Rate by campaign type" define="hookRate" style={{ gridColumn: 'span 5' }}>
         {lures.length
           ? <PillColumns items={lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `${num(l.clicked)} of ${num(l.recipients)} clicked · ${pc(l.reportRate)} reported`] }))} color={ink.bad} soft="var(--soft-bad)" reduce={reduce} onOpen={(type) => open('lure', type)} label="clicked. Open the lure" />
           : <p style={{ ...small, fontSize: 11 }}>No campaigns reached this team in the period.</p>}
       </Card>
-      <Card i={6} reduce={reduce} title="Training impact" style={{ gridColumn: 'span 4' }}>
+      <Card i={6} reduce={reduce} title="Training impact" define="trainingImpact" style={{ gridColumn: 'span 4' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={28} />}
         </div>
       </Card>
-      <Card i={7} reduce={reduce} title="What people did" style={{ gridColumn: 'span 3' }}>
+      <Card i={7} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 3' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           {camp ? <Blocks parts={didParts({ delivered: camp.recipients, reported: camp.reported, clicked: camp.clicked, compromised: camp.compromised }, ink, isDark)} reduce={reduce} height={26} legendCols={2} /> : <p style={{ ...small, fontSize: 11 }}>No emails in the period.</p>}
         </div>
@@ -364,22 +364,22 @@ export function LureProfile({ ctx, frame, type }) {
       reduce={reduce}
       isDark={isDark}
       art={<LureTile type={type} size={54} tone="var(--base)" />}
-      eyebrowText="Lure"
+      eyebrowText="Campaign type"
       title={type}
       sub={`${l.campaigns} ${l.campaigns === 1 ? 'campaign' : 'campaigns'} · ${num(l.delivered)} emails in the last ${m.basis.days} days`}
       figures={[
-        { label: 'Hook Rate', value: pc1(l.hooked), delta: <Delta c={vsAll} ink={ink} title="Against every lure together" />, sub: 'against every lure' },
-        { label: 'Gave details', value: pc(l.gaveOfClicks), sub: 'of those who clicked' },
+        { label: 'Hook Rate', value: pc1(l.hooked), delta: <Delta c={vsAll} ink={ink} title="Against every campaign type together" />, sub: 'against every type' },
+        { label: 'Gave details away', value: pc(l.gaveOfClicks), sub: 'of those who clicked' },
         { label: 'Health', node: <HealthChip h={l.health} ink={ink} />, sub: `${times(l.perClick)} reports per click` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="What people did" style={{ gridColumn: 'span 6' }}>
+      <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={40} legendCols={4} />
           <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people who got one clicked it</Insight>
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="All lures" sub="Click rate" style={{ gridColumn: 'span 6' }}>
+      <Card i={4} reduce={reduce} title="All campaign types" define="hookRate" sub="Hook Rate" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {m.lures.map((x, k) => (
             <Row key={x.type} k={k} reduce={reduce} height={34} cols="24px minmax(0,1fr) minmax(0,1.6fr) 12px" onClick={x.type === type ? null : () => open('lure', x.type, null, true)} label={`${x.type}: Hook Rate ${pc1(x.hooked)}. Open its profile`}>
@@ -391,7 +391,7 @@ export function LureProfile({ ctx, frame, type }) {
           ))}
         </div>
       </Card>
-      <Card i={5} reduce={reduce} title="Most affected departments" sub="Click rate" style={{ gridColumn: 'span 6' }}>
+      <Card i={5} reduce={reduce} title="Most affected departments" define="hookRate" sub="Hook Rate" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', display: 'flex', flexDirection: 'column', marginTop: 4 }} className="ins-scroll">
           {depts.map((x, k) => (
             <Row key={x.name} k={k} reduce={reduce} height={34} cols="22px minmax(0,1fr) minmax(0,1.4fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${pc1(x.hooked)} clicked. Open its profile`}>
@@ -475,13 +475,13 @@ export function CampaignProfile({ ctx, frame, id }) {
         { label: 'Health', node: <HealthChip h={c.health} ink={ink} />, sub: `First report after ${mins(c.firstReport)}` },
       ]}
     >
-      <Card i={3} reduce={reduce} title="What people did" style={{ gridColumn: 'span 7' }}>
+      <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 7' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
           <Blocks parts={didParts(c, ink, isDark)} reduce={reduce} height={44} legendCols={4} />
           <Insight tone={c.perClick >= 2 ? ink.good : ink.bad} sub={`Half the reports were in ${mins(c.medianReport)} after it went out`}>{times(c.perClick)} reports for every click</Insight>
         </div>
       </Card>
-      <Card i={4} reduce={reduce} title="Compared with average" style={{ gridColumn: 'span 5' }}>
+      <Card i={4} reduce={reduce} title="Compared with average" define="vsAverage" style={{ gridColumn: 'span 5' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
           <VersusBars
             reduce={reduce}
@@ -545,13 +545,13 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
         { label: 'Badges', value: num(t.badges), sub: `${num(t.points)} points earned` },
       ]}
     >
-      <Card i={embedded ? 0 : 3} reduce={reduce} title="Trained vs untrained" sub="Click rate in simulations" style={{ gridColumn: 'span 6' }}>
+      <Card i={embedded ? 0 : 3} reduce={reduce} title="Trained vs untrained" define="trainingImpact" sub="Hook Rate in simulations" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 6, marginTop: 10 }}>
           {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: ink.good, text: pc(c.trainedRate) }]} reduce={reduce} height={26} />}
           {c && <Insight tone={ink.good} sub="Across every department; each has its own on its profile">Of every 100 trained people, {Math.round(c.trainedRate * 100)} clicked; of every 100 others, {Math.round(c.untrainedRate * 100)}</Insight>}
         </div>
       </Card>
-      <Card i={embedded ? 1 : 4} reduce={reduce} title="Training progress" style={{ gridColumn: 'span 6' }}>
+      <Card i={embedded ? 1 : 4} reduce={reduce} title="Training progress" define="trainingProgress" style={{ gridColumn: 'span 6' }}>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
           <StepFunnel steps={[['assigned', 'Assigned', t.assigned], ['started', 'Started', t.started], ['completed', 'Completed', t.completed], ['passed', 'Passed', t.passed]].map(([key, label, value]) => ({ key, label, value }))} color={ink.good} reduce={reduce} />
         </div>
