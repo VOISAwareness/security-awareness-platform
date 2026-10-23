@@ -1,27 +1,26 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ChevronRight } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpRight, BarChart3, ChevronRight, Grid3x3, ScatterChart } from 'lucide-react';
 
-import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
 import { TONE_ART } from '../Leaderboard/bigPictureArt';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, Card, CompareBars, Legend, PillColumns, RingGauge, Segmented, Staircase, TileMap } from './InsightsCharts';
+import { Blocks, Card, CompareBars, GoTo, Legend, PillColumns, RingGauge, Segmented, Staircase, TileMap } from './InsightsCharts';
 import { Define, Heads, HealthChip, InlineBar, LureIcon, LureTile, MiniPager, RowsGrid } from './InsightsBits';
 import { GLOSSARY } from '../../services/glossary';
 import { useSize } from './useSize';
-import { DEPT_QUESTIONS, deptOrder, deptRows, deptSays } from '../../services/deptQuestions';
+import { DEPT_CHARTS, deptOrder, deptRows } from '../../services/deptCharts';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { EASE, HEAD_H, HEALTH_WORD, SPANS, STEADY_INK, TIER_WORD, TINT, cardTitle, change, day, didParts, eyebrow, healthInk, heads, lureShort, num, pc, pc1, riskBands, riskWord, small, tierInk, tierOf, times, TYPE } from './insightsUi';
+import { EASE, HEAD_H, HEALTH_WORD, SPANS, STEADY_INK, TIER_WORD, TINT, cardTitle, change, day, didParts, eyebrow, healthInk, heads, lureShort, num, pc, pc1, riskBands, small, tierInk, tierOf, times, TYPE } from './insightsUi';
 
 // Insights' views, one per tab:
 //   - Overview: one card for each question a leader asks. Are we safer
 //     (risk over the year)? Where is the risk (the department map, what
 //     fools us)? When phishing lands, do people raise the alarm (what people
 //     do)? Is training paying off? What changed?
-//   - Departments: one question at a time (who is riskiest, who is
-//     changing, reports against clicks, what fools them), one chart each;
+//   - Departments: one chart at a time (Ranking, Movement, Reporting,
+//     Weak spots) beside a panel of one department's charts;
 //   - Lures & campaigns: every kind of lure, then every campaign.
 // Each card, tile and column opens its profile, most of them by growing
 // into it.
@@ -167,27 +166,30 @@ export function OverviewView({ ctx, list }) {
 
 // ---------------------------------------------------------- departments
 
-// The Departments tab asks one question at a time (services/deptQuestions.js):
-// who is riskiest, who is changing, reports against clicks, and what fools
-// them. Each gets one chart that fills the sheet. Switching keeps every
-// department's dot and name and slides them to their place in the next
-// chart. Beside the chart, what it says in three sentences; pointing at a
-// department shows its numbers there instead, and a click opens its
-// profile. Rows page to fit a short window, so nothing scrolls.
-const QUESTION = {
-  risk: { define: 'riskScore', sub: () => 'Risk Score now, riskiest first' },
-  change: { define: 'riskChange', sub: (days) => `Risk Score now against ${days} days ago, the most improved first` },
-  reports: { define: 'reportedVsClicked', sub: () => 'Each dot a department: clicked across, reported up' },
-  types: { define: 'hookRate', sub: () => 'Hook Rate for each campaign type, riskiest department first' },
+// The Departments tab shows one chart at a time (services/deptCharts.js):
+// Ranking, Movement, Reporting and Weak spots. Each fills the sheet, and
+// switching slides every department's row and dot to its place in the next
+// chart. Beside it, a panel of small charts for one department: the one
+// pointed at, else the first in the chart's order. It shows; it never says
+// what to make of it. A click opens the department's profile. Rows page to
+// fit a short window, so nothing scrolls.
+const CHART = {
+  ranking: { define: 'riskScore', sub: () => 'Risk Score now, riskiest first' },
+  movement: { define: 'riskChange', sub: (days) => `Risk Score ${days} days ago and now, the most improved first` },
+  reporting: { define: 'reportedVsClicked', sub: () => 'Each dot a department: Hook Rate across, Report Rate up' },
+  spots: { define: 'hookRate', sub: () => 'Hook Rate for each campaign type, riskiest department first' },
 };
+const CHART_ICON = { ranking: BarChart3, movement: ArrowLeftRight, reporting: ScatterChart, spots: Grid3x3 };
 const DQ_ROW = 22;
-const DQ_COLS = 'minmax(0,190px) minmax(0,1fr) 58px';
+const DQ_COLS = 'minmax(0,180px) minmax(0,1fr) 64px';
 const MOVE = { type: 'tween', duration: 0.5, ease: EASE };
 const one = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—');
 const moved = (v) => (!Number.isFinite(v) ? '—' : Math.abs(v) < 0.05 ? 'steady' : `${v < 0 ? '▼' : '▲'} ${Math.abs(v).toFixed(1)}`);
+const toneOfChange = (v, ink) => (!Number.isFinite(v) || Math.abs(v) < 0.05 ? STEADY_INK : v < 0 ? ink.good : ink.bad);
 const nameCell = (on) => ({ minWidth: 0, fontSize: TYPE.body, fontWeight: on ? 800 : 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' });
-const keyDot = (color) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: color }} />;
+const keyDot = (color, ring = false) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, boxSizing: 'border-box', background: ring ? 'transparent' : color, border: ring ? `1.5px solid ${color}` : 'none' }} />;
 const TIER_RANGE = { low: 'under 20', moderate: '20–35', high: '35–60', critical: '60+' };
+const SLIDE = 'left .5s cubic-bezier(.22,1,.36,1), width .5s cubic-bezier(.22,1,.36,1)';
 
 // The rows that fit a box (its ref first), a page at a time: all of them
 // until it is measured.
@@ -199,85 +201,125 @@ function usePage(total, page) {
   return [box, { size, pages, at, from: at * size, to: at * size + size }];
 }
 
-// Who is riskiest, and who is changing: a line per department, its dot at
-// its Risk Score (from 0) or at its change (either side of none).
-function DeptLines({ rows, q, company, ink, isDark, reduce, hover, onHover, open, page, onPage }) {
-  const colors = tierInk(isDark);
-  const risk = q === 'risk';
-  const list = deptOrder(rows, q);
+// The frame Ranking and Movement share: column names and an axis over the
+// rows, grid lines and a reference line behind them, a key under them.
+function DeptRowsFrame({ head, ticks, x, refAt, refDashed, refLabel, keys, list, page, onPage, children }) {
   const [box, pg] = usePage(list.length, page);
-  const top = Math.max(25, Math.ceil(Math.max(...rows.map((r) => r.score)) / 5) * 5);
-  // the change either side of none, in round steps
-  const most = Math.max(...rows.map((r) => Math.abs(r.change ?? 0)), 0.5);
-  const step = most > 3 ? 2 : most > 1.5 ? 1 : 0.5;
-  const lim = Math.ceil(most / step) * step;
-  const x = (v) => (risk ? (v / top) * 100 : 50 + (v / lim) * 50);
-  const ticks = risk ? Array.from({ length: top / 5 + 1 }, (_, k) => k * 5) : Array.from({ length: (2 * lim) / step + 1 }, (_, k) => k * step - lim);
-  const tick = (v) => (risk || v === 0 ? `${v}` : `${v > 0 ? '+' : '−'}${Math.abs(v)}`);
-  const toneOf = (r) => (risk ? colors[tierOf(r.score)] : r.change <= -0.05 ? ink.good : r.change >= 0.05 ? ink.bad : STEADY_INK);
-  const move = reduce ? { duration: 0 } : MOVE;
-  const slide = 'left .5s cubic-bezier(.22,1,.36,1), width .5s cubic-bezier(.22,1,.36,1)';
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 10 }}>
       <div aria-hidden style={{ flexShrink: 0, height: 18, display: 'grid', gridTemplateColumns: DQ_COLS, gap: 14, padding: '0 8px', ...heads }}>
         <span>Department</span>
         <span style={{ position: 'relative' }}>
-          {ticks.filter((t) => !risk || Math.abs(t - company) > top * 0.08).map((t) => <span key={t} style={{ position: 'absolute', left: `${x(t)}%`, transform: 'translateX(-50%)', letterSpacing: 0, fontVariantNumeric: 'tabular-nums', transition: 'left .5s ease' }}>{tick(t)}</span>)}
-          {risk && <span style={{ position: 'absolute', left: `${x(company)}%`, transform: 'translateX(-50%)', letterSpacing: 0, color: 'var(--text)', whiteSpace: 'nowrap' }}>Company {one(company)}</span>}
+          {ticks.filter((t) => refLabel === null || Math.abs(x(t) - x(refAt)) > 9).map((t) => <span key={t} style={{ position: 'absolute', left: `${x(t)}%`, transform: 'translateX(-50%)', letterSpacing: 0, fontVariantNumeric: 'tabular-nums', transition: 'left .5s ease' }}>{t}</span>)}
+          {refLabel !== null && <span style={{ position: 'absolute', left: `${x(refAt)}%`, transform: 'translateX(-50%)', letterSpacing: 0, color: 'var(--text)', whiteSpace: 'nowrap', transition: 'left .5s ease' }}>{refLabel}</span>}
         </span>
-        <span style={{ textAlign: 'right' }}>{risk ? 'Score' : 'Change'}</span>
+        <span style={{ textAlign: 'right' }}>{head}</span>
       </div>
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        {/* grid lines, and the company's score (or no change), behind the rows */}
         <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'grid', gridTemplateColumns: DQ_COLS, gap: 14, padding: '0 8px' }}>
           <span />
           <span style={{ position: 'relative' }}>
             {ticks.map((t) => <span key={t} style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(t)}%`, width: 1, background: 'var(--grid)', transition: 'left .5s ease' }} />)}
-            <span style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(risk ? company : 0)}%`, borderLeft: `1.5px ${risk ? 'dashed' : 'solid'} var(--text)`, opacity: 0.45, transition: slide }} />
+            <span style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(refAt)}%`, borderLeft: `1.5px ${refDashed ? 'dashed' : 'solid'} var(--text)`, opacity: 0.4, transition: SLIDE }} />
           </span>
           <span />
         </div>
         <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {list.slice(pg.from, pg.to).map((r) => {
-            const v = risk ? r.score : (r.change ?? 0);
-            const from = risk ? 0 : Math.min(0, v); const to = risk ? v : Math.max(0, v);
-            const c = toneOf(r);
-            const on = hover === r.name;
-            return (
-              <motion.button
-                key={r.name}
-                type="button"
-                layoutId={`dept-${r.name}`}
-                transition={{ layout: move }}
-                data-ins-dept-row={r.name}
-                onClick={() => open('department', r.name, `dept-${r.name}`)}
-                onMouseEnter={() => onHover(r.name)}
-                onFocus={() => onHover(r.name)}
-                aria-label={`${r.name}: Risk Score ${one(r.score)}, ${moved(r.change)} on the start of the period. Open its profile`}
-                style={{ flex: '1 1 0', minHeight: DQ_ROW, maxHeight: 34, display: 'grid', gridTemplateColumns: DQ_COLS, alignItems: 'center', gap: 14, padding: '0 8px', border: 'none', borderRadius: 8, background: on ? 'var(--track)' : 'transparent', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', opacity: hover && !on ? 0.6 : 1, transition: 'opacity .2s ease, background-color .15s ease' }}
-              >
-                <motion.span layoutId={`dq-name-${r.name}`} transition={{ layout: move }} style={nameCell(on)}>{r.name}</motion.span>
-                <span aria-hidden style={{ position: 'relative', height: 12 }}>
-                  <span style={{ position: 'absolute', top: 4.5, height: 3, borderRadius: 999, left: `${x(from)}%`, width: `${Math.max(0, x(to) - x(from))}%`, background: c, opacity: 0.4, transition: `${slide}, background-color .3s ease` }} />
-                  <motion.span layoutId={`dq-dot-${r.name}`} transition={{ layout: move }} style={{ position: 'absolute', top: 0, left: `${x(v)}%`, width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />
-                </span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{risk ? one(r.score) : moved(r.change)}</span>
-              </motion.button>
-            );
-          })}
+          {list.slice(pg.from, pg.to).map(children)}
         </div>
       </div>
-      <div style={{ flexShrink: 0, height: 22, display: 'flex', alignItems: 'end', gap: 12, padding: '0 8px', ...small, whiteSpace: 'nowrap' }}>
-        {(risk
-          ? ['low', 'moderate', 'high', 'critical'].map((t) => [`${TIER_WORD[t]} ${TIER_RANGE[t]}`, colors[t]])
-          : [['Safer', ink.good], ['Riskier', ink.bad], ['Steady', STEADY_INK]]
-        ).map(([w, c]) => <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{keyDot(c)}{w}</span>)}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-          <span aria-hidden style={{ width: 14, borderTop: `1.5px ${risk ? 'dashed' : 'solid'} var(--text)`, opacity: 0.5 }} />{risk ? 'The company' : 'No change'}
-        </span>
-      </div>
+      <div style={{ flexShrink: 0, height: 22, display: 'flex', alignItems: 'end', gap: 12, padding: '0 8px', ...small, whiteSpace: 'nowrap', overflow: 'hidden' }}>{keys}</div>
       {pg.pages > 1 && <MiniPager at={pg.at} pages={pg.pages} total={list.length} per={pg.size} onAt={onPage} what="departments" />}
     </div>
+  );
+}
+
+// One department's row in Ranking or Movement: its name, its marks, its number.
+function DeptRow({ r, hover, onHover, open, reduce, label, value, valueInk, children }) {
+  const on = hover === r.name;
+  return (
+    <motion.button
+      key={r.name}
+      type="button"
+      layoutId={`dept-${r.name}`}
+      transition={{ layout: reduce ? { duration: 0 } : MOVE }}
+      data-ins-dept-row={r.name}
+      onClick={() => open('department', r.name, `dept-${r.name}`)}
+      onMouseEnter={() => onHover(r.name)}
+      onFocus={() => onHover(r.name)}
+      aria-label={label}
+      style={{ flex: '1 1 0', minHeight: DQ_ROW, maxHeight: 34, display: 'grid', gridTemplateColumns: DQ_COLS, alignItems: 'center', gap: 14, padding: '0 8px', border: 'none', borderRadius: 8, background: on ? 'var(--track)' : 'transparent', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', opacity: hover && !on ? 0.55 : 1, transition: 'opacity .2s ease, background-color .15s ease' }}
+    >
+      <motion.span layoutId={`dq-name-${r.name}`} transition={{ layout: reduce ? { duration: 0 } : MOVE }} style={nameCell(on)}>{r.name}</motion.span>
+      <span aria-hidden style={{ position: 'relative', height: 14 }}>{children}</span>
+      <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: valueInk || 'var(--text)' }}>{value}</span>
+    </motion.button>
+  );
+}
+
+// Ranking: each department's Risk Score as a bar from 0, in its risk
+// level's colour, against the company's score.
+function DeptRanking({ rows, company, isDark, reduce, hover, onHover, open, page, onPage }) {
+  const colors = tierInk(isDark);
+  const list = deptOrder(rows, 'ranking');
+  const top = Math.max(25, Math.ceil(Math.max(...rows.map((r) => r.score)) / 5) * 5);
+  const x = (v) => (v / top) * 100;
+  const ticks = Array.from({ length: top / 5 + 1 }, (_, k) => k * 5);
+  const keys = (
+    <>
+      {['low', 'moderate', 'high', 'critical'].map((t) => <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{keyDot(colors[t])}{TIER_WORD[t]} {TIER_RANGE[t]}</span>)}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}><span aria-hidden style={{ width: 14, borderTop: '1.5px dashed var(--text)', opacity: 0.5 }} />The company</span>
+    </>
+  );
+  return (
+    <DeptRowsFrame head="Score" ticks={ticks} x={x} refAt={company} refDashed refLabel={`Company ${one(company)}`} keys={keys} list={list} page={page} onPage={onPage}>
+      {(r, k) => {
+        const c = colors[tierOf(r.score)];
+        return (
+          <DeptRow key={r.name} r={r} hover={hover} onHover={onHover} open={open} reduce={reduce} value={one(r.score)} label={`${r.name}: Risk Score ${one(r.score)}. Open its profile`}>
+            <span className="ins-grow-x" style={{ '--d': `${Math.min(0.05 + 0.025 * k, 0.4)}s`, position: 'absolute', top: 1, height: 12, left: 0, width: `${x(r.score)}%`, borderRadius: 6, background: `linear-gradient(90deg, color-mix(in srgb, ${c} 45%, var(--base)), ${c})`, transformOrigin: 'left', transition: `${SLIDE}, background .3s ease` }} />
+            <motion.span layoutId={`dq-dot-${r.name}`} transition={{ layout: reduce ? { duration: 0 } : MOVE }} style={{ position: 'absolute', top: 1, left: `${x(r.score)}%`, width: 12, height: 12, marginLeft: -12, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />
+          </DeptRow>
+        );
+      }}
+    </DeptRowsFrame>
+  );
+}
+
+// Movement: each department's Risk Score at the start of the period (a
+// ring) and now (a dot), joined, on a scale close round them; the most
+// improved first.
+function DeptMovement({ rows, company, before, days, ink, reduce, hover, onHover, open, page, onPage }) {
+  const list = deptOrder(rows, 'movement');
+  const all = rows.flatMap((r) => [r.score, r.before ?? r.score]);
+  const lo = Math.floor(Math.min(...all)) - 1; const hi = Math.ceil(Math.max(...all)) + 1;
+  const step = hi - lo > 12 ? 4 : hi - lo > 6 ? 2 : 1;
+  const from = Math.floor(lo / step) * step; const to = Math.ceil(hi / step) * step;
+  const x = (v) => ((v - from) / (to - from || 1)) * 100;
+  const ticks = Array.from({ length: (to - from) / step + 1 }, (_, k) => from + k * step);
+  const keys = (
+    <>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{keyDot(STEADY_INK, true)}{days} days ago</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{keyDot(ink.good)}Now, safer</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{keyDot(ink.bad)}Now, riskier</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}><span aria-hidden style={{ width: 14, borderTop: '1.5px dashed var(--text)', opacity: 0.5 }} />The company now{Number.isFinite(before) ? ` (${one(before)} ${days} days ago)` : ''}</span>
+    </>
+  );
+  return (
+    <DeptRowsFrame head="Change" ticks={ticks} x={x} refAt={company} refDashed refLabel={null} keys={keys} list={list} page={page} onPage={onPage}>
+      {(r) => {
+        const was = r.before ?? r.score;
+        const c = toneOfChange(r.change, ink);
+        const a = Math.min(was, r.score); const b = Math.max(was, r.score);
+        return (
+          <DeptRow key={r.name} r={r} hover={hover} onHover={onHover} open={open} reduce={reduce} value={moved(r.change)} valueInk={c} label={`${r.name}: Risk Score ${one(was)} ${days} days ago, ${one(r.score)} now. Open its profile`}>
+            <span style={{ position: 'absolute', top: 5, height: 4, left: `${x(a)}%`, width: `${Math.max(0, x(b) - x(a))}%`, borderRadius: 999, background: c, opacity: 0.45, transition: SLIDE }} />
+            <span style={{ position: 'absolute', top: 2, left: `${x(was)}%`, width: 10, height: 10, marginLeft: -5, borderRadius: 999, boxSizing: 'border-box', border: `2px solid ${STEADY_INK}`, background: 'var(--base)', transition: SLIDE }} />
+            <motion.span layoutId={`dq-dot-${r.name}`} transition={{ layout: reduce ? { duration: 0 } : MOVE }} style={{ position: 'absolute', top: 1, left: `${x(r.score)}%`, width: 12, height: 12, marginLeft: -6, borderRadius: 999, background: c, boxShadow: '0 0 0 2px var(--base)' }} />
+          </DeptRow>
+        );
+      }}
+    </DeptRowsFrame>
   );
 }
 
@@ -434,98 +476,132 @@ function DeptHeat({ rows, types, cells, ink, reduce, hover, onHover, open, page,
   );
 }
 
-// What the chart says, in three sentences; or, while a department is
-// pointed at, its numbers.
-function DeptPanel({ says, lead, row, ink, isDark, reduce }) {
-  const toneInk = { good: ink.good, bad: ink.bad, watch: STEADY_INK };
-  const fade = { initial: { opacity: 0, y: reduce ? 0 : 4 }, animate: { opacity: 1, y: 0 }, transition: { duration: reduce ? 0 : 0.18, ease: EASE } };
-  const fact = (label, value, extra) => (
-    <span style={{ minWidth: 0, padding: '8px 10px', borderRadius: 10, background: 'var(--plate)' }}>
-      <span style={{ ...eyebrow, display: 'block' }}>{label}</span>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-        <span className="vs-rank" style={{ fontSize: TYPE.heading, fontWeight: 900, lineHeight: 1 }}>{value}</span>
-        {extra}
-      </span>
+// A small line of a department's Risk Score month by month against the
+// company's (dashed), its newest point marked.
+function MiniTrend({ values, base, color }) {
+  const [box, { w, h }] = useSize();
+  const all = [...values, ...base].filter(Number.isFinite);
+  const lo = Math.floor(Math.min(...all)) - 1; const hi = Math.ceil(Math.max(...all)) + 1;
+  const n = values.length;
+  const px = (i) => (n > 1 ? 4 + (i / (n - 1)) * (w - 8) : w / 2);
+  const py = (v) => 6 + (1 - (v - lo) / (hi - lo || 1)) * (h - 12);
+  const line = (vs) => vs.map((v, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+  return (
+    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      {w > 0 && h > 0 && n > 1 && (
+        <svg width={w} height={h} role="img" aria-label={`Risk Score by month, from ${one(values[0])} to ${one(values.at(-1))}`} style={{ display: 'block', overflow: 'visible' }}>
+          <path d={`${line(values)} L${px(n - 1)},${h} L${px(0)},${h} Z`} fill={color} fillOpacity={0.1} />
+          <path d={line(base)} fill="none" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="3 4" />
+          <path d={line(values)} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={px(n - 1)} cy={py(values.at(-1))} r={4.5} fill={color} stroke="var(--base)" strokeWidth={2} />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// The department beside the chart: its Risk Score month by month against
+// the company's, its people by risk level, and its Hook Rate and Report Rate
+// against the company's. Numbers and marks only.
+function DeptSpot({ row, pointed, at, companyTrend, company, isDark, ink, reduce, open }) {
+  const colors = tierInk(isDark);
+  const tone = colors[tierOf(row.score)];
+  const months = Math.min(12, row.trend.length);
+  const all = ['low', 'moderate', 'high', 'critical'].reduce((a, t) => a + (row.tiers[t] || 0), 0) || 1;
+  const rate = (label, mine, theirs, color) => (
+    <span style={{ display: 'grid', gridTemplateColumns: '74px minmax(0,1fr) 42px', alignItems: 'center', columnGap: 8, rowGap: 3 }}>
+      <span style={{ ...small, fontWeight: 800, color: 'var(--text)' }}>{label}</span>
+      <span style={{ height: 8, borderRadius: 999, background: 'var(--plate)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(1, (mine ?? 0) / Math.max(mine ?? 0, theirs ?? 0, 0.01)) * 100}%`, borderRadius: 999, background: color, transition: 'width .4s ease' }} /></span>
+      <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.body, fontWeight: 900 }}>{pc1(mine)}</span>
+      <span style={{ ...small }}>Company</span>
+      <span style={{ height: 8, borderRadius: 999, background: 'var(--plate)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(1, (theirs ?? 0) / Math.max(mine ?? 0, theirs ?? 0, 0.01)) * 100}%`, borderRadius: 999, background: STEADY_INK, transition: 'width .4s ease' }} /></span>
+      <span style={{ ...small, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pc1(theirs)}</span>
     </span>
   );
   return (
-    <Card i={1} reduce={reduce} title={row ? 'The department' : 'What it says'} style={{ gridColumn: 'span 3' }} data-ins-dq-says>
-      {row ? (
-        <motion.div key={`d-${row.name}`} {...fade} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <DeptCrest code={deptCode(row.name)} size={30} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-            <span style={{ minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: TYPE.title, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
-              <span style={{ ...small, display: 'block' }}>{num(row.people)} people</span>
-            </span>
+    <Card
+      i={1}
+      reduce={reduce}
+      title={row.name}
+      sub={`${num(row.people)} people${pointed ? '' : ' · point at another'}`}
+      action={<GoTo label="Open" onClick={(e) => { e.stopPropagation(); open('department', row.name); }} data-ins-spot-open-dept />}
+      style={{ gridColumn: 'span 3' }}
+      data-ins-dept-spot={row.name}
+    >
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ ...eyebrow }}>Risk Score</span>
+          <span className="vs-rank" style={{ marginLeft: 'auto', fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, color: 'var(--text)' }}>{one(row.score)}</span>
+          <span className="vs-rank" style={{ fontSize: TYPE.small, fontWeight: 800, color: toneOfChange(row.change, ink) }}>{moved(row.change)}</span>
+        </span>
+        <div style={{ flex: 1, minHeight: 56, display: 'flex', flexDirection: 'column' }}>
+          <MiniTrend values={row.trend.slice(-months)} base={companyTrend.slice(-months)} color={tone} />
+          <span style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', marginTop: 4, ...small, fontSize: TYPE.label }}>
+            <span>{day(at.at(-months))}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 12, borderTop: '1.5px dashed var(--muted)' }} />Company {one(company)}</span>
+            <span>{day(at.at(-1))}</span>
           </span>
-          <span style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
-            {fact('Risk Score', one(row.score), <span style={{ ...small, fontWeight: 800, color: row.change <= -0.05 ? ink.good : row.change >= 0.05 ? ink.bad : 'var(--muted)', whiteSpace: 'nowrap' }}>{moved(row.change)}</span>)}
-            {fact('At high risk', pc(row.highShare))}
-            {fact('Hook Rate', pc1(row.hooked))}
-            {fact('Report Rate', pc1(row.reportRate))}
+        </div>
+        <span className="ins-optional" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ ...eyebrow }}>People by risk level</span>
+          <span aria-hidden style={{ display: 'flex', gap: 2, height: 10 }}>
+            {['low', 'moderate', 'high', 'critical'].map((t) => <span key={t} style={{ flex: `${row.tiers[t] || 0} 1 0`, minWidth: 3, borderRadius: 3, background: colors[t], transition: 'flex-grow .4s ease' }} />)}
           </span>
-          <span className="ins-optional" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 4 }}>
+            {['low', 'moderate', 'high', 'critical'].map((t) => (
+              <span key={t} style={{ minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, ...small, fontSize: TYPE.label, whiteSpace: 'nowrap' }}>{keyDot(colors[t])}{TIER_WORD[t]}</span>
+                <span className="vs-rank" style={{ display: 'block', fontSize: TYPE.body, fontWeight: 900, marginTop: 2 }}>{pc((row.tiers[t] || 0) / all)}</span>
+              </span>
+            ))}
+          </span>
+        </span>
+        <span className="ins-optional-tall" style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10, borderTop: '1px solid var(--hair)' }}>
+          {rate('Hook Rate', row.hooked, companyRates(row).hooked, ink.bad)}
+          {rate('Report Rate', row.reportRate, companyRates(row).reportRate, ink.good)}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <HealthChip h={row.health} ink={ink} />
-            <span style={small}>{GLOSSARY.perClick.name} {times(row.perClick)}</span>
+            <span style={{ ...small, marginLeft: 'auto' }}>{GLOSSARY.perClick.name} <strong className="vs-rank" style={{ color: 'var(--text)' }}>{times(row.perClick)}</strong></span>
           </span>
-        </motion.div>
-      ) : (
-        <motion.ul key="says" {...fade} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, margin: '10px 0 0', padding: 0, listStyle: 'none' }}>
-          <li style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--plate)' }}>
-            <span style={{ ...eyebrow, display: 'block' }}>{lead.label}</span>
-            <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 5 }}>
-              <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', color: lead.color || 'var(--text)' }}>{lead.value}</span>
-              <span style={small}>{lead.sub}</span>
-            </span>
-          </li>
-          {says.map((s) => (
-            <li key={s.strong + s.text} style={{ display: 'grid', gridTemplateColumns: '8px minmax(0,1fr)', gap: 10, alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--hair)' }}>
-              <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: toneInk[s.tone], transform: 'translateY(-1px)' }} />
-              <span style={{ fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.5, color: 'var(--muted)' }}><strong style={{ color: 'var(--text)', fontWeight: 800 }}>{s.strong}</strong>{s.text}</span>
-            </li>
-          ))}
-          <li className="ins-optional" style={{ ...small, marginTop: 'auto' }}>Point at a department for its numbers; click it to open its profile.</li>
-        </motion.ul>
-      )}
+        </span>
+      </div>
     </Card>
   );
 }
+// the company's rates, carried on each row by the view
+const companyRates = (row) => row.company || { hooked: null, reportRate: null };
 
 export function DepartmentsView({ ctx }) {
   const { m, p, ink, isDark, reduce, open, view, onView } = ctx;
   const [hover, setHover] = useState(null);
-  const q = view.deptQ || 'risk';
-  const rows = deptRows(m, p);
+  const chart = CHART[view.deptChart] ? view.deptChart : 'ranking';
+  const company = { hooked: m.now.hooked, reportRate: m.now.reportRate };
+  const rows = deptRows(m, p).map((r) => ({ ...r, company }));
   const types = m.lures.map((l) => l.type);
   const cells = Object.fromEntries(Object.entries(m.deptLures).map(([name, list]) => [name, Object.fromEntries(list.map((x) => [x.type, x]))]));
-  const says = deptSays(q, rows, { company: p.now.score, days: m.basis.days, lures: m.lures, cells });
-  const dc = Number.isFinite(p.before?.score) ? p.now.score - p.before.score : null;
-  const lead = {
-    risk: { label: 'The company’s Risk Score', value: one(p.now.score), sub: riskWord(p.now.score) },
-    change: { label: 'The company’s change', value: moved(dc), sub: `over the last ${m.basis.days} days`, color: dc === null || Math.abs(dc) < 0.05 ? null : dc < 0 ? ink.good : ink.bad },
-    reports: { label: `The company’s ${GLOSSARY.perClick.name}`, value: times(m.now.perClick), sub: m.now.health ? HEALTH_WORD[m.now.health.word] : '' },
-    types: { label: 'The company’s Hook Rate', value: pc1(m.now.hooked), sub: `across ${m.lures.length} campaign types` },
-  }[q];
   const shared = { rows, ink, isDark, reduce, hover, onHover: setHover, open, page: view.deptPage || 0, onPage: (pg) => onView({ deptPage: pg }) };
+  const pointed = rows.find((r) => r.name === hover);
+  const spot = pointed || deptOrder(rows, chart)[0];
+  const options = DEPT_CHARTS.map((c) => ({ ...c, Icon: CHART_ICON[c.id] }));
   return (
     <div data-ins-depts-view style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gridTemplateRows: 'minmax(0,1fr)', gap: 14 }}>
       <Card
         i={0}
         reduce={reduce}
         title="Departments"
-        define={QUESTION[q].define}
-        sub={QUESTION[q].sub(m.basis.days)}
-        action={<Segmented id="ins-dq" label="Question" value={q} options={DEPT_QUESTIONS} onChange={(id) => { setHover(null); onView({ deptQ: id, deptPage: 0 }); }} reduce={reduce} />}
+        define={CHART[chart].define}
+        sub={CHART[chart].sub(m.basis.days)}
+        action={<Segmented id="ins-dq" label="Chart" value={chart} options={options} onChange={(id) => { setHover(null); onView({ deptChart: id, deptPage: 0 }); }} reduce={reduce} />}
         style={{ gridColumn: 'span 9' }}
         onMouseLeave={() => setHover(null)}
         data-ins-dq-card
       >
-        {q === 'risk' || q === 'change' ? <DeptLines {...shared} q={q} company={p.now.score} />
-          : q === 'reports' ? <DeptScatter {...shared} />
-            : <DeptHeat {...shared} types={types} cells={cells} />}
+        {chart === 'ranking' ? <DeptRanking {...shared} company={p.now.score} />
+          : chart === 'movement' ? <DeptMovement {...shared} company={p.now.score} before={p.before?.score} days={m.basis.days} />
+            : chart === 'reporting' ? <DeptScatter {...shared} />
+              : <DeptHeat {...shared} types={types} cells={cells} />}
       </Card>
-      <DeptPanel says={says} lead={lead} row={rows.find((r) => r.name === hover) || null} ink={ink} isDark={isDark} reduce={reduce} />
+      {spot && <DeptSpot row={spot} pointed={Boolean(pointed)} at={p.trend.map((s) => s.to)} companyTrend={p.trend.map((s) => s.score)} company={p.now.score} isDark={isDark} ink={ink} reduce={reduce} open={open} />}
     </div>
   );
 }
@@ -545,7 +621,7 @@ const SORTS = [
 const HEALTH_RANK = { Exposed: 0, Holding: 1, Protected: 2 };
 const LURE_COLS = '26px minmax(0,1fr) minmax(0,1.1fr) 56px 60px 14px';
 const CAMP_COLS = '26px minmax(0,2.1fr) 54px minmax(0,1.2fr) minmax(0,1.2fr) 72px 56px 112px 12px';
-const ROW_H = 46;
+const ROW_H = 40;
 
 export function CampaignsView({ ctx }) {
   const { m, ink, isDark, reduce, open, view, onView } = ctx;
@@ -618,10 +694,7 @@ export function CampaignsView({ ctx }) {
                 style={{ '--d': `${Math.min(0.06 + 0.02 * k, 0.3)}s`, flexShrink: 0, height: ROW_H, display: 'grid', gridTemplateColumns: CAMP_COLS, alignItems: 'center', gap: 14, padding: '0 8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : 'none', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
               >
                 <LureTile type={c.type} size={24} />
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-                  <span style={{ display: 'block', ...small, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.type} · {day(c.started)}</span>
-                </span>
+                <span title={`Started ${day(c.started)}`} style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
                 <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{num(c.delivered)}</span>
                 <InlineBar value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} grow={false} />
                 <InlineBar value={c.reportRate} max={maxRep} color={ink.good} label={pc1(c.reportRate)} grow={false} />
