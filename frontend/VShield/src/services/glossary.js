@@ -91,13 +91,13 @@ export const GLOSSARY = Object.freeze({
     how: "Its Hook Rate and Report Rate against the period's.",
   },
   reportedVsClicked: {
-    name: 'Reported vs clicked',
-    what: "Each department's Report Rate against its Hook Rate.",
-    how: 'The gap is the Report Rate minus the Hook Rate, in points. The bigger the gap, the better.',
+    name: 'Reports vs clicks',
+    what: 'Whether a department reports phishing more often than it falls for it.',
+    how: "Each dot sits at the department's Hook Rate (across) and Report Rate (up). Above the dashed line: 2 or more reports for every click (Protected). Below the solid line: fewer reports than clicks (Not protected).",
   },
   riskChange: {
     name: 'Risk change by department',
-    what: "Where each department's Risk Score started the period and where it is now.",
-    how: 'Closer to the centre is safer. A dot moving out means the department became riskier.',
+    what: "How far each department's Risk Score moved over the period.",
+    how: 'Its Risk Score now minus its Risk Score at the start of the period. Below zero is safer.',
   },
 });
