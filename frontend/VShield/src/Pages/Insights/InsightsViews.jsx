@@ -2,7 +2,6 @@ import { Fragment, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeftRight, BarChart3, Building2, ChevronRight, GraduationCap, Grid3x3, Scale, ScatterChart, TextCursorInput, Users } from 'lucide-react';
 
-import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Pager } from '../Leaderboard/BigPictureTables';
 import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
 import { Blocks, Card, CompareBars, GoTo, Legend, RingGauge, Segmented, Staircase, TileMap, Tip } from './InsightsCharts';
@@ -69,7 +68,7 @@ function LureBars({ lures, company, ink, onOpen }) {
   const [hover, setHover] = useState(null);
   const top = Math.max(...lures.map((l) => l.hooked || 0), company || 0, 0.001) * 1.1;
   const x = (v) => `${Math.max(0, Math.min(1, (v || 0) / top)) * 100}%`;
-  const cols = '18px minmax(0,1.25fr) minmax(0,1fr) auto';
+  const cols = '18px minmax(0,1.25fr) minmax(0,1fr) 48px';
   const shown = lures.find((l) => l.type === hover?.type);
   const show = (l) => (e) => setHover({ type: l.type, y: e.currentTarget.offsetTop, below: e.currentTarget.offsetTop < 40 });
   return (
@@ -182,12 +181,9 @@ export function OverviewView({ ctx, list }) {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
           <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.context} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `30 days to ${day(t)}`} valueLabel="Risk Score" />
         </div>
+        {/* the line's two colours: the period's stretch says its one change (on the chart's chip) */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
-          <Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} />
-          <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, ...small, whiteSpace: 'nowrap' }}>
-            Now <strong style={{ color: 'var(--text)' }}>{scoreText(p.now.score)}</strong>
-            {dc && <>{dot(dc.good === null ? ink.context : dc.good ? ink.good : ink.bad, 6)}<strong style={{ color: 'var(--text)' }}>{dc.dir === 'flat' ? 'no change' : `${dc.dir === 'down' ? '▼' : '▲'} ${dc.shown}`}</strong> vs {days} days ago</>}
-          </span>
+          <Legend items={[{ label: `Last ${days} days${dc && dc.good !== null ? (dc.good ? ', safer' : ', riskier') : ''}`, color: dc?.good === null || !dc ? ink.context : dc.good ? ink.good : ink.bad, line: true }, { label: 'Before', color: ink.context, line: true }]} />
         </div>
       </Card>
 
@@ -195,7 +191,7 @@ export function OverviewView({ ctx, list }) {
       <Card i={1} reduce={reduce} title="Risk by department" sub="Risk Score now · tile size: people" onOpen={() => go('departments')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-map>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
           <TileMap
-            items={p.departments.map((d) => ({ key: d.name, label: d.name, short: deptCode(d.name), weight: d.people, value: d.score, text: scoreText(d.score) }))}
+            items={p.departments.map((d) => ({ key: d.name, label: d.name, weight: d.people, value: d.score, text: scoreText(d.score) }))}
             fill={(t) => bands.fill(t.value)}
             ink={(t) => bands.ink(t.value)}
             reduce={reduce}
@@ -219,7 +215,7 @@ export function OverviewView({ ctx, list }) {
           <img className="ins-float ins-optional" src={CampaignMegaphone} alt="" aria-hidden width={60} height={60} style={{ marginLeft: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
         </div>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 10 }}>
-          <Blocks parts={didParts(n, ink, isDark)} reduce={reduce} height="clamp(24px, 10cqh, 52px)" legendCols={2} />
+          <Blocks parts={didParts(n, ink)} reduce={reduce} height="clamp(24px, 10cqh, 52px)" legendCols={2} />
         </div>
       </Card>
 
@@ -834,7 +830,7 @@ function HealthWord({ h, ink }) {
 }
 
 export function CampaignsView({ ctx }) {
-  const { m, ink, isDark, reduce, open, view, onView } = ctx;
+  const { m, ink, reduce, open, view, onView } = ctx;
   const days = m.basis.days;
   const sort = view.sort || 'newest';
   const lure = view.lure || null;
@@ -904,7 +900,7 @@ export function CampaignsView({ ctx }) {
           </div>
           <div className="ins-optional-tall" style={{ flexShrink: 0, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--hair)' }}>
             <span style={{ ...cardTitle, fontSize: TYPE.strong, marginBottom: 10 }}>{GLOSSARY.outcomes.name}{lure ? ` · ${lure}` : ''}</span>
-            <Blocks key={lure || 'all'} parts={didParts(shownLure || m.now, ink, isDark)} reduce={reduce} height="clamp(24px, 6cqh, 40px)" legendCols={2} />
+            <Blocks key={lure || 'all'} parts={didParts(shownLure || m.now, ink)} reduce={reduce} height="clamp(24px, 6cqh, 40px)" legendCols={2} />
           </div>
         </div>
       </Card>
