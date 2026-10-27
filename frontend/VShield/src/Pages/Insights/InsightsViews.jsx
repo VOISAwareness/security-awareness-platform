@@ -235,8 +235,9 @@ export function OverviewView({ ctx, list }) {
           <>
             <span className="vs-rank" style={{ display: 'block', marginTop: 10, fontSize: TYPE.hero, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
-              {/* both bars are Hook Rates, so both wear the colour of a click; the trained one a lighter step of it */}
-              <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc1(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: `color-mix(in srgb, ${ink.bad} 55%, var(--base))`, text: pc1(c.trainedRate) }]} reduce={reduce} height="clamp(22px, 8cqh, 38px)" />
+              {/* both bars are Hook Rates, so both wear the colour of a click; the trained one a lighter step of it,
+                  mixed with white so on the dark theme it never darkens into severe's deep red */}
+              <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc1(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: `color-mix(in srgb, ${ink.bad} 55%, #FFFFFF)`, text: pc1(c.trainedRate) }]} reduce={reduce} height="clamp(22px, 8cqh, 38px)" />
             </div>
             <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
               <RingGauge value={c.trainedShare * 100} size={36} stroke={4} color={ink.measure} reduce={reduce} label={`${pc1(c.trainedShare)} of people trained`} />
