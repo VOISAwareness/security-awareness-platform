@@ -10,7 +10,7 @@ import { useSize } from './useSize';
 import { health } from '../../services/bigPictureViews';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
 import { GLOSSARY } from '../../services/glossary';
-import { EASE, SPANS, TIER_RULE, TIER_TEXT, TIER_WORD, TINT, change, day, glow, heads, healthInk, healthTone, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, times, TYPE } from './insightsUi';
+import { EASE, SPANS, TIER_RULE, TIER_WORD, TINT, change, day, glow, heads, healthInk, healthTone, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, tierText, times, TYPE } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -197,7 +197,9 @@ const DRIVER_GROUPS = [
 // The points each level adds to a risk score: its people's share times
 // its weight (moderate 33, high 67, critical 100); low adds none.
 function makeupOf(step, colors) {
-  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: TIER_TEXT[t] }));
+  // colors is tierInk(isDark), the same object every call, so it names its theme
+  const inks = tierText(colors === tierInk(true));
+  return ['moderate', 'high', 'critical'].map((t) => ({ key: t, label: TIER_WORD[t], value: ((step.tiers[t] * TIER_WEIGHT[t]) / step.people) * 100, color: colors[t], ink: inks[t] }));
 }
 
 // Each risk level as a tile, the riskiest first: its people now, their
