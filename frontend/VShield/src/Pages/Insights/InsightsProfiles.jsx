@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, FileX, MailX, Minus, MousePointerClick, Users } from 'lucide-react';
 
 import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Blocks, Card, CompareBars, Donut, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel, Tip } from './InsightsCharts';
-import { Delta, Fill, FitList, HealthChip, InlineBar, LureTile, Meter, RowsGrid } from './InsightsBits';
+import { Delta, Fill, FitList, HealthChip, InlineBar, LureTile, Meter, Returning, RowsGrid } from './InsightsBits';
 import { useSize } from './useSize';
 import { health } from '../../services/bigPictureViews';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
@@ -108,13 +108,14 @@ export function ProfileShell({ layoutId, trail, onCrumb, onBack, tone = 'watch',
 }
 
 // A row in a list inside a profile; with `onClick` it opens something.
-function Row({ onClick, children, cols, k, height = 34, label }) {
+function Row({ onClick, children, cols, k, height = 30, label }) {
+  const back = useContext(Returning.Context);
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       {...(onClick ? { type: 'button', onClick: (e) => { e.stopPropagation(); onClick(); }, 'aria-label': label } : {})}
       data-ins-list-row
-      className={onClick ? 'ins-row ins-in-x' : 'ins-in-x'}
+      className={[onClick && 'ins-row', !back && 'ins-in-x'].filter(Boolean).join(' ') || undefined}
       style={{ '--d': `${Math.min(0.04 + 0.015 * k, 0.15)}s`, flexShrink: 0, height, width: '100%', boxSizing: 'border-box', display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 12, padding: '0 10px', margin: 0, border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 10, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: onClick ? 'pointer' : 'default' }}
     >
       {children}
@@ -157,24 +158,30 @@ function ScoreRing({ score, isDark, reduce, size = 56 }) {
   );
 }
 
+// Text only a screen reader hears.
+const unseen = { position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
+
 /**
- * A change as a profile figure: the signed size in the text ink, after an
- * arrow on a dot in the colour of its direction (good when it went the
- * better way, bad when not, context when it held).
+ * A change as a profile figure, said the way a Delta chip says it: the
+ * arrow and the signed size in the text ink, the colour of its verdict on
+ * the ring round the arrow (good when it went the better way, bad when not,
+ * context when it held), and "better" or "worse" for a screen reader.
  */
 function ChangeFigure({ now, before, better, ink, unit }) {
   if (!Number.isFinite(now) || !Number.isFinite(before)) return <span className="vs-rank" style={{ fontSize: TYPE.heading, fontWeight: 900, lineHeight: 1 }}>—</span>;
   const d = now - before;
   const flat = Math.abs(d) < 0.05;
-  const tone = flat ? ink.context : (d < 0) === (better === 'down') ? ink.good : ink.bad;
+  const good = (d < 0) === (better === 'down');
+  const tone = flat ? ink.context : good ? ink.good : ink.bad;
   const Icon = flat ? Minus : d > 0 ? ArrowUp : ArrowDown;
   return (
-    <span data-ins-change={flat ? 'flat' : d > 0 ? 'up' : 'down'} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-      <span aria-hidden style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 999, display: 'grid', placeItems: 'center', background: tone, color: 'var(--base)' }}><Icon size={13} strokeWidth={3} /></span>
+    <span data-ins-change={flat ? 'flat' : d > 0 ? 'up' : 'down'} data-ins-delta={flat ? 'flat' : good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+      <span aria-hidden style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 999, display: 'grid', placeItems: 'center', background: `color-mix(in srgb, ${tone} 16%, var(--base))`, boxShadow: `inset 0 0 0 2px ${tone}`, color: 'var(--text)' }}><Icon size={13} strokeWidth={3} /></span>
       <span className="vs-rank" style={{ fontSize: TYPE.heading, fontWeight: 900, lineHeight: 1, whiteSpace: 'nowrap' }}>
         {flat ? 'No change' : `${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}`}
         {!flat && <span style={{ fontSize: TYPE.body, fontWeight: 800, marginLeft: 3 }}>{unit}</span>}
       </span>
+      <span style={unseen}>{flat ? ', no change' : good ? ', better' : ', worse'}</span>
     </span>
   );
 }
@@ -211,6 +218,9 @@ const LEVEL_GAP = 8;
 function LevelTiles({ moved, colors, ink, reduce, days }) {
   const [box, { w, h }] = useSize();
   const [hover, setHover] = useState(null);
+  // no entrance for those who ask for less motion, or on a view the reader comes back to
+  const back = useContext(Returning.Context);
+  const still = Boolean(reduce || back);
   const sumOf = (pick) => moved.links.filter(pick).reduce((a, l) => a + l.n, 0);
   const levels = ['critical', 'high', 'moderate', 'low'].map((k) => ({ k, now: sumOf((l) => l.to === k), was: sumOf((l) => l.from === k), stayed: sumOf((l) => l.from === k && l.to === k) }));
   const everyone = levels.reduce((a, lv) => a + lv.now, 0) || 1;
@@ -232,7 +242,8 @@ function LevelTiles({ moved, colors, ink, reduce, days }) {
         const d = lv.now - lv.was;
         const good = lv.k === 'low' ? d > 0 : d < 0;
         const share = lv.now / everyone;
-        const word = `${TIER_WORD[lv.k]} risk`;
+        // a narrow tile names its level in a word; the card says it is risk
+        const word = tw >= 180 ? `${TIER_WORD[lv.k]} risk` : TIER_WORD[lv.k];
         const name = <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden' }}><span aria-hidden style={{ flexShrink: 0, width: 8, height: 8, borderRadius: 3, background: colors[lv.k] }} />{word}</span>;
         const count = <span className="vs-rank" style={{ fontSize: big ? TYPE.hero : TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em' }}>{num(lv.now)}</span>;
         const of = <span style={{ ...small, whiteSpace: 'nowrap' }}>{pc(share)} of people</span>;
@@ -246,16 +257,16 @@ function LevelTiles({ moved, colors, ink, reduce, days }) {
             onMouseEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
-            initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+            initial={still ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.04 * i, ease: EASE }}
+            transition={{ duration: still ? 0 : 0.3, delay: still ? 0 : 0.04 * i, ease: EASE }}
             style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: big ? 10 : 7, padding: four ? '10px 12px' : '8px 11px', borderRadius: 14, background: hover === i ? 'var(--track)' : 'var(--plate)', transition: 'background .15s ease', cursor: 'default' }}
           >
             {four ? name : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>{name}{chip(d, good)}</span>}
             {four ? count : <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>{count}{of}</span>}
             {bar && (
               <span aria-hidden style={{ flexShrink: 0, height: 5, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
-                <Fill width={`${share * 100}%`} color={colors[lv.k]} delay={0.1 + 0.03 * i} reduce={reduce} />
+                <Fill width={`${share * 100}%`} color={colors[lv.k]} delay={0.1 + 0.03 * i} reduce={reduce} returning={still} />
               </span>
             )}
             {four && <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>{of}{chip(d, good)}</span>}
@@ -301,6 +312,9 @@ export function RiskProfile({ ctx, frame }) {
   const biggest = makeup[0].parts.reduce((a, x) => (x.value > a.value ? x : a));
   const maxScore = Math.max(...p.departments.map((d) => d.score)) * 1.1;
   const days = p.basis.days;
+  // a narrow drivers card drops its icons, so every name reads in full
+  const [driversBox, { w: driversW }] = useSize();
+  const icons = driversW >= 500;
   return (
     <ProfileShell
       {...frame}
@@ -312,13 +326,13 @@ export function RiskProfile({ ctx, frame }) {
       title={`${riskWord(p.now.score)} · ${GLOSSARY.riskScore.name} ${scoreText(p.now.score)}`}
       sub={`${num(p.now.people)} people · everyone's risk level, averaged on 0 to 100`}
       figures={[
-        { label: 'Change', node: <ChangeFigure now={p.now.score} before={p.before?.score} better="down" ink={ink} unit="pts" />, sub: `vs ${days} days ago` },
+        { label: `Change, last ${days} days`, node: <ChangeFigure now={p.now.score} before={p.before?.score} better="down" ink={ink} unit="pts" />, sub: `${scoreText(p.before?.score)} → ${scoreText(p.now.score)}` },
         { label: GLOSSARY.highRisk.name, value: num(p.now.highRisk), delta: <Delta c={hr && { ...hr, shown: hr.shown.replace(' min', '') }} ink={ink} title={`Against ${days} days ago`} />, sub: `${pc1(p.now.highRisk / p.now.people)} of people` },
         { label: 'Moved down a level', value: num(p.now.improved), sub: `${num(p.now.slipped)} moved up` },
       ]}
     >
       <Stack style={{ gridColumn: 'span 8' }}>
-        <Card i={3} reduce={reduce} title={`${GLOSSARY.riskScore.name} over time`} define="riskScore" action={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><Legend items={[{ label: 'Fell', color: ink.good }, { label: 'Rose', color: ink.bad }]} /><Segmented id="ins-range-risk" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} /></span>} style={{ gridColumn: 'span 7' }}>
+        <Card i={3} reduce={reduce} title={`${GLOSSARY.riskScore.name} over time`} define="riskScore" action={<Segmented id="ins-range-risk" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} />} style={{ gridColumn: 'span 7' }}>
           <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
             <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.context} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `30 days to ${day(t)}`} valueLabel={GLOSSARY.riskScore.name} />
           </div>
@@ -333,16 +347,16 @@ export function RiskProfile({ ctx, frame }) {
           </div>
         </Card>
         <Card i={6} reduce={reduce} title="Risk drivers" define="riskDrivers" style={{ gridColumn: 'span 7' }} data-ins-drivers>
-          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', marginTop: 6 }}>
+          <div ref={driversBox} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', marginTop: 6 }}>
             {DRIVER_GROUPS.map((g, gi) => (
-              <div key={g.id} data-ins-driver-group={g.id} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', gap: 8, padding: gi ? '0 0 0 18px' : '0 18px 0 0', borderLeft: gi ? '1px solid var(--hair)' : 'none' }}>
+              <div key={g.id} data-ins-driver-group={g.id} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 14, padding: gi ? '0 0 0 18px' : '0 18px 0 0', borderLeft: gi ? '1px solid var(--hair)' : 'none' }}>
                 <span style={heads}>{g.label}</span>
                 {DRIVERS.filter((dr) => dr.group === g.id).map((dr, k) => {
                   const v = p.now.drivers[dr.id];
                   const c = change(v, p.before?.drivers[dr.id], { kind: 'min', better: 'down' });
                   return (
-                    <div key={dr.id} style={{ display: 'grid', gridTemplateColumns: '28px minmax(0,1fr) auto', alignItems: 'center', gap: 9 }}>
-                      <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--plate)' }}><dr.Icon size={13} strokeWidth={2.4} /></span>
+                    <div key={dr.id} style={{ display: 'grid', gridTemplateColumns: icons ? '28px minmax(0,1fr) auto' : 'minmax(0,1fr) auto', alignItems: 'center', gap: 9 }}>
+                      {icons && <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--plate)' }}><dr.Icon size={13} strokeWidth={2.4} /></span>}
                       <Meter value={v} max={maxDriver} color={ink.measure} label={num(v)} sub={dr.label} delay={rowDelay(gi * 2 + k)} reduce={reduce} height={4} />
                       <Delta c={c && { ...c, shown: c.shown.replace(' min', '') }} ink={ink} title={`Against ${days} days ago`} />
                     </div>
@@ -355,7 +369,7 @@ export function RiskProfile({ ctx, frame }) {
       </Stack>
       <Card i={7} reduce={reduce} title="Departments" sub={`${GLOSSARY.riskScore.name}, riskiest first`} style={{ gridColumn: 'span 4' }} data-ins-risk-depts>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>
-          <FitList items={p.departments} rowH={34} what="departments" render={(d, k) => (
+          <FitList items={p.departments} rowH={30} what="departments" render={(d, k) => (
             <Row key={d.name} k={k} cols="22px minmax(0,1fr) 92px 12px" onClick={() => open('department', d.name)} label={`${d.name}, ${GLOSSARY.riskScore.name} ${scoreText(d.score)}. Open its profile`}>
               <DeptCrest code={deptCode(d.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{d.name}</span>
@@ -425,7 +439,7 @@ export function DepartmentProfile({ ctx, frame, name }) {
       </Card>
       <Card i={5} reduce={reduce} title={`${GLOSSARY.hookRate.name} by campaign type`} define="hookRate" style={{ gridColumn: 'span 5' }}>
         {lures.length
-          ? <PillColumns items={lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc(l.hooked), tip: [l.type, `${num(l.clicked)} of ${num(l.recipients)} clicked · ${pc(l.reportRate)} reported`] }))} color={ink.bad} soft="var(--soft-bad)" reduce={reduce} onOpen={(type) => open('lure', type)} label="clicked. Open its profile" />
+          ? <PillColumns items={lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc1(l.hooked), tip: [l.type, `${num(l.clicked)} of ${num(l.recipients)} clicked · ${pc1(l.reportRate)} reported`] }))} color={ink.bad} format={pc1} reduce={reduce} onOpen={(type) => open('lure', type)} label="clicked. Open its profile" />
           : <p style={{ ...small, fontSize: TYPE.body }}>No campaigns reached this team in the period.</p>}
       </Card>
       <Card i={6} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" sub={`${GLOSSARY.hookRate.name}, not yet trained vs trained`} style={{ gridColumn: 'span 4' }} data-ins-lift>
@@ -446,6 +460,9 @@ export function DepartmentProfile({ ctx, frame, name }) {
 
 export function LureProfile({ ctx, frame, type }) {
   const { m, ink, isDark, reduce, open } = ctx;
+  // the campaigns sit two to a row where both names fit, else one
+  const [campsBox, { w: campsW }] = useSize();
+  const pair = campsW >= 880;
   const l = m.lures.find((x) => x.type === type);
   if (!l) return null;
   const depts = m.lureDepts[type] || [];
@@ -453,6 +470,8 @@ export function LureProfile({ ctx, frame, type }) {
   const vsAll = change(l.hooked, m.now.hooked, { kind: 'pct', better: 'down' });
   const maxHook = Math.max(...m.lures.map((x) => x.hooked || 0)) * 1.08;
   const maxDept = Math.max(...depts.map((x) => x.hooked || 0), 0.01) * 1.08;
+  // the campaigns' row is as tall as two columns of them need (up to three rows); the charts take the rest
+  const campRows = Math.min(3, Math.max(1, Math.ceil(camps.length / (pair ? 2 : 1))));
   return (
     <ProfileShell
       {...frame}
@@ -470,7 +489,7 @@ export function LureProfile({ ctx, frame, type }) {
         { label: GLOSSARY.health.name, node: <HealthChip h={l.health} ink={ink} />, sub: `${GLOSSARY.perClick.name} ${times(l.perClick)}` },
       ]}
     >
-      <Stack style={{ gridColumn: 'span 8' }} sizes={['minmax(0,1.1fr)', 'minmax(0,0.9fr)']}>
+      <Stack style={{ gridColumn: 'span 8' }} sizes={['minmax(0,1fr)', `minmax(0,${84 + campRows * 44}px)`]}>
         <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 6' }}>
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
             <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={34} legendCols={2} />
@@ -479,32 +498,34 @@ export function LureProfile({ ctx, frame, type }) {
         </Card>
         <Card i={4} reduce={reduce} title="All campaign types" define="hookRate" sub={GLOSSARY.hookRate.name} style={{ gridColumn: 'span 6' }}>
           <PillColumns
-            items={m.lures.map((x) => ({ key: x.type, label: lureShort(x.type), value: x.hooked, text: pc1(x.hooked), tip: [x.type, `${num(x.clicked)} of ${num(x.delivered)} clicked · ${pc(x.reportRate)} reported`] }))}
+            items={m.lures.map((x) => ({ key: x.type, label: lureShort(x.type), value: x.hooked, text: pc1(x.hooked), tip: [x.type, `${num(x.clicked)} of ${num(x.delivered)} clicked · ${pc1(x.reportRate)} reported`] }))}
             lit={type}
             color={ink.bad}
-            soft="var(--soft-bad)"
+            format={pc1}
             reduce={reduce}
             onOpen={(key) => { if (key !== type) open('lure', key, null, true); }}
             label="clicked. Open its profile"
           />
         </Card>
         <Card i={6} reduce={reduce} title="Campaigns" sub="Newest first" style={{ gridColumn: 'span 12' }} data-ins-lure-campaigns>
-          <FitList items={camps} rowH={44} cols={2} what="campaigns" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'min-content', columnGap: 24, marginTop: 4 }} render={(c, k) => (
-            <Row key={c.id} k={k > 1 ? 1 : 0} height={44} cols="minmax(0,1.4fr) minmax(0,1fr) auto 12px" onClick={() => open('campaign', c.id)} label={`${c.name}: ${GLOSSARY.hookRate.name} ${pc1(c.hooked)}. Open its profile`}>
-              <span style={{ minWidth: 0 }}>
-                <span style={{ ...nameStyle, display: 'block' }}>{c.name}</span>
-                <span style={{ ...small, display: 'block', marginTop: 2 }}>Started {c.started}</span>
-              </span>
-              <Meter value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} sub="clicked" delay={rowDelay(k)} reduce={reduce} height={4} />
-              <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} width={100} /></span>
-              {arrow}
-            </Row>
-          )} />
+          <div ref={campsBox} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <FitList items={camps} rowH={44} cols={pair ? 2 : 1} what="campaigns" style={{ display: 'grid', gridTemplateColumns: `repeat(${pair ? 2 : 1}, minmax(0,1fr))`, gridAutoRows: 'min-content', columnGap: 24, marginTop: 4 }} render={(c, k) => (
+              <Row key={c.id} k={pair ? (k > 1 ? 1 : 0) : k} height={44} cols="minmax(0,1.8fr) minmax(0,1fr) auto 12px" onClick={() => open('campaign', c.id)} label={`${c.name}: ${GLOSSARY.hookRate.name} ${pc1(c.hooked)}. Open its profile`}>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ ...nameStyle, display: 'block' }}>{c.name}</span>
+                  <span style={{ ...small, display: 'block', marginTop: 2 }}>Started {c.started}</span>
+                </span>
+                <Meter value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} sub="clicked" delay={rowDelay(k)} reduce={reduce} height={4} />
+                <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} width={100} /></span>
+                {arrow}
+              </Row>
+            )} />
+          </div>
         </Card>
       </Stack>
       <Card i={5} reduce={reduce} title="Departments" define="hookRate" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 4' }} data-ins-lure-depts>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>
-          <FitList items={depts} rowH={34} what="departments" render={(x, k) => (
+          <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
             <Row key={x.name} k={k} cols="22px minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.hooked)}, ${num(x.clicked)} of ${num(x.recipients)} clicked. Open its profile`}>
               <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{x.name}</span>
@@ -600,7 +621,7 @@ export function CampaignProfile({ ctx, frame, id }) {
       <Card i={5} reduce={reduce} title="Departments" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 5' }} data-ins-campaign-depts>
         <RowHeads cols={CAMP_DEPT_COLS}><span /><span>Department</span><span>{GLOSSARY.hookRate.name}</span><span>{GLOSSARY.reportRate.name}</span><span /></RowHeads>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <FitList items={depts} rowH={34} what="departments" render={(x, k) => (
+          <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
             <Row key={x.name} k={k} cols={CAMP_DEPT_COLS} onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.clickRate)}, ${GLOSSARY.reportRate.name} ${pc1(x.reportRate)}. Open its profile`}>
               <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{x.name}</span>
@@ -618,7 +639,7 @@ export function CampaignProfile({ ctx, frame, id }) {
 // -------------------------------------------------------------- training
 
 // The columns of the training lists: plain numbers, in the measure ink.
-const DEPT_COLS = '22px minmax(0,1fr) minmax(0,1fr) 34px 12px';
+const DEPT_COLS = '20px minmax(0,1.5fr) minmax(0,1fr) 30px 12px';
 const PROG_COLS = 'minmax(0,1.5fr) minmax(0,1fr) 56px';
 const quiz = (v) => (Number.isFinite(v) ? v.toFixed(0) : '—');
 
@@ -651,7 +672,7 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
         { label: 'Badges', value: num(t.badges), sub: `${num(t.points)} points earned` },
       ]}
     >
-      <Stack style={{ gridColumn: 'span 4' }}>
+      <Stack style={{ gridColumn: 'span 4' }} sizes={['minmax(0,0.8fr)', 'minmax(0,1.2fr)']}>
         <Card i={embedded ? 0 : 3} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" sub={`${GLOSSARY.hookRate.name} in simulations`} style={{ gridColumn: 'span 12' }} data-ins-lift>
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 6, marginTop: 8 }}>
             {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: quieter(ink.bad), text: pc(c.trainedRate) }]} reduce={reduce} height={26} />}
@@ -667,8 +688,8 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
       <Card i={embedded ? 2 : 5} reduce={reduce} title="Departments" sub="Most complete first" style={{ gridColumn: 'span 4' }} data-ins-train-depts>
         <RowHeads cols={DEPT_COLS}><span /><span>Department</span><span>Completed</span><span style={{ textAlign: 'right' }}>Quiz</span><span /></RowHeads>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <FitList items={depts} rowH={30} what="departments" render={(d, k) => (
-            <Row key={d.name} k={k} height={30} cols={DEPT_COLS} onClick={() => open('department', d.name)} label={`${d.name}: ${pc(d.training.completion)} completed, quiz ${quiz(d.training.quizScore)}. Open its profile`}>
+          <FitList items={depts} rowH={28} what="departments" render={(d, k) => (
+            <Row key={d.name} k={k} height={28} cols={DEPT_COLS} onClick={() => open('department', d.name)} label={`${d.name}: ${pc(d.training.completion)} completed, quiz ${quiz(d.training.quizScore)}. Open its profile`}>
               <DeptCrest code={deptCode(d.name)} size={20} compact flat metal={isDark ? 'steelDark' : 'steel'} />
               <span style={nameStyle}>{d.name}</span>
               <InlineBar value={d.training.completion} max={1} color={ink.measure} label={pc(d.training.completion)} delay={rowDelay(k)} reduce={reduce} />
@@ -681,8 +702,8 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
       <Card i={embedded ? 3 : 6} reduce={reduce} title="Programmes" sub="Most complete first" style={{ gridColumn: 'span 4' }} data-ins-programmes>
         <RowHeads cols={PROG_COLS}><span>Programme</span><span>Completed</span><span style={{ textAlign: 'right' }}>Pass rate</span></RowHeads>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <FitList items={[...training.programmes].sort((a, b) => b.completion - a.completion)} rowH={30} what="programmes" render={(pr, k) => (
-            <Row key={pr.program} k={k} height={30} cols={PROG_COLS}>
+          <FitList items={[...training.programmes].sort((a, b) => b.completion - a.completion)} rowH={28} what="programmes" render={(pr, k) => (
+            <Row key={pr.program} k={k} height={28} cols={PROG_COLS}>
               <span style={nameStyle}>{pr.program}</span>
               <InlineBar value={pr.completion} max={100} color={ink.measure} label={`${pr.completion}%`} delay={rowDelay(k)} reduce={reduce} />
               <span className="vs-rank" style={{ fontSize: TYPE.strong, fontWeight: 900, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pr.pass}%</span>
