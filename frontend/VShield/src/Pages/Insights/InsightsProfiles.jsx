@@ -130,8 +130,9 @@ function RowHeads({ cols, children }) {
 const arrow = <ChevronRight className="ins-arrow" size={13} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />;
 // A bar's entrance delay for the k-th row: short, so a list settles at once.
 const rowDelay = (k) => Math.min(0.1 + 0.02 * k, 0.2);
-// The quieter step of a colour, for the second of two bars of one measure.
-const quieter = (c) => `color-mix(in srgb, ${c} 50%, var(--base))`;
+// The lighter step of a colour, for the second of two bars of one measure:
+// mixed with white, so on the dark theme it never darkens into severe's deep red.
+const lighter = (c) => `color-mix(in srgb, ${c} 50%, #FFFFFF)`;
 
 /**
  * Cards stacked in rows of their own inside one column of a profile, so the
@@ -444,7 +445,7 @@ export function DepartmentProfile({ ctx, frame, name }) {
       </Card>
       <Card i={6} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" sub={`${GLOSSARY.hookRate.name}, not yet trained vs trained`} style={{ gridColumn: 'span 4' }} data-ins-lift>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
-          {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: quieter(ink.bad), text: pc(c.trainedRate) }]} reduce={reduce} height={28} />}
+          {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: lighter(ink.bad), text: pc(c.trainedRate) }]} reduce={reduce} height={28} />}
         </div>
       </Card>
       <Card i={7} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 3' }}>
@@ -675,7 +676,7 @@ export function TrainingProfile({ ctx, frame, embedded = false, training }) {
       <Stack style={{ gridColumn: 'span 4' }} sizes={['minmax(0,0.8fr)', 'minmax(0,1.2fr)']}>
         <Card i={embedded ? 0 : 3} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" sub={`${GLOSSARY.hookRate.name} in simulations`} style={{ gridColumn: 'span 12' }} data-ins-lift>
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 6, marginTop: 8 }}>
-            {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: quieter(ink.bad), text: pc(c.trainedRate) }]} reduce={reduce} height={26} />}
+            {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: lighter(ink.bad), text: pc(c.trainedRate) }]} reduce={reduce} height={26} />}
             {c && <Insight tone={ink.bad} sub="Across every department">Of every 100 trained people, {Math.round(c.trainedRate * 100)} clicked; of every 100 others, {Math.round(c.untrainedRate * 100)}</Insight>}
           </div>
         </Card>
