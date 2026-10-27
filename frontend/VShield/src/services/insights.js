@@ -312,8 +312,8 @@ export function peopleInsights(org, { days = 30 } = {}) {
 }
 
 const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
-// "Finance" -> "Finance emails" (an older "Business lure" -> "Business lures")
-export const lureName = (type) => (/ lure$/i.test(type) ? `${type}s` : `${type} emails`);
+// "Click" -> "Click campaigns" (an older "Business lure" -> "Business lures")
+export const lureName = (type) => (/ lure$/i.test(type) ? `${type}s` : `${type} campaigns`);
 
 /**
  * What changed, as a short list, the most telling first: each a fact in a

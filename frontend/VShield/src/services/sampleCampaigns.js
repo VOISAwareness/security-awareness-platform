@@ -30,23 +30,24 @@ export function person(i) {
 
 const NAMED_CAMPAIGNS = [
   { id: 'CMP-2d24b2', name: 'Q4 Credential Harvest Drill', type: 'Credential theft', started: '6 Oct', total: 2480, youRank: 15, seed: 1 },
-  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Finance', started: '5 Oct', total: 1860, youRank: 7, seed: 2 },
-  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'IT', started: '4 Oct', total: 3120, youRank: 21, seed: 3 },
-  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'HR', started: '2 Oct', total: 980, youRank: 4, seed: 4 },
-  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'IT', started: '1 Oct', total: 2240, youRank: 13, seed: 5 },
-  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Finance', started: '29 Sep', total: 1440, youRank: 18, seed: 6 },
-  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'HR', started: '27 Sep', total: 1710, youRank: 9, seed: 7 },
+  { id: 'CMP-ef6a29', name: 'Payroll Update Notice', type: 'Data Entry', started: '5 Oct', total: 1860, youRank: 7, seed: 2 },
+  { id: 'CMP-8414f9', name: 'Mailbox Quota Exceeded', type: 'Credential theft', started: '4 Oct', total: 3120, youRank: 21, seed: 3 },
+  { id: 'CMP-1edcb1', name: 'HR Policy Acknowledgement', type: 'Click', started: '2 Oct', total: 980, youRank: 4, seed: 4 },
+  { id: 'CMP-e75257', name: 'Teams Voicemail Alert', type: 'Click', started: '1 Oct', total: 2240, youRank: 13, seed: 5 },
+  { id: 'CMP-12fd10', name: 'Vendor Invoice Overdue', type: 'Data Entry', started: '29 Sep', total: 1440, youRank: 18, seed: 6 },
+  { id: 'CMP-fcb850', name: 'Benefits Enrolment Closing', type: 'Data Entry', started: '27 Sep', total: 1710, youRank: 9, seed: 7 },
   { id: 'CMP-c99f6e', name: 'VPN Re-authentication', type: 'Credential theft', started: '24 Sep', total: 2890, youRank: 16, seed: 8 },
 ];
 
+// Each with its campaign type, from the app's one list (campaignTypes.js).
 const LURES = [
-  ['Password Expiry Warning', 'Credential theft'], ['Shared Document Request', 'Credential theft'],
-  ['Parcel Delivery Failed', 'Delivery'], ['Expense Claim Rejected', 'Finance'],
-  ['MFA Reset Required', 'Credential theft'], ['Annual Bonus Letter', 'HR'],
-  ['IT Asset Audit', 'IT'], ['Conference Invitation', 'Event'],
-  ['Salary Revision', 'HR'], ['Security Patch Install', 'IT'],
-  ['Wire Transfer Approval', 'Finance'], ['Holiday Calendar 2027', 'HR'],
-  ['OneDrive Storage Full', 'IT'], ['Customer Complaint Escalation', 'Business'],
+  ['Password Expiry Warning', 'Credential theft'], ['Shared Document Request', 'Click'],
+  ['Parcel Delivery Failed', 'Click'], ['Expense Claim Rejected', 'Data Entry'],
+  ['MFA Reset Required', 'Helpdesk impersonation'], ['Annual Bonus Letter', 'Reward scam'],
+  ['IT Asset Audit', 'Helpdesk impersonation'], ['Conference Invitation', 'Travel scam'],
+  ['Salary Revision', 'Reward scam'], ['Security Patch Install', 'Helpdesk impersonation'],
+  ['Wire Transfer Approval', 'Data Entry'], ['Holiday Calendar 2027', 'Travel scam'],
+  ['OneDrive Storage Full', 'Credential theft'], ['Customer Complaint Escalation', 'Click'],
 ];
 const REGIONS = ['EMEA', 'APAC', 'Americas'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

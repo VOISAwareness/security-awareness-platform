@@ -12,15 +12,12 @@
  * "Finance Workers"). Those are passed through untouched rather than forced onto
  * a slug that would misdescribe them.
  *
- * Option lists mirror the Type, Target Audience, Motivator and Difficulty
- * selects in ScenarioDeatils.jsx (ScenarioDetailsTab) — keep them in step.
+ * Option lists mirror the Target Audience, Motivator and Difficulty selects in
+ * ScenarioDeatils.jsx (ScenarioDetailsTab) — keep them in step. The Type select
+ * reads campaignTypes.js, as this file does.
  */
 
-const TYPE_LABELS = {
-  'data-entry': 'Data Entry',
-  phishing: 'Phishing Simulation',
-  'social-engineering': 'Social Engineering',
-};
+import { TYPE_LABELS } from './campaignTypes.js';
 
 const AUDIENCE_LABELS = {
   'remote-hybrid': 'Remote / Hybrid users',

@@ -36,8 +36,8 @@ const GROUP_PEOPLE = {
   learning: 'Aware Users or Safe Handlers',
   low: 'New Joiners or below zero',
 };
-// "Business lure" -> "business lures"; "Credential theft" -> "credential theft emails"
-const lureName = (type) => (/ lure$/i.test(type) ? `${type.toLowerCase()}s` : `${type.toLowerCase()} emails`).replace(/^(it|hr) /, (m) => m.toUpperCase());
+// "Business lure" -> "business lures"; "Credential theft" -> "credential theft campaigns"
+const lureName = (type) => (/ lure$/i.test(type) ? `${type.toLowerCase()}s` : `${type.toLowerCase()} campaigns`).replace(/^(it|hr) /, (m) => m.toUpperCase());
 
 /** A share as people read it: "0%", "<1%", "3.8%", "42%". */
 export function share(n, of) {
