@@ -14,16 +14,24 @@ export const HEALTH_RULE = 'Protected: 2 or more reports for every click · Hold
 /** The kind of phishing email, as the scenario builder calls it. */
 export const TYPE_WORD = 'Campaign type';
 
+/**
+ * The measures Insights reports, by their agreed names, in the order people
+ * meet them. Every measure on the page, in the exports and in the guide
+ * takes its name from here. The other entries below explain a chart, not a
+ * measure.
+ */
+export const MEASURES = Object.freeze(['riskScore', 'hookRate', 'reportRate', 'perClick', 'trainingImpact', 'gaveDetails', 'health', 'highRisk']);
+
 export const GLOSSARY = Object.freeze({
   health: {
-    name: 'Health',
-    what: 'Whether people report phishing faster than they fall for it.',
+    name: Object.values(HEALTH_WORD).join(' / '),
+    what: 'The health of a period, a department, a campaign type or a campaign, from its reports against its clicks.',
     how: HEALTH_RULE,
   },
   riskScore: {
     name: 'Risk Score',
     what: 'How exposed the company is to phishing, from 0 (no one at risk) to 100 (everyone at the highest level). Lower is safer.',
-    how: "The average of everyone's risk level: low counts 0, moderate 33, high 67, critical 100.",
+    how: "The average of everyone's risk level: low counts 0, moderate 33, high 67, critical 100. Its change is in points (pts).",
   },
   riskLevels: {
     name: 'Risk levels',
@@ -31,19 +39,19 @@ export const GLOSSARY = Object.freeze({
     how: 'Low: reported, and never clicked · Moderate: clicked once, or never reported · High: clicked more than once · Critical: gave details away.',
   },
   highRisk: {
-    name: 'At high risk',
-    what: 'The people most likely to let an attacker in.',
-    how: 'People at the high or critical risk level.',
+    name: 'People at high risk',
+    what: 'How many people are at the two highest risk levels. Lower is safer.',
+    how: 'People at the high level (clicked more than once) or the critical level (gave details away). Its change is counted in people.',
   },
   hookRate: {
     name: 'Hook Rate',
     what: 'How many people a simulated phishing email fooled. Lower is better.',
-    how: 'The share of emails delivered that were clicked.',
+    how: 'The share of emails delivered that were clicked. Its change is in percentage points (pp).',
   },
   reportRate: {
     name: 'Report Rate',
     what: 'How alert people are. Higher is better.',
-    how: 'The share of emails delivered that were reported.',
+    how: 'The share of emails delivered that were reported. Its change is in percentage points (pp).',
   },
   perClick: {
     name: 'Resilience Ratio',
@@ -52,8 +60,8 @@ export const GLOSSARY = Object.freeze({
   },
   gaveDetails: {
     name: 'Gave details away',
-    what: 'How often a click turned into a real compromise.',
-    how: 'People who went on to enter details on the practice page. Only the fact is counted, never what was typed.',
+    what: 'How many of the emails delivered led someone to enter details on the practice page. Lower is better.',
+    how: 'The share of emails delivered whose person clicked, then entered details on the practice page: the same base as the Hook Rate and Report Rate. Only the fact is counted, never what was typed.',
   },
   outcomes: {
     name: 'What people did',
@@ -77,8 +85,8 @@ export const GLOSSARY = Object.freeze({
   },
   riskDrivers: {
     name: 'Risk drivers',
-    what: 'The habits behind the Risk Score.',
-    how: 'Repeat clickers (clicked more than once) · Never reported · Training overdue · Failed the quiz again.',
+    what: 'Four counts of people. Two are part of the Risk Score; the two training counts are not.',
+    how: 'In the Risk Score: repeat clickers (clicked more than once) · never reported. Training, not in the score: overdue training · failed the quiz again.',
   },
   vsCompany: {
     name: 'Compared with company',

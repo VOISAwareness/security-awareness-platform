@@ -36,6 +36,7 @@
  */
 import { dateOf } from './bigPicture.js';
 import { health } from './bigPictureViews.js';
+import { GLOSSARY } from './glossary.js';
 import { STEP_DAYS, TIERS, riskScore } from './sampleOrganisation.js';
 
 const DAY = 86400000;
@@ -311,35 +312,66 @@ export function peopleInsights(org, { days = 30 } = {}) {
   };
 }
 
-const pc = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
 // "Click" -> "Click campaigns" (an older "Business lure" -> "Business lures")
 export const lureName = (type) => (/ lure$/i.test(type) ? `${type}s` : `${type} campaigns`);
 
+// How each measure is shown, as on the measure tiles: its precision, how a
+// value reads, and the unit its change takes ("pts" for the Risk Score, "pp"
+// for a rate, "people" for a count, "×" for a ratio).
+const SHOWN = {
+  score: { digits: 1, scale: 1, value: (v) => v.toFixed(1), unit: ' pts' },
+  people: { digits: 0, scale: 1, value: (v) => v.toLocaleString('en-US'), unit: ' people' },
+  rate: { digits: 1, scale: 100, value: (v) => `${v.toFixed(1)}%`, unit: ' pp' },
+  ratio: { digits: 1, scale: 1, value: (v) => `${v.toFixed(1)}×`, unit: '×' },
+};
+const roundTo = (v, digits) => Math.round(v * 10 ** digits) / 10 ** digits;
+
 /**
- * What changed, as a short list, the most telling first: each a fact in a
- * few words, its number on a chip, whether it is better or worse (`tone`:
- * 'good', 'bad' or 'watch', the Big Picture's clay art), and what it opens
- * (`view`: 'department', 'lure', 'risk' or 'training'; `focus`: which one).
- * `p` is peopleInsights() output; without it, only the campaigns' findings.
- * It reports; it never says what to do.
+ * One change: a measure's value before and after, each as the tiles show it,
+ * and the difference of the two as shown, signed and with its unit. `tone`
+ * is 'good' when it moved the way that is safer (`better`: 'up' or 'down'),
+ * 'bad' the other way; null when either value is missing or the two read the
+ * same.
+ */
+function changeOf({ id, title, where, before, after, kind, better, view, focus }) {
+  if (!Number.isFinite(before) || !Number.isFinite(after)) return null;
+  const s = SHOWN[kind];
+  const b = roundTo(before * s.scale, s.digits); const a = roundTo(after * s.scale, s.digits);
+  const by = roundTo(a - b, s.digits);
+  if (by === 0) return null;
+  const sign = by > 0 ? '+' : '−';
+  const chip = `${sign}${s.value(Math.abs(by)).replace(/[%×]$/, '')}${s.unit}`;
+  const shown = { before: s.value(b), after: s.value(a) };
+  return { id, title, where, ...shown, chip, by, tone: (by < 0) === (better === 'down') ? 'good' : 'bad', sub: `${where} · ${shown.before} → ${shown.after}`, view, focus };
+}
+
+/**
+ * What changed over the period: each row a measure, where it was measured,
+ * its value before and after (`before`, `after`, at the precision the tiles
+ * use) and the signed difference (`chip`), whether that is safer or riskier
+ * (`tone`: 'good' or 'bad'), and what it opens (`view`: 'department',
+ * 'risk', 'training' or the 'campaigns' tab; `focus`: which one). In a fixed
+ * order: the departments whose Risk Score rose and fell the most, then the
+ * company's People at high risk, Gave details away, Resilience Ratio and
+ * Training Lift; a measure that reads the same before and after is left out.
+ * `p` is peopleInsights() output; without it, only the campaigns' measures.
+ * Snapshots (the Risk Score, people, training) are set against the start of
+ * the period; the campaigns' measures against the period before. It lists
+ * changes; it never ranks, judges or advises.
  */
 export function standsOut(m, p = null) {
   const out = [];
-  const pts = (v) => `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} pts`;
-  const moved = p ? p.departments.filter((d) => d.scoreBefore !== null).map((d) => ({ d, by: d.score - d.scoreBefore })) : [];
-  const rose = [...moved].sort((a, b) => b.by - a.by)[0];
-  if (rose && rose.by > 0.05) out.push({ id: 'riskRose', tone: 'bad', chip: pts(rose.by), title: 'Risk rose the most', sub: `${rose.d.name} · risk score now ${Math.round(rose.d.score)}, ${rose.d.highRisk.toLocaleString('en-US')} at high risk`, view: 'department', focus: rose.d.name });
-  const fell = [...moved].sort((a, b) => a.by - b.by)[0];
-  if (fell && fell.by < -0.05) out.push({ id: 'riskFell', tone: 'good', chip: pts(fell.by), title: 'Risk fell the most', sub: `${fell.d.name} · risk score down to ${Math.round(fell.d.score)}`, view: 'department', focus: fell.d.name });
-  if (p?.before) {
-    const by = p.now.highRisk - p.before.highRisk;
-    if (by) out.push({ id: 'highRisk', tone: by < 0 ? 'good' : 'bad', chip: `${by > 0 ? '+' : '−'}${Math.abs(by).toLocaleString('en-US')}`, title: `${by < 0 ? 'Fewer' : 'More'} people at high risk`, sub: `${p.now.highRisk.toLocaleString('en-US')} people clicked more than once or gave details away`, view: 'risk', focus: 'highRisk' });
+  const moved = p ? p.departments.filter((d) => Number.isFinite(d.scoreBefore)).map((d) => ({ d, by: d.score - d.scoreBefore })) : [];
+  const rose = [...moved].sort((a, b) => b.by - a.by || a.d.name.localeCompare(b.d.name))[0];
+  if (rose && rose.by > 0) out.push(changeOf({ id: 'riskRose', title: `Largest ${GLOSSARY.riskScore.name} rise`, where: rose.d.name, before: rose.d.scoreBefore, after: rose.d.score, kind: 'score', better: 'down', view: 'department', focus: rose.d.name }));
+  const fell = [...moved].sort((a, b) => a.by - b.by || a.d.name.localeCompare(b.d.name))[0];
+  if (fell && fell.by < 0) out.push(changeOf({ id: 'riskFell', title: `Largest ${GLOSSARY.riskScore.name} fall`, where: fell.d.name, before: fell.d.scoreBefore, after: fell.d.score, kind: 'score', better: 'down', view: 'department', focus: fell.d.name }));
+  if (p?.before) out.push(changeOf({ id: 'highRisk', title: GLOSSARY.highRisk.name, where: 'Company', before: p.before.highRisk, after: p.now.highRisk, kind: 'people', better: 'down', view: 'risk', focus: 'highRisk' }));
+  const gave = (s) => (s?.delivered ? s.compromised / s.delivered : null);
+  if (m.before) {
+    out.push(changeOf({ id: 'gave', title: GLOSSARY.gaveDetails.name, where: 'Company', before: gave(m.before), after: gave(m.now), kind: 'rate', better: 'down', view: 'campaigns', focus: 'gave' }));
+    out.push(changeOf({ id: 'perClick', title: GLOSSARY.perClick.name, where: 'Company', before: m.before.perClick, after: m.now.perClick, kind: 'ratio', better: 'up', view: 'campaigns', focus: 'perClick' }));
   }
-  const top = m.lures[0];
-  if (top && m.lures.length > 1) out.push({ id: 'topLure', tone: 'bad', chip: `${pc(top.hooked)} clicked`, title: 'Fooled the most people', sub: `${lureName(top.type)} · the highest Hook Rate`, view: 'lure', focus: top.type });
-  const c = p?.now.cohorts;
-  if (c?.times) out.push({ id: 'trained', tone: 'good', chip: `Lift ${c.times.toFixed(1)}×`, title: 'Trained people click less', sub: `${pc(c.trainedRate)} of the trained clicked, ${pc(c.untrainedRate)} of the rest`, view: 'training', focus: 'cohorts' });
-  const gave = [...m.lures].filter((l) => l.gaveOfClicks !== null && l.compromised > 0).sort((a, b) => b.gaveOfClicks - a.gaveOfClicks)[0];
-  if (gave) out.push({ id: 'gaveLure', tone: 'bad', chip: `${pc(gave.gaveOfClicks)} of clicks`, title: 'The most details given away', sub: `${lureName(gave.type)} · of those who clicked`, view: 'lure', focus: gave.type });
-  return out;
+  if (p?.before) out.push(changeOf({ id: 'lift', title: GLOSSARY.trainingImpact.name, where: 'Company', before: p.before.cohorts?.times, after: p.now.cohorts?.times, kind: 'ratio', better: 'up', view: 'training', focus: 'cohorts' }));
+  return out.filter(Boolean);
 }
