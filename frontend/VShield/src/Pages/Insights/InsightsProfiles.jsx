@@ -415,7 +415,7 @@ export function DepartmentProfile({ ctx, frame, name }) {
         { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${GLOSSARY.trainingImpact.name} ${c.times.toFixed(1)}×` : '' },
       ]}
       action={canSeePeople ? (
-        <button type="button" className="ins-cta" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 999, border: 'none', background: 'var(--brand)', color: '#FFFFFF', boxShadow: '0 6px 16px color-mix(in srgb, var(--brand) 22%, transparent)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <button type="button" className="ins-cta" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 999, border: 'none', background: 'var(--brand-fill)', color: '#FFFFFF', boxShadow: '0 6px 16px color-mix(in srgb, var(--brand-fill) 22%, transparent)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           <Users size={13} strokeWidth={2.4} aria-hidden /> See its people
         </button>
       ) : null}
