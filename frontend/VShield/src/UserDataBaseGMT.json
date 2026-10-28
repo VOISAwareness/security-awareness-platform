@@ -1,0 +1,32 @@
+[
+  {
+    "UserID_GMT": "VSLD-000103",
+    "UserName_GMT": "Hanah Brooks",
+    "UserEmailD_GMT": "hanah.brooks@vodafone.com",
+    "UserStatus_GMT": "Active"
+  },
+  {
+    "UserID_GMT": "VSLD-000104",
+    "UserName_GMT": "Alexander Wright",
+    "UserEmailD_GMT": "alex.wright@vodafone.com",
+    "UserStatus_GMT": "Active"
+  },
+  {
+    "UserID_GMT": "VSLD-000030",
+    "UserName_GMT": "Charlotte Evans",
+    "UserEmailD_GMT": "charlotte.evans@vodafone.com",
+    "UserStatus_GMT": "Active"
+  },
+  {
+    "UserID_GMT": "VSLD-000101",
+    "UserName_GMT": "David Miller",
+    "UserEmailD_GMT": "david.miller@vodafone.com",
+    "UserStatus_GMT": "Active"
+  },
+  {
+    "UserID_GMT": "VSLD-000102",
+    "UserName_GMT": "Elena Rossi",
+    "UserEmailD_GMT": "elena.rossi@vodafone.com",
+    "UserStatus_GMT": "Deactive"
+  }
+]
