@@ -760,7 +760,7 @@ export function TileMap({ items, fill, ink, onOpen, reduce, tip, layoutIdOf, ret
  * a 4px gap between; a legend under them with each part's share and name.
  * Hover a block, or focus the row and use the arrow keys, for its numbers.
  */
-export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols = 2, returning }) {
+export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols = 2, legendText = false, returning }) {
   const still = useStill(reduce, returning);
   const box = useRef(null);
   const total = parts.reduce((a, p) => a + p.value, 0) || 1;
@@ -790,7 +790,7 @@ export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols 
         {parts.map((x) => (
           <span key={x.key} style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span aria-hidden style={{ alignSelf: 'center', flexShrink: 0, width: 8, height: 8, borderRadius: 3, background: x.color }} />
-            <span className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900 }}>{Math.round((x.value / total) * 100)}%</span>
+            <span className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900 }}>{legendText ? x.text : `${Math.round((x.value / total) * 100)}%`}</span>
             <span style={{ fontSize: TYPE.small, fontWeight: 700, opacity: onDark ? 0.75 : 1, color: onDark ? 'inherit' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
           </span>
         ))}

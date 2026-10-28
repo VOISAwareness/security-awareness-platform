@@ -11,7 +11,7 @@ test('every measure has a name, what it tells you and how it is worked out', () 
 });
 
 test('the measures go by exactly the agreed names, and nothing else borrows or bends one', () => {
-  assert.deepEqual(MEASURES.map((k) => GLOSSARY[k].name), ['Risk Score', 'Hook Rate', 'Report Rate', 'Resilience Ratio', 'Training Lift', 'Gave details away', 'Protected / Holding / Not protected', 'People at high risk']);
+  assert.deepEqual(MEASURES.map((k) => GLOSSARY[k].name), ['Risk Score', 'Open Rate', 'Hook Rate', 'Report Rate', 'Resilience Ratio', 'Training Lift', 'Gave details away', 'Protected / Holding / Not protected', 'People at high risk']);
   const others = Object.keys(GLOSSARY).filter((k) => !MEASURES.includes(k)).map((k) => GLOSSARY[k].name.toLowerCase());
   for (const name of others) {
     assert.ok(!/\b(at high risk|training impact|lift|hook|report rate|resilience|reports for every click|details)\b/.test(name), `"${name}" reads like a measure's name`);

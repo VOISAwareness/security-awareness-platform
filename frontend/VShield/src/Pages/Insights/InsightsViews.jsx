@@ -1,22 +1,17 @@
 import { Fragment, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeftRight, BarChart3, Building2, ChevronRight, GraduationCap, Grid3x3, Scale, ScatterChart, TextCursorInput, Users } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, ChevronRight, Grid3x3, ScatterChart } from 'lucide-react';
 
 import { Pager } from '../Leaderboard/BigPictureTables';
-import CampaignMegaphone from '../../assets/LeaderboardAssets/CampaignMegaphone.png';
-import { Blocks, Card, CompareBars, GoTo, Legend, RingGauge, Segmented, Staircase, TileMap, Tip } from './InsightsCharts';
-import { Define, HealthChip, InlineBar, LureIcon, LureTile, MiniPager, RowsGrid } from './InsightsBits';
+import { Blocks, Card, GoTo, Segmented, Tip } from './InsightsCharts';
+import { HealthChip, InlineBar, LureIcon, LureTile, MiniPager } from './InsightsBits';
 import { GLOSSARY, TYPE_WORD } from '../../services/glossary';
 import { useSize } from './useSize';
 import { DEPT_CHARTS, deptOrder, deptRows } from '../../services/deptCharts';
 import { useFitRows } from '../Leaderboard/useFitRows';
-import { EASE, HEALTH_WORD, SPANS, TIER_WORD, TINT, cardTitle, change, day, didParts, eyebrow, healthInk, healthTone, heads, num, pc1, riskBands, small, themeVars, tierInk, tierOf, times, TYPE } from './insightsUi';
+import { EASE, HEALTH_WORD, TIER_WORD, cardTitle, day, didParts, eyebrow, healthInk, heads, num, pc1, small, themeVars, tierInk, tierOf, times, TYPE } from './insightsUi';
 
-// Insights' views, one per tab:
-//   - Overview: one card for each question a leader asks. Are we safer
-//     (risk over the year)? Where is the risk (the department map, the
-//     campaign types)? When phishing lands, what do people do? Is training
-//     paying off? What changed over the period?
+// Insights' views, one per tab (the Summary is in InsightsSummary.jsx):
 //   - Departments: one chart at a time (Ranking, Movement, Reporting,
 //     Weak spots) beside a panel of one department's charts;
 //   - Campaigns: every campaign type, then every campaign.
@@ -25,8 +20,6 @@ import { EASE, HEALTH_WORD, SPANS, TIER_WORD, TINT, cardTitle, change, day, didP
 // Colour goes on marks by what it means (insightsUi.js); text wears the
 // text inks.
 
-const scoreText = (v, tick) => (Number.isFinite(v) ? (tick ? `${Math.round(v)}` : v.toFixed(1)) : '—');
-const pts = (c) => c && { ...c, shown: c.shown.replace('×', ' pts').replace(' min', '') };
 const dot = (color, size = 8) => <span aria-hidden style={{ flexShrink: 0, width: size, height: size, borderRadius: 999, background: color }} />;
 
 // A tooltip's body: a head, then each figure's name and value.
@@ -56,199 +49,6 @@ const lureTip = (l) => [
   ['Campaigns', num(l.campaigns)],
   ['Emails delivered', num(l.delivered)],
 ];
-
-// ------------------------------------------------------------- overview
-
-// Hook Rate by campaign type: one bar from zero per type, the highest
-// first, each in the colour of a click with its value at its end, against
-// the company's Hook Rate (a dashed line). Full names; a long one wraps.
-// Hover or focus a type for its figures; a click opens it.
-function LureBars({ lures, company, ink, onOpen }) {
-  const [box, { w }] = useSize();
-  const [hover, setHover] = useState(null);
-  const top = Math.max(...lures.map((l) => l.hooked || 0), company || 0, 0.001) * 1.1;
-  const x = (v) => `${Math.max(0, Math.min(1, (v || 0) / top)) * 100}%`;
-  const cols = '18px minmax(0,1.25fr) minmax(0,1fr) 48px';
-  const shown = lures.find((l) => l.type === hover?.type);
-  const show = (l) => (e) => setHover({ type: l.type, y: e.currentTarget.offsetTop, below: e.currentTarget.offsetTop < 40 });
-  return (
-    <div ref={box} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 8 }} onMouseLeave={() => setHover(null)}>
-      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        {/* the company's Hook Rate, behind the bars */}
-        <div aria-hidden style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: cols, columnGap: 10, padding: '0 6px', pointerEvents: 'none' }}>
-          <span /><span />
-          <span style={{ position: 'relative' }}><span style={{ position: 'absolute', top: 2, bottom: 2, left: x(company), borderLeft: '1.5px dashed var(--muted)', opacity: 0.8 }} /></span>
-          <span />
-        </div>
-        {lures.map((l, k) => (
-          <button
-            key={l.type}
-            type="button"
-            className="ins-row ins-in-x"
-            data-ins-col={l.type}
-            aria-label={`${l.type}: Hook Rate ${pc1(l.hooked)}. Open its profile`}
-            onClick={(e) => { e.stopPropagation(); onOpen(l.type); }}
-            onMouseEnter={show(l)}
-            onFocus={show(l)}
-            onBlur={() => setHover(null)}
-            style={{ '--d': `${0.08 + 0.03 * k}s`, position: 'relative', flex: '1 1 0', minHeight: 0, maxHeight: 44, display: 'grid', gridTemplateColumns: cols, alignItems: 'center', columnGap: 10, padding: '0 6px', border: 'none', borderRadius: 8, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', outline: hover?.type === l.type ? '1.5px solid var(--hair-strong)' : 'none', outlineOffset: -1 }}
-          >
-            <LureIcon type={l.type} size={14} strokeWidth={2.3} aria-hidden style={{ color: 'var(--muted)' }} />
-            <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 800, lineHeight: 1.15 }}>{l.type}</span>
-            <span aria-hidden style={{ position: 'relative', height: 10, borderRadius: 999, background: 'var(--track)' }}>
-              <span className="ins-grow-x" style={{ '--d': `${0.1 + 0.03 * k}s`, position: 'absolute', left: 0, top: 0, bottom: 0, width: x(l.hooked), borderRadius: 999, background: ink.bad, transformOrigin: 'left', transition: 'width .5s ease' }} />
-            </span>
-            <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{pc1(l.hooked)}</span>
-          </button>
-        ))}
-      </div>
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: cols, columnGap: 10, padding: '0 6px', marginTop: 4, ...small }}>
-        <span /><span />
-        <span style={{ position: 'relative', height: 14 }}>
-          <span style={{ position: 'absolute', left: x(company), transform: `translateX(${(company || 0) / top > 0.6 ? '-100%' : '-50%'})`, display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
-            <span aria-hidden style={{ width: 12, borderTop: '1.5px dashed var(--muted)' }} />Company <strong style={{ color: 'var(--text)' }}>{pc1(company)}</strong>
-          </span>
-        </span>
-        <span />
-      </div>
-      {shown && w > 0 && (
-        <Tip x={w * 0.62} y={hover.y + (hover.below ? 40 : 0)} w={w} edge={4} below={hover.below}>
-          <TipBody head={shown.type} rows={lureTip(shown)} />
-        </Tip>
-      )}
-    </div>
-  );
-}
-
-// What changed: each row a measure, where, its value before and after, and
-// the change between them on a chip. A plain icon names the kind of
-// measure; the chip's dot says safer (good) or riskier (bad). As many rows
-// as fit.
-const CHANGE_ICON = { riskRose: Building2, riskFell: Building2, highRisk: Users, gave: TextCursorInput, perClick: Scale, lift: GraduationCap };
-function ChangeList({ list, ink, onOpen }) {
-  const [box, { h }] = useSize();
-  const fit = h > 0 ? Math.max(3, Math.floor(h / 36)) : 5;
-  return (
-    <div ref={box} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
-      {list.slice(0, fit).map((f, k) => {
-        const Icon = CHANGE_ICON[f.id] || Scale;
-        return (
-          <button
-            key={f.id}
-            type="button"
-            className="ins-find ins-in-x"
-            data-ins-finding={f.id}
-            aria-label={`${f.title}, ${f.where}: ${f.before} before, ${f.after} after, ${f.chip}. Open it`}
-            onClick={(e) => { e.stopPropagation(); onOpen(f); }}
-            style={{ '--d': `${0.15 + 0.04 * k}s`, flex: '1 1 0', minHeight: 0, maxHeight: 54, display: 'grid', gridTemplateColumns: '28px minmax(0,1fr) auto 14px', alignItems: 'center', columnGap: 11, padding: '0 8px', margin: '0 -8px', border: 'none', borderTop: k ? '1px solid var(--hair)' : '1px solid transparent', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: 'pointer' }}
-          >
-            <span aria-hidden style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--plate)', color: 'var(--muted)' }}><Icon size={14} strokeWidth={2.3} /></span>
-            <span style={{ minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 800, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.title}</span>
-              <span style={{ display: 'block', ...small, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontVariantNumeric: 'tabular-nums' }}>
-                {f.where} · {f.before} → <strong style={{ color: 'var(--text)', fontWeight: 800 }}>{f.after}</strong>
-              </span>
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, background: f.tone === 'good' ? 'var(--good-soft)' : 'var(--bad-soft)', fontSize: TYPE.small, fontWeight: 800, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-              {dot(f.tone === 'good' ? ink.good : ink.bad, 6)}{f.chip}
-            </span>
-            <ChevronRight className="ins-arrow" size={14} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)' }} />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function OverviewView({ ctx, list }) {
-  const { m, p, ink, isDark, reduce, open, go } = ctx;
-  const bands = riskBands(isDark);
-  const days = m.basis.days;
-  const dc = pts(change(p.now.score, p.before?.score, { kind: 'times', better: 'down' }));
-  const c = p.now.cohorts;
-  const n = m.now;
-  // the card on what people did wears the period's health, as the corner
-  // tile does: green while Protected, amber while Holding, red while Not protected
-  const tints = isDark ? TINT.dark : TINT.light;
-  const spot = tints[healthTone(n.health?.word)] || tints.neutral;
-  const [span, setSpan] = useState(12);
-  const shownTrend = p.trend.slice(-span);
-  const openChange = (f) => (f.view === 'campaigns' ? go('campaigns') : open(f.view, f.view === 'department' ? f.focus : null));
-  return (
-    <RowsGrid data-ins-overview minRow={200} sizes={['minmax(0,1.08fr)', 'minmax(0,1fr)']}>
-      {/* are we safer? */}
-      <Card i={0} reduce={reduce} title="Risk Score over time" define="riskScore" action={<Segmented id="ins-range-ov" label="Time span" value={span} options={SPANS} onChange={setSpan} reduce={reduce} />} layoutId="ins-risk" onOpen={() => open('risk', null, 'ins-risk')} openLabel="Explore" style={{ gridColumn: 'span 5' }} data-ins-risk>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
-          <Staircase at={shownTrend.map((s) => s.to)} values={shownTrend.map((s) => s.score)} lit={shownTrend.map((s) => s.inPeriod)} start={ink.context} good={ink.good} bad={ink.bad} format={scoreText} reduce={reduce} tipHead={(t) => `30 days to ${day(t)}`} valueLabel="Risk Score" />
-        </div>
-        {/* the line's two colours: the period's stretch says its one change (on the chart's chip) */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
-          <Legend items={[{ label: `Last ${days} days${dc && dc.good !== null ? (dc.good ? ', safer' : ', riskier') : ''}`, color: dc?.good === null || !dc ? ink.context : dc.good ? ink.good : ink.bad, line: true }, { label: 'Before', color: ink.context, line: true }]} />
-        </div>
-      </Card>
-
-      {/* where is the risk? */}
-      <Card i={1} reduce={reduce} title="Risk by department" sub="Risk Score now · tile size: people" onOpen={() => go('departments')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-map>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 10 }}>
-          <TileMap
-            items={p.departments.map((d) => ({ key: d.name, label: d.name, weight: d.people, value: d.score, text: scoreText(d.score) }))}
-            fill={(t) => bands.fill(t.value)}
-            ink={(t) => bands.ink(t.value)}
-            reduce={reduce}
-            layoutIdOf={(t) => `dept-${t.key}`}
-            onOpen={(name) => open('department', name, `dept-${name}`)}
-            tip={(t) => { const d = p.departments.find((x) => x.name === t.key); return [d.name, `Risk Score ${scoreText(d.score)} now · ${TIER_WORD[tierOf(d.score)]}`, `${num(d.highRisk)} people at high risk of ${num(d.people)}`]; }}
-          />
-        </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, ...small }}>
-          {bands.tiers.map((t, k) => <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: t.color }} /><strong style={{ color: 'var(--text)', fontWeight: 700 }}>{TIER_WORD[t.key]}</strong>{['under 20', '20–35', '35–60', '60+'][k]}</span>)}
-        </div>
-      </Card>
-
-      {/* when phishing lands, what do people do? */}
-      <Card i={2} reduce={reduce} title={GLOSSARY.outcomes.name} define="outcomes" sub={`Last ${days} days`} onOpen={() => go('campaigns')} openLabel="Campaigns" style={{ gridColumn: 'span 3', border: `1px solid ${spot.edge}`, background: spot.wash }} data-ins-spot>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
-          <span style={{ minWidth: 0 }}>
-            <span className="vs-rank ins-big" title={`${num(n.reported)} reported ÷ ${num(n.clicked)} clicked`} style={{ display: 'block', fontSize: TYPE.display, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>{times(n.perClick)}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}><span style={eyebrow}>{GLOSSARY.perClick.name}</span><Define term="perClick" /></span>
-          </span>
-          <img className="ins-float ins-optional" src={CampaignMegaphone} alt="" aria-hidden width={60} height={60} style={{ marginLeft: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 8px 12px rgba(15,23,42,0.18))' }} />
-        </div>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 10 }}>
-          <Blocks parts={didParts(n, ink)} reduce={reduce} height="clamp(24px, 10cqh, 52px)" legendCols={2} />
-        </div>
-      </Card>
-
-      {/* which campaign types fool people? */}
-      <Card i={3} reduce={reduce} title="Hook Rate by campaign type" define="hookRate" sub={`Last ${days} days`} onOpen={() => go('campaigns')} openLabel="All" style={{ gridColumn: 'span 4' }} data-ins-lures>
-        <LureBars lures={m.lures} company={n.hooked} ink={ink} onOpen={(type) => open('lure', type)} />
-      </Card>
-
-      {/* what changed? */}
-      <Card i={4} reduce={reduce} title="What changed" sub={`Last ${days} days · before → after`} style={{ gridColumn: 'span 5' }} data-ins-changes>
-        <ChangeList list={list} ink={ink} onOpen={openChange} />
-      </Card>
-
-      {/* is training paying off? */}
-      <Card i={5} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" sub="Now · Hook Rate by training" layoutId="ins-training" onOpen={() => open('training', null, 'ins-training')} openLabel="Explore" style={{ gridColumn: 'span 3' }} data-ins-training>
-        {c && (
-          <>
-            <span className="vs-rank" style={{ display: 'block', marginTop: 10, fontSize: TYPE.hero, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.03em' }}>{c.times ? `${c.times.toFixed(1)}×` : '—'}</span>
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 8 }}>
-              {/* both bars are Hook Rates, so both wear the colour of a click; the trained one a lighter step of it,
-                  mixed with white so on the dark theme it never darkens into severe's deep red */}
-              <CompareBars rows={[{ key: 'un', label: 'Not yet trained', value: c.untrainedRate, color: ink.bad, text: pc1(c.untrainedRate) }, { key: 'tr', label: 'Completed training', value: c.trainedRate, color: `color-mix(in srgb, ${ink.bad} 55%, #FFFFFF)`, text: pc1(c.trainedRate) }]} reduce={reduce} height="clamp(22px, 8cqh, 38px)" />
-            </div>
-            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-              <RingGauge value={c.trainedShare * 100} size={36} stroke={4} color={ink.measure} reduce={reduce} label={`${pc1(c.trainedShare)} of people trained`} />
-              <span style={{ ...small }}>Trained <strong style={{ color: 'var(--text)' }}>{pc1(c.trainedShare)}</strong> of people</span>
-            </div>
-          </>
-        )}
-      </Card>
-    </RowsGrid>
-  );
-}
 
 // ---------------------------------------------------------- departments
 
