@@ -4,14 +4,6 @@ const UserTypeContext = createContext();
 
 // EXACT STANDARDIZED PERMISSION MATRIX
 // 'home' is restricted to Admin, Campaign Creator, and Campaign Manager only
-// 'leaderboard' is the /leaderboard page, opened from the My Space LEADERBOARD
-// button (it has no nav item); every role has it. 'leaderboard-campaigns' is its
-// My Campaigns view (ongoing campaigns and how each is going), for every role
-// except Regular User, who sees the Global Leaderboard only. 'leaderboard-reports'
-// is its The Big Picture view (what the board shows), for the same roles; they
-// don't see How to earn points. 'leaderboard-people' is The Big Picture's People
-// list (everyone by name, below-zero levels included, with CSV export): Admin
-// only, as below-zero badges and risk are everywhere else.
 export const ROLE_PERMISSIONS = {
   'Admin': [
     'home',
@@ -26,10 +18,6 @@ export const ROLE_PERMISSIONS = {
     'requests-approvals',
     'gamification-engine',
     'analytics',
-    'leaderboard',
-    'leaderboard-campaigns',
-    'leaderboard-reports',
-    'leaderboard-people',
     'my-space',
     'my-training'
   ],
@@ -45,9 +33,6 @@ export const ROLE_PERMISSIONS = {
     'email-domains',
     'requests-approvals',
     'analytics',
-    'leaderboard',
-    'leaderboard-campaigns',
-    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
@@ -63,30 +48,20 @@ export const ROLE_PERMISSIONS = {
     'email-domains',
     'requests-approvals',
     'analytics',
-    'leaderboard',
-    'leaderboard-campaigns',
-    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
   'Gamification Engine Manager': [
     'gamification-engine',
-    'leaderboard',
-    'leaderboard-campaigns',
-    'leaderboard-reports',
     'my-space',
     'my-training'
   ],
   'Regular User': [
-    'leaderboard',
     'my-space',
     'my-training'
   ],
   'GMT': [
     'analytics',
-    'leaderboard',
-    'leaderboard-campaigns',
-    'leaderboard-reports',
     'my-space',
     'my-training'
   ]
@@ -180,8 +155,7 @@ export const UserTypeProvider = ({ children }) => {
   // Helper to find the first accessible default route by role
   const getDefaultRoute = (customUser = user) => {
     if (!customUser) return '/';
-    // Unknown roles go to /my-space (open to everyone); '/home' would loop via its 'home' guard
-    return ROLE_DEFAULT_ROUTES[customUser.role] || '/my-space';
+    return ROLE_DEFAULT_ROUTES[customUser.role] || '/home';
   };
 
   return (
