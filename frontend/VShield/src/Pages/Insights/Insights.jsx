@@ -19,7 +19,7 @@ import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
-import { EASE, HEALTH_WORD, INK, STEADY_INK, change, eyebrow, glow, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE } from './insightsUi';
+import { EASE, HEALTH_WORD, INK, STEADY_INK, alpha, change, eyebrow, glow, healthTone, mixHex, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
 
 // =============================================================================
@@ -115,7 +115,9 @@ function lPath(w, h, capH) {
   const x0 = CAP_W + L_GAP; const y1 = capH + L_GAP; const W = w - e; const H = h - e;
   return `M${x0 + r},${e} H${W - r} A${r},${r} 0 0 1 ${W},${e + r} V${H - r} A${r},${r} 0 0 1 ${W - r},${H} H${e + r} A${r},${r} 0 0 1 ${e},${H - r} V${y1 + r} A${r},${r} 0 0 1 ${e + r},${y1} H${x0 - f} A${f},${f} 0 0 0 ${x0},${y1 - f} V${e + r} A${r},${r} 0 0 1 ${x0 + r},${e} Z`;
 }
-// The tile keeps its pastel in dark mode, so its words take the light theme's ink.
+// On the light theme the tile is a pastel in its health's colour, so its words
+// take the light theme's ink. On the dark theme it is the card itself (each
+// look's `dark`), so its words take the page's own ink and need none of this.
 const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(255,255,255,0.72)', '--track': 'rgba(15,23,42,0.08)' };
 
 const TABS = [
@@ -147,20 +149,31 @@ const CAP_H_COMPACT = 112;
 
 // The corner tile: the programme's health, from reports against clicks
 // (health() in bigPictureViews.js). Its clay emblem on the left, its word
-// and what it means on the right, on a soft gradient in its colour with a
-// shadow of the same; all three change with it (Holding's shield is the
-// Protected one turned amber). Light on both themes.
+// and what it means on the right, in its health's colour (insightsColours.js):
+// green for Protected, amber for Holding (the Protected shield turned amber),
+// red for Not protected.
+// Light theme: a soft gradient of that colour with a shadow of the same.
+// Dark theme (`dark`): the card surface, a 1px edge in the colour (in `lift`,
+// with `edge` on its own) and a 3px rule along the top (in `tile`, with
+// `rule` on its own), so the tile no longer glares; its words take the page's
+// ink, not PASTEL_INK.
+const pastel = (c) => ({ tile: `linear-gradient(135deg,${mixHex(c, '#FFFFFF', 0.08)} 0%,${mixHex(c, '#FFFFFF', 0.2)} 100%)`, lift: `0 20px 40px ${alpha(c, 0.15)}`, glow: alpha(c, 0.2), shine: `0 0 20px ${alpha(c, 0.3)}` });
+const onCard = (c) => ({ tile: `linear-gradient(180deg,${c} 0,${c} 3px,transparent 3px),linear-gradient(160deg,${alpha(c, 0.16)} 0%,${alpha(c, 0.04)} 60%,rgba(0,0,0,0) 100%),var(--base)`, lift: `0 0 0 1px ${alpha(c, 0.45)}, 0 16px 34px rgba(0,0,0,0.38)`, glow: alpha(c, 0.14), shine: 'none', edge: alpha(c, 0.45), rule: c });
+// the green shield as an amber one, for Holding
+const AMBER_SHIELD = 'hue-rotate(-110deg) saturate(2.2) brightness(1.2) contrast(0.95)';
 const HEALTH_LOOK = {
-  Protected: { word: 'Protected', says: 'Twice as many reports as clicks, or more', art: ClayGoingWell, tile: 'linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)', lift: '0 20px 40px rgba(16,185,129,0.15)', glow: 'rgba(16,185,129,0.20)', shine: '0 0 20px rgba(16,185,129,0.3)' },
-  Holding: { word: 'Holding', says: 'About as many reports as clicks', art: ClayGoingWell, tint: 'hue-rotate(-118deg) saturate(1.35) brightness(1.04)', tile: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', lift: '0 20px 40px rgba(245,158,11,0.15)', glow: 'rgba(245,158,11,0.20)', shine: '0 0 20px rgba(245,158,11,0.3)' },
-  Exposed: { word: 'Not protected', says: 'More clicks than reports', art: ClayAttention, tile: 'linear-gradient(135deg,#FEF2F2 0%,#FEE2E2 100%)', lift: '0 20px 40px rgba(220,38,38,0.15)', glow: 'rgba(220,38,38,0.18)', shine: '0 0 20px rgba(220,38,38,0.25)' },
+  Protected: { word: 'Protected', says: 'Twice as many reports as clicks, or more', art: ClayGoingWell, ...pastel(INK.light.good), dark: onCard(INK.dark.good) },
+  Holding: { word: 'Holding', says: 'About as many reports as clicks', art: ClayGoingWell, tint: AMBER_SHIELD, ...pastel(INK.light.caution), dark: { ...onCard(INK.dark.caution), tint: AMBER_SHIELD } },
+  Exposed: { word: 'Not protected', says: 'More clicks than reports', art: ClayAttention, ...pastel(INK.light.bad), dark: onCard(INK.dark.bad) },
 };
-// The rule behind each health, for the back of the tile.
+// The rule behind each health, for the back of the tile: its dot in the
+// health's colour (`color` for the light tile; `tone` names the role, so a
+// dark tile takes ink[tone]).
 const HEALTH_STEPS = [
-  { key: 'Protected', rule: '2 or more reports for every click', color: '#10B981' },
-  { key: 'Holding', rule: 'at least 1 report for every click', color: '#F59E0B' },
-  { key: 'Exposed', rule: 'fewer reports than clicks', color: '#DC2626' },
-];
+  { key: 'Protected', rule: '2 or more reports for every click' },
+  { key: 'Holding', rule: 'at least 1 report for every click' },
+  { key: 'Exposed', rule: 'fewer reports than clicks' },
+].map((s) => ({ ...s, tone: healthTone(s.key), color: INK.light[healthTone(s.key)] }));
 function HealthTile({ m, reduce, capH, compact }) {
   const [over, setOver] = useState(false);
   const h = m.now.health;
@@ -350,14 +363,8 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
 
-  // Depth from a soft light at the top of the page; the cards are the app's
-  // glass: see-through white with a thin white edge. Only what floats and
-  // holds still (tooltips, the "i" notes) blurs what is under it (--glass),
-  // so nothing moving has to be blurred again every frame. --base is a solid
-  // the colour of a card, for pills and the rings round dots.
-  const vars = isDark
-    ? { '--bg': 'radial-gradient(circle at top center, #10131C 0%, #090C13 60%, #06080D 100%)', '--bg-edge': '#06080D', '--sheet': '#141824', '--sheet-edge': 'rgba(255,255,255,0.11)', '--l-shadow': 'rgba(0,0,0,0.22)', '--card': 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.035) 100%)', '--card-edge': 'rgba(255,255,255,0.10)', '--base': '#1C1F29', '--glass': 'rgba(30,33,43,0.78)', '--pill': 'rgba(255,255,255,0.09)', '--ghost': 'rgba(255,255,255,0.04)', '--text': '#F1F5F9', '--muted': '#94A3B8', '--hair': 'rgba(255,255,255,0.07)', '--hair-strong': 'rgba(255,255,255,0.14)', '--track': 'rgba(255,255,255,0.07)', '--tick': 'rgba(255,255,255,0.12)', '--grid': 'rgba(255,255,255,0.06)', '--ink': '#F8FAFC', '--ink-on': '#0F172A', '--row': 'rgba(255,255,255,0.03)', '--row-hair': 'rgba(255,255,255,0.07)', '--plate': 'rgba(255,255,255,0.035)', '--chip': 'rgba(255,255,255,0.06)', '--lift': '0 16px 34px rgba(0,0,0,0.38)', '--soft-bad': 'rgba(217,119,6,0.30)', '--soft-good': 'rgba(5,150,105,0.38)', '--good-soft': 'rgba(16,185,129,0.14)', '--bad-soft': 'rgba(217,119,6,0.14)', '--brand': '#FF4545', '--bp-accent': '#5EEAD4' }
-    : { '--bg': 'radial-gradient(circle at top center, #F6F7FA 0%, #ECEFF3 60%, #E5E8EE 100%)', '--bg-edge': '#E5E8EE', '--sheet': '#FBFCFD', '--sheet-edge': 'rgba(15,23,42,0.10)', '--l-shadow': 'rgba(15,23,42,0.035)', '--card': 'rgba(255,255,255,0.9)', '--card-edge': 'rgba(15,23,42,0.07)', '--base': '#FFFFFF', '--glass': 'rgba(255,255,255,0.82)', '--pill': '#FFFFFF', '--ghost': '#FFFFFF', '--text': '#0F172A', '--muted': '#64748B', '--hair': 'rgba(15,23,42,0.07)', '--hair-strong': 'rgba(15,23,42,0.12)', '--track': '#EEF2F6', '--tick': '#D9DEE6', '--grid': 'rgba(15,23,42,0.06)', '--ink': '#0F172A', '--ink-on': '#FFFFFF', '--row': '#FFFFFF', '--row-hair': 'rgba(15,23,42,0.08)', '--plate': '#F3F4F7', '--chip': '#F1F2F5', '--lift': '0 16px 34px rgba(15,23,42,0.09)', '--soft-bad': 'rgba(245,158,11,0.30)', '--soft-good': 'rgba(16,185,129,0.30)', '--good-soft': '#ECFDF5', '--bad-soft': '#FFFBEB', '--brand': '#E60000', '--bp-accent': '#0F766E' };
+  // the page's colours (insightsUi.js)
+  const vars = themeVars(isDark);
 
   let body;
   if (top) {
