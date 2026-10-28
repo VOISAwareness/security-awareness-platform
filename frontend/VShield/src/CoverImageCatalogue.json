@@ -1,0 +1,32 @@
+[
+  {
+    "CoverImageID": "CovImg-00001",
+    "CoverImagePng": "/src/pages/Scenarios/CovImg-001.png",
+    "CoverImageTags": "phish,phishing,credential,sso,login,lock,security,authentication",
+    "CreatedDate": "01/15/2026 10:30:00 AM"
+  },
+  {
+    "CoverImageID": "CovImg-00002",
+    "CoverImagePng": "/src/pages/Scenarios/CovImg-002.png",
+    "CoverImageTags": "urgent,bell,alert,warning,notification,action required,escalation",
+    "CreatedDate": "02/10/2026 11:15:00 AM"
+  },
+  {
+    "CoverImageID": "CovImg-00003",
+    "CoverImagePng": "/src/pages/Scenarios/CovImg-003.png",
+    "CoverImageTags": "finance,invoice,payment,bank,billing,vendor,money,wire transfer",
+    "CreatedDate": "03/05/2026 02:45:00 PM"
+  },
+  {
+    "CoverImageID": "CovImg-00004",
+    "CoverImagePng": "/src/pages/Scenarios/CovImg-004.png",
+    "CoverImageTags": "qr code,scan,mobile,mfa,token,authenticator,device,two factor",
+    "CreatedDate": "04/18/2026 09:20:00 AM"
+  },
+  {
+    "CoverImageID": "CovImg-00005",
+    "CoverImagePng": "/src/pages/Scenarios/CovImg-005.png",
+    "CoverImageTags": "cloud,sharepoint,document,file,drive,download,access,confidential",
+    "CreatedDate": "05/22/2026 04:10:00 PM"
+  }
+]
