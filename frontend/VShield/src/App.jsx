@@ -11,6 +11,9 @@ import HomeScreen from './Pages/HomeScreen/HomeScreen';
 import Scenarios from './Pages/Scenarios/Scenarios';
 import NewScenario from './Pages/Scenarios/ScenarioDeatils';
 
+// 🌟Training Page
+import Training from './Pages/Training/Training';
+
 // 🌟 Import MySpace Page
 import MySpace from './Pages/UserProfileandPointsScoreing/MySpace';
 
@@ -23,15 +26,19 @@ import EmailIDsAndDomains from './Pages/EmailIDsandDomains/EmailIDsAndDomains';
 // 🌟 Import Landing Page Catalogue Page
 import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalogue';
 
-// 🌟 Insights (the analytics page)
-import Insights from './Pages/Insights/Insights';
-
-// 🌟 Campaign lifecycle pages (wired to the backend)
-import Campaigns from './Pages/Campaigns/Campaigns';
+// 🌟 Import Requests and Approvals Page
 import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApprovals';
 
-// 🌟 Leaderboard (opened from My Space)
-import Leaderboard from './Pages/Leaderboard/Leaderboard';
+// 🌟 Dashboard and Analytics Page
+import DashboardAndAnalytics from './Pages/DashboardAndAnalytics/DashboardAndAnalytics';
+
+// 🌟 Campaigns Page
+import Campaigns from './Pages/Campaigns/Campaigns';
+
+// 🌟 MyTraining Page
+import MyTraining from './Pages/MyTraining/MyTraining';
+import TrainingDetails from './Pages/MyTraining/TrainingDetails';
+//import Training from './Pages/MyTraining/Training';
 
 // 🌟 Import Start New Campaign Page
 import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
@@ -45,6 +52,15 @@ import ReviewAndPublishCampaign from './Pages/StartCampaign/ReviewAndPublishCamp
 import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
 import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
 import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
+
+// 🌟 Announcement Page
+import Announcements from './Pages/Announcement/Announcement';
+import AnnouncementsDetailsAndSettings from './Pages/Announcement/AnnouncementsDetailsAndSettings';
+import AnnouncementsCampaignEmail from './Pages/Announcement/AnnouncementsCampaignEmail';
+import AnnouncementsReviewPublish from './Pages/Announcement/AnnouncementsReviewPublish';
+
+//Create New Announcement
+import AnnouncementScenarioDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementScenarioDetails';
 
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
@@ -114,22 +130,17 @@ function App() {
             {/* 🌟 Landing Page Catalogue Route */}
             <Route path="/landing-page-catalogue" element={<LandingPageCatalogue />} />
 
-            {/* 🌟 Campaign lifecycle (wired to the backend) */}
-            <Route path="/campaigns" element={<Campaigns />} />
+            {/* 🌟 Request And Approvals Route */}
             <Route path="/requests-approvals" element={<RequestAndApprovals />} />
 
-            {/* 🌟 Insights Route */}
-            <Route path="/analytics" element={<Insights />} />
+            {/* 🌟 Dashboard And Analytics Route */}
+            <Route path="/analytics" element={<DashboardAndAnalytics />} />
 
-            {/* 🌟 Leaderboard Route — opened from the My Space LEADERBOARD button (no nav item) */}
-            <Route
-              path="/leaderboard"
-              element={
-                <ProtectedRoute requiredScreen="leaderboard">
-                  <Leaderboard />
-                </ProtectedRoute>
-              }
-            />
+            {/* 🌟 Training LMS Page Route */}
+            <Route path="/training" element={<Training />} />
+
+            {/* 🌟 Campaigns Page Route */}
+            <Route path="/campaigns" element={<Campaigns />} />
             
             {/* 🌟 Start New Campaign Page Route */}
             <Route path="/start-campaign" element={<ChooseAScenario />} />
@@ -138,6 +149,17 @@ function App() {
             <Route path="/start-campaign/landing-page" element={<LandingPageDetails />} />
             <Route path="/start-campaign/training" element={<AddTrainingPath />} />
             <Route path="/start-campaign/review" element={<ReviewAndPublishCampaign />} />
+
+            <Route path="/my-training" element={<MyTraining />} />
+            <Route path="/my-training/details/:trainingPathID" element={<TrainingDetails />} />
+            <Route path="training" element={<Training />} />
+
+            {/* 🌟 Announcements Page Route */}
+            <Route path="/announcements" element={<Announcements />} />
+            <Route path="/announcements/details" element={<AnnouncementsDetailsAndSettings />} />
+            <Route path="/announcements/email" element={<AnnouncementsCampaignEmail />} />
+            <Route path="/announcements/review" element={<AnnouncementsReviewPublish />} />
+            <Route path="/new-announcement-details" element={<AnnouncementScenarioDetails />} />
 
             {/* 🌟 User Lists & DLs Suite */}
             <Route path="/user-dls" element={<UserDLsLandingPage />} />
