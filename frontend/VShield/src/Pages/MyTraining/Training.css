@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+/* Dynamic Roundedness & Theme Variables */
+:root {
+  --overall-corner-roundedness: 0.7;
+  --l-wall-x: 110; /* Configurable vertical notched part of the L-shape (set to 110 for ideal snug fit) */
+}
+
+/* Scopes for specific containers to override roundedness or hover scaling */
+.requests-and-approvals-wrapper {
+  --overall-corner-roundedness: 0.7;
+}
+
+.gallery-wrapper {
+  --overall-corner-roundedness: 0.6;
+}
+
+/* Global Font Helper Classes */
+.font-voda-exb {
+  font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
+  font-weight: 900;
+}
+
+.font-mono-tech {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Claymorphic Roundedness Scaling Classes */
+.rounded-3xl {
+  border-radius: calc(28px * var(--overall-corner-roundedness)) !important;
+}
+.rounded-2xl {
+  border-radius: calc(20px * var(--overall-corner-roundedness)) !important;
+}
+.rounded-xl {
+  border-radius: calc(14px * var(--overall-corner-roundedness)) !important;
+}
+.rounded-lg {
+  border-radius: calc(10px * var(--overall-corner-roundedness)) !important;
+}
+.rounded-md {
+  border-radius: calc(6px * var(--overall-corner-roundedness)) !important;
+}
+
+/* Keyframes & Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1.5deg);
+  }
+}
+
+.float-element {
+  animation: float 5s ease-in-out infinite;
+}
+
+@keyframes clay-entrance {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+    filter: brightness(0.9) blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+    filter: brightness(1) blur(0px);
+  }
+}
+
+.animate-clay-stagger-1 {
+  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 80ms;
+  opacity: 0;
+}
+
+.animate-clay-stagger-2 {
+  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 160ms;
+  opacity: 0;
+}
+
+.animate-clay-stagger-3 {
+  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 240ms;
+  opacity: 0;
+}
+
+.animate-clay-stagger-4 {
+  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 320ms;
+  opacity: 0;
+}
+
+/* Custom Scrollbars */
+.custom-light-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-light-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-light-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 99px;
+}
+
+.custom-light-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Navigation Capsule Buttons */
+.nav-capsule-btn {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.nav-capsule-btn:hover {
+  transform: scale(var(--btn-hover-scale, 1.0));
+}
+
+.nav-capsule-btn:active {
+  transform: scale(0.97);
+}
+
+/* Landing Page Card Snuggle/Modularity Layout */
+.clay-card-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  column-gap: 2rem;
+  row-gap: 2.5rem;
+  padding-bottom: 1.5rem;
+  width: 100%;
+  max-width: none;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0.5rem;
+  padding: 12px 16px 24px 16px; /* Added left/right padding to prevent hover scale cutoff */
+}
+
+@media (min-width: 768px) {
+  .clay-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.clay-card-container {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  overflow: visible;
+  border-radius: 24px;
+  display: flex;
+  user-select: none;
+  transition: all 0.3s ease-in-out;
+  cursor: pointer;
+  padding: 2px; /* Slight padding to parent to prevent hover scale overflow cuts */
+}
+
+.clay-card-square {
+  position: absolute;
+  top: 4px;
+  left: 0px; /* Aligned exactly at x = 0px as requested */
+  width: calc((var(--l-wall-x, 110) / 500 * 100%) - 10px); /* 10px snug gap from the dynamic vertical wall */
+  height: 140px;
+  border-radius: 20px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 10;
+  overflow: hidden;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.clay-card-text-content {
+  position: absolute;
+  left: calc((var(--l-wall-x, 110) / 500 * 100%) + 1.5%); /* Perfectly aligned dynamically just after the cutout */
+  right: 20px;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  z-index: 10;
+}
+
+.clay-card-footer {
+  position: absolute;
+  left: 20px; /* Aligned far on the left of the card */
+  right: 20px; /* Matches the right margin of the go here button */
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  padding-top: 12px;
+  z-index: 10;
+}
+
+.dark .clay-card-footer {
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+.badge {
+  height: 25px;
+  width: 25px;
+}
