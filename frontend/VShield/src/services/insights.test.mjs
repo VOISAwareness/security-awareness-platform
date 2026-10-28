@@ -152,16 +152,42 @@ test('department by lure: every pair adds up to the department and to the lure',
   assert.ok(m.campaigns.every((c) => c.departments.reduce((a, d) => a + d.recipients, 0) === c.delivered));
 });
 
-test('what changed: a short list, the most telling first, each opening its profile, never advice', () => {
-  const m = insights(ITEMS, { days: 30 });
-  const p = peopleInsights(ORG, { days: 30 });
-  const alone = standsOut(m);
-  assert.ok(alone.length >= 1 && alone.every((f) => f.view === 'lure'), 'without people, only the lures');
-  const list = standsOut(m, p);
-  assert.ok(list.length >= 4);
-  assert.ok(list.every((f) => ['department', 'lure', 'risk', 'training'].includes(f.view) && f.focus && f.chip && f.title && f.title.length <= 30 && ['bad', 'good', 'watch'].includes(f.tone)));
-  assert.ok(list.filter((f) => f.view === 'lure').every((f) => m.lures.some((l) => l.type === f.focus)));
-  assert.ok(list.filter((f) => f.view === 'department').every((f) => p.departments.some((d) => d.name === f.focus)));
-  const words = list.map((f) => `${f.title} ${f.sub}`).join(' ').toLowerCase();
-  assert.ok(!/\b(should|must|recommend|consider)\b/.test(words), 'reports, never advises');
+test('what changed: each row a before and an after from the data, the change between them, never a ranking or a verdict', () => {
+  for (const days of [30, 60, 90]) {
+    const m = insights(ITEMS, { days });
+    const p = peopleInsights(ORG, { days });
+    const alone = standsOut(m);
+    assert.ok(alone.length >= 1 && alone.every((f) => f.view === 'campaigns'), 'without people, only the campaigns\' measures');
+    const list = standsOut(m, p);
+    assert.ok(list.length >= 4, `${days} days: ${list.length} rows`);
+    for (const f of list) {
+      assert.ok(['department', 'risk', 'training', 'campaigns'].includes(f.view) && f.focus && f.title && f.title.length <= 30, f.id);
+      assert.ok(['good', 'bad'].includes(f.tone), f.id);
+      // a before and an after, as shown, and the chip is the difference of the two
+      assert.ok(f.before && f.after && f.before !== f.after, f.id);
+      assert.equal(f.sub, `${f.where} · ${f.before} → ${f.after}`);
+      const shown = (s) => Number(s.replace(/[,%×]/g, ''));
+      const by = shown(f.after) - shown(f.before);
+      const chip = Number(f.chip.replace('−', '-').replace(/[^\d.+-]/g, ''));
+      assert.ok(Math.abs(chip - by) < 1e-6, `${f.id}: ${f.chip} is ${f.after} less ${f.before}`);
+      assert.match(f.chip, /^[+−]\d[\d,.]* ?(pts|pp|people|×)$/, `${f.id}: ${f.chip} has its unit`);
+    }
+    assert.ok(list.filter((f) => f.view === 'department').every((f) => p.departments.some((d) => d.name === f.focus && d.name === f.where)));
+    // the precision the measure tiles use
+    for (const f of list.filter((x) => x.id.startsWith('risk'))) assert.match(`${f.before} ${f.after}`, /^\d+\.\d \d+\.\d$/);
+    const gave = list.find((f) => f.id === 'gave');
+    if (gave) {
+      assert.match(`${gave.before} ${gave.after}`, /^\d+\.\d% \d+\.\d%$/);
+      assert.equal(gave.after, `${((m.now.compromised / m.now.delivered) * 100).toFixed(1)}%`, 'gave details away is a share of the emails delivered');
+    }
+    const words = list.map((f) => `${f.title} ${f.sub}`).join(' ').toLowerCase();
+    assert.ok(!/\b(should|must|recommend|consider)\b/.test(words), 'reports, never advises');
+    assert.ok(!/\b(fooled|most|less|more|fewer|better|worse|highest|trained people)\b/.test(list.map((f) => f.title).join(' ').toLowerCase()), 'neutral names, no verdicts or rankings');
+  }
+  // the safer way is good, the riskier way bad
+  const p30 = standsOut(insights(ITEMS, { days: 30 }), peopleInsights(ORG, { days: 30 }));
+  assert.equal(p30.find((f) => f.id === 'riskFell')?.tone, 'good');
+  const p90 = standsOut(insights(ITEMS, { days: 90 }), peopleInsights(ORG, { days: 90 }));
+  assert.equal(p90.find((f) => f.id === 'riskRose')?.tone, 'bad');
+  assert.equal(p90.find((f) => f.id === 'perClick')?.tone, 'bad', 'a lower Resilience Ratio is riskier');
 });

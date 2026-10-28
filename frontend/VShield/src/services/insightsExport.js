@@ -18,7 +18,7 @@ const MEASURES = [
   [GLOSSARY.hookRate.name, 'hooked', 'pct', GLOSSARY.hookRate.how],
   [GLOSSARY.reportRate.name, 'reportRate', 'pct', GLOSSARY.reportRate.how],
   [GLOSSARY.perClick.name, 'perClick', 'dec', GLOSSARY.perClick.how],
-  ['Gave details away, of clicks', 'gaveOfClicks', 'pct', 'Of those who clicked, how many went on to enter details on the practice page'],
+  ['Of those who clicked, gave details away', 'gaveOfClicks', 'pct', 'Of those who clicked, how many went on to enter details on the practice page (not the share of emails delivered)'],
   ['First report (minutes)', 'firstReport', 'dec', 'Minutes from the send to the first report, in the middle campaign'],
   ['Half the reports in (minutes)', 'halfReported', 'dec', 'Minutes until half the reports were in, in the middle campaign'],
   ['Reported before a click', 'beatClick', 'int', 'Campaigns whose first report came before anyone clicked'],
@@ -26,7 +26,7 @@ const MEASURES = [
 ];
 
 /**
- * The full report. `m` is insights() output, `list` standsOut()'s,
+ * The full report. `m` is insights() output, `list` standsOut()'s (what changed),
  * `p` peopleInsights() output (or null), `training` the training programmes
  * ({ programmes }) or null.
  */
@@ -47,10 +47,10 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
         rows: MEASURES,
       } },
     ] },
-    { name: 'What stands out', blocks: [
-      ...head('What stands out', `${scope} · each opens its part of the page.`),
+    { name: 'What changed', blocks: [
+      ...head('What changed', `${scope} · each measure before and after: the Risk Score, people and training at the start of the period against now; the campaigns against the ${days} days before.`),
       { table: {
-        columns: [{ label: 'Number', value: (f) => f.chip, width: 16 }, { label: 'Finding', value: (f) => f.title, width: 60 }, { label: 'In short', value: (f) => f.sub, width: 50 }],
+        columns: [{ label: 'Change', value: (f) => f.chip, width: 16 }, { label: 'Measure', value: (f) => f.title, width: 30 }, { label: 'Before → after', value: (f) => f.sub, width: 50 }],
         rows: list,
       } },
     ] },
@@ -62,7 +62,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
           { label: 'Campaigns', value: (l) => l.campaigns, kind: 'int', width: 11 },
           { label: 'Delivered', value: (l) => l.delivered, kind: 'int', width: 11 },
           { label: 'Hook Rate', value: (l) => l.hooked, kind: 'pct', width: 11 },
-          { label: 'Gave details away, of clicks', value: (l) => l.gaveOfClicks, kind: 'pct', width: 16 },
+          { label: 'Of those who clicked, gave details away', value: (l) => l.gaveOfClicks, kind: 'pct', width: 18 },
           { label: 'Report Rate', value: (l) => l.reportRate, kind: 'pct', width: 11 },
           { label: GLOSSARY.perClick.name, value: (l) => l.perClick, kind: 'dec', width: 12 },
           { label: 'Learning moments', value: (l) => l.learned, kind: 'pct', width: 12 },
@@ -133,10 +133,10 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
   if (p) {
     const tierName = { low: 'Low', moderate: 'Moderate', high: 'High', critical: 'Critical' };
     sheets.push({ name: 'People and risk', blocks: [
-      ...head('People and risk', `${scope} · each person's risk tier from their phishing record (low: reported and never clicked; moderate: clicked once or never reported; high: clicked more than once; critical: gave details away). The risk score is everyone's tier on 0 to 100, averaged.`),
+      ...head('People and risk', `${scope} · each person's risk level from their phishing record (low: reported and never clicked; moderate: clicked once or never reported; high: clicked more than once; critical: gave details away). The ${GLOSSARY.riskScore.name} is everyone's level on 0 to 100, averaged.`),
       { table: {
         columns: [
-          { label: 'Risk tier', value: (t) => tierName[t], width: 14 },
+          { label: 'Risk level', value: (t) => tierName[t], width: 14 },
           { label: 'People now', value: (t) => p.now.tiers[t], kind: 'int', width: 12 },
           { label: 'Share now', value: (t) => p.now.tiers[t] / p.now.people, kind: 'pct', width: 11 },
           { label: 'At the start', value: (t) => (p.before ? p.before.tiers[t] : '—'), kind: 'int', width: 12 },
@@ -147,15 +147,15 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
       { heading: 'What drives the risk' },
       { table: {
         columns: [{ label: 'Driver', value: (x) => x[0], width: 28 }, { label: 'People', value: (x) => p.now.drivers[x[1]], kind: 'int', width: 11 }, { label: 'At the start', value: (x) => (p.before ? p.before.drivers[x[1]] : '—'), kind: 'int', width: 12 }],
-        rows: [['Repeat clickers', 'repeatClickers'], ['Never reported', 'neverReported'], ['Overdue training', 'overdueTraining'], ['Failed the quiz more than once', 'quizFailures']],
+        rows: [['Repeat clickers', 'repeatClickers'], ['Never reported', 'neverReported'], ['Overdue training', 'overdueTraining'], ['Failed the quiz again', 'quizFailures']],
       } },
       { gap: true },
-      { heading: 'Risk score, thirty days at a time' },
+      { heading: `${GLOSSARY.riskScore.name}, thirty days at a time` },
       { table: {
         columns: [
           { label: 'Thirty days to', value: (x) => new Date(x.to).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }), width: 14 },
-          { label: 'Risk score', value: (x) => x.score, kind: 'dec', width: 11 },
-          { label: 'High-risk people', value: (x) => x.highRisk, kind: 'int', width: 14 },
+          { label: GLOSSARY.riskScore.name, value: (x) => x.score, kind: 'dec', width: 11 },
+          { label: GLOSSARY.highRisk.name, value: (x) => x.highRisk, kind: 'int', width: 14 },
         ],
         rows: p.trend,
       } },
@@ -166,9 +166,9 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
         columns: [
           { label: 'Department', value: (d) => d.name, width: 28 },
           { label: 'People', value: (d) => d.people, kind: 'int', width: 10 },
-          { label: 'Risk score', value: (d) => d.score, kind: 'dec', width: 11 },
+          { label: GLOSSARY.riskScore.name, value: (d) => d.score, kind: 'dec', width: 11 },
           { label: 'At the start', value: (d) => (d.scoreBefore === null ? '—' : { value: d.scoreBefore, kind: 'dec' }), width: 12 },
-          { label: 'High-risk people', value: (d) => d.highRisk, kind: 'int', width: 14 },
+          { label: GLOSSARY.highRisk.name, value: (d) => d.highRisk, kind: 'int', width: 14 },
           { label: 'Hook Rate', value: (d) => cell(m.departments.find((x) => x.name === d.name), 'clickRate', 'pct'), width: 11 },
           { label: 'Report Rate', value: (d) => cell(m.departments.find((x) => x.name === d.name), 'reportRate', 'pct'), width: 11 },
           { label: 'Training completed', value: (d) => cell(d.training, 'completion', 'pct'), width: 14 },
@@ -215,7 +215,7 @@ export function insightsSummary(m, list, title = 'Insights') {
     `${n.campaigns} campaigns, ${n.delivered.toLocaleString('en-US')} emails delivered. Programme health: ${n.health ? healthWord(n.health.word).toLowerCase() : '—'}, ${GLOSSARY.perClick.name} ${per}×.`,
     `Hook Rate ${pc(n.hooked)}, Report Rate ${pc(n.reportRate)}, first report after ${n.firstReport ?? '—'} min, learning moments ${pc(n.learned)}.`,
     '',
-    'What stands out:',
+    'What changed:',
     ...list.map((f) => `- ${f.title}: ${f.sub} (${f.chip}).`),
   ].join('\n');
 }
