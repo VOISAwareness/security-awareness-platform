@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
   ExternalLink,
@@ -8,36 +8,7 @@ import {
   X
 } from 'lucide-react';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
-import { api } from '../../services/api';
-import { openCampaignDraft, parkCampaignDraft, useCampaignDraft } from '../../services/useCampaignDraft';
-import { useCampaigns } from '../../services/useCampaigns';
-import { currentActor } from '../../services/identity';
-import { scenariosForViewer } from '../../services/scenarioOwnership';
-import { editedScenarioIds, readScenarioDraftItems } from '../../services/scenarioDraftSync';
-import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
-import {
-  BACK_TO_STEP_1,
-  IN_WIZARD,
-  START_FRESH_ID,
-  draftLabel,
-  hasProgress,
-  isOwnDraft,
-  latestSavedFirst,
-  routeForStep,
-  savedStep,
-  shouldOfferResume,
-  stepName,
-  templatePatch,
-  templatePick
-} from '../../services/campaignWizard';
-import DraftDialog from '../../GlobalComponents/DraftDialog';
-import DraftCards from '../../GlobalComponents/DraftCards';
-import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
-import ViewTabs from '../../GlobalComponents/ViewTabs';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
-import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
-import { DEMO_USER } from '../../appConfig';
-import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -70,13 +41,6 @@ export const CAMPAIGN_STEPS = [
   { id: 'training', step: 5, titleLine1: 'Add Training', titleLine2: 'Path', path: '/start-campaign/training' },
   { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish', path: '/start-campaign/review' }
 ];
-
-// Campaign drafts show the Scenarios drafts' art, turned from orange to blue,
-// so the two kinds of draft match without being mistaken for each other.
-const CAMPAIGN_DRAFT_ART_TINT = 'hue-rotate-[200deg]';
-
-// "Start Complete Fresh" goes through the same path as a scenario card.
-const START_FRESH = { scenarioId: START_FRESH_ID, scenarioName: 'Start Fresh' };
 
 // Difficulty colors exact to canvas design
 const DIFFICULTY_THEMES = {
@@ -139,72 +103,7 @@ const getScenarioImage = (coverImageId) => {
 
 const ChooseAScenario = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const fromWizard = Boolean(location.state?.fromWizard);
-  // Back from step 2: still working on the campaign in progress (a template
-  // picked here changes it). Arriving any other way, a template starts a new one.
-  const editingCampaign = Boolean(location.state?.editingCampaign);
   const userContext = useUserType?.() || {};
-
-  // The wizard draft now lives on the server; `draft` is null until it loads.
-  // Writes made before then are safe: flush() waits for the load.
-  // Lazy: nothing is saved until a template or Start fresh is picked, so
-  // opening this page never leaves an empty draft behind.
-  const { draft, loading, error: draftError, update, flush, startNew, campaignId } = useCampaignDraft({ lazy: true });
-
-  // ---------------------------------------------------------------------------
-  // Create new | Drafts: start a campaign from a template or Start fresh, or
-  // carry on with one of this person's unfinished campaigns (as listed under
-  // Campaigns → Drafts). Same switch as the Scenarios page. Drafts with nothing
-  // of the user's in them (hasProgress) are not listed: a blank one left by
-  // older versions, or one only opened from a template, which the next
-  // template reuses.
-  // ---------------------------------------------------------------------------
-  // "Save as draft" on a later step lands here on the Drafts tab, saying so.
-  const [view, setView] = useState(() => (location.state?.view === 'drafts' ? 'drafts' : 'all')); // 'all' | 'drafts'
-  const [savedNotice, setSavedNotice] = useState(() => location.state?.savedDraft || '');
-  // Used once: a reload is an ordinary visit again (and, like the other
-  // in-wizard arrivals, browser Back does not ask "Continue your campaign?").
-  useEffect(() => {
-    if (location.state?.view || location.state?.savedDraft) {
-      navigate(location.pathname, { replace: true, ...IN_WIZARD });
-    }
-  }, [location.state, location.pathname, navigate]);
-  useEffect(() => {
-    if (!savedNotice) return undefined;
-    const timer = setTimeout(() => setSavedNotice(''), 6000);
-    return () => clearTimeout(timer);
-  }, [savedNotice]);
-  const {
-    campaigns: draftCampaigns,
-    loading: draftsLoading,
-    pendingAction: draftAction,
-    remove: removeCampaign,
-  } = useCampaigns({ status: 'DRAFT' });
-  const [draftsError, setDraftsError] = useState('');
-  const actorEmail = currentActor();
-  // The one saved most recently first (the one in progress is put first by the cards).
-  const myDrafts = latestSavedFirst(
-    draftCampaigns.filter((c) => c.status === 'DRAFT' && isOwnDraft(c, actorEmail) && hasProgress(c))
-  );
-  // Open a draft on the step it was saved on, as Campaigns → Drafts does.
-  const continueCampaignDraft = (id) => {
-    const camp = myDrafts.find((c) => c.campaignId === id);
-    openCampaignDraft(id);
-    navigate(routeForStep(savedStep(camp)), IN_WIZARD);
-  };
-
-  const deleteCampaignDraft = async (id) => {
-    setDraftsError('');
-    try {
-      await removeCampaign(id);
-      // The draft this page was working on is gone: carry on with a fresh,
-      // not-yet-saved one (it is created by the next choice).
-      if (id === campaignId) await startNew();
-    } catch (e) {
-      setDraftsError(e?.message || 'Could not delete that draft.');
-    }
-  };
 
   // Theme check
   const [isDark, setIsDark] = useState(() => {
@@ -231,237 +130,107 @@ const ChooseAScenario = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Normalise a scenario row for display. Sorted by id because a DynamoDB scan
-  // returns no guaranteed order (and the cover-image fallback is index-based).
-  const normaliseScenarios = (rows) =>
-    [...(rows || [])]
-      .sort((a, b) => String(a.scenarioId).localeCompare(String(b.scenarioId)))
-      .map((s, idx) => ({
-        ...s,
-        difficulty: s.difficulty || 'Medium',
-        CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
-        CoverImageID: s.CoverImageID || `CovImg-${String(idx + 1).padStart(3, '0')}.png`
-      }));
+  // Read scenarios from ScenariosData.json & map CoverImageID dynamically
+  const scenariosList = (scenariosJsonData?.scenarios || []).map((s, idx) => ({
+    ...s,
+    difficulty: s.difficulty || 'Medium',
+    CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
+    CoverImageID: s.CoverImageID || `CovImg-${String(idx + 1).padStart(3, '0')}.png`
+  }));
 
-  // Scenarios come from the API (bundled JSON is only an offline fallback).
-  const [scenariosList, setScenariosList] = useState([]);
-  const [scenariosLoading, setScenariosLoading] = useState(true);
-
-  // Selected State — back from step 2, seeded from the campaign being worked on
-  // once it arrives; otherwise the first scenario once the list has loaded.
-  const [selectedScenarioId, setSelectedScenarioId] = useState('');
-
-  // Seed from the draft exactly once. Set the moment the user picks a card too,
-  // so a late-arriving draft never overrides a deliberate choice.
-  const scenarioSeededRef = useRef(false);
-
-  const pickScenario = (scenarioId) => {
-    scenarioSeededRef.current = true;
-    setSelectedScenarioId(scenarioId);
-  };
-
-  useEffect(() => {
-    if (!draft || scenarioSeededRef.current) return;
-    scenarioSeededRef.current = true;
-    // Same defaulting as before: only a saved scenarioId wins; otherwise the
-    // "first scenario in the list" fallback below stands. A campaign that is
-    // not being worked on here is not what a template click continues.
-    if (editingCampaign && draft.scenarioId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time seed of local state from the async draft
-      setSelectedScenarioId(draft.scenarioId);
+  // Selected State
+  const [selectedScenarioId, setSelectedScenarioId] = useState(() => {
+    try {
+      const draft = localStorage.getItem('voisshield_active_campaign_draft');
+      return draft ? JSON.parse(draft)?.scenarioId || scenariosList[0]?.scenarioId : scenariosList[0]?.scenarioId;
+    } catch {
+      return scenariosList[0]?.scenarioId;
     }
-  }, [draft, editingCampaign]);
-
-  useEffect(() => {
-    let active = true;
-    const viewer = currentActor();
-    const apply = (rows, editing) => {
-      if (!active) return;
-      setScenariosLoading(false);
-      // An older API sends every row, unannotated: keep what this person may see,
-      // less what they are editing (under Scenarios -> Drafts) until it is saved.
-      const list = normaliseScenarios(scenariosForViewer(rows, viewer)).filter(
-        (s) => !editing.has(String(s.scenarioId))
-      );
-      setScenariosList(list);
-      setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
-    };
-    // What this person may use: the templates, their own scenarios and their
-    // saved edited versions (a pending edit of a shared one stands in for it).
-    // A scenario of theirs with an unfinished edit is a draft for now, and
-    // drafts are never picked; a template always can be.
-    const editing = readScenarioDraftItems(api, viewer)
-      .then(editedScenarioIds)
-      .catch(() => new Set());
-    api.scenarios
-      .list({ viewer })
-      .then(async (rows) => apply(rows, await editing))
-      .catch(async (e) => {
-        console.error('Failed to load scenarios', e);
-        apply(scenariosJsonData?.scenarios || [], await editing);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  });
 
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
 
-  const findScenario = (scenarioId) =>
-    scenariosList.find((s) => s.scenarioId === scenarioId) || null;
+  // Auto-fill campaign draft & navigate to step 2
+  const handleUseScenario = (scenario) => {
+    setSelectedScenarioId(scenario.scenarioId);
 
-  // A draft card takes the colour of the template it came from, and the draft
-  // art of the Scenarios Drafts tab, tinted blue for campaigns.
-  const draftItems = myDrafts.map((c) => {
-    const step = savedStep(c);
-    const fresh = Boolean(c.isStartFresh) || c.scenarioId === START_FRESH_ID;
-    const template = fresh ? null : findScenario(c.scenarioId);
-    return {
-      id: c.campaignId,
-      code: c.campaignId,
-      title: draftLabel(c),
-      description:
-        String(c.campaignDescription || '').trim() ||
-        (c.scenarioName ? `Template: ${c.scenarioName}` : ''),
-      savedAt: c.updatedAt || c.createdAt,
-      step,
-      stepCount: 6,
-      stepName: stepName(step),
-      inProgress: c.campaignId === campaignId,
-      busy: draftAction === c.campaignId,
-      theme: template ? DIFFICULTY_THEMES[template.difficulty] || DIFFICULTY_THEMES.Low : NEUTRAL_DRAFT_THEME,
-      image: draftArt,
-      imageClassName: CAMPAIGN_DRAFT_ART_TINT,
-    };
-  });
-
-  // Coming back to the wizard from outside it: offer to continue the user's own
-  // campaign, left part-way, rather than silently dropping them on step 1.
-  // Asked once per campaign: after any answer it is simply a draft (Campaigns
-  // -> Drafts), and only a change to its content since then asks again (moving
-  // between steps is not a change; see resumePrompt.js). A campaign saved with
-  // "Save as draft" or opened from Drafts is never asked about.
-  // Closing the question (✕, Esc or a click outside) is "not now": the
-  // campaign stays as it is under Drafts and is not asked about again. Picking
-  // a template afterwards does not ask either: it starts a new campaign.
-  const resumeVersions = useMemo(() => campaignContentVersions(draft), [draft]);
-  const draftId = draft?.campaignId || '';
-  const askedBefore = Boolean(draftId) && wasAsked('campaign', draftId, resumeVersions);
-  const offerResume = !fromWizard && !loading && shouldOfferResume(draft) && !askedBefore;
-  const resumeStep = savedStep(draft);
-  const markResumeAnswered = () => markAsked('campaign', draftId, resumeVersions);
-
-  // Asked about before the wizard copied the template's landing page in:
-  // remember it as it is now, so a later edit to that page is a change.
-  const currentVersion = resumeVersions[0];
-  useEffect(() => {
-    if (askedBefore) markAsked('campaign', draftId, currentVersion);
-  }, [askedBefore, draftId, currentVersion]);
-
-  // Either choice also replaces this history entry with an in-wizard one, so
-  // browser Back never asks again.
-  const handleContinue = () => {
-    markResumeAnswered();
-    navigate(routeForStep(resumeStep), { replace: true, ...IN_WIZARD });
-  };
-
-  // The saved campaign is left exactly as it is (still a DRAFT, listed under
-  // Campaigns -> Drafts); this user simply gets a brand-new one.
-  const handleStartNew = async () => {
-    markResumeAnswered();
-    navigate(location.pathname, { replace: true, ...IN_WIZARD });
-    pickScenario(scenariosList[0]?.scenarioId || '');
-    await startNew();
-  };
-
-  // "Not now": nothing is written and the page stays as it is.
-  const handleNotNow = () => {
-    markResumeAnswered();
-    navigate(location.pathname, { replace: true, ...IN_WIZARD });
-  };
-
-  // A template the user asked for while the draft already holds their own email,
-  // landing page or training edits; confirmed in the "Replace your edits?" dialog.
-  const [replaceTarget, setReplaceTarget] = useState(null);
-
-  const goToDetails = async (fields) => {
     try {
-      update({ ...fields, wizardStep: 2 });
-      await flush();
+      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
+      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
+
+      const updatedDraft = {
+        ...draftObj,
+        isStartFresh: false,
+        scenarioId: scenario.scenarioId,
+        scenarioName: scenario.scenarioName,
+        campaignTitle: draftObj.campaignTitle || scenario.scenarioName,
+        campaignDescription: draftObj.campaignDescription || scenario.description,
+        campaignType: scenario.campaignType,
+        targetAudience: scenario.targetAudience,
+        difficulty: scenario.difficulty,
+        motivator: scenario.motivator,
+        senderEmailId: scenario.senderEmailId,
+        senderName: scenario.senderName,
+        emailSubject: scenario.emailSubject,
+        emailBody: scenario.emailBody || '',
+        landingPageId: scenario.landingPageId || 'LP-001',
+        trainingId: scenario.trainingId || 'TP-001',
+        CoverImageID: scenario.CoverImageID
+      };
+
+      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updatedDraft));
     } catch (e) {
       console.error(e);
     }
 
     if (detailModalItem) setDetailModalItem(null);
-    // Browser Back from step 2 lands here as the Back button does: no "Continue
-    // your campaign?" question, and still working on this campaign.
-    if (!editingCampaign) navigate(location.pathname, { replace: true, ...BACK_TO_STEP_1 });
-    navigate('/start-campaign/details', IN_WIZARD);
-  };
-
-  // Copy the template into the user's own campaign. Templates are read-only
-  // here: only the campaign draft is ever written.
-  const applyTemplate = (scenario) =>
-    goToDetails(templatePatch(scenario, draft || {}, findScenario(draft?.scenarioId)));
-
-  // "Use This" / "Let's Go" starts a new campaign from the template; a
-  // campaign in progress is left as it is under Drafts. Back from step 2 it
-  // changes the campaign being worked on instead: picking its own scenario
-  // keeps every edit, and switching to another one replaces the email, landing
-  // page and training, so it asks first when the user has changed any of them.
-  const handleUseScenario = async (scenario) => {
-    // Until the draft is known nothing can be compared, so nothing is applied.
-    if (!scenario || loading) return;
-    pickScenario(scenario.scenarioId);
-    const pick = templatePick({
-      editing: editingCampaign,
-      draft,
-      scenarioId: scenario.scenarioId,
-      previous: findScenario(draft?.scenarioId),
-    });
-    // A campaign in progress that could not be read right now is not
-    // continued either: the template still starts a new one.
-    const unread = !editingCampaign && !draft && Boolean(draftError);
-    if (pick === 'new' || unread) {
-      parkCampaignDraft(draft);
-      await startNew();
-      await goToDetails(templatePatch(scenario, {}, null));
-      return;
-    }
-    if (pick === 'same') {
-      await goToDetails({});
-      return;
-    }
-    if (pick === 'confirm') {
-      setReplaceTarget(scenario);
-      return;
-    }
-    await applyTemplate(scenario);
+    navigate('/start-campaign/details');
   };
 
   // Start from scratch / Start Fresh (Blank canvas: clears all template defaults)
-  const handleStartFresh = () => handleUseScenario(START_FRESH);
+  const handleStartFresh = () => {
+    setSelectedScenarioId('start-fresh');
 
-  const handleConfirmReplace = async () => {
-    const scenario = replaceTarget;
-    setReplaceTarget(null);
-    await applyTemplate(scenario);
+    try {
+      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
+      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
+
+      const freshDraft = {
+        ...draftObj,
+        isStartFresh: true,
+        scenarioId: 'start-fresh',
+        scenarioName: 'Start Fresh',
+        campaignTitle: '',
+        campaignDescription: '',
+        campaignType: 'Custom',
+        targetAudience: 'All Employees',
+        difficulty: 'Medium',
+        motivator: '',
+        senderEmailId: '',
+        senderName: '',
+        emailSubject: '',
+        emailBody: '',
+        landingPageId: '',
+        trainingId: '',
+        CoverImageID: ''
+      };
+
+      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(freshDraft));
+    } catch (e) {
+      console.error(e);
+    }
+
+    navigate('/start-campaign/details');
   };
 
-  // Nothing is written; the highlight goes back to the campaign's scenario.
-  const handleKeepEdits = () => {
-    setReplaceTarget(null);
-    pickScenario(draft?.scenarioId || scenariosList[0]?.scenarioId || '');
-  };
-
-  const handleNextStep = async () => {
-    if (selectedScenarioId === START_FRESH_ID) {
-      await handleStartFresh();
+  const handleNextStep = () => {
+    if (selectedScenarioId === 'start-fresh') {
+      handleStartFresh();
       return;
     }
     const selected = scenariosList.find((s) => s.scenarioId === selectedScenarioId) || scenariosList[0];
-    await handleUseScenario(selected);
+    handleUseScenario(selected);
   };
 
   return (
@@ -486,18 +255,9 @@ const ChooseAScenario = () => {
               Start New Campaign
             </h1>
           </div>
-          {/* Create new | Drafts (same switch as the Scenarios page) */}
-          <ViewTabs
-            variant="header"
-            ariaLabel="Start new campaign view"
-            isDark={isDark}
-            value={view}
-            onChange={setView}
-            tabs={[
-              { id: 'all', label: 'Create new' },
-              { id: 'drafts', label: 'Drafts', count: draftItems.length },
-            ]}
-          />
+          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
+            -- Start a new campaign
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -508,10 +268,6 @@ const ChooseAScenario = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          {/* Covered while the view's own data is on its way: the templates and
-              this person's draft (Create new), or their saved campaigns (Drafts). */}
-          <PageLoading show={view === 'all' ? scenariosLoading || loading : draftsLoading} isDark={isDark} />
-
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
@@ -562,18 +318,16 @@ const ChooseAScenario = () => {
           </div>
 
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
-          {view === 'all' ? (
-          <>
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
-              onClick={() => pickScenario(START_FRESH_ID)}
+              onClick={() => setSelectedScenarioId('start-fresh')}
               className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px] h-[270px] shadow-2xs hover:shadow-md ${
                 isDark 
                   ? 'bg-white text-black border-slate-200' 
                   : 'bg-black text-white border-black/20'
-              } ${selectedScenarioId === START_FRESH_ID ? 'ring-1 ring-[#e66565]' : ''}`}
+              } ${selectedScenarioId === 'start-fresh' ? 'ring-1 ring-[#e66565]' : ''}`}
             >
               {/* Top Bar: "No Template Needed" Badge with Green Dot */}
               <div className="flex items-center justify-between mb-1.5 z-10">
@@ -644,7 +398,7 @@ const ChooseAScenario = () => {
               return (
                 <div
                   key={scenario.scenarioId}
-                  onClick={() => pickScenario(scenario.scenarioId)}
+                  onClick={() => setSelectedScenarioId(scenario.scenarioId)}
                   style={{
                     backgroundColor: isDark ? theme.bgDark : theme.bgLight,
                     borderColor: isSelected ? '#e66565' : isDark ? theme.borderDark : theme.border
@@ -727,32 +481,6 @@ const ChooseAScenario = () => {
               );
             })}
           </div>
-          </>
-          ) : (
-            // No right padding here: the cards' own scroll area adds it, so the
-            // drafts are exactly as wide as the template cards.
-            <div className="flex-1 min-h-0 flex flex-col p-4 pr-0 sm:p-3 sm:pr-0 mt-1 mb-3">
-              {savedNotice && (
-                <span
-                  role="status"
-                  className="mb-2 self-start px-3 py-1.5 rounded-lg text-[10.5px] font-bold bg-[#8ED973]/15 text-[#2F7A17] dark:text-[#A6E88E]"
-                >
-                  Saved to Drafts: {savedNotice}. Continue it any time from its card.
-                </span>
-              )}
-              {draftsError && (
-                <span role="alert" className="mb-2 text-[10px] font-bold text-[#E60000]">{draftsError}</span>
-              )}
-              <DraftCards
-                items={draftItems}
-                loading={draftsLoading}
-                isDark={isDark}
-                onContinue={continueCampaignDraft}
-                onDelete={deleteCampaignDraft}
-                emptyText="A campaign you start and leave before submitting is kept here."
-              />
-            </div>
-          )}
         </div>
 
         {/* ========================================================================= */}
@@ -922,8 +650,8 @@ const ChooseAScenario = () => {
                   className="bg-white p-5 rounded-xl shadow-xs border border-slate-200"
                   dangerouslySetInnerHTML={{
                     __html: previewEmailHtml
-                      .replace(/{{userName}}/g, DEMO_USER.name)
-                      .replace(/{{email}}/g, DEMO_USER.email)
+                      .replace(/{{userName}}/g, 'Abhay H S')
+                      .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
                       .replace(/{{department}}/g, 'AI & Data Analytics')
                       .replace(/{{phishLink}}/g, '#training')
                   }}
@@ -933,44 +661,6 @@ const ChooseAScenario = () => {
           </div>
         )}
       </div>
-
-      <DraftDialog
-        open={offerResume}
-        isDark={isDark}
-        title="Continue your campaign?"
-        body="You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way."
-        detail={
-          <>
-            <span className="block">{draftLabel(draft)}</span>
-            <span className="block mt-0.5 font-medium opacity-80">
-              Saved at step {resumeStep} of 6: {stepName(resumeStep)}
-            </span>
-          </>
-        }
-        primaryLabel="Continue"
-        onPrimary={handleContinue}
-        secondaryLabel="Start new"
-        onSecondary={handleStartNew}
-        onClose={handleNotNow}
-        onDismiss={handleNotNow}
-      />
-
-      <DraftDialog
-        open={Boolean(replaceTarget)}
-        isDark={isDark}
-        tone="warning"
-        title="Replace your edits?"
-        body="Your campaign's email, landing page and training will be replaced by the ones in this template. Your schedule and recipient list stay as they are, and the template itself is not changed."
-        detail={
-          replaceTarget?.scenarioId === START_FRESH_ID
-            ? 'Start fresh: blank email, landing page and training'
-            : `Template: ${replaceTarget?.scenarioName || replaceTarget?.scenarioId || ''}`
-        }
-        primaryLabel="Replace with template"
-        onPrimary={handleConfirmReplace}
-        secondaryLabel="Keep my edits"
-        onSecondary={handleKeepEdits}
-      />
     </>
   );
 };

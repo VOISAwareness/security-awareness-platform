@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { useCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD } from '../../services/campaignWizard';
 import {
   Check,
   ExternalLink,
@@ -23,10 +21,6 @@ import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import videoBottomAsset from '../../assets/VideoImageStartACampaign.png';
 import quizBottomAsset from '../../assets/QuizImageStartANewCampaign.png';
 import certBottomAsset from '../../assets/CertificateImageStartANewCampaign.png';
-import { DEMO_USER } from '../../appConfig';
-import PageLoading from '../../GlobalComponents/PageLoading';
-import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
-import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -129,9 +123,15 @@ const AddTrainingPath = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Server-backed draft from prior steps (loads asynchronously).
-  const { draft: serverDraft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
-  const draft = serverDraft || {};
+  // Read saved draft from prior steps
+  const [draft, setDraft] = useState(() => {
+    try {
+      const stored = localStorage.getItem('voisshield_active_campaign_draft');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Strict Start Fresh Detection
   const isStartFresh =
@@ -144,22 +144,13 @@ const AddTrainingPath = () => {
     ? (scenariosJsonData?.scenarios || []).find((s) => s.scenarioId === draft.scenarioId) || scenariosJsonData?.scenarios?.[0]
     : null;
 
-  // Selected Training Path ID: None preselected if Start Fresh unless explicitly chosen by user.
-  // Safe default while the draft is still loading; seeded once it arrives.
-  const [selectedPathId, setSelectedPathId] = useState(null);
-
-  // The draft is fetched asynchronously, so the original preselection logic runs
-  // when it lands. Seeded only once so a later save cannot clobber a user pick.
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (!serverDraft || seededRef.current) return;
-    seededRef.current = true;
-    setSelectedPathId(
-      isStartFresh
-        ? (serverDraft.trainingPathAttachedByUser ? (serverDraft.trainingId || null) : null)
-        : (serverDraft.trainingId || matchedScenario?.trainingId || 'TP-00001')
-    );
-  }, [serverDraft, isStartFresh, matchedScenario]);
+  // Selected Training Path ID: None preselected if Start Fresh unless explicitly chosen by user
+  const [selectedPathId, setSelectedPathId] = useState(() => {
+    if (isStartFresh) {
+      return draft.trainingPathAttachedByUser ? (draft.trainingId || null) : null;
+    }
+    return draft.trainingId || matchedScenario?.trainingId || 'TP-00001';
+  });
 
   // Validation toaster message state
   const [errorMsg, setErrorMsg] = useState('');
@@ -182,19 +173,28 @@ const AddTrainingPath = () => {
   const [previewQuizModal, setPreviewQuizModal] = useState(null);
   const [previewCertModal, setPreviewCertModal] = useState(null);
 
+  // Persist draft updates
+  const persistChanges = (fields) => {
+    try {
+      const current = localStorage.getItem('voisshield_active_campaign_draft');
+      const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
+      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSelectPath = (path) => {
-    // An explicit pick always wins, even if the draft is still in flight.
-    seededRef.current = true;
     setSelectedPathId(path.TrainingPathID);
     setErrorMsg('');
-    update({
+    persistChanges({
       trainingPathAttachedByUser: true,
       trainingId: path.TrainingPathID,
       trainingPathName: path.TrainingPathName
     });
   };
 
-  const handleProceed = async () => {
+  const handleProceed = () => {
     if (!selectedPathId) {
       setErrorMsg('Please select a Training Path to proceed');
       return;
@@ -204,25 +204,17 @@ const AddTrainingPath = () => {
       setErrorMsg('Please select a Training Path to proceed');
       return;
     }
-    update({
+    persistChanges({
       trainingPathAttachedByUser: true,
       trainingId: activePath.TrainingPathID,
       trainingPathName: activePath.TrainingPathName
     });
-    await flush().catch(() => {});
-    navigate('/start-campaign/review', IN_WIZARD);
+    navigate('/start-campaign/review');
   };
 
-  // Back does not persist anything new — the selection is saved on click — but
-  // any debounced save still pending must land before we leave.
-  const handleGoBack = async () => {
-    await flush().catch(() => {});
-    navigate('/start-campaign/landing-page', IN_WIZARD);
+  const handleGoBack = () => {
+    navigate('/start-campaign/landing-page');
   };
-
-  // The selection is saved on click: save anything pending and leave the
-  // campaign under Drafts.
-  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, update, flush, onError: setErrorMsg });
 
   const stepsList = CAMPAIGN_STEPS || [
     { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario' },
@@ -318,9 +310,6 @@ const AddTrainingPath = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          {/* The campaign is on its way from the server. */}
-          <PageLoading show={draftLoading} isDark={isDark} />
-
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
@@ -537,7 +526,6 @@ const AddTrainingPath = () => {
 
               {/* Bottom Action Bar */}
               <div className="flex items-center justify-end gap-2.5 pt-2 -mt-2 border-black/5 dark:border-white/10">
-                <SaveDraftButton onClick={() => saveAsDraft()} busy={savingDraft} disabled={draftLoading} />
                 <button
                   type="button"
                   onClick={handleGoBack}
@@ -1039,7 +1027,7 @@ const AddTrainingPath = () => {
                   <iframe
                     title="Certificate Preview"
                     srcDoc={previewCertModal['Certificate(html)']
-                      ?.replace(/{{userName}}/g, draft.userName || DEMO_USER.name)
+                      ?.replace(/{{userName}}/g, draft.userName || 'Abhay H S')
                       ?.replace(/{{trainingPathName}}/g, detailItem?.TrainingPathName || 'Anti-Phishing Path')
                       ?.replace(/{{completionDate}}/g, '15-Jan-2026')
                       ?.replace(/{{certificateId}}/g, previewCertModal.TrainingCertificateID)}

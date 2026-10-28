@@ -13,13 +13,8 @@ import {
   Award,
   ArrowLeft,
   Users,
-  CheckCircle2,
-  AlertTriangle
+  CheckCircle2
 } from 'lucide-react';
-import { useCampaignDraft, clearActiveCampaign } from '../../services/useCampaignDraft';
-import { IN_WIZARD } from '../../services/campaignWizard';
-import { api } from '../../services/api';
-import { actorFor } from '../../services/identity';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import userDLsJson from '../UserDLs/UserDLsData.json';
@@ -30,13 +25,6 @@ import trainingVideosJson from '../Training/TrainingVideos.json';
 import trainingQuizJson from '../Training/TrainingQuiz.json';
 import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
-import { useGamificationRules } from '../../services/useGamificationRules';
-import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
-import { DEMO_USER } from '../../appConfig';
-import PageLoading from '../../GlobalComponents/PageLoading';
-import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
-import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
-import { testRecipientEmails, usesTestRecipients } from '../../services/testRecipients';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -89,13 +77,6 @@ const VODAFONE_FONT_STYLE = `
 
 const CURRENT_STEP_NUMBER = 6; // Step 6: Review & Publish
 
-// Stable placeholder used while the server draft is still loading.
-const EMPTY_DRAFT = {};
-
-// Submit validation can return up to 9 reasons; show the first few and count the
-// rest so the toaster stays a toaster.
-const MAX_VISIBLE_PROBLEMS = 5;
-
 const ReviewAndPublishCampaign = () => {
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
@@ -126,13 +107,15 @@ const ReviewAndPublishCampaign = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Server-backed draft from previous steps (null until it has loaded, so every
-  // derived value below falls back to its original default in the meantime).
-  const { draft: serverDraft, flush, campaignId, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
-  // Live gamification scores, as last saved in the Gamification Engine.
-  const gamificationRules = useGamificationRules();
-  const draft = serverDraft || EMPTY_DRAFT;
-  const activeCampaignId = campaignId || draft.campaignId || '';
+  // Read saved draft from previous steps
+  const [draft] = useState(() => {
+    try {
+      const stored = localStorage.getItem('voisshield_active_campaign_draft');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Base background for L-shapes
   const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
@@ -177,51 +160,8 @@ const ReviewAndPublishCampaign = () => {
   const emailSubject = draft.emailSubject || matchedScenario?.emailSubject || '@UserName, your Vodafone account password has expired';
   const emailBody = draft.emailBody || matchedScenario?.emailBody || '<p>Dear Employee, please verify your credentials immediately to prevent mailbox disruption.</p>';
 
-  // Recipient List — the draft now only carries selectedListId, so the summary is
-  // resolved against the server's user lists. The bundled JSON stays as a fallback
-  // while that request is in flight (or if it fails), so the card is never blank.
-  const [serverUserLists, setServerUserLists] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    api.userLists
-      .list()
-      .then((rows) => {
-        if (active && Array.isArray(rows)) setServerUserLists(rows);
-      })
-      .catch(() => {
-        /* keep the bundled fallback below */
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const mappedServerLists = (serverUserLists || []).map((l) =>
-    l.listType === 'SYNCED' || l.dlName
-      ? {
-          id: l.dlId || l.userListId,
-          name: l.dlName,
-          subText: l.dlId || l.description || '',
-          type: 'Distribution List',
-          totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.members ? l.members.length : 0),
-          hookRate: l.aggregatedHookRate || '0%',
-          reportRate: l.aggregatedReportRate || '0%',
-          users: l.members || []
-        }
-      : {
-          id: l.id || l.userListId,
-          name: l.name,
-          subText: l.dlId || l.description || '',
-          type: l.type || 'Bulk Upload',
-          totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.users ? l.users.length : 0),
-          hookRate: l.aggregatedHookRate || '0%',
-          reportRate: l.aggregatedReportRate || '0%',
-          users: l.users || []
-        }
-  );
-
-  const bundledAvailableLists = [
+  // Recipient List
+  const allAvailableLists = [
     ...(userDLsJson?.savedUserLists || []).map((l) => ({
       id: l.id,
       name: l.name,
@@ -244,8 +184,6 @@ const ReviewAndPublishCampaign = () => {
     }))
   ];
 
-  const allAvailableLists = mappedServerLists.length ? mappedServerLists : bundledAvailableLists;
-
   const activeUserList = draft.loadedData ||
     allAvailableLists.find((l) => l.id === draft.selectedListId) ||
     allAvailableLists[0] || {
@@ -259,28 +197,19 @@ const ReviewAndPublishCampaign = () => {
       users: []
     };
 
-  // Landing Page — the campaign carries its own copy (name + content) from step
-  // 4; the catalogue only fills gaps in older drafts. It is read from the same
-  // API step 4 picks from, not the old browser-wide 'voisshield_landing_pages'
-  // cache, which nothing writes any more and could hold a stale copy.
-  const [landingCatalogues, setLandingCatalogues] = useState(
-    () => initialLandingCatalogues?.landingPages || []
-  );
-
-  useEffect(() => {
-    let active = true;
-    api.landingPages
-      .list()
-      .then((rows) => {
-        if (active && Array.isArray(rows) && rows.length > 0) setLandingCatalogues(rows);
-      })
-      .catch(() => {
-        /* keep the bundled fallback */
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Landing Page
+  const landingCatalogues = (() => {
+    try {
+      const stored = localStorage.getItem('voisshield_landing_pages');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return initialLandingCatalogues?.landingPages || [];
+    } catch {
+      return initialLandingCatalogues?.landingPages || [];
+    }
+  })();
 
   const landingPageId = draft.landingPageId || matchedScenario?.landingPageId || 'LP-001';
   const matchedLanding = landingCatalogues.find(
@@ -324,27 +253,6 @@ const ReviewAndPublishCampaign = () => {
   const [showUserListModal, setShowUserListModal] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishError, setPublishError] = useState('');
-  // Per-field reasons the server rejected the submit (may be empty).
-  const [publishProblems, setPublishProblems] = useState([]);
-
-  // Who the approval workflow records as the submitter.
-  const actor = actorFor(userContext.user);
-
-  const dismissPublishError = () => {
-    setPublishError('');
-    setPublishProblems([]);
-  };
-
-  // Auto-dismiss the publish error toaster — a list of reasons needs longer to read
-  useEffect(() => {
-    if (!publishError) return undefined;
-    const timer = setTimeout(() => {
-      setPublishError('');
-      setPublishProblems([]);
-    }, publishProblems.length ? 14000 : 6000);
-    return () => clearTimeout(timer);
-  }, [publishError, publishProblems]);
 
   // Stepper list
   const stepsList = CAMPAIGN_STEPS || [
@@ -356,51 +264,41 @@ const ReviewAndPublishCampaign = () => {
     { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish', path: '/start-campaign/review' }
   ];
 
-  // Publish Action — submits the draft to the approval workflow on the server.
-  // A ref guards the submit itself: the disabled attribute alone can still let a
-  // second click through before React has re-rendered the button.
-  const publishLockRef = useRef(false);
-
-  // Nothing to edit on this step: save anything pending and leave the
-  // campaign under Drafts.
-  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, flush, onError: setPublishError });
-
-  const handlePublishCampaign = async () => {
-    if (publishLockRef.current) return;
-
-    if (!activeCampaignId) {
-      setPublishError('Campaign draft is still loading. Please try again in a moment.');
-      setPublishProblems([]);
-      return;
-    }
-
-    publishLockRef.current = true;
+  // Publish Action
+  const handlePublishCampaign = () => {
     setIsPublishing(true);
-    setPublishError('');
-    setPublishProblems([]);
-
-    try {
-      // Land any debounced edits before the server validates the campaign.
-      await flush();
-      await api.campaigns.submit(activeCampaignId, actor);
+    setTimeout(() => {
+      try {
+        const publishedCampaigns = JSON.parse(localStorage.getItem('voisshield_published_campaigns') || '[]');
+        const newCampaign = {
+          ...draft,
+          campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
+          publishedAt: new Date().toISOString(),
+          status: 'Active',
+          stats: {
+            sent: activeUserList.totalUsers || 100,
+            opened: 0,
+            clicked: 0,
+            compromised: 0,
+            reported: 0
+          }
+        };
+        publishedCampaigns.unshift(newCampaign);
+        localStorage.setItem('voisshield_published_campaigns', JSON.stringify(publishedCampaigns));
+      } catch (e) {
+        console.error(e);
+      }
       setIsPublishing(false);
-      // Lock stays engaged: this draft has been submitted and cannot be re-sent.
       setPublishSuccessModal(true);
-    } catch (e) {
-      console.error(e);
-      publishLockRef.current = false;
-      setIsPublishing(false);
-      setPublishError(e?.message || 'Could not submit this campaign for approval. Please try again.');
-      setPublishProblems(Array.isArray(e?.problems) ? e.problems : []);
-    }
+    }, 600);
   };
 
   // Renderable landing page preview HTML
   const getRenderablePreviewHtml = () => {
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>* { box-sizing: border-box; } html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: #ffffff; }</style></head><body>${
       (landingPageContent || '')
-        .replace(/{{userName}}/g, draft.userName || DEMO_USER.name)
-        .replace(/{{userEmailID}}/g, DEMO_USER.email)
+        .replace(/{{userName}}/g, draft.userName || 'Abhay H S')
+        .replace(/{{userEmailID}}/g, 'abhay.hs1@vodafone.com')
         .replace(/{{department}}/g, 'AI & Data Analytics')
         .replace(/{{phishLink}}/g, '#training')
     }</body></html>`;
@@ -429,6 +327,9 @@ const ReviewAndPublishCampaign = () => {
               Start New Campaign
             </h1>
           </div>
+          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
+            -- Start a new campaign
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -439,9 +340,6 @@ const ReviewAndPublishCampaign = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          {/* The campaign is on its way from the server. */}
-          <PageLoading show={draftLoading} isDark={isDark} />
-
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
@@ -695,16 +593,26 @@ const ReviewAndPublishCampaign = () => {
                       </h4>
                     </div>
 
-                    {/* Points Pills 2x3 Grid — live scores from the Gamification Engine */}
+                    {/* Points Pills 2x3 Grid */}
                     <div className="grid grid-cols-2 gap-x-2.5 gap-y-2 w-full max-w-[70%] z-10 my-1">
-                      {GAMIFICATION_EVENTS.map((name) => (
-                        <span
-                          key={name}
-                          className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs"
-                        >
-                          {name}: {gamificationRules.loading ? '…' : formatPoints(gamificationRules.points[name])}
-                        </span>
-                      ))}
+                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
+                        Opened: 0
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
+                        Clicked: -30
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
+                        Compromised: 0
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
+                        Reported: -30
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
+                        Trained: 0
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/25 backdrop-blur-xs text-white text-[9.5px] font-bold text-center shadow-2xs">
+                        Evaluated: -30
+                      </span>
                     </div>
 
                     {/* 3D Asset pinned in bottom right */}
@@ -815,36 +723,7 @@ const ReviewAndPublishCampaign = () => {
                     <Eye className="w-3.5 h-3.5 text-white/80" />
                   </div>
 
-                  {/* A test campaign goes only to its own email IDs (step 3). */}
-                  {usesTestRecipients(draft) ? (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[12px] font-bold text-slate-900 dark:text-white">
-                        Test Recipients
-                      </label>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#FFD6DE] text-slate-900 text-[8.5px] font-bold">
-                        Test campaign
-                      </span>
-                    </div>
-                    <div
-                      className={`w-full p-2.5 rounded-xl shadow-2xs flex flex-col gap-1 ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
-                      }`}
-                    >
-                      <h5 className="text-[10.5px] font-bold leading-tight">
-                        {testRecipientEmails(draft).length} email ID{testRecipientEmails(draft).length === 1 ? '' : 's'}, no recipient list
-                      </h5>
-                      <ul aria-label="Test recipients" className="max-h-[30px] overflow-y-auto pt-1 border-t border-slate-100 dark:border-white/5">
-                        {testRecipientEmails(draft).map((email) => (
-                          <li key={email} className="text-[8.5px] font-mono-tech text-slate-600 dark:text-slate-300 truncate">
-                            {email}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  ) : (
-                  /* Recipient List Box */
+                  {/* Recipient List Box */}
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <label className="text-[12px] font-bold text-slate-900 dark:text-white">
@@ -887,7 +766,6 @@ const ReviewAndPublishCampaign = () => {
                       </div>
                     </div>
                   </div>
-                  )}
                 </div>
               </div>
 
@@ -1038,10 +916,9 @@ const ReviewAndPublishCampaign = () => {
               isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-100'
             }`}
           >
-            <SaveDraftButton onClick={() => saveAsDraft()} busy={savingDraft} disabled={draftLoading} />
             <button
               type="button"
-              onClick={() => navigate('/start-campaign/training', IN_WIZARD)}
+              onClick={() => navigate('/start-campaign/training')}
               className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center tracking-wider"
             >
               BACK
@@ -1053,7 +930,7 @@ const ReviewAndPublishCampaign = () => {
               className="px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <Send className="w-3 h-3 stroke-[2.5]" />
-              <span>{isPublishing ? 'SUBMITTING...' : 'SUBMIT FOR APPROVAL'}</span>
+              <span>{isPublishing ? 'PUBLISHING...' : 'PUBLISH CAMPAIGN'}</span>
             </button>
           </div>
         </div>
@@ -1083,8 +960,8 @@ const ReviewAndPublishCampaign = () => {
                     className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 text-slate-900"
                     dangerouslySetInnerHTML={{
                       __html: (emailBody || '')
-                        .replace(/{{userName}}/g, DEMO_USER.name)
-                        .replace(/{{userEmailID}}/g, DEMO_USER.email)
+                        .replace(/{{userName}}/g, 'Abhay H S')
+                        .replace(/{{userEmailID}}/g, 'abhay.hs1@vodafone.com')
                         .replace(/{{department}}/g, 'AI & Data Analytics')
                         .replace(/{{phishLink}}/g, '#training')
                     }}
@@ -1221,72 +1098,23 @@ const ReviewAndPublishCampaign = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-voda font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    Submitted for Approval
+                    Campaign Launched!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    Your phishing simulation campaign <strong>"{campaignTitle}"</strong> has been submitted and is now awaiting approval. An approver must review and approve it before it can be sent.
+                    Your phishing simulation campaign <strong>"{campaignTitle}"</strong> has been successfully scheduled and published.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    clearActiveCampaign();
-                    navigate('/start-campaign', IN_WIZARD);
+                    localStorage.removeItem('voisshield_active_campaign_draft');
+                    navigate('/start-campaign');
                   }}
                   className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                 >
                   Return to Dashboard
                 </button>
               </div>
-            </div>,
-            document.body
-          )}
-
-        {/* ========================================================================= */}
-        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PUBLISH FAILURE)                   */}
-        {/* ========================================================================= */}
-        {publishError &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[2147483647] flex items-start gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1 min-w-0">
-                <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                  Submission Failed
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {publishError}
-                </span>
-
-                {/* Per-field reasons from the server (capped so a long list cannot
-                    blow out the toaster) */}
-                {publishProblems.length > 0 && (
-                  <div className="flex flex-col gap-1 mt-1.5">
-                    {publishProblems.slice(0, MAX_VISIBLE_PROBLEMS).map((problem) => (
-                      <div key={problem} className="flex items-start gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E60000] flex-shrink-0 mt-[3px]" />
-                        <span className="text-[9px] font-medium text-slate-600 leading-snug">
-                          {problem}
-                        </span>
-                      </div>
-                    ))}
-                    {publishProblems.length > MAX_VISIBLE_PROBLEMS && (
-                      <span className="text-[9px] font-bold text-slate-500 pl-3">
-                        +{publishProblems.length - MAX_VISIBLE_PROBLEMS} more
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={dismissPublishError}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
             </div>,
             document.body
           )}

@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { Check, AlertTriangle, X } from 'lucide-react';
+import { Check, Calendar, AlertTriangle, X } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
-import { useCampaignDraft } from '../../services/useCampaignDraft';
-import { BACK_TO_STEP_1, IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
-import { isAfter } from '../../services/calendarDates';
-import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
-import { useGamificationRules } from '../../services/useGamificationRules';
-import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
-import PageLoading from '../../GlobalComponents/PageLoading';
-import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
-import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -88,74 +79,45 @@ const DetailsAndSettings = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Read the saved draft from step 1 — server-backed now, so it arrives
-  // asynchronously and is null until then. Edits made in the meantime are safe:
-  // flush() waits for the load before saving.
-  const { draft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
-
-  // Live gamification scores, as last saved in the Gamification Engine.
-  const gamificationRules = useGamificationRules();
+  // Read saved draft from step 1
+  const [draft, setDraft] = useState(() => {
+    try {
+      const stored = localStorage.getItem('voisshield_active_campaign_draft');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Base L-shape container color
   const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
 
+  // Prevent scenario names and descriptions from populating here (Start Fresh or Scenario Chosen -> Always empty by default)
+  const allScenarioTitles = new Set([
+    'Start Fresh',
+    draft.scenarioName,
+    ...(scenariosJsonData?.scenarios || []).map((s) => s.scenarioName)
+  ].filter(Boolean));
+
+  const allScenarioDescs = new Set([
+    draft.description,
+    ...(scenariosJsonData?.scenarios || []).map((s) => s.description)
+  ].filter(Boolean));
+
   // Form Fields: ALWAYS empty with placeholder "Type Here"
-  const [campaignTitle, setCampaignTitle] = useState('');
-  const [campaignDescription, setCampaignDescription] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [isTestCampaign, setIsTestCampaign] = useState(false);
-  // Defaults to true when the draft carries no value — same rule as before.
-  const [autoEndPostSending, setAutoEndPostSending] = useState(true);
+  const [campaignTitle, setCampaignTitle] = useState(
+    draft.campaignTitle && !allScenarioTitles.has(draft.campaignTitle) ? draft.campaignTitle : ''
+  );
+  const [campaignDescription, setCampaignDescription] = useState(
+    draft.campaignDescription && !allScenarioDescs.has(draft.campaignDescription) ? draft.campaignDescription : ''
+  );
+  const [startTime, setStartTime] = useState(draft.startTime || '');
+  const [endTime, setEndTime] = useState(draft.endTime || '');
+  const [isTestCampaign, setIsTestCampaign] = useState(Boolean(draft.isTestCampaign));
+  const [autoEndPostSending, setAutoEndPostSending] = useState(
+    draft.autoEndPostSending !== undefined ? Boolean(draft.autoEndPostSending) : true
+  );
   const [errorMsg, setErrorMsg] = useState('');
-
-  // Seed the form from the draft once it lands. `seededRef` keeps it to a single
-  // pass; `touchedRef` protects anything the user already edited while it loaded.
-  const seededRef = useRef(false);
-  const touchedRef = useRef({});
-  const markTouched = (field) => {
-    touchedRef.current[field] = true;
-  };
-
-  useEffect(() => {
-    if (!draft || seededRef.current) return;
-    seededRef.current = true;
-
-    // Prevent scenario names and descriptions from populating here (Start Fresh or Scenario Chosen -> Always empty by default).
-    // Text the user typed here is flagged (…SetByUser) and always shows, even
-    // when it happens to match a scenario's wording.
-    const allScenarioTitles = [
-      'Start Fresh',
-      draft.scenarioName,
-      ...(scenariosJsonData?.scenarios || []).map((s) => s.scenarioName)
-    ];
-
-    const allScenarioDescs = [
-      draft.description,
-      ...(scenariosJsonData?.scenarios || []).map((s) => s.description)
-    ];
-
-    const touched = touchedRef.current;
-
-    if (!touched.campaignTitle) {
-      setCampaignTitle(
-        detailsFieldValue(draft.campaignTitle, draft.campaignTitleSetByUser, allScenarioTitles)
-      );
-    }
-    if (!touched.campaignDescription) {
-      setCampaignDescription(
-        detailsFieldValue(draft.campaignDescription, draft.campaignDescriptionSetByUser, allScenarioDescs)
-      );
-    }
-    if (!touched.startTime) setStartTime(draft.startTime || '');
-    if (!touched.endTime) setEndTime(draft.endTime || '');
-    if (!touched.isTestCampaign) setIsTestCampaign(Boolean(draft.isTestCampaign));
-    if (!touched.autoEndPostSending) {
-      setAutoEndPostSending(
-        draft.autoEndPostSending !== undefined ? Boolean(draft.autoEndPostSending) : true
-      );
-    }
-  }, [draft]);
 
   // Auto-dismiss top right toaster after 4 seconds
   useEffect(() => {
@@ -168,39 +130,19 @@ const DetailsAndSettings = () => {
   // Gamification Card Flip State
   const [isGamificationFlipped, setIsGamificationFlipped] = useState(false);
 
-  // Save changes to draft (the hook debounces and coalesces the actual write)
+  // Save changes to draft
   const persistChanges = (fields) => {
-    update(fields);
-  };
-
-  // What Back / Gamification / Proceed save. Until the draft has seeded the form
-  // only fields the user touched are written (the rest are still placeholders),
-  // and an empty title / description box that is merely hiding the template's
-  // wording never blanks the saved value. Text kept here is the user's own.
-  const detailsPatch = () => {
-    const touched = touchedRef.current;
-    const seeded = seededRef.current;
-    const patch = {};
-    const put = (field, value) => {
-      if (seeded || touched[field]) patch[field] = value;
-    };
-    put('startTime', startTime);
-    put('endTime', endTime);
-    put('isTestCampaign', isTestCampaign);
-    put('autoEndPostSending', autoEndPostSending);
-    if (campaignTitle.trim() || touched.campaignTitle) {
-      patch.campaignTitle = campaignTitle.trim();
-      patch.campaignTitleSetByUser = true;
+    try {
+      const current = localStorage.getItem('voisshield_active_campaign_draft');
+      const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
+      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
     }
-    if (campaignDescription.trim() || touched.campaignDescription) {
-      patch.campaignDescription = campaignDescription.trim();
-      patch.campaignDescriptionSetByUser = true;
-    }
-    return patch;
   };
 
   // Strict Validation: Title, Description, Start Time, and End Time (or Auto End checkbox)
-  const handleProceed = async () => {
+  const handleProceed = () => {
     if (!campaignTitle.trim()) {
       setErrorMsg('Please specify a Campaign Title');
       return;
@@ -217,36 +159,29 @@ const DetailsAndSettings = () => {
       setErrorMsg('Please specify an End Time or check "Auto End post sending out all emails"');
       return;
     }
-    if (endTime.trim() && !isAfter(endTime, startTime)) {
-      setErrorMsg('The End Time must be after the Start Time');
-      return;
-    }
 
     setErrorMsg('');
-    persistChanges(detailsPatch());
-    await flush();
-    navigate('/start-campaign/email', IN_WIZARD);
+    persistChanges({
+      campaignTitle: campaignTitle.trim(),
+      campaignDescription: campaignDescription.trim(),
+      startTime,
+      endTime,
+      isTestCampaign,
+      autoEndPostSending
+    });
+    navigate('/start-campaign/email');
   };
 
-  // Save what has been typed, then open the Gamification Engine with a way
-  // back here; the card re-reads the scores when this step mounts again.
-  const handleOpenGamification = async () => {
-    persistChanges(detailsPatch());
-    await flush();
-    navigate('/gamification', { state: { returnTo: '/start-campaign/details' } });
-  };
-
-  // Save what has been typed and leave the campaign under Drafts.
-  const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft, update, flush, onError: setErrorMsg });
-
-  // Step 1 does not record itself on mount (it may be about to offer
-  // "Continue your campaign?"), so going back to it is recorded here. Back on
-  // step 1 this is still the campaign being worked on: a template picked there
-  // changes it rather than starting a new one.
-  const handleGoBack = async () => {
-    persistChanges({ ...detailsPatch(), wizardStep: 1 });
-    await flush();
-    navigate('/start-campaign', BACK_TO_STEP_1);
+  const handleGoBack = () => {
+    persistChanges({
+      campaignTitle: campaignTitle.trim(),
+      campaignDescription: campaignDescription.trim(),
+      startTime,
+      endTime,
+      isTestCampaign,
+      autoEndPostSending
+    });
+    navigate('/start-campaign');
   };
 
   const stepsList = CAMPAIGN_STEPS || [
@@ -278,6 +213,9 @@ const DetailsAndSettings = () => {
               Start New Campaign
             </h1>
           </div>
+          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
+            -- Start a new campaign
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -288,9 +226,6 @@ const DetailsAndSettings = () => {
             isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          {/* The campaign is on its way from the server. */}
-          <PageLoading show={draftLoading} isDark={isDark} />
-
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
@@ -396,10 +331,9 @@ const DetailsAndSettings = () => {
                       rows={3}
                       value={campaignTitle}
                       onChange={(e) => {
-                        markTouched('campaignTitle');
                         setCampaignTitle(e.target.value);
                         setErrorMsg('');
-                        persistChanges({ campaignTitle: e.target.value, campaignTitleSetByUser: true });
+                        persistChanges({ campaignTitle: e.target.value });
                       }}
                       placeholder="Type Here"
                       className="w-full bg-transparent text-[11.5px] font-medium outline-none placeholder-slate-400 resize-none text-left align-top leading-normal"
@@ -425,13 +359,9 @@ const DetailsAndSettings = () => {
                         rows={5}
                         value={campaignDescription}
                         onChange={(e) => {
-                          markTouched('campaignDescription');
                           setCampaignDescription(e.target.value);
                           setErrorMsg('');
-                          persistChanges({
-                            campaignDescription: e.target.value,
-                            campaignDescriptionSetByUser: true
-                          });
+                          persistChanges({ campaignDescription: e.target.value });
                         }}
                         placeholder="Type Here"
                         className="w-full h-full bg-transparent text-[11.5px] font-medium outline-none resize-none leading-relaxed placeholder-slate-400"
@@ -446,7 +376,6 @@ const DetailsAndSettings = () => {
                         type="checkbox"
                         checked={isTestCampaign}
                         onChange={(e) => {
-                          markTouched('isTestCampaign');
                           setIsTestCampaign(e.target.checked);
                           persistChanges({ isTestCampaign: e.target.checked });
                         }}
@@ -519,14 +448,24 @@ const DetailsAndSettings = () => {
 
                         {/* Middle: Capsules (2 Columns × 3 Rows) */}
                         <div className="grid grid-cols-2 gap-x-2.5 gap-y-1.5 flex-shrink-0">
-                          {GAMIFICATION_EVENTS.map((name) => (
-                            <span
-                              key={name}
-                              className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs"
-                            >
-                              {name}: {gamificationRules.loading ? '…' : formatPoints(gamificationRules.points[name])}
-                            </span>
-                          ))}
+                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
+                            Opened: 0
+                          </span>
+                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
+                            Clicked: -30
+                          </span>
+                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
+                            Compromised: 0
+                          </span>
+                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
+                            Reported: -30
+                          </span>
+                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
+                            Trained: 0
+                          </span>
+                          <span className="px-3 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[9.5px] font-bold whitespace-nowrap text-center shadow-2xs">
+                            Evaluated: -30
+                          </span>
                         </div>
 
                         {/* Right: Controller Image */}
@@ -559,7 +498,7 @@ const DetailsAndSettings = () => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenGamification();
+                            navigate('/gamification');
                           }}
                           className="px-5 py-1 rounded-full bg-[#8ED973] hover:bg-[#7ec963] text-white text-[10px] font-bold shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
                         >
@@ -581,20 +520,24 @@ const DetailsAndSettings = () => {
                       <label className="text-[12.5px] mb-2 font-bold text-slate-800 dark:text-slate-200">
                         Start Time <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
                       </label>
-                      <DateTimeField
-                        value={startTime}
-                        onChange={(next) => {
-                          markTouched('startTime');
-                          setStartTime(next);
-                          setErrorMsg('');
-                          persistChanges({ startTime: next });
-                        }}
-                        disablePast
-                        isDark={isDark}
-                        ariaLabel="Start time"
-                        placeholder="Select start date & time"
-                        className="mb-2"
-                      />
+                      <div
+                        className={`w-full h-9 px-4 mb-2 rounded-xl flex items-center justify-between shadow-2xs ${
+                          isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        }`}
+                      >
+                        <input
+                          type="datetime-local"
+                          value={startTime}
+                          onChange={(e) => {
+                            setStartTime(e.target.value);
+                            setErrorMsg('');
+                            persistChanges({ startTime: e.target.value });
+                          }}
+                          placeholder="Enter Date Time"
+                          className="w-full bg-transparent text-[10.5px] font-normal outline-none cursor-pointer"
+                        />
+                        <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-400 flex-shrink-0 pointer-events-none" />
+                      </div>
                     </div>
 
                     {/* End Time Field */}
@@ -602,21 +545,24 @@ const DetailsAndSettings = () => {
                       <label className="text-[12.5px] mb-2 font-bold text-slate-800 dark:text-slate-200">
                         End Time {!autoEndPostSending && <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>}
                       </label>
-                      <DateTimeField
-                        value={endTime}
-                        onChange={(next) => {
-                          markTouched('endTime');
-                          setEndTime(next);
-                          setErrorMsg('');
-                          persistChanges({ endTime: next });
-                        }}
-                        disablePast
-                        min={startTime}
-                        isDark={isDark}
-                        ariaLabel="End time"
-                        placeholder="Select end date & time"
-                        className="mb-2"
-                      />
+                      <div
+                        className={`w-full h-9 px-4 mb-2 rounded-xl flex items-center justify-between shadow-2xs ${
+                          isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        }`}
+                      >
+                        <input
+                          type="datetime-local"
+                          value={endTime}
+                          onChange={(e) => {
+                            setEndTime(e.target.value);
+                            setErrorMsg('');
+                            persistChanges({ endTime: e.target.value });
+                          }}
+                          placeholder="Enter Date Time"
+                          className="w-full bg-transparent text-[10.5px] font-normal outline-none cursor-pointer"
+                        />
+                        <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-400 flex-shrink-0 pointer-events-none" />
+                      </div>
                     </div>
 
                     {/* Auto End Checkbox */}
@@ -626,7 +572,6 @@ const DetailsAndSettings = () => {
                           type="checkbox"
                           checked={autoEndPostSending}
                           onChange={(e) => {
-                            markTouched('autoEndPostSending');
                             setAutoEndPostSending(e.target.checked);
                             setErrorMsg('');
                             persistChanges({ autoEndPostSending: e.target.checked });
@@ -640,7 +585,6 @@ const DetailsAndSettings = () => {
 
                   {/* Buttons: Back (#000000) & Next (#8ED973) */}
                   <div className="flex items-center justify-end gap-2.5 pt-2 -mt-2 border-black/5 dark:border-white/10">
-                    <SaveDraftButton onClick={() => saveAsDraft(detailsPatch())} busy={savingDraft} disabled={draftLoading} />
                     <button
                       type="button"
                       onClick={handleGoBack}

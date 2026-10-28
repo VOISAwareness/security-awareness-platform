@@ -24,31 +24,12 @@ import {
   Minimize2,
   Search,
   AlertTriangle,
-  FileText,
   X
 } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
-import { api } from '../../services/api';
-import { useCampaignDraft } from '../../services/useCampaignDraft';
-import { currentActor } from '../../services/identity';
-import { scenariosForViewer } from '../../services/scenarioOwnership';
-import { IN_WIZARD } from '../../services/campaignWizard';
-import { TOP_COUNT, bodyKey, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
-import DraftDialog from '../../GlobalComponents/DraftDialog';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import masterUsersData from '../../MasterUserData.json';
-import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
-import PageLoading from '../../GlobalComponents/PageLoading';
-import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
-import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
-import {
- MAX_TEST_RECIPIENTS,
- addTestRecipient,
- isTestCampaign,
- removeTestRecipient,
- testRecipientEmails
-} from '../../services/testRecipients';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -58,7 +39,7 @@ const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
-  
+ 
  .font-voda-exb {
   font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
   font-weight: 900;
@@ -119,24 +100,6 @@ const FX_PARAMETERS = [
  { label: '@CurrentDate', code: '{{currentDate}}', desc: 'Simulation execution timestamp' }
 ];
 
-// The editor holds a body as the browser parsed it into a <div>: a full page
-// loses its wrappers, attributes are re-quoted, <br/> becomes <br>, and so on.
-// Both sides are put through that same parse before they are compared, in an
-// inert document, so nothing in a body loads or runs. Parses are kept: the
-// Email Body menu compares every body each time it renders.
-const parsedBodies = new Map();
-const asInEditor = (html) => {
- const source = String(html ?? '');
- if (!parsedBodies.has(source)) {
-  if (parsedBodies.size > 200) parsedBodies.clear();
-  const box = document.implementation.createHTMLDocument('').createElement('div');
-  box.innerHTML = source;
-  parsedBodies.set(source, box.innerHTML);
- }
- return parsedBodies.get(source);
-};
-const isSameBody = (a, b) => sameBody(asInEditor(a), asInEditor(b));
-
 const CampaignEmail = () => {
  const navigate = useNavigate();
  const userContext = useUserType?.() || {};
@@ -166,10 +129,15 @@ const CampaignEmail = () => {
   return () => observer.disconnect();
  }, [userContext.isDark]);
 
- // Server-backed draft shared by every wizard step. It loads asynchronously, so
- // `serverDraft` is null on the first renders and `draft` stands in as empty.
- const { draft: serverDraft, update, flush, loading: draftLoading } = useCampaignDraft({ step: CURRENT_STEP_NUMBER });
- const draft = serverDraft || {};
+ // Read saved draft from prior steps
+ const [draft, setDraft] = useState(() => {
+  try {
+   const stored = localStorage.getItem('voisshield_active_campaign_draft');
+   return stored ? JSON.parse(stored) : {};
+  } catch {
+   return {};
+  }
+ });
 
  // Check if originated from "Start Fresh"
  const isStartFresh = draft.scenarioId === 'start-fresh' || draft.scenarioName === 'Start Fresh' || Boolean(draft.isStartFresh);
@@ -191,118 +159,67 @@ const CampaignEmail = () => {
   )
  );
 
- // Email bodies offered beside "fx": every template's body, most used first.
- // The bundled scenarios stand in until the API answers, and if it cannot.
- const [libraryScenarios, setLibraryScenarios] = useState(null);
- const [libraryCampaigns, setLibraryCampaigns] = useState([]);
+ // Dynamic User Lists directly from UserDLsData.json with telemetry calculated via MasterUserData.json
+ const rawUserLists = Array.isArray(userDLsJson)
+  ? userDLsJson
+  : (userDLsJson?.savedUserLists || []);
 
- useEffect(() => {
-  let active = true;
-  api.scenarios
-   .list({ viewer: currentActor() })
-   .then((rows) => {
-    // An older API sends every row, unannotated: keep what this person may see.
-    const visible = scenariosForViewer(rows, currentActor());
-    if (active && visible.length) setLibraryScenarios(visible);
-   })
-   .catch(() => {
-    /* keep the bundled scenarios */
+ const availableLists = rawUserLists.map((l) => {
+  const listId = l.UserListsID || l.id;
+  const listName = l.UserListName || l.name;
+  const listType = l.UploadType || l.type || 'Bulk Upload';
+  const subText = l.UserListsDescription || l.dlId || l.description || '';
+  const emailArray = Array.isArray(l.EMailIDs)
+   ? l.EMailIDs
+   : (l.users ? l.users.map((u) => u.email || u.UserEMailID).filter(Boolean) : []);
+
+  const totalCount = l.TotalEmailIDsCount !== undefined ? l.TotalEmailIDsCount : emailArray.length;
+
+  // Cross-reference matched users in MasterUserData.json
+  const matchedUsers = emailArray
+   .map((email) =>
+    (masterUsersData || []).find(
+     (m) => m.UserEMailID?.toLowerCase() === email?.toLowerCase()
+    )
+   )
+   .filter(Boolean);
+
+  // Compute Aggregated Hook Rate % via formula from MasterUserData.json
+  let aggHookRate = '0%';
+  let aggReportRate = '0%';
+  const deptCounts = {};
+  const locCounts = {};
+
+  if (matchedUsers.length > 0) {
+   const sumHook = matchedUsers.reduce((acc, u) => acc + (parseFloat(u['HookRate%'] ?? u.HookRate) || 0), 0);
+   const sumReport = matchedUsers.reduce((acc, u) => acc + (parseFloat(u['ReportRate%'] ?? u.ReportRate) || 0), 0);
+   aggHookRate = `${(sumHook / matchedUsers.length).toFixed(1)}%`;
+   aggReportRate = `${(sumReport / matchedUsers.length).toFixed(1)}%`;
+
+   matchedUsers.forEach((u) => {
+    const dept = u.Department || 'Other';
+    const loc = (u.Country || 'OTHER').toUpperCase();
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+    locCounts[loc] = (locCounts[loc] || 0) + 1;
    });
-  api.campaigns
-   .list()
-   .then((rows) => {
-    if (active && Array.isArray(rows)) setLibraryCampaigns(rows);
-   })
-   .catch(() => {
-    /* no usage counts: the bodies are still offered, in template order */
-   });
-  return () => {
-   active = false;
+  }
+
+  const departmentBreakdown = Object.entries(deptCounts).map(([dept, count]) => ({ dept, count }));
+  const locationBreakdown = Object.entries(locCounts).map(([location, count]) => ({ location, count }));
+
+  return {
+   id: listId,
+   name: listName,
+   subText,
+   type: listType,
+   totalUsers: totalCount,
+   hookRate: aggHookRate,
+   reportRate: aggReportRate,
+   departmentBreakdown,
+   locationBreakdown,
+   users: matchedUsers
   };
- }, []);
-
- const libraryTemplates = libraryScenarios || scenariosJsonData?.scenarios || [];
- // Bodies the editor would show the same way are offered once.
- const bodyLibrary = emailBodyOptions(libraryTemplates, libraryCampaigns, { keyOf: (html) => bodyKey(asInEditor(html)) });
-
- // Recipient lists come from the API, so a list uploaded on the User Lists screen
- // is immediately targetable here. UserDLsData.json stays as the fallback while
- // the request is in flight, and if it fails or comes back empty.
- const [serverUserLists, setServerUserLists] = useState(null);
-
- useEffect(() => {
-  let active = true;
-  api.userLists
-   .list()
-   .then((rows) => {
-    if (active && Array.isArray(rows)) setServerUserLists(rows);
-   })
-   .catch(() => {
-    /* keep the bundled fallback below */
-   });
-  return () => {
-   active = false;
-  };
- }, []);
-
- // Member rows live on their own endpoint, so a list row carries counts only.
- const mappedServerLists = (serverUserLists || []).map((l) =>
-  l.listType === 'SYNCED' || l.dlName
-   ? {
-      id: l.dlId || l.userListId,
-      name: l.dlName,
-      subText: l.dlId || l.description || '',
-      type: 'Distribution List',
-      totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.members ? l.members.length : 0),
-      hookRate: l.aggregatedHookRate || '0%',
-      reportRate: l.aggregatedReportRate || '0%',
-      departmentBreakdown: l.departmentBreakdown || [],
-      locationBreakdown: l.locationBreakdown || [],
-      users: l.members || []
-     }
-   : {
-      id: l.id || l.userListId,
-      name: l.name,
-      subText: l.dlId || l.description || '',
-      type: l.type || 'Bulk Upload',
-      totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.users ? l.users.length : 0),
-      hookRate: l.aggregatedHookRate || '0%',
-      reportRate: l.aggregatedReportRate || '0%',
-      departmentBreakdown: l.departmentBreakdown || [],
-      locationBreakdown: l.locationBreakdown || [],
-      users: l.users || []
-     }
- );
-
- // Dynamic User Lists directly from UserDLsData.json
- const bundledAvailableLists = [
-  ...(userDLsJson?.savedUserLists || []).map((l) => ({
-   id: l.id,
-   name: l.name,
-   subText: l.dlId || l.description || '',
-   type: l.type || 'Bulk Upload',
-   totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.users ? l.users.length : 0),
-   hookRate: l.aggregatedHookRate || '0%',
-   reportRate: l.aggregatedReportRate || '0%',
-   departmentBreakdown: l.departmentBreakdown || [],
-   locationBreakdown: l.locationBreakdown || [],
-   users: l.users || []
-  })),
-  ...(userDLsJson?.syncedDistributionLists || []).map((l) => ({
-   id: l.dlId,
-   name: l.dlName,
-   subText: l.dlId || l.description || '',
-   type: 'Distribution List',
-   totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.members ? l.members.length : 0),
-   hookRate: l.aggregatedHookRate || '0%',
-   reportRate: l.aggregatedReportRate || '0%',
-   departmentBreakdown: l.departmentBreakdown || [],
-   locationBreakdown: l.locationBreakdown || [],
-   users: l.members || []
-  }))
- ];
-
- const availableLists = mappedServerLists.length ? mappedServerLists : bundledAvailableLists;
+ });
 
  // Master Users sorted by Hook Rate % in descending order
  const sortedMasterUsers = [...(masterUsersData || [])].sort((a, b) => {
@@ -312,90 +229,40 @@ const CampaignEmail = () => {
  });
 
  // Form Fields Initialization
- //
- // The draft is fetched, so it cannot seed useState at mount. Each field is
- // therefore DERIVED from the draft and only overridden once the user edits it
- // (the setters keep their original names, so every call site is unchanged).
- // That preserves the original precedence — a value stored in the draft,
- // including an empty string, beats the scenario default — while making it
- // impossible for the arriving draft to clobber something already typed.
- const seedText = (value, fallback) => {
-  if (!serverDraft) return '';
-  return value !== undefined && value !== null ? value : fallback;
- };
+ const [senderEmailId, setSenderEmailId] = useState(() => {
+  if (draft.senderEmailId !== undefined) return draft.senderEmailId;
+  return isStartFresh ? '' : (matchedScenario?.senderEmailId || '');
+ });
 
- const [senderEmailIdEdit, setSenderEmailId] = useState(undefined);
- const senderEmailId =
-  senderEmailIdEdit !== undefined
-   ? senderEmailIdEdit
-   : seedText(draft.senderEmailId, isStartFresh ? '' : (matchedScenario?.senderEmailId || ''));
+ const [senderName, setSenderName] = useState(() => {
+  if (draft.senderName !== undefined) return draft.senderName;
+  return isStartFresh ? '' : (matchedScenario?.senderName || '');
+ });
 
- const [senderNameEdit, setSenderName] = useState(undefined);
- const senderName =
-  senderNameEdit !== undefined
-   ? senderNameEdit
-   : seedText(draft.senderName, isStartFresh ? '' : (matchedScenario?.senderName || ''));
-
- const [emailSubjectEdit, setEmailSubject] = useState(undefined);
- const emailSubject =
-  emailSubjectEdit !== undefined
-   ? emailSubjectEdit
-   : seedText(draft.emailSubject, isStartFresh ? '' : (matchedScenario?.emailSubject || ''));
+ const [emailSubject, setEmailSubject] = useState(() => {
+  if (draft.emailSubject !== undefined) return draft.emailSubject;
+  return isStartFresh ? '' : (matchedScenario?.emailSubject || '');
+ });
 
  // Rich Text Editor State
- const initialContent = seedText(
-  draft.emailBody,
-  isStartFresh ? '' : (matchedScenario?.emailBody || '')
- );
+ const initialContent = (() => {
+  if (draft.emailBody !== undefined) return draft.emailBody;
+  return isStartFresh ? '' : (matchedScenario?.emailBody || '');
+ })();
 
  const [rawHtmlMode, setRawHtmlMode] = useState(false);
- const [rawHtmlCodeEdit, setRawHtmlCode] = useState(undefined);
- const rawHtmlCode = rawHtmlCodeEdit !== undefined ? rawHtmlCodeEdit : initialContent;
+ const [rawHtmlCode, setRawHtmlCode] = useState(initialContent);
  const [isEditorExpanded, setIsEditorExpanded] = useState(false);
  const [showSubjectFxMenu, setShowSubjectFxMenu] = useState(false);
  const [showEditorFxMenu, setShowEditorFxMenu] = useState(false);
- const [showBodyMenu, setShowBodyMenu] = useState(false);
- // The editor's body when the library menu opened, to mark the one in use.
- const [bodyAtMenuOpen, setBodyAtMenuOpen] = useState('');
- // A library body waiting on "Replace the email body?".
- const [pendingBody, setPendingBody] = useState(null);
 
- const activeHtmlRef = useRef('');
+ const activeHtmlRef = useRef(initialContent);
  const editorCanvasRef = useRef(null);
  const imageInputRef = useRef(null);
  const subjectInputRef = useRef(null);
  const savedSelectionRef = useRef(null);
 
- // The editor toolbar's menus are drawn outside its scrolling tool strip,
- // under their button: where (`left` / `right` in the toolbar) and in which of
- // the two editors (inline, or expanded) it was opened.
- const [fxMenuAt, setFxMenuAt] = useState(null);
- const [bodyMenuAt, setBodyMenuAt] = useState(null);
- const toolbarMenuAnchor = (button, expanded, menuWidth) => {
-  const bar = button.closest('[data-editor-toolbar]');
-  const anchor = button.parentElement;
-  if (!bar || !anchor) return { expanded, left: 0, right: 0 };
-  const barBox = bar.getBoundingClientRect();
-  const box = anchor.getBoundingClientRect();
-  // The page is zoomed: measure in the toolbar's own pixels.
-  const scale = bar.offsetWidth ? barBox.width / bar.offsetWidth : 1;
-  const room = Math.max(0, bar.offsetWidth - menuWidth);
-  return {
-   expanded,
-   left: Math.min(Math.max(0, (box.left - barBox.left) / scale), room),
-   right: Math.min(Math.max(0, (barBox.right - box.right) / scale), room)
-  };
- };
- const closeToolbarMenus = () => {
-  setShowEditorFxMenu(false);
-  setShowBodyMenu(false);
- };
- // A mouse wheel scrolls the tool strip sideways while it is too narrow.
- const scrollToolsWithWheel = (e) => {
-  const strip = e.currentTarget;
-  if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
-  strip.scrollLeft += e.deltaY;
- };
+ const editorFxRef = useRef(null);
  const subjectFxRef = useRef(null);
  const userListDropdownRef = useRef(null);
  const singleUserDropdownRef = useRef(null);
@@ -407,28 +274,11 @@ const CampaignEmail = () => {
   }
  }, [rawHtmlMode, isEditorExpanded]);
 
- // The body arrives with the draft, i.e. after mount, so paint it into the
- // contentEditable canvas exactly once — and never over something already typed.
- const bodySeededRef = useRef(false);
- useEffect(() => {
-  if (bodySeededRef.current || !serverDraft) return;
-  bodySeededRef.current = true;
-  if (activeHtmlRef.current) return;
-  activeHtmlRef.current = initialContent;
-  if (!rawHtmlMode && editorCanvasRef.current) {
-   editorCanvasRef.current.innerHTML = initialContent || '';
-  }
- }, [serverDraft, initialContent, rawHtmlMode]);
-
  // Click outside listeners to close menus
  useEffect(() => {
   const handleClickOutside = (e) => {
-   // The toolbar menus: their button or the menu itself (in either editor).
-   if (!e.target.closest?.('[data-editor-menu="fx"]')) {
+   if (editorFxRef.current && !editorFxRef.current.contains(e.target)) {
     setShowEditorFxMenu(false);
-   }
-   if (!e.target.closest?.('[data-editor-menu="body"]')) {
-    setShowBodyMenu(false);
    }
    if (subjectFxRef.current && !subjectFxRef.current.contains(e.target)) {
     setShowSubjectFxMenu(false);
@@ -455,16 +305,11 @@ const CampaignEmail = () => {
   }
  }, [isEditorExpanded]);
 
- // User list state. The selection and its loaded flag live in the draft, so a
- // user returning to this step sees the list they had attached; `loadedData`
- // (the whole list with every user row) stays LOCAL — the server strips it.
- const [selectedListIdEdit, setSelectedListId] = useState(undefined);
- const selectedListId =
-  selectedListIdEdit !== undefined ? selectedListIdEdit : (draft.selectedListId || '');
+ // User list state: ALWAYS empty selection initially with "Select from dropdown"
+ const [selectedListId, setSelectedListId] = useState('');
  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
- const [isListLoadedEdit, setIsListLoaded] = useState(undefined);
+ const [isListLoaded, setIsListLoaded] = useState(false);
  const [loadedData, setLoadedData] = useState(null);
- const membersFetchedRef = useRef(false);
 
  // Single user dropdown state from MasterUserData.json
  const [selectedSingleUser, setSelectedSingleUser] = useState(null);
@@ -472,33 +317,6 @@ const CampaignEmail = () => {
  const [singleUserSearch, setSingleUserSearch] = useState('');
 
  const [errorMsg, setErrorMsg] = useState('');
-
- // A test campaign (ticked on Details & settings) is sent only to email IDs
- // added here one by one, from the user directory or typed: no recipient list.
- const testMode = isTestCampaign(draft);
- const [testEmailsEdit, setTestEmails] = useState(undefined);
- const testEmails = testEmailsEdit !== undefined ? testEmailsEdit : testRecipientEmails(draft);
- const [typedTestEmail, setTypedTestEmail] = useState('');
- const addTestEmail = (value) => {
-  const { list, error } = addTestRecipient(testEmails, value);
-  if (error) {
-   setErrorMsg(error);
-   return false;
-  }
-  setErrorMsg('');
-  setTestEmails(list);
-  update({ testRecipientEmails: list });
-  return true;
- };
- const removeTestEmail = (email) => {
-  const list = removeTestRecipient(testEmails, email);
-  setTestEmails(list);
-  update({ testRecipientEmails: list });
- };
- // Saved with the step: always for a test campaign (it then goes only to these
- // email IDs), otherwise only when some were added before the tick was cleared.
- const testEmailsPatch = () =>
-  testMode || testEmails.length ? { testRecipientEmails: testEmails } : {};
 
  // Auto-dismiss top right toaster after 4 seconds
  useEffect(() => {
@@ -510,31 +328,16 @@ const CampaignEmail = () => {
 
  const currentSelectedList = availableLists.find((l) => l.id === selectedListId);
 
- // Restored as loaded only when the saved list still exists in the catalogue.
- const isListLoaded =
-  isListLoadedEdit !== undefined
-   ? isListLoadedEdit
-   : Boolean(draft.isListLoaded && currentSelectedList);
-
- // Returning to this step: the draft remembers WHICH list was loaded but never
- // its rows, so pull the members back once to repopulate the breakdown charts.
- useEffect(() => {
-  if (membersFetchedRef.current) return;
-  if (!isListLoaded || loadedData || !currentSelectedList) return;
-  membersFetchedRef.current = true;
-  const list = currentSelectedList;
-  api.userLists
-   .members(list.id)
-   .then((members) => {
-    setLoadedData({
-     ...list,
-     users: Array.isArray(members) ? members : (list.users || [])
-    });
-   })
-   .catch(() => {
-    setLoadedData(list);
-   });
- }, [isListLoaded, loadedData, currentSelectedList]);
+ // Persist draft updates
+ const persistChanges = (fields) => {
+  try {
+   const current = localStorage.getItem('voisshield_active_campaign_draft');
+   const updated = { ...(current ? JSON.parse(current) : {}), ...fields };
+   localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updated));
+  } catch (e) {
+   console.error(e);
+  }
+ };
 
  // Selection preservation using cloneRange so blur does not destroy range
  const saveSelection = () => {
@@ -563,7 +366,7 @@ const CampaignEmail = () => {
    document.execCommand(command, false, value);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -576,7 +379,7 @@ const CampaignEmail = () => {
    document.execCommand('formatBlock', false, blockTag);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -589,7 +392,7 @@ const CampaignEmail = () => {
    document.execCommand('fontName', false, fontName);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -602,7 +405,7 @@ const CampaignEmail = () => {
    document.execCommand('fontSize', false, sizeVal);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -613,7 +416,7 @@ const CampaignEmail = () => {
   if (rawHtmlMode) {
    setRawHtmlCode((prev) => prev + param.code);
    activeHtmlRef.current += param.code;
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
    return;
   }
 
@@ -624,7 +427,7 @@ const CampaignEmail = () => {
    document.execCommand('insertHTML', false, spanHtml);
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
    saveSelection();
   }
  };
@@ -640,49 +443,18 @@ const CampaignEmail = () => {
    const after = emailSubject.substring(end);
    const updated = `${before}${param.label} ${after}`;
    setEmailSubject(updated);
-   update({ emailSubject: updated });
+   persistChanges({ emailSubject: updated });
    setTimeout(() => {
     input.focus();
     input.setSelectionRange(start + param.label.length + 1, start + param.label.length + 1);
    }, 0);
   } else {
-   const updated = emailSubject ? `${emailSubject} ${param.label}` : param.label;
-   setEmailSubject(updated);
-   update({ emailSubject: updated });
+   setEmailSubject((prev) => {
+    const updated = prev ? `${prev} ${param.label}` : param.label;
+    persistChanges({ emailSubject: updated });
+    return updated;
+   });
   }
- };
-
- // What the editor holds right now, in either mode.
- const currentBodyHtml = () => {
-  if (rawHtmlMode) return rawHtmlCode;
-  return editorCanvasRef.current ? editorCanvasRef.current.innerHTML : activeHtmlRef.current;
- };
-
- // Copy a library body into this campaign. The template it came from is
- // never written; `emailBodySourceId` only feeds the "most used" ranking.
- const applyEmailBody = (option) => {
-  activeHtmlRef.current = option.html;
-  setRawHtmlCode(option.html);
-  if (!rawHtmlMode && editorCanvasRef.current) editorCanvasRef.current.innerHTML = option.html;
-  savedSelectionRef.current = null;
-  update({ emailBody: option.html, emailBodySourceId: option.id });
-  setPendingBody(null);
- };
-
- // Ask first only when the editor holds the user's own work: an empty editor,
- // or one showing a template's (or a library) body unchanged, loses nothing.
- const chooseEmailBody = (option) => {
-  setShowBodyMenu(false);
-  const current = currentBodyHtml();
-  if (isSameBody(current, option.html)) return;
-  const hasContent = Boolean(bodySnippet(current)) || /<(img|table)\b/i.test(current);
-  const isTemplateBody = [...libraryTemplates.map((t) => t.emailBody), ...bodyLibrary.options.map((o) => o.html)]
-   .some((html) => html && isSameBody(html, current));
-  if (hasContent && !isTemplateBody) {
-   setPendingBody(option);
-   return;
-  }
-  applyEmailBody(option);
  };
 
  // Toggle HTML Code view
@@ -695,7 +467,7 @@ const CampaignEmail = () => {
   } else {
    activeHtmlRef.current = rawHtmlCode;
    setRawHtmlMode(false);
-   update({ emailBody: rawHtmlCode });
+   persistChanges({ emailBody: rawHtmlCode });
   }
  };
 
@@ -721,38 +493,25 @@ const CampaignEmail = () => {
   setIsListLoaded(false);
   setLoadedData(null);
   setErrorMsg('');
-  // `loadedData` is never sent: the server strips it and it would bloat the row.
-  update({
+  persistChanges({
    selectedListId: listId,
-   isListLoaded: false
+   isListLoaded: false,
+   loadedData: null
   });
  };
 
- // Clicking Load pulls the members for the active selection. They are held in
- // LOCAL state only — the draft never carries the recipient rows.
- const handleLoadList = async () => {
+ // Clicking Load loads the active selection from UserDLsData.json
+ const handleLoadList = () => {
   if (!currentSelectedList) return;
-  membersFetchedRef.current = true;
   setIsListLoaded(true);
   setLoadedData(currentSelectedList);
   setErrorMsg('');
-  update({
+  persistChanges({
    isListLoaded: true,
    selectedListId: currentSelectedList?.id,
-   selectedListName: currentSelectedList?.name
+   selectedListName: currentSelectedList?.name,
+   loadedData: currentSelectedList
   });
-
-  try {
-   const members = await api.userLists.members(currentSelectedList.id);
-   setLoadedData({
-    ...currentSelectedList,
-    users: Array.isArray(members) ? members : (currentSelectedList.users || [])
-   });
-  } catch {
-   // Members unavailable: keep the summary the list row already gives us
-   // (totals and rates) rather than blanking the panel.
-   setLoadedData(currentSelectedList);
-  }
  };
 
  // Toggle expand mode safely keeping track of edits
@@ -760,15 +519,15 @@ const CampaignEmail = () => {
   if (!rawHtmlMode && editorCanvasRef.current) {
    activeHtmlRef.current = editorCanvasRef.current.innerHTML;
    setRawHtmlCode(activeHtmlRef.current);
-   update({ emailBody: activeHtmlRef.current });
+   persistChanges({ emailBody: activeHtmlRef.current });
   } else if (rawHtmlMode) {
    activeHtmlRef.current = rawHtmlCode;
-   update({ emailBody: rawHtmlCode });
+   persistChanges({ emailBody: rawHtmlCode });
   }
   setIsEditorExpanded((prev) => !prev);
  };
 
- const handleProceed = async () => {
+ const handleProceed = () => {
   if (!senderEmailId.trim()) {
    setErrorMsg('Please specify a Sender Email ID');
    return;
@@ -777,18 +536,13 @@ const CampaignEmail = () => {
    setErrorMsg('Please specify an Email Subject');
    return;
   }
-  if (testMode) {
-   if (!testEmails.length) {
-    setErrorMsg('Please add at least one test email ID to proceed');
-    return;
-   }
-  } else if (!selectedListId || !isListLoaded) {
+  if (!selectedListId || !isListLoaded) {
    setErrorMsg('Please select and load a Recipient List to proceed');
    return;
   }
 
   const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
-  update({
+  persistChanges({
    senderEmailId: senderEmailId.trim(),
    senderName: senderName.trim(),
    emailSubject: emailSubject.trim(),
@@ -796,36 +550,28 @@ const CampaignEmail = () => {
    selectedListId: currentSelectedList?.id || '',
    selectedListName: currentSelectedList?.name || '',
    isListLoaded,
-   selectedSingleUserEmail: selectedSingleUser?.UserEMailID,
-   ...testEmailsPatch()
+   loadedData,
+   selectedSingleUserEmail: selectedSingleUser?.UserEMailID
   });
 
-  // Make sure the debounced save has landed before the next step reads the draft.
-  await flush();
-  navigate('/start-campaign/landing-page', IN_WIZARD);
+  navigate('/start-campaign/landing-page');
  };
 
- // What Back and Save as draft save from this step.
- const emailPatch = () => ({
-  senderEmailId: senderEmailId.trim(),
-  senderName: senderName.trim(),
-  emailSubject: emailSubject.trim(),
-  emailBody: rawHtmlMode ? rawHtmlCode : activeHtmlRef.current,
-  selectedListId: currentSelectedList?.id || '',
-  selectedListName: currentSelectedList?.name || '',
-  isListLoaded,
-  selectedSingleUserEmail: selectedSingleUser?.UserEMailID,
-  ...testEmailsPatch()
- });
-
- const handleGoBack = async () => {
-  update(emailPatch());
-  await flush();
-  navigate('/start-campaign/details', IN_WIZARD);
+ const handleGoBack = () => {
+  const finalHtml = rawHtmlMode ? rawHtmlCode : activeHtmlRef.current;
+  persistChanges({
+   senderEmailId: senderEmailId.trim(),
+   senderName: senderName.trim(),
+   emailSubject: emailSubject.trim(),
+   emailBody: finalHtml,
+   selectedListId: currentSelectedList?.id || '',
+   selectedListName: currentSelectedList?.name || '',
+   isListLoaded,
+   loadedData,
+   selectedSingleUserEmail: selectedSingleUser?.UserEMailID
+  });
+  navigate('/start-campaign/details');
  };
-
- // Save what is on this step and leave the campaign under Drafts.
- const { saveAsDraft, saving: savingDraft } = useSaveCampaignAsDraft({ draft: serverDraft, update, flush, onError: setErrorMsg });
 
  const stepsList = CAMPAIGN_STEPS || [
   { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario' },
@@ -836,7 +582,7 @@ const CampaignEmail = () => {
   { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish' }
  ];
 
- // 1. Department Breakdown (Raw Count based from UserDLsData.json)
+ // 1. Department Breakdown
  const activeData = loadedData || currentSelectedList;
  const deptList = (() => {
   if (activeData?.departmentBreakdown && activeData.departmentBreakdown.length > 0) {
@@ -849,7 +595,7 @@ const CampaignEmail = () => {
   if (userList.length > 0) {
    const counts = {};
    userList.forEach((u) => {
-    const dept = u.department || 'Other';
+    const dept = u.Department || u.department || 'Other';
     counts[dept] = (counts[dept] || 0) + 1;
    });
    return Object.entries(counts).map(([label, count]) => ({ label, count }));
@@ -857,7 +603,7 @@ const CampaignEmail = () => {
   return [];
  })();
 
- // 2. Location Breakdown (Raw Count based from UserDLsData.json users)
+ // 2. Location Breakdown
  const locationList = (() => {
   if (activeData?.locationBreakdown && activeData.locationBreakdown.length > 0) {
    return activeData.locationBreakdown.map((l) => ({
@@ -869,7 +615,7 @@ const CampaignEmail = () => {
   if (userList.length > 0) {
    const counts = {};
    userList.forEach((u) => {
-    const loc = (u.location || u.country || 'OTHER').toUpperCase();
+    const loc = (u.Country || u.location || u.country || 'OTHER').toUpperCase();
     counts[loc] = (counts[loc] || 0) + 1;
    });
    return Object.entries(counts).map(([label, count]) => ({ label, count }));
@@ -895,20 +641,7 @@ const CampaignEmail = () => {
    expanded ? 'h-[calc(100vh-80px)]' : 'h-[220px]'
   }`}>
    {/* 🌟 Single-Line Dark Header Toolbar (Seamless with Container) */}
-   <div
-    data-editor-toolbar
-    className="w-full h-8 text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 rounded-t-xl relative z-30"
-   >
-    {/* The whole header scrolls sideways when the editor is narrower than it
-        (a mouse wheel scrolls it too). When it fits, HTML and expand sit on
-        the right as before. */}
-    <div
-     data-editor-tools
-     onScroll={closeToolbarMenus}
-     onWheel={scrollToolsWithWheel}
-     className="w-full h-full flex items-center overflow-x-auto overflow-y-hidden rounded-t-xl [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30 dark:[&::-webkit-scrollbar-thumb]:bg-black/25"
-    >
-    <div className="min-w-full w-max h-full px-2 flex items-center justify-between gap-3 flex-nowrap">
+   <div className="w-full h-8 px-2 flex items-center justify-between text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 rounded-t-xl relative z-30 flex-nowrap">
     <div className="flex items-center gap-1 text-xs flex-nowrap">
      {/* Format Block */}
      <select
@@ -1071,18 +804,14 @@ const CampaignEmail = () => {
      </button>
 
      {/* 🌟 Rich Editor "fx" Dropdown */}
-     <div data-editor-menu="fx" className="relative flex-shrink-0">
+     <div ref={editorFxRef} className="relative z-50">
       <button
        type="button"
        onMouseDown={(e) => {
         e.preventDefault();
         saveSelection();
        }}
-       onClick={(e) => {
-        setFxMenuAt(toolbarMenuAnchor(e.currentTarget, expanded, 208));
-        setShowBodyMenu(false);
-        setShowEditorFxMenu(!showEditorFxMenu);
-       }}
+       onClick={() => setShowEditorFxMenu(!showEditorFxMenu)}
        className="px-1.5 py-0 rounded-2xl bg-white dark:bg-black hover:brightness-110 text-black dark:text-white font-mono-tech text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer"
        title="Insert Dynamic Placeholder"
       >
@@ -1090,63 +819,9 @@ const CampaignEmail = () => {
        <ChevronDown className="w-2.5 h-2.5" />
       </button>
 
-     </div>
-
-     {/* 🌟 Email body library, right of "fx": start from a template's body */}
-     <div data-editor-menu="body" className="relative flex-shrink-0">
-      <button
-       type="button"
-       onMouseDown={(e) => e.preventDefault()}
-       onClick={(e) => {
-        setBodyMenuAt(toolbarMenuAnchor(e.currentTarget, expanded, 288));
-        setShowEditorFxMenu(false);
-        setBodyAtMenuOpen(currentBodyHtml());
-        setShowBodyMenu((open) => !open);
-       }}
-       aria-haspopup="menu"
-       aria-expanded={showBodyMenu}
-       className="px-1.5 py-0 rounded-2xl bg-white dark:bg-black hover:brightness-110 text-black dark:text-white text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
-       title="Use an email body from the library"
-      >
-       <FileText className="w-2.5 h-2.5" />
-       <span>Email Body</span>
-       <ChevronDown className="w-2.5 h-2.5" />
-      </button>
-
-     </div>
-    </div>
-
-    {/* Right side: HTML Code Toggle & Expand (scrolls with the rest) */}
-    <div className="flex items-center gap-1 flex-shrink-0">
-     <button
-      type="button"
-      onClick={handleToggleCodeMode}
-      className={`px-1.5 py-0.5 rounded border text-[8.5px] font-bold flex items-center gap-0.5 cursor-pointer ${
-       rawHtmlMode ? 'bg-[#E60000] text-white border-[#E60000]' : 'bg-[#181A20] text-white border-white/20 hover:bg-white/10'
-      }`}
-      title="Toggle HTML Source Code"
-     >
-      <Code className="w-2.5 h-2.5" />
-      {rawHtmlMode ? 'Visual' : 'HTML'}
-     </button>
-
-     <button
-      type="button"
-      onClick={handleToggleExpand}
-      className="hover:text-[#E60000] text-white dark:text-black cursor-pointer transition-colors p-0.5 rounded hover:bg-white/10"
-      title={expanded ? 'Minimize Screen' : 'Expand Full Screen'}
-     >
-      {expanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-     </button>
-    </div>
-    </div>
-    </div>
-
-    {/* Menus of the tools above, drawn here so the scrolling header does not clip them */}
-    {showEditorFxMenu && fxMenuAt?.expanded === expanded && (
+      {showEditorFxMenu && (
        <div
-        data-editor-menu="fx"
-        style={{ position: 'absolute', top: '100%', left: fxMenuAt.left, zIndex: 9999 }}
+        style={{ position: 'absolute', top: '100%', left: 0, zIndex: 9999 }}
         className="mt-1 w-52 max-h-48 overflow-y-auto rounded-xl bg-[#1A1C23] border border-white/20 p-1 shadow-2xl flex flex-col gap-0.5 text-left"
        >
         <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 px-2 py-0.5 font-bold">
@@ -1170,52 +845,32 @@ const CampaignEmail = () => {
         ))}
        </div>
       )}
+     </div>
+    </div>
 
-    {showBodyMenu && bodyMenuAt?.expanded === expanded && (
-       <div
-        role="menu"
-        aria-label="Email bodies"
-        data-editor-menu="body"
-        // Opens leftwards, over the editor: rightwards the card clips it.
-        style={{ position: 'absolute', top: '100%', right: bodyMenuAt.right, zIndex: 9999 }}
-        className="mt-1 w-72 max-h-64 overflow-y-auto rounded-xl bg-[#1A1C23] border border-white/20 p-1 shadow-2xl flex flex-col gap-0.5 text-left"
-       >
-        <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 px-2 py-0.5 font-bold">
-         {bodyLibrary.limited
-          ? `Top ${TOP_COUNT} most used · ${bodyLibrary.total} in library`
-          : 'Email bodies · most used first'}
-        </span>
-        {bodyLibrary.options.length === 0 && (
-         <span className="px-2 py-2 text-[9px] text-slate-400">No email bodies in the library yet.</span>
-        )}
-        {bodyLibrary.options.map((option) => {
-         const inEditor = isSameBody(option.html, bodyAtMenuOpen);
-         return (
-          <button
-           key={option.id}
-           type="button"
-           role="menuitem"
-           onMouseDown={(e) => e.preventDefault()}
-           onClick={() => chooseEmailBody(option)}
-           className={`p-1.5 px-2 rounded-lg text-left flex flex-col gap-0.5 cursor-pointer transition-colors ${
-            inEditor ? 'bg-white/10' : 'hover:bg-white/10'
-           }`}
-          >
-           <span className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1 min-w-0">
-             {inEditor && <Check className="w-2.5 h-2.5 text-[#8ED973] flex-shrink-0" />}
-             <span className="text-[9.5px] font-bold text-white truncate">{option.name}</span>
-            </span>
-            <span className="text-[8px] font-mono-tech text-slate-400 flex-shrink-0">
-             {option.uses ? `${option.uses} ${option.uses === 1 ? 'campaign' : 'campaigns'}` : 'Not used yet'}
-            </span>
-           </span>
-           <span className="text-[8px] text-slate-400 truncate">{option.snippet}</span>
-          </button>
-         );
-        })}
-       </div>
-      )}
+    {/* Right side: HTML Code Toggle & Expand */}
+    <div className="flex items-center gap-1 flex-shrink-0">
+     <button
+      type="button"
+      onClick={handleToggleCodeMode}
+      className={`px-1.5 py-0.5 rounded border text-[8.5px] font-bold flex items-center gap-0.5 cursor-pointer ${
+       rawHtmlMode ? 'bg-[#E60000] text-white border-[#E60000]' : 'bg-[#181A20] text-white border-white/20 hover:bg-white/10'
+      }`}
+      title="Toggle HTML Source Code"
+     >
+      <Code className="w-2.5 h-2.5" />
+      {rawHtmlMode ? 'Visual' : 'HTML'}
+     </button>
+
+     <button
+      type="button"
+      onClick={handleToggleExpand}
+      className="hover:text-[#E60000] text-white dark:text-black cursor-pointer transition-colors p-0.5 rounded hover:bg-white/10"
+      title={expanded ? 'Minimize Screen' : 'Expand Full Screen'}
+     >
+      {expanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+     </button>
+    </div>
    </div>
 
    {/* Main Canvas Area: Clean bottom radius without outer edge bleed */}
@@ -1229,14 +884,14 @@ const CampaignEmail = () => {
    >
     <div className="w-full h-full overflow-y-auto">
      {rawHtmlMode ? (
-      <HtmlCodeEditor
+      <textarea
        value={rawHtmlCode}
-       onChange={(code) => {
-        setRawHtmlCode(code);
-        activeHtmlRef.current = code;
-        update({ emailBody: code });
+       onChange={(e) => {
+        setRawHtmlCode(e.target.value);
+        activeHtmlRef.current = e.target.value;
+        persistChanges({ emailBody: e.target.value });
        }}
-       ariaLabel="Email body HTML"
+       className="w-full h-full p-2.5 font-mono-tech text-[10.5px] bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed rounded-lg"
        placeholder="Design Canvas"
       />
      ) : (
@@ -1253,7 +908,7 @@ const CampaignEmail = () => {
         if (editorCanvasRef.current) {
          activeHtmlRef.current = editorCanvasRef.current.innerHTML;
          setRawHtmlCode(activeHtmlRef.current);
-         update({ emailBody: activeHtmlRef.current });
+         persistChanges({ emailBody: activeHtmlRef.current });
         }
        }}
        className="w-full h-full outline-none cursor-text text-slate-900 dark:text-slate-100 p-1 leading-normal text-xs rich-editor-canvas"
@@ -1283,10 +938,13 @@ const CampaignEmail = () => {
       >
         <div className="flex items-center gap-3">
           <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
-       Start New Campaign
-      </h1>
+        Start New Campaign
+       </h1>
+      </div>
+      <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
+       -- Start a new campaign
+      </div>
      </div>
-    </div>
 
     {/* ========================================================================= */}
     {/* ── 2. MAIN CONTAINER WITH DOCKED PROGRESS-FILL STEPPER STRIP              */}
@@ -1296,9 +954,6 @@ const CampaignEmail = () => {
       isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
      }`}
     >
-     {/* The campaign is on its way from the server. */}
-     <PageLoading show={draftLoading} isDark={isDark} />
-
      {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
      <div
       className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
@@ -1411,15 +1066,15 @@ const CampaignEmail = () => {
              const matchingScn = (scenariosJsonData?.scenarios || []).find((s) => s.senderEmailId === chosen);
              if (matchingScn && matchingScn.senderName) {
               setSenderName(matchingScn.senderName);
-              update({ senderEmailId: chosen, senderName: matchingScn.senderName });
+              persistChanges({ senderEmailId: chosen, senderName: matchingScn.senderName });
              } else {
-              update({ senderEmailId: chosen });
+              persistChanges({ senderEmailId: chosen });
              }
             }}
             className="w-full bg-transparent text-[10.5px] font-medium outline-none cursor-pointer pr-4 appearance-none"
            >
             <option value="" disabled className={isDark ? 'bg-[#15161A] text-slate-400' : 'bg-white text-slate-400'}>
-             Select from dropdown
+              Select from dropdown
             </option>
             {availableSenderEmails.map((email) => (
              <option
@@ -1450,7 +1105,7 @@ const CampaignEmail = () => {
             value={senderName}
             onChange={(e) => {
              setSenderName(e.target.value);
-             update({ senderName: e.target.value });
+             persistChanges({ senderName: e.target.value });
             }}
             placeholder="Type Here"
             className="w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400"
@@ -1481,7 +1136,7 @@ const CampaignEmail = () => {
             onChange={(e) => {
              setEmailSubject(e.target.value);
              setErrorMsg('');
-             update({ emailSubject: e.target.value });
+             persistChanges({ emailSubject: e.target.value });
             }}
             placeholder="Type Here"
             className="w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400 pr-2 justify-self-start text-left"
@@ -1557,9 +1212,7 @@ const CampaignEmail = () => {
           </h3>
          </div>
          <p className="text-[8.5px] font-medium leading-snug opacity-80 mt-1">
-          {testMode
-           ? 'Test campaign: add the email IDs to send it to, one by one. No recipient list is used.'
-           : 'Attach the target audience list here. The DLs and bulk files uploaded in User List will be available here'}
+          Attach the target audience list here. The DLs and bulk files uploaded in User List will be available here
          </p>
         </div>
 
@@ -1575,20 +1228,7 @@ const CampaignEmail = () => {
          style={{ backgroundColor: lCardBg }}
          className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1 z-50 -ml-2 relative overflow-visible"
         >
-         {testMode && (
-          <div className="flex items-center justify-between">
-           <label className="text-[12.5px] mt-2 font-bold text-slate-900 dark:text-white leading-none">
-            Test Recipient Ids
-           </label>
-           <span className="inline-flex items-center px-2.5 py-0.5 mt-1 rounded-full bg-[#FFD6DE] text-slate-900 text-[9px] font-bold">
-            Test campaign
-           </span>
-          </div>
-         )}
-
          {/* Recipient IDs Header & Load Button */}
-         {!testMode && (
-         <>
          <div className="flex items-center justify-between">
           <label className="text-[12.5px] mt-2 font-bold text-slate-900 dark:text-white leading-none">
            Recipient Ids
@@ -1674,11 +1314,8 @@ const CampaignEmail = () => {
            OR
           </span>
          </div>
-         </>
-         )}
 
-         {/* Dropdown 2: Single Master User Email Dropdown (a test campaign adds
-             each pick to its email IDs) */}
+         {/* Dropdown 2: Single Master User Email Dropdown */}
          <div ref={singleUserDropdownRef} className="relative z-40">
           <div
            onClick={() => {
@@ -1689,8 +1326,8 @@ const CampaignEmail = () => {
             isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
            }`}
           >
-           <span className={`text-[10px] font-medium truncate pr-2 ${testMode ? 'text-slate-400' : ''}`}>
-            {!testMode && selectedSingleUser ? selectedSingleUser.UserEMailID : 'Add email IDs one by one'}
+           <span className="text-[10px] font-medium truncate pr-2">
+            {selectedSingleUser ? selectedSingleUser.UserEMailID : 'Add email IDs one by one'}
            </span>
            <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
           </div>
@@ -1720,15 +1357,12 @@ const CampaignEmail = () => {
             {/* List of Users */}
             <div className="flex flex-col gap-1 max-h-80 overflow-y-auto pr-1">
              {filteredMasterUsers.map((user) => {
-              const isSelected = testMode
-               ? testEmails.some((e) => e.toLowerCase() === String(user.UserEMailID).toLowerCase())
-               : selectedSingleUser?.UserID === user.UserID;
+              const isSelected = selectedSingleUser?.UserID === user.UserID;
               return (
                <div
                 key={user.UserID}
                 onClick={() => {
-                 if (testMode) addTestEmail(user.UserEMailID);
-                 else setSelectedSingleUser(user);
+                 setSelectedSingleUser(user);
                  setIsSingleUserDropdownOpen(false);
                 }}
                 className={`p-2 rounded-xl flex items-center justify-between cursor-pointer transition-all ${
@@ -1764,42 +1398,6 @@ const CampaignEmail = () => {
            </div>
           )}
          </div>
-
-         {/* A test campaign: or type any email ID */}
-         {testMode && (
-          <>
-           <div className="flex items-center justify-center -my-0.5 mt-0.5">
-            <span className="text-[8.5px] font-black tracking-wider text-slate-400 uppercase">
-             OR
-            </span>
-           </div>
-           <form
-            className="flex items-center gap-1.5 mt-2"
-            onSubmit={(e) => {
-             e.preventDefault();
-             if (addTestEmail(typedTestEmail)) setTypedTestEmail('');
-            }}
-           >
-            <input
-             type="text"
-             inputMode="email"
-             aria-label="Type an email ID"
-             value={typedTestEmail}
-             onChange={(e) => setTypedTestEmail(e.target.value)}
-             placeholder="Type an email ID and press Add"
-             className={`flex-1 min-w-0 h-7 px-3 rounded-xl text-[10px] font-medium outline-none shadow-2xs placeholder-slate-400 ${
-              isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
-             }`}
-            />
-            <button
-             type="submit"
-             className="h-7 px-3 rounded-xl bg-black dark:bg-white hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black text-[9px] font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
-            >
-             Add
-            </button>
-           </form>
-          </>
-         )}
         </div>
 
         {/* 🌟 4. Continuous Bottom Base */}
@@ -1811,51 +1409,6 @@ const CampaignEmail = () => {
          <div className={`w-full flex-1 rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between shadow-xs ${
           isDark ? 'bg-[#15161A] border-white/10 text-white' : 'bg-white border-slate-200/90 text-slate-900'
          }`}>
-          {testMode ? (
-           <>
-            <div className="flex items-center justify-between">
-             <h4 className="text-[12.5px] font-bold text-slate-900 dark:text-white leading-none">
-              Test Recipients
-             </h4>
-             <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400">
-              {testEmails.length} of {MAX_TEST_RECIPIENTS}
-             </span>
-            </div>
-            {testEmails.length === 0 ? (
-             <div className="w-full flex-1 flex items-center justify-center min-h-[220px]">
-              <span className="text-[12.5px] font-bold text-[#F4A7B5] dark:text-[#FFB3C1] select-none text-center max-w-[340px]">
-               Add at least one email ID. This test campaign is sent only to these addresses.
-              </span>
-             </div>
-            ) : (
-             <ul aria-label="Test recipients" className="w-full flex-1 min-h-[220px] mt-3 flex flex-wrap gap-2 content-start">
-              {testEmails.map((email) => {
-               const person = masterUsersData.find((u) => String(u.UserEMailID).toLowerCase() === email.toLowerCase());
-               return (
-                <li
-                 key={email}
-                 className="inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full bg-[#FFD6DE] text-slate-900 shadow-2xs"
-                >
-                 <span className="flex flex-col leading-tight">
-                  <span className="text-[10px] font-bold">{email}</span>
-                  {person?.UserName && <span className="text-[8.5px] opacity-75">{person.UserName}</span>}
-                 </span>
-                 <button
-                  type="button"
-                  aria-label={`Remove ${email}`}
-                  onClick={() => removeTestEmail(email)}
-                  className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 cursor-pointer"
-                 >
-                  <X className="w-3 h-3" />
-                 </button>
-                </li>
-               );
-              })}
-             </ul>
-            )}
-           </>
-          ) : (
-          <>
           <h4 className="text-[12.5px] font-bold text-slate-900 dark:text-white leading-none">
            Recipient List Details
           </h4>
@@ -1963,13 +1516,10 @@ const CampaignEmail = () => {
             </div>
            </>
           )}
-          </>
-          )}
          </div>
 
          {/* Bottom-Right Aligned Action Buttons */}
          <div className="flex items-center justify-end gap-2.5 pt-3 -mt-2 -mb-2 border-black/5 dark:border-white/10">
-          <SaveDraftButton onClick={() => saveAsDraft(emailPatch())} busy={savingDraft} disabled={draftLoading} />
           <button
            type="button"
            onClick={handleGoBack}
@@ -2041,21 +1591,6 @@ const CampaignEmail = () => {
       </div>,
       document.body
      )}
-
-    {/* Picking a library body over the user's own edits asks first. */}
-    <DraftDialog
-     open={Boolean(pendingBody)}
-     isDark={isDark}
-     tone="warning"
-     zIndex={2147483647}
-     title="Replace the email body?"
-     body="The editor has your own changes. Using this body replaces them, and they are not kept. The template itself is not changed."
-     detail={pendingBody ? `Email body: ${pendingBody.name}` : ''}
-     primaryLabel="Replace"
-     onPrimary={() => pendingBody && applyEmailBody(pendingBody)}
-     secondaryLabel="Keep mine"
-     onSecondary={() => setPendingBody(null)}
-    />
    </div>
   </>
  );
