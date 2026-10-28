@@ -1,12 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { useCampaigns } from '../../services/useCampaigns';
-import { openCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD, routeForStep } from '../../services/campaignWizard';
-import { toDesignCampaign } from '../../services/campaignDesign';
-import { actorFor } from '../../services/identity';
 
 // Gallery Components
 import ApprovalQueueGallery from './components/ApprovalQueueGallery';
@@ -24,8 +17,8 @@ import RejectedImg from '../../assets/RequestAndApprovalsAssets/RejectedCampaign
 import MegaphoneImg from '../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
 import ExpiredImg from '../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
 import MyApprovedImg from '../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
-import PageLoading from '../../GlobalComponents/PageLoading';
 
+import initialCampaignsData from '../Campaigns/CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -38,7 +31,7 @@ export const VarSectionGap = 12; // in px
 export const VarNavButtonsHeightAdjuster = 80; // Height in px for each of the 5 nav buttons
 export const VarButtonsPopAnimationAdjuster = 1; // Hover pop scale multiplier (e.g. 1.02 = 102%, 1.04 = 104%)
 export const VarAppToCreRatioVisualHeight = 142; // Height in px for the ratio visual card
-export const VarAppToCreRatioVisualBarScale = 1; // Scale multiplier for the ratio bar
+export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the ratio bar
 
 // =========================================================================
 // 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
@@ -72,87 +65,106 @@ const VODAFONE_FONT_STYLE = `
 
 const RequestAndApprovals = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
-  const navigate = useNavigate();
 
-  // Lower-cased profile email: the audit identity sent with every action and
-  // used for "created by me" / "approved by me".
-  const activeUserEmail = actorFor(user);
+  // =========================================================================
+  // 🔍 ROBUST EMAIL RESOLVER
+  // =========================================================================
+  const activeUserEmail = useMemo(() => {
+    if (!user) return '';
+    return (
+      user.email ||
+      user.userEmail ||
+      user.UserEmailD_Admin ||
+      user.UserEmailD_CamapignManager ||
+      user.UserEmailD_CamapignCreator ||
+      user.UserEmailD_GMT ||
+      user.UserEmailD_GamificationEngineManager ||
+      user.UserEMailID ||
+      user.userEmailId ||
+      ''
+    ).trim().toLowerCase();
+  }, [user]);
 
   const isCampaignCreator = user?.role === 'Campaign Creator';
 
   // Active view tab state: 'queue' | 'rejected' | 'notified' | 'expired' | 'approved'
   const [activeTab, setActiveTab] = useState('queue');
 
-  // Trigger for notify window modal, and the plain-reject confirmation
+  // Trigger for notify window modal
   const [notifyingCampaign, setNotifyingCampaign] = useState(null);
-  const [rejectingCampaign, setRejectingCampaign] = useState(null);
-  const [actionError, setActionError] = useState('');
 
-  const {
-    campaigns: liveCampaigns,
-    loading,
-    error,
-    pendingAction,
-    refresh,
-    approve,
-    reject,
-    notify,
-    reschedule,
-  } = useCampaigns({ actor: activeUserEmail });
-
-  // Live campaigns, in the field names the galleries were drawn with.
-  const campaigns = useMemo(() => liveCampaigns.map((c) => toDesignCampaign(c)), [liveCampaigns]);
-
-  // Every action reports failure the same way and leaves the list refreshed.
-  const runAction = async (fn, fallbackMessage) => {
-    // One transition at a time: a double click must not send it twice.
-    if (pendingAction) return false;
-    setActionError('');
+  // Load campaigns from local storage or CampaignsData.json
+  const [campaigns, setCampaigns] = useState(() => {
     try {
-      await fn();
-      return true;
+      const stored = localStorage.getItem('voisshield_campaigns_data');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length >= (initialCampaignsData?.campaigns?.length || 0)) {
+          return parsed;
+        }
+      }
+      return initialCampaignsData?.campaigns || [];
+    } catch {
+      return initialCampaignsData?.campaigns || [];
+    }
+  });
+
+  const persistCampaigns = (newCampaigns) => {
+    setCampaigns(newCampaigns);
+    try {
+      localStorage.setItem('voisshield_campaigns_data', JSON.stringify(newCampaigns));
     } catch (e) {
-      setActionError(e?.message || fallbackMessage);
-      return false;
+      console.error(e);
     }
   };
 
-  // Approvers approve, reject, or reject with a notification. They never edit.
-  const handleApprove = (camp) =>
-    runAction(() => approve(camp.campaignId), 'Could not approve that campaign.');
-
-  const handleNotifySubmit = async (camp, message) => {
-    const done = await runAction(
-      () => notify(camp.campaignId, message),
-      'Could not send that notification.'
-    );
-    if (done) setNotifyingCampaign(null);
+  const handleApprove = (camp) => {
+    const updated = campaigns.map((c) => {
+      if (c.campaignId === camp.campaignId) {
+        return {
+          ...c,
+          CampaignStatus: 'Published',
+          'Approved/RejectedBy': activeUserEmail || 'abhay.hs1@vodafone.com',
+          Approver: user?.role === 'Admin' ? 'Admin' : 'Campaign Manager',
+          LastModified: new Date().toLocaleString()
+        };
+      }
+      return c;
+    });
+    persistCampaigns(updated);
   };
 
-  const handleReject = (camp) => setRejectingCampaign(camp);
-
-  const confirmReject = async () => {
-    const camp = rejectingCampaign;
-    const done = await runAction(() => reject(camp.campaignId), 'Could not reject that campaign.');
-    if (done) setRejectingCampaign(null);
+  const handleNotifySubmit = (camp, message) => {
+    const updated = campaigns.map((c) => {
+      if (c.campaignId === camp.campaignId) {
+        return {
+          ...c,
+          CampaignStatus: 'Notified',
+          NotifiedBy: activeUserEmail || 'abhay.hs1@vodafone.com',
+          NotificationMessage: message,
+          LastModified: new Date().toLocaleString()
+        };
+      }
+      return c;
+    });
+    persistCampaigns(updated);
+    setNotifyingCampaign(null);
   };
 
-  // Creator only: open a campaign that came back with a notification in the
-  // wizard, on the step it was last saved on (Details for older campaigns).
-  const handleEditCampaign = (camp) => {
-    openCampaignDraft(camp.campaignId);
-    navigate(routeForStep(camp.wizardStep, 2), IN_WIZARD);
-  };
-
-  // Creator only: an expired request goes back to DRAFT with its new start
-  // time, then opens in the wizard to be checked and resubmitted.
-  const handleExtendAndInvoke = async (camp, newStartTime) => {
-    const done = await runAction(
-      () => reschedule(camp.campaignId, newStartTime),
-      'Could not reschedule that campaign.'
-    );
-    if (done) handleEditCampaign(camp);
-    return done;
+  const handleReject = (camp) => {
+    const updated = campaigns.map((c) => {
+      if (c.campaignId === camp.campaignId) {
+        return {
+          ...c,
+          CampaignStatus: 'Rejected',
+          'Approved/RejectedBy': activeUserEmail || 'abhay.hs1@vodafone.com',
+          Approver: user?.role === 'Admin' ? 'Admin' : 'Campaign Manager',
+          LastModified: new Date().toLocaleString()
+        };
+      }
+      return c;
+    });
+    persistCampaigns(updated);
   };
 
   // Switcher navigation items configuration
@@ -235,22 +247,17 @@ const RequestAndApprovals = () => {
       }
     });
 
-    const cCount = creatorsSet.size;
-    const aCount = approversSet.size;
+    const cCount = creatorsSet.size > 0 ? creatorsSet.size : 7;
+    const aCount = approversSet.size > 0 ? approversSet.size : 12;
     const total = cCount + aCount;
 
     return {
       creatorsCount: cCount,
       approversCount: aCount,
-      creatorsPct: total > 0 ? (cCount / total) * 100 : 0,
-      approversPct: total > 0 ? (aCount / total) * 100 : 0
+      creatorsPct: total > 0 ? (cCount / total) * 100 : 36.8,
+      approversPct: total > 0 ? (aCount / total) * 100 : 63.2
     };
   }, [campaigns]);
-
-  // The page is covered only for its first load, while there is nothing to
-  // show yet. A refetch (Retry) keeps the page and its error banner visible;
-  // the Retry icon spins instead.
-  const coverLoading = loading && !error && liveCampaigns.length === 0;
 
   return (
     <>
@@ -275,15 +282,10 @@ const RequestAndApprovals = () => {
         </div>
 
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
-        {/* Grows to the foot of the page so the loading state is centred in
-            it, and is hidden while loading (it has no card behind it). */}
         <div 
           style={{ gap: `${VarSectionGap}px` }}
-          className={`relative grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? 'invisible' : ''}`}
+          className="w-full flex flex-col lg:flex-row items-start"
         >
-          {/* The campaigns are on their way from the server. */}
-          <PageLoading show={coverLoading} isDark={isDark} surface="page" />
-
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 5 SWITCHER CAPSULES WITH HOVER POP ANIMATION              */}
           {/* ========================================================================= */}
@@ -340,12 +342,12 @@ const RequestAndApprovals = () => {
               className="w-full p-4 flex flex-col justify-between bg-black text-white dark:bg-white dark:text-black border border-black/10 dark:border-white/10 shadow-xs select-none transition-colors duration-200"
             >
               {/* Card Title */}
-              <h4 className="text-[15px] font-voda font-bold tracking-tight leading-tight text-left -mt-1">
+              <h4 className="text-[14.5px] font-voda font-bold tracking-tight leading-tight text-left -mt-1">
                 Total Approvers to Creators Ratio
               </h4>
 
               {/* Labels Row */}
-              <div className="flex items-center justify-between text-[12px] font-voda font-bold px-7 pt-1">
+              <div className="flex items-center justify-between text-[12px] font-voda font-bold px-7 pt-1 -mb-4">
                 <span className="text-white dark:text-black">Creators</span>
                 <span className="text-white dark:text-black">Approvers</span>
               </div>
@@ -353,7 +355,7 @@ const RequestAndApprovals = () => {
               {/* Segmented Bar */}
               <div 
                 style={{ transform: `scale(${VarAppToCreRatioVisualBarScale})` }}
-                className="w-full h-7 mb-2 rounded-full p-[1px] bg-white dark:bg-black/15 flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
+                className="w-full h-7 mb-5  rounded-full p-[0px] bg-black dark:bg-white flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
               >
                 {/* Creators Segment (Left) */}
                 <div 
@@ -382,29 +384,6 @@ const RequestAndApprovals = () => {
             style={{ width: VarRightSectionWidth, flex: `0 0 ${VarRightSectionWidth}` }}
             className="flex flex-col min-w-0 h-full"
           >
-            {(error || actionError) && (
-              <div className="mb-2 px-4 py-2 rounded-xl flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-400/20 text-rose-700 dark:text-rose-300 text-[10.5px] font-bold">
-                <span className="flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  {actionError || `Could not load campaigns: ${error.message}`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActionError('');
-                    refresh();
-                  }}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Retry
-                </button>
-              </div>
-            )}
-
-            {loading && liveCampaigns.length === 0 && !error && (
-              <p className="mb-2 text-[10.5px] font-bold text-slate-400">Loading campaigns…</p>
-            )}
-
             {activeTab === 'queue' && (
               isCampaignCreator ? (
                 <RequestedQueueGallery
@@ -438,7 +417,6 @@ const RequestAndApprovals = () => {
                 isInlineView={true}
                 campaigns={campaigns}
                 currentUserEmail={activeUserEmail}
-                onEdit={handleEditCampaign}
                 isDark={isDark}
               />
             )}
@@ -446,8 +424,7 @@ const RequestAndApprovals = () => {
             {activeTab === 'expired' && (
               <ExpiredCampaignsGallery
                 campaigns={campaigns}
-                currentUserEmail={activeUserEmail}
-                onExtendAndInvoke={handleExtendAndInvoke}
+                onExtendAndInvoke={(camp) => console.log('Extend invoked:', camp)}
                 isDark={isDark}
               />
             )}
@@ -465,56 +442,12 @@ const RequestAndApprovals = () => {
         </div>
 
         {/* 🌟 Notify For Change Feedback Modal Window 🌟 */}
-        {/* Keyed per campaign so a note typed for one never carries over to the next. */}
         <NotifyForChangeWindow
-          key={notifyingCampaign?.campaignId || 'closed'}
           isOpen={Boolean(notifyingCampaign)}
           campaign={notifyingCampaign}
-          busy={Boolean(notifyingCampaign) && pendingAction === notifyingCampaign.campaignId}
-          error={notifyingCampaign ? actionError : ''}
-          onClose={() => {
-            setActionError('');
-            setNotifyingCampaign(null);
-          }}
+          onClose={() => setNotifyingCampaign(null)}
           onSubmit={handleNotifySubmit}
         />
-
-        {/* Plain reject: one confirmation, no message to the creator. */}
-        {rejectingCampaign && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white p-6 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col gap-3">
-              <h2 className="text-[16px] font-black tracking-tight">Reject this campaign?</h2>
-              <p className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug">
-                <span className="font-bold text-slate-900 dark:text-white">{rejectingCampaign.CampaignTitle}</span>{' '}
-                ({rejectingCampaign.campaignId}) will move to Rejected Campaigns. To ask the creator for
-                changes instead, use Notify For Changes.
-              </p>
-              {actionError && (
-                <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-300">{actionError}</p>
-              )}
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActionError('');
-                    setRejectingCampaign(null);
-                  }}
-                  className="px-5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
-                >
-                  Go Back
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmReject}
-                  disabled={pendingAction === rejectingCampaign.campaignId}
-                  className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
-                >
-                  {pendingAction === rejectingCampaign.campaignId ? 'Rejecting…' : 'Reject'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

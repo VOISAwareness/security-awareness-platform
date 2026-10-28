@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserType } from '../../../UserTypeContext/UserTypeContext';
 import { 
@@ -15,6 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import MegaphoneImg from '../../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
+import campaignsJsonData from '../../Campaigns/CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS (MATCHING APPROVAL QUEUE GALLERY)
@@ -53,11 +55,11 @@ const CAPSULE_COUNTER_COLOR = '#9333EA';
 const NotifiedCampaignsGallery = ({
   isOpen = true,
   onClose,
-  campaigns = [],
+  campaigns = (campaignsJsonData?.campaigns || []),
   currentUserEmail,
-  onEdit,
   isDark: propIsDark
 }) => {
+  const navigate = useNavigate();
   const { user, isDark: contextIsDark } = useUserType?.() || {};
   const isDark = propIsDark !== undefined ? propIsDark : (contextIsDark || false);
 
@@ -83,15 +85,65 @@ const NotifiedCampaignsGallery = ({
     ).trim().toLowerCase();
   }, [currentUserEmail, user]);
 
-  // Creator only (the buttons check ownership): the container points the
-  // wizard at this campaign and opens it.
+  // Helper to format ISO or human date strings to datetime-local input format
+  const formatForDateTimeInput = (dateStr) => {
+    if (!dateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(dateStr)) return dateStr.slice(0, 16);
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+    } catch {
+      // fallback
+    }
+    return dateStr;
+  };
+
+  // Select campaign and navigate directly to DetailsAndSettings.jsx
   const handleEditYourself = (camp) => {
+    try {
+      const existingDraft = localStorage.getItem('voisshield_active_campaign_draft');
+      const draftObj = existingDraft ? JSON.parse(existingDraft) : {};
+
+      const updatedDraft = {
+        ...draftObj,
+        isEditingExisting: true,
+        campaignId: camp.campaignId || camp.CampaignID || '',
+        campaignTitle: camp.CampaignTitle || camp.campaignTitle || '',
+        campaignDescription: camp.CampaignDescription || camp.campaignDescription || '',
+        startTime: formatForDateTimeInput(camp.StartTime || camp.startTime || ''),
+        endTime: formatForDateTimeInput(camp.EndTime || camp.endTime || ''),
+        isTestCampaign: camp.TestCampaign === 'Yes' || camp.TestCampaign === true || camp.isTestCampaign === true,
+        autoEndPostSending: camp.autoEndPostSending !== undefined ? Boolean(camp.autoEndPostSending) : true,
+        senderEmailId: camp.SenderEmailID || camp.senderEmailId || '',
+        senderName: camp.SenderName || camp.senderName || '',
+        emailSubject: camp.EmailSubject || camp.emailSubject || '',
+        emailBody: camp.EmailBody || camp.emailBody || camp.ScenarioEmailBody || camp.EmailContent || '',
+        landingPageId: camp.LandingPageID || camp.landingPageId || 'LP-001',
+        trainingId: camp.TrainingPathID || camp.trainingId || 'TP-001',
+        targetAudience: camp.UserList || camp.TargetUsers || camp.targetAudience || 'All Employees',
+        scenarioId: camp.scenarioId || 'custom',
+        scenarioName: '__EDIT_MODE__'
+      };
+
+      localStorage.setItem('voisshield_active_campaign_draft', JSON.stringify(updatedDraft));
+    } catch (e) {
+      console.error('Error saving campaign draft for edit:', e);
+    }
+
     if (onClose) onClose();
-    if (onEdit) onEdit(camp);
+    navigate('/start-campaign/details');
   };
 
   const resolvedCampaigns = useMemo(() => {
-    return Array.isArray(campaigns) ? campaigns : [];
+    if (Array.isArray(campaigns) && campaigns.length > 0) return campaigns;
+    return campaignsJsonData?.campaigns || [];
   }, [campaigns]);
 
   // Filter only 'Notified' campaigns
@@ -120,13 +172,13 @@ const NotifiedCampaignsGallery = ({
   }, [resolvedCampaigns, searchTerm, sortBy]);
 
   const getElapsedBadge = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '2 days ago';
     try {
       const diffMs = new Date() - new Date(dateStr);
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       return diffDays > 0 ? `${diffDays} days ago` : 'Today';
     } catch {
-      return '—';
+      return '2 days ago';
     }
   };
 

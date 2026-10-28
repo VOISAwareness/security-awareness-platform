@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { formatDateTime } from '../../../services/campaignStatus';
 import { 
   Search, 
   ChevronDown, 
@@ -7,6 +6,7 @@ import {
   UserX
 } from 'lucide-react';
 import RejectedIconImg from '../../../assets/RequestAndApprovalsAssets/RejectedCampaignsImage.png';
+import campaignsJsonData from '../../Campaigns/CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -38,7 +38,7 @@ const CAPSULE_THEME_COLOR = '#FCD5CE';
 const CAPSULE_COUNTER_COLOR = '#F43F5E';
 
 const RejectedCampaignsGallery = ({ 
-  campaigns = [], 
+  campaigns = (campaignsJsonData?.campaigns || []), 
   onViewDetails,
   isDark = false 
 }) => {
@@ -50,7 +50,7 @@ const RejectedCampaignsGallery = ({
   const lCardBg = getLCardBg(isDark);
 
   const formatShortDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '2-Jan-26';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr.split(' ')[0];
@@ -59,12 +59,12 @@ const RejectedCampaignsGallery = ({
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
     } catch {
-      return dateStr.split(' ')[0] || '—';
+      return dateStr.split(' ')[0] || '2-Jan-26';
     }
   };
 
   const getCleanUserName = (emailStr) => {
-    if (!emailStr) return 'Unknown';
+    if (!emailStr) return 'Admin';
     const prefix = emailStr.split('@')[0] || '';
     return prefix
       .split('.')
@@ -73,7 +73,8 @@ const RejectedCampaignsGallery = ({
   };
 
   const resolvedCampaigns = useMemo(() => {
-    return Array.isArray(campaigns) ? campaigns : [];
+    if (Array.isArray(campaigns) && campaigns.length > 0) return campaigns;
+    return campaignsJsonData?.campaigns || [];
   }, [campaigns]);
 
   const filteredRejectedCampaigns = useMemo(() => {
@@ -216,7 +217,7 @@ const RejectedCampaignsGallery = ({
             </div>
           ) : (
             filteredRejectedCampaigns.map((camp) => {
-              const rejectedByEmail = camp['Approved/RejectedBy'] || camp.ApprovedBy || camp.RejectedBy || 'Unknown';
+              const rejectedByEmail = camp['Approved/RejectedBy'] || camp.ApprovedBy || camp.RejectedBy || 'Admin';
               const rejectedByName = getCleanUserName(rejectedByEmail);
 
               return (
@@ -307,7 +308,7 @@ const RejectedCampaignsGallery = ({
                   {detailModalItem.CampaignDescription || 'No description provided.'}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy || 'N/A'}
+                  Created on: {detailModalItem.CreationDate || 'N/A'} &bull; Created By: {detailModalItem.CreatedBy || 'N/A'}
                   {detailModalItem['Approved/RejectedBy'] && (
                     <span className="ml-2 font-bold text-[#BE123C]">
                       &bull; Rejected by: {detailModalItem['Approved/RejectedBy']}
@@ -336,15 +337,15 @@ const RejectedCampaignsGallery = ({
                 </div>
                 <div>
                   <strong>Target Audience: </strong>
-                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'No recipients selected'}</span>
+                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'All Employees'}</span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
+                  <span className="font-semibold">{detailModalItem.StartTime || 'N/A'}</span>
                 </div>
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
+                  <span className="font-semibold">{detailModalItem.EndTime || 'N/A'}</span>
                 </div>
               </div>
             </div>

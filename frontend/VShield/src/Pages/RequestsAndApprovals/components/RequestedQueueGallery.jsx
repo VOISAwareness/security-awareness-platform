@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { formatDateTime } from '../../../services/campaignStatus';
 import { 
   Search, 
   ChevronDown, 
@@ -14,7 +13,6 @@ import {
   Users
 } from 'lucide-react';
 import RequestQueueImg from '../../../assets/RequestAndApprovalsAssets/RequestQueueImage.png';
-import { DEMO_USER } from '../../../appConfig';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS (MATCHING APPROVAL QUEUE GALLERY)
@@ -137,8 +135,8 @@ const RequestedQueueGallery = ({
     if (!rawBody) return '<p class="text-slate-400 italic">No email payload defined.</p>';
 
     let processed = String(rawBody)
-      .replace(/{{userName}}/g, DEMO_USER.name)
-      .replace(/{{email}}/g, DEMO_USER.email)
+      .replace(/{{userName}}/g, 'Abhay H S')
+      .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
       .replace(/{{department}}/g, 'AI & Data Analytics')
       .replace(/{{phishLink}}/g, '#simulated-phish-link');
 
@@ -383,7 +381,7 @@ const RequestedQueueGallery = ({
                       <>
                         <span className="text-slate-400 font-bold">&bull;</span>
                         <span className="font-bold text-slate-700">
-                          Scheduled for: <span className="font-semibold">{formatDateTime(camp.StartTime)}</span>
+                          Scheduled for: <span className="font-semibold">{camp.StartTime}</span>
                           {daysLeft && (
                             <span className="ml-1 text-[#15803D] font-black">({daysLeft})</span>
                           )}
@@ -435,7 +433,7 @@ const RequestedQueueGallery = ({
                   {detailModalItem.CampaignDescription}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy}
+                  Created on: {detailModalItem.CreationDate} &bull; Created By: {detailModalItem.CreatedBy}
                 </div>
               </div>
 
@@ -458,7 +456,7 @@ const RequestedQueueGallery = ({
                       className="font-mono-tech text-[#E60000] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <span>
-                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'No recipients selected'}
+                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'DL-ALL-EMPLOYEES'}
                       </span>
                       <ExternalLink className="w-2.5 h-2.5 stroke-[2.5]" />
                     </button>
@@ -470,12 +468,12 @@ const RequestedQueueGallery = ({
 
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
+                  <span className="font-semibold">{detailModalItem.StartTime}</span>
                 </div>
 
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
+                  <span className="font-semibold">{detailModalItem.EndTime}</span>
                 </div>
               </div>
 
@@ -492,7 +490,7 @@ const RequestedQueueGallery = ({
                   </div>
                   <div>
                     <strong>Sender Email: </strong>
-                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'Not set'}</span>
+                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}</span>
                   </div>
                   <div className="sm:col-span-2">
                     <strong>Email Subject: </strong>
@@ -592,13 +590,13 @@ const RequestedQueueGallery = ({
                   <div className="flex flex-wrap items-center gap-x-4">
                     <div>
                       <strong className="text-slate-900 dark:text-white">From: </strong>
-                      <span>{detailModalItem.SenderName || 'Not set'}</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'Not set'}&gt;</span>
+                      <span>{detailModalItem.SenderName || 'Security Operations'}</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'security-alert@vodafone.com'}&gt;</span>
                     </div>
                     <div>
                       <strong className="text-slate-900 dark:text-white">To: </strong>
-                      <span>{DEMO_USER.name}</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{DEMO_USER.email}&gt;</span>
+                      <span>Abhay H S</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;abhay.hs1@vodafone.com&gt;</span>
                     </div>
                   </div>
                 </div>

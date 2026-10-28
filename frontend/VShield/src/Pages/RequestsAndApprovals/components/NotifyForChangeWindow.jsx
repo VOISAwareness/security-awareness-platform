@@ -6,8 +6,6 @@ import NotifyIllustration from '../../../assets/RequestAndApprovalsAssets/Notify
 const NotifyForChangeWindow = ({
   isOpen,
   campaign,
-  busy = false,
-  error = '',
   onClose,
   onSubmit
 }) => {
@@ -17,7 +15,7 @@ const NotifyForChangeWindow = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!note.trim() || busy) return;
+    if (!note.trim()) return;
     onSubmit(campaign, note.trim());
   };
 
@@ -115,9 +113,6 @@ const NotifyForChangeWindow = ({
 
           {/* Footer Action Buttons */}
           <div className="relative z-20 flex items-center justify-end gap-3 pt-5">
-            {error && (
-              <p className="mr-auto text-[11px] font-bold text-rose-700">{error}</p>
-            )}
             <button
               type="button"
               onClick={onClose}
@@ -128,10 +123,10 @@ const NotifyForChangeWindow = ({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!note.trim() || busy}
+              disabled={!note.trim()}
               className="px-7 py-2 rounded-xl bg-[#84D984] hover:bg-[#72C872] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[11px] font-black tracking-wider uppercase transition-all shadow-xs cursor-pointer active:scale-95"
             >
-              {busy ? 'Sending…' : 'Send'}
+              Send
             </button>
           </div>
         </motion.div>

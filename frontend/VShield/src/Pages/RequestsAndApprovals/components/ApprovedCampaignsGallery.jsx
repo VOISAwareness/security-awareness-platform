@@ -10,6 +10,7 @@ import {
   Check
 } from 'lucide-react';
 import MyApprovedImg from '../../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
+import campaignsJsonData from '../../Campaigns/CampaignsData.json';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS (MATCHING OTHER GALLERIES)
@@ -48,7 +49,7 @@ const CAPSULE_COUNTER_COLOR = '#16A34A';
 const ApprovedCampaignsGallery = ({
   isOpen = true,
   onClose,
-  campaigns = [],
+  campaigns = (campaignsJsonData?.campaigns || []),
   currentUserEmail,
   onViewDetails,
   isDark: propIsDark
@@ -109,7 +110,8 @@ const ApprovedCampaignsGallery = ({
   const isCreator = user?.role === 'Campaign Creator';
 
   const resolvedCampaigns = useMemo(() => {
-    return Array.isArray(campaigns) ? campaigns : [];
+    if (Array.isArray(campaigns) && campaigns.length > 0) return campaigns;
+    return campaignsJsonData?.campaigns || [];
   }, [campaigns]);
 
   // Filter only 'Published' campaigns matching role-based ownership
@@ -336,7 +338,7 @@ const ApprovedCampaignsGallery = ({
                     <span>&bull;</span>
                     <span className="font-bold flex items-center gap-1 text-[#16A34A] dark:text-emerald-300">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      Approved By: <strong>{camp['Approved/RejectedBy']?.split('@')[0] || camp.ApprovedBy?.split('@')[0] || 'Unknown'}</strong>
+                      Approved By: <strong>{camp['Approved/RejectedBy']?.split('@')[0] || camp.ApprovedBy?.split('@')[0] || 'Admin'}</strong>
                     </span>
                   </div>
 
@@ -421,7 +423,7 @@ const ApprovedCampaignsGallery = ({
                 </div>
                 <div>
                   <strong>Target Audience: </strong>
-                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'No recipients selected'}</span>
+                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'All Employees'}</span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
