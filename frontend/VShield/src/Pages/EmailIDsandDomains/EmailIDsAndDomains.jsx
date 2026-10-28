@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,7 +12,10 @@ import {
 
 // Default initial dataset
 import defaultEmailData from './EmailIDsAndDomains.json';
-import { api } from '../../services/api';
+
+//Import Assets
+import EmailIDsDarkIcon from '../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsDarkModeIcon.png';
+import EmailIDsLightIcon from '../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsLightModeIcon.png';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -21,18 +24,17 @@ const VarEmailIDsScale = 0.91;
 const VarOverallRoundednessScale = 0.75;
 
 const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
   
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
   }
   .font-mono-tech {
     font-family: 'JetBrains Mono', monospace;
   }
-
-  /* Universal Roundedness Scaler */
-  .rounded-2xl { border-radius: ${Math.round(18 * VarOverallRoundednessScale)}px !important; }
+  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallRoundednessScale)}px !important; }
+  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallRoundednessScale)}px !important; }
   .rounded-xl  { border-radius: ${Math.round(14 * VarOverallRoundednessScale)}px !important; }
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
@@ -49,8 +51,15 @@ const PRESET_DOMAINS = [
 const EmailIDsAndDomains = () => {
   const { isDark } = useUserType?.() || { isDark: false };
 
-  // Backed by the API (falls back to bundled JSON only if the API is unreachable).
-  const [emailsList, setEmailsList] = useState([]);
+  // Load from localStorage or JSON
+  const [emailsList, setEmailsList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voisshield_email_domains_data');
+      return saved ? JSON.parse(saved) : (defaultEmailData || []);
+    } catch {
+      return defaultEmailData || [];
+    }
+  });
 
   // Form Inputs
   const [localPart, setLocalPart] = useState('');
@@ -63,22 +72,14 @@ const EmailIDsAndDomains = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Load sender identities from the backend on mount.
+  // Persist to localStorage
   useEffect(() => {
-    let active = true;
-    api.senderIdentities
-      .list()
-      .then((items) => {
-        if (active) setEmailsList(Array.isArray(items) ? items : []);
-      })
-      .catch((err) => {
-        console.error('Failed to load sender identities', err);
-        if (active) setEmailsList(defaultEmailData || []);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+    try {
+      localStorage.setItem('voisshield_email_domains_data', JSON.stringify(emailsList));
+    } catch (err) {
+      console.error('Failed saving to localStorage', err);
+    }
+  }, [emailsList]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -150,6 +151,7 @@ const EmailIDsAndDomains = () => {
     }
 
     const newItem = {
+      id: `em-${Date.now().toString().slice(-4)}`,
       email: fullEmail,
       description: description.trim() || "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text eve",
       createdDate: getFormattedDate(),
@@ -157,51 +159,28 @@ const EmailIDsAndDomains = () => {
       usageCount: 0
     };
 
-    api.senderIdentities
-      .create(newItem)
-      .then((saved) => {
-        setEmailsList((prev) => [saved, ...prev]);
-        setLocalPart('');
-        setDomainPart('');
-        setDescription('');
-        showToast(`Saved ${fullEmail} successfully!`);
-      })
-      .catch((err) => {
-        console.error(err);
-        showToast('Could not save Email ID. Please try again.');
-      });
+    setEmailsList([newItem, ...emailsList]);
+    setLocalPart('');
+    setDomainPart('');
+    setDescription('');
+    showToast(`Saved ${fullEmail} successfully!`);
   };
 
   // Handle Delete
   const handleDelete = (id) => {
     const target = emailsList.find((item) => item.id === id);
-    api.senderIdentities
-      .remove(id)
-      .then(() => {
-        setEmailsList((prev) => prev.filter((item) => item.id !== id));
-        showToast(`Deleted ${target?.email || 'Email ID'}`);
-      })
-      .catch((err) => {
-        console.error(err);
-        showToast('Could not delete Email ID. Please try again.');
-      });
+    setEmailsList(emailsList.filter((item) => item.id !== id));
+    showToast(`Deleted ${target?.email || 'Email ID'}`);
   };
 
   // Handle Save Edit Modal
   const handleSaveEdit = () => {
     if (!editingItem) return;
-    const { id, ...patch } = editingItem;
-    api.senderIdentities
-      .update(id, patch)
-      .then((updated) => {
-        setEmailsList((prev) => prev.map((item) => (item.id === id ? updated : item)));
-        setEditingItem(null);
-        showToast('Updated Email record');
-      })
-      .catch((err) => {
-        console.error(err);
-        showToast('Could not update Email record. Please try again.');
-      });
+    setEmailsList((prev) =>
+      prev.map((item) => (item.id === editingItem.id ? editingItem : item))
+    );
+    setEditingItem(null);
+    showToast('Updated Email record');
   };
 
   // Search Filter
@@ -228,26 +207,26 @@ const EmailIDsAndDomains = () => {
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "ADD NEW EMAIL ID & DOMAIN" ─────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] px-5 rounded-xl border flex items-center justify-start transition-colors duration-300 shadow-sm select-none ${
-            isDark
-              ? 'bg-white text-[#0B1121] border-slate-200'
-              : 'bg-[#06080D] text-white border-black/10'
-          }`}
-        >
-          <span className="text-xs sm:text-[12.5px] font-voda-exb tracking-wider uppercase">
-            EMAIL IDs & DOMAIN
-          </span>
+        className={`w-full h-[40px] py-2.5 px-6 -mt-1 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <h1 className="text-[13.5px] font-bold tracking-tight">
+              EMAIL IDs & DOMAINS
+            </h1>
+          </div>
         </div>
 
         <div
-  className={`w-full h-auto min-h-[40px] px-4 py-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors duration-300 select-none ${
+  className={`w-full h-auto min-h-[36px] px-4 py-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors duration-300 select-none ${
     isDark
       ? 'bg-black/40 text-slate-200 border-white/15'
-      : 'bg-white text-slate-700 border-black/5'
+      : 'bg-white/40 text-slate-700 border-black/10'
   }`}
 >
   {/* Left Section: Action Title */}
-  <span className={`text-[11px] uppercase tracking-wider font-voda-exb shrink-0 ${
+  <span className={`text-[11px] uppercase tracking-wider font-voda font-bold shrink-0 ${
     isDark ? 'text-white' : 'text-black'
   }`}>
     Add New Email IDs & Domains
@@ -255,16 +234,7 @@ const EmailIDsAndDomains = () => {
 
   {/* Right Section: Informational Text with Circle-I Icon at the start */}
   <div className="flex items-start gap-1.5 max-w-2xl sm:justify-end">
-    <svg 
-      className={`w-3.5 h-3.5 shrink-0 mt-0.5 opacity-80 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} 
-      fill="none" 
-      viewBox="0 0 24 24" 
-      strokeWidth="2" 
-      stroke="currentColor"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 111.056 1.056L10.5 13.042a.75.75 0 11-1.056-1.056l1.806-1.716zM12 21a9 9 0 100-18 9 9 0 000 18zm0-13.5h.008v.008H12V7.5z" />
-    </svg>
-    <span className={`text-[9.5px] font-normal leading-normal ${
+    <span className={`text-[9.5px] font-bold leading-normal ${
       isDark ? 'text-slate-400' : 'text-slate-500'
     }`}>
       Upload Whitelisted Email ID/IDs here, use these email IDs to ‘Start a new campaign’ or to ‘Create a new scenario’ (Template)
@@ -294,7 +264,7 @@ const EmailIDsAndDomains = () => {
                 style={{ backgroundColor: cardBg }}
               >
                 <div>
-                  <h3 className={`text-[15px] -mt-1 font-voda-exb tracking-tight ${textColor}`}>
+                  <h3 className={`text-[15px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}>
                     Local Part
                   </h3>
                   <p className={`text-[9.5px] font-medium mt-0.5 mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -319,7 +289,7 @@ const EmailIDsAndDomains = () => {
                 style={{ backgroundColor: cardBg }}
               >
                 <div>
-                  <h3 className={`text-[15px] -mt-1 font-voda-exb tracking-tight ${textColor}`}>
+                  <h3 className={`text-[15px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}>
                     Domain Part
                   </h3>
                   <p className={`text-[9.5px] font-medium mt-0.5 mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -341,7 +311,7 @@ const EmailIDsAndDomains = () => {
                     <button
                       type="button"
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className={`w-[135px] px-2.5 py-1.5 rounded-lg text-[8.5px] font-voda-exb flex justify-between items-center gap-1 transition-colors cursor-pointer ${
+                      className={`w-[135px] px-2.5 py-1.5 rounded-lg text-[8.5px] font-voda font-bold flex justify-between items-center gap-1 transition-colors cursor-pointer ${
                         isDark ? 'bg-[#2E313D] hover:bg-[#393C49] text-slate-200' : 'bg-[#EAEFF5] hover:bg-[#DCE3EC] text-slate-800'
                       }`}
                     >
@@ -392,7 +362,7 @@ const EmailIDsAndDomains = () => {
                   className="w-full p-3.5 rounded-t-2xl rounded-br-2xl transition-colors"
                   style={{ backgroundColor: cardBg }}
                 >
-                  <h3 className={`text-[14px] -mt-1 font-voda-exb tracking-tight ${textColor}`}>
+                  <h3 className={`text-[14px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}>
                     Description
                   </h3>
 
@@ -414,7 +384,7 @@ const EmailIDsAndDomains = () => {
                     className="flex-1 p-3.5 rounded-b-2xl rounded-tr-none transition-colors relative"
                     style={{ backgroundColor: cardBg }}
                   >
-                    <h3 className={`text-[14px] font-voda-exb tracking ${textColor}`}>
+                    <h3 className={`text-[14px] font-voda font-bold tracking ${textColor}`}>
                       Review and Submit
                     </h3>
 
@@ -454,7 +424,7 @@ const EmailIDsAndDomains = () => {
                       onClick={handleSubmit}
                       className="w-full h-[120px] -ml-2 mt-2 rounded-2xl bg-[#15171C] dark:bg-[#f1f4f9] hover:bg-[#595959] text-white dark:text-black flex flex-col items-start justify-top text-center shadow-xs cursor-pointer transition-transform active:scale-98"
                     >
-                      <span className="text-[15px] mt-2 ml-2 font-voda-exb uppercase leading-tight drop-shadow-xs">
+                      <span className="text-[14px] mt-2 ml-2 font-voda font-bold leading-tight drop-shadow-xs">
                         Save &<br />Submit
                       </span>
                     </button>
@@ -474,28 +444,38 @@ const EmailIDsAndDomains = () => {
           >
             {/* Top Row: Standalone Black Card + Upper Part of L-Container ("Total Email IDs") */}
             <div className="flex items-stretch gap-2.5 w-full">
-              {/* Standalone Black Card: All Existing Email IDs & Domains */}
-              <div className="w-[50%] bg-[#0D0D11] text-white bg-[#15171C] dark:bg-[#f1f4f9] rounded-xl p-3.5 mb-2 -mr-0.5 flex flex-col justify-between min-h-[120px] flex-shrink-0 z-10">
-                <div>
-                  <h4 className="text-[15.5px] text-white dark:text-black font-voda-exb leading-snug">
-                    All Existing<br />Email IDs & Domains
+              {/* Standalone Black Card: Email IDs & Domains */}
+              <div className="w-[50%] bg-[#0D0D11] text-white dark:bg-[#f1f4f9] rounded-xl p-3.5 mb-2 -mr-0.5 flex flex-col justify-between min-h-[120px] flex-shrink-0 z-10 relative overflow-hidden">
+                <div className="relative z-10">
+                  <h4 className="text-[14.5px] text-white dark:text-black font-voda font-bold leading-snug">
+                    Email IDs &<br /> Domains
                   </h4>
-                  <p className="text-[8.5px] font-medium leading-relaxed text-white dark:text-black mt-2">
+                  <p className="text-[8.5px] w-[55%] font-medium leading-relaxed text-white dark:text-black mt-2">
                     Access all the Email IDs along with Domains which are been added to VOISShield
                   </p>
+                </div>
+
+                {/* Cropped Illustration Asset Attached to Corner */}
+                <div className="absolute -bottom-1 -right-1 w-20 h-20 pointer-events-none select-none z-0">
+                  <img
+                    src={isDark ? EmailIDsDarkIcon : EmailIDsLightIcon}
+                    alt="Email IDs & Domains"
+                    className="w-full h-full object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
                 </div>
               </div>
 
               {/* 🌟 1. Upper Arm of L-Container: Total Email IDs Counter */}
               <div
-                className="flex-1 p-3.5 rounded-t-xl rounded-tr-xl rounded-bl-none flex flex-col justify-between min-h-[120px] relative transition-colors"
-                style={{ backgroundColor: cardBg }}
+                className="flex-1 p-3.5 rounded-t-xl rounded-tr-xl rounded-bl-none flex flex-col justify-between min-h-[120px] relative transition-colors
+                bg-white/0"
               >
                 <div>
-                  <span className={`text-[15.5px] font-voda-exb leading-tight block ${textColor}`}>
-                    Total Email IDs
+                  <span className={`text-[15.5px] w-[70%] -mt-1.5 font-voda font-bold leading-tight block ${textColor}`}>
+                    Total Existing Email IDs
                   </span>
-                  <div className={`text-[26px] font-voda-exb leading-none my-2.5 ${textColor}`}>
+                  <div className={`text-4xl font-voda-exb leading-none my-2.5 ${textColor}`}>
                     {emailsList.length.toString().padStart(2, '0')}
                   </div>
                 </div>
@@ -503,24 +483,12 @@ const EmailIDsAndDomains = () => {
                 <span className={`text-[11.5px] font-medium leading-tight block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Total Unique Domains: {uniqueDomainsCount.toString().padStart(2, '0')}
                 </span>
-
-                {/* 🌟 Concave Arc Fillet in the Re-entrant Inner Corner */}
-                <svg
-                        className="absolute -bottom-px -left-[14px] w-[14px] h-[14px] pointer-events-none z-20 overflow-visible"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                      >
-                        <path
-                          d="M 0,14 A 14,14 0 0 0 14,0 V 14 H 0 Z"
-                          fill={isDark ? "#202127" : "#f1f3f7"}
-                        />
-                      </svg>
               </div>
             </div>
 
             {/* 🌟 2. Lower Body of L-Container: Search & Email Records Gallery (Full Width) */}
             <div
-              className="w-full p-3.5 rounded-b-2xl rounded-tl-2xl flex flex-col gap-3 -mt-2.5 transition-colors"
+              className="w-full p-3.5 rounded-2xl flex flex-col gap-3 -mt-2.5 transition-colors"
               style={{ backgroundColor: cardBg }}
             >
               {/* Search Input Bar with Right-Aligned Search Icon */}
@@ -559,7 +527,7 @@ const EmailIDsAndDomains = () => {
                     >
                       {/* Top Row: Email + Action Icons */}
                       <div className="flex items-center justify-between gap-1.5">
-                        <span className={`text-[12px] font-voda-exb truncate flex-1 ${textColor}`}>
+                        <span className={`text-[12px] font-voda font-bold truncate flex-1 ${textColor}`}>
                           {item.email}
                         </span>
 
@@ -624,7 +592,7 @@ const EmailIDsAndDomains = () => {
                 }`}
               >
                 <div className="flex items-center justify-between pb-2.5 border-b border-black/5 dark:border-white/5">
-                  <h3 className="text-xs font-voda-exb uppercase tracking-tight flex items-center gap-2">
+                  <h3 className="text-xs font-voda font-bold uppercase tracking-tight flex items-center gap-2">
                     <span className="w-1.5 h-3.5 rounded-full bg-[#E60000]" />
                     Edit Email Record
                   </h3>
@@ -674,7 +642,7 @@ const EmailIDsAndDomains = () => {
                   <button
                     type="button"
                     onClick={handleSaveEdit}
-                    className="px-4 py-1.5 rounded-xl bg-[#E60000] text-white text-xs font-voda-exb uppercase tracking-wider hover:bg-[#cc0000] shadow-sm cursor-pointer"
+                    className="px-4 py-1.5 rounded-xl bg-[#E60000] text-white text-xs font-voda font-bold uppercase tracking-wider hover:bg-[#cc0000] shadow-sm cursor-pointer"
                   >
                     Save Changes
                   </button>
@@ -691,7 +659,7 @@ const EmailIDsAndDomains = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#22C55E] text-white text-xs font-voda-exb shadow-xl flex items-center gap-2"
+              className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#22C55E] text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2"
             >
               <Check className="w-4 h-4 stroke-[3]" />
               {toastMessage}
