@@ -25,8 +25,7 @@ import {
    COVER IMAGE DROPZONE
 ============================================================ */
 
-// Click opens the image catalogue; dropping an image file here uploads it.
-const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
+const CoverImageDropzone = ({ onClick, isDark }) => (
   <div
     onClick={onClick}
     role="button"
@@ -36,18 +35,8 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
         onClick();
       }
     }}
-    onDragOver={(e) => {
-      e.preventDefault();
-    }}
-    onDrop={(e) => {
-      e.preventDefault();
-      const file = e.dataTransfer?.files?.[0];
-      if (file) {
-        onFileDrop?.(file);
-      }
-    }}
     className={`
-      w-full mx-auto h-[110px]
+      w-full mx-auto h-[150px]
       rounded-lg border-2 border-dashed
       flex flex-col items-center justify-center gap-2
       cursor-pointer transition-all
@@ -70,49 +59,9 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
         ${isDark ? 'text-white' : 'text-slate-800'}
       `}
     >
-      Choose from catalogue
-    </span>
-
-    <span
-      className={`
-        text-[8px] font-semibold
-        ${isDark ? 'text-white/50' : 'text-slate-500'}
-      `}
-    >
-      or drop your own image here
+      Click here
     </span>
   </div>
-);
-
-
-// "or" + "Upload your own image", under the cover dropzone. Same look as the
-// landing page card's OrDivider + secondary AttachButton, kept at module scope.
-const CoverUploadChoice = ({ onUpload, isDark }) => (
-  <>
-    <div className="flex items-center gap-2 my-3 w-full">
-      <span className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
-      <span className="text-[8px] font-voda-exb uppercase text-slate-400">or</span>
-      <span className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
-    </div>
-
-    <button
-      type="button"
-      onClick={onUpload}
-      className={`
-        w-full max-w-[220px] mx-auto h-[38px] px-4 rounded-lg
-        text-[9px] font-bold uppercase tracking-wide
-        flex items-center justify-center gap-2 transition-all cursor-pointer
-        ${
-          isDark
-            ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
-            : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
-        }
-      `}
-    >
-      <Upload className="w-3.5 h-3.5" />
-      <span>Upload your own image</span>
-    </button>
-  </>
 );
 
 
@@ -895,9 +844,6 @@ const LandingPageSelectedPreview = ({
 const AttachOutcomesTab = ({
   formData,
   setFormData,
-  // Called with a newly chosen cover File so the wizard can upload it at once
-  // (a File can't be kept in the saved draft; its storage key can).
-  onCoverFileChosen,
 }) => {
 
   const { isDark } =
@@ -1052,15 +998,6 @@ const AttachOutcomesTab = ({
       coverImagePreview: image.image,
 
       selectedCatalogueImageId: image.id,
-
-      // A catalogue cover replaces any earlier upload.
-      coverImageKey: '',
-
-      coverImageKeyScenarioId: '',
-
-      coverImageThumbnail: '',
-
-      coverImageReattach: '',
     }));
 
     setIsImageCatalogueOpen(false);
@@ -1085,18 +1022,6 @@ const AttachOutcomesTab = ({
       coverImagePreview: '',
 
       selectedCatalogueImageId: null,
-
-      coverImageKey: '',
-
-      coverImageKeyScenarioId: '',
-
-      coverImageThumbnail: '',
-
-      coverImageReattach: '',
-
-      // An edited scenario's stored cover goes too (scenarioMapper's
-      // toEditFormData); a new scenario never has one here.
-      CoverImageID: '',
     }));
 
   };
@@ -1126,8 +1051,6 @@ const AttachOutcomesTab = ({
       coverLandingPagePreview: '',
 
       selectedLandingCatalogueImageId: null,
-
-      landingPageId: '',
     }));
 
   };
@@ -1186,15 +1109,6 @@ const handleLandingPageImageSelect = (item) => {
 
     selectedLandingCatalogueImageId:
       landingPageId,
-
-    // Published as the scenario's landingPageId. The catalogue page itself is
-    // only linked, never edited.
-    landingPageId,
-
-    // A catalogue pick replaces a page designed earlier.
-    outcomeSource: '',
-
-    outcomeRichText: '',
 
     coverLandingImageName:
       landingPageName,
@@ -2529,18 +2443,6 @@ const handleLandingPageImageSelect = (item) => {
     const file =
       event.target.files?.[0];
 
-    // Clear the input so choosing the same file again still fires onChange.
-    event.target.value = '';
-
-    acceptCoverFile(file);
-
-  };
-
-
-  // Shared by the file picker and drag-and-drop onto the cover dropzone.
-  const acceptCoverFile = (
-    file
-  ) => {
 
     if (!file) {
       return;
@@ -2560,6 +2462,8 @@ const handleLandingPageImageSelect = (item) => {
         'Please upload a PNG, JPEG or JPG image.'
       );
 
+      event.target.value = '';
+
       return;
     }
 
@@ -2569,6 +2473,8 @@ const handleLandingPageImageSelect = (item) => {
       alert(
         'Image size should not exceed 5MB.'
       );
+
+      event.target.value = '';
 
       return;
     }
@@ -2588,19 +2494,7 @@ const handleLandingPageImageSelect = (item) => {
       coverImageName: file.name,
 
       coverImagePreview: previewUrl,
-
-      // Filled in by onCoverFileChosen once this file is uploaded.
-      coverImageKey: '',
-
-      coverImageKeyScenarioId: '',
-
-      coverImageThumbnail: '',
-
-      coverImageReattach: '',
     }));
-
-
-    onCoverFileChosen?.(file);
 
   };
 
@@ -2807,7 +2701,7 @@ const handleLandingPageImageSelect = (item) => {
             "
           >
 
-            {formData.coverImagePreview || formData.coverImageKey ? (
+            {formData.coverImagePreview ? (
 
               <PreviewCardShell
                 onRedo={handleRedoCoverImage}
@@ -2815,76 +2709,27 @@ const handleLandingPageImageSelect = (item) => {
                 isDark={isDark}
               >
 
-                {formData.coverImagePreview ? (
-
-                  <img
-                    src={formData.coverImagePreview}
-                    alt="Preview"
-                    className="
-                      w-full
-                      h-[150px]
-                      object-contain
-                      p-2
-                    "
-                  />
-
-                ) : (
-
-                  /* Uploaded, but no thumbnail was saved with the draft */
-                  <div className="w-full h-[150px] flex items-center justify-center">
-                    <ImageIcon
-                      className={`w-8 h-8 ${
-                        isDark ? 'text-white/40' : 'text-slate-400'
-                      }`}
-                    />
-                  </div>
-
-                )}
+                <img
+                  src={formData.coverImagePreview}
+                  alt="Preview"
+                  className="
+                    w-full
+                    h-[150px]
+                    object-contain
+                    p-2
+                  "
+                />
 
               </PreviewCardShell>
 
             ) : (
 
-              <>
-
-                <CoverImageDropzone
-                  onClick={() =>
-                    setIsImageCatalogueOpen(true)
-                  }
-                  onFileDrop={acceptCoverFile}
-                  isDark={isDark}
-                />
-
-
-                <CoverUploadChoice
-                  onUpload={handleCoverImageClick}
-                  isDark={isDark}
-                />
-
-
-                {/* A resumed draft whose upload never reached storage */}
-                {formData.coverImageReattach && (
-
-                  <p
-                    className={`
-                      text-[8px]
-                      font-semibold
-                      text-center
-                      ${
-                        isDark
-                          ? 'text-amber-200'
-                          : 'text-amber-700'
-                      }
-                    `}
-                  >
-                    Please attach your cover image again
-                    ({formData.coverImageReattach}): it was not
-                    uploaded before you left.
-                  </p>
-
-                )}
-
-              </>
+              <CoverImageDropzone
+                onClick={() =>
+                  setIsImageCatalogueOpen(true)
+                }
+                isDark={isDark}
+              />
 
             )}
 
@@ -3438,13 +3283,6 @@ const handleLandingPageImageSelect = (item) => {
             outcomeSource: 'custom',
 
             outcomeRichText: value,
-
-            // Published as a NEW landing page; it replaces any catalogue pick.
-            landingPageSource: '',
-
-            selectedLandingCatalogueImageId: null,
-
-            landingPageId: '',
           }));
 
 

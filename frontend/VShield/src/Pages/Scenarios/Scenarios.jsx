@@ -1,11 +1,11 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Plus,
   Search,
   ChevronDown,
   SlidersHorizontal,
   Pencil,
-  RotateCcw,
+  Copy,
   Trash2,
   Check,
   X,
@@ -14,34 +14,10 @@ import {
   ArrowRight,
   ArrowLeft,
 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import scenarioData from "./ScenariosData.json";
-import { api } from "../../services/api";
-import { currentActor } from "../../services/identity";
-import { DELETE_KINDS, cardActions, scenariosForViewer } from "../../services/scenarioOwnership";
-import { DEMO_USER } from '../../appConfig';
-import { TYPE_NAMES } from "../../services/campaignTypes";
-import DraftDialog from '../../GlobalComponents/DraftDialog';
-import { setActiveScenarioDraftId } from '../../services/scenarioDraftList';
-import {
-  canSyncDrafts,
-  deleteScenarioDraftEverywhere,
-  editedScenarioIds,
-  inProgressAmong,
-  keptScenarioDrafts,
-  loadScenarioDraftsTab,
-  removeEditDraftsEverywhere,
-  resolveInProgress,
-  scenarioDraftsUnavailable,
-} from '../../services/scenarioDraftSync';
-import { markAsked, markDeferred, wasAsked } from '../../services/resumePrompt';
-import DraftCards from '../../GlobalComponents/DraftCards';
-import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
-import ViewTabs from '../../GlobalComponents/ViewTabs';
-import { SCENARIO_DRAFT_DEFAULTS } from './scenarioDraftDefaults';
-import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
 // 🖼️ IMAGE RESOLVER — eagerly import every asset once, then look up by filename
@@ -121,14 +97,6 @@ const INTENSITY_COLORS = {
   green: '#22c55e'
 };
 
-// The ownership badge's dot (scenarioOwnership.js cardActions().badge).
-const OWNERSHIP_DOT = {
-  shared: '#22C55E',
-  mine: '#64748B',
-  myCopy: '#8B5CF6',
-  myRevision: '#F59E0B',
-};
-
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
@@ -155,8 +123,14 @@ const VODAFONE_FONT_STYLE = `
 // Filter Data
 // -----------------------------------------------------
 
-// The app's one list of campaign types (services/campaignTypes.js).
-const campaignTypes = TYPE_NAMES;
+const campaignTypes = [
+  "Data Entry",
+  "Click",
+  "Credential theft",
+  "Helpdesk impersonation",
+  "Reward scam",
+  "Travel scam",
+];
 
 const emotions = [
   "Urgency",
@@ -551,125 +525,6 @@ const Scenarios = () => {
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
   const navigate = useNavigate();
-
-  // Who is looking: the list holds what they may see (their own copies and
-  // pending edits standing in for what they replace), and Edit / Delete act as
-  // them. Client-asserted until sign-in exists (identity.js).
-  const [viewer] = useState(() => currentActor());
-
-  // ---------------------------------------------------
-  // Drafts: the author's unpublished scenarios (saved by the editor as they
-  // work, on the server, so they are listed in any browser; see
-  // scenarioDraftSync.js). Coming back here with one in progress asks, like
-  // Start New Campaign, whether to pick it up or start a new one; either way it
-  // stays under Drafts. It is asked once per draft: Continue or Start new
-  // answers it, and only a change to it since then asks again. Closing it is
-  // "not now": not asked again here, but asked once more when a new scenario
-  // is started (resumePrompt.js). Which one is in progress, and what was
-  // asked, is remembered in this browser.
-  // ---------------------------------------------------
-  // Coming back from the editor (its Back button) lands on the tab it was
-  // opened from, without asking about the scenario just left.
-  const location = useLocation();
-  const [arrival] = useState(() => location.state || {});
-  const [view, setView] = useState(arrival.view === 'drafts' ? 'drafts' : 'all'); // 'all' | 'drafts'
-  // "Save as draft" in the editor lands here on Drafts, saying so.
-  const [savedNotice, setSavedNotice] = useState(arrival.savedDraft || '');
-  useEffect(() => {
-    if (!savedNotice) return undefined;
-    const timer = setTimeout(() => setSavedNotice(''), 6000);
-    return () => clearTimeout(timer);
-  }, [savedNotice]);
-  // Used once: a reload of this page is an ordinary visit again.
-  useEffect(() => {
-    if (location.state) navigate(location.pathname, { replace: true, state: null });
-  }, [location.state, location.pathname, navigate]);
-  // The drafts kept in this browser show at once; the server's list (read
-  // once a visit) is merged in when it arrives, and anything still waiting in
-  // this browser is then sent. Without the server, this browser's drafts are
-  // what is listed.
-  const [drafts, setDrafts] = useState(() => keptScenarioDrafts(viewer, SCENARIO_DRAFT_DEFAULTS));
-  const [draftsLoading, setDraftsLoading] = useState(() => canSyncDrafts(viewer) && !scenarioDraftsUnavailable());
-  // The server's list was read on this visit (so Edit need not read it again).
-  const [draftsListed, setDraftsListed] = useState(false);
-  // The one in progress: { id, summary, version } (version: its content, as
-  // "Continue your scenario?" remembers it).
-  const [inProgress, setInProgress] = useState(() => inProgressAmong(drafts, viewer, SCENARIO_DRAFT_DEFAULTS));
-  const notAskedYet = (found) => Boolean(found?.version) && !wasAsked('scenario', found.id, found.version);
-  const [resumePromptOpen, setResumePromptOpen] = useState(() => !arrival.fromEditor && notAskedYet(inProgress));
-  // Asked about on arrival only: decided once, from this browser's drafts when
-  // the one in progress is among them, else once the server's list is in.
-  const promptDecidedRef = useRef(Boolean(arrival.fromEditor || inProgress));
-  useEffect(() => {
-    let active = true;
-    const apply = async ({ items, ok }) => {
-      const found = await resolveInProgress(items, viewer, api, SCENARIO_DRAFT_DEFAULTS);
-      if (!active) return;
-      setDrafts(items);
-      setInProgress(found);
-      setDraftsLoading(false);
-      setDraftsListed(ok);
-      if (!promptDecidedRef.current) {
-        promptDecidedRef.current = true;
-        if (notAskedYet(found)) setResumePromptOpen(true);
-      }
-    };
-    const { listed, sent } = loadScenarioDraftsTab({ api, actor: viewer, defaults: SCENARIO_DRAFT_DEFAULTS });
-    listed.then(apply).then(() => sent).then(apply);
-    return () => {
-      active = false;
-    };
-  }, [viewer]);
-  const inProgressInfo = inProgress ? inProgress.summary : null;
-  // Whatever the answer, this draft (as it is now) has been asked about.
-  const answerResumePrompt = () => {
-    if (inProgress) markAsked('scenario', inProgress.id, inProgress.version);
-    setResumePromptOpen(false);
-  };
-  // Closed without an answer ("not now"): not asked again on the way back
-  // here, but the editor asks again once a new scenario is started.
-  const notNowResumePrompt = () => {
-    if (inProgress) markDeferred('scenario', inProgress.id, inProgress.version);
-    setResumePromptOpen(false);
-  };
-
-  const continueDraft = (id, from = 'drafts') =>
-    navigate(`/new-scenario?draft=${encodeURIComponent(id)}`, { state: { from } });
-  // "Start new" files the scenario in progress under Drafts for good: it is no
-  // longer the one in progress, so coming back here does not ask about it again.
-  const startNewScenario = () => {
-    setActiveScenarioDraftId('');
-    navigate('/new-scenario', { state: { startFresh: true } });
-  };
-  // Gone at once here; the server is told now, or at the next visit.
-  const deleteDraft = (id) => {
-    const item = drafts.find((d) => d.id === id);
-    deleteScenarioDraftEverywhere(api, id, viewer, { listed: Boolean(item?.listed) });
-    setDrafts((list) => list.filter((d) => d.id !== id));
-    if (inProgress?.id === id) setInProgress(null);
-  };
-  // Drafts take the same rotating card colours as the templates, and show
-  // their cover: catalogue art in the corner, an uploaded photo framed, and
-  // the "new design" art while no cover has been picked yet.
-  const draftItems = drafts.map((d, i) => {
-    const info = d.summary;
-    const uploaded = info.coverSource === 'upload';
-    return {
-      ...info,
-      id: d.id,
-      code: info.scenarioId,
-      // An unfinished edit is named by the scenario it edits.
-      title: info.editing ? `Editing: ${info.editing.name}` : info.name,
-      inProgress: d.id === inProgress?.id,
-      theme: DIFFICULTY_THEMES[THEME_CYCLE[i % THEME_CYCLE.length]],
-      image: uploaded ? '' : info.cover || draftArt,
-      photo: uploaded ? info.cover : '',
-    };
-  });
-  const searchText = search.trim().toLowerCase();
-  const visibleDrafts = searchText
-    ? draftItems.filter((d) => [d.title, d.code, d.description].some((v) => v.toLowerCase().includes(searchText)))
-    : draftItems;
   const userContext = useUserType?.() || {};
 
   // Theme check
@@ -697,60 +552,11 @@ const Scenarios = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  const [rawScenarios, setRawScenarios] = useState([]);
-  const [scenariosLoading, setScenariosLoading] = useState(true);
-  // Bumped after a delete, to read the list again.
-  const [listVersion, setListVersion] = useState(0);
-  // Card actions in flight, keyed by scenarioId (never by list position: the
-  // list reloads after every delete, and a position may then hold another
-  // scenario). An open "Yes / No" confirmation, the deletes under way, and a
-  // refused one's message.
-  const [confirmId, setConfirmId] = useState(null);
-  const [busyIds, setBusyIds] = useState({});
-  const [cardError, setCardError] = useState(null); // { id, message }
-
-  useEffect(() => {
-    let active = true;
-    const apply = (rows) => {
-      if (!active) return;
-      setScenariosLoading(false);
-      // An older API sends every row, unannotated: keep what this person may see.
-      const visible = scenariosForViewer(rows, viewer);
-      // A DynamoDB scan is unordered and the cover fallback below is
-      // index-based, so pin the order before it reaches the grid.
-      setRawScenarios(
-        [...visible].sort((a, b) =>
-          String(a.scenarioId || '').localeCompare(String(b.scenarioId || ''))
-        )
-      );
-      // A confirmation or message about a scenario no longer listed goes with it.
-      const listed = (id) => visible.some((row) => String(row?.scenarioId) === id);
-      setConfirmId((id) => (id && listed(id) ? id : null));
-      setCardError((error) => (error && listed(error.id) ? error : null));
-    };
-    api.scenarios
-      .list({ viewer })
-      .then(apply)
-      // Falling back to the bundled data keeps the screen usable if the API is
-      // unreachable, which is also how ChooseAScenario behaves.
-      .catch((e) => {
-        console.error('Failed to load scenarios', e);
-        apply(scenarioData?.scenarios || []);
-      });
-    return () => {
-      active = false;
-    };
-  }, [viewer, listVersion]);
-
-  // Cards are keyed by scenarioId (the table's key), so a card, and anything
-  // open on it, stays with its scenario when the list reloads; the index only
-  // stands in for a row without one (bundled fallback data). `_row` is the row
-  // as the API sent it, for the editor (the display defaults below must never
-  // be saved back).
-  const scenariosList = rawScenarios.map((s, idx) => ({
+  // Read scenarios from scenarioData.json, keep original index for a stable key
+  // (two entries currently share id "PH-001", so id alone isn't unique)
+  const scenariosList = (scenarioData?.scenarios || []).map((s, idx) => ({
     ...s,
-    _row: s,
-    _key: s.scenarioId ? `sc:${s.scenarioId}` : `row:${idx}`,
+    _key: `${s.id}-${idx}`,
     difficulty: s.difficulty || 'Medium',
     CreatedOn: s.CreatedOn || s.createdDate || '2-Jan-26',
     CoverImageID: s.CoverImageID || `CovImg-${String(idx + 1).padStart(3, '0')}.png`
@@ -759,19 +565,12 @@ const Scenarios = () => {
   // ---------------------------------------------------
   // Search (matches id, title, or type)
   // ---------------------------------------------------
-  // One of the person's own scenarios with unsaved changes shows in one place
-  // only: under Drafts as "Editing: <name>", not also here. It is back in this
-  // list once the edit is saved or its draft deleted. A template (or someone
-  // else's shared scenario) always stays here: its edit is a new version.
-  const editingIds = useMemo(() => editedScenarioIds(drafts), [drafts]);
-
   const filteredScenarios = useMemo(() => {
-    const listed = scenariosList.filter((scenario) => !editingIds.has(String(scenario.scenarioId)));
-    if (!search.trim()) return listed;
+    if (!search.trim()) return scenariosList;
 
     const searchText = search.toLowerCase();
 
-    return listed.filter(
+    return scenariosList.filter(
       (scenario) =>
         scenario.title?.toLowerCase().includes(searchText) ||
         scenario.id?.toLowerCase().includes(searchText) ||
@@ -782,67 +581,27 @@ const Scenarios = () => {
         scenario.CreatedOn?.toLowerCase().includes(searchText) ||
         scenario.CoverImageID?.toLowerCase().includes(searchText)
     );
-  }, [search, scenariosList, editingIds]);
+  }, [search, scenariosList]);
 
   
 
   // ---------------------------------------------------
-  // Card actions, per who owns the scenario (scenarioOwnership.js):
-  // Edit opens the editor on it (a template or someone else's shared scenario
-  // is saved as the viewer's own copy; their own shared one as a pending edit);
-  // Delete / Reset to original / Discard changes remove the viewer's own row
-  // after an inline "Yes / No".
+  // Card actions — wire these up to your real edit/clone/delete flows
   // ---------------------------------------------------
-  // An unfinished edit of this scenario, if any, is reopened by the editor.
-  // A scenario with one on the server is listed under Drafts instead, so when
-  // the server's list was read here, the editor need not look for one there.
-  // A template stays listed while an edit of it is unfinished, so Edit on it
-  // reopens that draft (the newest, should there be two) rather than start
-  // another. Otherwise a new edit: takenIds is what an edited version of a
-  // template must not be called (every scenario listed here, and the
-  // drafts'), so the editor can give it a new ID at once; editChecked says
-  // the drafts were read here and hold no unfinished edit of it.
   const handleEdit = (scenario) => {
-    const sid = String(scenario.scenarioId);
-    const unfinished = drafts
-      .filter((d) => String(d.summary?.editing?.scenarioId || '') === sid)
-      .sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
-    if (unfinished) {
-      continueDraft(unfinished.id, 'all');
-      return;
-    }
-    const takenIds = [
-      ...rawScenarios.map((row) => row?.scenarioId),
-      ...drafts.map((d) => d.summary?.scenarioId),
-    ].filter(Boolean).map(String);
-    navigate(`/new-scenario?edit=${encodeURIComponent(sid)}`, {
-      state: { row: scenario._row, from: 'all', editChecked: draftsListed, takenIds },
-    });
+    // TODO: navigate to your scenario editor, e.g.
+    // navigate(`/scenarios/${scenario.id}/edit`);
+    console.log('Edit', scenario);
   };
 
-  const handleDelete = async (scenario) => {
-    const id = String(scenario.scenarioId);
-    setConfirmId(null);
-    setCardError(null);
-    setBusyIds((busy) => ({ ...busy, [id]: true }));
-    try {
-      await api.scenarios.remove(id, viewer);
-      // An unfinished edit of it has nothing left to save onto: deleted here
-      // and on the server (which keeps no link between the two).
-      removeEditDraftsEverywhere(api, id, drafts, viewer);
-      const editsIt = (d) => String(d.summary?.editing?.scenarioId || '') === id;
-      setDrafts((list) => list.filter((d) => !editsIt(d)));
-      if (inProgress && drafts.some((d) => d.id === inProgress.id && editsIt(d))) setInProgress(null);
-      setListVersion((v) => v + 1);
-    } catch (error) {
-      setCardError({ id, message: error?.message || "Couldn't remove this scenario." });
-    } finally {
-      setBusyIds((busy) => {
-        const rest = { ...busy };
-        delete rest[id];
-        return rest;
-      });
-    }
+  const handleClone = (scenario) => {
+    // TODO: duplicate this scenario in your data source
+    console.log('Clone', scenario);
+  };
+
+  const handleDelete = (scenario) => {
+    // TODO: confirm + delete this scenario from your data source
+    console.log('Delete', scenario);
   };
 
   return (
@@ -865,18 +624,6 @@ const Scenarios = () => {
               Scenario
             </h1>
           </div>
-          {/* All scenarios | Drafts */}
-          <ViewTabs
-            variant="header"
-            ariaLabel="Scenarios view"
-            isDark={isDark}
-            value={view}
-            onChange={setView}
-            tabs={[
-              { id: 'all', label: 'All scenarios' },
-              { id: 'drafts', label: 'Drafts', count: drafts.length },
-            ]}
-          />
         </div>
 
         {/* ================================================= */}
@@ -886,14 +633,10 @@ const Scenarios = () => {
             grid's <main> carried its own separate background) */}
         {/* ================================================= */}
         <div
-          className={`relative w-full flex-1 min-h-0 rounded-xl border transition-colors duration-300 overflow-hidden p-4 sm:p-5 flex flex-col gap-3 ${
+          className={`w-full flex-1 min-h-0 rounded-xl border transition-colors duration-300 overflow-hidden p-4 sm:p-5 flex flex-col gap-3 ${
             isDark ? 'bg-[#15161a] border-white/10 shadow-xl' : 'bg-white border-slate-200 shadow-sm'
           }`}
         >
-        {/* The scenarios, or the drafts, are on their way from the server
-            (a scenario with an unfinished edit is listed under Drafts only, so
-            the scenarios wait for the drafts too). */}
-        <PageLoading show={view === 'all' ? scenariosLoading || draftsLoading : draftsLoading} isDark={isDark} />
 
         {/* ================================================= */}
         {/* TOOLBAR */}
@@ -1023,25 +766,7 @@ const Scenarios = () => {
           {/* ================================================= */}
           <div className="flex-1 min-w-0 flex flex-col">
             <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
-              {view === 'drafts' ? (
-                <>
-                {savedNotice && (
-                  <span
-                    role="status"
-                    className="mx-4 mt-3 self-start px-3 py-1.5 rounded-lg text-[10.5px] font-bold bg-[#8ED973]/15 text-[#2F7A17] dark:text-[#A6E88E]"
-                  >
-                    Saved to Drafts: {savedNotice}. Continue it any time from its card.
-                  </span>
-                )}
-                <DraftCards
-                  items={visibleDrafts}
-                  isDark={isDark}
-                  onContinue={(id) => continueDraft(id)}
-                  onDelete={deleteDraft}
-                  emptyText="A scenario you start and leave before publishing is kept here."
-                />
-                </>
-              ) : filteredScenarios.length === 0 ? (
+              {filteredScenarios.length === 0 ? (
                 <div
                   className={`h-[250px] flex items-center justify-center font-bold text-sm ${
                     isDark ? "text-white" : "text-[#0B1121]"
@@ -1052,20 +777,21 @@ const Scenarios = () => {
               ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                   {filteredScenarios.map((scenario, cardIndex) => {
+                    console.log("scenario")
+                    console.log(scenario.CoverImageID)
                     const dotColor = INTENSITY_COLORS[scenario.intensityColor] || INTENSITY_COLORS.yellow;
                     const themeKey = THEME_CYCLE[cardIndex % THEME_CYCLE.length];
+                    console.log("themeKey====")
+                    console.log(themeKey)
                     const theme = DIFFICULTY_THEMES[themeKey];
                     const resolvedImageSrc = getScenarioImage(scenario.CoverImageID);
-                    const actions = cardActions(scenario._row, viewer);
-                    const removal = actions.deleteKind ? DELETE_KINDS[actions.deleteKind] : null;
-                    const confirming = confirmId === scenario.scenarioId;
-                    const error = cardError?.id === scenario.scenarioId ? cardError.message : '';
+                    console.log(scenario.CoverImageID)
+                    console.log("resolvedImageSrc")
+                    console.log(resolvedImageSrc)
 
                     return (
   <div
     key={scenario._key}
-    data-scenario-id={scenario.scenarioId}
-    data-ownership={actions.ownership}
     style={{
       backgroundColor: isDark ? theme.bgDark : theme.bgLight,
       borderColor: isDark ? theme.borderDark : theme.border,
@@ -1126,20 +852,6 @@ const Scenarios = () => {
     {/* ================================================= */}
     <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%]">
 
-      {/* Whose it is, for this viewer (none on a template) */}
-      {actions.badge && (
-        <span
-          title={actions.badgeHint}
-          className="self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-white/70 dark:bg-black/40 text-slate-700 dark:text-slate-300 cursor-help"
-        >
-          <span
-            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: OWNERSHIP_DOT[actions.ownership] || OWNERSHIP_DOT.mine }}
-          />
-          {actions.badge}
-        </span>
-      )}
-
       {/* Title */}
       <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight">
         {scenario.scenarioName}
@@ -1177,62 +889,14 @@ const Scenarios = () => {
     )}
 
     {/* ================================================= */}
-    {/* BOTTOM ACTIONS — EDIT + DELETE (per ownership)    */}
+    {/* BOTTOM ACTIONS — EDIT + DELETE */}
     {/* ================================================= */}
-    {/* Deleting a shared scenario takes it away from everyone: say so first. */}
-    {confirming && removal?.warning && !error && (
-      <div
-        role="note"
-        className="absolute left-4 right-4 bottom-[46px] z-20 px-2 py-1 rounded-lg bg-amber-50 dark:bg-[#2B2210] text-[9.5px] font-bold leading-snug text-amber-800 dark:text-amber-200 shadow-2xs"
-      >
-        {removal.warning}
-      </div>
-    )}
-    {error && (
-      <div
-        role="alert"
-        className="absolute left-4 right-4 bottom-[46px] z-20 flex items-start gap-1.5 px-2 py-1 rounded-lg bg-white/90 dark:bg-black/60 text-[9.5px] font-bold text-[#E60000] dark:text-[#FF8A8A] shadow-2xs"
-      >
-        <span className="flex-1 leading-snug">{error}</span>
-        <button
-          type="button"
-          onClick={() => setCardError(null)}
-          aria-label="Dismiss"
-          className="flex-shrink-0 cursor-pointer text-slate-500 hover:text-slate-900 dark:hover:text-white"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      </div>
-    )}
-    {/* Wraps rather than run past the card on a narrow one (the card clips). */}
-    <div className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto">
-      {busyIds[scenario.scenarioId] ? (
-        <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">Working…</span>
-      ) : confirming && removal ? (
-        <>
-          <span className="text-slate-800 dark:text-slate-200">{removal.confirm}</span>
-          <button
-            type="button"
-            onClick={() => handleDelete(scenario)}
-            className="h-[26px] px-2 rounded-lg bg-[#e60000] hover:bg-[#ff2020] text-white cursor-pointer shadow-2xs whitespace-nowrap"
-          >
-            {removal.yes}
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirmId(null)}
-            className="h-[26px] px-2 rounded-lg border bg-white/90 dark:bg-black/40 border-black/10 dark:border-white/15 text-slate-800 dark:text-slate-200 cursor-pointer"
-          >
-            No
-          </button>
-        </>
-      ) : (
-        <>
+    <div className="absolute left-4 bottom-4 flex items-center gap-1.5 z-20">
+
       {/* Edit */}
       <button
         type="button"
         onClick={() => handleEdit(scenario)}
-        title={actions.editMode === 'copy' ? 'Edit your own copy (only you see it)' : undefined}
         className={`
           h-[26px]
           px-2
@@ -1255,43 +919,31 @@ const Scenarios = () => {
         Edit
       </button>
 
-      {/* Delete / Reset to original / Discard changes — own rows only */}
-      {removal && (
-        <button
-          type="button"
-          onClick={() => {
-            setCardError(null);
-            setConfirmId(scenario.scenarioId);
-          }}
-          className="
-            h-[26px]
-            px-2
-            rounded-lg
-            bg-[#e60000]
-            hover:bg-[#ff2020]
-            text-white
-            text-[9.5px]
-            font-bold
-            flex
-            items-center
-            justify-center
-            gap-1
-            transition-colors
-            cursor-pointer
-            whitespace-nowrap
-          "
-        >
-          {actions.deleteKind === 'delete' || actions.deleteKind === 'deleteShared' ? (
-            <Trash2 className="w-3 h-3" />
-          ) : (
-            <RotateCcw className="w-3 h-3" />
-          )}
-          {removal.label}
-        </button>
-      )}
+      {/* Delete */}
+      <button
+        type="button"
+        onClick={() => handleDelete(scenario)}
+        className="
+          h-[26px]
+          px-2
+          rounded-lg
+          bg-[#e60000]
+          hover:bg-[#ff2020]
+          text-white
+          text-[9.5px]
+          font-bold
+          flex
+          items-center
+          justify-center
+          gap-1
+          transition-colors
+          cursor-pointer
+        "
+      >
+        <Trash2 className="w-3 h-3" />
+        Delete
+      </button>
 
-        </>
-      )}
     </div>
   </div>
 );
@@ -1444,8 +1096,8 @@ const Scenarios = () => {
                           className="bg-white p-5 rounded-xl shadow-xs border border-slate-200"
                           dangerouslySetInnerHTML={{
                             __html: previewEmailHtml
-                              .replace(/{{userName}}/g, DEMO_USER.name)
-                              .replace(/{{email}}/g, DEMO_USER.email)
+                              .replace(/{{userName}}/g, 'Abhay H S')
+                              .replace(/{{email}}/g, 'abhay.hs1@vodafone.com')
                               .replace(/{{department}}/g, 'AI & Data Analytics')
                               .replace(/{{phishLink}}/g, '#training')
                           }}
@@ -1455,62 +1107,20 @@ const Scenarios = () => {
                   </div>
                 )}
           {/* ================================================= */}
-          {/* FILTER PANEL (templates only) */}
+          {/* FILTER PANEL */}
           {/* ================================================= */}
-          {view === 'all' && (
-            <ScenarioFilters
-              selectedCampaignTypes={selectedCampaignTypes}
-              setSelectedCampaignTypes={setSelectedCampaignTypes}
-              selectedEmotions={selectedEmotions}
-              setSelectedEmotions={setSelectedEmotions}
-              selectedAudiences={selectedAudiences}
-              setSelectedAudiences={setSelectedAudiences}
-              isDark={isDark}
-            />
-          )}
+          <ScenarioFilters
+            selectedCampaignTypes={selectedCampaignTypes}
+            setSelectedCampaignTypes={setSelectedCampaignTypes}
+            selectedEmotions={selectedEmotions}
+            setSelectedEmotions={setSelectedEmotions}
+            selectedAudiences={selectedAudiences}
+            setSelectedAudiences={setSelectedAudiences}
+            isDark={isDark}
+          />
         </div>
         </div>
       </div>
-
-      {/* A scenario in progress: pick it up, or start a new one. The ✕, Esc
-          or a click outside closes it for now: the draft stays under Drafts,
-          and the question comes back when a new scenario is started. */}
-      <DraftDialog
-        open={resumePromptOpen && Boolean(inProgressInfo)}
-        isDark={isDark}
-        title={inProgressInfo?.editing ? `Continue editing ${inProgressInfo.editing.name}?` : 'Continue your scenario?'}
-        body={`${
-          inProgressInfo?.editing
-            ? 'You have unsaved changes to this scenario. Pick up where you left off, or start a new scenario. Your changes stay under Scenarios → Drafts either way.'
-            : 'You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way.'
-        }${
-          inProgressInfo?.needsCoverReattach
-            ? ' Its uploaded cover image could not be kept and will need to be attached again.'
-            : ''
-        }`}
-        detail={
-          inProgressInfo ? (
-            <>
-              <span className="block">{inProgressInfo.name}</span>
-              <span className="block mt-0.5 font-medium opacity-80">
-                Saved at step {inProgressInfo.step} of {inProgressInfo.stepCount}: {inProgressInfo.stepName}
-              </span>
-            </>
-          ) : null
-        }
-        primaryLabel="Continue"
-        onPrimary={() => {
-          answerResumePrompt();
-          continueDraft(inProgress.id, 'all');
-        }}
-        secondaryLabel="Start new"
-        onSecondary={() => {
-          answerResumePrompt();
-          startNewScenario();
-        }}
-        onClose={notNowResumePrompt}
-        onDismiss={notNowResumePrompt}
-      />
     </>
   );
 };

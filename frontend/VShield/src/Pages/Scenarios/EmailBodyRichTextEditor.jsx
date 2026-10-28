@@ -33,7 +33,6 @@ import {
   X
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 
 const FX_PARAMETERS = [
   { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
@@ -329,7 +328,9 @@ const EmailBodyRichTextEditor = ({
     setRawHtmlMode(false);
   };
 
-  const handleRawHtmlCode = (updatedHtml) => {
+  const handleRawHtmlChange = (event) => {
+    const updatedHtml = event.target.value;
+
     setRawHtmlCode(updatedHtml);
     emitChange(updatedHtml);
   };
@@ -715,11 +716,12 @@ const EmailBodyRichTextEditor = ({
           >
             <div className="w-full h-full overflow-y-auto">
               {rawHtmlMode ? (
-                <HtmlCodeEditor
+                <textarea
                   value={rawHtmlCode}
                   disabled={disabled}
-                  onChange={handleRawHtmlCode}
-                  ariaLabel="Email body HTML"
+                  onChange={handleRawHtmlChange}
+                  spellCheck={false}
+                  className="w-full h-full p-2.5 font-mono text-[10.5px] bg-[#0F172A] text-emerald-400 outline-none resize-none leading-relaxed rounded-lg disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Write email HTML code here..."
                 />
               ) : (
@@ -799,16 +801,15 @@ const EmailBodyRichTextEditor = ({
             `}
           >
             {rawHtmlMode ? (
-              <HtmlCodeEditor
+              <textarea
                 value={rawHtmlCode}
                 disabled={disabled}
-                onChange={handleRawHtmlCode}
-                fontSize={12}
-                className="rounded-none"
+                onChange={handleRawHtmlChange}
+                spellCheck={false}
+                className="h-full w-full resize-none bg-[#0f172a] p-4 font-mono text-xs leading-6 text-emerald-400 outline-none disabled:cursor-not-allowed disabled:opacity-70"
                 style={{
                   minHeight: expanded ? "calc(100vh - 82px)" : `${minHeight}px`
                 }}
-                ariaLabel="Email body HTML"
                 placeholder="Enter HTML source code here..."
               />
             ) : (

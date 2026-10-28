@@ -19,7 +19,6 @@ import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import videoBottomAsset from '../../assets/VideoImageStartACampaign.png';
 import quizBottomAsset from '../../assets/QuizImageStartANewCampaign.png';
 import certBottomAsset from '../../assets/CertificateImageStartANewCampaign.png';
-import { DEMO_USER } from '../../appConfig';
 
 const TrainingPathGrid = ({ onSelect }) => {
   const userContext = useUserType?.() || {};
@@ -1702,7 +1701,7 @@ const TrainingPathGrid = ({ onSelect }) => {
                     ]
                       ?.replace(
                         /{{userName}}/g,
-                        DEMO_USER.name
+                        'Abhay H S'
                       )
                       ?.replace(
                         /{{trainingPathName}}/g,
