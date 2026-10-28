@@ -1,0 +1,185 @@
+[
+  {
+    "CamapignID": "CAMP-001",
+    "CamapignName": "Q2 Global SSO Synchronization Simulation",
+    "CamapignCurrentStatus": "Completed",
+    "LastDataRefreshTime": "08/21/2026 05:30 PM BST",
+    "RecipientListID": "UL-00001",
+    "RecipientListName": "Batch 01 – August Campaign Finance Department",
+    "RecipientListUploadType": "Bulk Upload",
+    "Scheduled Start Date": "08/10/2026 09:00 AM",
+    "Scheduled End Data": "08/20/2026 05:00 PM",
+    "Details": [
+      {
+        "EmailIDs": "sarah.jenkins@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Yes",
+        "Trainined": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-002",
+    "CamapignName": "Finance Regulatory Compliance Audit Drill",
+    "CamapignCurrentStatus": "Completed",
+    "LastDataRefreshTime": "06/19/2026 06:15 PM BST",
+    "RecipientListID": "UL-00001",
+    "RecipientListName": "Batch 01 – August Campaign Finance Department",
+    "RecipientListUploadType": "Bulk Upload",
+    "Scheduled Start Date": "06/08/2026 10:00 AM",
+    "Scheduled End Data": "06/18/2026 06:00 PM",
+    "Details": [
+      {
+        "EmailIDs": "irene.benitez@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Not Applicable",
+        "Trainined": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-004",
+    "CamapignName": "Critical Zero-Day KB504821 Remote Update Test",
+    "CamapignCurrentStatus": "Completed",
+    "LastDataRefreshTime": "02/26/2026 05:45 PM BST",
+    "RecipientListID": "UL-00002",
+    "RecipientListName": "Batch 02 – August Campaign Supply Chain Management",
+    "RecipientListUploadType": "Bulk Upload",
+    "Scheduled Start Date": "02/15/2026 11:00 AM",
+    "Scheduled End Data": "02/25/2026 05:00 PM",
+    "Details": [
+      {
+        "EmailIDs": "paula.ortiz@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "No",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "david.miller@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Yes",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "maximilian.becker@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "No",
+        "Trainined": "No"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-005",
+    "CamapignName": "Global Leadership Realignment Townhall Broadcast",
+    "CamapignCurrentStatus": "Completed",
+    "LastDataRefreshTime": "11/28/2025 06:10 PM BST",
+    "RecipientListID": "UL-00003",
+    "RecipientListName": "VOIS Egypt All Employees DL",
+    "RecipientListUploadType": "Distribution List",
+    "Scheduled Start Date": "11/17/2025 01:00 PM",
+    "Scheduled End Data": "11/27/2025 06:00 PM",
+    "Details": [
+      {
+        "EmailIDs": "nour.eldin@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Yes",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "ahmed.mansour@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "No",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "mariam.adel@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "No",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "heba.mahmoud@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Yes",
+        "Trainined": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-006",
+    "CamapignName": "VOIS Spirit Pulse Engagement Survey 2026",
+    "CamapignCurrentStatus": "Completed",
+    "LastDataRefreshTime": "09/26/2026 05:15 PM BST",
+    "RecipientListID": "UL-00003",
+    "RecipientListName": "VOIS Egypt All Employees DL",
+    "RecipientListUploadType": "Distribution List",
+    "Scheduled Start Date": "09/10/2026 09:30 AM",
+    "Scheduled End Data": "09/25/2026 05:00 PM",
+    "Details": [
+      {
+        "EmailIDs": "nour.eldin@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Not Applicable",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "ahmed.mansour@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Not Applicable",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "mariam.adel@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Not Applicable",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "heba.mahmoud@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Not Applicable",
+        "Trainined": "No"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-008",
+    "CamapignName": "Q3 Enterprise Authentication & Identity Check",
+    "CamapignCurrentStatus": "Ongoing",
+    "LastDataRefreshTime": "10/19/2026 04:45 PM BST",
+    "RecipientListID": "UL-00002",
+    "RecipientListName": "Batch 02 – August Campaign Supply Chain Management",
+    "RecipientListUploadType": "Bulk Upload",
+    "Scheduled Start Date": "10/05/2026 09:00 AM",
+    "Scheduled End Data": "Auto End",
+    "Details": [
+      {
+        "EmailIDs": "paula.ortiz@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "No",
+        "Trainined": "Yes"
+      },
+      {
+        "EmailIDs": "david.miller@vodafone.com",
+        "SuccessfullySent": "Yes",
+        "Trapped": "Yes",
+        "Compromised": "Yes",
+        "Trainined": "No"
+      }
+    ]
+  }
+]
