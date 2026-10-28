@@ -1,8 +1,8 @@
 [
   {
     "UserID": "VSLD-000001",
-    "UserName": "VOIS Demo User",
-    "UserEMailID": "vois.demo.user@vodafone.com",
+    "UserName": "Abhay H S",
+    "UserEMailID": "abhay.hs1@vodafone.com",
     "Department": "AIDA",
     "Country": "India",
     "HookRate%": 5.1,
@@ -10,7 +10,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 205
+    "GamificationPoint": 205,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000002",
@@ -23,7 +24,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 310
+    "GamificationPoint": 310,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000003",
@@ -36,7 +38,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 440
+    "GamificationPoint": 440,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000004",
@@ -49,7 +52,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 3,
     "TrainingCompleted": 2,
-    "GamificationPoint": 180
+    "GamificationPoint": 180,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000005",
@@ -62,7 +66,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 880
+    "GamificationPoint": 590,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000006",
@@ -75,7 +80,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 3,
     "TrainingCompleted": 3,
-    "GamificationPoint": 1220
+    "GamificationPoint": 750,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000007",
@@ -88,7 +94,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 320
+    "GamificationPoint": 320,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000008",
@@ -101,7 +108,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 290
+    "GamificationPoint": 290,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000009",
@@ -114,7 +122,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 1010
+    "GamificationPoint": 610,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000010",
@@ -127,7 +136,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 3,
     "TrainingCompleted": 1,
-    "GamificationPoint": -140
+    "GamificationPoint": 110,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000011",
@@ -140,7 +150,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 240
+    "GamificationPoint": 240,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000012",
@@ -153,7 +164,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 3480
+    "GamificationPoint": 710,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000013",
@@ -166,7 +178,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 190
+    "GamificationPoint": 190,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000014",
@@ -179,7 +192,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 275
+    "GamificationPoint": 275,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000015",
@@ -192,7 +206,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 430
+    "GamificationPoint": 430,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000016",
@@ -205,7 +220,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 215
+    "GamificationPoint": 215,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000017",
@@ -218,7 +234,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 360
+    "GamificationPoint": 360,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000018",
@@ -231,7 +248,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 2050
+    "GamificationPoint": 630,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000019",
@@ -244,7 +262,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 230
+    "GamificationPoint": 230,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000020",
@@ -257,7 +276,8 @@
     "CampaignsInvolvedIn": 11,
     "TrainingAssigned": 3,
     "TrainingCompleted": 3,
-    "GamificationPoint": 3950
+    "GamificationPoint": 820,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000021",
@@ -270,7 +290,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 3,
     "TrainingCompleted": 2,
-    "GamificationPoint": -20
+    "GamificationPoint": 150,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000022",
@@ -283,7 +304,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 340
+    "GamificationPoint": 340,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000023",
@@ -296,7 +318,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 490
+    "GamificationPoint": 490,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000024",
@@ -309,7 +332,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 260
+    "GamificationPoint": 260,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000025",
@@ -322,7 +346,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 410
+    "GamificationPoint": 410,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000026",
@@ -335,7 +360,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 520
+    "GamificationPoint": 520,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000027",
@@ -348,7 +374,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 1720
+    "GamificationPoint": 670,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000028",
@@ -361,7 +388,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 225
+    "GamificationPoint": 225,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000029",
@@ -374,7 +402,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 3,
     "TrainingCompleted": 2,
-    "GamificationPoint": -260
+    "GamificationPoint": 140,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000030",
@@ -387,7 +416,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 2710
+    "GamificationPoint": 780,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000031",
@@ -400,7 +430,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 350
+    "GamificationPoint": 350,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000032",
@@ -413,7 +444,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 460
+    "GamificationPoint": 460,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000033",
@@ -426,7 +458,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 305
+    "GamificationPoint": 305,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000034",
@@ -439,7 +472,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 175
+    "GamificationPoint": 175,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000035",
@@ -452,7 +486,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 380
+    "GamificationPoint": 380,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000036",
@@ -465,7 +500,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 250
+    "GamificationPoint": 250,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000037",
@@ -478,7 +514,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 3120
+    "GamificationPoint": 790,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000038",
@@ -491,7 +528,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 3,
     "TrainingCompleted": 2,
-    "GamificationPoint": 75
+    "GamificationPoint": 160,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000039",
@@ -504,7 +542,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 540
+    "GamificationPoint": 540,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000040",
@@ -517,7 +556,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 280
+    "GamificationPoint": 280,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000041",
@@ -530,7 +570,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 425
+    "GamificationPoint": 425,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000042",
@@ -543,7 +584,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 210
+    "GamificationPoint": 210,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000043",
@@ -556,7 +598,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 1410
+    "GamificationPoint": 650,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000044",
@@ -569,7 +612,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 30
+    "GamificationPoint": 145,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000045",
@@ -582,7 +626,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 335
+    "GamificationPoint": 335,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000046",
@@ -595,7 +640,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 470
+    "GamificationPoint": 470,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000047",
@@ -608,7 +654,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 370
+    "GamificationPoint": 370,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000048",
@@ -621,7 +668,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 295
+    "GamificationPoint": 295,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000049",
@@ -634,7 +682,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 2380
+    "GamificationPoint": 740,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000050",
@@ -647,7 +696,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 245
+    "GamificationPoint": 245,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000051",
@@ -660,7 +710,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 355
+    "GamificationPoint": 355,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000052",
@@ -673,7 +724,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 505
+    "GamificationPoint": 505,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000053",
@@ -686,7 +738,8 @@
     "CampaignsInvolvedIn": 11,
     "TrainingAssigned": 3,
     "TrainingCompleted": 3,
-    "GamificationPoint": 4620
+    "GamificationPoint": 860,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000054",
@@ -699,7 +752,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 165
+    "GamificationPoint": 165,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000055",
@@ -712,7 +766,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 455
+    "GamificationPoint": 455,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000056",
@@ -725,7 +780,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 235
+    "GamificationPoint": 235,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000057",
@@ -738,7 +794,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 580
+    "GamificationPoint": 580,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000058",
@@ -751,7 +808,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 3,
     "TrainingCompleted": 1,
-    "GamificationPoint": -45
+    "GamificationPoint": 125,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000059",
@@ -764,7 +822,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 200
+    "GamificationPoint": 200,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000060",
@@ -777,7 +836,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 415
+    "GamificationPoint": 415,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000061",
@@ -790,7 +850,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 270
+    "GamificationPoint": 270,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000062",
@@ -803,7 +864,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 445
+    "GamificationPoint": 445,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000063",
@@ -816,7 +878,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 760
+    "GamificationPoint": 760,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000064",
@@ -829,7 +892,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 330
+    "GamificationPoint": 330,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000065",
@@ -842,7 +906,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 530
+    "GamificationPoint": 530,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000066",
@@ -855,7 +920,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 285
+    "GamificationPoint": 285,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000067",
@@ -868,7 +934,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 620
+    "GamificationPoint": 620,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000068",
@@ -881,7 +948,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 170
+    "GamificationPoint": 170,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000069",
@@ -894,7 +962,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 315
+    "GamificationPoint": 315,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000070",
@@ -907,7 +976,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 690
+    "GamificationPoint": 690,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000071",
@@ -920,7 +990,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 640
+    "GamificationPoint": 640,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000072",
@@ -933,7 +1004,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 155
+    "GamificationPoint": 155,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000073",
@@ -946,7 +1018,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 395
+    "GamificationPoint": 395,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000074",
@@ -959,7 +1032,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 480
+    "GamificationPoint": 480,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000075",
@@ -972,7 +1046,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 365
+    "GamificationPoint": 365,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000076",
@@ -985,7 +1060,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 3,
     "TrainingCompleted": 2,
-    "GamificationPoint": 160
+    "GamificationPoint": 160,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000077",
@@ -998,7 +1074,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 700
+    "GamificationPoint": 700,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000078",
@@ -1011,7 +1088,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 255
+    "GamificationPoint": 255,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000079",
@@ -1024,7 +1102,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 420
+    "GamificationPoint": 420,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000080",
@@ -1037,7 +1116,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 265
+    "GamificationPoint": 265,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000081",
@@ -1050,7 +1130,8 @@
     "CampaignsInvolvedIn": 11,
     "TrainingAssigned": 3,
     "TrainingCompleted": 3,
-    "GamificationPoint": 840
+    "GamificationPoint": 840,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000082",
@@ -1063,7 +1144,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 405
+    "GamificationPoint": 405,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000083",
@@ -1076,7 +1158,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 270
+    "GamificationPoint": 270,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000084",
@@ -1089,7 +1172,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 770
+    "GamificationPoint": 770,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000085",
@@ -1102,7 +1186,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 3,
     "TrainingCompleted": 1,
-    "GamificationPoint": 135
+    "GamificationPoint": 135,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000086",
@@ -1115,7 +1200,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 475
+    "GamificationPoint": 475,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000087",
@@ -1128,7 +1214,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 185
+    "GamificationPoint": 185,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000088",
@@ -1141,7 +1228,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 800
+    "GamificationPoint": 800,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000089",
@@ -1154,7 +1242,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 280
+    "GamificationPoint": 280,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000090",
@@ -1167,7 +1256,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 410
+    "GamificationPoint": 410,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000091",
@@ -1180,7 +1270,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 570
+    "GamificationPoint": 570,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000092",
@@ -1193,7 +1284,8 @@
     "CampaignsInvolvedIn": 5,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 170
+    "GamificationPoint": 170,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000093",
@@ -1206,7 +1298,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 260
+    "GamificationPoint": 260,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000094",
@@ -1219,7 +1312,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 2,
     "TrainingCompleted": 1,
-    "GamificationPoint": 205
+    "GamificationPoint": 205,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000095",
@@ -1232,7 +1326,8 @@
     "CampaignsInvolvedIn": 10,
     "TrainingAssigned": 3,
     "TrainingCompleted": 3,
-    "GamificationPoint": 810
+    "GamificationPoint": 810,
+    "CurrentBadge": "Level4"
   },
   {
     "UserID": "VSLD-000096",
@@ -1245,7 +1340,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 240
+    "GamificationPoint": 240,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000097",
@@ -1258,7 +1354,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 630
+    "GamificationPoint": 630,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000098",
@@ -1271,7 +1368,8 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 435
+    "GamificationPoint": 435,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000099",
@@ -1284,7 +1382,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 290
+    "GamificationPoint": 290,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000100",
@@ -1297,8 +1396,9 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 615
-  },
+    "GamificationPoint": 615,
+    "CurrentBadge": "Level3"
+  }  ,
   {
     "UserID": "VSLD-000101",
     "UserName": "David Miller",
@@ -1310,7 +1410,8 @@
     "CampaignsInvolvedIn": 7,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 280
+    "GamificationPoint": 280,
+    "CurrentBadge": "Level1"
   },
   {
     "UserID": "VSLD-000102",
@@ -1323,7 +1424,8 @@
     "CampaignsInvolvedIn": 6,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 320
+    "GamificationPoint": 320,
+    "CurrentBadge": "Level2"
   },
   {
     "UserID": "VSLD-000103",
@@ -1336,7 +1438,8 @@
     "CampaignsInvolvedIn": 9,
     "TrainingAssigned": 1,
     "TrainingCompleted": 1,
-    "GamificationPoint": 680
+    "GamificationPoint": 680,
+    "CurrentBadge": "Level3"
   },
   {
     "UserID": "VSLD-000104",
@@ -1349,6 +1452,7 @@
     "CampaignsInvolvedIn": 8,
     "TrainingAssigned": 2,
     "TrainingCompleted": 2,
-    "GamificationPoint": 430
+    "GamificationPoint": 430,
+    "CurrentBadge": "Level2"
   }
 ]
