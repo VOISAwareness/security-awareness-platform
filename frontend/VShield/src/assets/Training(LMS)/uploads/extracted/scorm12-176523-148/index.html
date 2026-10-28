@@ -1,0 +1,106 @@
+<!doctype html><html lang="en-US"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="c" content="%7B%22c%22%3A%7B%22a%22%3A%22content%2Fassets%2F%22%2C%22s%22%3A%22content%2Fsnapshots%2F%22%2C%22f%22%3A%7B%22sequentialNavigation%22%3Atrue%2C%22noIseazyLogo%22%3Atrue%2C%22customProjectLogo%22%3Atrue%2C%22corporateFonts%22%3Atrue%2C%22noAds%22%3Atrue%7D%7D%2C%22p%22%3A%22SCORM12%22%2C%22iil%22%3Afalse%2C%22s%22%3A%2230ba8e419439cf96211a8efc3774ebb7%22%7D"/><title>Vodafone Green Fleet  (English)</title><link rel="shortcut icon" href="./favicon.ico"/><style>@font-face{font-family:tertiary;src:url(./fonts/iseazy-viewer-base-font-regular.ttf?v=1) format('truetype');font-weight:400;font-style:normal}@font-face{font-family:tertiary;src:url(./fonts/iseazy-viewer-base-font-bold.ttf?v=1) format('truetype');font-weight:700;font-style:normal}@font-face{font-family:icons;src:url(./fonts/iseazy-viewer-icons-font-v2.ttf?v=1);font-weight:400;font-style:normal;unicode-range:U+E900-F3000}@font-face{font-family:Roboto;src:url(./fonts/roboto-sans-serif-regular.woff) format('woff');font-weight:400;font-style:normal}@font-face{font-family:Roboto;src:url(./fonts/roboto-sans-serif-bold.woff) format('woff');font-weight:700;font-style:normal}@font-face{font-family:Roboto;src:url(./fonts/roboto-sans-serif-italic.woff) format('woff');font-weight:400;font-style:italic}@font-face{font-family:Roboto;src:url(./fonts/roboto-sans-serif-bold-italic.woff) format('woff');font-weight:700;font-style:italic}@font-face{font-family:primary;src:url(./fonts/iseazy-montserrat--regular.ttf) format('truetype');font-weight:400;font-style:normal}@font-face{font-family:primary;src:url(./fonts/iseazy-montserrat--bold.ttf) format('truetype');font-weight:700;font-style:normal}@font-face{font-family:primary;src:url(./fonts/iseazy-montserrat--light.ttf) format('truetype');font-weight:100;font-style:normal}</style><script>/* Fonts Loading  */
+
+	let sheet = document.styleSheets[0]
+
+	function addFontFace(params) {
+		// We can't use destructuring in params properties in IE11
+		if (!params) return null
+
+		var fontWeight = params.fontWeight
+		var fontStyle = params.fontStyle
+		var url = params.url
+		var isTitle = params.isTitle
+
+		var fontFamily = isTitle ? "'cuaternary'" : "'secondary'"
+
+		sheet.insertRule(
+			'@font-face {font-family: ' +
+				fontFamily +
+				'; font-style: ' +
+				fontStyle +
+				';font-weight: ' +
+				fontWeight +
+				'; src:url(' +
+				url +
+				") format('truetype');}",
+			0
+		)
+	}
+
+	/**
+	 * This variable is set in a try-catch because if this code is loaded in an
+	 * iframe outside isEazy it fails because we try to access to the  parent property
+	 * parent.builderPreviewAPI and it is forbidden  because of crossdomain. As it is
+	 * an error, the else would never be executed and for that reason, the fonts would
+	 * never be loaded in an iframe outside our own domain.
+	 * @type {boolean}
+	 */
+	let isBuilderPreview = false
+
+	try {
+		isBuilderPreview =
+			parent &&
+			parent.builderPreviewAPI &&
+			parent.builderPreviewAPI.applySelectedFontToPreview
+	} catch (error) {}
+
+	if (isBuilderPreview) {
+		// For preview in builder
+		parent.builderPreviewAPI.applySelectedFontToPreview({
+			insertRuleFunction: sheet.insertRule.bind(sheet),
+			isTitle: true,
+		})
+		parent.builderPreviewAPI.applySelectedFontToPreview({
+			insertRuleFunction: sheet.insertRule.bind(sheet),
+			isTitle: false,
+		})
+	} else {
+		addFontFace({
+			fontWeight: 'normal',
+			fontStyle: 'normal',
+			url: "content/assets/c539503264a7013117c50c6ad6c3c0e4.woff",
+			isTitle: true,
+		})
+		addFontFace({
+			fontWeight: 'bold',
+			fontStyle: 'normal',
+			url: "content/assets/c539503264a7013117c50c6ad6c3c0e4.woff",
+			isTitle: true,
+		})
+		addFontFace({
+			fontWeight: 'normal',
+			fontStyle: 'italic',
+			url: "content/assets/c539503264a7013117c50c6ad6c3c0e4.woff",
+			isTitle: true,
+		})
+		addFontFace({
+			fontWeight: 'bold',
+			fontStyle: 'italic',
+			url: "content/assets/c539503264a7013117c50c6ad6c3c0e4.woff",
+			isTitle: true,
+		})
+		addFontFace({
+			fontWeight: 'normal',
+			fontStyle: 'normal',
+			url: "content/assets/a8cb5edeaa7c0f7a92b5e3bada263a10.woff",
+			isTitle: false,
+		})
+		addFontFace({
+			fontWeight: 'bold',
+			fontStyle: 'normal',
+			url: "content/assets/4dd0eb6287605f7681de66effd8345bd.woff",
+			isTitle: false,
+		})
+		addFontFace({
+			fontWeight: 'normal',
+			fontStyle: 'italic',
+			url: "content/assets/a8cb5edeaa7c0f7a92b5e3bada263a10.woff",
+			isTitle: false,
+		})
+		addFontFace({
+			fontWeight: 'bold',
+			fontStyle: 'italic',
+			url: "content/assets/a8cb5edeaa7c0f7a92b5e3bada263a10.woff",
+			isTitle: false,
+		})
+	}</script><link rel="preload" type="application/json" crossorigin="anonymous" as="fetch"  href="./content/snapshots/s.json" ><script type="module" crossorigin src="./assets/index-Bfgb_Z6-.js"></script><link rel="modulepreload" crossorigin href="./assets/vendor-HqlyG5HZ.js"><link rel="modulepreload" crossorigin href="./assets/text-styles-BgkUz4_p.js"><link rel="stylesheet" crossorigin href="./assets/vendor-H7EO4fup.css"><link rel="stylesheet" crossorigin href="./assets/text-styles-BPx4QXk8.css"><link rel="stylesheet" crossorigin href="./assets/index-C5rkwt7x.css"></head><body><div class="root" id="root"></div></body></html>
