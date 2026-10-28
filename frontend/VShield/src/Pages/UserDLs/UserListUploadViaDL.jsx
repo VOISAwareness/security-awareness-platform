@@ -1,36 +1,52 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Search,
   Check,
   RefreshCw,
-  Mail,
-  User as UserIcon
+  User as UserIcon,
+  Maximize2,
+  Minimize2,
+  Trash2,
+  X
 } from 'lucide-react';
+
+import ExchangeIcon from '../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png';
 import defaultData from './UserDLsData.json';
+import masterUsersData from '../../MasterUserData.json';
+import exchangeDLsData from './UserDLMicrosoftExchangeDLData.json';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
 // =========================================================================
-const VarUserDLsScale = 0.94;
-const VarOverallRoundednessScale = 0.5;
+export const VarUserDLsScale = 0.94;
+export const VarOverallRoundednessScale = 0.6;
+export const VarBiggerWhiteDivHeight = '100%';
+
+// Restructured Section Dimensions
+export const varDLDetailsInputSectionHeight = '60%';
+export const varDLDetailsInputSectionWidth = '70%';
+export const varDLAllUsersTableViewSectionHeight = '40%';
+export const varDLAllUsersTableViewSectionWidth = '60%';
+export const VarListTelemetrySectionHeight = '100%';
+export const VarListTelemetrySectionWidth = '30%';
 
 const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
   
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
   }
   .font-mono-tech {
     font-family: 'JetBrains Mono', monospace;
   }
-  .rounded-3xl { border-radius: ${Math.round(24 * VarOverallRoundednessScale)}px !important; }
-  .rounded-2xl { border-radius: ${Math.round(18 * VarOverallRoundednessScale)}px !important; }
+  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallRoundednessScale)}px !important; }
+  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallRoundednessScale)}px !important; }
   .rounded-xl  { border-radius: ${Math.round(14 * VarOverallRoundednessScale)}px !important; }
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
@@ -42,7 +58,7 @@ const UserListUploadViaDL = () => {
   const editId = searchParams.get('edit');
   const userContext = useUserType?.() || {};
 
-  // Theme check
+  // Theme check: Reactive pipeline with MutationObserver
   const [isDark, setIsDark] = useState(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.classList.contains('dark') || !!userContext.isDark;
@@ -67,40 +83,106 @@ const UserListUploadViaDL = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
+  // Background color for upper bento containers matching design
+  const lCardBg = isDark ? '#1C1F27' : '#EEF2F6';
+
   const syncedDLs = defaultData.syncedDistributionLists || [];
+
+  // Available Exchange DL list from Microsoft Exchange json
+  const availableDLOptions = useMemo(() => {
+    return Object.keys(exchangeDLsData || {});
+  }, []);
 
   // Form States
   const [selectedDLId, setSelectedDLId] = useState('');
+  const [dlSearchQuery, setDlSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
   const [cohortName, setCohortName] = useState('');
   const [description, setDescription] = useState('');
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtered DL list based on combobox search query
+  const filteredDLOptions = useMemo(() => {
+    const q = dlSearchQuery.trim().toLowerCase();
+    if (!q || q === selectedDLId.toLowerCase()) return availableDLOptions;
+    return availableDLOptions.filter((dl) => dl.toLowerCase().includes(q));
+  }, [availableDLOptions, dlSearchQuery, selectedDLId]);
 
   // Staged Telemetry States
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedMembers, setLoadedMembers] = useState([]);
   const [loadedDeptBreakdown, setLoadedDeptBreakdown] = useState([]);
-  const [loadedHookRate, setLoadedHookRate] = useState('12.1%');
-  const [loadedReportRate, setLoadedReportRate] = useState('65.1%');
+  const [loadedHookRate, setLoadedHookRate] = useState('0.0%');
+  const [loadedReportRate, setLoadedReportRate] = useState('0.0%');
 
-  // Table Controls
+  // Table Controls & Expand State
   const [tableSearch, setTableSearch] = useState('');
-  const [isTableExpanded, setIsTableExpanded] = useState(true);
+  const [isTableMaximized, setIsTableMaximized] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Delete Action Toaster State
+  const [deletedSuccessMsg, setDeletedSuccessMsg] = useState('');
+
+  // Helper to cross-reference raw email IDs with MasterUserData.json
+  const resolveMembersFromEmails = (emailList = []) => {
+    return emailList.map((item, idx) => {
+      const email = typeof item === 'string' ? item : (item.email || item.UserEMailID || '');
+      const matched = (masterUsersData || []).find(
+        (m) => m.UserEMailID?.toLowerCase() === email?.toLowerCase()
+      );
+      return {
+        srNo: idx + 1,
+        userName: matched?.UserName || (typeof item === 'object' ? item.userName : email.split('@')[0]),
+        email,
+        department: matched?.Department || (typeof item === 'object' ? item.department : 'Corporate Operations'),
+        location: (matched?.Country || (typeof item === 'object' ? item.location : 'GLOBAL')).toUpperCase(),
+        hookRate: matched?.['HookRate%'] !== undefined ? `${matched['HookRate%']}%` : (typeof item === 'object' ? item.hookRate : '5.0%'),
+        reportRate: matched?.['ReportRate%'] !== undefined ? `${matched['ReportRate%']}%` : (typeof item === 'object' ? item.reportRate : '80.0%')
+      };
+    });
+  };
 
   // Pre-load editing cohort if editId exists
   useEffect(() => {
     if (editId) {
       try {
         const stored = localStorage.getItem('voisshield_user_dls_data');
-        const all = stored ? JSON.parse(stored) : defaultData.savedUserLists || [];
-        const target = all.find((l) => l.id === editId);
+        const all = stored ? JSON.parse(stored) : (Array.isArray(defaultData) ? defaultData : defaultData.savedUserLists || []);
+        const target = all.find((l) => (l.UserListsID || l.id) === editId);
         if (target) {
-          setCohortName(target.name || '');
-          setSelectedDLId(target.dlId || syncedDLs[0]?.dlId || '');
-          setDescription(target.description || '');
-          setLoadedMembers(target.users || []);
-          setLoadedDeptBreakdown(target.departmentBreakdown || []);
-          setLoadedHookRate(target.aggregatedHookRate || '12.1%');
-          setLoadedReportRate(target.aggregatedReportRate || '65.1%');
+          const rawEmails = Array.isArray(target.EMailIDs) ? target.EMailIDs : (target.users || []);
+          const resolved = resolveMembersFromEmails(rawEmails);
+
+          setCohortName(target.UserListName || target.name || '');
+          setSelectedDLId(target.dlId || '');
+          setDlSearchQuery(target.dlId || '');
+          setDescription(target.UserListsDescription || target.description || '');
+          setLoadedMembers(resolved);
+
+          // Department breakdown calculation
+          const deptCounts = {};
+          resolved.forEach((u) => {
+            deptCounts[u.department] = (deptCounts[u.department] || 0) + 1;
+          });
+          setLoadedDeptBreakdown(Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })));
+
+          // Rate averages
+          const avgHook = resolved.length > 0 ? (resolved.reduce((acc, u) => acc + parseFloat(u.hookRate), 0) / resolved.length).toFixed(1) : '0.0';
+          const avgReport = resolved.length > 0 ? (resolved.reduce((acc, u) => acc + parseFloat(u.reportRate), 0) / resolved.length).toFixed(1) : '0.0';
+          setLoadedHookRate(`${avgHook}%`);
+          setLoadedReportRate(`${avgReport}%`);
           setIsLoaded(true);
         }
       } catch (e) {
@@ -115,15 +197,14 @@ const UserListUploadViaDL = () => {
   };
 
   // DL Selection change handler
-  const handleSelectDL = (e) => {
-    const dlId = e.target.value;
-    setSelectedDLId(dlId);
+  const handleSelectDL = (dlEmail) => {
+    setSelectedDLId(dlEmail);
+    setDlSearchQuery(dlEmail);
     setIsLoaded(false);
+    setIsDropdownOpen(false);
 
-    const found = syncedDLs.find((d) => d.dlId === dlId);
-    if (found) {
-      if (!cohortName) setCohortName(found.dlName);
-      if (!description) setDescription(found.description);
+    if (!cohortName) {
+      setCohortName(dlEmail.split('@')[0].replace(/[-_]/g, ' '));
     }
   };
 
@@ -134,17 +215,55 @@ const UserListUploadViaDL = () => {
       return;
     }
 
-    const found = syncedDLs.find((d) => d.dlId === selectedDLId);
-    if (found) {
-      setLoadedMembers(found.members || []);
-      setLoadedDeptBreakdown(found.departmentBreakdown || []);
-      setLoadedHookRate(found.aggregatedHookRate || '12.1%');
-      setLoadedReportRate(found.aggregatedReportRate || '65.1%');
-      if (!cohortName) setCohortName(found.dlName);
-      if (!description) setDescription(found.description);
+    const rawMembers = exchangeDLsData[selectedDLId] || [];
+    if (rawMembers.length > 0) {
+      const resolved = resolveMembersFromEmails(rawMembers);
+      setLoadedMembers(resolved);
+
+      // Department breakdown calculation
+      const deptCounts = {};
+      resolved.forEach((u) => {
+        deptCounts[u.department] = (deptCounts[u.department] || 0) + 1;
+      });
+      setLoadedDeptBreakdown(Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })));
+
+      // Calculated telemetry metrics
+      const avgHook = resolved.length > 0 ? (resolved.reduce((acc, u) => acc + parseFloat(u.hookRate), 0) / resolved.length).toFixed(1) : '0.0';
+      const avgReport = resolved.length > 0 ? (resolved.reduce((acc, u) => acc + parseFloat(u.reportRate), 0) / resolved.length).toFixed(1) : '0.0';
+      setLoadedHookRate(`${avgHook}%`);
+      setLoadedReportRate(`${avgReport}%`);
+
       setIsLoaded(true);
-      showToast(`Loaded ${found.totalUsers} users from Active Directory`);
+      showToast(`Loaded ${resolved.length} users from Active Directory`);
+    } else {
+      showToast('No user records found in this Distribution List');
     }
+  };
+
+  // Handle single user deletion from the loaded cohort
+  const handleDeleteMember = (emailToDelete, userName) => {
+    const updated = loadedMembers.filter((m) => m.email !== emailToDelete).map((m, idx) => ({
+      ...m,
+      srNo: idx + 1
+    }));
+    setLoadedMembers(updated);
+
+    // Recalculate Department Breakdown
+    const deptCounts = {};
+    updated.forEach((u) => {
+      deptCounts[u.department] = (deptCounts[u.department] || 0) + 1;
+    });
+    setLoadedDeptBreakdown(Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })));
+
+    // Recalculate Rate averages
+    const avgHook = updated.length > 0 ? (updated.reduce((acc, u) => acc + parseFloat(u.hookRate), 0) / updated.length).toFixed(1) : '0.0';
+    const avgReport = updated.length > 0 ? (updated.reduce((acc, u) => acc + parseFloat(u.reportRate), 0) / updated.length).toFixed(1) : '0.0';
+    setLoadedHookRate(`${avgHook}%`);
+    setLoadedReportRate(`${avgReport}%`);
+
+    // Trigger floating success toaster
+    setDeletedSuccessMsg(`User ${userName || emailToDelete} removed successfully`);
+    setTimeout(() => setDeletedSuccessMsg(''), 3000);
   };
 
   // Save Action
@@ -160,39 +279,41 @@ const UserListUploadViaDL = () => {
 
     try {
       const stored = localStorage.getItem('voisshield_user_dls_data');
-      const allLists = stored ? JSON.parse(stored) : defaultData.savedUserLists || [];
+      const allLists = stored ? JSON.parse(stored) : (Array.isArray(defaultData) ? defaultData : defaultData.savedUserLists || []);
+
+      const formattedNow = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const formattedTimestamp = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 
       if (editId) {
         const updated = allLists.map((item) =>
-          item.id === editId
+          (item.UserListsID || item.id) === editId
             ? {
                 ...item,
-                name: cohortName.trim(),
+                UserListName: cohortName.trim(),
                 dlId: selectedDLId,
-                description: description.trim() || item.description,
-                totalUsers: loadedMembers.length,
-                departmentBreakdown: loadedDeptBreakdown,
-                users: loadedMembers,
-                aggregatedHookRate: loadedHookRate,
-                aggregatedReportRate: loadedReportRate
+                UserListsDescription: description.trim() || item.UserListsDescription || item.description,
+                TotalEmailIDsCount: loadedMembers.length,
+                LastModified: formattedTimestamp,
+                LastModifiedBy: userContext.userEmail || 'abhay.hs1@vodafone.com',
+                EMailIDs: loadedMembers.map((u) => u.email)
               }
             : item
         );
         localStorage.setItem('voisshield_user_dls_data', JSON.stringify(updated));
       } else {
         const newList = {
-          id: `ul-${Date.now().toString().slice(-4)}`,
-          name: cohortName.trim(),
-          type: 'Distribution List',
+          UserListsID: `UL-${Date.now().toString().slice(-5)}`,
+          UserListName: cohortName.trim(),
+          UploadType: 'Distribution List',
           dlId: selectedDLId,
-          description: description.trim() || 'Pre-configured Exchange Active Directory target group.',
-          totalUsers: loadedMembers.length,
-          usedCount: 0,
-          createdDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-          aggregatedHookRate: loadedHookRate,
-          aggregatedReportRate: loadedReportRate,
-          departmentBreakdown: loadedDeptBreakdown,
-          users: loadedMembers
+          UserListsDescription: description.trim() || 'Pre-configured Exchange Active Directory target group.',
+          TotalEmailIDsCount: loadedMembers.length,
+          CreationDate: formattedNow,
+          CreatedBy: userContext.userEmail || 'abhay.hs1@vodafone.com',
+          LastModified: formattedTimestamp,
+          LastModifiedBy: userContext.userEmail || 'abhay.hs1@vodafone.com',
+          NumberofTimesUsed: 0,
+          EMailIDs: loadedMembers.map((u) => u.email)
         };
         localStorage.setItem('voisshield_user_dls_data', JSON.stringify([newList, ...allLists]));
       }
@@ -208,317 +329,307 @@ const UserListUploadViaDL = () => {
   };
 
   // Filtered members for table
-  const filteredMembers = loadedMembers.filter(
-    (u) =>
-      u.userName.toLowerCase().includes(tableSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(tableSearch.toLowerCase()) ||
-      u.department.toLowerCase().includes(tableSearch.toLowerCase()) ||
-      u.location.toLowerCase().includes(tableSearch.toLowerCase())
-  );
+  const filteredMembers = useMemo(() => {
+    return loadedMembers.filter(
+      (u) =>
+        u.userName.toLowerCase().includes(tableSearch.toLowerCase()) ||
+        u.email.toLowerCase().includes(tableSearch.toLowerCase()) ||
+        u.department.toLowerCase().includes(tableSearch.toLowerCase()) ||
+        u.location.toLowerCase().includes(tableSearch.toLowerCase())
+    );
+  }, [loadedMembers, tableSearch]);
+
+  const maxDeptCount = useMemo(() => {
+    return Math.max(...loadedDeptBreakdown.map((d) => d.count), 1);
+  }, [loadedDeptBreakdown]);
 
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
 
+      {/* ========================================================================= */}
+      {/* ── 🌟 LAYER 1: ORIGINAL SCREEN ROOT (LOCKED NON-SCROLLABLE SHEET) ──────── */}
+      {/* ========================================================================= */}
       <div
         style={{ zoom: VarUserDLsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 overflow-hidden h-[calc(110vh-10px)]"
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
-        {/* ========================================================================= */}
-        {/* ── 1. TOP HEADER BAR: "USER LISTS" ─────────────────────────────────────── */}
-        {/* ========================================================================= */}
+        {/* Top Header Bar */}
         <div
-          className={`w-full py-2.5 px-6 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
-            isDark
-              ? 'bg-[#f1f4f9] text-black border-white/10'
-              : 'bg-[#15171C] text-white border-black/10'
+          className={`w-full h-[40px] -mt-3 py-2.5 px-6 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
           }`}
         >
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/user-dls')}
-              className="p-1.5 rounded-lg bg-white/10 dark:bg-black/10 hover:bg-white/20 dark:hover:bg-black/20 text-white dark:text-black cursor-pointer transition-colors"
-              title="Return to User Lists"
-            >
-              <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-            </button>
-            <h1 className="text-[15px] font-voda-exb tracking-normal text-white dark:text-black">
-              USER LISTS
+            <h1 className="text-[13.5px] font-voda font-bold tracking-tight uppercase">
+              Recipients Lists
             </h1>
           </div>
-
-          <div className="text-[13px] font-voda-exb text-white/80 dark:text-black/80">
-            -- {editId ? 'Edit Distribution List' : 'Add Distribution List (Exchange / Azure AD)'}
-          </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* ── 2. INFO NOTICE STRIP ────────────────────────────────────────────────── */}
+        {/* ── 🌟 LAYER 2: BIG WHITE CONTAINER DIV (SPLIT 60% / 40% COLUMNS) ───────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full py-2 px-4 rounded-xl border flex items-center gap-2.5 flex-shrink-0 text-[11px] font-medium shadow-2xs ${
-            isDark ? 'bg-[#15161A] text-slate-300 border-white/10' : 'bg-white text-slate-700 border-slate-200'
+          style={{
+            height: typeof VarBiggerWhiteDivHeight === 'number' ? `${VarBiggerWhiteDivHeight}px` : VarBiggerWhiteDivHeight
+          }}
+          className={`w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex gap-3 overflow-hidden shadow-xs transition-colors ${
+            isDark ? 'bg-[#12141A] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          <div className="w-3.5 h-3.5 rounded-full border border-black dark:border-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">
-            i
-          </div>
-          <span>
-            Select a pre-synced Active Directory Distribution List (DL) to review members, department distribution, risk telemetry, and save as an active simulation cohort.
-          </span>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* ── 3. BIG WHITE CONTAINER DIV ─────────────────────────────────────────── */}
-        {/* ========================================================================= */}
-        <div
-          className={`w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex flex-col gap-3 overflow-hidden shadow-xs ${
-            isDark ? 'bg-[#15161A] border-white/10' : 'bg-white border-slate-200'
-          }`}
-        >
-          {/* ── TOP ROW: [DL FORM CONTAINER (7 COLS)] + [TELEMETRY DASHBOARD (5 COLS)] ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-shrink-0 items-stretch">
-            
-            {/* LEFT: FORM BLOCK (7 cols) */}
-            <div
-              className={`lg:col-span-7 p-4 rounded-2xl border flex flex-col justify-between gap-2.5 ${
-                isDark ? 'bg-[#1F2128] border-white/5' : 'bg-[#F1F4F9] border-slate-200/90'
-              }`}
-            >
-              <div className="flex items-center justify-between pb-1 border-b border-black/5 dark:border-white/10">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-black text-white dark:bg-white dark:text-black flex items-center justify-center">
-                    <Mail className="w-3.5 h-3.5" />
-                  </div>
-                  <h3 className="text-[13.5px] font-voda-exb uppercase tracking-tight text-slate-900 dark:text-white">
-                    {editId ? 'Edit Distribution List Cohort' : 'Configure Exchange Distribution List'}
+          {/* ========================================================================= */}
+          {/* ── 👈 LEFT WORKSPACE: INPUT (60%) + COLLAPSIBLE/EXPANDABLE TABLE (40%) ─── */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              width: varDLDetailsInputSectionWidth,
+              flex: `0 0 ${varDLDetailsInputSectionWidth}`
+            }}
+            className="h-full flex flex-col gap-3 min-w-0 overflow-hidden"
+          >
+            {/* ── 1. DL DETAILS INPUT SECTION (MATCHING DESIGN 100%) ── */}
+            {!isTableMaximized && (
+              <div
+                style={{
+                  height: `calc(${varDLDetailsInputSectionHeight} - 6px)`,
+                  backgroundColor: lCardBg,
+                  borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                }}
+                className="p-5 border border-black/0 dark:border-white/0 flex flex-col justify-between shadow-2xs transition-all overflow-visible flex-shrink-0 relative"
+              >
+                {/* Header: Exchange Logo + Title */}
+                <div className="flex items-center gap-2.5 pb-1 flex-shrink-0">
+                  <img
+                    src={ExchangeIcon}
+                    alt="Exchange Logo"
+                    className="w-5 h-5 -mt-1 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <h3 className="text-[13px] font-voda font-bold text-slate-950 dark:text-white leading-tight -mt-1 ">
+                    Fill Details and Select Microsoft Distribution List
                   </h3>
                 </div>
-                <span className="text-[9.5px] font-mono-tech text-slate-500 dark:text-slate-400">
-                  Sync: Microsoft Azure AD
-                </span>
-              </div>
 
-              {/* Form Inputs Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {/* Cohort Name */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300">
-                    Cohort Name:
+                {/* Field 1: Select the DL with right-aligned Load button */}
+                <div ref={dropdownRef} className="flex flex-col gap-1.5 flex-shrink-0 relative">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] font-voda mt-3 font-bold text-slate-900 dark:text-white">
+                      Select the Distribution List
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleLoad}
+                      className="h-5 px-4 mb-1 rounded-full bg-[#181A20] hover:bg-black text-white text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <span>Load</span>
+                      <RefreshCw className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+
+                  {/* Searchable Combobox Input Box */}
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={dlSearchQuery}
+                      onChange={(e) => {
+                        setDlSearchQuery(e.target.value);
+                        setSelectedDLId(e.target.value);
+                        setIsDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsDropdownOpen(true)}
+                      placeholder="search for distribution lists here"
+                      className="w-full h-8 px-3.5 pr-9 rounded-2xl bg-white dark:bg-[#12141A] text-slate-900 dark:text-white text-[11px] font-bold outline-none border border-black/5 dark:border-white/10 shadow-2xs placeholder-slate-400"
+                    />
+                    <ChevronDown
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="w-4 h-4 text-slate-500 absolute right-3 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* 🌟 Floating Rounded Cards Dropdown Menu (Matches Design Mockup) */}
+                  {isDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 9999
+                      }}
+                      className="mt-1.5 p-2 rounded-2xl bg-white dark:bg-[#15171F] border border-black/10 dark:border-white/15 shadow-2xl flex flex-col gap-1.5"
+                    >
+                      {filteredDLOptions.length === 0 ? (
+                        <div className="p-2 text-center text-slate-400 text-[10px] font-bold">
+                          No distribution lists found
+                        </div>
+                      ) : (
+                        filteredDLOptions.map((dlEmail) => {
+                          const isSelected = selectedDLId === dlEmail;
+                          return (
+                            <div
+                              key={dlEmail}
+                              onClick={() => handleSelectDL(dlEmail)}
+                              className={`w-full p-2.5 px-3.5 rounded-xl cursor-pointer transition-all flex items-center justify-between text-[11px] font-voda font-bold ${
+                                isSelected
+                                  ? 'bg-[#DDE3EA] dark:bg-[#282C37] text-slate-950 dark:text-white shadow-2xs'
+                                  : 'bg-[#EEF2F6] dark:bg-[#1C1F28] hover:bg-[#E2E7EE] dark:hover:bg-[#222632] text-slate-900 dark:text-slate-100'
+                              }`}
+                            >
+                              <span className="truncate">{dlEmail}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Field 2: Name */}
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <label className="text-[12px] mt-2 font-voda font-bold text-slate-900 dark:text-white">
+                    Name
                   </label>
                   <input
                     type="text"
                     value={cohortName}
                     onChange={(e) => setCohortName(e.target.value)}
-                    placeholder="Type cohort name..."
-                    className={`w-full px-3 py-1.5 rounded-xl border text-[11px] font-medium outline-none ${
-                      isDark ? 'bg-[#15161A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}
+                    placeholder="Type here"
+                    className="w-full h-8 px-3.5 rounded-2xl bg-white dark:bg-[#12141A] text-slate-900 dark:text-white text-[11px] font-bold outline-none border border-black/5 dark:border-white/10 shadow-2xs placeholder-slate-400"
                   />
                 </div>
 
-                {/* DL ID Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300">
-                    Distribution List (DL ID):
+                {/* Field 3: Description (Generous height box) */}
+                <div className="flex flex-col gap-1.5 flex-1 min-h-0">
+                  <label className="text-[12px] mt-2 font-voda font-bold text-slate-900 dark:text-white">
+                    Description
                   </label>
-                  <div className="relative">
-                    <select
-                      value={selectedDLId}
-                      onChange={handleSelectDL}
-                      className={`w-full px-3 py-1.5 pr-8 rounded-xl border text-[11px] font-mono-tech outline-none appearance-none cursor-pointer ${
-                        isDark ? 'bg-[#15161A] border-white/10 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-                      }`}
-                    >
-                      <option value="">Select pre-configured DL...</option>
-                      {syncedDLs.map((dl) => (
-                        <option key={dl.dlId} value={dl.dlId}>
-                          {dl.dlName} ({dl.dlId})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300">
-                  Description:
-                </label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Type details about this target cohort..."
-                  className={`w-full px-3 py-1.5 rounded-xl border text-[11px] font-medium outline-none ${
-                    isDark ? 'bg-[#15161A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                  }`}
-                />
-              </div>
-
-              {/* Action Buttons: LOAD + SAVE */}
-              <div className="flex items-center gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={handleLoad}
-                  className="px-6 py-1.5 rounded-xl bg-[#181A20] hover:bg-black text-white text-[11px] font-voda-exb uppercase tracking-wider shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  LOAD
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={!isLoaded}
-                  className={`px-6 py-1.5 rounded-xl text-[11px] font-voda-exb uppercase tracking-wider shadow-sm transition-all cursor-pointer ${
-                    isLoaded
-                      ? 'bg-[#2E7D32] hover:bg-[#256629] text-white'
-                      : 'bg-slate-300 dark:bg-white/10 text-slate-500 dark:text-white/30 cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  SAVE & SUBMIT
-                </button>
-              </div>
-            </div>
-
-            {/* RIGHT: TELEMETRY DASHBOARD (5 cols) */}
-            <div
-              className={`lg:col-span-5 p-4 rounded-2xl border flex flex-col justify-between gap-2 ${
-                isDark ? 'bg-[#1F2128] border-white/5' : 'bg-[#F1F4F9] border-slate-200/90'
-              }`}
-            >
-              <div className="flex items-center justify-between pb-1 border-b border-black/5 dark:border-white/10">
-                <span className="text-[12px] font-voda-exb uppercase text-slate-900 dark:text-white">
-                  Batch Telemetry Summary
-                </span>
-                <span className="text-[11px] font-mono-tech font-bold text-[#2E7D32] dark:text-[#4ADE80]">
-                  Total Users: {loadedMembers.length}
-                </span>
-              </div>
-
-              {/* Department Breakdown */}
-              <div className="flex flex-wrap gap-1.5 my-auto min-h-[48px] items-center">
-                {loadedDeptBreakdown.length === 0 ? (
-                  <span className="text-[10px] text-slate-400 italic my-auto">
-                    No telemetry loaded yet. Select a Distribution List and click LOAD.
-                  </span>
-                ) : (
-                  loadedDeptBreakdown.map((dept, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-lg text-[9px] font-bold border bg-white dark:bg-[#15161A] border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200"
-                    >
-                      {dept.dept} - <strong className="text-[#FF4D4D]">{dept.count}</strong>
-                    </span>
-                  ))
-                )}
-              </div>
-
-              {/* Risk Indicators */}
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-black/5 dark:border-white/10">
-                <div className="p-2 rounded-xl bg-[#FF4D4D]/10 border border-[#FF4D4D]/20 text-[#FF4D4D] flex flex-col items-center justify-center">
-                  <span className="text-[8px] font-mono-tech font-bold uppercase">Aggregated Hook Rate</span>
-                  <span className="text-[14px] font-voda-exb mt-0.5">{isLoaded ? loadedHookRate : '--'}</span>
-                </div>
-
-                <div className="p-2 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/20 text-[#2E7D32] dark:text-[#4ADE80] flex flex-col items-center justify-center">
-                  <span className="text-[8px] font-mono-tech font-bold uppercase">Aggregated Report Rate</span>
-                  <span className="text-[14px] font-voda-exb mt-0.5">{isLoaded ? loadedReportRate : '--'}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ── BOTTOM SECTION: "EVERY USER BY USER" TABLE (Fills remaining height) ── */}
-          <div
-            className={`p-3.5 rounded-2xl border flex flex-col gap-2.5 flex-1 ${
-              isDark ? 'bg-[#1F2128] border-white/5' : 'bg-[#F1F4F9] border-slate-200/90'
-            }`}
-          >
-            {/* Table Header Controls */}
-            <div className="flex items-center justify-between pb-1.5 border-b border-black/5 dark:border-white/10 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-3.5 rounded-full bg-[#E60000]" />
-                <h3 className="text-xs font-voda-exb uppercase tracking-tight text-slate-900 dark:text-white">
-                  Every user by user ({filteredMembers.length} records)
-                </h3>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div
-                  className={`px-2.5 py-1 rounded-xl border flex items-center gap-1.5 ${
-                    isDark ? 'bg-[#15161A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                  }`}
-                >
-                  <Search className="w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={tableSearch}
-                    onChange={(e) => setTableSearch(e.target.value)}
-                    placeholder="Search users, emails, depts..."
-                    className="w-48 bg-transparent text-[10px] font-medium outline-none"
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Type here"
+                    className="w-full flex-1 p-3 rounded-2xl bg-white dark:bg-[#12141A] text-slate-900 dark:text-white text-[11px] font-bold outline-none border border-black/5 dark:border-white/10 shadow-2xs placeholder-slate-400 resize-none"
                   />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsTableExpanded(!isTableExpanded)}
-                  className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer"
-                >
-                  {isTableExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+                {/* Bottom Action Buttons: Go Back (Dark Gray) & Save & Submit (Sage Green) */}
+                <div className="flex items-center justify-end gap-2.5 pt-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/user-dls')}
+                    className="h-6 px-6 -mb-1 mt-1 rounded-2xl bg-[#3D3F45] hover:bg-[#2C2E34] text-white text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    Go Back
+                  </button>
 
-            {/* Table Data */}
-            {isTableExpanded && (
-              <div className="flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!isLoaded}
+                    className={`h-6 px-6 -mb-1 mt-1 rounded-2xl text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer active:scale-95 ${
+                      isLoaded
+                        ? 'bg-[#8ED973] hover:bg-[#7DC862] text-white'
+                        : 'bg-[#8ED973]/50 text-white/70 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    Save & Submit
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── 2. DL ALL USERS TABLE VIEW SECTION (HEIGHT: 40% OR 100% WHEN EXPANDED) ── */}
+            <div
+              style={{
+                height: isTableMaximized ? '100%' : `calc(${varDLAllUsersTableViewSectionHeight} - 6px)`,
+                borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+              }}
+              className="w-full p-3.5 bg-black flex flex-col gap-2 overflow-hidden border border-black/5 dark:border-white/15 transition-all shadow-md"
+            >
+              {/* Header Controls with Upward Expand Option */}
+              <div className="flex items-center justify-between pb-1.5 border-b border-white/10 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-3.5 rounded-full bg-[#E60000]" />
+                  <h3 className="text-[12px] font-voda font-bold uppercase tracking-tight text-white">
+                    Every user by user ({filteredMembers.length} records)
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Search Bar */}
+                  <div className="px-2.5 py-0.5 rounded-lg border border-white/10 bg-white dark:bg-[#12141A] flex items-center gap-1.5 shadow-2xs">
+                    <Search className="w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={tableSearch}
+                      onChange={(e) => setTableSearch(e.target.value)}
+                      placeholder="Search Email ID, User Name, Department..."
+                      className="w-60 bg-transparent text-[9.5px] font-bold text-slate-900 dark:text-white outline-none placeholder-slate-400"
+                    />
+                  </div>
+
+                  {/* Upward Arrow Expand Option (Toggles Full Height) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsTableMaximized(!isTableMaximized)}
+                    className="p-1 rounded text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                    title={isTableMaximized ? 'Collapse back to 40%' : 'Expand table upward'}
+                  >
+                    {isTableMaximized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Table View with Delete Icon Column */}
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredMembers.length === 0 ? (
-                  <div className="h-full flex items-center justify-center p-8 text-center text-slate-400 text-xs italic">
+                  <div className="h-full flex items-center justify-center p-6 text-center text-slate-400 text-xs italic">
                     No user records loaded. Select a Distribution List above and click LOAD.
                   </div>
                 ) : (
                   <table className="w-full text-left text-[10.5px]">
                     <thead>
-                      <tr
-                        className={`border-b font-mono-tech uppercase text-[9px] ${
-                          isDark ? 'border-white/10 text-slate-400 bg-white/[0.02]' : 'border-slate-200 text-slate-600 bg-white/50'
-                        }`}
-                      >
-                        <th className="py-2 px-3">SR NO.</th>
-                        <th className="py-2 px-3">USER NAME</th>
-                        <th className="py-2 px-3">EMAIL ID</th>
-                        <th className="py-2 px-3">DEPARTMENT</th>
-                        <th className="py-2 px-3">LOCATION</th>
-                        <th className="py-2 px-3 text-center">HOOK RATE %</th>
-                        <th className="py-2 px-3 text-center">REPORT RATE %</th>
+                      <tr className="border-b border-white/10 text-[9.5px] uppercase font-voda font-bold text-slate-400 bg-white/[0.02]">
+                        <th className="py-1.5 px-3">SR NO.</th>
+                        <th className="py-1.5 px-3">USER NAME</th>
+                        <th className="py-1.5 px-3">EMAIL ID</th>
+                        <th className="py-1.5 px-3">DEPARTMENT</th>
+                        <th className="py-1.5 px-3">LOCATION</th>
+                        <th className="py-1.5 px-3 text-center">HOOK RATE %</th>
+                        <th className="py-1.5 px-3 text-center">REPORT RATE %</th>
+                        <th className="py-1.5 px-3 text-center">DELETE</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredMembers.map((user) => (
                         <tr
-                          key={user.srNo}
-                          className={`border-b transition-colors ${
-                            isDark ? 'border-white/5 hover:bg-white/[0.03]' : 'border-slate-200/60 hover:bg-white/60'
-                          }`}
+                          key={user.email}
+                          className="border-b border-white/5 hover:bg-white/[0.04] transition-colors"
                         >
-                          <td className="py-2 px-3 font-mono-tech text-slate-400">{user.srNo}</td>
-                          <td className="py-2 px-3 font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-100">
-                            <div className="w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-xs">
-                              <UserIcon className="w-3 h-3 text-slate-600 dark:text-slate-200" />
+                          <td className="py-1.5 px-3 text-slate-400 font-bold">{user.srNo}</td>
+                          <td className="py-1.5 px-3 font-bold flex items-center gap-1.5 text-white">
+                            <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-xs">
+                              <UserIcon className="w-3 h-3 text-slate-300" />
                             </div>
                             {user.userName}
                           </td>
-                          <td className="py-2 px-3 font-mono-tech text-slate-400">{user.email}</td>
-                          <td className="py-2 px-3 text-slate-600 dark:text-slate-300">{user.department}</td>
-                          <td className="py-2 px-3 font-bold text-slate-700 dark:text-slate-200">{user.location}</td>
-                          <td className="py-2 px-3 text-center font-mono-tech font-bold text-[#FF4D4D]">{user.hookRate}</td>
-                          <td className="py-2 px-3 text-center font-mono-tech font-bold text-[#2E7D32] dark:text-[#4ADE80]">
+                          <td className="py-1.5 px-3 text-slate-300 font-bold">{user.email}</td>
+                          <td className="py-1.5 px-3 text-slate-300 font-bold">{user.department}</td>
+                          <td className="py-1.5 px-3 font-bold text-slate-200">{user.location}</td>
+                          <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">{user.hookRate}</td>
+                          <td className="py-1.5 px-3 text-center font-bold text-[#4ADE80]">
                             {user.reportRate}
+                          </td>
+                          <td className="py-1.5 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMember(user.email, user.userName)}
+                              className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-white/10 transition-colors cursor-pointer"
+                              title={`Delete ${user.userName || user.email}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -526,18 +637,115 @@ const UserListUploadViaDL = () => {
                   </table>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
+          {/* ========================================================================= */}
+          {/* ── 👉 RIGHT WORKSPACE: LIST TELEMETRY SECTION (100% HEIGHT, 40% WIDTH) ─── */}
+          {/* ========================================================================= */}
+          <div
+            style={{
+              width: VarListTelemetrySectionWidth,
+              flex: `0 0 ${VarListTelemetrySectionWidth}`,
+              height: VarListTelemetrySectionHeight,
+              backgroundColor: lCardBg,
+              borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+            }}
+            className="p-4 border border-black/0 dark:border-white/0 flex flex-col justify-between gap-3 shadow-2xs transition-colors overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10 flex-shrink-0">
+              <span className="text-[13px] font-voda font-bold text-slate-900 dark:text-white">
+                Loaded Distribution List Summary
+              </span>
+              <span className="text-[11.5px] font-voda font-bold text-[#2E7D32] dark:text-[#4ADE80]">
+                Total Users: {loadedMembers.length}
+              </span>
+            </div>
+
+            {/* Risk Indicators Cards */}
+            <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
+              <div className="p-3 rounded-xl bg-[#FF4D4D]/10 border border-[#FF4D4D]/25 text-[#FF4D4D] flex flex-col items-center justify-center">
+                <span className="text-[9px] font-voda font-bold uppercase">Aggregated Hook Rate</span>
+                <span className="text-[18px] font-voda font-bold mt-0.5">{isLoaded ? loadedHookRate : '--'}</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/25 text-[#2E7D32] dark:text-[#4ADE80] flex flex-col items-center justify-center">
+                <span className="text-[9px] font-voda font-bold uppercase">Aggregated Report Rate</span>
+                <span className="text-[18px] font-voda font-bold mt-0.5">{isLoaded ? loadedReportRate : '--'}</span>
+              </div>
+            </div>
+
+            {/* Horizontal Rounded-Edged Progress Bars for Departments */}
+            <div className="flex-1 min-h-0 flex flex-col gap-2 pt-2 border-t border-black/10 dark:border-white/10 overflow-hidden">
+              <span className="text-[11px] font-voda font-bold text-slate-800 dark:text-slate-200 uppercase tracking-tight flex-shrink-0">
+                Department Distribution Breakdown
+              </span>
+
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 flex flex-col gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                {loadedDeptBreakdown.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-center text-slate-400 text-xs italic">
+                    No telemetry loaded yet. Select a Distribution List and click LOAD.
+                  </div>
+                ) : (
+                  loadedDeptBreakdown.map((dept, idx) => {
+                    const percentage = Math.round((dept.count / maxDeptCount) * 100);
+                    return (
+                      <div key={idx} className="flex flex-col gap-1 w-full bg-white dark:bg-[#12141A] p-2.5 rounded-xl border border-black/5 dark:border-white/10 shadow-2xs">
+                        <div className="flex items-center justify-between text-[10px] font-bold">
+                          <span className="text-slate-900 dark:text-slate-100 truncate">{dept.dept}</span>
+                          <span className="text-[#E60000] font-voda font-bold flex-shrink-0">{dept.count} users</span>
+                        </div>
+                        {/* Rounded Edged Horizontal Bar */}
+                        <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
+                          <div
+                            style={{ width: `${percentage}%` }}
+                            className="h-full rounded-full bg-[#E60000] transition-all duration-300"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Toast */}
+        {/* Bottom Toast Notification */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#2E7D32] text-white text-xs font-voda-exb shadow-xl flex items-center gap-2">
+          <div className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#2E7D32] text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2">
             <Check className="w-4 h-4 stroke-[3]" />
             {toastMessage}
           </div>
         )}
+
+        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL) ── */}
+        {deletedSuccessMsg &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-emerald-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#16A34A] flex items-center justify-center flex-shrink-0">
+                <Check className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div className="flex flex-col text-left leading-tight flex-1">
+                <span className="text-[10px] font-voda font-bold text-[#16A34A] uppercase tracking-wider">
+                  Success
+                </span>
+                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
+                  {deletedSuccessMsg}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeletedSuccessMsg('')}
+                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>,
+            document.body
+          )}
       </div>
     </>
   );
