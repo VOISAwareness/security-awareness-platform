@@ -4,7 +4,6 @@ import { useUserType } from '../UserTypeContext/UserTypeContext';
 import { motion } from 'framer-motion';
 import { Sun, Moon } from 'lucide-react';
 import { TRANSITION_CONFIG } from './Layout';
-import { SUPPORT_EMAIL } from '../appConfig';
 
 // =========================================================================
 // 🎛️ TOP HEADER SCALE CONTROL VARIABLE (0.9 = 90%, 1.0 = 100%, etc.)
@@ -44,10 +43,10 @@ const TopHeaderSection = ({ isSidebarExpanded = false, isScrolled = false }) => 
         <span className="hidden md:inline-flex items-center text-xs font-medium text-slate-500 dark:text-slate-400">
           Contact:&nbsp;
           <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+            href="mailto:abhay.hs1@vodafone.com"
             className="font-semibold text-slate-700 dark:text-slate-300 hover:text-[#E60000] dark:hover:text-[#E60000] transition-colors"
           >
-            {SUPPORT_EMAIL}
+            abhay.hs1@vodafone.com
           </a>
         </span>
 
