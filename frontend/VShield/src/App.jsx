@@ -46,6 +46,9 @@ import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
 import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
 import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
 
+// 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
+import Training from './Pages/Training/Training';
+
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
   const { user, hasAccess, getDefaultRoute } = useUserType();
@@ -149,7 +152,7 @@ function App() {
             <Route path="/new-scenario" element={<NewScenario/>} />
 
             {/* Training & Learning Routes */}
-            <Route path="/training" element={<PlaceholderPage title="Training Matrix" />} />
+            <Route path="/training" element={<Training />} />
             <Route path="/add-training" element={<PlaceholderPage title="Training Matrix" />} />
             <Route path="/my-training" element={<PlaceholderPage title="My Training Path" />} />
 
