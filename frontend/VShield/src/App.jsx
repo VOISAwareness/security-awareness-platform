@@ -46,6 +46,10 @@ import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
 import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
 import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
 
+// 🌟 My Training (a person's own training: pending, history, each path's details)
+import MyTraining from './Pages/MyTraining/MyTraining';
+import TrainingDetails from './Pages/MyTraining/TrainingDetails';
+
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
   const { user, hasAccess, getDefaultRoute } = useUserType();
@@ -151,7 +155,8 @@ function App() {
             {/* Training & Learning Routes */}
             <Route path="/training" element={<PlaceholderPage title="Training Matrix" />} />
             <Route path="/add-training" element={<PlaceholderPage title="Training Matrix" />} />
-            <Route path="/my-training" element={<PlaceholderPage title="My Training Path" />} />
+            <Route path="/my-training" element={<MyTraining />} />
+            <Route path="/my-training/details/:trainingPathID" element={<TrainingDetails />} />
 
             {/* Communications & Directories */}
             <Route path="/announcements" element={<PlaceholderPage title="Security Announcements" />} />

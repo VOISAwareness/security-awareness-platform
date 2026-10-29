@@ -1,0 +1,606 @@
+/* =========================================
+   TRAINING TABLE — BASE DESIGN
+========================================= */
+
+.training-table-card {
+  width: 100%;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.training-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: none !important;
+}
+
+
+
+
+/* Remove borders and shadows from all cells */
+.training-table th,
+.training-table td {
+  border: none !important;
+  outline: none;
+  box-shadow: none !important;
+}
+
+/* Light theme */
+.training-table thead.training-table-header th {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Dark theme */
+.dark .training-table thead.training-table-header th {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+
+/* =========================================
+   TABLE HEADER — LIGHT THEME
+   Black background, white text
+========================================= */
+
+.training-table thead.training-table-header th {
+  background: #000000 !important;
+  color: #ffffff !important;
+  padding: 0;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  border: none !important;
+
+}
+
+
+/* Header — light theme */
+.training-table thead.training-table-header th {
+  background: #000000 !important;
+  color: #ffffff !important;
+  padding: 0;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Round the left corners of the header */
+.training-table thead.training-table-header th:first-child {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+/* Round the right corners of the header */
+.training-table thead.training-table-header th:last-child {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+/* Header — dark theme */
+.dark .training-table thead.training-table-header th {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Keep sorting buttons transparent */
+.training-table thead.training-table-header th button {
+  display: block;
+  width: 100%;
+  padding: 13px 14px;
+  background: transparent !important;
+  color: inherit !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+
+.training-table thead.training-table-header th button {
+  display: block;
+  width: 100%;
+  padding: 13px 14px;
+  background: transparent !important;
+  color: #ffffff !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* =========================================
+   TABLE HEADER — DARK THEME
+   White background, black text
+========================================= */
+
+.dark .training-table thead.training-table-header th {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.dark .training-table thead.training-table-header th button {
+  background: transparent !important;
+  color: #000000 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* =========================================
+   TABLE BODY
+   No borders or row separators
+========================================= */
+
+.training-table tbody tr {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.training-table tbody td {
+  padding: 12px 14px;
+  background: transparent;
+  color: #1f2937;
+  font-size: 12px;
+  vertical-align: middle;
+  border: none !important;
+  white-space: nowrap;
+}
+
+/* Light theme row hover */
+.training-table tbody tr:hover td {
+  background-color: #E1E7EE;
+}
+
+.dark .training-table tbody tr:hover td {
+  background-color: #292B33;
+}
+
+/* Dark theme body text */
+.dark .training-table tbody td {
+  color: #e5e7eb;
+}
+
+/* Dark theme row hover */
+.dark .training-table tbody tr:hover td {
+  background-color: #202127;
+}
+
+/* =========================================
+   TRAINING NAME
+========================================= */
+
+.training-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 150px;
+}
+
+.training-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #f1f3f7;
+  color: #374151;
+  font-size: 16px;
+}
+
+.dark .training-icon {
+  background: #292b33;
+  color: #e5e7eb;
+}
+
+.training-name-cell strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.dark .training-name-cell strong {
+  color: #f9fafb;
+}
+
+.training-name-cell small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.dark .training-name-cell small {
+  color: #9ca3af;
+}
+
+
+/* =========================================
+   STATUS BADGES
+========================================= */
+
+.training-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: none !important;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  width: 100px;
+}
+
+.training-points-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: none !important;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  width: 100px;
+  background-color: #000;
+  color: #FFFFFF;
+}
+
+/* Pending — Light Green */
+.training-status-badge.pending {
+  background-color: #29ec71;
+  color: #FFFFFF;
+}
+
+/* Ongoing — Grey */
+.training-status-badge.ongoing {
+  background-color: #374151;
+  color: #FFFFFF;
+}
+
+/* Evaluated — Green */
+.training-status-badge.evaluated,
+.training-status-badge.evaluted {
+  background-color: #16A34A;
+  color: #FFFFFF;
+}
+
+/* Failed — Red */
+.training-status-badge.failed {
+  background-color: #e60000;
+  color: #FFFFFF;
+}
+
+/* Dark theme — Ongoing */
+.dark .training-status-badge.ongoing {
+  background-color: #383B44;
+  color: #FFFFFF;
+}
+
+/* Dark theme — Failed */
+.dark .training-status-badge.failed {
+  background-color: #451F25;
+  color: #FFFFFF;
+}
+
+
+/* =========================================
+   EMPTY STATE
+========================================= */
+
+.training-table .training-empty-state {
+  padding: 24px 14px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+  border: none !important;
+  white-space: normal;
+}
+
+.dark .training-table .training-empty-state {
+  color: #9ca3af;
+}
+
+/* =========================================
+   REMOVE DECORATIVE LINES
+========================================= */
+
+.training-table thead::before,
+.training-table thead::after,
+.training-table thead th::before,
+.training-table thead th::after,
+.training-table tbody::before,
+.training-table tbody::after,
+.training-table tbody tr::before,
+.training-table tbody tr::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Responsive spacing */
+@media (max-width: 640px) {
+  .training-table thead.training-table-header th button {
+    padding: 11px 10px;
+    font-size: 11px;
+  }
+
+  .training-table tbody td {
+    padding: 10px;
+    font-size: 11px;
+  }
+}
+
+
+/* Odd rows: 1st, 3rd, 5th... */
+.training-table tbody tr:nth-child(odd) td {
+  background-color: transparent;
+}
+
+/* Even rows: default background */
+.training-table tbody tr:nth-child(even) td {
+  background-color: #EEF2F6;
+}
+
+/* Dark theme */
+.dark .training-table tbody tr:nth-child(odd) td {
+  background-color: #202127;
+}
+
+.dark .training-table tbody tr:nth-child(even) td {
+  background-color: transparent;
+}
+
+
+/* Pagination container */
+.training-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 10px;
+}
+
+/* Page numbers container */
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Page number and arrow buttons */
+.pagination-page,
+.pagination-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+
+
+/* Active page */
+.pagination-page.active {
+  background: #e60000;
+  color: #ffffff;
+  border-color: #e60000;
+}
+
+/* Disabled arrows */
+.pagination-arrow:disabled {
+  background: #f3f4f6;
+  color: #b8bec8;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Dark mode */
+.dark .training-pagination {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .pagination-page,
+.dark .pagination-arrow {
+  background: #1c1e24;
+  color: #e5e7eb;
+  border-color: #3a3d46;
+}
+
+.dark .pagination-page:hover:not(:disabled),
+.dark .pagination-arrow:hover:not(:disabled) {
+  border-color: #e60000;
+  color: #ff5555;
+}
+
+.dark .pagination-page.active {
+  background: #e60000;
+  color: #ffffff;
+  border-color: #e60000;
+}
+
+.dark .pagination-arrow:disabled {
+  background: #15161a;
+  color: #626672;
+  border-color: #30323a;
+  opacity: 0.7;
+}
+
+
+.training-table-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  position: relative;
+}
+
+.training-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.training-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 12px 0 4px;
+  background: inherit;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
+
+.pagination-arrow,
+.pagination-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 25px;
+  height: 25px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+
+.pagination-page.active {
+  background: #e60000;
+  border-color: #e60000;
+  color: #fff;
+}
+
+.pagination-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+/* Table layout */
+.training-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Make the table header thinner */
+.training-table-header th {
+  font-size: 12px;
+  line-height: 0.2;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  height: 40px;
+}
+
+/* Keep sortable labels visually light */
+.training-table-header th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.training-table-scale {
+  width: 100%;
+}
+
+/* Left-align all table headers */
+.training-table thead th {
+  text-align: left !important;
+}
+
+/* Left-align all table row cells */
+.training-table tbody td {
+  text-align: left !important;
+}
+
+/* Keep header button text left-aligned when sorting is enabled */
+.training-table thead th button {
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100%;
+}
+
+/* Keep cell content left-aligned */
+.training-table tbody td>* {
+  text-align: left;
+}
+
+.proficiency-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.proficiency-bar {
+    width: 120px;
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 50px;
+    overflow: hidden;
+}
+
+.proficiency-fill {
+    height: 100%;
+    border-radius: 50px;
+    transition: width 0.3s ease;
+}
+
+.proficiency-percentage {
+    font-size: 11px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.training-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+
