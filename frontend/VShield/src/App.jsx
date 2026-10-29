@@ -33,6 +33,9 @@ import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApproval
 // 🌟 Leaderboard (opened from My Space)
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
 
+// 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
+import Training from './Pages/Training/Training';
+
 // 🌟 Import Start New Campaign Page
 import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
 import DetailsAndSettings from './Pages/StartCampaign/DetailsAndSettings';
@@ -153,7 +156,7 @@ function App() {
             <Route path="/new-scenario" element={<NewScenario/>} />
 
             {/* Training & Learning Routes */}
-            <Route path="/training" element={<PlaceholderPage title="Training Matrix" />} />
+            <Route path="/training" element={<Training />} />
             <Route path="/add-training" element={<PlaceholderPage title="Training Matrix" />} />
             <Route path="/my-training" element={<MyTraining />} />
             <Route path="/my-training/details/:trainingPathID" element={<TrainingDetails />} />
