@@ -1,55 +1,87 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { Search, Trash2, Edit3 } from 'lucide-react';
+import {
+  Search,
+  Trash2,
+  Edit3,
+  ExternalLink,
+  Users,
+  X
+} from 'lucide-react';
+
+// Assets imported strictly from src/assets/UserListScreenAssets
+import BulkUploadImg from '../../assets/UserListScreenAssets/BulkUploadImageUserListsScreen.png';
+import CSVIcon from '../../assets/UserListScreenAssets/CSVIconUserListsScreen.png';
+import DlUploadImg from '../../assets/UserListScreenAssets/DlUploadImageUserListsScreen.png';
+import ExcelIcon from '../../assets/UserListScreenAssets/ExcelIconUserListsScreen.png';
+import ExchangeIcon from '../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png';
+
+// Fallback data & master user lookup
+import masterUsersData from '../../MasterUserData.json';
 import { api } from '../../services/api';
 import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
-// 🎛️ SCALE CONTROL & BRAND CONSTANTS
+// 🎛️ SCALE CONTROL & ADJUSTER CONSTANTS
 // =========================================================================
-const VarUserDLsScale = 0.96;
-const VarOverallRoundednessScale = 0.5;
+export const VarUserDLsScale = 0.94;
+export const VarOverallRoundednessScale = 0.6;
+
+// Big White Div Height Adjuster
+export const VarBiggerWhiteDivHeight = '100%';
+export const VarBiggerWhiteDivHieght = VarBiggerWhiteDivHeight; // Alias for spelling consistency
+
+// L-Shaped Top Cards Precise Dimensions & Gaps
+export const VarTopCardHeight = 220; // in px, overall height of each top L-shaped card
+export const VarCapsuleWidth = 150;  // in px, width of top-left isolated pill
+export const VarCapsuleHeight = 110; // in px, height of top-left isolated pill
+export const VarCutoutGap = 8;       // in px, white space gap between capsule and L-shaped container
+export const VarFilletSize = 16;     // in px, size of inner concave arc fillet
+
+// Top Section Button Widths & Gap Adjusters
+export const VarBulkUploadButtonSectionWidth = '42%';
+export const VarDistributionListButtonSectionWidth = '40%';
+export const VarBulkAndDLButtonGap = 14; // in px
+
+// 🌟 Top Buttons Hover Pop Animation Adjuster
+export const varTopButtonsSectionAnimationAdjuster = 1.0;
 
 const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
   
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
   }
   .font-mono-tech {
     font-family: 'JetBrains Mono', monospace;
   }
-  .rounded-3xl { border-radius: ${Math.round(24 * VarOverallRoundednessScale)}px !important; }
-  .rounded-2xl { border-radius: ${Math.round(18 * VarOverallRoundednessScale)}px !important; }
+  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallRoundednessScale)}px !important; }
+  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallRoundednessScale)}px !important; }
   .rounded-xl  { border-radius: ${Math.round(14 * VarOverallRoundednessScale)}px !important; }
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
 
+// Modulo-3 subtle card alternating background for gallery items
+const getGalleryCardBg = (index, isDark) => {
+  const remainder = index % 3;
+  if (isDark) {
+    if (remainder === 0) return '#1A1D24';
+    if (remainder === 1) return '#201C2C';
+    return '#14251F';
+  }
+  if (remainder === 0) return '#FFF9EE'; // Soft Warm Cream
+  if (remainder === 1) return '#F5F3FF'; // Soft Lavender
+  return '#EDFAF4';                      // Soft Mint
+};
+
 const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 
-  // Navigation handlers (uses router first, prop callback as fallback)
-  const handleGoToBulkUpload = () => {
-    if (onNavigateToBulkUpload) {
-      onNavigateToBulkUpload();
-    } else {
-      navigate('/user-lists/bulk-upload');
-    }
-  };
-
-  const handleGoToAddDL = () => {
-    if (onNavigateToAddDL) {
-      onNavigateToAddDL();
-    } else {
-      navigate('/user-lists/add-dl');
-    }
-  };
-
-  // Theme check
+  // Theme check: Reactive pipeline with MutationObserver
   const [isDark, setIsDark] = useState(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.classList.contains('dark') || !!userContext.isDark;
@@ -74,16 +106,37 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Dynamic Theme Colors
-  const cardBg = isDark ? '#1F2128' : '#F1F4F9';
+  // Background color for L-shape container matching design
+  const lCardBg = isDark ? '#1C1F27' : '#EEF2F6';
 
-  // Search and Collapse state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isExistingExpanded, setIsExistingExpanded] = useState(true);
+  // Computed Cutout Geometry
+  const cutoutRight = VarCapsuleWidth + VarCutoutGap; // 158px
+  const cutoutBottom = VarCapsuleHeight + VarCutoutGap; // 118px
 
-  // Initial Mock Lists matching canvas
-  const [lists, setLists] = useState([]);
-  const [listsLoading, setListsLoading] = useState(true);
+  // Navigation handlers
+  const handleGoToBulkUpload = () => {
+    if (onNavigateToBulkUpload) {
+      onNavigateToBulkUpload();
+    } else {
+      navigate('/user-lists/bulk-upload');
+    }
+  };
+
+  const handleGoToAddDL = () => {
+    if (onNavigateToAddDL) {
+      onNavigateToAddDL();
+    } else {
+      navigate('/user-lists/add-dl');
+    }
+  };
+
+  // "09/28/2026 04:20 PM"
+  const formatCreated = (value) => {
+    const d = new Date(value);
+    if (!value || isNaN(d.getTime())) return value || '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(d.getHours() % 12 || 12)}:${pad(d.getMinutes())} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+  };
 
   // Normalise a backend user-list row into the shape this screen renders.
   // SAVED lists carry name/type; SYNCED distribution lists carry dlName/dlId.
@@ -91,23 +144,28 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
     ...row,
     id: row.userListId || row.id || row.dlId,
     name: row.name || row.dlName || 'Untitled list',
-    type: row.type || (row.listType === 'SYNCED' ? 'Distribution List' : 'Bulk upload'),
+    type: row.type || (row.listType === 'SYNCED' ? 'Distribution List' : 'Bulk Upload'),
     description: row.description || '',
     totalUsers: row.totalUsers ?? 0,
     usedCount: row.usedCount ?? 0,
-    createdDate: row.createdDate || ''
+    createdDate: formatCreated(row.createdDate),
+    CreatedBy: row.createdBy || ''
   });
+
+  // User lists from the backend
+  const [userLists, setUserLists] = useState([]);
+  const [listsLoading, setListsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     api.userLists
       .list()
       .then((rows) => {
-        if (active) setLists((Array.isArray(rows) ? rows : []).map(normaliseList));
+        if (active) setUserLists((Array.isArray(rows) ? rows : []).map(normaliseList));
       })
       .catch((err) => {
         console.error('Failed to load user lists', err);
-        if (active) setLists([]);
+        if (active) setUserLists([]);
       })
       .finally(() => {
         if (active) setListsLoading(false);
@@ -117,466 +175,665 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
     };
   }, []);
 
+  // Gallery Search, Filter & Member Detail Modal
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL'); // 'ALL' | 'Bulk Upload' | 'Distribution List'
+  const [selectedListForModal, setSelectedListForModal] = useState(null);
+
   const handleDelete = (id) => {
+    if (!window.confirm('Are you sure you want to delete this User List?')) return;
     api.userLists
       .remove(id)
-      .then(() => setLists(prev => prev.filter(item => item.id !== id)))
+      .then(() => setUserLists((prev) => prev.filter((item) => item.id !== id)))
       .catch((err) => console.error('Failed to delete user list', err));
   };
 
+  // Members of the list open in the pop-up, from the backend
+  const [listMembers, setListMembers] = useState([]);
+  const openMembers = (list) => {
+    setSelectedListForModal(list);
+    setListMembers([]);
+    api.userLists
+      .members(list.id)
+      .then((rows) => setListMembers(Array.isArray(rows) ? rows : []))
+      .catch((err) => console.error('Failed to load list members', err));
+  };
+
   const handleEdit = (list) => {
-    if (list.type === 'Distribution List') {
-      navigate(`/user-lists/add-dl?edit=${list.id}`);
+    const targetId = list.UserListsID || list.id;
+    const isDL = (list.UploadType || list.type) === 'Distribution List';
+    if (isDL) {
+      navigate(`/user-lists/add-dl?edit=${targetId}`);
     } else {
-      navigate(`/user-lists/bulk-upload?edit=${list.id}`);
+      navigate(`/user-lists/bulk-upload?edit=${targetId}`);
     }
   };
 
-  const filteredLists = lists.filter(l =>
-    l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    l.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    l.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtered gallery lists strictly from userLists state
+  const filteredLists = useMemo(() => {
+    return userLists.filter((item) => {
+      const name = item.UserListName || item.name || '';
+      const id = item.UserListsID || item.id || '';
+      const desc = item.UserListsDescription || item.description || '';
+      const creator = item.CreatedBy || '';
+      const type = item.UploadType || item.type || '';
+
+      const matchesSearch =
+        name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        creator.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesType = typeFilter === 'ALL' || type.toLowerCase() === typeFilter.toLowerCase();
+      return matchesSearch && matchesType;
+    });
+  }, [userLists, searchQuery, typeFilter]);
+
+  // Modal members, with each person's rates from the people directory
+  const modalMembers = useMemo(() => {
+    return listMembers.map((member, idx) => {
+      const email = member.email || '';
+      const matched = (masterUsersData || []).find(
+        (m) => m.UserEMailID?.toLowerCase() === email.toLowerCase()
+      );
+      return {
+        srNo: member.srNo || idx + 1,
+        email,
+        name: member.userName || matched?.UserName || email.split('@')[0],
+        department: member.department || matched?.Department || '—',
+        country: member.location || matched?.Country || '—',
+        hookRate: matched?.['HookRate%'] !== undefined ? `${matched['HookRate%']}%` : '—',
+        reportRate: matched?.['ReportRate%'] !== undefined ? `${matched['ReportRate%']}%` : '—'
+      };
+    });
+  }, [listMembers]);
 
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
 
+      {/* ========================================================================= */}
+      {/* ── 🌟 LAYER 1: ORIGINAL SCREEN ROOT (LOCKED NON-SCROLLABLE SHEET) ──────── */}
+      {/* ========================================================================= */}
       <div
         style={{ zoom: VarUserDLsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 overflow-hidden"
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
-        {/* ========================================================================= */}
-        {/* ── 1. TOP HEADER BAR: "User Lists" ─────────────────────────────────────── */}
-        {/* ========================================================================= */}
+        {/* Top Header Bar: "Recipients Lists" */}
         <div
-          className={`w-full h-10 py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
-            isDark
-              ? 'bg-[#ffffff] text-black border-white/10'
-              : 'bg-[#15171C] text-white border-black/10'
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
           }`}
         >
-          <h1 className="text-[15px] font-voda-exb tracking-normal text-white dark:text-black">
-            USER LISTS
-          </h1>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* ── 2. INFO NOTICE STRIP ────────────────────────────────────────────────── */}
-        {/* ========================================================================= */}
-        <div
-          className={`w-full py-2 px-4 rounded-xl border flex items-center gap-2.5 flex-shrink-0 text-[11px] font-medium shadow-2xs ${
-            isDark
-              ? 'bg-[#15161A] text-slate-300 border-white/10'
-              : 'bg-white text-slate-700 border-slate-200'
-          }`}
-        >
-          <div className="w-3.5 h-3.5 rounded-full border border-black dark:border-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">
-            i
+          <div className="flex items-center gap-3">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
+              Recipients Lists
+            </h1>
           </div>
-          <span>
-            Add the target user's email ID lists in two ways, bulk upload or add individual pre-created distribution list. Create user batches efficiently for running campaigns
-          </span>
         </div>
 
         {/* ========================================================================= */}
-        {/* ── 3. BIG WHITE CONTAINER DIV ─────────────────────────────────────────── */}
+        {/* ── 🌟 LAYER 2: BIG WHITE CONTAINER DIV (FILLS AVAILABLE HEIGHT) ────────── */}
         {/* ========================================================================= */}
         <div
-          className={`relative w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex flex-col gap-3 overflow-hidden shadow-xs ${
-            isDark ? 'bg-[#15161A] border-white/10' : 'bg-white border-slate-200'
+          style={{
+            height: typeof VarBiggerWhiteDivHeight === 'number' ? `${VarBiggerWhiteDivHeight}px` : VarBiggerWhiteDivHeight
+          }}
+          className={`relative w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex flex-col gap-3 overflow-hidden shadow-xs transition-colors ${
+            isDark ? 'bg-[#12141A] border-white/10' : 'bg-white border-slate-200'
           }`}
         >
-          {/* The lists are on their way from the server. */}
           <PageLoading show={listsLoading} isDark={isDark} />
 
-          {/* ── TOP SECTION: 3 CARDS ROW (BULK UPLOAD + ADD DL + USER LISTS DETAILS) ── */}
-          <div className="flex flex-col lg:flex-row gap-3 flex-shrink-0 items-stretch">
+          {/* ========================================================================= */}
+          {/* ── 🌟 LAYER 3: TOP TWO L-SHAPED BENTO ACTION BUTTON CARDS ─────────────── */}
+          {/* ========================================================================= */}
+          <div 
+            style={{ 
+              gap: typeof VarBulkAndDLButtonGap === 'number' ? `${VarBulkAndDLButtonGap}px` : VarBulkAndDLButtonGap,
+              height: `${VarTopCardHeight}px` 
+            }}
+            className="w-full flex items-center flex-shrink-0"
+          >
             
-            {/* 1. BULK UPLOAD CARD (~26% width) - ENTIRE CONTAINER ACTS AS BUTTON */}
-            <div
-              onClick={handleGoToBulkUpload}
+            {/* ── CARD 1: BULK UPLOAD VIA EXCEL / CSV (TRUE L-SHAPED BENTO) ── */}
+            <div 
               role="button"
               tabIndex={0}
+              onClick={handleGoToBulkUpload}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   handleGoToBulkUpload();
                 }
               }}
-              className={`w-full lg:w-[26%] min-w-[260px] p-4 rounded-2xl border flex flex-col justify-between h-[162px] cursor-pointer hover:shadow-md transition-all group ${
-                isDark ? 'bg-[#1F2128] border-white/0' : 'bg-[#F1F4F9] border-slate-200/0'
-              }`}
+              style={{ 
+                height: `${VarTopCardHeight}px`,
+                width: typeof VarBulkUploadButtonSectionWidth === 'number' ? `${VarBulkUploadButtonSectionWidth}px` : VarBulkUploadButtonSectionWidth,
+                flex: `0 0 ${typeof VarBulkUploadButtonSectionWidth === 'number' ? `${VarBulkUploadButtonSectionWidth}px` : VarBulkUploadButtonSectionWidth}`,
+                transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = `translateY(-${Math.round(4 * varTopButtonsSectionAnimationAdjuster)}px)`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}
+              className="relative flex flex-col overflow-hidden select-none cursor-pointer group"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  <div className="leading-tight">
-                    <h2 className="text-[16px] font-voda-exb uppercase tracking-tight text-slate-900 dark:text-white group-hover:text-[#E60000] transition-colors">
-                      BULK
-                    </h2>
-                    <h2 className="text-[16px] font-voda-exb uppercase tracking-tight text-slate-900 dark:text-white -mt-0.5 group-hover:text-[#E60000] transition-colors">
-                      UPLOAD
-                    </h2>
-                  </div>
-
-                  {/* Red Pill Badge */}
-                  <span className="inline-block px-3 py-0.5 rounded-lg text-[9.5px] font-bold text-white bg-[#2E7D32] w-fit shadow-2xs">
-                    Uses an excel template
-                  </span>
-
-                  {/* Description */}
-                  <p className="text-[10px] text-slate-700 dark:text-slate-300 font-medium mt-1 leading-snug">
-                    Bulk upload the target user email<br />IDs in an excel file
+              
+              {/* 🌟 1. Truly Isolated Sage Green Capsule */}
+              <div
+                style={{
+                  width: `${VarCapsuleWidth}px`,
+                  height: `${VarCapsuleHeight}px`,
+                  borderRadius: `${Math.round(16 * VarOverallRoundednessScale)}px`
+                }}
+                className="absolute top-0 left-0 p-3 bg-[#D4EAD6] text-slate-950 flex flex-col justify-between shadow-2xs z-20 overflow-hidden"
+              >
+                <div className="z-10 leading-tight">
+                  <h3 className="text-[14px] font-voda font-bold tracking-tight text-slate-950 leading-tight">
+                    Bulk<br />Upload
+                  </h3>
+                  <p className="text-[8.5px] font-medium text-slate-700 leading-tight mt-3.5 max-w-[80px]">
+                    Manually upload as many as target email ids
                   </p>
                 </div>
 
-                {/* Graphic Icon */}
-                <div className="flex-shrink-0 text-black dark:text-white pr-1 pt-0.5 group-hover:scale-105 transition-transform">
-                  <svg width="44" height="50" viewBox="0 0 48 54" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="1" y="1" width="40" height="48" rx="8" stroke="currentColor" strokeWidth="4" />
-                    <rect x="7" y="7" width="40" height="46" rx="8" fill="currentColor" />
-                    <path d="M27 20L27 38M27 20L20 27M27 20L34 27" stroke={isDark ? '#1F2128' : '#F1F4F9'} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                {/* Cropped Illustration Asset Attached to Corner */}
+                <div className="absolute -bottom-2 -right-1 w-16 h-16 pointer-events-none select-none z-0">
+                  <img
+                    src={BulkUploadImg}
+                    alt="Bulk Upload"
+                    className="w-full h-full object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
                 </div>
               </div>
 
-              {/* Bottom Right Pill Button */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  className="px-3.5 py-1 rounded-full bg-white text-slate-900 hover:bg-slate-100 text-[9.5px] font-bold border border-slate-200/90 shadow-2xs transition-all pointer-events-none"
-                >
-                  + Click here to add new
-                </button>
+              {/* 🌟 2. Concave Arc Fillet (Overlapped by 2px to eliminate animation subpixel seams) */}
+              <div 
+                style={{
+                  top: `${VarCapsuleHeight - VarCutoutGap}px`,
+                  left: `${VarCapsuleWidth - VarCutoutGap}px`,
+                  width: `${VarFilletSize + 2}px`,
+                  height: `${VarFilletSize + 2}px`
+                }}
+                className="absolute pointer-events-none z-20 overflow-hidden"
+              >
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 18 18" fill="none">
+                  <path d="M 0 16 A 16 16 0 0 0 16 0 H 18 V 18 H 0 Z" fill={lCardBg} />
+                </svg>
+              </div>
+
+              {/* 🌟 3. Top-Right Arm of L-Shape Container */}
+              <div
+                style={{
+                  backgroundColor: lCardBg,
+                  left: `${cutoutRight}px`,
+                  height: `${cutoutBottom + 1}px`,
+                  borderTopLeftRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
+                  borderTopRightRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                }}
+                className="absolute top-0 right-0 px-5 py-3 flex flex-col justify-center z-10 transition-colors"
+              >
+                <h2 className="text-[14px] font-voda font-bold text-slate-900 -mt-1 dark:text-white leading-snug">
+                  Upload User List via an Excel or <br/> CSV File
+                </h2>
+                <p className="text-[9.5px] mt-2 text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-md">
+                  Bulk upload the target (recipient) user email IDs using and Microsoft Excel file or using a CSV file, this files needs to be certain structure and follow the rules of the template
+                </p>
+              </div>
+
+              {/* 🌟 4. Continuous Bottom Base */}
+              <div
+                style={{
+                  backgroundColor: lCardBg,
+                  top: `${cutoutBottom}px`,
+                  height: `${VarTopCardHeight - cutoutBottom}px`,
+                  borderBottomLeftRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
+                  borderBottomRightRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
+                  borderTopLeftRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                }}
+                className="absolute left-0 right-0 px-5 py-3 flex flex-col justify-end z-10 transition-colors"
+              >
+                {/* Bottom Row: Icons + Label (Left) and ONE "Go here" Button (Right) */}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <img
+                        src={ExcelIcon}
+                        alt="Excel"
+                        className="w-5 h-5 object-contain"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <img
+                        src={CSVIcon}
+                        alt="CSV"
+                        className="w-5 h-5 object-contain"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
+                    <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">
+                      Supports Microsoft Excel (.xlsx) and CSV Files (.csv)
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="h-5 px-5 rounded-full bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[10.5px] font-voda font-bold tracking-tight flex items-center justify-center cursor-pointer shadow-xs transition-all pointer-events-none"
+                  >
+                    Go here
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* 2. ADD DISTRIBUTION LIST CARD (~26% width) - ENTIRE CONTAINER ACTS AS BUTTON */}
-            <div
-              onClick={handleGoToAddDL}
+            {/* ── CARD 2: DISTRIBUTION LISTS (MICROSOFT OUTLOOK DLS) (TRUE L-SHAPED BENTO) ── */}
+            <div 
               role="button"
               tabIndex={0}
+              onClick={handleGoToAddDL}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   handleGoToAddDL();
                 }
               }}
-              className={`w-full lg:w-[26%] min-w-[260px] p-4 rounded-2xl border flex flex-col justify-between h-[162px] cursor-pointer hover:shadow-md transition-all group ${
-                isDark ? 'bg-[#1F2128] border-white/0' : 'bg-[#F1F4F9] border-slate-200/0'
-              }`}
+              style={{ 
+                height: `${VarTopCardHeight}px`,
+                width: typeof VarDistributionListButtonSectionWidth === 'number' ? `${VarDistributionListButtonSectionWidth}px` : VarDistributionListButtonSectionWidth,
+                flex: `0 0 ${typeof VarDistributionListButtonSectionWidth === 'number' ? `${VarDistributionListButtonSectionWidth}px` : VarDistributionListButtonSectionWidth}`,
+                transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = `translateY(-${Math.round(4 * varTopButtonsSectionAnimationAdjuster)}px)`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0px)';
+              }}
+              className="relative flex flex-col overflow-hidden select-none cursor-pointer group"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  <div className="leading-tight">
-                    <h2 className="text-[16px] font-voda-exb uppercase tracking-tight text-slate-900 dark:text-white group-hover:text-[#E60000] transition-colors">
-                      DISTRIBUTION
-                    </h2>
-                    <h2 className="text-[16px] font-voda-exb uppercase tracking-tight text-slate-900 dark:text-white -mt-0.5 group-hover:text-[#E60000] transition-colors">
-                      LIST
-                    </h2>
-                  </div>
-
-                  {/* Green Pill Badge */}
-                  <span className="inline-block px-3 py-0.5 rounded-lg text-[9.5px] font-bold text-white bg-[#FF4D4D] w-fit shadow-2xs">
-                    Uses pre-created DLs
-                  </span>
-
-                  {/* Description */}
-                  <p className="text-[10px] text-slate-700 dark:text-slate-300 font-medium mt-1 leading-snug">
-                    Add a distribution list (DL) created<br />
-                    in Outlook, Microsoft Azure AD or<br />
-                    Exchange Admin Center
+              
+              {/* 🌟 1. Truly Isolated Soft Pastel Blue Capsule */}
+              <div
+                style={{
+                  width: `${VarCapsuleWidth}px`,
+                  height: `${VarCapsuleHeight}px`,
+                  borderRadius: `${Math.round(16 * VarOverallRoundednessScale)}px`
+                }}
+                className="absolute top-0 left-0 p-3 bg-[#D4E3F7] text-slate-950 flex flex-col justify-between shadow-2xs z-20 overflow-hidden"
+              >
+                <div className="z-10 leading-tight">
+                  <h3 className="text-[14px] font-voda font-bold tracking-tight text-slate-950 leading-tight">
+                    Distribution<br />List
+                  </h3>
+                  <p className="text-[8.5px] font-medium text-slate-700 leading-tight mt-3.5 max-w-[80px]">
+                    It's the storage space for your all training elements
                   </p>
                 </div>
 
-                {/* Graphic Icon */}
-                <div className="flex-shrink-0 text-black dark:text-white pr-1 pt-0.5 group-hover:scale-105 transition-transform">
-                  <svg width="56" height="46" viewBox="0 0 60 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="2" y="6" width="46" height="34" rx="6" stroke="currentColor" strokeWidth="4" />
-                    <path d="M4 10L25 24L46 10" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <circle cx="46" cy="34" r="12" fill={isDark ? '#1F2128' : '#F1F4F9'} />
-                    <circle cx="46" cy="34" r="10" fill="currentColor" />
-                    <circle cx="46" cy="31" r="3" fill={isDark ? '#1F2128' : '#F1F4F9'} />
-                    <path d="M41 40C41 37.5 43.5 36 46 36C48.5 36 51 37.5 51 40" stroke={isDark ? '#1F2128' : '#F1F4F9'} strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
+                {/* Cropped Illustration Asset Attached to Corner */}
+                <div className="absolute -bottom-2 -right-1 w-16 h-16 pointer-events-none select-none z-0">
+                  <img
+                    src={DlUploadImg}
+                    alt="Distribution List"
+                    className="w-full h-full object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
                 </div>
               </div>
 
-              {/* Bottom Right Pill Button */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  className="px-3.5 py-1 rounded-full bg-white text-slate-900 hover:bg-slate-100 text-[9.5px] font-bold border border-slate-200/90 shadow-2xs transition-all pointer-events-none"
-                >
-                  + Click here to add new
-                </button>
+              {/* 🌟 2. Concave Arc Fillet (Overlapped by 2px to eliminate animation subpixel seams) */}
+              <div 
+                style={{
+                  top: `${VarCapsuleHeight - VarCutoutGap}px`,
+                  left: `${VarCapsuleWidth - VarCutoutGap}px`,
+                  width: `${VarFilletSize + 2}px`,
+                  height: `${VarFilletSize + 2}px`
+                }}
+                className="absolute pointer-events-none z-20 overflow-hidden"
+              >
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 18 18" fill="none">
+                  <path d="M 0 16 A 16 16 0 0 0 16 0 H 18 V 18 H 0 Z" fill={lCardBg} />
+                </svg>
               </div>
-            </div>
 
-            {/* 3. USER LISTS DETAILS: CONTINUOUS L-SHAPED BENTO CONTAINER (~48% width) */}
-            <div className="w-full lg:flex-1 min-w-[480px] h-[162px] relative">
-              
-              {/* ── ISOLATED TOP-LEFT CUTOUT PIECE: Solid Black Box ── */}
-              <div className="absolute top-0 left-0 w-[189px] h-[77px] p-2.5 px-3 rounded-2xl bg-[#15171C] dark:bg-[#ffffff] text-white dark:text-black flex flex-col justify-between shadow-xs z-10">
-                <div className="leading-tight">
-                  <span className="text-[15px] font-voda-exb uppercase tracking-tight block -mt-1">
-                    USER LISTS
-                  </span>
-                  <span className="text-[15px] font-voda-exb uppercase tracking-tight block -mt-1">
-                    DETAILS
-                  </span>
-                </div>
-                <p className="text-[8px] text-white dark:text-black font-medium leading-tight -mt-0">
-                  Mini dashboard for viewing status and counts of uploaded user lists
+              {/* 🌟 3. Top-Right Arm of L-Shape Container */}
+              <div
+                style={{
+                  backgroundColor: lCardBg,
+                  left: `${cutoutRight}px`,
+                  height: `${cutoutBottom + 1}px`,
+                  borderTopLeftRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
+                  borderTopRightRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                }}
+                className="absolute top-0 right-0 px-5 py-3 flex flex-col justify-center z-10 transition-colors"
+              >
+                <h2 className="text-[14px] font-voda font-bold text-slate-900 -mt-1 dark:text-white leading-snug">
+                  Add User List Via Prepared Distribution <br/> Lists – Microsoft Outlook DLs
+                </h2>
+                <p className="text-[9.5px] mt-2 text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-md">
+                  Here you can fetch the pre created Outlook's Distribution List and store it for running any campaign
                 </p>
               </div>
 
-              {/* ── 🌟 Concave Arc Fillet in the Re-entrant Inner Corner ── */}
-              <div className="absolute top-[77px] left-[185px] w-3.5 h-3.5 pointer-events-none z-10 overflow-hidden">
-                <svg
-                  className="absolute top-0 left-0 w-3.5 h-3.5 pointer-events-none z-10"
-                  viewBox="0 0 14 14"
-                  fill="none"
-                >
-                  <path
-                    d="M 14,0 A 14,14 0 0 0 0,14 H 14 Z"
-                    fill={cardBg}
-                  />
-                </svg>
-              </div>
-
-              {/* ── TOP-RIGHT ARM OF L-SHAPE CONTAINER (X >= 195px, Y: 0 to 86px) ── */}
+              {/* 🌟 4. Continuous Bottom Base */}
               <div
-                style={{ backgroundColor: cardBg }}
-                className="absolute top-0 left-[195px] right-0 h-[86px] rounded-t-xl flex items-center px-10 mr-0"
+                style={{
+                  backgroundColor: lCardBg,
+                  top: `${cutoutBottom}px`,
+                  height: `${VarTopCardHeight - cutoutBottom}px`,
+                  borderBottomLeftRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
+                  borderBottomRightRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
+                  borderTopLeftRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                }}
+                className="absolute left-0 right-0 px-5 py-3 flex flex-col justify-end z-10 transition-colors"
               >
-                {/* Stat 1: Total DLs Uploaded */}
-                <div className="w-[190px] flex items-center gap-2.5 flex-shrink-0">
-                  <span className="text-[30px] -mt-2 font-voda-exb text-[#FF5C5C] leading-none flex-shrink-0 w-9 text-left">
-                    02
-                  </span>
-                  <div className="flex flex-col justify-center leading-none text-left">
-                    <span className="text-[15.5px] -mt-1.5 font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                      Total DLs
-                    </span>
-                    <span className="text-[15.5px] font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                      Uploaded
-                    </span>
-                    <span className="text-[9.5px] text-slate-700 dark:text-slate-300 mt-2 font-medium whitespace-nowrap">
-                      This quarter <strong className="font-bold text-black dark:text-white">1</strong>
+                {/* Bottom Row: Icon + Label (Left) and ONE "Go here" Button (Right) */}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={ExchangeIcon}
+                      alt="Exchange"
+                      className="w-5 h-5 object-contain"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">
+                      Supports distribution list (DL) created in Outlook, Azure AD or Exchange Admin Center
                     </span>
                   </div>
-                </div>
 
-                {/* Stat 2: Unused User Lists */}
-                <div className="flex-1 flex items-center gap-2.5">
-                  <span className="font-voda-exb -mt-2 leading-none flex-shrink-0 text-left flex items-baseline">
-                    <span className="text-[30px] text-[#22C55E]">01</span>
-                    <span className="text-[14px] text-[#000000] dark:text-white opacity-80">/04</span>
-                  </span>
-                  <div className="flex flex-col justify-center leading-none text-left">
-                    <span className="text-[15.5px] -mt-1.5 font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                      Unused
-                    </span>
-                    <span className="text-[15.5px] font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                      User Lists
-                    </span>
-                    <span className="text-[9.5px] text-slate-700 dark:text-slate-300 mt-2 font-medium whitespace-nowrap">
-                      This quarter <strong className="font-bold text-black dark:text-white">3</strong>
-                    </span>
-                  </div>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="h-5 px-5 rounded-full bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[10.5px] font-voda font-bold tracking-tight flex items-center justify-center cursor-pointer shadow-xs transition-all pointer-events-none"
+                  >
+                    Go here
+                  </button>
                 </div>
               </div>
-
-              {/* ── BOTTOM BASE OF L-SHAPE CONTAINER (X: 0 to 100%, Y: 86px to 162px) ── */}
-              <div
-                style={{ backgroundColor: cardBg }}
-                className="absolute top-[86px] left-0 right-0 h-[80px] rounded-tl-xl rounded-b-xl flex items-center -mt-1 mr-0"
-              >
-                {/* Col 1: Stat 3 (Directly under Black Box, width: 195px) */}
-                <div className="w-[195px] flex-shrink-0 px-4 flex items-center gap-2.5">
-                  <span className="text-[30px] -mt-2 font-voda-exb text-[#818CF8] leading-none flex-shrink-0 w-9 text-left">
-                    04
-                  </span>
-                  <div className="flex flex-col justify-center leading-none text-left">
-                    <span className="text-[15.5px] -mt-1.5 font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                      Total User
-                    </span>
-                    <span className="text-[15.5px] font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                      Lists Uploaded
-                    </span>
-                    <span className="text-[9.5px] text-slate-700 dark:text-slate-300 mt-2 font-medium whitespace-nowrap">
-                      This quarter <strong className="font-bold text-black dark:text-white">3</strong>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Cols 2 & 3: Perfectly aligns under the top arm */}
-                <div className="flex-1 flex items-center px-10">
-                  {/* Stat 4: Total Bulk Uploads (Directly underneath Stat 1) */}
-                  <div className="w-[190px] flex items-center gap-2.5 flex-shrink-0">
-                    <span className="text-[30px] font-voda-exb -mt-2 text-[#2DD4BF] leading-none flex-shrink-0 w-9 text-left">
-                      02
-                    </span>
-                    <div className="flex flex-col justify-center leading-none text-left">
-                      <span className="text-[15.5px] -mt-1.5 font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                        Total Bulk
-                      </span>
-                      <span className="text-[15.5px] font-voda-exb text-slate-900 dark:text-white leading-[1.15]">
-                        Uploads
-                      </span>
-                      <span className="text-[9.5px] text-slate-700 dark:text-slate-300 mt-2 font-medium whitespace-nowrap">
-                        This quarter <strong className="font-bold text-black dark:text-white">2</strong>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Empty Spacer Column (Underneath Stat 2) */}
-                  <div className="flex-1" />
-                </div>
-              </div>
-
             </div>
 
           </div>
 
-          {/* ── BOTTOM SECTION: EXISTING USER LISTS CONTAINER ── */}
+          {/* ========================================================================= */}
+          {/* ── 🌟 LAYER 4: BOTTOM GALLERY CONTAINER (SCROLLS INTERNALLY ONLY) ──────── */}
+          {/* ========================================================================= */}
           <div
-            className={`p-3.5 rounded-2xl border flex flex-col gap-2.5 flex-1 ${
-              isDark ? 'bg-[#1F2128] border-white/0' : 'bg-[#F1F4F9] border-slate-200/0'
-            }`}
+            style={{
+              borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+            }}
+            className="w-full flex-1 min-h-0 p-3.5 bg-black flex flex-col gap-2.5 overflow-hidden border border-black/5 dark:border-white/15 transition-colors"
           >
-            {/* Header Title with Double Chevron */}
-            <div className="flex items-center justify-between pb-0.5 flex-shrink-0">
-              <h3 className="text-[14.5px] font-voda-exb text-slate-900 dark:text-white">
-                Existing User Lists
-              </h3>
+            {/* Gallery Control Bar: Headline, Count Pill, Category Filter & Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-black/5 dark:border-white/10 flex-shrink-0">
+              
+              {/* Left: Headline & Total Counter */}
+              <div className="flex items-center gap-2.5">
+                <span className="w-1.5 h-3.5 rounded-full bg-[#E60000]" />
+                <h3 className="text-[13px] font-voda font-bold text-slate-100 dark:text-white uppercase tracking-tight">
+                  Current Recpients Lists Stored  
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-white dark:bg-black text-[9px] font-bold text-slate-800 dark:text-slate-200 font-voda border border-black/5 dark:border-white/10 shadow-2xs">
+                  {String(filteredLists.length).padStart(2, '0')} Saved Lists
+                </span>
+              </div>
+
+              {/* Right: Filter Category Tabs & Live Search */}
+              <div className="flex items-center gap-2 flex-wrap">
+                
+                {/* Category Filter Pills */}
+                <div className="flex items-center bg-white/80 dark:bg-black/50 p-0.5 rounded-xl border border-black/5 dark:border-white/10 shadow-2xs">
+                  {['ALL', 'Bulk Upload', 'Distribution List'].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setTypeFilter(tab)}
+                      className={`px-3 py-1 rounded-lg text-[8.5px] font-voda font-bold transition-all cursor-pointer ${
+                        typeFilter === tab
+                          ? 'bg-[#181A20] text-white dark:bg-white dark:text-black shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white'
+                      }`}
+                    >
+                      {tab === 'ALL' ? 'All Types' : tab}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search Input */}
+                <div className="relative flex items-center min-w-[220px]">
+                  <input
+                    type="text"
+                    placeholder="Search by ID, name, or creator..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-7 pl-3 pr-8 rounded-lg bg-white dark:bg-[#12141A] font-bold text-slate-800 dark:text-slate-200 text-[9px] placeholder-slate-400 outline-none border border-black/5 dark:border-white/10 shadow-2xs"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+                </div>
+
+              </div>
+            </div>
+
+            {/* 🌟 SCROLLABLE GALLERY FEED (ONLY THIS ELEMENT SCROLLS) */}
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {filteredLists.length === 0 ? (
+                <div className="w-full h-48 flex flex-col items-center justify-center text-center">
+                  <p className="text-xs font-bold text-slate-400">
+                    No user lists found matching the current criteria.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {filteredLists.map((list, idx) => {
+                    const cardItemBg = getGalleryCardBg(idx, isDark);
+                    const listId = list.UserListsID || list.id;
+                    const listName = list.UserListName || list.name;
+                    const listType = list.UploadType || list.type || 'Bulk Upload';
+                    const userCount = list.TotalEmailIDsCount !== undefined
+                      ? list.TotalEmailIDsCount
+                      : (list.EMailIDs ? list.EMailIDs.length : (list.totalUsers || 0));
+                    const timesUsed = list.NumberofTimesUsed !== undefined ? list.NumberofTimesUsed : (list.usedCount || 0);
+
+                    return (
+                      <div
+                        key={listId}
+                        style={{
+                          backgroundColor: cardItemBg,
+                          borderRadius: `${Math.round(14 * VarOverallRoundednessScale)}px`
+                        }}
+                        className="p-3 text-slate-900 dark:text-white shadow-2xs border border-black/5 dark:border-white/5 flex flex-col justify-between gap-2 relative overflow-hidden transition-all hover:shadow-xs group"
+                      >
+                        {/* Top Line: ID Badge + Type Pill + Action Icons */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2.5 py-0.5 rounded-full bg-white/95 dark:bg-black/60 text-[8.5px] font-bold text-slate-800 dark:text-slate-100 font-mono-tech flex items-center gap-1 shadow-2xs border border-black/5 dark:border-white/10">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
+                              {listId}
+                            </span>
+
+                            <span className={`px-2 py-0.5 rounded-full text-[7.5px] font-bold ${
+                              listType === 'Distribution List'
+                                ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-300'
+                                : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300'
+                            }`}>
+                              {listType}
+                            </span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-1">
+                            {/* Member View Trigger */}
+                            <button
+                              type="button"
+                              onClick={() => openMembers(list)}
+                              className="p-1 rounded text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                              title="View Recipient Members"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 stroke-[2.2]" />
+                            </button>
+
+                            {/* Edit */}
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(list)}
+                              className="p-1 rounded text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                              title="Edit List"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 stroke-[2.2]" />
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(listId)}
+                              className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                              title="Delete List"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Title & Description */}
+                        <div>
+                          <h4 className="text-[12px] font-voda font-bold tracking-tight text-slate-900 dark:text-white line-clamp-1">
+                            {listName}
+                          </h4>
+                          <p className="text-[8.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug line-clamp-2 mt-0.5">
+                            <strong className="font-bold text-slate-800 dark:text-slate-200">Description: </strong>
+                            {list.UserListsDescription || list.description || 'Target simulation cohort group.'}
+                          </p>
+                        </div>
+
+                        {/* Bottom Metadata */}
+                        <div className="pt-2 border-t border-black/5 dark:border-white/5 flex flex-col gap-1">
+                          <div className="flex items-center justify-between text-[8.5px] font-bold">
+                            <span className="flex items-center gap-1 text-slate-800 dark:text-slate-200">
+                              <Users className="w-3 h-3 text-[#E60000]" />
+                              <span>Total Recipients: <strong className="font-bold">{userCount}</strong></span>
+                            </span>
+
+                            <span className="text-[#16A34A] dark:text-[#4ADE80] font-bold">
+                              Used {timesUsed} Times
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[7.5px] font-medium text-slate-500 dark:text-slate-400">
+                            <span className="truncate">By: {list.CreatedBy || '—'}</span>
+                            <span>{list.CreationDate || list.createdDate || 'Recent'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ── 🌟 MEMBERS SPECIFICATION POPUP MODAL ───────────────────────────────── */}
+      {/* ========================================================================= */}
+      {selectedListForModal && (
+        <div className="fixed inset-0 z-[200] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            style={{
+              borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+            }}
+            className="w-full max-w-3xl bg-white dark:bg-[#151820] border border-black/10 dark:border-white/10 p-5 relative overflow-hidden shadow-2xl flex flex-col gap-3 text-slate-900 dark:text-white transition-colors max-h-[85vh]"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-[#D8F3DC] text-emerald-900 font-mono-tech">
+                  {selectedListForModal.UserListsID || selectedListForModal.id}
+                </span>
+                <h3 className="text-sm font-voda font-bold text-slate-900 dark:text-white">
+                  {selectedListForModal.UserListName || selectedListForModal.name}
+                </h3>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setIsExistingExpanded(!isExistingExpanded)}
-                className="p-1 rounded text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white cursor-pointer"
+                onClick={() => setSelectedListForModal(null)}
+                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer"
               >
-                <svg
-                  width="20"
-                  height="14"
-                  viewBox="0 0 24 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={`transition-transform duration-200 ${isExistingExpanded ? '' : 'rotate-180'}`}
-                >
-                  <path d="M4 14L12 6L20 14" />
-                  <path d="M4 8L12 0L20 8" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {isExistingExpanded && (
-              <>
-                {/* Search Bar */}
-                <div
-                  className={`w-full px-4 py-2 rounded-xl border flex items-center justify-between flex-shrink-0 shadow-2xs ${
-                    isDark ? 'bg-[#15161A] border-white/10 text-white' : 'bg-white border-slate-200/90 text-slate-900'
-                  }`}
-                >
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by User List Name"
-                    className="w-full bg-transparent text-[11px] font-medium outline-none pr-3 placeholder-slate-400"
-                  />
-                  <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                </div>
+            {/* Meta Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] p-2.5 rounded-xl bg-slate-50 dark:bg-black/30 border border-black/5 dark:border-white/10">
+              <div>
+                <span className="text-slate-400 block text-[8px] font-bold uppercase">Type</span>
+                <span className="font-bold">{selectedListForModal.UploadType || selectedListForModal.type}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[8px] font-bold uppercase">Total Users</span>
+                <span className="font-bold">{modalMembers.length} Recipients</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[8px] font-bold uppercase">Created On</span>
+                <span className="font-bold">{selectedListForModal.CreationDate || selectedListForModal.createdDate}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[8px] font-bold uppercase">Created By</span>
+                <span className="font-bold truncate block">{selectedListForModal.CreatedBy || '—'}</span>
+              </div>
+            </div>
 
-                {/* Grid of Solid Black Cards */}
-                <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-                  {filteredLists.length === 0 ? (
-                    <div className="col-span-full h-full min-h-[140px] flex flex-col items-center justify-center text-slate-400 text-xs italic">
-                      No existing user lists found.
-                    </div>
-                  ) : (
-                    filteredLists.map((list) => (
-                      <div
-                        key={list.id}
-                        className="p-4 rounded-2xl bg-[#181A20] text-white flex flex-col justify-between gap-3 shadow-md border border-white/5"
-                      >
-                        <div className="flex flex-col gap-2">
-                          {/* Top Row: Name + Action Icons */}
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-[12px] font-voda-exb text-white leading-tight line-clamp-1">
-                              Name: {list.name}
-                            </span>
+            {/* Members Table */}
+            <div className="flex-1 overflow-y-auto max-h-[45vh] border border-black/5 dark:border-white/10 rounded-xl">
+              <table className="w-full text-left text-[10px]">
+                <thead>
+                  <tr className="border-b border-black/10 dark:border-white/10 bg-slate-100 dark:bg-black/40 font-mono-tech uppercase text-[8.5px] text-slate-500">
+                    <th className="py-2 px-3">SR</th>
+                    <th className="py-2 px-3">USER NAME</th>
+                    <th className="py-2 px-3">EMAIL ID</th>
+                    <th className="py-2 px-3">DEPARTMENT</th>
+                    <th className="py-2 px-3">COUNTRY</th>
+                    <th className="py-2 px-3 text-center">HOOK %</th>
+                    <th className="py-2 px-3 text-center">REPORT %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modalMembers.map((m) => (
+                    <tr
+                      key={m.srNo}
+                      className="border-b border-black/5 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <td className="py-1.5 px-3 font-mono-tech text-slate-400">{m.srNo}</td>
+                      <td className="py-1.5 px-3 font-bold">{m.name}</td>
+                      <td className="py-1.5 px-3 font-mono-tech text-slate-600 dark:text-slate-300">{m.email}</td>
+                      <td className="py-1.5 px-3">{m.department}</td>
+                      <td className="py-1.5 px-3 font-bold">{m.country}</td>
+                      <td className="py-1.5 px-3 text-center font-mono-tech text-red-600 font-bold">{m.hookRate}</td>
+                      <td className="py-1.5 px-3 text-center font-mono-tech text-emerald-600 font-bold">{m.reportRate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                            <div className="flex items-center gap-2 flex-shrink-0 text-white/80">
-                              <button
-                                type="button"
-                                onClick={() => handleEdit(list)}
-                                className="hover:text-white transition-colors cursor-pointer"
-                                title="Edit List"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(list.id)}
-                                className="hover:text-red-400 transition-colors cursor-pointer"
-                                title="Delete List"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Type */}
-                          <div className="text-[11px] font-medium text-slate-200">
-                            Type: {list.type}
-                          </div>
-
-                          {/* Description */}
-                          <div className="text-[10px] text-slate-300 line-clamp-3 leading-relaxed">
-                            <span className="font-bold text-white">Description: </span>
-                            {list.description}
-                          </div>
-
-                          {/* Total Users */}
-                          <div className="text-[11px] font-bold text-white mt-0.5">
-                            Total Users: {list.totalUsers}
-                          </div>
-
-                          {/* DL ID (if present) */}
-                          {list.dlId && (
-                            <div className="text-[10px] font-mono-tech text-slate-300 truncate">
-                              <span className="font-bold text-white">DL ID: </span>
-                              {list.dlId}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Card Footer: Used count (Green) + Created Date */}
-                        <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9.5px]">
-                          <span className="font-bold text-[#4ADE80]">
-                            Used {list.usedCount || 4} Times
-                          </span>
-                          <span className="text-slate-400 font-mono-tech">
-                            Created On: {list.createdDate}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
+            {/* Modal Footer */}
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedListForModal(null)}
+                className="px-5 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-[9.5px] font-voda font-bold uppercase cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
-
         </div>
-      </div>
+      )}
     </>
   );
 };
