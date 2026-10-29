@@ -20,7 +20,7 @@ export const TYPE_WORD = 'Campaign type';
  * takes its name from here. The other entries below explain a chart, not a
  * measure.
  */
-export const MEASURES = Object.freeze(['riskScore', 'hookRate', 'reportRate', 'perClick', 'trainingImpact', 'gaveDetails', 'health', 'highRisk']);
+export const MEASURES = Object.freeze(['riskScore', 'openRate', 'hookRate', 'reportRate', 'perClick', 'trainingImpact', 'gaveDetails', 'health', 'highRisk']);
 
 export const GLOSSARY = Object.freeze({
   health: {
@@ -42,6 +42,11 @@ export const GLOSSARY = Object.freeze({
     name: 'People at high risk',
     what: 'How many people are at the two highest risk levels. Lower is safer.',
     how: 'People at the high level (clicked more than once) or the critical level (gave details away). Its change is counted in people.',
+  },
+  openRate: {
+    name: 'Open Rate',
+    what: 'How many of the emails delivered were opened. Neither good nor bad on its own.',
+    how: 'The share of emails delivered that were opened. Its change is in percentage points (pp).',
   },
   hookRate: {
     name: 'Hook Rate',

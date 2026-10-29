@@ -18,7 +18,8 @@ import { BandGauge, BarcodeMeter, Segmented } from './InsightsCharts';
 import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
-import { CampaignsView, DepartmentsView, OverviewView } from './InsightsViews';
+import { CampaignsView, DepartmentsView } from './InsightsViews';
+import { SummaryView } from './InsightsSummary';
 import { EASE, HEALTH_WORD, INK, STEADY_INK, alpha, change, eyebrow, glow, healthTone, mixHex, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
 
@@ -34,7 +35,8 @@ import { GLOSSARY } from '../../services/glossary';
 // The Leaderboard's sheet, in its L shape: the programme's health in the
 // colour tile in the corner, its clay shield beside it; along the arm, the
 // period (30, 60 or 90 days), the tabs and Export, over four measures (the
-// risk score on a ring, then barcode meters); below, the tab on show. Every
+// risk score on a ring, then barcode meters); below, the tab on show, the
+// Summary first (InsightsSummary.jsx). Every
 // card, tile and column opens a profile: a department, a lure, a campaign,
 // the risk, the training. A profile grows out of what was clicked, with a
 // trail back; everything in it leads on. Nothing moves for those who ask for
@@ -121,7 +123,7 @@ function lPath(w, h, capH) {
 const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(255,255,255,0.72)', '--track': 'rgba(15,23,42,0.08)' };
 
 const TABS = [
-  { id: 'overview', label: 'Overview', Icon: LayoutGrid },
+  { id: 'summary', label: 'Summary', Icon: LayoutGrid },
   { id: 'departments', label: 'Departments', Icon: Users },
   { id: 'campaigns', label: 'Campaigns', Icon: MousePointerClick },
   { id: 'training', label: 'Training', Icon: GraduationCap },
@@ -313,8 +315,8 @@ const Insights = () => {
   // background (a transition), so a big view never freezes what is moving
   const [days, setDays] = useState(30);
   const [shownDays, setShownDays] = useState(30);
-  const [tab, setTab] = useState('overview');
-  const [shownTab, setShownTab] = useState('overview');
+  const [tab, setTab] = useState('summary');
+  const [shownTab, setShownTab] = useState('summary');
   const [trail, setTrail] = useState([]); // the profiles opened, in order: { kind, key, layoutId, label }
   const [view, setView] = useState({ page: 0 });
   // the room under the top bar: short, and the band turns compact
@@ -346,7 +348,7 @@ const Insights = () => {
     onCrumb: (k) => startTransition(() => setTrail((t) => t.slice(0, k))),
     onBack: () => startTransition(() => setTrail((t) => t.slice(0, -1))),
   };
-  const ctx = { m, p, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
+  const ctx = { m, p, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
 
   const n = m.now;
   const b = m.before;
@@ -375,7 +377,7 @@ const Insights = () => {
           : top.kind === 'campaign' ? <CampaignProfile {...props} id={top.key} />
             : <TrainingProfile {...props} training={TRAINING} />;
   } else {
-    body = tab === 'overview' ? <OverviewView ctx={ctx} list={list} />
+    body = tab === 'summary' ? <SummaryView ctx={ctx} />
       : tab === 'departments' ? <DepartmentsView ctx={ctx} />
         : tab === 'campaigns' ? <CampaignsView ctx={ctx} />
           : <TrainingProfile ctx={ctx} frame={{}} embedded training={TRAINING} />;
