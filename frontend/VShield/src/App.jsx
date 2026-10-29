@@ -33,6 +33,9 @@ import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApproval
 // 🌟 Leaderboard (opened from My Space)
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
 
+// 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
+import Training from './Pages/Training/Training';
+
 // 🌟 Import Start New Campaign Page
 import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
 import DetailsAndSettings from './Pages/StartCampaign/DetailsAndSettings';
@@ -45,9 +48,6 @@ import ReviewAndPublishCampaign from './Pages/StartCampaign/ReviewAndPublishCamp
 import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
 import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
 import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
-
-// 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
-import Training from './Pages/Training/Training';
 
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
