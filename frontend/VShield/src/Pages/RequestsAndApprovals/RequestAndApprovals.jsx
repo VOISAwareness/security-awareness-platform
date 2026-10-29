@@ -38,7 +38,7 @@ export const VarSectionGap = 12; // in px
 export const VarNavButtonsHeightAdjuster = 80; // Height in px for each of the 5 nav buttons
 export const VarButtonsPopAnimationAdjuster = 1; // Hover pop scale multiplier (e.g. 1.02 = 102%, 1.04 = 104%)
 export const VarAppToCreRatioVisualHeight = 142; // Height in px for the ratio visual card
-export const VarAppToCreRatioVisualBarScale = 1; // Scale multiplier for the ratio bar
+export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the ratio bar
 
 // =========================================================================
 // 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
@@ -340,12 +340,12 @@ const RequestAndApprovals = () => {
               className="w-full p-4 flex flex-col justify-between bg-black text-white dark:bg-white dark:text-black border border-black/10 dark:border-white/10 shadow-xs select-none transition-colors duration-200"
             >
               {/* Card Title */}
-              <h4 className="text-[15px] font-voda font-bold tracking-tight leading-tight text-left -mt-1">
+              <h4 className="text-[14.5px] font-voda font-bold tracking-tight leading-tight text-left -mt-1">
                 Total Approvers to Creators Ratio
               </h4>
 
               {/* Labels Row */}
-              <div className="flex items-center justify-between text-[12px] font-voda font-bold px-7 pt-1">
+              <div className="flex items-center justify-between text-[12px] font-voda font-bold px-7 pt-1 -mb-4">
                 <span className="text-white dark:text-black">Creators</span>
                 <span className="text-white dark:text-black">Approvers</span>
               </div>
@@ -353,7 +353,7 @@ const RequestAndApprovals = () => {
               {/* Segmented Bar */}
               <div 
                 style={{ transform: `scale(${VarAppToCreRatioVisualBarScale})` }}
-                className="w-full h-7 mb-2 rounded-full p-[1px] bg-white dark:bg-black/15 flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
+                className="w-full h-7 mb-5 rounded-full p-[0px] bg-black dark:bg-white flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
               >
                 {/* Creators Segment (Left) */}
                 <div 

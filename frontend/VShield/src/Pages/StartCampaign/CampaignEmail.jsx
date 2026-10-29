@@ -838,6 +838,24 @@ const CampaignEmail = () => {
 
  // 1. Department Breakdown (Raw Count based from UserDLsData.json)
  const activeData = loadedData || currentSelectedList;
+
+ // A loaded list's members as they appear in the people directory
+ // (MasterUserData.json); members who are not in it are left out.
+ const directoryMembers = (activeData?.users || [])
+  .map((u) => {
+   const email = String(u.email || u.UserEMailID || '').toLowerCase();
+   return (masterUsersData || []).find((m) => m.UserEMailID?.toLowerCase() === email);
+  })
+  .filter(Boolean);
+
+ // The list's hook and report rates: the average of its members' rates in
+ // the directory, as no list row carries them.
+ const averageDirectoryRate = (key) =>
+  directoryMembers.length
+   ? `${(directoryMembers.reduce((acc, m) => acc + (parseFloat(m[key]) || 0), 0) / directoryMembers.length).toFixed(1)}%`
+   : null;
+ const listHookRate = averageDirectoryRate('HookRate%') || activeData?.hookRate || '0%';
+ const listReportRate = averageDirectoryRate('ReportRate%') || activeData?.reportRate || '0%';
  const deptList = (() => {
   if (activeData?.departmentBreakdown && activeData.departmentBreakdown.length > 0) {
    return activeData.departmentBreakdown.map((d) => ({
@@ -869,7 +887,9 @@ const CampaignEmail = () => {
   if (userList.length > 0) {
    const counts = {};
    userList.forEach((u) => {
-    const loc = (u.location || u.country || 'OTHER').toUpperCase();
+    const email = String(u.email || u.UserEMailID || '').toLowerCase();
+    const listed = (masterUsersData || []).find((m) => m.UserEMailID?.toLowerCase() === email);
+    const loc = (u.location || u.country || listed?.Country || 'OTHER').toUpperCase();
     counts[loc] = (counts[loc] || 0) + 1;
    });
    return Object.entries(counts).map(([label, count]) => ({ label, count }));
@@ -1885,7 +1905,7 @@ const CampaignEmail = () => {
              }`}>
               <span className="text-[9px] font-semibold opacity-85">Aggregated Hook Rate %</span>
               <span className="text-[18px] font-voda font-bold leading-tight mt-0.5">
-               {activeData?.hookRate || '0%'}
+               {listHookRate}
               </span>
              </div>
 
@@ -1894,7 +1914,7 @@ const CampaignEmail = () => {
              }`}>
               <span className="text-[9px] font-semibold opacity-85">Aggregated Report Rate %</span>
               <span className="text-[18px] font-voda font-bold leading-tight mt-0.5">
-               {activeData?.reportRate || '0%'}
+               {listReportRate}
               </span>
              </div>
             </div>
