@@ -30,6 +30,13 @@ import Insights from './Pages/Insights/Insights';
 import Campaigns from './Pages/Campaigns/Campaigns';
 import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApprovals';
 
+// 🌟 Announcements: the list, a three-step send (details, email, review) and a new announcement
+import Announcements from './Pages/Announcement/Announcement';
+import AnnouncementsDetailsAndSettings from './Pages/Announcement/AnnouncementsDetailsAndSettings';
+import AnnouncementsCampaignEmail from './Pages/Announcement/AnnouncementsCampaignEmail';
+import AnnouncementsReviewPublish from './Pages/Announcement/AnnouncementsReviewPublish';
+import AnnouncementScenarioDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementScenarioDetails';
+
 // 🌟 Leaderboard (opened from My Space)
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
 
@@ -154,7 +161,11 @@ function App() {
             <Route path="/my-training" element={<PlaceholderPage title="My Training Path" />} />
 
             {/* Communications & Directories */}
-            <Route path="/announcements" element={<PlaceholderPage title="Security Announcements" />} />
+            <Route path="/announcements" element={<Announcements />} />
+            <Route path="/announcements/details" element={<AnnouncementsDetailsAndSettings />} />
+            <Route path="/announcements/email" element={<AnnouncementsCampaignEmail />} />
+            <Route path="/announcements/review" element={<AnnouncementsReviewPublish />} />
+            <Route path="/new-announcement-details" element={<AnnouncementScenarioDetails />} />
 
             {/* Fallback inside dashboard -> Route to user role default */}
             <Route path="*" element={<DashboardFallback />} />
