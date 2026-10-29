@@ -31,6 +31,8 @@ import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCam
 import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import CampaignGalleryCard from './CampaignGalleryCard';
+import ViewAnalyticsModal from './ViewAnalyticsModal';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -158,6 +160,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // Modals
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
+  // View Analytics pop-up: the campaign and its card's position (for its colour)
+  const [analyticsItem, setAnalyticsItem] = useState(null);
 
   // Calendar month state
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -195,19 +199,6 @@ const Campaigns = ({ isDark: propIsDark }) => {
       return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
     } catch {
       return dateStr;
-    }
-  };
-
-  // Compute days left until end date
-  const getDaysLeft = (endTimeStr) => {
-    if (!endTimeStr) return null;
-    try {
-      const end = new Date(endTimeStr);
-      const diffMs = end - new Date();
-      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? `(${diffDays} days left)` : '(Ending today)';
-    } catch {
-      return null;
     }
   };
 
@@ -824,12 +815,27 @@ const Campaigns = ({ isDark: propIsDark }) => {
                     No {activeTabConfig.title.toLowerCase()} found matching criteria.
                   </p>
                 </div>
+              ) : activeTab !== 'drafts' ? (
+                /* One campaign per row: its details beside its start-to-end timeline */
+                <div className="flex flex-col gap-3.5 w-full">
+                  {currentCategoryList.map((camp, idx) => (
+                    <CampaignGalleryCard
+                      key={camp.campaignId}
+                      camp={camp}
+                      tab={activeTab}
+                      background={getCardBgColor(idx, isDark)}
+                      roundness={VarOverallCornerRoundednessAdjuster}
+                      onDetails={setDetailModalItem}
+                      onAnalytics={activeTab === 'scheduled' ? null : () => setAnalyticsItem({ camp, idx })}
+                      actions={camp.status === 'APPROVED' ? <span className="text-[9px]">{renderSendAction(camp)}</span> : null}
+                    />
+                  ))}
+                </div>
               ) : (
-                /* 2-Column Responsive Grid matching screenshot */
+                /* Drafts: 2-Column Responsive Grid */
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
                   {currentCategoryList.map((camp, idx) => {
                     const cardBg = getCardBgColor(idx, isDark);
-                    const daysLeft = getDaysLeft(camp.EndTime);
 
                     return (
                       <div
@@ -878,19 +884,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
                             Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy?.split('@')[0] || 'User'}</strong>
                           </span>
 
-                          {activeTab === 'drafts' ? (
-                            renderDraftActions(camp)
-                          ) : (
-                            <>
-                              <span className="text-slate-700 dark:text-slate-300 font-bold">
-                                Scheduled End Time: <strong className="font-semibold">{formatDisplayDate(camp.EndTime, true)}</strong>
-                                {daysLeft && activeTab !== 'historical' && (
-                                  <span className="ml-1 text-[#15803D] dark:text-[#4ADE80] font-extrabold">{daysLeft}</span>
-                                )}
-                              </span>
-                              {camp.status === 'APPROVED' && renderSendAction(camp)}
-                            </>
-                          )}
+                          {renderDraftActions(camp)}
                         </div>
                       </div>
                     );
@@ -1009,6 +1003,16 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
           </div>
+        )}
+
+        {analyticsItem && (
+          <ViewAnalyticsModal
+            campaign={analyticsItem.camp}
+            campaignIndex={analyticsItem.idx}
+            isDark={isDark}
+            ended={analyticsItem.camp.phase === PHASE.COMPLETED}
+            onClose={() => setAnalyticsItem(null)}
+          />
         )}
 
         {/* ========================================================================= */}
