@@ -6,9 +6,7 @@ import { campaignReport } from './sampleReports.js';
 import { insights, peopleInsights } from './insights.js';
 import { organisation } from './sampleOrganisation.js';
 import { deptRows } from './deptCharts.js';
-import { COUNTRIES, apportion, countriesOf } from './sampleRegions.js';
-import { SENDER_DOMAINS, STATUS_NOW } from './sampleOperations.js';
-import { deptFacts, deptHealth, pipeline, regions, waiting } from './insightsSummary.js';
+import { deptHealth, riskLevels, riskiest, scorecard } from './insightsSummary.js';
 
 const items = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) }));
 const at = (days) => {
@@ -17,77 +15,74 @@ const at = (days) => {
   return { m, p, rows: deptRows(m, p) };
 };
 
-test('apportion: whole numbers, in proportion, adding up to the total', () => {
-  assert.deepEqual(apportion(10, [1, 1, 1]), [4, 3, 3]);
-  assert.deepEqual(apportion(0, [1, 2]), [0, 0]);
-  assert.deepEqual(apportion(7, [0, 0]), [0, 0]);
-  const split = apportion(1001, COUNTRIES.map((c) => c.share));
-  assert.equal(split.reduce((a, b) => a + b, 0), 1001);
-});
-
-test("a campaign's countries add up to the campaign, and never click or report more than they got", () => {
-  const { m } = at(30);
-  for (const row of m.campaigns) {
-    const parts = countriesOf(row);
-    for (const k of ['delivered', 'clicked', 'reported', 'compromised']) {
-      assert.equal(parts.reduce((a, c) => a + c[k], 0), row[k], `${row.name} ${k}`);
-    }
-    for (const c of parts) assert.ok(c.compromised <= c.clicked, `${row.name} ${c.name}`);
-  }
-});
-
-test('regions: every country, the most people first, the company split exactly, rates from the counts', () => {
+test('scorecard: ten measures, each from its source, with six months of trend', () => {
   for (const days of [30, 60, 90]) {
     const { m, p } = at(days);
-    const list = regions(m.campaigns, p.now.people);
-    assert.deepEqual(list.map((r) => r.name).sort(), COUNTRIES.map((c) => c.name).sort());
-    assert.equal(list.reduce((a, r) => a + r.people, 0), p.now.people);
-    assert.equal(list.reduce((a, r) => a + r.clicked, 0), m.now.clicked);
-    assert.equal(list.reduce((a, r) => a + r.reported, 0), m.now.reported);
-    list.forEach((r, i) => {
-      if (i) assert.ok(list[i - 1].people >= r.people);
-      assert.equal(r.hooked, r.clicked / r.delivered);
-      assert.ok(['Protected', 'Holding', 'Exposed'].includes(r.health.word));
-    });
+    const card = scorecard(m, p);
+    const by = Object.fromEntries(card.map((r) => [r.id, r]));
+    assert.equal(card.length, 10);
+    assert.equal(by.campaigns.now, m.now.campaigns);
+    assert.equal(by.delivered.now, m.now.delivered);
+    assert.equal(by.openRate.now, m.now.openRate);
+    assert.equal(by.gaveDetails.now, m.now.compromised / m.now.delivered);
+    assert.equal(by.repeatClickers.now, p.now.drivers.repeatClickers);
+    assert.equal(by.repeatClickers.before, p.before.drivers.repeatClickers);
+    assert.equal(by.firstReport.now, m.now.firstReport);
+    assert.equal(by.beatClick.now, m.now.beatClick / m.now.campaigns);
+    assert.equal(by.completion.now, p.now.training.completion);
+    assert.equal(by.quizScore.before, p.before.training.quizScore);
+    for (const r of card) {
+      assert.equal(r.trend.length, 6, r.id);
+      assert.equal(r.heads.length, 6, r.id);
+      assert.ok(r.heads.every((t, i) => i === 0 || t > r.heads[i - 1]), `${r.id}: oldest first`);
+      assert.ok(r.trend.every((v) => v === null || Number.isFinite(v)), r.id);
+      assert.ok([null, 'up', 'down'].includes(r.better), r.id);
+    }
   }
 });
 
-test('departments: every one counted once by health; three facts, each a real department', () => {
+test('scorecard: the newest month of each campaign measure is the thirty days to the end', () => {
+  const { m, p } = at(30);
+  const by = Object.fromEntries(scorecard(m, p).map((r) => [r.id, r]));
+  assert.equal(by.campaigns.trend.at(-1), m.now.campaigns);
+  assert.equal(by.openRate.trend.at(-1), m.now.openRate);
+  assert.equal(by.campaigns.heads.at(-1), m.basis.end);
+});
+
+test('scorecard: with no period before, nothing to compare is shown as missing, not zero', () => {
+  const { m, p } = at(30);
+  const by = Object.fromEntries(scorecard({ ...m, before: null }, { ...p, before: null }).map((r) => [r.id, r]));
+  assert.equal(by.campaigns.before, null);
+  assert.equal(by.gaveDetails.before, null);
+  assert.equal(by.repeatClickers.before, null);
+  assert.equal(by.quizScore.before, null);
+});
+
+test('risk levels: the levels add up to everyone, then and now', () => {
+  for (const days of [30, 90]) {
+    const { p } = at(days);
+    const r = riskLevels(p);
+    assert.deepEqual(r.levels.map((l) => l.key), ['low', 'moderate', 'high', 'critical']);
+    assert.equal(r.levels.reduce((a, l) => a + l.now, 0), r.people);
+    assert.equal(r.levels.reduce((a, l) => a + l.before, 0), p.before.people);
+    assert.ok(Math.abs(r.levels.reduce((a, l) => a + l.share, 0) - 1) < 1e-9);
+    assert.equal(r.lower, p.now.improved);
+    assert.equal(r.higher, p.now.slipped);
+  }
+});
+
+test('departments by health: every one counted once', () => {
   const { rows } = at(30);
   const h = deptHealth(rows);
   assert.equal(h.Protected + h.Holding + h.Exposed + h.none, rows.length);
-  const facts = deptFacts(rows);
-  assert.deepEqual(facts.map((f) => f.id), ['highest', 'fell', 'lowestReport']);
-  assert.equal(facts[0].row.score, Math.max(...rows.map((r) => r.score)));
-  assert.ok(facts[1].row.change < 0);
-  assert.equal(facts[2].row.reportRate, Math.min(...rows.filter((r) => Number.isFinite(r.reportRate)).map((r) => r.reportRate)));
 });
 
-test('departments: when none fell over the period, the largest rise takes its place', () => {
-  const { rows } = at(90);
-  assert.ok(rows.every((r) => !(r.change < 0)));
-  const facts = deptFacts(rows);
-  assert.deepEqual(facts.map((f) => f.id), ['highest', 'rose', 'lowestReport']);
-  assert.equal(facts[1].row.change, Math.max(...rows.map((r) => r.change)));
-});
-
-test('pipeline: the workflow in order, the sent ones being the period', () => {
-  const { m } = at(30);
-  const flow = pipeline(STATUS_NOW, m.basis.campaigns);
-  assert.deepEqual(flow.map((s) => s.key), ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENDING', 'SENT', 'REJECTED', 'FAILED']);
-  assert.equal(flow.find((s) => s.key === 'SENT').count, m.basis.campaigns);
-});
-
-test('waiting: each count from its source, and nothing waiting reads grey', () => {
-  const { m, p, rows } = at(30);
-  const flow = pipeline(STATUS_NOW, m.basis.campaigns);
-  const list = waiting({ flow, drivers: p.now.drivers, rows, domains: SENDER_DOMAINS });
-  const byId = Object.fromEntries(list.map((w) => [w.id, w]));
-  assert.equal(byId.approvals.count, STATUS_NOW.PENDING_APPROVAL);
-  assert.equal(byId.overdue.count, p.now.drivers.overdueTraining);
-  assert.equal(byId.repeat.count, p.now.drivers.repeatClickers);
-  assert.equal(byId.exposed.count, deptHealth(rows).Exposed);
-  assert.equal(byId.failed.count, 0);
-  assert.equal(byId.failed.tone, 'context');
-  for (const w of list) assert.ok(w.to.route || w.to.view || w.to.tab, w.id);
+test('riskiest: the highest Risk Scores and the highest Hook Rates, three of each', () => {
+  const { m, rows } = at(30);
+  const r = riskiest(rows, m.lures);
+  assert.equal(r.departments.length, 3);
+  assert.equal(r.departments[0].score, Math.max(...rows.map((x) => x.score)));
+  assert.ok(r.departments.every((d, i) => i === 0 || d.score <= r.departments[i - 1].score));
+  assert.equal(r.lures[0].hooked, Math.max(...m.lures.map((l) => l.hooked ?? -1)));
+  assert.ok(r.lures.length <= 3 && r.lures.every((l, i) => i === 0 || l.hooked <= r.lures[i - 1].hooked));
 });

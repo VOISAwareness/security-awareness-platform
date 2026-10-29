@@ -117,12 +117,13 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     return { to, campaigns: inStep.length, perClick: rate(s.reported, s.clicked), inPeriod: to > from };
   });
 
-  // thirty days at a time over the last six, the newest last
+  // thirty days at a time over the last six, the newest last; each from its
+  // first day, as the period is, so the newest thirty days are the 30-day period
   const STEP = STEP_DAYS * DAY;
   const months = Array.from({ length: 6 }, (_, k) => {
     const to = end - (5 - k) * STEP;
-    const s = summary(items.filter((x) => at(x) > to - STEP && at(x) <= to).map((x) => x.report));
-    return { to, campaigns: s.campaigns, openRate: s.openRate, hooked: s.hooked, reportRate: s.reportRate, inPeriod: to > from };
+    const s = summary(items.filter((x) => at(x) >= to - STEP && (k === 5 ? at(x) <= to : at(x) < to)).map((x) => x.report));
+    return { to, ...s, inPeriod: to > from };
   });
 
   const byMotivator = {};
@@ -307,7 +308,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
     before: startOf ? { ...snap(startOf), ...flows(earlier) } : null,
     moved,
     departments,
-    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
+    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, completion: rate(s.training.completed, s.training.assigned), repeatClickers: s.drivers?.repeatClickers ?? null, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
     tiers: TIERS,
   };
 }

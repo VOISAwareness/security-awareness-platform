@@ -34,19 +34,22 @@ export { HEALTH_RULE, HEALTH_WORD } from '../../services/glossary';
 
 /**
  * A change against the period before, as a chip says it: the arrow, the
- * size ("2.1 pts", "0.3×", "4 min") and whether it is better or worse.
- * `kind` is 'pct' (a fraction; points), 'times' or 'min'; `better` is
- * 'up' or 'down'. Null when there is nothing to set it against.
+ * size ("2.1 pts", "0.3×", "4 min", "1,204") and whether it is better or
+ * worse. `kind` is 'pct' (a fraction; points), 'times', 'min', 'count' or
+ * 'pts' (a score); `better` is 'up', 'down', or null for a measure that is
+ * neither (its `good` is then null). Null when there is nothing to set it
+ * against.
  */
 export function change(now, before, { kind, better }) {
   if (none(now) || none(before)) return null;
   const d = now - before;
   const size = kind === 'pct' ? Math.abs(d * 100) : Math.abs(d);
-  const shown = kind === 'pct' ? `${size.toFixed(1)} pts` : kind === 'times' ? `${size.toFixed(1)}×` : `${Math.round(size)} min`;
-  const flat = kind === 'pct' ? size < 0.05 : kind === 'times' ? size < 0.05 : Math.round(size) === 0;
+  const fine = kind === 'pct' || kind === 'times' || kind === 'pts';
+  const shown = kind === 'pct' || kind === 'pts' ? `${size.toFixed(1)} pts` : kind === 'times' ? `${size.toFixed(1)}×` : kind === 'count' ? num(size) : `${Math.round(size)} min`;
+  const flat = fine ? size < 0.05 : Math.round(size) === 0;
   if (flat) return { dir: 'flat', shown: 'No change', good: null };
   const dir = d > 0 ? 'up' : 'down';
-  return { dir, shown, good: dir === better };
+  return { dir, shown, good: better ? dir === better : null };
 }
 
 // Risk tiers: green for low, amber for moderate, red for high and deep red
