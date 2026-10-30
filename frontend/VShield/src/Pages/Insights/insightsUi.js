@@ -6,7 +6,7 @@ import { FormInput, Gift, Headset, KeyRound, Mail, MousePointerClick, Plane } fr
 
 import { typeShort } from '../../services/campaignTypes';
 
-import { INK, tierInk, tierText } from './insightsColours';
+import { INK, tierInk } from './insightsColours';
 import { TYPE } from './insightsType';
 
 export { TYPE, onScale } from './insightsType';
@@ -66,18 +66,6 @@ export const TIER_RULE = {
 export const tierOf = (score) => (score < 20 ? 'low' : score < 35 ? 'moderate' : score < 60 ? 'high' : 'critical');
 export const riskWord = (score) => (!Number.isFinite(score) ? '—' : `${TIER_WORD[tierOf(score)]} risk`);
 export const riskInk = (score, isDark) => tierInk(isDark)[tierOf(score)];
-
-// A risk score as a colour and the ink on it, by the tier it falls in, so a
-// department's tile says what its number means.
-export function riskBands(isDark) {
-  const c = tierInk(isDark);
-  const t = tierText(isDark);
-  return {
-    tiers: ['low', 'moderate', 'high', 'critical'].map((k) => ({ key: k, color: c[k] })),
-    fill: (v) => c[tierOf(v)],
-    ink: (v) => t[tierOf(v)],
-  };
-}
 
 // A soft glow behind a few headline numbers on the dark theme only: the
 // risk score, the Report Rate and the programme's health. Small, so it

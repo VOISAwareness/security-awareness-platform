@@ -27,9 +27,9 @@ Returning.Context = Back;
 const unseen = { position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
 
 /**
- * A change against something, on a small chip: a dot in the colour of its
+ * A change against something, on a small chip tinted in the colour of its
  * verdict (`good` when better, `bad` when worse, `context` when there is no
- * change), then the arrow and the signed size in the text's ink. The verdict
+ * change): the arrow and the signed size in the text's ink. The verdict
  * is never colour alone: the arrow and sign say which way it went, and a
  * screen reader hears "better" or "worse" (`say` shows the word too).
  * `c` is change()'s { dir, shown, good }.
@@ -40,11 +40,10 @@ export function Delta({ c, ink, title, onDark = false, say = false }) {
   // a change in a measure that is neither better nor worse (how many were sent)
   const neutral = !flat && (c.good === null || c.good === undefined);
   const verdict = flat ? 'no change' : neutral ? 'neither better nor worse' : c.good ? 'better' : 'worse';
-  const dot = flat || neutral ? (ink?.context ?? STEADY_INK) : c.good ? ink.good : ink.bad;
+  const tint = flat || neutral ? (ink?.context ?? STEADY_INK) : c.good ? ink.good : ink.bad;
   const sign = c.dir === 'up' ? '+' : c.dir === 'down' ? '−' : '';
   return (
-    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${dot} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 800, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
-      <span aria-hidden style={{ flexShrink: 0, width: 6, height: 6, borderRadius: 999, background: dot }} />
+    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${tint} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 800, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
       {!flat && <span aria-hidden style={{ fontSize: TYPE.label }}>{c.dir === 'up' ? '▲' : '▼'}</span>}
       <span>{flat ? c.shown : `${sign}${c.shown}`}</span>
       {say ? <span style={{ fontWeight: 700, color: onDark ? 'inherit' : 'var(--muted)' }}>{verdict}</span> : <span style={unseen}>{`, ${verdict}`}</span>}

@@ -1,7 +1,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Copy, FileText, GraduationCap, LayoutGrid, MousePointerClick, Users } from 'lucide-react';
+import { ChevronLeft, Copy, FileText, GraduationCap, LayoutGrid, MousePointerClick, Users } from 'lucide-react';
 
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../../services/sampleCampaigns';
@@ -17,12 +17,14 @@ import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
 import { Segmented } from './InsightsCharts';
 import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
-import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
-import { CampaignsView, DepartmentsView } from './InsightsViews';
+import { CampaignProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
+import { CampaignsView } from './InsightsViews';
+import { DepartmentView, DepartmentsView } from './InsightsDepartments';
 import { SummaryView } from './InsightsSummary';
 import { EASE, HEALTH_WORD, INK, STEADY_INK, alpha, change, eyebrow, healthTone, mixHex, num, pc, pc1, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
-import { TARGETS, standing, targetText, zones } from '../../services/insightsTargets';
+import { TARGETS, standing, targetText } from '../../services/insightsTargets';
+import { deptTargets } from '../../services/deptTargets';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -151,87 +153,116 @@ const COMPACT_BELOW = 700;
 const CAP_H_COMPACT = 140;
 
 // The corner tile: the programme's health, from reports against clicks
-// (health() in bigPictureViews.js). Its clay emblem on the left, its word
-// and what it means on the right, in its health's colour (insightsColours.js):
-// green for Protected, amber for Holding (the Protected shield turned amber),
-// red for Not protected.
-// Light theme: a soft gradient of that colour with a shadow of the same.
-// Dark theme (`dark`): the card surface, a 1px edge in the colour (in `lift`,
-// with `edge` on its own) and a 3px rule along the top (in `tile`, with
-// `rule` on its own), so the tile no longer glares; its words take the page's
-// ink, not PASTEL_INK.
-const pastel = (c) => ({ tile: `linear-gradient(135deg,${mixHex(c, '#FFFFFF', 0.08)} 0%,${mixHex(c, '#FFFFFF', 0.2)} 100%)`, lift: `0 20px 40px ${alpha(c, 0.15)}`, glow: alpha(c, 0.2), shine: `0 0 20px ${alpha(c, 0.3)}` });
-const onCard = (c) => ({ tile: `linear-gradient(180deg,${c} 0,${c} 3px,transparent 3px),linear-gradient(160deg,${alpha(c, 0.16)} 0%,${alpha(c, 0.04)} 60%,rgba(0,0,0,0) 100%),var(--base)`, lift: `0 0 0 1px ${alpha(c, 0.45)}, 0 16px 34px rgba(0,0,0,0.38)`, glow: alpha(c, 0.14), shine: 'none', edge: alpha(c, 0.45), rule: c });
+// (health() in bigPictureViews.js), or, with a department open, that
+// department. Its clay emblem on the left; on the right, what it is ("Company
+// health", or the department's name) over its health word (or its people).
+// The tile is in its health's colour (insightsColours.js): green for
+// Protected, amber for Holding (the Protected shield turned amber), red for
+// Not protected; a soft gradient of that colour with a close shadow of the
+// same, so its foot lines up with the band's tiles. A click turns it over:
+// how health is worked out, or the department's facts.
+const pastel = (c) => ({ tile: `linear-gradient(135deg,${mixHex(c, '#FFFFFF', 0.08)} 0%,${mixHex(c, '#FFFFFF', 0.2)} 100%)`, lift: `0 4px 10px ${alpha(c, 0.14)}`, glow: alpha(c, 0.2), shine: `0 0 20px ${alpha(c, 0.3)}` });
 // the green shield as an amber one, for Holding
 const AMBER_SHIELD = 'hue-rotate(-110deg) saturate(2.2) brightness(1.2) contrast(0.95)';
 const HEALTH_LOOK = {
-  Protected: { word: 'Protected', says: 'Twice as many reports as clicks, or more', art: ClayGoingWell, ...pastel(INK.light.good), dark: onCard(INK.dark.good) },
-  Holding: { word: 'Holding', says: 'About as many reports as clicks', art: ClayGoingWell, tint: AMBER_SHIELD, ...pastel(INK.light.caution), dark: { ...onCard(INK.dark.caution), tint: AMBER_SHIELD } },
-  Exposed: { word: 'Not protected', says: 'More clicks than reports', art: ClayAttention, ...pastel(INK.light.bad), dark: onCard(INK.dark.bad) },
+  Protected: { word: 'Protected', says: 'Twice as many reports as clicks, or more', art: ClayGoingWell, ...pastel(INK.light.good) },
+  Holding: { word: 'Holding', says: 'About as many reports as clicks', art: ClayGoingWell, tint: AMBER_SHIELD, ...pastel(INK.light.caution) },
+  Exposed: { word: 'Not protected', says: 'More clicks than reports', art: ClayAttention, ...pastel(INK.light.bad) },
 };
 // The rule behind each health, for the back of the tile: its dot in the
-// health's colour (`color` for the light tile; `tone` names the role, so a
-// dark tile takes ink[tone]).
+// health's colour.
 const HEALTH_STEPS = [
   { key: 'Protected', rule: '2 or more reports for every click' },
   { key: 'Holding', rule: 'at least 1 report for every click' },
   { key: 'Exposed', rule: 'fewer reports than clicks' },
-].map((s) => ({ ...s, tone: healthTone(s.key), color: INK.light[healthTone(s.key)] }));
-function HealthTile({ m, reduce, capH, compact }) {
+].map((s) => ({ ...s, color: INK.light[healthTone(s.key)] }));
+const backRow = (compact) => ({ display: 'flex', justifyContent: 'space-between', gap: 10, padding: compact ? '1px 0' : '3px 0', borderTop: '1px solid rgba(15,23,42,0.08)', fontSize: TYPE.body, lineHeight: 1.35, color: '#475569', fontWeight: 600 });
+function HealthTile({ m, dept, reduce, capH, compact }) {
   const [over, setOver] = useState(false);
-  const h = m.now.health;
+  const h = dept ? dept.health : m.now.health;
   const n = m.now;
   const look = HEALTH_LOOK[h?.word] || HEALTH_LOOK.Holding;
   const swapIn = { initial: { opacity: 0, y: reduce ? 0 : 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: reduce ? 0 : -6 }, transition: { duration: reduce ? 0 : 0.3, ease: EASE } };
   const turn = () => setOver((o) => !o);
   const face = { position: 'absolute', inset: 0, boxSizing: 'border-box', borderRadius: L_R, overflow: 'hidden', background: look.tile, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transition: 'background .4s ease' };
+  const art = compact ? 60 : 80;
+  const facts = dept && [
+    ['Health', HEALTH_WORD[h?.word] ?? '—'],
+    ['Total people', num(dept.people)],
+    [GLOSSARY.highRisk.name, num(dept.highRisk)],
+    ['Clicked most', dept.clickedMost || '—'],
+    [GLOSSARY.trainingCompletion.name, pc(dept.now.trainingCompletion)],
+  ];
+  const say = dept
+    ? (over ? `${dept.name}: ${facts.map(([k, v]) => `${k} ${v}`).join(', ')}. Turn back` : `${dept.name}: ${num(dept.people)} people, ${look.word}. Show its details`)
+    : (over ? `How health is worked out: ${HEALTH_STEPS.map((s) => `${HEALTH_WORD[s.key]}, ${s.rule}`).join('; ')}. Turn back` : `Company health, last ${m.basis.days} days: ${look.word}. ${look.says}. Show how it is worked out`);
+  const big = { fontSize: compact ? TYPE.number : TYPE.hero, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, color: 'var(--text)', whiteSpace: 'nowrap' };
   return (
     <div
       role="button"
       tabIndex={0}
       aria-pressed={over}
       data-ins-health={h?.word || 'none'}
-      aria-label={over ? `How health is worked out: ${HEALTH_STEPS.map((s) => `${HEALTH_WORD[s.key]}, ${s.rule}`).join('; ')}. Turn back` : `Last ${m.basis.days} days: ${look.word}. ${look.says}. Show how it is worked out`}
-      title={over ? 'Click to turn back' : 'Click to see how it is worked out'}
+      data-ins-corner={dept ? 'department' : 'company'}
+      aria-label={say}
+      title={over ? 'Click to turn back' : dept ? 'Click for its details' : 'Click to see how it is worked out'}
       onClick={turn}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); turn(); } else if (e.key === 'Escape') setOver(false); }}
       className="ins-health"
       style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: capH, borderRadius: L_R, perspective: 900, cursor: 'pointer', boxShadow: look.lift, transition: 'box-shadow .4s ease', outline: 'none' }}
     >
       <motion.div initial={false} animate={{ rotateY: over ? 180 : 0 }} transition={{ duration: reduce ? 0 : 0.6, ease: EASE }} style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
-        {/* the front: its emblem above its words, centred; side by side when compact */}
-        <div style={{ ...face, display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: compact ? 12 : 4, padding: compact ? '0 16px 0 12px' : '10px 18px' }}>
+        {/* the front: its emblem on the left, what it is and its word on the right */}
+        <div style={{ ...face, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: compact ? '0 14px' : '10px 14px' }}>
           <span aria-hidden style={{ position: 'absolute', left: -50, top: -40, width: 200, height: 200, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
           <AnimatePresence mode="wait" initial={false}>
-            <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={compact ? 64 : 78} height={compact ? 64 : 78} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
+            <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={art} height={art} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
           </AnimatePresence>
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0, marginLeft: compact ? 'auto' : 0, display: 'flex', flexDirection: 'column', alignItems: compact ? 'flex-end' : 'center', textAlign: compact ? 'right' : 'center' }}>
-              <span style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</span>
-              <span className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? TYPE.heading : TYPE.number) : (look.word.length > 10 ? TYPE.number : TYPE.hero), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: compact ? 4 : 5, color: 'var(--text)', textShadow: look.shine, whiteSpace: 'nowrap' }}>{look.word}</span>
-              <span style={{ maxWidth: compact ? 170 : 240, fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.4, marginTop: compact ? 3 : 5, color: '#475569', textWrap: 'balance' }}>{look.says}</span>
+            <motion.div key={dept ? dept.name : look.word} {...swapIn} style={{ position: 'relative', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: compact ? 2 : 4, textAlign: 'left' }}>
+              <span style={{ maxWidth: '100%', fontSize: TYPE.figure, fontWeight: 800, lineHeight: 1.25, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{dept ? dept.name : 'Company health'}</span>
+              {dept ? (
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                  <span className="vs-rank" style={big}>{num(dept.people)}</span>
+                  <span style={{ fontSize: TYPE.strong, fontWeight: 700, color: '#475569' }}>people</span>
+                </span>
+              ) : <span className="vs-rank" style={{ ...big, fontSize: look.word.length > 10 ? TYPE.number : big.fontSize, textShadow: look.shine }}>{look.word}</span>}
             </motion.div>
           </AnimatePresence>
         </div>
-        {/* the back: how each health is worked out, and where the period stands */}
-        <div aria-hidden={!over} style={{ ...face, transform: 'rotateY(180deg)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: compact ? 4 : 7, padding: compact ? '8px 16px' : '12px 18px' }}>
-          <span style={{ ...eyebrow, color: '#334155' }}>How health is worked out</span>
-          {HEALTH_STEPS.map((s) => {
-            const on = s.key === h?.word;
-            return (
-              <span key={s.key} style={{ display: 'grid', gridTemplateColumns: '8px 84px minmax(0,1fr)', alignItems: 'center', gap: 7, padding: '2px 6px', margin: '0 -6px', borderRadius: 7, background: on ? 'rgba(255,255,255,0.7)' : 'transparent', fontSize: TYPE.small, lineHeight: 1.3, color: on ? 'var(--text)' : '#475569' }}>
-                <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: s.color }} />
-                <strong style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{HEALTH_WORD[s.key]}</strong>
-                <span style={{ fontWeight: on ? 700 : 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.rule}</span>
-              </span>
-            );
-          })}
-          {!compact && (
-            <span style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingTop: 7, borderTop: '1px solid rgba(15,23,42,0.08)', fontSize: TYPE.small, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>
-              <span>{GLOSSARY.perClick.name} <strong className="vs-rank" style={{ color: 'var(--text)' }}>{times(n.perClick)}</strong></span>
-              <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(n.reportRate)}</strong></span>
-              <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(n.hooked)}</strong></span>
-            </span>
+        {/* the back: the department's facts, or how each health is worked out */}
+        <div aria-hidden={!over} style={{ ...face, transform: 'rotateY(180deg)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: dept ? 0 : compact ? 4 : 7, padding: compact ? '8px 16px' : '12px 18px' }}>
+          {dept ? (
+            <>
+              <span style={{ ...eyebrow, color: '#334155', textAlign: 'center', marginBottom: compact ? 2 : 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept.name}</span>
+              {facts.map(([k, v]) => (
+                <span key={k} style={backRow(compact)}>
+                  <span style={{ whiteSpace: 'nowrap' }}>{k}</span>
+                  <strong style={{ minWidth: 0, fontWeight: 800, color: 'var(--text)', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</strong>
+                </span>
+              ))}
+            </>
+          ) : (
+            <>
+              <span style={{ ...eyebrow, color: '#334155' }}>How health is worked out</span>
+              {HEALTH_STEPS.map((s) => {
+                const on = s.key === h?.word;
+                return (
+                  <span key={s.key} style={{ display: 'grid', gridTemplateColumns: '8px 84px minmax(0,1fr)', alignItems: 'center', gap: 7, padding: '2px 6px', margin: '0 -6px', borderRadius: 7, background: on ? 'rgba(255,255,255,0.7)' : 'transparent', fontSize: TYPE.small, lineHeight: 1.3, color: on ? 'var(--text)' : '#475569' }}>
+                    <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: s.color }} />
+                    <strong style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>{HEALTH_WORD[s.key]}</strong>
+                    <span style={{ fontWeight: on ? 700 : 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.rule}</span>
+                  </span>
+                );
+              })}
+              {!compact && (
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: 10, paddingTop: 7, borderTop: '1px solid rgba(15,23,42,0.08)', fontSize: TYPE.small, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>
+                  <span>{GLOSSARY.perClick.name} <strong className="vs-rank" style={{ color: 'var(--text)' }}>{times(n.perClick)}</strong></span>
+                  <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(n.reportRate)}</strong></span>
+                  <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(n.hooked)}</strong></span>
+                </span>
+              )}
+            </>
           )}
         </div>
       </motion.div>
@@ -239,29 +270,33 @@ function HealthTile({ m, reduce, capH, compact }) {
   );
 }
 
-// Along the arm: the four measures, each on the same rows, centred: its
-// name, its figure, its change against the period before, a scale in three
-// stretches (on track, at risk, off track; insightsTargets.js) with a tick at
-// the target and a dot where the measure stands, and the target in words.
-// Each opens where it is explained. A compact band puts the change beside
-// the figure.
-const tileStyle = (compact) => ({ minWidth: 0, display: 'grid', justifyItems: 'center', alignContent: 'center', textAlign: 'center', rowGap: compact ? 3 : 5, padding: compact ? '6px 14px' : '10px 16px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: 'pointer', outline: 'none' });
+// Along the arm: six measures, the company's or, with a department open,
+// the department's, on tiles of one size, each on the same rows, centred:
+// its name, its figure, its change against the period before, its bar
+// against its target, and the target in words. The company's open where
+// they are explained. A compact band puts the change beside the figure.
+const tileStyle = (compact, opens) => ({ minWidth: 0, display: 'grid', justifyItems: 'center', alignContent: 'center', textAlign: 'center', rowGap: compact ? 3 : 5, padding: compact ? '6px 12px' : '10px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: opens ? 'pointer' : 'default', outline: 'none' });
 const STANDING_WORD = { on: 'on track', risk: 'at risk', off: 'off track' };
 
-// The scale: three soft stretches, a dark tick at the target and a dot in the
-// colour of where the value stands.
-function TargetScale({ value, target, ink, compact }) {
-  const tone = { on: ink.good, risk: ink.caution, off: ink.bad };
-  const x = (q) => `${Math.max(0, Math.min(100, (q / target.max) * 100))}%`;
-  const at = standing(value, target);
-  const dot = compact ? 14 : 16;
+// The bar: the measure along its whole scale, as a department's "What they
+// fall for" bars are. The light green stretch of the track is the target.
+// Lower is better: green up to the target, red for the part beyond it.
+// Higher is better: red until the bar reaches the target, green once it does.
+function TargetBar({ value, target, ink, compact }) {
+  const x = (q) => Math.max(0, Math.min(100, (q / target.max) * 100));
+  const seg = (from, to, bg, more) => <span style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(from)}%`, width: `${x(to) - x(from)}%`, background: bg, ...more }} />;
+  const end = { borderRadius: '0 999px 999px 0' };
+  const down = target.better === 'down';
+  let fill = null;
+  if (Number.isFinite(value)) {
+    if (!down) fill = seg(0, value, value >= target.target ? ink.good : ink.bad, end);
+    else if (value <= target.target) fill = seg(0, value, ink.good, end);
+    else fill = <>{seg(0, target.target, ink.good)}{seg(target.target, value, ink.bad, { ...end, borderLeft: '2px solid var(--plate)' })}</>;
+  }
   return (
-    <span aria-hidden style={{ position: 'relative', display: 'block', width: '100%', height: dot + 2 }}>
-      <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 7, marginTop: -3.5, display: 'flex', gap: 3 }}>
-        {zones(target).map((z) => <span key={z.standing} style={{ flex: `${(z.to - z.from) * 1000} 1 0`, borderRadius: 999, background: alpha(tone[z.standing], 0.32) }} />)}
-      </span>
-      <span style={{ position: 'absolute', left: x(target.target), top: 0, bottom: 0, width: 2, marginLeft: -1, borderRadius: 2, background: 'var(--text)' }} />
-      {at && <span className="ins-pop-in" style={{ position: 'absolute', left: x(value), top: '50%', width: dot, height: dot, margin: `${-dot / 2}px 0 0 ${-dot / 2}px`, boxSizing: 'border-box', borderRadius: 999, background: tone[at], border: '3px solid var(--base)', boxShadow: '0 1px 4px rgba(15,23,42,0.35)', transition: 'left .5s ease' }} />}
+    <span aria-hidden style={{ position: 'relative', display: 'block', width: '100%', height: compact ? 10 : 14, borderRadius: 999, overflow: 'hidden', background: 'var(--tick)' }}>
+      {down ? seg(0, target.target, alpha(ink.good, 0.26)) : seg(target.target, target.max, alpha(ink.good, 0.26))}
+      <span className="ins-grow-x" style={{ position: 'absolute', inset: 0, transformOrigin: 'left' }}>{fill}</span>
     </span>
   );
 }
@@ -269,10 +304,12 @@ function TargetScale({ value, target, ink, compact }) {
 function TargetKpi({ k, i, ink, reduce, compact }) {
   const at = standing(k.scaleValue, k.target);
   const chip = <Delta c={k.delta} ink={ink} title="Against the period before" />;
+  const opens = Boolean(k.onOpen);
+  const press = opens ? { role: 'button', tabIndex: 0, onClick: k.onOpen, onKeyDown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } } } : { role: 'group' };
   return (
-    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} onClick={k.onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } }} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}. Open it`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={tileStyle(compact)}>
-      <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
-        <span style={{ ...eyebrow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
+    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${opens ? '. Open it' : ''}`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={tileStyle(compact, opens)}>
+      <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}>
+        <span style={{ ...eyebrow, letterSpacing: '0.07em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
         {k.explain || <Define term={k.define} />}
       </span>
       <span data-ins-row="value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -280,8 +317,8 @@ function TargetKpi({ k, i, ink, reduce, compact }) {
         {compact && chip}
       </span>
       {!compact && <span data-ins-row="change">{chip}</span>}
-      <span data-ins-row="scale" style={{ width: '100%' }}><TargetScale value={k.scaleValue} target={k.target} ink={ink} compact={compact} /></span>
-      <span data-ins-row="target" style={{ ...small, fontWeight: 700 }}>Target <strong style={{ color: 'var(--text)', fontWeight: 800 }}>{k.targetText}</strong></span>
+      <span data-ins-row="scale" style={{ width: '100%' }}><TargetBar value={k.scaleValue} target={k.target} ink={ink} compact={compact} /></span>
+      <span data-ins-row="target" style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>Target <strong style={{ color: 'var(--text)', fontWeight: 800 }}>{k.targetText}</strong></span>
     </motion.div>
   );
 }
@@ -314,6 +351,7 @@ const Insights = () => {
   const org = useMemo(() => organisation({ end: m.basis.end, steps: 24 }), [m.basis.end]);
   const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
   const list = useMemo(() => standsOut(m, p), [m, p]);
+  const depts = useMemo(() => deptTargets(m, p), [m, p]);
 
   const labelOf = (kind, key) => (kind === 'risk' ? 'Risk' : kind === 'training' ? 'Training' : kind === 'campaign' ? (m.campaigns.find((c) => c.id === key)?.name || 'Campaign') : key);
   // open a profile: on top of the trail, or in place of the one on show
@@ -330,17 +368,43 @@ const Insights = () => {
     onCrumb: (k) => startTransition(() => setTrail((t) => t.slice(0, k))),
     onBack: () => startTransition(() => setTrail((t) => t.slice(0, -1))),
   };
-  const ctx = { m, p, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
+  // a department open: the corner tile and the band turn to it
+  const dept = top?.kind === 'department' ? depts.find((d) => d.name === top.key) : null;
+  const corner = dept && { ...dept, clickedMost: m.deptLures[dept.name]?.[0]?.type };
+  const backTo = trail.length > 1 ? trail.at(-2).label : tab === 'departments' ? 'All departments' : tabLabel;
+  const ctx = { m, p, depts, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
 
   const n = m.now;
   const b = m.before;
   const pctText = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—');
-  const kpis = [
-    { id: 'risk', explain: <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={tierInk(isDark)} /></Explain>, label: 'Risk Score', value: p.now.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: TARGETS.riskScore, targetText: targetText(TARGETS.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }), hint: 'Out of 100: under 20 is Low risk', onOpen: () => open('risk') },
-    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, scaleValue: p.now.highRisk / p.now.people, target: TARGETS.highRiskShare, targetText: `${targetText(TARGETS.highRiskShare, '%')} of people`, delta: change(p.now.highRisk, p.before?.highRisk, { kind: 'count', better: 'down' }), hint: `Clicked more than once, or gave details away: ${pc1(p.now.highRisk / p.now.people)} of people`, onOpen: () => open('risk') },
-    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: pctText, scaleValue: n.hooked, target: TARGETS.hookRate, targetText: targetText(TARGETS.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: pctText, scaleValue: n.reportRate, target: TARGETS.reportRate, targetText: targetText(TARGETS.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
+  const pct0Text = (v) => (Number.isFinite(v) ? `${Math.round(v)}%` : '—');
+  const hundred = (v) => (Number.isFinite(v) ? v * 100 : null);
+  const share = (a, of) => (of > 0 ? a / of : null);
+  const T = TARGETS;
+  const gave = share(n.compromised, n.delivered);
+  const done = p.now.training?.completion ?? null;
+  // the company's six, each opening where it is explained
+  const company = [
+    { id: 'risk', explain: <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={tierInk(isDark)} /></Explain>, label: 'Risk Score', value: p.now.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: T.riskScore, targetText: targetText(T.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }), hint: 'Out of 100: under 20 is Low risk', onOpen: () => open('risk') },
+    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, scaleValue: p.now.highRisk / p.now.people, target: T.highRiskShare, targetText: `${targetText(T.highRiskShare, '%')} of people`, delta: change(p.now.highRisk, p.before?.highRisk, { kind: 'count', better: 'down' }), hint: `Clicked more than once, or gave details away: ${pc1(p.now.highRisk / p.now.people)} of people`, onOpen: () => open('risk') },
+    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: hundred(n.hooked), format: pctText, scaleValue: n.hooked, target: T.hookRate, targetText: targetText(T.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: hundred(n.reportRate), format: pctText, scaleValue: n.reportRate, target: T.reportRate, targetText: targetText(T.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'gave', define: 'gaveDetails', label: GLOSSARY.gaveDetails.name, value: hundred(gave), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }), hint: 'Entered details on the practice page, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'completion', define: 'trainingCompletion', label: GLOSSARY.trainingCompletion.name, value: hundred(done), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }), hint: 'Trainings completed, of those assigned in the period', onOpen: () => go('training') },
   ];
+  // a department's six, the same measures as its row on the Departments tab
+  const ofDept = (d) => [
+    ['risk', 'riskScore', 'riskScore', 'Risk Score'],
+    ['highRisk', 'highRiskShare', 'highRisk', 'People at high risk'],
+    ['hooked', 'hookRate', 'hookRate', 'Hook Rate'],
+    ['reported', 'reportRate', 'reportRate', 'Report Rate'],
+    ['gave', 'gaveDetails', 'gaveDetails', GLOSSARY.gaveDetails.name],
+    ['completion', 'trainingCompletion', 'trainingCompletion', GLOSSARY.trainingCompletion.name],
+  ].map(([id, key, define, label]) => {
+    const score = key === 'riskScore';
+    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: T[key], targetText: targetText(T[key], score ? '' : '%'), delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: T[key].better }), hint: `${d.name}: ${label}` };
+  });
+  const kpis = dept ? ofDept(dept) : company;
 
   const title = 'Insights';
   const exportItems = [
@@ -355,7 +419,7 @@ const Insights = () => {
   if (top) {
     const props = { ctx, frame };
     body = top.kind === 'risk' ? <RiskProfile {...props} />
-      : top.kind === 'department' ? <DepartmentProfile {...props} name={top.key} />
+      : top.kind === 'department' ? <DepartmentView ctx={ctx} name={top.key} />
         : top.kind === 'lure' ? <LureProfile {...props} type={top.key} />
           : top.kind === 'campaign' ? <CampaignProfile {...props} id={top.key} />
             : <TrainingProfile {...props} training={TRAINING} />;
@@ -394,11 +458,18 @@ const Insights = () => {
               <path d={lPath(lW, lH, capH)} fill="var(--sheet)" stroke="var(--sheet-edge)" strokeWidth={1} />
             </svg>
           )}
-          <HealthTile m={m} reduce={reduce} capH={capH} compact={compact} />
+          <HealthTile key={corner ? corner.name : 'company'} m={m} dept={corner} reduce={reduce} capH={capH} compact={compact} />
 
-          {/* the arm: the period, the tabs and Export; under them, four measures */}
+          {/* the arm: the way back from a department, the period, the tabs and
+              Export; under them, six measures */}
           <div style={{ marginLeft: CAP_W + L_GAP, height: capH + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: compact ? 7 : 10, padding: `${compact ? 9 : 12}px 16px ${L_GAP}px 20px`, position: 'relative' }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
+              {dept && (
+                <button type="button" className="ins-go" data-ins-back onClick={frame.onBack} style={{ flexShrink: 0, height: 30, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 12px 0 8px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <ChevronLeft size={14} strokeWidth={2.6} aria-hidden />
+                  {backTo}
+                </button>
+              )}
               <Segmented id="ins-period" label="Period" value={shownDays} options={PERIODS} onChange={(d) => { setShownDays(d); startTransition(() => { setDays(d); setView((v) => ({ page: 0, deptQ: v.deptQ })); }); }} reduce={reduce} />
               {SAMPLE && (
                 <span data-ins-sample title="These are sample numbers. Real ones take their place once the reports, people and training services send them." style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 999, border: '1px dashed var(--hair-strong)', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, whiteSpace: 'nowrap' }}>
@@ -407,11 +478,11 @@ const Insights = () => {
                 </span>
               )}
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Segmented id="ins-tab" label="Insights" value={top ? null : shownTab} options={TABS} onChange={go} reduce={reduce} tabs />
+                <Segmented id="ins-tab" label="Insights" value={top && !dept ? null : shownTab} options={TABS} onChange={go} reduce={reduce} tabs />
                 <ExportMenu items={exportItems} />
               </span>
             </div>
-            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10 }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 8 }}>
               {kpis.map((k, i) => <TargetKpi key={k.id} k={k} i={i} ink={ink} reduce={reduce} compact={compact} />)}
             </div>
           </div>

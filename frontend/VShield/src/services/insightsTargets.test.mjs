@@ -13,6 +13,10 @@ test('standing: on track up to the target, at risk up to the next edge, off trac
   assert.equal(standing(0.5, r), 'on');
   assert.equal(standing(0.3, r), 'risk');
   assert.equal(standing(0.256, r), 'off');
+  const c = TARGETS.trainingCompletion; // higher is better: 90%, 80%
+  assert.equal(standing(0.9, c), 'on');
+  assert.equal(standing(0.8, c), 'risk');
+  assert.equal(standing(0.796, c), 'off');
   assert.equal(standing(null, r), null);
   assert.equal(standing(NaN, r), null);
 });

@@ -1,16 +1,15 @@
 import { useContext, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, FileX, MailX, Minus, MousePointerClick, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, FileX, MailX, Minus, MousePointerClick } from 'lucide-react';
 
 import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
-import { Blocks, Card, CompareBars, Donut, GapBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel, Tip } from './InsightsCharts';
+import { Blocks, Card, CompareBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel, Tip } from './InsightsCharts';
 import { Delta, Fill, FitList, HealthChip, InlineBar, LureTile, Meter, Returning, RowsGrid } from './InsightsBits';
 import { useSize } from './useSize';
-import { health } from '../../services/bigPictureViews';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
 import { GLOSSARY } from '../../services/glossary';
-import { EASE, SPANS, TIER_RULE, TIER_WORD, TINT, change, day, glow, heads, healthInk, healthTone, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, tierText, times, TYPE } from './insightsUi';
+import { EASE, SPANS, TIER_WORD, TINT, change, day, glow, heads, healthInk, healthTone, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, tierText, times, TYPE } from './insightsUi';
 
 // Insights' profiles: where a click leads. Each grows out of the card that
 // was clicked (or rises in, when there was none), with a trail at the top
@@ -19,20 +18,17 @@ import { EASE, SPANS, TIER_RULE, TIER_WORD, TINT, change, day, glow, heads, heal
 // and a bento of cards below, its lists running the full height on the right:
 //   - Risk: the Risk Score over the year, who moved between levels, which
 //     levels its points come from, related counts, each department;
-//   - Department: its risk against the company's, where its people stand,
-//     the campaign types that hooked it, its Training Lift, what people did;
 //   - Campaign type: what people did with it, against the other types, each
 //     department it reached, its campaigns;
 //   - Campaign: what people did, against the average, its departments;
 //   - Training: its Training Lift, the funnel, each department and
 //     programme.
-// Everything in a profile leads on: a department, a campaign type, a campaign.
+// Everything in a profile leads on: a department (its page is in
+// InsightsDepartments.jsx), a campaign type, a campaign.
 
 // the grow-in: quick and settling without a bounce, so the content it scales
 // is never on show long enough to look squeezed
 const LAYOUT = { type: 'tween', duration: 0.4, ease: [0.22, 1, 0.36, 1] };
-const pts = (c) => c && { ...c, shown: c.shown.replace('×', ' pts').replace(' min', '') };
-const ordinal = (n) => `${n}${n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'}`;
 const scoreText = (v, tick) => (Number.isFinite(v) ? (tick ? `${Math.round(v)}` : v.toFixed(1)) : '—');
 
 /**
@@ -378,79 +374,6 @@ export function RiskProfile({ ctx, frame }) {
               {arrow}
             </Row>
           )} />
-        </div>
-      </Card>
-    </ProfileShell>
-  );
-}
-
-// ------------------------------------------------------------ department
-
-export function DepartmentProfile({ ctx, frame, name }) {
-  const { m, p, ink, isDark, reduce, open, canSeePeople, seePeople } = ctx;
-  const d = p.departments.find((x) => x.name === name);
-  if (!d) return null;
-  const camp = m.departments.find((x) => x.name === name);
-  const lures = m.deptLures[name] || [];
-  const colors = tierInk(isDark);
-  const rank = p.departments.indexOf(d) + 1;
-  const dc = pts(change(d.score, d.scoreBefore, { kind: 'times', better: 'down' }));
-  const company = p.now.score;
-  const c = d.cohorts;
-  // its health, from what its people did with the period's emails
-  const h = camp ? health({ reported: camp.reported, clicked: camp.clicked, emails: camp.recipients }) : null;
-  return (
-    <ProfileShell
-      {...frame}
-      tone={healthTone(h?.word)}
-      reduce={reduce}
-      isDark={isDark}
-      art={<DeptCrest code={deptCode(name)} size={58} metal={isDark ? 'steelDark' : 'steel'} />}
-      eyebrowText="Department"
-      title={name}
-      sub={`${num(d.people)} people · the ${ordinal(rank)} highest risk of ${p.departments.length} departments`}
-      figures={[
-        { label: GLOSSARY.riskScore.name, node: <ScoreRing score={d.score} isDark={isDark} reduce={reduce} size={46} />, delta: <Delta c={dc} ink={ink} title={`Against ${p.basis.days} days ago`} />, sub: `Company ${scoreText(company)}` },
-        { label: GLOSSARY.highRisk.name, value: num(d.highRisk), sub: `${pc1(d.highRisk / d.people)} of its people` },
-        { label: GLOSSARY.health.name, node: <HealthChip h={h} ink={ink} />, sub: camp?.clicked ? `${GLOSSARY.perClick.name} ${times(camp.reported / camp.clicked)}` : '' },
-        { label: 'Trained', value: pc(c?.trainedShare), sub: c?.times ? `${GLOSSARY.trainingImpact.name} ${c.times.toFixed(1)}×` : '' },
-      ]}
-      action={canSeePeople ? (
-        <button type="button" className="ins-cta" data-ins-people-link onClick={seePeople} style={{ alignSelf: 'center', height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', borderRadius: 999, border: 'none', background: 'var(--brand-fill)', color: '#FFFFFF', boxShadow: '0 6px 16px color-mix(in srgb, var(--brand-fill) 22%, transparent)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          <Users size={13} strokeWidth={2.4} aria-hidden /> See its people
-        </button>
-      ) : null}
-    >
-      <Card i={3} reduce={reduce} title="Compared with company" define="vsCompany" action={<Legend items={[{ label: 'Riskier than the company', color: ink.bad }, { label: 'Safer', color: ink.good }]} />} style={{ gridColumn: 'span 7' }} data-ins-gap>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
-          <GapBars at={p.trend.slice(-12).map((s) => s.to)} values={d.trend.slice(-12)} base={p.trend.slice(-12).map((s) => s.score)} lit={p.trend.slice(-12).map((s) => s.inPeriod)} good={ink.good} bad={ink.bad} reduce={reduce} tipHead={(t) => `30 days to ${day(t)}`} valueLabel={name.length > 18 ? 'This department' : name} baseLabel="The whole company" />
-        </div>
-      </Card>
-      <Card i={4} reduce={reduce} title="People by risk level" define="riskLevels" style={{ gridColumn: 'span 5' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 8 }}>
-          <Donut
-            label={`${name}: ${['low', 'moderate', 'high', 'critical'].map((t) => `${num(d.tiers[t])} ${TIER_WORD[t].toLowerCase()} risk`).join(', ')}`}
-            parts={['low', 'moderate', 'high', 'critical'].map((t) => ({ key: t, label: `${TIER_WORD[t]} risk`, value: d.tiers[t], color: colors[t], title: TIER_RULE[t] }))}
-          >
-            <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em' }}>{pc(d.highRisk / d.people)}</span>
-            <span style={{ ...small, fontWeight: 700, marginTop: 4 }}>at high risk</span>
-            <span style={{ ...small, fontSize: TYPE.label, marginTop: 2 }}>company {pc(p.now.highRisk / p.now.people)}</span>
-          </Donut>
-        </div>
-      </Card>
-      <Card i={5} reduce={reduce} title={`${GLOSSARY.hookRate.name} by campaign type`} define="hookRate" style={{ gridColumn: 'span 5' }}>
-        {lures.length
-          ? <PillColumns items={lures.map((l) => ({ key: l.type, label: lureShort(l.type), value: l.hooked, text: pc1(l.hooked), tip: [l.type, `${num(l.clicked)} of ${num(l.recipients)} clicked · ${pc1(l.reportRate)} reported`] }))} color={ink.bad} format={pc1} reduce={reduce} onOpen={(type) => open('lure', type)} label="clicked. Open its profile" />
-          : <p style={{ ...small, fontSize: TYPE.body }}>No campaigns reached this team in the period.</p>}
-      </Card>
-      <Card i={6} reduce={reduce} title={GLOSSARY.trainingImpact.name} define="trainingImpact" sub={`${GLOSSARY.hookRate.name}, not yet trained vs trained`} style={{ gridColumn: 'span 4' }} data-ins-lift>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
-          {c && <CompareBars rows={[{ key: 'un', label: 'Not yet trained', sub: `${num(c.untrained)} people`, value: c.untrainedRate, color: ink.bad, text: pc(c.untrainedRate) }, { key: 'tr', label: 'Completed training', sub: `${num(c.trained)} people`, value: c.trainedRate, color: lighter(ink.bad), text: pc(c.trainedRate) }]} reduce={reduce} height={28} />}
-        </div>
-      </Card>
-      <Card i={7} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 3' }}>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
-          {camp ? <Blocks parts={didParts({ delivered: camp.recipients, reported: camp.reported, clicked: camp.clicked, compromised: camp.compromised }, ink, isDark)} reduce={reduce} height={26} legendCols={2} /> : <p style={{ ...small, fontSize: TYPE.body }}>No emails in the period.</p>}
         </div>
       </Card>
     </ProfileShell>

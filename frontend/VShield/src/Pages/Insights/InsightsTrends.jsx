@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { Tip } from './InsightsCharts';
 import { useSize } from './useSize';
@@ -23,7 +23,9 @@ const tick = { fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)', font
  * lines:   [{ key, color, split, name, text, end }] a line per key; `split`
  *          ({ at, below, above }) colours each stretch by its side of `at`;
  *          `end` labels the newest value and `name` in the right margin
- * columns: { key, colorOf, text } a column per point, its value above it
+ * columns: { key, colorOf, split, text } a column per point, its value above
+ *          it; `split` ({ at, below, above }) colours it `below` up to `at`
+ *          and `above` for the part over it, in place of `colorOf`
  * between: { top, under, lead, trail } shade between two lines: `lead` where
  *          `top` is above `under`, `trail` where it is below
  * side:    [{ v, text, color, sub }] labels in the right margin at a value
@@ -36,6 +38,7 @@ const tick = { fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)', font
 export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [], lines = [], columns = null, between = null, side = [], peak = null, tag = null, step = false, right = 76, tip, label }) {
   const [box, { w, h }] = useSize();
   const [at, setAt] = useState(null);
+  const clip = `ins-col${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const n = points.length;
   const L = 30; const T = 12; const B = 18;
   const iw = Math.max(0, w - L - right); const ih = Math.max(0, h - T - B);
@@ -123,7 +126,15 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
             if (!ok(v)) return null;
             return (
               <g key={p.to} opacity={at === null || at === i ? 1 : 0.55}>
-                <rect x={X(i) - bw / 2} y={Y(v)} width={bw} height={Math.max(0, Y(lo) - Y(v))} rx={Math.min(5, bw / 3)} fill={columns.colorOf(v)} />
+                {columns.split ? (
+                  <>
+                    <clipPath id={`${clip}${i}`}><rect x={X(i) - bw / 2} y={Y(v)} width={bw} height={Math.max(0, Y(lo) - Y(v))} rx={Math.min(5, bw / 3)} /></clipPath>
+                    <g clipPath={`url(#${clip}${i})`}>
+                      <rect x={X(i) - bw / 2} y={Y(Math.min(v, columns.split.at))} width={bw} height={Math.max(0, Y(lo) - Y(Math.min(v, columns.split.at)))} fill={columns.split.below} />
+                      {v > columns.split.at && <rect x={X(i) - bw / 2} y={Y(v)} width={bw} height={Math.max(0, Y(columns.split.at) - Y(v) - 2)} fill={columns.split.above} />}
+                    </g>
+                  </>
+                ) : <rect x={X(i) - bw / 2} y={Y(v)} width={bw} height={Math.max(0, Y(lo) - Y(v))} rx={Math.min(5, bw / 3)} fill={columns.colorOf(v)} />}
                 <text x={X(i)} y={Y(v) - 5} textAnchor="middle" style={{ ...tick, fill: 'var(--text)', fontWeight: i === n - 1 ? 900 : 700 }}>{columns.text(v)}</text>
               </g>
             );

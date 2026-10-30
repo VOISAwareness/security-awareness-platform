@@ -14,6 +14,7 @@ export const TARGETS = Object.freeze({
   reportRate: { better: 'up', target: 0.5, atRisk: 0.3, max: 0.8 },
   gaveDetails: { better: 'down', target: 0.01, atRisk: 0.03, max: 0.1 },
   firstReport: { better: 'down', target: 15, atRisk: 30, max: 40 },
+  trainingCompletion: { better: 'up', target: 0.9, atRisk: 0.8, max: 1 },
 });
 
 /** Where a value stands against its target: 'on' (on track), 'risk' (at risk) or 'off' (off track); null without a value. */

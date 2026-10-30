@@ -89,6 +89,19 @@ const campaignRow = ({ campaign, report }) => ({
   departments: (report.departments || []).map((d) => ({ name: d.name, recipients: d.recipients, clicked: d.clicked, reported: d.reported, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) })),
 });
 
+// each department's emails, clicks, reports and details given away over
+// some campaigns, the most clicked first
+function deptsOf(list) {
+  const byDept = {};
+  list.forEach((x) => (x.report.departments || []).forEach((d) => {
+    const row = (byDept[d.name] ||= { name: d.name, recipients: 0, clicked: 0, reported: 0, compromised: 0 });
+    row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
+  }));
+  return Object.values(byDept)
+    .map((d) => ({ ...d, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) }))
+    .sort((a, b) => (b.clickRate ?? 0) - (a.clickRate ?? 0) || a.name.localeCompare(b.name));
+}
+
 /**
  * The programme over the last `days` days. `items` are { campaign, report }
  * pairs (campaignReport output), past campaigns included so the period
@@ -122,8 +135,8 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
   const STEP = STEP_DAYS * DAY;
   const stepsBack = (count) => Array.from({ length: count }, (_, k) => {
     const to = end - (count - 1 - k) * STEP;
-    const s = summary(items.filter((x) => at(x) >= to - STEP && (k === count - 1 ? at(x) <= to : at(x) < to)).map((x) => x.report));
-    return { to, ...s, inPeriod: to > from };
+    const inStep = items.filter((x) => at(x) >= to - STEP && (k === count - 1 ? at(x) <= to : at(x) < to));
+    return { to, ...summary(inStep.map((x) => x.report)), departments: deptsOf(inStep), inPeriod: to > from };
   });
   const months = stepsBack(6);
 
@@ -133,11 +146,6 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     .map(([motivator, reports]) => ({ motivator, ...summary(reports) }))
     .sort((a, b) => (b.hooked ?? 0) - (a.hooked ?? 0) || a.motivator.localeCompare(b.motivator));
 
-  const byDept = {};
-  shown.forEach((x) => (x.report.departments || []).forEach((d) => {
-    const row = (byDept[d.name] ||= { name: d.name, recipients: 0, clicked: 0, reported: 0, compromised: 0 });
-    row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
-  }));
   // each department's clicks on each kind of lure, and each lure's departments
   const pairs = {};
   shown.forEach((x) => (x.report.departments || []).forEach((d) => {
@@ -151,9 +159,7 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
   const deptLures = Object.fromEntries(Object.entries(group('name')).map(([k, v]) => [k, v.sort(byHook)]));
   const lureDepts = Object.fromEntries(Object.entries(group('type')).map(([k, v]) => [k, v.sort(byHook)]));
 
-  const departments = Object.values(byDept)
-    .map((d) => ({ ...d, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) }))
-    .sort((a, b) => (b.clickRate ?? 0) - (a.clickRate ?? 0) || a.name.localeCompare(b.name));
+  const departments = deptsOf(shown);
 
   return {
     basis: { days, end, from, campaigns: shown.length },
@@ -166,6 +172,7 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     year: stepsBack(12), // the same, over twelve
     motivators,
     departments,
+    deptBefore: deptsOf(earlier), // the departments over the period before
     deptLures,
     lureDepts,
     arrival: { now: arrival(shown.map((x) => x.report)), before: earlier.length ? arrival(earlier.map((x) => x.report)) : null },
@@ -281,7 +288,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
   };
   const departments = last.departments.map((d) => {
     const was = startOf?.departments[d.index];
-    const tr = (key) => sum(shown, (s) => s.departments[d.index].training[key]);
+    const tr = (key, steps = shown) => sum(steps, (s) => s.departments[d.index].training[key]);
     const completed = tr('completed');
     return {
       name: d.name,
@@ -298,6 +305,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
         completion: rate(completed, tr('assigned')),
         quizScore: completed ? sum(shown, (s) => s.departments[d.index].training.quizScore * s.departments[d.index].training.completed) / completed : null,
       },
+      completionBefore: earlier.length ? rate(tr('completed', earlier), tr('assigned', earlier)) : null,
     };
   }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   const now = { ...snap(last), ...flows(shown) };
