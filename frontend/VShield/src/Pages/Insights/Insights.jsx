@@ -1,4 +1,4 @@
-import { startTransition, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Copy, FileText, GraduationCap, LayoutGrid, MousePointerClick, Users } from 'lucide-react';
@@ -23,8 +23,11 @@ import { DepartmentView, DepartmentsView } from './InsightsDepartments';
 import { SummaryView } from './InsightsSummary';
 import { EASE, HEALTH_WORD, INK, STEADY_INK, alpha, change, eyebrow, healthTone, mixHex, num, pc, pc1, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
-import { TARGETS, standing, targetText } from '../../services/insightsTargets';
+import { standing, targetText, targetsWith } from '../../services/insightsTargets';
 import { deptTargets } from '../../services/deptTargets';
+import { api } from '../../services/api';
+import { actorFor } from '../../services/identity';
+import { TargetsButton, TargetsEditor } from './InsightsTargets';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -323,13 +326,35 @@ function TargetKpi({ k, i, ink, reduce, compact }) {
   );
 }
 
+// GET/PUT /insights-targets' answer as the page keeps it; anything else
+// (an older API, a stub) reads as nothing set
+const savedOf = (r) => {
+  const ok = r && typeof r === 'object' && !Array.isArray(r);
+  return { targets: ok && r.targets && typeof r.targets === 'object' ? r.targets : {}, version: ok && Number.isInteger(r.version) ? r.version : 0, modifiedBy: ok ? r.modifiedBy ?? null : null, modifiedAt: ok ? r.modifiedAt ?? null : null, failed: false };
+};
+
 const Insights = () => {
-  const { isDark, hasAccess } = useUserType() || {};
+  const { isDark, hasAccess, user } = useUserType() || {};
   const navigate = useNavigate();
   const reduce = useReducedMotion();
   const ink = isDark ? INK.dark : INK.light;
   // a department's people are admins' to see, as on the Big Picture
   const canSeePeople = Boolean(hasAccess && hasAccess('leaderboard-people'));
+  // the targets are admins' to set (InsightsTargets.jsx)
+  const canSetTargets = Boolean(hasAccess && hasAccess('insights-targets'));
+  const [editing, setEditing] = useState(false);
+  // what an admin has set (GET /insights-targets), in place of the defaults;
+  // until it comes, or if it cannot be read, the defaults stand
+  const [saved, setSaved] = useState({ targets: {}, version: 0, modifiedBy: null, modifiedAt: null, failed: false });
+  useEffect(() => {
+    let live = true;
+    api.insightsTargets.get()
+      .then((r) => { if (live) setSaved(savedOf(r)); })
+      .catch(() => { if (live) setSaved((s) => ({ ...s, failed: true })); });
+    return () => { live = false; };
+  }, []);
+  const T = useMemo(() => targetsWith(saved.targets), [saved.targets]);
+  const saveTargets = async (targets) => setSaved(savedOf(await api.insightsTargets.save({ targets, version: saved.version, role: user?.role, actor: actorFor(user) })));
   // what the switches show changes at once; what they change renders in the
   // background (a transition), so a big view never freezes what is moving
   const [days, setDays] = useState(30);
@@ -351,7 +376,7 @@ const Insights = () => {
   const org = useMemo(() => organisation({ end: m.basis.end, steps: 24 }), [m.basis.end]);
   const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
   const list = useMemo(() => standsOut(m, p), [m, p]);
-  const depts = useMemo(() => deptTargets(m, p), [m, p]);
+  const depts = useMemo(() => deptTargets(m, p, T), [m, p, T]);
 
   const labelOf = (kind, key) => (kind === 'risk' ? 'Risk' : kind === 'training' ? 'Training' : kind === 'campaign' ? (m.campaigns.find((c) => c.id === key)?.name || 'Campaign') : key);
   // open a profile: on top of the trail, or in place of the one on show
@@ -372,7 +397,7 @@ const Insights = () => {
   const dept = top?.kind === 'department' ? depts.find((d) => d.name === top.key) : null;
   const corner = dept && { ...dept, clickedMost: m.deptLures[dept.name]?.[0]?.type };
   const backTo = trail.length > 1 ? trail.at(-2).label : tab === 'departments' ? 'All departments' : tabLabel;
-  const ctx = { m, p, depts, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
+  const ctx = { m, p, depts, targets: T, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
 
   const n = m.now;
   const b = m.before;
@@ -380,7 +405,6 @@ const Insights = () => {
   const pct0Text = (v) => (Number.isFinite(v) ? `${Math.round(v)}%` : '—');
   const hundred = (v) => (Number.isFinite(v) ? v * 100 : null);
   const share = (a, of) => (of > 0 ? a / of : null);
-  const T = TARGETS;
   const gave = share(n.compromised, n.delivered);
   const done = p.now.training?.completion ?? null;
   // the company's six, each opening where it is explained
@@ -479,6 +503,7 @@ const Insights = () => {
               )}
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Segmented id="ins-tab" label="Insights" value={top && !dept ? null : shownTab} options={TABS} onChange={go} reduce={reduce} tabs />
+                {canSetTargets && <TargetsButton onClick={() => setEditing(true)} label={!dept || lW > 1400} />}
                 <ExportMenu items={exportItems} />
               </span>
             </div>
@@ -500,6 +525,7 @@ const Insights = () => {
         </div>
       </div>
       </motion.div>
+      {editing && <TargetsEditor saved={saved} isDark={isDark} reduce={reduce} onSave={saveTargets} onClose={() => setEditing(false)} />}
     </>
   );
 };

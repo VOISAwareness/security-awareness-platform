@@ -159,6 +159,14 @@ export const api = {
         body: { PointsAssigned: points, ModifiedBy: actor },
       }),
   },
+  // Insights' targets as an admin set them (reference-api, settings table).
+  // `version` is the one read, so a change made since is refused (409);
+  // `role` is client-asserted, like the leaderboard's, until sign-in exists.
+  insightsTargets: {
+    get: () => request('/insights-targets'),
+    save: ({ targets, version, role, actor }) =>
+      request('/insights-targets', { method: 'PUT', body: { targets, version, role, modifiedBy: actor } }),
+  },
   // Levels and points: reference-api reads the points ledger the
   // points-engine Lambda writes. `viewer` is client-asserted, like elsewhere.
   points: {
