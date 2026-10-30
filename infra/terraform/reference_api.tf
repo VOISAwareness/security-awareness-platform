@@ -177,6 +177,9 @@ locals {
     "GET /standing",
     "GET /levels",
     "GET /leaderboard",
+    # Insights' targets, set by an admin (tables.tf: settings).
+    "GET /insights-targets",
+    "PUT /insights-targets",
   ]
 }
 

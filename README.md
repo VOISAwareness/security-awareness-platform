@@ -288,7 +288,7 @@ destroy is genuinely intended.
 
 ## Data model
 
-Fifteen DynamoDB tables, all prefixed `security-awareness-poc-`:
+Eighteen DynamoDB tables, all prefixed `security-awareness-poc-`:
 
 **Campaign execution** — `campaigns` (PK `campaignId`, GSI `status-index` on
 `status`+`createdAt`), `recipients` (PK `campaignId`, SK `recipientId`, GSI
@@ -298,6 +298,11 @@ Fifteen DynamoDB tables, all prefixed `security-awareness-poc-`:
 `user-lists`, `user-list-members`, `gamification-rules`, `training-paths`,
 `training-videos`, `training-quizzes`, `training-certificates`,
 `campaigns-catalog`.
+
+**Per person and settings** — `scenario-drafts` (the scenario editor's
+autosave), `points-ledger` (points, written by `points-engine`) and `settings`
+(PK `settingId`: the admin's settings, one row each; the first is Insights'
+targets).
 
 Canonical field names are **camelCase**. Canonical campaign statuses are the
 backend enum:
@@ -351,6 +356,8 @@ GET                 /campaigns-catalog
 GET                 /levels                     # the level and grade table
 GET                 /standing?viewer=<email>    # points, rank, level, progress, best level, latest changes
 GET                 /leaderboard?viewer=<email> # everyone ranked by points (&role=Admin shows levels below zero)
+GET                 /insights-targets           # Insights' targets as an admin set them, and their version
+PUT                 /insights-targets           # an admin sets them: {targets, version, role, modifiedBy}
 ```
 
 **Points** (`points-engine`, no route) — the events table's stream feeds it; it
