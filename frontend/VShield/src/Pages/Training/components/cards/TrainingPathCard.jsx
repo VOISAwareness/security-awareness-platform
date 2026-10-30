@@ -1,11 +1,10 @@
-function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 import React from "react";
 import { Play, HelpCircle, Award, Settings, ExternalLink, UploadCloud } from "lucide-react";
 
 const getCoverImage = (imgName) => {
   try {
     return new URL(`../../../Scenarios/` + imgName, import.meta.url).href;
-  } catch (e2) {
+  } catch { /* ignore */ 
     return `/assets/Scenarios/${imgName}`;
   }
 };
@@ -14,8 +13,7 @@ export const TrainingPathCard = ({
   path,
   videos,
   quizzes,
-  certificates,
-  isDark,
+    isDark,
   onLaunch,
   onEdit,
   onSendForApproval
@@ -32,11 +30,11 @@ export const TrainingPathCard = ({
 
     const quiz =
       quizzes.find(
-        (q) => q.TrainingQuizID === (_optionalChain([path, 'access', _ => _.TrainingQuizAttached, 'optionalAccess', _2 => _2[0]]) || "TQ-00001")
+        (q) => q.TrainingQuizID === (path.TrainingQuizAttached?.[0] || "TQ-00001")
       ) || quizzes[0];
 
-    const questionCount = _optionalChain([quiz, 'optionalAccess', _3 => _3.QuizData]) ? Object.keys(quiz.QuizData).length : 10;
-    const passingScore = _optionalChain([quiz, 'optionalAccess', _4 => _4.TrainingCompletionThreshold]) || 80;
+    const questionCount = quiz?.QuizData ? Object.keys(quiz.QuizData).length : 10;
+    const passingScore = quiz?.TrainingCompletionThreshold || 80;
 
     return { pathVideos, questionCount, passingScore };
   }, [path, videos, quizzes]);
@@ -121,7 +119,7 @@ export const TrainingPathCard = ({
             </div>
             <div className="flex flex-col text-left leading-tight">
               <span className={`text-[10px] font-bold ${isDark ? "text-white" : "text-slate-800"}`}>
-                {_optionalChain([path, 'access', _5 => _5.TrainingCertificateAttached, 'optionalAccess', _6 => _6.length]) || 0} Cert
+                {path.TrainingCertificateAttached?.length || 0} Cert
               </span>
               <span className="text-[8.5px] text-slate-400">
                 Pass: {passingScore}%

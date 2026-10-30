@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
 
 /* Dynamic Roundedness & Theme Variables */
 :root {
   --overall-corner-roundedness: 0.7;
-  --l-wall-x: 110; /* Configurable vertical notched part of the L-shape (set to 110 for ideal snug fit) */
+  --l-wall-x: 110; /* vertical notched part of the L-shape */
 }
 
 /* Scopes for specific containers to override roundedness or hover scaling */
@@ -16,9 +16,14 @@
 }
 
 /* Global Font Helper Classes */
+.font-voda {
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 800;
+}
+
 .font-voda-exb {
-  font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
-  font-weight: 900;
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 800;
 }
 
 .font-mono-tech {

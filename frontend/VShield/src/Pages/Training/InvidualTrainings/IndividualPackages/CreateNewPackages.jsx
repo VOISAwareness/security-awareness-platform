@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { X, UploadCloud, BookOpen, Sparkles } from "lucide-react";
 import { useIsDarkMode, loadJSZip, getMimeType } from "../../components/modals/helpers";
 
-
 // AddNewPackageScreen (default export: CreateNewPackages)
 export const CreateNewPackages = ({
   isDark,
@@ -103,7 +102,7 @@ export const CreateNewPackages = ({
       for (const relativePath of sortedPaths) {
         const blobUrl = blobUrlMap[relativePath];
         const escapedPath = relativePath.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-        const regex = new RegExp(`(?:\\.\/)?${escapedPath}`, "g");
+        const regex = new RegExp(`(?:\\./)?${escapedPath}`, "g");
         htmlContent = htmlContent.replace(regex, blobUrl);
       }
 
@@ -430,7 +429,7 @@ export const ZipUploader = ({
       for (const relativePath of sortedPaths) {
         const blobUrl = blobUrlMap[relativePath];
         const escapedPath = relativePath.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-        const regex = new RegExp(`(?:\\.\/)?${escapedPath}`, "g");
+        const regex = new RegExp(`(?:\\./)?${escapedPath}`, "g");
         htmlContent = htmlContent.replace(regex, blobUrl);
       }
 

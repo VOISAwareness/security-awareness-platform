@@ -1,4 +1,4 @@
- function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }import { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import {
   X,
   Trash2,
@@ -22,7 +22,7 @@ export const CreateNewVideos = ({
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
-    const file = _optionalChain([e, 'access', _ => _.target, 'access', _2 => _2.files, 'optionalAccess', _3 => _3[0]]);
+    const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       if (!name) {
@@ -44,7 +44,7 @@ export const CreateNewVideos = ({
 
   const handleDrop = (e) => {
     e.preventDefault();
-    const file = _optionalChain([e, 'access', _4 => _4.dataTransfer, 'access', _5 => _5.files, 'optionalAccess', _6 => _6[0]]);
+    const file = e.dataTransfer?.files?.[0];
     if (file && file.type.startsWith("video/")) {
       setSelectedFile(file);
       if (!name) {
@@ -137,7 +137,7 @@ export const CreateNewVideos = ({
           </div>
         ) : (
           <div
-            onClick={() => _optionalChain([fileInputRef, 'access', _7 => _7.current, 'optionalAccess', _8 => _8.click, 'call', _9 => _9()])}
+            onClick={() => fileInputRef.current?.click()}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             className={`border-2 border-dashed transition-colors rounded-xl p-6 flex flex-col items-center justify-center gap-2 text-center cursor-pointer ${

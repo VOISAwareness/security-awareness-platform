@@ -62,7 +62,7 @@ export const IndividualCertificatesGallery = ({
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1 pb-12 custom-light-scrollbar animate-clay-stagger-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start content-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start content-start">
           {filteredCertificates.map((cert) => (
             <TrainingCertificateCard
               key={cert.TrainingCertificateID}

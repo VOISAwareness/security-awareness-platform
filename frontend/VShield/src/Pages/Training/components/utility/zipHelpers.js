@@ -1,51 +1,4 @@
-const loadJSZip = () => {
-  return new Promise((resolve, reject) => {
-    if (window.JSZip) {
-      resolve(window.JSZip);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-    script.onload = () => {
-      if (window.JSZip) resolve(window.JSZip);
-      else reject(new Error("JSZip loaded but not available on window."));
-    };
-    script.onerror = () => reject(new Error("Failed to load JSZip script from CDN."));
-    document.head.appendChild(script);
-  });
-};
-
-const getMimeType = (filename) => {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  switch (ext) {
-    case "html":
-    case "htm":
-      return "text/html";
-    case "css":
-      return "text/css";
-    case "js":
-      return "application/javascript";
-    case "png":
-      return "image/png";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "gif":
-      return "image/gif";
-    case "svg":
-      return "image/svg+xml";
-    case "json":
-      return "application/json";
-    case "woff":
-      return "font/woff";
-    case "woff2":
-      return "font/woff2";
-    case "ttf":
-      return "font/ttf";
-    default:
-      return "application/octet-stream";
-  }
-};
+import { loadJSZip, getMimeType } from "../modals/helpers";
 
 export const extractZipHtml = async (fileOrBlob) => {
   let blob;
@@ -92,8 +45,8 @@ export const extractZipHtml = async (fileOrBlob) => {
   const sortedPaths = Object.keys(blobUrlMap).sort((a, b) => b.length - a.length);
   for (const relativePath of sortedPaths) {
     const blobUrl = blobUrlMap[relativePath];
-    const escapedPath = relativePath.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-    const regex = new RegExp(`(?:\\.\\/)?${escapedPath}`, "g");
+    const escapedPath = relativePath.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const regex = new RegExp(`(?:\\./)?${escapedPath}`, "g");
     htmlContent = htmlContent.replace(regex, blobUrl);
   }
 
