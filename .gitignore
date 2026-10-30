@@ -27,3 +27,6 @@ infra/terraform/build/
 
 # Local dev helpers
 v_export*.js
+
+# Local dev scrom package
+/frontend/VShield/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip
