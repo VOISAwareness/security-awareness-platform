@@ -258,3 +258,25 @@ resource "aws_dynamodb_table" "points_ledger" {
     write_capacity     = 5
   }
 }
+
+# settings — the admin's settings, one row each, PK settingId. The first is
+# "insights-targets": where each measure on Insights should be, which
+# reference-api serves (GET/PUT /insights-targets) with a version for
+# optimistic locking.
+#
+# PROVISIONED 1 + 1 for the same reason as scenario-drafts: inside DynamoDB's
+# always-free 25 + 25 (this brings the project to 16 + 16). A read is one
+# small item when Insights opens, and a write is an admin saving the targets,
+# so one unit each is ample; a burst beyond it is answered 503 and retried.
+resource "aws_dynamodb_table" "settings" {
+  name           = "${var.name_prefix}-settings"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 1
+  write_capacity = 1
+  hash_key       = "settingId"
+
+  attribute {
+    name = "settingId"
+    type = "S"
+  }
+}

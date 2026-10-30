@@ -1155,6 +1155,135 @@ def standing(route, event, context):
         return busy(context, "Standing" if route == "GET /standing" else "Leaderboard", e)
 
 
+# --- Insights targets (GET/PUT /insights-targets) -------------------------
+#
+# Where each measure on Insights should be, set by an admin. One row in the
+# settings table: each measure's target and the edge of its at-risk stretch,
+# a version for optimistic locking, and who changed it and when. Only what an
+# admin has set is stored; the page keeps its own defaults for any measure
+# left out, so a PUT replaces the whole map (a measure left out goes back to
+# its default). `role` is client-asserted, as on the leaderboard, so this
+# keeps honest users apart but is not a security boundary until sign-in
+# exists.
+
+TARGETS_ID = "insights-targets"
+TARGET_ROUTES = frozenset({"GET /insights-targets", "PUT /insights-targets"})
+# Each measure: which way is better, and the range a value may take. Rates
+# are fractions, the Risk Score is out of 100, the time to the first report
+# is in minutes.
+TARGET_MEASURES = {
+    "riskScore": ("down", 0, 100),
+    "highRiskShare": ("down", 0, 1),
+    "hookRate": ("down", 0, 1),
+    "reportRate": ("up", 0, 1),
+    "gaveDetails": ("down", 0, 1),
+    "firstReport": ("down", 0, 1440),
+    "trainingCompletion": ("up", 0, 1),
+}
+
+
+def parse_number(value, low, high):
+    """A finite number from `low` to `high` as a Decimal, else None."""
+    if isinstance(value, bool) or not isinstance(value, int | float | str | decimal.Decimal):
+        return None
+    try:
+        n = decimal.Decimal(str(value).strip())
+    except decimal.InvalidOperation:
+        return None
+    if not n.is_finite() or n < low or n > high:
+        return None
+    return n
+
+
+def parse_targets(raw):
+    """({measure: {target, atRisk}}, None) for a valid map, else (None, problem).
+
+    Every measure named must be known and have both edges in range, the
+    target on the better side of the at-risk edge."""
+    if not isinstance(raw, dict) or not raw:
+        return None, "targets must name at least one measure"
+    out = {}
+    for key, value in raw.items():
+        if key not in TARGET_MEASURES:
+            return None, f"{key} is not a measure with a target"
+        better, low, high = TARGET_MEASURES[key]
+        if not isinstance(value, dict):
+            return None, f"{key} needs a target and an atRisk edge"
+        target = parse_number(value.get("target"), low, high)
+        at_risk = parse_number(value.get("atRisk"), low, high)
+        if target is None or at_risk is None:
+            return None, f"{key}: target and atRisk must be numbers from {low} to {high}"
+        if (better == "down" and target >= at_risk) or (better == "up" and target <= at_risk):
+            side = "below" if better == "down" else "above"
+            return None, f"{key}: the target must be {side} the at-risk edge"
+        out[key] = {"target": target, "atRisk": at_risk}
+    return out, None
+
+
+def targets_view(item):
+    item = item or {}
+    return {
+        "targets": item.get("targets", {}),
+        "version": item.get("version", 0),
+        "modifiedBy": item.get("modifiedBy"),
+        "modifiedAt": item.get("modifiedAt"),
+    }
+
+
+def insights_targets(route, event, context):
+    """GET /insights-targets: what is set (none yet: no targets, version 0).
+    PUT /insights-targets {targets, version, role, modifiedBy}: an admin sets
+    them; `version` is the one read, so a change made since is not lost."""
+    tbl = table("settings")
+    try:
+        if route == "GET /insights-targets":
+            item = tbl.get_item(Key={"settingId": TARGETS_ID}, ConsistentRead=True).get("Item")
+            return ok(targets_view(item))
+        try:
+            body = parse_body(event)
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            return err(400, "The body must be a JSON object")
+        if body.get("role") not in ADMIN_ROLES:
+            return err(403, "Only an admin can change the targets")
+        targets, problem = parse_targets(body.get("targets"))
+        if problem:
+            return err(400, problem)
+        version = body.get("version")
+        if isinstance(version, bool) or not isinstance(version, int) or version < 0:
+            return err(400, "version must be the version read (0 before any change)")
+        item = {
+            "settingId": TARGETS_ID,
+            "targets": targets,
+            "version": version + 1,
+            "modifiedBy": str(body.get("modifiedBy") or "unknown")[:200],
+            "modifiedAt": datetime.now(UTC).isoformat(timespec="seconds"),
+        }
+        if version == 0:
+            guard = {"ConditionExpression": "attribute_not_exists(settingId)"}
+        else:
+            guard = {
+                "ConditionExpression": "#v = :v",
+                "ExpressionAttributeNames": {"#v": "version"},
+                "ExpressionAttributeValues": {":v": version},
+            }
+        try:
+            tbl.put_item(Item=item, **guard)
+        except ClientError as e:
+            if conditional_failed(e):
+                return err(409, "The targets changed since they were read; reload and try again", code="STALE")
+            raise
+        log(context, "insights targets saved", version=item["version"], measures=sorted(targets))
+        return ok(targets_view(item))
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code not in THROTTLED_CODES:
+            raise
+        log(context, "insights targets throttled", code=code)
+        return err(503, "Settings are busy right now; try again shortly", code="BUSY")
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /sender-identities": "sender-identities",
@@ -1188,6 +1317,9 @@ def lambda_handler(event, context):
 
         if route in STANDING_ROUTES:
             return standing(route, event, context)
+
+        if route in TARGET_ROUTES:
+            return insights_targets(route, event, context)
 
         if route == "GET /scenarios":
             items = scan_all("scenarios")

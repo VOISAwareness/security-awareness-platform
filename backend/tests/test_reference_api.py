@@ -194,3 +194,201 @@ def test_update_rejects_bad_points_before_writing(mod, monkeypatch):
     status, _ = _call(mod, monkeypatch, fake, "Clicked", {"PointsAssigned": "lots"})
     assert status == 400
     assert fake.calls == []
+
+
+# --- Insights targets (GET/PUT /insights-targets) -------------------------
+
+
+def test_parse_targets_keeps_valid_edges_as_decimals(mod):
+    from decimal import Decimal
+
+    targets, problem = mod.parse_targets(
+        {"hookRate": {"target": 0.05, "atRisk": 0.1}, "reportRate": {"target": "0.5", "atRisk": 0.3}, "riskScore": {"target": 20, "atRisk": 35}}
+    )
+    assert problem is None
+    assert targets["hookRate"] == {"target": Decimal("0.05"), "atRisk": Decimal("0.1")}
+    assert targets["reportRate"] == {"target": Decimal("0.5"), "atRisk": Decimal("0.3")}
+    assert targets["riskScore"]["atRisk"] == Decimal("35")
+
+
+@pytest.mark.parametrize(
+    "raw, says",
+    [
+        (None, "at least one"),
+        ({}, "at least one"),
+        ([], "at least one"),
+        ({"openRate": {"target": 0.1, "atRisk": 0.2}}, "not a measure"),
+        ({"hookRate": 0.05}, "needs a target"),
+        ({"hookRate": {"target": 0.05}}, "numbers from"),
+        ({"hookRate": {"target": True, "atRisk": 0.1}}, "numbers from"),
+        ({"hookRate": {"target": "NaN", "atRisk": 0.1}}, "numbers from"),
+        ({"hookRate": {"target": 5, "atRisk": 10}}, "numbers from"),  # rates are fractions
+        ({"riskScore": {"target": -1, "atRisk": 35}}, "numbers from"),
+        ({"hookRate": {"target": 0.1, "atRisk": 0.05}}, "below the at-risk edge"),
+        ({"hookRate": {"target": 0.1, "atRisk": 0.1}}, "below the at-risk edge"),
+        ({"reportRate": {"target": 0.3, "atRisk": 0.5}}, "above the at-risk edge"),
+    ],
+)
+def test_parse_targets_refuses_what_cannot_be_a_target(mod, raw, says):
+    targets, problem = mod.parse_targets(raw)
+    assert targets is None
+    assert says in problem
+
+
+class _FakeSettings:
+    def __init__(self, item=None, fail=None):
+        self.item = item
+        self.fail = fail
+        self.puts = []
+
+    def get_item(self, **kwargs):
+        assert kwargs["Key"] == {"settingId": "insights-targets"}
+        return {"Item": self.item} if self.item else {}
+
+    def put_item(self, **kwargs):
+        from botocore.exceptions import ClientError
+
+        self.puts.append(kwargs)
+        if self.fail:
+            raise ClientError({"Error": {"Code": self.fail}}, "PutItem")
+        self.item = kwargs["Item"]
+
+
+def _targets(mod, monkeypatch, fake, method, body=None):
+    import json
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(mod, "table", lambda name: fake if name == "settings" else None)
+    event = {"routeKey": f"{method} /insights-targets", "body": json.dumps(body) if body is not None else None}
+    resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
+    return resp["statusCode"], json.loads(resp["body"])
+
+
+ADMIN_PUT = {"role": "Admin", "modifiedBy": "a@x.com", "version": 0, "targets": {"hookRate": {"target": 0.04, "atRisk": 0.08}}}
+
+
+def test_get_targets_before_any_are_set(mod, monkeypatch):
+    status, body = _targets(mod, monkeypatch, _FakeSettings(), "GET")
+    assert status == 200
+    assert body["data"] == {"targets": {}, "version": 0, "modifiedBy": None, "modifiedAt": None}
+
+
+def test_get_targets_returns_what_is_stored_as_numbers(mod, monkeypatch):
+    from decimal import Decimal
+
+    item = {"settingId": "insights-targets", "version": 3, "modifiedBy": "a@x.com", "modifiedAt": "2026-10-30T10:00:00+00:00",
+            "targets": {"riskScore": {"target": Decimal("18"), "atRisk": Decimal("30")}, "hookRate": {"target": Decimal("0.04"), "atRisk": Decimal("0.08")}}}
+    status, body = _targets(mod, monkeypatch, _FakeSettings(item), "GET")
+    assert status == 200
+    assert body["data"]["version"] == 3
+    assert body["data"]["targets"] == {"riskScore": {"target": 18, "atRisk": 30}, "hookRate": {"target": 0.04, "atRisk": 0.08}}
+
+
+def test_only_an_admin_can_change_the_targets(mod, monkeypatch):
+    fake = _FakeSettings()
+    for role in (None, "User", "admin"):
+        status, body = _targets(mod, monkeypatch, fake, "PUT", {**ADMIN_PUT, "role": role})
+        assert status == 403
+    assert fake.puts == []
+
+
+def test_bad_targets_or_version_are_refused_before_writing(mod, monkeypatch):
+    fake = _FakeSettings()
+    status, _ = _targets(mod, monkeypatch, fake, "PUT", {**ADMIN_PUT, "targets": {"hookRate": {"target": 0.2, "atRisk": 0.1}}})
+    assert status == 400
+    for version in (None, -1, "1", True, 1.5):
+        status, body = _targets(mod, monkeypatch, fake, "PUT", {**ADMIN_PUT, "version": version})
+        assert status == 400 and "version" in body["error"]["message"]
+    assert fake.puts == []
+
+
+def test_a_body_that_is_not_an_object_is_400(mod, monkeypatch):
+    import json
+    from types import SimpleNamespace
+
+    fake = _FakeSettings()
+    monkeypatch.setattr(mod, "table", lambda name: fake)
+    for raw in ("not json", "[]", '"Admin"'):
+        resp = mod.lambda_handler({"routeKey": "PUT /insights-targets", "body": raw}, SimpleNamespace(aws_request_id="t"))
+        assert resp["statusCode"] == 400, raw
+        assert "JSON object" in json.loads(resp["body"])["error"]["message"]
+    assert fake.puts == []
+
+
+def test_first_change_creates_version_one_only_if_none_exists(mod, monkeypatch):
+    fake = _FakeSettings()
+    status, body = _targets(mod, monkeypatch, fake, "PUT", ADMIN_PUT)
+    assert status == 200
+    assert body["data"]["version"] == 1
+    assert body["data"]["targets"] == {"hookRate": {"target": 0.04, "atRisk": 0.08}}
+    assert body["data"]["modifiedBy"] == "a@x.com"
+    assert fake.puts[0]["ConditionExpression"] == "attribute_not_exists(settingId)"
+    assert fake.puts[0]["Item"]["settingId"] == "insights-targets"
+
+
+def test_a_later_change_must_name_the_version_it_read(mod, monkeypatch):
+    fake = _FakeSettings({"settingId": "insights-targets", "version": 4, "targets": {}})
+    status, body = _targets(mod, monkeypatch, fake, "PUT", {**ADMIN_PUT, "version": 4})
+    assert status == 200 and body["data"]["version"] == 5
+    assert fake.puts[0]["ConditionExpression"] == "#v = :v"
+    assert fake.puts[0]["ExpressionAttributeNames"] == {"#v": "version"}
+    assert fake.puts[0]["ExpressionAttributeValues"] == {":v": 4}
+
+
+def test_a_stale_change_is_409_not_a_silent_overwrite(mod, monkeypatch):
+    fake = _FakeSettings(fail="ConditionalCheckFailedException")
+    status, body = _targets(mod, monkeypatch, fake, "PUT", {**ADMIN_PUT, "version": 2})
+    assert status == 409
+    assert body["error"]["code"] == "STALE"
+
+
+def test_a_throttled_settings_table_is_503(mod, monkeypatch):
+    fake = _FakeSettings(fail="ProvisionedThroughputExceededException")
+    status, body = _targets(mod, monkeypatch, fake, "PUT", ADMIN_PUT)
+    assert status == 503
+    assert body["error"]["code"] == "BUSY"
+
+
+def test_targets_round_trip_on_dynamodb_with_its_conditions(mod, monkeypatch):
+    """moto's in-memory DynamoDB: the conditions and number types behave as on AWS."""
+    import boto3
+    from moto import mock_aws
+
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.setenv(name, "testing")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    with mock_aws():
+        db = boto3.resource("dynamodb", region_name="ap-south-1")
+        db.create_table(
+            TableName=f"{mod.TABLE_PREFIX}-settings",
+            KeySchema=[{"AttributeName": "settingId", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "settingId", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 1, "WriteCapacityUnits": 1},
+        )
+        monkeypatch.setattr(mod, "dynamodb", db)
+
+        def put(body):
+            return _targets_on_db(mod, "PUT", body)
+
+
+        assert _targets_on_db(mod, "GET")[1]["data"]["version"] == 0
+        assert put(ADMIN_PUT)[0] == 200
+        # a second first change (version 0) would overwrite the first: refused
+        assert put(ADMIN_PUT)[0] == 409
+        status, body = put({**ADMIN_PUT, "version": 1, "targets": {"riskScore": {"target": 18, "atRisk": 30}}})
+        assert status == 200 and body["data"]["version"] == 2
+        # a change from version 1 again is stale now
+        assert put({**ADMIN_PUT, "version": 1})[0] == 409
+        status, body = _targets_on_db(mod, "GET")
+        assert body["data"]["version"] == 2
+        assert body["data"]["targets"] == {"riskScore": {"target": 18, "atRisk": 30}}
+        assert body["data"]["modifiedBy"] == "a@x.com"
+
+
+def _targets_on_db(mod, method, body=None):
+    import json
+    from types import SimpleNamespace
+
+    event = {"routeKey": f"{method} /insights-targets", "body": json.dumps(body) if body is not None else None}
+    resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
+    return resp["statusCode"], json.loads(resp["body"])
