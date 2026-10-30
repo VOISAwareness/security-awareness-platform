@@ -11,7 +11,8 @@ const UserTypeContext = createContext();
 // is its The Big Picture view (what the board shows), for the same roles; they
 // don't see How to earn points. 'leaderboard-people' is The Big Picture's People
 // list (everyone by name, below-zero levels included, with CSV export): Admin
-// only, as below-zero badges and risk are everywhere else.
+// only, as below-zero badges and risk are everywhere else. 'insights-targets'
+// is Insights' Targets: changing where each measure should be. Admin only.
 export const ROLE_PERMISSIONS = {
   'Admin': [
     'home',
@@ -26,6 +27,7 @@ export const ROLE_PERMISSIONS = {
     'requests-approvals',
     'gamification-engine',
     'analytics',
+    'insights-targets',
     'leaderboard',
     'leaderboard-campaigns',
     'leaderboard-reports',

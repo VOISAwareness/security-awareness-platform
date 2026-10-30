@@ -22,10 +22,10 @@ export const DEPT_MEASURES = Object.freeze(['riskScore', 'highRiskShare', 'hookR
 
 const rate = (n, of) => (of > 0 ? n / of : null);
 const byName = (list) => Object.fromEntries((list || []).map((d) => [d.name, d]));
-const count = (now, st) => DEPT_MEASURES.filter((k) => standing(now[k], TARGETS[k]) === st).length;
+const count = (now, st, targets) => DEPT_MEASURES.filter((k) => standing(now[k], targets[k]) === st).length;
 
-/** One row per department: { name, people, now, before, off, atRisk, health }, the most off target first. */
-export function deptTargets(m, p) {
+/** One row per department: { name, people, now, before, off, atRisk, health }, the most off target first, against `targets` (the defaults unless an admin set others). */
+export function deptTargets(m, p, targets = TARGETS) {
   const camp = byName(m.departments);
   const was = byName(m.deptBefore);
   return p.departments.map((d) => {
@@ -53,8 +53,8 @@ export function deptTargets(m, p) {
       highRisk: d.highRisk,
       now,
       before,
-      off: count(now, 'off'),
-      atRisk: count(now, 'risk'),
+      off: count(now, 'off', targets),
+      atRisk: count(now, 'risk', targets),
       health: health({ reported: c?.reported ?? 0, clicked: c?.clicked ?? 0, emails: c?.recipients ?? 0 }),
     };
   }).sort((a, b) => b.off - a.off || b.atRisk - a.atRisk || b.now.riskScore - a.now.riskScore || a.name.localeCompare(b.name));
