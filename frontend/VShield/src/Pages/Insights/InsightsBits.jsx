@@ -236,17 +236,6 @@ export function Define({ term, onDark }) {
   return <Explain label={`What ${g.name} means`} onDark={onDark}><Definition term={term} /></Explain>;
 }
 
-/** What the Risk Score means and how it is worked out (the same as its card's ⓘ), then where it stands now; for an Explain. */
-export function RiskHow({ score, days, colors }) {
-  const { isDark } = useUserType() || {};
-  return (
-    <>
-      <RiskScoreMeaning colors={colors || tierInk(Boolean(isDark))} />
-      {Number.isFinite(score) && <span style={{ display: 'block', ...small, marginTop: 6 }}>Now {score.toFixed(1)}; the chip beside it is the change over the last {days} days.</span>}
-    </>
-  );
-}
-
 // ------------------------------------------------- fitting any window
 
 const pagerBtn = (off) => ({ width: 22, height: 22, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid var(--hair)', background: 'var(--ghost)', color: 'var(--text)', cursor: off ? 'default' : 'pointer', opacity: off ? 0.35 : 1 });

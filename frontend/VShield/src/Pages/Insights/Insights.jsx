@@ -15,13 +15,13 @@ import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
 import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
 import { Segmented } from './InsightsCharts';
-import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
+import { Count, Definition, Delta, Explain } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView } from './InsightsViews';
 import { DepartmentView, DepartmentsView } from './InsightsDepartments';
 import { SummaryView } from './InsightsSummary';
-import { EASE, HEALTH_WORD, INK, alpha, change, eyebrow, healthTone, mixHex, num, pc, pc1, small, swap, tierInk, TYPE, themeVars } from './insightsUi';
+import { EASE, HEALTH_WORD, INK, alpha, change, eyebrow, healthTone, mixHex, num, pc, pc1, small, swap, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
 import { standing, targetText, targetsWith } from '../../services/insightsTargets';
 import { deptTargets } from '../../services/deptTargets';
@@ -267,7 +267,8 @@ function HealthTile({ m, dept, reduce }) {
 // the department's, on tiles of one size, each on the same rows, centred:
 // its name, its figure, its change against the period before, its bar
 // against its target, and the target in words. The company's open where
-// they are explained. The change sits beside the figure, so the band stays low.
+// they are explained. Its change against the period before is in its ⓘ,
+// under what the measure means, so the tile stays clean.
 const tileStyle = (opens) => ({ minWidth: 0, display: 'grid', justifyItems: 'center', alignContent: 'center', textAlign: 'center', rowGap: 3, padding: '6px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: opens ? 'pointer' : 'default', outline: 'none' });
 const STANDING_WORD = { on: 'on track', risk: 'at risk', off: 'off track' };
 
@@ -294,21 +295,29 @@ function TargetBar({ value, target, ink }) {
   );
 }
 
-function TargetKpi({ k, i, ink, reduce }) {
+// The foot of a tile's ⓘ: the measure the period before and now, and the change.
+function ChangeNote({ k, ink, days }) {
+  if (!k.delta) return <span style={{ display: 'block', ...small, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hair)' }}>No figure for the {days} days before to compare with.</span>;
+  return (
+    <span data-ins-change style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hair)' }}>
+      <span style={{ ...small, color: 'var(--text)' }}><span style={{ whiteSpace: 'nowrap' }}>{days} days before <strong>{k.format(k.before)}</strong>,</span> <span style={{ whiteSpace: 'nowrap' }}>now <strong>{k.format(k.value)}</strong></span></span>
+      <Delta c={k.delta} ink={ink} say />
+    </span>
+  );
+}
+const changeWords = (k, days) => (!k.delta ? '' : k.delta.dir === 'flat' ? `; no change on the ${days} days before` : `; ${k.delta.dir === 'up' ? 'up' : 'down'} ${k.delta.shown} on the ${days} days before`);
+
+function TargetKpi({ k, i, ink, reduce, days }) {
   const at = standing(k.scaleValue, k.target);
-  const chip = <Delta c={k.delta} ink={ink} title="Against the period before" />;
   const opens = Boolean(k.onOpen);
   const press = opens ? { role: 'button', tabIndex: 0, onClick: k.onOpen, onKeyDown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } } } : { role: 'group' };
   return (
-    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${opens ? '. Open it' : ''}`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={tileStyle(opens)}>
+    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={tileStyle(opens)}>
       <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}>
         <span style={{ ...eyebrow, letterSpacing: '0.07em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
-        {k.explain || <Define term={k.define} />}
+        <Explain label={`What ${k.label} means, and its change`}><Definition term={k.define}><ChangeNote k={k} ink={ink} days={days} /></Definition></Explain>
       </span>
-      <span data-ins-row="value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.025em', whiteSpace: 'nowrap' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
-        {chip}
-      </span>
+      <span data-ins-row="value" className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.025em', whiteSpace: 'nowrap' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
       <span data-ins-row="scale" style={{ width: '100%' }}><TargetBar value={k.scaleValue} target={k.target} ink={ink} /></span>
       <span data-ins-row="target" style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>Target <strong style={{ color: 'var(--text)', fontWeight: 800 }}>{k.targetText}</strong></span>
     </motion.div>
@@ -396,12 +405,12 @@ const Insights = () => {
   const done = p.now.training?.completion ?? null;
   // the company's six, each opening where it is explained
   const company = [
-    { id: 'risk', explain: <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={tierInk(isDark)} /></Explain>, label: 'Risk Score', value: p.now.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: T.riskScore, targetText: targetText(T.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }), hint: 'Out of 100: under 20 is Low risk', onOpen: () => open('risk') },
-    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, scaleValue: p.now.highRisk / p.now.people, target: T.highRiskShare, targetText: `${targetText(T.highRiskShare, '%')} of people`, delta: change(p.now.highRisk, p.before?.highRisk, { kind: 'count', better: 'down' }), hint: `Clicked more than once, or gave details away: ${pc1(p.now.highRisk / p.now.people)} of people`, onOpen: () => open('risk') },
-    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: hundred(n.hooked), format: pctText, scaleValue: n.hooked, target: T.hookRate, targetText: targetText(T.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: hundred(n.reportRate), format: pctText, scaleValue: n.reportRate, target: T.reportRate, targetText: targetText(T.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'gave', define: 'gaveDetails', label: GLOSSARY.gaveDetails.name, value: hundred(gave), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }), hint: 'Entered details on the practice page, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'completion', define: 'trainingCompletion', label: GLOSSARY.trainingCompletion.name, value: hundred(done), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }), hint: 'Trainings completed, of those assigned in the period', onOpen: () => go('training') },
+    { id: 'risk', define: 'riskScore', label: 'Risk Score', value: p.now.score, before: p.before?.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: T.riskScore, targetText: targetText(T.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }), hint: 'Out of 100: under 20 is Low risk', onOpen: () => open('risk') },
+    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, before: p.before?.highRisk, format: num, scaleValue: p.now.highRisk / p.now.people, target: T.highRiskShare, targetText: `${targetText(T.highRiskShare, '%')} of people`, delta: change(p.now.highRisk, p.before?.highRisk, { kind: 'count', better: 'down' }), hint: `Clicked more than once, or gave details away: ${pc1(p.now.highRisk / p.now.people)} of people`, onOpen: () => open('risk') },
+    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: hundred(n.hooked), before: hundred(b?.hooked), format: pctText, scaleValue: n.hooked, target: T.hookRate, targetText: targetText(T.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: hundred(n.reportRate), before: hundred(b?.reportRate), format: pctText, scaleValue: n.reportRate, target: T.reportRate, targetText: targetText(T.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'gave', define: 'gaveDetails', label: GLOSSARY.gaveDetails.name, value: hundred(gave), before: hundred(b ? share(b.compromised, b.delivered) : null), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }), hint: 'Entered details on the practice page, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'completion', define: 'trainingCompletion', label: GLOSSARY.trainingCompletion.name, value: hundred(done), before: hundred(p.before?.training?.completion ?? null), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }), hint: 'Trainings completed, of those assigned in the period', onOpen: () => go('training') },
   ];
   // a department's six, the same measures as its row on the Departments tab
   const ofDept = (d) => [
@@ -413,7 +422,7 @@ const Insights = () => {
     ['completion', 'trainingCompletion', 'trainingCompletion', GLOSSARY.trainingCompletion.name],
   ].map(([id, key, define, label]) => {
     const score = key === 'riskScore';
-    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: T[key], targetText: targetText(T[key], score ? '' : '%'), delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: T[key].better }), hint: `${d.name}: ${label}` };
+    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), before: score ? d.before[key] : hundred(d.before[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: T[key], targetText: targetText(T[key], score ? '' : '%'), delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: T[key].better }), hint: `${d.name}: ${label}` };
   });
   const kpis = dept ? ofDept(dept) : company;
 
@@ -489,7 +498,7 @@ const Insights = () => {
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 8 }}>
-              {kpis.map((k, i) => <TargetKpi key={k.id} k={k} i={i} ink={ink} reduce={reduce} />)}
+              {kpis.map((k, i) => <TargetKpi key={k.id} k={k} i={i} ink={ink} reduce={reduce} days={m.basis.days} />)}
             </div>
           </div>
 
