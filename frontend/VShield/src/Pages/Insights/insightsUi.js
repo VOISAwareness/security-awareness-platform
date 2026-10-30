@@ -6,7 +6,7 @@ import { FormInput, Gift, Headset, KeyRound, Mail, MousePointerClick, Plane } fr
 
 import { typeShort } from '../../services/campaignTypes';
 
-import { INK, tierInk, tierText } from './insightsColours';
+import { INK, tierInk } from './insightsColours';
 import { TYPE } from './insightsType';
 
 export { TYPE, onScale } from './insightsType';
@@ -34,19 +34,22 @@ export { HEALTH_RULE, HEALTH_WORD } from '../../services/glossary';
 
 /**
  * A change against the period before, as a chip says it: the arrow, the
- * size ("2.1 pts", "0.3×", "4 min") and whether it is better or worse.
- * `kind` is 'pct' (a fraction; points), 'times' or 'min'; `better` is
- * 'up' or 'down'. Null when there is nothing to set it against.
+ * size ("2.1 pts", "0.3×", "4 min", "1,204") and whether it is better or
+ * worse. `kind` is 'pct' (a fraction; points), 'times', 'min', 'count' or
+ * 'pts' (a score); `better` is 'up', 'down', or null for a measure that is
+ * neither (its `good` is then null). Null when there is nothing to set it
+ * against.
  */
 export function change(now, before, { kind, better }) {
   if (none(now) || none(before)) return null;
   const d = now - before;
   const size = kind === 'pct' ? Math.abs(d * 100) : Math.abs(d);
-  const shown = kind === 'pct' ? `${size.toFixed(1)} pts` : kind === 'times' ? `${size.toFixed(1)}×` : `${Math.round(size)} min`;
-  const flat = kind === 'pct' ? size < 0.05 : kind === 'times' ? size < 0.05 : Math.round(size) === 0;
+  const fine = kind === 'pct' || kind === 'times' || kind === 'pts';
+  const shown = kind === 'pct' || kind === 'pts' ? `${size.toFixed(1)} pts` : kind === 'times' ? `${size.toFixed(1)}×` : kind === 'count' ? num(size) : `${Math.round(size)} min`;
+  const flat = fine ? size < 0.05 : Math.round(size) === 0;
   if (flat) return { dir: 'flat', shown: 'No change', good: null };
   const dir = d > 0 ? 'up' : 'down';
-  return { dir, shown, good: dir === better };
+  return { dir, shown, good: better ? dir === better : null };
 }
 
 // Risk tiers: green for low, amber for moderate, red for high and deep red
@@ -63,18 +66,6 @@ export const TIER_RULE = {
 export const tierOf = (score) => (score < 20 ? 'low' : score < 35 ? 'moderate' : score < 60 ? 'high' : 'critical');
 export const riskWord = (score) => (!Number.isFinite(score) ? '—' : `${TIER_WORD[tierOf(score)]} risk`);
 export const riskInk = (score, isDark) => tierInk(isDark)[tierOf(score)];
-
-// A risk score as a colour and the ink on it, by the tier it falls in, so a
-// department's tile says what its number means.
-export function riskBands(isDark) {
-  const c = tierInk(isDark);
-  const t = tierText(isDark);
-  return {
-    tiers: ['low', 'moderate', 'high', 'critical'].map((k) => ({ key: k, color: c[k] })),
-    fill: (v) => c[tierOf(v)],
-    ink: (v) => t[tierOf(v)],
-  };
-}
 
 // A soft glow behind a few headline numbers on the dark theme only: the
 // risk score, the Report Rate and the programme's health. Small, so it

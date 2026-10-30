@@ -89,6 +89,19 @@ const campaignRow = ({ campaign, report }) => ({
   departments: (report.departments || []).map((d) => ({ name: d.name, recipients: d.recipients, clicked: d.clicked, reported: d.reported, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) })),
 });
 
+// each department's emails, clicks, reports and details given away over
+// some campaigns, the most clicked first
+function deptsOf(list) {
+  const byDept = {};
+  list.forEach((x) => (x.report.departments || []).forEach((d) => {
+    const row = (byDept[d.name] ||= { name: d.name, recipients: 0, clicked: 0, reported: 0, compromised: 0 });
+    row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
+  }));
+  return Object.values(byDept)
+    .map((d) => ({ ...d, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) }))
+    .sort((a, b) => (b.clickRate ?? 0) - (a.clickRate ?? 0) || a.name.localeCompare(b.name));
+}
+
 /**
  * The programme over the last `days` days. `items` are { campaign, report }
  * pairs (campaignReport output), past campaigns included so the period
@@ -117,13 +130,15 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     return { to, campaigns: inStep.length, perClick: rate(s.reported, s.clicked), inPeriod: to > from };
   });
 
-  // thirty days at a time over the last six, the newest last
+  // thirty days at a time, `count` steps back, the newest last; each from its
+  // first day, as the period is, so the newest thirty days are the 30-day period
   const STEP = STEP_DAYS * DAY;
-  const months = Array.from({ length: 6 }, (_, k) => {
-    const to = end - (5 - k) * STEP;
-    const s = summary(items.filter((x) => at(x) > to - STEP && at(x) <= to).map((x) => x.report));
-    return { to, campaigns: s.campaigns, openRate: s.openRate, hooked: s.hooked, reportRate: s.reportRate, inPeriod: to > from };
+  const stepsBack = (count) => Array.from({ length: count }, (_, k) => {
+    const to = end - (count - 1 - k) * STEP;
+    const inStep = items.filter((x) => at(x) >= to - STEP && (k === count - 1 ? at(x) <= to : at(x) < to));
+    return { to, ...summary(inStep.map((x) => x.report)), departments: deptsOf(inStep), inPeriod: to > from };
   });
+  const months = stepsBack(6);
 
   const byMotivator = {};
   shown.forEach((x) => { if (x.campaign.motivator) (byMotivator[x.campaign.motivator] ||= []).push(x.report); });
@@ -131,11 +146,6 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     .map(([motivator, reports]) => ({ motivator, ...summary(reports) }))
     .sort((a, b) => (b.hooked ?? 0) - (a.hooked ?? 0) || a.motivator.localeCompare(b.motivator));
 
-  const byDept = {};
-  shown.forEach((x) => (x.report.departments || []).forEach((d) => {
-    const row = (byDept[d.name] ||= { name: d.name, recipients: 0, clicked: 0, reported: 0, compromised: 0 });
-    row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
-  }));
   // each department's clicks on each kind of lure, and each lure's departments
   const pairs = {};
   shown.forEach((x) => (x.report.departments || []).forEach((d) => {
@@ -149,9 +159,7 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
   const deptLures = Object.fromEntries(Object.entries(group('name')).map(([k, v]) => [k, v.sort(byHook)]));
   const lureDepts = Object.fromEntries(Object.entries(group('type')).map(([k, v]) => [k, v.sort(byHook)]));
 
-  const departments = Object.values(byDept)
-    .map((d) => ({ ...d, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) }))
-    .sort((a, b) => (b.clickRate ?? 0) - (a.clickRate ?? 0) || a.name.localeCompare(b.name));
+  const departments = deptsOf(shown);
 
   return {
     basis: { days, end, from, campaigns: shown.length },
@@ -161,8 +169,10 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     campaigns: shown.map(campaignRow),
     trend,
     months,
+    year: stepsBack(12), // the same, over twelve
     motivators,
     departments,
+    deptBefore: deptsOf(earlier), // the departments over the period before
     deptLures,
     lureDepts,
     arrival: { now: arrival(shown.map((x) => x.report)), before: earlier.length ? arrival(earlier.map((x) => x.report)) : null },
@@ -278,7 +288,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
   };
   const departments = last.departments.map((d) => {
     const was = startOf?.departments[d.index];
-    const tr = (key) => sum(shown, (s) => s.departments[d.index].training[key]);
+    const tr = (key, steps = shown) => sum(steps, (s) => s.departments[d.index].training[key]);
     const completed = tr('completed');
     return {
       name: d.name,
@@ -295,6 +305,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
         completion: rate(completed, tr('assigned')),
         quizScore: completed ? sum(shown, (s) => s.departments[d.index].training.quizScore * s.departments[d.index].training.completed) / completed : null,
       },
+      completionBefore: earlier.length ? rate(tr('completed', earlier), tr('assigned', earlier)) : null,
     };
   }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   const now = { ...snap(last), ...flows(shown) };
@@ -307,7 +318,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
     before: startOf ? { ...snap(startOf), ...flows(earlier) } : null,
     moved,
     departments,
-    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
+    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, completion: rate(s.training.completed, s.training.assigned), repeatClickers: s.drivers?.repeatClickers ?? null, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
     tiers: TIERS,
   };
 }

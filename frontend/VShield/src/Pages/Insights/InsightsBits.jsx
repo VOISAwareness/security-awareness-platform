@@ -27,22 +27,23 @@ Returning.Context = Back;
 const unseen = { position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
 
 /**
- * A change against something, on a small chip: a dot in the colour of its
+ * A change against something, on a small chip tinted in the colour of its
  * verdict (`good` when better, `bad` when worse, `context` when there is no
- * change), then the arrow and the signed size in the text's ink. The verdict
+ * change): the arrow and the signed size in the text's ink. The verdict
  * is never colour alone: the arrow and sign say which way it went, and a
  * screen reader hears "better" or "worse" (`say` shows the word too).
  * `c` is change()'s { dir, shown, good }.
  */
 export function Delta({ c, ink, title, onDark = false, say = false }) {
   if (!c) return null;
-  const flat = c.dir === 'flat' || c.good === null || c.good === undefined;
-  const verdict = flat ? 'no change' : c.good ? 'better' : 'worse';
-  const dot = flat ? (ink?.context ?? STEADY_INK) : c.good ? ink.good : ink.bad;
+  const flat = c.dir === 'flat';
+  // a change in a measure that is neither better nor worse (how many were sent)
+  const neutral = !flat && (c.good === null || c.good === undefined);
+  const verdict = flat ? 'no change' : neutral ? 'neither better nor worse' : c.good ? 'better' : 'worse';
+  const tint = flat || neutral ? (ink?.context ?? STEADY_INK) : c.good ? ink.good : ink.bad;
   const sign = c.dir === 'up' ? '+' : c.dir === 'down' ? '−' : '';
   return (
-    <span title={title} data-ins-delta={flat ? 'flat' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${dot} ${flat ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 800, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
-      <span aria-hidden style={{ flexShrink: 0, width: 6, height: 6, borderRadius: 999, background: dot }} />
+    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${tint} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 800, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
       {!flat && <span aria-hidden style={{ fontSize: TYPE.label }}>{c.dir === 'up' ? '▲' : '▼'}</span>}
       <span>{flat ? c.shown : `${sign}${c.shown}`}</span>
       {say ? <span style={{ fontWeight: 700, color: onDark ? 'inherit' : 'var(--muted)' }}>{verdict}</span> : <span style={unseen}>{`, ${verdict}`}</span>}
@@ -310,7 +311,10 @@ export function RowsGrid({ children, minRow = 180, gap = 14, sizes, ...rest }) {
     return cloneElement(c, { 'data-row': row });
   });
   const rows = row + 1;
-  const paged = rows > 1 && h > 0 && (h - gap * (rows - 1)) / rows < minRow;
+  // the smallest row's share of the height, from `sizes` ("minmax(0,1.4fr)")
+  const fr = Array.from({ length: rows }, (_, k) => Number(/([\d.]+)fr/.exec(sizes?.[k] || '')?.[1] || 1));
+  const least = Math.min(...fr) / fr.reduce((a, b) => a + b, 0);
+  const paged = rows > 1 && h > 0 && (h - gap * (rows - 1)) * least < minRow;
   const at = Math.min(page, rows - 1);
   const go = (k) => setPage(Math.max(0, Math.min(rows - 1, k)));
   // the other page named: the next one, or from the last, the one before
