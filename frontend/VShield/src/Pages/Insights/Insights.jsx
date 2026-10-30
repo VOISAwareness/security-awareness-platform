@@ -14,14 +14,15 @@ import { ExportMenu } from '../Leaderboard/BigPicture';
 import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
 import ClayAttention from '../../assets/LeaderboardAssets/ClayAttention.png';
 import ClayGoingWell from '../../assets/LeaderboardAssets/ClayGoingWell.png';
-import { BandGauge, BarcodeMeter, Segmented } from './InsightsCharts';
+import { Segmented } from './InsightsCharts';
 import { Count, Define, Delta, Explain, RiskHow } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignProfile, DepartmentProfile, LureProfile, RiskProfile, TrainingProfile } from './InsightsProfiles';
 import { CampaignsView, DepartmentsView } from './InsightsViews';
 import { SummaryView } from './InsightsSummary';
-import { EASE, HEALTH_WORD, INK, STEADY_INK, alpha, change, eyebrow, glow, healthTone, mixHex, num, pc, pc1, riskInk, riskWord, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
+import { EASE, HEALTH_WORD, INK, STEADY_INK, alpha, change, eyebrow, healthTone, mixHex, num, pc, pc1, small, swap, tierInk, times, TYPE, themeVars } from './insightsUi';
 import { GLOSSARY } from '../../services/glossary';
+import { TARGETS, standing, targetText, zones } from '../../services/insightsTargets';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -104,7 +105,7 @@ const FONT_IMPORT = `
 // The Leaderboard's sheet: a colour tile in the corner, the sheet wrapping
 // round it in an L with a small even gap and a concave corner.
 const CAP_W = 300;
-const CAP_H = 156;
+const CAP_H = 204;
 const L_GAP = 7;
 const L_R = 16;
 const FILLET = L_R + L_GAP;
@@ -147,7 +148,7 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 const SAMPLE = true;
 const FLOOR = 480;
 const COMPACT_BELOW = 700;
-const CAP_H_COMPACT = 112;
+const CAP_H_COMPACT = 140;
 
 // The corner tile: the programme's health, from reports against clicks
 // (health() in bigPictureViews.js). Its clay emblem on the left, its word
@@ -198,17 +199,17 @@ function HealthTile({ m, reduce, capH, compact }) {
       style={{ ...PASTEL_INK, position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: capH, borderRadius: L_R, perspective: 900, cursor: 'pointer', boxShadow: look.lift, transition: 'box-shadow .4s ease', outline: 'none' }}
     >
       <motion.div initial={false} animate={{ rotateY: over ? 180 : 0 }} transition={{ duration: reduce ? 0 : 0.6, ease: EASE }} style={{ position: 'absolute', inset: 0, transformStyle: 'preserve-3d' }}>
-        {/* the front: its emblem on the left, its words on the right */}
-        <div style={{ ...face, display: 'flex', alignItems: 'center', gap: 12, padding: compact ? '0 16px 0 12px' : '0 18px 0 14px' }}>
+        {/* the front: its emblem above its words, centred; side by side when compact */}
+        <div style={{ ...face, display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: compact ? 12 : 4, padding: compact ? '0 16px 0 12px' : '10px 18px' }}>
           <span aria-hidden style={{ position: 'absolute', left: -50, top: -40, width: 200, height: 200, borderRadius: 999, background: `radial-gradient(closest-side, ${look.glow}, transparent)` }} />
           <AnimatePresence mode="wait" initial={false}>
-            <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={compact ? 64 : 92} height={compact ? 64 : 92} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
+            <motion.img key={look.word} className="ins-float" src={look.art} alt="" aria-hidden width={compact ? 64 : 78} height={compact ? 64 : 78} initial={{ opacity: 0, scale: reduce ? 1 : 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reduce ? 1 : 0.8 }} transition={{ duration: 0.35, ease: EASE }} style={{ position: 'relative', flexShrink: 0, objectFit: 'contain', filter: `${look.tint || ''} drop-shadow(0 10px 14px rgba(15,23,42,0.14))` }} />
           </AnimatePresence>
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0, marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right' }}>
+            <motion.div key={look.word} {...swapIn} style={{ position: 'relative', minWidth: 0, marginLeft: compact ? 'auto' : 0, display: 'flex', flexDirection: 'column', alignItems: compact ? 'flex-end' : 'center', textAlign: compact ? 'right' : 'center' }}>
               <span style={{ ...eyebrow, color: '#334155' }}>Last {m.basis.days} days</span>
-              <span className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? TYPE.heading : TYPE.number) : (look.word.length > 10 ? TYPE.number : TYPE.hero), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: compact ? 4 : 7, color: 'var(--text)', textShadow: look.shine, whiteSpace: 'nowrap' }}>{look.word}</span>
-              <span style={{ maxWidth: 170, fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.4, marginTop: compact ? 3 : 6, color: '#475569', textWrap: 'balance' }}>{look.says}</span>
+              <span className="vs-rank" style={{ fontSize: compact ? (look.word.length > 10 ? TYPE.heading : TYPE.number) : (look.word.length > 10 ? TYPE.number : TYPE.hero), fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: compact ? 4 : 5, color: 'var(--text)', textShadow: look.shine, whiteSpace: 'nowrap' }}>{look.word}</span>
+              <span style={{ maxWidth: compact ? 170 : 240, fontSize: TYPE.body, fontWeight: 600, lineHeight: 1.4, marginTop: compact ? 3 : 5, color: '#475569', textWrap: 'balance' }}>{look.says}</span>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -238,68 +239,49 @@ function HealthTile({ m, reduce, capH, compact }) {
   );
 }
 
-// Along the arm: the risk score on a half gauge in its bands, with what it
-// means behind an "i", and how the period's emails were answered; then three
-// measures on barcode meters. Each opens where it is explained. Every tile
-// keeps the same three rows (its name, its number, a strip under it), so
-// the names, the numbers and the strips line up across the arm; a compact
-// band drops the strips.
-const KPI_ROW = { eyebrow: 18, value: 28, foot: 22 };
-const kpiRows = (compact) => (compact ? `${KPI_ROW.eyebrow}px ${KPI_ROW.value}px` : `${KPI_ROW.eyebrow}px ${KPI_ROW.value}px ${KPI_ROW.foot}px`);
-const kpiTile = (compact) => ({ minWidth: 0, display: 'grid', alignContent: 'center', rowGap: compact ? 4 : 8, padding: compact ? '6px 14px' : '10px 14px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', outline: 'none' });
-const rowStyle = (h) => ({ height: h, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 });
+// Along the arm: the four measures, each on the same rows, centred: its
+// name, its figure, its change against the period before, a scale in three
+// stretches (on track, at risk, off track; insightsTargets.js) with a tick at
+// the target and a dot where the measure stands, and the target in words.
+// Each opens where it is explained. A compact band puts the change beside
+// the figure.
+const tileStyle = (compact) => ({ minWidth: 0, display: 'grid', justifyItems: 'center', alignContent: 'center', textAlign: 'center', rowGap: compact ? 3 : 5, padding: compact ? '6px 14px' : '10px 16px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: 'pointer', outline: 'none' });
+const STANDING_WORD = { on: 'on track', risk: 'at risk', off: 'off track' };
 
-function RiskKpi({ p, m, ink, isDark, reduce, onOpen, compact }) {
-  const dc = change(p.now.score, p.before?.score, { kind: 'times', better: 'down' });
-  const colors = tierInk(isDark);
-  const tone = riskInk(p.now.score, isDark);
-  const h = m.now.health;
-  const share = h && h.reportRate + h.clickRate > 0 ? h.reportRate / (h.reportRate + h.clickRate) : 0.5;
-  const bands = [{ to: 20, color: colors.low }, { to: 35, color: colors.moderate }, { to: 60, color: colors.high }, { to: 100, color: colors.critical }];
-  const split = <span style={{ ...small, whiteSpace: 'nowrap' }}>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong> · Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>;
+// The scale: three soft stretches, a dark tick at the target and a dot in the
+// colour of where the value stands.
+function TargetScale({ value, target, ink, compact }) {
+  const tone = { on: ink.good, risk: ink.caution, off: ink.bad };
+  const x = (q) => `${Math.max(0, Math.min(100, (q / target.max) * 100))}%`;
+  const at = standing(value, target);
+  const dot = compact ? 14 : 16;
   return (
-    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi="risk" onClick={onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }} aria-label={`Risk Score ${p.now.score.toFixed(1)} of 100, ${riskWord(p.now.score)}. Open the risk view`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.4, ease: EASE }} style={{ ...kpiTile(compact), gridTemplateColumns: `${compact ? 72 : 108}px minmax(0,1fr)`, gridTemplateRows: kpiRows(compact), columnGap: compact ? 10 : 16, paddingLeft: compact ? 10 : 12 }}>
-      <span style={{ gridRow: '1 / -1', alignSelf: 'center' }}>
-        <BandGauge value={p.now.score} bands={bands} size={compact ? 72 : 108} stroke={compact ? 7 : 9} reduce={reduce} label={`Risk Score ${p.now.score.toFixed(1)} of 100`} glowing={glow(tone, isDark, 0.35)} />
+    <span aria-hidden style={{ position: 'relative', display: 'block', width: '100%', height: dot + 2 }}>
+      <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 7, marginTop: -3.5, display: 'flex', gap: 3 }}>
+        {zones(target).map((z) => <span key={z.standing} style={{ flex: `${(z.to - z.from) * 1000} 1 0`, borderRadius: 999, background: alpha(tone[z.standing], 0.32) }} />)}
       </span>
-      <span data-ins-row="eyebrow" style={rowStyle(KPI_ROW.eyebrow)}>
-        <span style={eyebrow}>Risk Score</span>
-        <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={colors} /></Explain>
-        <span style={{ marginLeft: 'auto' }}><Delta c={dc && { ...dc, shown: dc.shown.replace('×', ' pts') }} ink={ink} title={`Against the start of the last ${p.basis.days} days`} /></span>
-      </span>
-      <span data-ins-row="value" style={{ ...rowStyle(KPI_ROW.value), gap: 7 }}>
-        <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: 3, background: tone }} />
-        <span style={{ fontSize: compact ? TYPE.figure : TYPE.heading, fontWeight: 800, lineHeight: 1, whiteSpace: 'nowrap' }}>{riskWord(p.now.score)}</span>
-        {compact && <span style={{ marginLeft: 'auto', minWidth: 0, overflow: 'hidden' }}>{split}</span>}
-      </span>
-      {!compact && (
-        <span data-ins-row="foot" style={{ height: KPI_ROW.foot, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <span aria-hidden style={{ height: 6, display: 'flex', gap: 2, borderRadius: 999, overflow: 'hidden' }}>
-            <span className="ins-grow-x" style={{ '--d': '0.25s', flexShrink: 0, width: `${share * 100}%`, borderRadius: 999, background: ink.good, transformOrigin: 'left', transition: 'width .5s ease' }} />
-            <span className="ins-grow-x" style={{ '--d': '0.35s', flex: 1, borderRadius: 999, background: ink.bad, transformOrigin: 'right' }} />
-          </span>
-          <span style={{ display: 'flex', justifyContent: 'space-between', ...small, lineHeight: 1 }}>
-            <span>Reported <strong style={{ color: 'var(--text)' }}>{pc(h?.reportRate)}</strong></span>
-            <span>Clicked <strong style={{ color: 'var(--text)' }}>{pc(h?.clickRate)}</strong></span>
-          </span>
-        </span>
-      )}
-    </motion.div>
+      <span style={{ position: 'absolute', left: x(target.target), top: 0, bottom: 0, width: 2, marginLeft: -1, borderRadius: 2, background: 'var(--text)' }} />
+      {at && <span className="ins-pop-in" style={{ position: 'absolute', left: x(value), top: '50%', width: dot, height: dot, margin: `${-dot / 2}px 0 0 ${-dot / 2}px`, boxSizing: 'border-box', borderRadius: 999, background: tone[at], border: '3px solid var(--base)', boxShadow: '0 1px 4px rgba(15,23,42,0.35)', transition: 'left .5s ease' }} />}
+    </span>
   );
 }
-function BarKpi({ k, i, ink, reduce, compact }) {
+
+function TargetKpi({ k, i, ink, reduce, compact }) {
+  const at = standing(k.scaleValue, k.target);
+  const chip = <Delta c={k.delta} ink={ink} title="Against the period before" />;
   return (
-    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi={k.id} title={k.hint} onClick={k.onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } }} aria-label={`${k.label}. Open it`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={{ ...kpiTile(compact), gridTemplateRows: kpiRows(compact) }}>
-      <span data-ins-row="eyebrow" style={rowStyle(KPI_ROW.eyebrow)}>
-        <span style={{ ...eyebrow, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
-        <Define term={k.define} />
-        <span style={{ marginLeft: 'auto' }}><Delta c={k.delta} ink={ink} title="Against the period before" /></span>
+    <motion.div role="button" tabIndex={0} className="ins-kpi" data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} onClick={k.onOpen} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } }} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}. Open it`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.45, delay: reduce ? 0 : 0.05 * i, ease: EASE }} style={tileStyle(compact)}>
+      <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
+        <span style={{ ...eyebrow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
+        {k.explain || <Define term={k.define} />}
       </span>
-      <span data-ins-row="value" style={{ ...rowStyle(KPI_ROW.value), alignItems: 'baseline', paddingTop: 4, gap: 5, whiteSpace: 'nowrap' }}>
-        <span className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.025em', textShadow: k.glow || 'none' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
-        <span style={{ ...small, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.unit}</span>
+      <span data-ins-row="value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="vs-rank" style={{ fontSize: compact ? TYPE.number : TYPE.hero, fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.025em', whiteSpace: 'nowrap' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
+        {compact && chip}
       </span>
-      {!compact && <span data-ins-row="foot" style={{ height: KPI_ROW.foot, minWidth: 0 }}><BarcodeMeter value={k.share} color={k.color} reduce={reduce} height={KPI_ROW.foot} label={`${k.label}: ${pc(k.share)}`} /></span>}
+      {!compact && <span data-ins-row="change">{chip}</span>}
+      <span data-ins-row="scale" style={{ width: '100%' }}><TargetScale value={k.scaleValue} target={k.target} ink={ink} compact={compact} /></span>
+      <span data-ins-row="target" style={{ ...small, fontWeight: 700 }}>Target <strong style={{ color: 'var(--text)', fontWeight: 800 }}>{k.targetText}</strong></span>
     </motion.div>
   );
 }
@@ -352,11 +334,12 @@ const Insights = () => {
 
   const n = m.now;
   const b = m.before;
-  const hr = change(p.now.highRisk, p.before?.highRisk, { kind: 'min', better: 'down' });
+  const pctText = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—');
   const kpis = [
-    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, unit: `${pc1(p.now.highRisk / p.now.people)} of people`, share: p.now.highRisk / p.now.people, delta: hr && { ...hr, shown: hr.shown.replace(' min', '') }, color: ink.danger, hint: 'Clicked more than once, or gave details away', onOpen: () => open('risk') },
-    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails clicked', share: n.hooked, delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), color: ink.bad, hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
-    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—'), unit: 'of emails reported', share: n.reportRate, delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), color: ink.good, glow: glow('#10B981', isDark), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'risk', explain: <Explain label="What the Risk Score means"><RiskHow score={p.now.score} days={p.basis.days} colors={tierInk(isDark)} /></Explain>, label: 'Risk Score', value: p.now.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: TARGETS.riskScore, targetText: targetText(TARGETS.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }), hint: 'Out of 100: under 20 is Low risk', onOpen: () => open('risk') },
+    { id: 'highRisk', define: 'highRisk', label: 'People at high risk', value: p.now.highRisk, format: num, scaleValue: p.now.highRisk / p.now.people, target: TARGETS.highRiskShare, targetText: `${targetText(TARGETS.highRiskShare, '%')} of people`, delta: change(p.now.highRisk, p.before?.highRisk, { kind: 'count', better: 'down' }), hint: `Clicked more than once, or gave details away: ${pc1(p.now.highRisk / p.now.people)} of people`, onOpen: () => open('risk') },
+    { id: 'hooked', define: 'hookRate', label: 'Hook Rate', value: n.hooked === null ? null : n.hooked * 100, format: pctText, scaleValue: n.hooked, target: TARGETS.hookRate, targetText: targetText(TARGETS.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), hint: 'Clicked, of the emails delivered', onOpen: () => go('campaigns') },
+    { id: 'reported', define: 'reportRate', label: 'Report Rate', value: n.reportRate === null ? null : n.reportRate * 100, format: pctText, scaleValue: n.reportRate, target: TARGETS.reportRate, targetText: targetText(TARGETS.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), hint: 'Reported, of the emails delivered', onOpen: () => go('campaigns') },
   ];
 
   const title = 'Insights';
@@ -428,9 +411,8 @@ const Insights = () => {
                 <ExportMenu items={exportItems} />
               </span>
             </div>
-            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.65fr) repeat(3, minmax(0,1fr))', gap: 10 }}>
-              <RiskKpi p={p} m={m} ink={ink} isDark={isDark} reduce={reduce} onOpen={() => open('risk')} compact={compact} />
-              {kpis.map((k, i) => <BarKpi key={k.id} k={k} i={i + 1} ink={ink} reduce={reduce} compact={compact} />)}
+            <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10 }}>
+              {kpis.map((k, i) => <TargetKpi key={k.id} k={k} i={i} ink={ink} reduce={reduce} compact={compact} />)}
             </div>
           </div>
 

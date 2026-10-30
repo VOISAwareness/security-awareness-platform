@@ -117,14 +117,15 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     return { to, campaigns: inStep.length, perClick: rate(s.reported, s.clicked), inPeriod: to > from };
   });
 
-  // thirty days at a time over the last six, the newest last; each from its
+  // thirty days at a time, `count` steps back, the newest last; each from its
   // first day, as the period is, so the newest thirty days are the 30-day period
   const STEP = STEP_DAYS * DAY;
-  const months = Array.from({ length: 6 }, (_, k) => {
-    const to = end - (5 - k) * STEP;
-    const s = summary(items.filter((x) => at(x) >= to - STEP && (k === 5 ? at(x) <= to : at(x) < to)).map((x) => x.report));
+  const stepsBack = (count) => Array.from({ length: count }, (_, k) => {
+    const to = end - (count - 1 - k) * STEP;
+    const s = summary(items.filter((x) => at(x) >= to - STEP && (k === count - 1 ? at(x) <= to : at(x) < to)).map((x) => x.report));
     return { to, ...s, inPeriod: to > from };
   });
+  const months = stepsBack(6);
 
   const byMotivator = {};
   shown.forEach((x) => { if (x.campaign.motivator) (byMotivator[x.campaign.motivator] ||= []).push(x.report); });
@@ -162,6 +163,7 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     campaigns: shown.map(campaignRow),
     trend,
     months,
+    year: stepsBack(12), // the same, over twelve
     motivators,
     departments,
     deptLures,
