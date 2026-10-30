@@ -7,8 +7,8 @@ import { GLOSSARY } from '../../services/glossary';
 import { TARGETS, UNITS, checkTargets, targetsWith, zones } from '../../services/insightsTargets';
 import { EASE, INK, alpha, eyebrow, small, themeVars, TYPE } from './insightsUi';
 
-// Insights' Targets, for admins: where each measure should be. A button by
-// Export opens a dialog with the seven measures. Each has where it is on
+// Insights' Targets, for admins: where each measure should be. "Set
+// targets" in the page's title bar opens a dialog with the seven measures. Each has where it is on
 // track and where it is off track, in the units the page shows (rates in %),
 // with its scale's three stretches as they would be. Save stores them
 // (PUT /insights-targets) against the version read, so a change made since
@@ -51,20 +51,19 @@ const when = (iso) => {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-/** The button by Export that opens the dialog; admins only. */
-export function TargetsButton({ onClick, label = true }) {
+/** "Set targets", in the page's title bar (black on the light theme, glass on the dark); admins only. */
+export function TargetsButton({ onClick, isDark }) {
   return (
     <button
       type="button"
-      className="ins-go"
+      className="ins-bar-btn"
       data-ins-targets
       onClick={onClick}
       title="Set where each measure should be"
-      aria-label="Targets: set where each measure should be"
-      style={{ flexShrink: 0, height: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: label ? '0 12px 0 10px' : '0 9px', borderRadius: 10, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
+      style={{ flexShrink: 0, height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px 0 10px', borderRadius: 8, border: `1px solid ${isDark ? 'var(--card-edge)' : 'rgba(255,255,255,0.28)'}`, background: 'transparent', color: 'inherit', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
     >
       <SlidersHorizontal size={13} strokeWidth={2.4} aria-hidden />
-      {label && 'Targets'}
+      Set targets
     </button>
   );
 }
