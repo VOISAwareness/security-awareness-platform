@@ -24,3 +24,6 @@ email-sender.zip
 url.txt
 response.json
 infra/terraform/build/
+
+# Local dev helpers
+v_export*.js
