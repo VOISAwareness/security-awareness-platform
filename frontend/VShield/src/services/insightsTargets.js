@@ -1,6 +1,7 @@
 /**
- * The programme's targets: where each measure on Insights should be. An
- * admin will set them; until then these defaults stand. Each target has:
+ * The programme's targets: where each measure on Insights should be. These
+ * are the defaults; an admin may set others (GET/PUT /insights-targets), and
+ * targetsWith() puts theirs in place. Each target has:
  *   better - the direction that is better ('down' or 'up');
  *   target - on track up to it ('down') or from it ('up');
  *   atRisk - at risk up to (or from) it; off track beyond;
@@ -35,4 +36,39 @@ export function zones(t) {
 export function targetText(t, unit = '') {
   const v = unit === '%' ? `${Math.round(t.target * 100)}%` : `${t.target}${unit ? ` ${unit}` : ''}`;
   return `${t.better === 'down' ? '≤' : '≥'} ${v}`;
+}
+
+/** How each measure's values read: '%' for a rate (kept as a fraction), '' for the Risk Score (out of 100), 'min' for minutes. */
+export const UNITS = Object.freeze({ riskScore: '', highRiskShare: '%', hookRate: '%', reportRate: '%', gaveDetails: '%', firstReport: 'min', trainingCompletion: '%' });
+// the most a value can be: a whole rate, the top of the Risk Score, a day
+const LIMIT = { '': 100, '%': 1, min: 1440 };
+const limitText = { '': '100', '%': '100%', min: '1,440 min' };
+
+/** Why `target` and `atRisk` (as stored: rates as fractions) cannot stand for measure `key`, or null if they can. */
+export function checkTargets(key, target, atRisk) {
+  const d = TARGETS[key];
+  if (!d) return 'There is no such measure';
+  const hi = LIMIT[UNITS[key]];
+  const fits = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= hi;
+  if (!fits(target) || !fits(atRisk)) return `Use numbers from 0 to ${limitText[UNITS[key]]}`;
+  if (d.better === 'down' && target >= atRisk) return 'The target must be below where off track starts';
+  if (d.better === 'up' && target <= atRisk) return 'The target must be above where off track starts';
+  return null;
+}
+
+/**
+ * The targets in force: the defaults, with what an admin has set in place of
+ * theirs (`set`: GET /insights-targets' { measure: { target, atRisk } }).
+ * A set measure's scale grows to show its edges; anything unknown or that
+ * cannot stand is left at its default.
+ */
+export function targetsWith(set) {
+  const out = {};
+  for (const [key, d] of Object.entries(TARGETS)) {
+    const s = set && typeof set === 'object' ? set[key] : null;
+    if (!s || checkTargets(key, s.target, s.atRisk) !== null) { out[key] = d; continue; }
+    const edge = d.better === 'down' ? s.atRisk : s.target;
+    out[key] = Object.freeze({ ...d, target: s.target, atRisk: s.atRisk, max: Math.min(LIMIT[UNITS[key]], Math.max(d.max, edge * 1.25)) });
+  }
+  return Object.freeze(out);
 }

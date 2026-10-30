@@ -2,7 +2,7 @@ import { Card } from './InsightsCharts';
 import { RowsGrid } from './InsightsBits';
 import { GroupBars, Trend } from './InsightsTrends';
 import { trends } from '../../services/insightsSummary';
-import { TARGETS, targetText } from '../../services/insightsTargets';
+import { targetText } from '../../services/insightsTargets';
 import { day, mins, pc1 } from './insightsUi';
 
 // Insights' Summary: the report leadership reads first, under the band's
@@ -19,9 +19,9 @@ const minutes = (v) => `${Math.round(v)}m`;
 const head = (s) => `30 days to ${day(s.to)}`;
 const steps = (hi, by) => Array.from({ length: Math.floor(hi / by) + 1 }, (_, k) => k * by);
 
-/** The Risk Score, thirty days at a time: green while on target, amber above it. `points`: [{ to, score }]. */
-export function RiskTrend({ points, ink }) {
-  const R = TARGETS.riskScore;
+/** The Risk Score, thirty days at a time: green while on target, amber above it. `points`: [{ to, score }]; `targets` the ones in force. */
+export function RiskTrend({ points, ink, targets }) {
+  const R = targets.riskScore;
   const score = points.map((s) => s.score);
   const lo = Math.floor(Math.min(...score, R.target) / 2) * 2 - 2;
   const hi = Math.ceil(Math.max(...score, R.target) / 2) * 2 + 2;
@@ -46,8 +46,8 @@ export function RiskTrend({ points, ink }) {
 }
 
 /** Reports against clicks, of the emails delivered, thirty days at a time. `points`: [{ to, reportRate, hooked }]. */
-export function ClickedReported({ points, ink }) {
-  const H = TARGETS.hookRate; const P = TARGETS.reportRate;
+export function ClickedReported({ points, ink, targets }) {
+  const H = targets.hookRate; const P = targets.reportRate;
   return (
     <Trend
       points={points}
@@ -78,20 +78,20 @@ export function TrainingBars({ training, ink, here = '' }) {
 }
 
 export function SummaryView({ ctx }) {
-  const { m, p, ink, reduce } = ctx;
+  const { m, p, ink, reduce, targets } = ctx;
   const t = trends(m, p);
-  const G = TARGETS.gaveDetails; const F = TARGETS.firstReport;
+  const G = targets.gaveDetails; const F = targets.firstReport;
   const gaveHi = Math.max(G.atRisk * 2, ...t.months.map((s) => s.gave || 0)) * 1.15;
   const firstHi = Math.max(F.target + 5, ...t.months.map((s) => s.firstReport || 0)) * 1.15;
   const over = (v, T) => (v > T.target ? ink.bad : ink.good);
   return (
     <RowsGrid data-ins-summary minRow={230}>
       <Card i={0} reduce={reduce} title="Risk Score" sub="Green while on target, amber while at Moderate risk" style={{ gridColumn: 'span 6' }} data-ins-trend="risk">
-        <RiskTrend points={t.risk} ink={ink} />
+        <RiskTrend points={t.risk} ink={ink} targets={targets} />
       </Card>
 
       <Card i={1} reduce={reduce} title="Clicked vs reported" sub="Share of emails delivered · green where reporting leads, red where clicking leads" style={{ gridColumn: 'span 6' }} data-ins-trend="culture">
-        <ClickedReported points={t.months} ink={ink} />
+        <ClickedReported points={t.months} ink={ink} targets={targets} />
       </Card>
 
       <Card i={2} reduce={reduce} title="Gave details away" sub={`Share of emails with details entered · green up to the ${pct0(G.target)} target, red above`} style={{ gridColumn: 'span 4' }} data-ins-trend="gave">
