@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TARGETS, standing, targetText, zones } from './insightsTargets.js';
+import { TARGETS, UNITS, checkTargets, standing, targetText, targetsWith, zones } from './insightsTargets.js';
 
 test('standing: on track up to the target, at risk up to the next edge, off track beyond', () => {
   const t = TARGETS.hookRate; // lower is better: 5%, 10%
@@ -39,4 +39,38 @@ test('the target as it reads', () => {
   assert.equal(targetText(TARGETS.reportRate, '%'), '≥ 50%');
   assert.equal(targetText(TARGETS.highRiskShare, '%'), '≤ 10%');
   assert.equal(targetText(TARGETS.firstReport, 'min'), '≤ 15 min');
+});
+
+test('every target has a unit', () => {
+  assert.deepEqual(Object.keys(UNITS).sort(), Object.keys(TARGETS).sort());
+});
+
+test('checkTargets: numbers in range, the target on the better side of the at-risk edge', () => {
+  for (const [key, t] of Object.entries(TARGETS)) assert.equal(checkTargets(key, t.target, t.atRisk), null, `${key} default`);
+  assert.equal(checkTargets('hookRate', 0.04, 0.08), null);
+  assert.match(checkTargets('hookRate', 0.08, 0.04), /below/);
+  assert.match(checkTargets('hookRate', 0.05, 0.05), /below/);
+  assert.match(checkTargets('reportRate', 0.3, 0.5), /above/);
+  assert.match(checkTargets('hookRate', 5, 10), /0 to 100%/); // a rate is a fraction
+  assert.match(checkTargets('riskScore', -1, 35), /0 to 100$/);
+  assert.match(checkTargets('firstReport', 15, 2000), /1,440 min/);
+  assert.match(checkTargets('hookRate', NaN, 0.1), /numbers/);
+  assert.match(checkTargets('hookRate', '0.05', 0.1), /numbers/);
+  assert.match(checkTargets('openRate', 0.1, 0.2), /no such/);
+});
+
+test('targetsWith: an admin\'s targets in place of the defaults, the rest unchanged', () => {
+  assert.deepEqual(targetsWith(null), TARGETS);
+  assert.deepEqual(targetsWith([]), TARGETS);
+  const t = targetsWith({ hookRate: { target: 0.04, atRisk: 0.08 }, riskScore: { target: 15, atRisk: 45 }, openRate: { target: 0.1, atRisk: 0.2 }, reportRate: { target: 0.2, atRisk: 0.6 } });
+  assert.deepEqual([t.hookRate.target, t.hookRate.atRisk, t.hookRate.better], [0.04, 0.08, 'down']);
+  assert.equal(t.hookRate.max, TARGETS.hookRate.max);
+  // the scale grows to show the at-risk edge, past the default's end
+  assert.equal(t.riskScore.max, 45 * 1.25);
+  // unknown measures are ignored; a pair that cannot stand keeps the default
+  assert.equal(t.openRate, undefined);
+  assert.deepEqual(t.reportRate, TARGETS.reportRate);
+  assert.deepEqual(t.gaveDetails, TARGETS.gaveDetails);
+  // a rate's scale never passes 100%
+  assert.equal(targetsWith({ reportRate: { target: 0.95, atRisk: 0.8 } }).reportRate.max, 1);
 });
