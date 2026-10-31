@@ -72,3 +72,32 @@ export function targetsWith(set) {
   }
   return Object.freeze(out);
 }
+
+// a value kept to the precision its measure shows: rates to 0.1%, the Risk
+// Score to 0.1, minutes to the minute
+const tidy = (key, v) => {
+  const u = UNITS[key];
+  return u === '%' ? Math.round(v * 1000) / 1000 : u === 'min' ? Math.round(v) : Math.round(v * 10) / 10;
+};
+
+/**
+ * A target with its at-risk edge, for the dialog that asks only for the
+ * target: the edge keeps the default's proportion to its target (Hook Rate:
+ * 5% and 10%, so a target of 4% is at risk up to 8%), within the measure's
+ * range.
+ */
+export function pairFor(key, target) {
+  const d = TARGETS[key];
+  const atRisk = Math.min(LIMIT[UNITS[key]], tidy(key, target * (d.atRisk / d.target)));
+  return { target, atRisk };
+}
+
+/** Why `target` (as stored: a rate as a fraction) cannot be measure `key`'s target in the one-number dialog, or null if it can. */
+export function checkTarget(key, target) {
+  const u = UNITS[key];
+  const hi = LIMIT[u];
+  if (typeof target !== 'number' || !Number.isFinite(target) || target < 0 || target > hi) return `Use a number from 0 to ${limitText[u]}`;
+  const { atRisk } = pairFor(key, target);
+  if (checkTargets(key, target, atRisk) !== null) return TARGETS[key].better === 'down' ? `Use a number below ${limitText[u]}` : 'Use a number above 0';
+  return null;
+}
