@@ -21,11 +21,12 @@ const matches = (q) => {
   return s ? (x) => x.name.toLowerCase().includes(s) || (x.email || '').toLowerCase().includes(s) : null;
 };
 
-/** `view` is { show, dept, level, q, sort }. Equal values keep board order, bottom first when the lowest points lead. */
+/** `view` is { show, dept, level, lure, q, sort }; `lure` keeps those who clicked that campaign type. Equal values keep board order, bottom first when the lowest points lead. */
 export function peopleShown(r, view) {
   const filter = PEOPLE_FILTERS.find((f) => f.id === view.show) || PEOPLE_FILTERS[0];
   let list = r.people.filter(filter.test);
   if (view.dept && view.dept !== 'all') list = list.filter((x) => x.dept === view.dept);
+  if (view.lure) list = list.filter((x) => (x.clickedTypes || []).includes(view.lure));
   if (view.level && view.level !== 'all') list = list.filter((x) => x.groupNow === view.level);
   const q = matches(view.q);
   if (q) list = list.filter(q);
@@ -35,7 +36,7 @@ export function peopleShown(r, view) {
 }
 
 /** Whether a People view narrows anything (else it shows everyone). */
-export const peopleFiltered = (view) => (view.show && view.show !== 'all') || (view.dept && view.dept !== 'all') || (view.level && view.level !== 'all') || Boolean((view.q || '').trim());
+export const peopleFiltered = (view) => (view.show && view.show !== 'all') || (view.dept && view.dept !== 'all') || (view.level && view.level !== 'all') || Boolean(view.lure) || Boolean((view.q || '').trim());
 
 /** `view` is { q, sort }. */
 export function departmentsShown(r, view) {

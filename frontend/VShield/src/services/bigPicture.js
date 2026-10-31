@@ -134,12 +134,15 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
         const rep = clamp(report.rates.report * REPORT_BY_GROUP[g] * (2 - lean(p.dept, 0.9)), 0, 0.95 - click);
         const u = hash01(`${p.key}|${c.id}|e`);
         let d = 0;
+        let did = null; // what they did with it: reported, clicked or gave (details away)
         if (u < rep) {
           d = pts.Reported;
+          did = 'reported';
           seen[i].reported += 1;
         } else if (u < rep + click) {
           const gaveAway = hash01(`${p.key}|${c.id}|x`) < gave;
           d = pts.Clicked + (gaveAway ? pts.Compromised : 0);
+          did = gaveAway ? 'gave' : 'clicked';
           seen[i].clicked += 1;
           if (gaveAway) seen[i].gave += 1;
         }
@@ -154,7 +157,7 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
         }
         seen[i].delta += d;
         seen[i].took += 1;
-        seen[i].events.push({ type: c.type, click, rep });
+        seen[i].events.push({ type: c.type, click, rep, did });
       });
     });
     return { seen, earned, lost, book };
@@ -227,6 +230,8 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
       reported: s.reported,
       clicked: s.clicked,
       gave: s.gave,
+      // the campaign types they clicked (Insights' "See the people" asks for one)
+      clickedTypes: [...new Set(s.events.filter((e) => e.did === 'clicked' || e.did === 'gave').map((e) => e.type))].sort(),
       moved: !s.took ? null : ln > lb ? 'up' : ln < lb ? 'down' : null,
       belowZero: p.points < 0,
       fellBelowZero: s.took > 0 && before >= 0 && p.points < 0,

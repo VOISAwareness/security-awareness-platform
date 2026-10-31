@@ -244,7 +244,7 @@ export function ExportMenu({ items, picked = 0 }) {
  * Departments) and the Export menu in its corner, and under them a strip
  * saying whether people are improving; below, the story in three parts.
  */
-export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDays }) {
+export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDays, opening = null }) {
   const ink = isDark ? REPORT_INK.dark : REPORT_INK.light;
   const { CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK } = shell;
   const scopeKey = campaign ? campaign.id : 'org';
@@ -258,7 +258,13 @@ export function BigPictureSheet({ r, campaign, isDark, canSeePeople, shell, onDa
     depts: { sort: { key: 'perPerson', dir: 'asc' }, q: '', page: 0, open: null, openView: { q: '', page: 0 } },
     deptPicked: new Set(),
   });
-  const [kept, setState] = useState(fresh);
+  // opened from Insights ("See the people"): straight to People, narrowed
+  // to its department and campaign type (`opening`)
+  const [kept, setState] = useState(() => {
+    const s = fresh();
+    if (!opening || campaign || !canSeePeople) return s;
+    return { ...s, tab: opening.tab || 'people', people: { ...s.people, ...opening.people } };
+  });
   const state = kept.scope === scopeKey ? kept : fresh(); // a new scope starts afresh
   const { tab } = state;
   const set = (patch) => setState({ ...state, ...patch });

@@ -96,7 +96,37 @@ them measure by measure (`targetsWith()`). The dialog asks for the target
 only; the at-risk edge keeps the default's proportion (`pairFor()`). The
 API stores both edges, so either way of setting them reads the same.
 
-## 6. Adding a page or a measure
+## 6. From Insights to the people, and back
+
+A figure in Insights can lead to the people behind it: on a campaign type
+opened inside a department, **See the people** (admins only, as the Big
+Picture's People list is) opens Leaderboard › The Big Picture on People,
+narrowed to that department and to those who clicked that campaign type.
+
+The two pages pass the view in the router's navigation state:
+
+```
+Insights ──► /leaderboard  state: { view: 'reports',
+                                    people: { dept, lure },
+                                    back: { path, label, restore } }
+/leaderboard ──► Insights  state: { restore: { days, tab, trail } }
+```
+
+- `people` narrows the People list. `lure` keeps the people whose record
+  shows they clicked that campaign type (`clickedTypes`, from
+  `services/bigPicture.js`); it shows as a chip that can be cleared.
+- `back` turns the Leaderboard's back button into "Insights · Cyber
+  Security · Travel scam". Following it returns `restore`, from which
+  Insights rebuilds the same period, tab and trail of what was open.
+- Before leaving, Insights stores `restore` on its own history entry too,
+  so the browser's Back works the same way.
+
+With sample data the two pages read different samples (Insights about
+15,000 people, the Big Picture the board's 104), so a narrow filter can
+find no one; the list then says so and offers to widen it. With real data
+both read the same events and people.
+
+## 7. Adding a page or a measure
 
 - **A page:** read `ctx.m` and `ctx.p`, and let the scope do the rest. Use
   `ctx.company` only to set a department against the company.

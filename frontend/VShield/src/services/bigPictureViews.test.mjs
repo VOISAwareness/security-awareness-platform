@@ -73,3 +73,15 @@ test('findingPeople: a team finding opens on its team, and on any other departme
   assert.equal(findingPeople(b, { dept: team, q: '' }).length, R.people.filter((x) => x.dept === team).length);
   assert.ok(findingPeople(b, { dept: other, q: '' }).every((x) => x.dept === other));
 });
+
+test('peopleShown: a campaign type keeps the people who clicked one, in a department too', () => {
+  const clicked = peopleShown(R, { ...ALL, lure: 'IT lure' });
+  assert.ok(clicked.length > 0 && clicked.length < 120);
+  assert.ok(clicked.every((x) => x.clickedTypes.includes('IT lure') && x.clicked > 0));
+  // everyone who clicked at all clicked this, the only type in the sample
+  assert.equal(clicked.length, R.people.filter((x) => x.clicked > 0).length);
+  const inHR = peopleShown(R, { ...ALL, lure: 'IT lure', dept: 'HR' });
+  assert.ok(inHR.length > 0 && inHR.every((x) => x.dept === 'HR'));
+  assert.equal(peopleShown(R, { ...ALL, lure: 'Travel scam' }).length, 0);
+  assert.equal(peopleFiltered({ ...ALL, lure: 'IT lure' }), true);
+});

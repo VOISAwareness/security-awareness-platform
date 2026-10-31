@@ -672,8 +672,11 @@ const Leaderboard = () => {
   const closeBadges = useCallback(() => setBadges(null), []);
   // A badge on the board: open it in All badges, saying whose it is.
   const openBadge = useCallback((level, who) => setBadges({ selected: level.id, subject: who ? { name: who, levelId: level.id } : null }), []);
-  // Insights can open The Big Picture directly (a department's "See its people")
+  // Insights can open The Big Picture directly ("See the people"): on its
+  // People, narrowed (`people`: { dept, lure }), with the way back to the
+  // view it came from (`back`: { path, label, restore })
   const opening = useLocation().state;
+  const back = opening?.back || null;
   const [pickedView, setView] = useState(opening?.view === 'reports' ? 'reports' : 'global'); // 'global' | 'campaign' | 'reports'
   const view = (pickedView === 'campaign' && canCampaigns) || (pickedView === 'reports' && canReports) ? pickedView : 'global';
   const [pictureOf, setPictureOf] = useState('org'); // The Big Picture: 'org' or a campaign id
@@ -869,12 +872,12 @@ const Leaderboard = () => {
           <button
             type="button"
             data-lb-back
-            onClick={() => navigate('/my-space')}
-            aria-label="Back to My Space"
+            onClick={() => (back ? navigate(back.path, { state: { restore: back.restore } }) : navigate('/my-space'))}
+            aria-label={back ? `Back to ${back.label}` : 'Back to My Space'}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 8, border: isDark ? '1px solid rgba(15,23,42,0.18)' : '1px solid rgba(255,255,255,0.2)', background: isDark ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.08)', color: 'inherit', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-            My Space
+            {back ? back.label : 'My Space'}
           </button>
         </div>
 
@@ -970,6 +973,7 @@ const Leaderboard = () => {
               canSeePeople={canSeePeople}
               shell={{ CAP_W, CAP_H, L_GAP, L_R, FILLET, PASTEL_INK }}
               onDays={setPictureDays}
+              opening={opening?.people ? { tab: 'people', people: opening.people } : null}
             />
           )}
 
