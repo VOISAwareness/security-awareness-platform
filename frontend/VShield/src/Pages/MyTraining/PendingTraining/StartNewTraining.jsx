@@ -164,7 +164,7 @@ const StartNewTraining = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
-  const [isPublishing] = useState(false);
+  const isPublishing = false;
   const [isVideoCompleted, setIsVideoCompleted] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
   const [quizSubmitted, setQuizSubmitted] = useState(false);

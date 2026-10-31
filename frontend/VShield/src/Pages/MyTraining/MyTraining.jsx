@@ -126,7 +126,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
         style={{ zoom: VarTrainingScale }}
         className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
       >
-        {/* ── TOP HEADER BAR: "Campaigns" ── */}
+        {/* ── TOP HEADER BAR: "My Training" ── */}
         <div
           className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
             }`}
@@ -150,7 +150,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
             style={{ width: VarLeftSectionWidth, flex: `0 0 ${VarLeftSectionWidth}` }}
             className="flex flex-col gap-3.5 min-w-[280px]"
           >
-            {/* 1. ON GOING CAMPAIGNS CAPSULE */}
+            {/* 1. ON GOING MY TRAINING CAPSULE */}
             <div
               onClick={() => setActiveTab('pending')}
               style={{
@@ -180,7 +180,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 3. HISTORICAL CAMPAIGNS CAPSULE */}
+            {/* 3. HISTORICAL MY TRAINING CAPSULE */}
             <div
               onClick={() => setActiveTab('historical')}
               style={{
@@ -267,7 +267,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
 
             </div>
 
-            {/* 🌟 2. CONTINUOUS LOWER L-BASE: CAMPAIGNS FEED */}
+            {/* 🌟 2. CONTINUOUS LOWER L-BASE: MY TRAINING FEED */}
 
             {/* LOWER SECTION: PENDING TABLE OR TRAINING HISTORY HEADER */}
             <div
