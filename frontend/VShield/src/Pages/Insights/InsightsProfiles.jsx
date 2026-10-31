@@ -383,7 +383,9 @@ export function RiskProfile({ ctx, frame }) {
 // ------------------------------------------------------------------ lure
 
 export function LureProfile({ ctx, frame, type }) {
-  const { m, ink, isDark, reduce, open } = ctx;
+  // `scope`: the department it was opened in (its part of every campaign);
+  // `company`: the company's figures, to set it against
+  const { m, ink, isDark, reduce, open, scope, company } = ctx;
   // the campaigns sit two to a row where both names fit, else one
   const [campsBox, { w: campsW }] = useSize();
   const pair = campsW >= 880;
@@ -403,9 +405,9 @@ export function LureProfile({ ctx, frame, type }) {
       reduce={reduce}
       isDark={isDark}
       art={<LureTile type={type} size={54} tone="var(--base)" />}
-      eyebrowText="Campaign type"
+      eyebrowText={scope ? `Campaign type · ${scope}` : 'Campaign type'}
       title={type}
-      sub={`${l.campaigns} ${l.campaigns === 1 ? 'campaign' : 'campaigns'} · ${num(l.delivered)} emails in the last ${m.basis.days} days`}
+      sub={`${l.campaigns} ${l.campaigns === 1 ? 'campaign' : 'campaigns'} · ${num(l.delivered)} emails${scope ? ` to ${scope}` : ''} in the last ${m.basis.days} days`}
       figures={[
         { label: GLOSSARY.hookRate.name, value: pc1(l.hooked), delta: <Delta c={vsAll} ink={ink} title="Against every campaign type together" />, sub: 'against every type' },
         // the same base as the Hook Rate and the blocks below: the emails delivered
@@ -417,7 +419,7 @@ export function LureProfile({ ctx, frame, type }) {
         <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 6' }}>
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
             <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={34} legendCols={2} />
-            <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people who got one clicked it</Insight>
+            <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people{scope ? ` in ${scope}` : ''} who got one clicked it</Insight>
           </div>
         </Card>
         <Card i={4} reduce={reduce} title="All campaign types" define="hookRate" sub={GLOSSARY.hookRate.name} style={{ gridColumn: 'span 6' }}>
@@ -447,18 +449,22 @@ export function LureProfile({ ctx, frame, type }) {
           </div>
         </Card>
       </Stack>
-      <Card i={5} reduce={reduce} title="Departments" define="hookRate" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 4' }} data-ins-lure-depts>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>
-          <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
-            <Row key={x.name} k={k} cols="22px minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.hooked)}, ${num(x.clicked)} of ${num(x.recipients)} clicked. Open its profile`}>
-              <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-              <span style={nameStyle}>{x.name}</span>
-              <Meter value={x.hooked} max={maxDept} color={ink.bad} label={pc1(x.hooked)} sub={`${num(x.clicked)} of ${num(x.recipients)}`} delay={rowDelay(k)} reduce={reduce} height={4} />
-              {arrow}
-            </Row>
-          )} />
-        </div>
-      </Card>
+      {scope ? (
+        <AgainstCard i={5} reduce={reduce} ink={ink} title={`${scope} against the company`} sub={`${type}, the last ${m.basis.days} days`} us={l} them={company.lures.find((x) => x.type === type)} usLabel={scope} themLabel="The company" style={{ gridColumn: 'span 4' }} data-ins-lure-against />
+      ) : (
+        <Card i={5} reduce={reduce} title="Departments" define="hookRate" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 4' }} data-ins-lure-depts>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+            <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
+              <Row key={x.name} k={k} cols="22px minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.hooked)}, ${num(x.clicked)} of ${num(x.recipients)} clicked. Open its profile`}>
+                <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
+                <span style={nameStyle}>{x.name}</span>
+                <Meter value={x.hooked} max={maxDept} color={ink.bad} label={pc1(x.hooked)} sub={`${num(x.clicked)} of ${num(x.recipients)}`} delay={rowDelay(k)} reduce={reduce} height={4} />
+                {arrow}
+              </Row>
+            )} />
+          </div>
+        </Card>
+      )}
     </ProfileShell>
   );
 }
@@ -467,7 +473,7 @@ export function LureProfile({ ctx, frame, type }) {
 
 // Each measure as this campaign against the average, a slim bar apiece. On
 // a short card the change chips give way (the band at the top has them).
-function VersusBars({ groups, max, reduce }) {
+function VersusBars({ groups, max, reduce, labelW = 82 }) {
   return (
     <div className="ins-vs" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {groups.map((g, gi) => (
@@ -479,8 +485,8 @@ function VersusBars({ groups, max, reduce }) {
           {g.rows.map((r, k) => {
             const wd = `${Math.min(1, (r.value || 0) / max) * 100}%`;
             return (
-              <div key={r.key} className="ins-vs-row" style={{ display: 'grid', gridTemplateColumns: '82px minmax(0,1fr) 44px', alignItems: 'center', gap: 10, marginTop: k ? 6 : 0 }}>
-                <span style={{ ...small, fontWeight: k ? 600 : 800, color: k ? 'var(--muted)' : 'var(--text)' }}>{r.label}</span>
+              <div key={r.key} className="ins-vs-row" style={{ display: 'grid', gridTemplateColumns: `${labelW}px minmax(0,1fr) 44px`, alignItems: 'center', gap: 10, marginTop: k ? 6 : 0 }}>
+                <span style={{ ...small, fontWeight: k ? 600 : 800, color: k ? 'var(--muted)' : 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>
                 <span className="ins-vs-bar" style={{ height: 14, borderRadius: 7, background: 'var(--plate)', overflow: 'hidden' }}>
                   <Fill width={wd} color={r.color} delay={0.1 + 0.05 * (gi * 2 + k)} reduce={reduce} radius={7} />
                 </span>
@@ -494,11 +500,35 @@ function VersusBars({ groups, max, reduce }) {
   );
 }
 
+// Inside a department (Insights' scope): in place of the list of
+// departments, the department's Hook Rate, Report Rate and details given
+// away beside those of everyone (`them`), each with the difference.
+function AgainstCard({ i, reduce, ink, title, sub, us, them, usLabel, themLabel, action, ...rest }) {
+  const gave = (x) => (x?.delivered ? x.compromised / x.delivered : null);
+  const rows = [
+    { key: 'h', label: GLOSSARY.hookRate.name, a: us.hooked, b: them?.hooked, color: ink.bad, better: 'down' },
+    { key: 'r', label: GLOSSARY.reportRate.name, a: us.reportRate, b: them?.reportRate, color: ink.good, better: 'up' },
+    { key: 'g', label: GLOSSARY.gaveDetails.name, a: gave(us), b: gave(them), color: ink.severe, better: 'down' },
+  ];
+  return (
+    <Card i={i} reduce={reduce} title={title} sub={sub} action={action} {...rest}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', marginTop: 6 }}>
+        <VersusBars
+          reduce={reduce}
+          labelW={104}
+          max={Math.max(0.01, ...rows.flatMap((x) => [x.a || 0, x.b || 0])) * 1.1}
+          groups={rows.map((x) => ({ key: x.key, label: x.label, delta: <Delta c={change(x.a, x.b, { kind: 'pct', better: x.better })} ink={ink} title={`Against ${themLabel.toLowerCase()}`} />, rows: [{ key: 'u', label: usLabel, value: x.a, color: x.color, text: pc1(x.a) }, { key: 't', label: themLabel, value: x.b, color: ink.context, text: pc1(x.b) }] }))}
+        />
+      </div>
+    </Card>
+  );
+}
+
 // A campaign's departments: its name, then its Hook Rate and Report Rate.
 const CAMP_DEPT_COLS = '22px minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 12px';
 
 export function CampaignProfile({ ctx, frame, id }) {
-  const { m, ink, isDark, reduce, open } = ctx;
+  const { m, ink, isDark, reduce, open, scope, company } = ctx;
   const c = m.campaigns.find((x) => x.id === id);
   if (!c) return null;
   const avg = m.now;
@@ -513,9 +543,9 @@ export function CampaignProfile({ ctx, frame, id }) {
       reduce={reduce}
       isDark={isDark}
       art={<LureTile type={c.type} size={54} tone="var(--base)" />}
-      eyebrowText={`Campaign · ${c.type}`}
+      eyebrowText={`Campaign · ${c.type}${scope ? ` · ${scope}` : ''}`}
       title={c.name}
-      sub={`Started ${c.started} · ${num(c.delivered)} emails delivered`}
+      sub={`Started ${c.started} · ${num(c.delivered)} emails delivered${scope ? ` to ${scope}` : ''}`}
       figures={[
         { label: GLOSSARY.hookRate.name, value: pc1(c.hooked), delta: <Delta c={hook} ink={ink} title="Against the period's average" />, sub: 'against the average' },
         { label: GLOSSARY.reportRate.name, value: pc1(c.reportRate), delta: <Delta c={report} ink={ink} title="Against the period's average" />, sub: 'against the average' },
@@ -535,27 +565,31 @@ export function CampaignProfile({ ctx, frame, id }) {
               reduce={reduce}
               max={Math.max(c.hooked, avg.hooked, c.reportRate, avg.reportRate) * 1.1}
               groups={[
-                { key: 'h', label: GLOSSARY.hookRate.name, delta: <Delta c={hook} ink={ink} />, rows: [{ key: 'c', label: 'This campaign', value: c.hooked, color: ink.bad, text: pc1(c.hooked) }, { key: 'a', label: 'The average', value: avg.hooked, color: ink.context, text: pc1(avg.hooked) }] },
-                { key: 'r', label: GLOSSARY.reportRate.name, delta: <Delta c={report} ink={ink} />, rows: [{ key: 'c', label: 'This campaign', value: c.reportRate, color: ink.good, text: pc1(c.reportRate) }, { key: 'a', label: 'The average', value: avg.reportRate, color: ink.context, text: pc1(avg.reportRate) }] },
+                { key: 'h', label: GLOSSARY.hookRate.name, delta: <Delta c={hook} ink={ink} />, rows: [{ key: 'c', label: 'This campaign', value: c.hooked, color: ink.bad, text: pc1(c.hooked) }, { key: 'a', label: scope ? 'Its average' : 'The average', value: avg.hooked, color: ink.context, text: pc1(avg.hooked) }] },
+                { key: 'r', label: GLOSSARY.reportRate.name, delta: <Delta c={report} ink={ink} />, rows: [{ key: 'c', label: 'This campaign', value: c.reportRate, color: ink.good, text: pc1(c.reportRate) }, { key: 'a', label: scope ? 'Its average' : 'The average', value: avg.reportRate, color: ink.context, text: pc1(avg.reportRate) }] },
               ]}
             />
           </div>
         </Card>
       </Stack>
-      <Card i={5} reduce={reduce} title="Departments" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 5' }} data-ins-campaign-depts>
-        <RowHeads cols={CAMP_DEPT_COLS}><span /><span>Department</span><span>{GLOSSARY.hookRate.name}</span><span>{GLOSSARY.reportRate.name}</span><span /></RowHeads>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
-            <Row key={x.name} k={k} cols={CAMP_DEPT_COLS} onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.clickRate)}, ${GLOSSARY.reportRate.name} ${pc1(x.reportRate)}. Open its profile`}>
-              <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-              <span style={nameStyle}>{x.name}</span>
-              <Meter value={x.clickRate} max={maxRate} color={ink.bad} label={pc1(x.clickRate)} delay={rowDelay(k)} reduce={reduce} height={4} />
-              <Meter value={x.reportRate} max={maxRate} color={ink.good} label={pc1(x.reportRate)} delay={rowDelay(k)} reduce={reduce} height={4} />
-              {arrow}
-            </Row>
-          )} />
-        </div>
-      </Card>
+      {scope ? (
+        <AgainstCard i={5} reduce={reduce} ink={ink} title={`${scope} against the whole campaign`} sub={`Everyone ${c.name} went to`} us={c} them={company.campaigns.find((x) => x.id === id)} usLabel={scope} themLabel="Whole campaign" style={{ gridColumn: 'span 5' }} data-ins-campaign-against />
+      ) : (
+        <Card i={5} reduce={reduce} title="Departments" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 5' }} data-ins-campaign-depts>
+          <RowHeads cols={CAMP_DEPT_COLS}><span /><span>Department</span><span>{GLOSSARY.hookRate.name}</span><span>{GLOSSARY.reportRate.name}</span><span /></RowHeads>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
+              <Row key={x.name} k={k} cols={CAMP_DEPT_COLS} onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.clickRate)}, ${GLOSSARY.reportRate.name} ${pc1(x.reportRate)}. Open its profile`}>
+                <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
+                <span style={nameStyle}>{x.name}</span>
+                <Meter value={x.clickRate} max={maxRate} color={ink.bad} label={pc1(x.clickRate)} delay={rowDelay(k)} reduce={reduce} height={4} />
+                <Meter value={x.reportRate} max={maxRate} color={ink.good} label={pc1(x.reportRate)} delay={rowDelay(k)} reduce={reduce} height={4} />
+                {arrow}
+              </Row>
+            )} />
+          </div>
+        </Card>
+      )}
     </ProfileShell>
   );
 }

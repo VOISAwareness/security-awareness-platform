@@ -30,3 +30,19 @@ test('campaignReport: points follow the live rules', () => {
   assert.equal(doubled.points.earned, base.points.earned * 2);
   assert.equal(doubled.points.lost, base.points.lost * 2);
 });
+
+test('campaignReport: each department\'s part has the whole report\'s counts and times', () => {
+  for (const c of CAMPAIGNS) {
+    const r = campaignReport(c, { depts: DEPTS, personAt });
+    for (const d of r.departments) {
+      assert.equal(d.delivered, d.recipients, c.id);
+      assert.ok(d.opened >= Math.max(d.clicked, d.reported) && d.opened <= d.delivered, `${c.id} ${d.name} opened`);
+      assert.ok(d.trained <= d.clicked && d.complained >= 0, `${c.id} ${d.name}`);
+      if (d.reported > 0) assert.ok(d.timing.firstReport >= r.timing.firstReport && d.timing.medianReport > d.timing.firstReport, `${c.id} ${d.name} times`);
+      else assert.equal(d.timing.firstReport, null);
+    }
+    // the earliest department's first report is the campaign's
+    const firsts = r.departments.map((d) => d.timing.firstReport).filter((x) => x !== null);
+    if (firsts.length) assert.equal(Math.min(...firsts), r.timing.firstReport, c.id);
+  }
+});

@@ -304,6 +304,10 @@ autosave), `points-ledger` (points, written by `points-engine`) and `settings`
 (PK `settingId`: the admin's settings, one row each; the first is Insights'
 targets).
 
+How Insights reads these (its sources, the company/department scope, and
+what the reports API must return per department) is in
+[`docs/insights-data.md`](docs/insights-data.md).
+
 Canonical field names are **camelCase**. Canonical campaign statuses are the
 backend enum:
 
