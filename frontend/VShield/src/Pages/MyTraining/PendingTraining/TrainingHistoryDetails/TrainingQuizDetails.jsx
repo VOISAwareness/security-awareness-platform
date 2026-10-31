@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useParams } from "react-router-dom";
 
@@ -15,13 +15,13 @@ import {
   Info,
 } from "lucide-react";
 
-import { useUserType } from "../../../UserTypeContext/UserTypeContext";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 
-import trainingAllocationData from "../data/TrainingAllocationData.json";
+import trainingAllocationData from "../../TrainingAllocationData.json";
 
-import trainingQuizData from "../TrainingQuiz.json";
+import trainingQuizData from "../../TrainingQuiz.json";
 
-import trainingPathData from "../TrainingPath.json";
+import trainingPathData from "../../TrainingPath.json";
 
 /* -------------------------------------------------------------------------- */
 
@@ -375,9 +375,9 @@ const Ring = ({
             x1="50"
             y1="1"
             x2="50"
-            y2="16"
-            stroke={isDark ? "#FFFFFF" : "#000000"}
-            strokeWidth="3"
+            y2="14"
+            stroke={isDark ? "#FFFFFF" : "#8ED973"}
+            strokeWidth="5"
             strokeLinecap="round"
             transform={`rotate(${passingScore * 3.6} 50 50)`}
           />
@@ -389,7 +389,9 @@ const Ring = ({
           {Math.round(value)}%
         </span>
         {caption && (
-          <span className="mt-1 text-[9px] font-semibold leading-tight text-center">{caption}</span>
+          <span className="mt-1 text-[9px] font-semibold leading-tight text-center">
+            {caption}
+          </span>
         )}
       </div>
     </div>
@@ -446,8 +448,6 @@ const Button = ({
 function QuizSession({
   trainingName,
 
-  trainingDescription,
-
   trainingId,
 
   trainingQuizId,
@@ -457,8 +457,6 @@ function QuizSession({
   passingScore,
 
   isDark,
-
-  onBack,
 
   onComplete,
 }) {
@@ -495,17 +493,11 @@ function QuizSession({
       submitted[question.id] && answers[question.id] === question.correctAnswer,
   ).length;
 
-  const incorrectCount = answeredCount - correctCount;
-
   const score = questions.length
     ? Math.round((correctCount / questions.length) * 100)
     : 0;
 
   const passed = score >= passingScore;
-
-  const progressPercent = questions.length
-    ? (answeredCount / questions.length) * 100
-    : 0;
 
   const isLast = currentIndex === questions.length - 1;
 
@@ -523,10 +515,6 @@ function QuizSession({
 
   const goNext = () => {
     setCurrentIndex((previous) => Math.min(previous + 1, questions.length - 1));
-  };
-
-  const goPrevious = () => {
-    setCurrentIndex((previous) => Math.max(previous - 1, 0));
   };
 
   const submitAnswer = () => {
@@ -549,26 +537,6 @@ function QuizSession({
     }
 
     if (!isLast) goNext();
-  };
-
-  const skipQuestion = () => {
-    if (currentSubmitted) {
-      goNext();
-
-      return;
-    }
-
-    setSkipped((previous) =>
-      previous.includes(currentQuestion.id)
-        ? previous
-        : [...previous, currentQuestion.id],
-    );
-
-    if (!isLast) {
-      goNext();
-    } else {
-      setShowConfirmation(true);
-    }
   };
 
   const finishQuiz = (submittedMap = submitted, skippedList = skipped) => {
@@ -623,20 +591,6 @@ function QuizSession({
 
     setFinished(true);
     onComplete?.(result);
-  };
-
-  const resetQuiz = () => {
-    setCurrentIndex(0);
-
-    setAnswers({});
-
-    setSubmitted({});
-
-    setSkipped([]);
-
-    setFinished(false);
-
-    setShowConfirmation(false);
   };
 
   const getListState = (question) => {

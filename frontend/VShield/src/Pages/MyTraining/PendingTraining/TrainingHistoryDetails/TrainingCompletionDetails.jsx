@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   CheckCircle2,
@@ -7,11 +7,10 @@ import {
   Flag,
   RotateCcw,
   Trophy,
-  Users,
   Target,
 } from "lucide-react";
-import { useUserType } from "../../../UserTypeContext/UserTypeContext";
-import trainingAllocationData from "../data/TrainingAllocationData.json";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
+import trainingAllocationData from "../../TrainingAllocationData.json";
 
 const LEADERBOARD_ROUTE = "/leaderboard";
 const RING_DURATION = 1400;
@@ -295,15 +294,17 @@ const usePrefersReducedMotion = () => {
   return reduced;
 };
 
+
 const useCountUp = (
   target,
   { duration = 1400, delayMs = 0, disabled = false } = {}
 ) => {
-  const [value, setValue] = useState(disabled ? target : 0);
+  const [value, setValue] = useState(0);
 
   useEffect(() => {
+    // Do not start the animation when it is disabled.
+    // The returned value below will display the target directly.
     if (disabled) {
-      setValue(target);
       return undefined;
     }
 
@@ -311,7 +312,9 @@ const useCountUp = (
     let startTime;
 
     const tick = (now) => {
-      if (startTime === undefined) startTime = now;
+      if (startTime === undefined) {
+        startTime = now;
+      }
 
       const progress = Math.min((now - startTime) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
@@ -329,12 +332,17 @@ const useCountUp = (
 
     return () => {
       window.clearTimeout(timer);
-      if (frame) cancelAnimationFrame(frame);
+
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
     };
   }, [target, duration, delayMs, disabled]);
 
-  return value;
+  // Display the final value immediately when animation is disabled.
+  return disabled ? target : value;
 };
+
 
 const toArray = (data, nestedKey) => {
   if (Array.isArray(data)) return data;

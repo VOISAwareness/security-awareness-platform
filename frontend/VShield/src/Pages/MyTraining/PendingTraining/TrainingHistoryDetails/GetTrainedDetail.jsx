@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 
 import { useParams } from "react-router-dom";
 
@@ -8,46 +8,32 @@ import {
   CalendarDays,
   BookOpen,
   Target,
-  Lightbulb,
   RotateCcw,
   Award,
-  Check,
-  X,
-  Quote,
-  Eye,
-  Download,
   Clock,
   Trophy,
   ClipboardCheck,
   UserCheck,
-  AlertCircle,
-  LockKeyhole,
-  CirclePlay,
-  ClipboardList,
   Pause,
   Volume2,
   Maximize,
 } from "lucide-react";
 
-import { useUserType } from "../../../UserTypeContext/UserTypeContext";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 
-import trainingVideoData from "../TrainingVideos.json";
+import trainingVideoData from "../../TrainingVideos.json";
 
-import trainingData from "../data/TrainingAllocationData.json";
+import trainingData from "../../TrainingAllocationData.json";
 
-import trainingPathData from "../TrainingPath.json";
+import trainingPathData from "../../TrainingPath.json";
 
-import campaignsData from "../../Campaigns/CampaignsData.json";
+import campaignsData from "../../../Campaigns/CampaignsData.json";
 
 const TARGET_SCORE = 80;
 
 const GREEN = "#0D9B77";
 
 const RED = "#E11D48";
-
-const AMBER = "#E6A700";
-
-const WIDE_SHORT_QUERY = "(min-width: 1280px) and (max-height: 840px)";
 
 const THEMES = {
   light: {
@@ -119,22 +105,6 @@ const SCORE_FIELDS = [
   "percentage",
 ];
 
-const CERTIFICATE_FIELDS = [
-  "CertificateURL",
-
-  "CertificateUrl",
-
-  "certificateURL",
-
-  "certificateUrl",
-
-  "CertificateLink",
-
-  "CertificatePath",
-
-  "Certificate",
-];
-
 const VIDEO_URL_FIELDS = [
   "TrainingVideoURL",
 
@@ -157,35 +127,7 @@ const VIDEO_URL_FIELDS = [
   "url",
 ];
 
-const LEARNING_FIELDS = [
-  "LearningPoints",
-
-  "learningPoints",
-
-  "WhatYouWillLearn",
-
-  "whatYouWillLearn",
-
-  "LearningOutcomes",
-
-  "learningOutcomes",
-];
-
-const DEFAULT_LEARNING_POINTS = [
-  "Understand the key concepts covered in this training.",
-
-  "Recognize important scenarios and potential risks.",
-
-  "Learn practical steps and recommended best practices.",
-
-  "Apply the knowledge in relevant workplace situations.",
-];
-
-/* -------------------------------------------------------------------------- */
-
-/* Status configuration                                                       */
-
-/* -------------------------------------------------------------------------- */
+/* Status configuration */
 
 const STATUS_CONFIG = {
   pending: {
@@ -379,11 +321,7 @@ const STATUS_CONFIG = {
   },
 };
 
-/* -------------------------------------------------------------------------- */
-
-/* Helpers                                                                    */
-
-/* -------------------------------------------------------------------------- */
+/* Helpers */
 
 const toArray = (data, nestedKey) => {
   if (Array.isArray(data)) return data;
@@ -428,30 +366,6 @@ const normalize = (value) =>
     .toLowerCase()
 
     .replace(/[\s_-]+/g, " ");
-
-/*
-
- * IMPORTANT:
-
- * trainingStatus is checked first.
-
- *
-
- * This ensures:
-
- * trainingStatus: "pending"  -> pending design
-
- * trainingStatus: "ongoing"  -> ongoing design
-
- * trainingStatus: "failed"   -> failed design
-
- *
-
- * Your JSON also contains "evaluted" and "evalutad".
-
- * These are handled as completed when evaluation status is passed.
-
- */
 
 const resolveStatus = (allocation) => {
   const trainingStatus = normalize(pickFirst(allocation, STATUS_FIELDS));
@@ -525,131 +439,7 @@ const formatValue = (value, suffix = "") => {
   return `${value}${suffix}`;
 };
 
-const getLearningPoints = (video) => {
-  const raw = pickFirst(video, LEARNING_FIELDS);
-
-  const list = Array.isArray(raw)
-    ? raw
-    : typeof raw === "string"
-      ? raw.split(/\n|;/)
-      : [];
-
-  const cleaned = list
-
-    .map((point) => String(point).trim())
-
-    .filter(Boolean)
-
-    .slice(0, 4);
-
-  return cleaned.length ? cleaned : DEFAULT_LEARNING_POINTS;
-};
-
-/* -------------------------------------------------------------------------- */
-
-/* Certificate actions                                                        */
-
-/* -------------------------------------------------------------------------- */
-
-const openCertificate = (url) => {
-  if (!url) {
-    window.alert(
-      "Certificate URL is not available. Add a certificate URL to your training data.",
-    );
-
-    return;
-  }
-
-  const openedWindow = window.open(
-    url,
-
-    "_blank",
-
-    "noopener,noreferrer",
-  );
-
-  if (!openedWindow) {
-    window.alert(
-      "The certificate could not be opened. Please allow pop-ups and try again.",
-    );
-  }
-};
-
-const downloadCertificate = async (url, baseName) => {
-  if (!url) {
-    window.alert(
-      "Certificate URL is not available. Add a certificate URL to your training data.",
-    );
-
-    return;
-  }
-
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error("Certificate download failed");
-    }
-
-    const blob = await response.blob();
-
-    const href = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = href;
-
-    link.download = `${baseName}.pdf`;
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    link.remove();
-
-    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
-  } catch {
-    openCertificate(url);
-  }
-};
-
-/* -------------------------------------------------------------------------- */
-
-/* Responsive hook                                                            */
-
-/* -------------------------------------------------------------------------- */
-
-const useMediaQuery = (query) => {
-  const [matches, setMatches] = useState(() => {
-    if (typeof window === "undefined") return false;
-
-    return window.matchMedia(query).matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-
-    const mediaQuery = window.matchMedia(query);
-
-    const onChange = (event) => setMatches(event.matches);
-
-    setMatches(mediaQuery.matches);
-
-    mediaQuery.addEventListener("change", onChange);
-
-    return () => {
-      mediaQuery.removeEventListener("change", onChange);
-    };
-  }, [query]);
-
-  return matches;
-};
-
-/* -------------------------------------------------------------------------- */
-
-/* Status pill                                                                */
-
-/* -------------------------------------------------------------------------- */
+/* Status pill */
 
 const StatusPill = ({ cfg, tone }) => {
   const Icon = cfg.icon;
@@ -665,144 +455,30 @@ const StatusPill = ({ cfg, tone }) => {
         border: `1px solid ${tone.border}`,
       }}
     >
-            <Icon size={12} aria-hidden="true" />      {cfg.pill}   {" "}
+      <Icon size={12} aria-hidden="true" />
+      {cfg.pill}{" "}
     </span>
   );
 };
 
-/* -------------------------------------------------------------------------- */
+/* Main page */
 
-/* Score ring                                                                 */
-
-/* -------------------------------------------------------------------------- */
-
-const ScoreRing = ({
-  value,
-
-  color,
-
-  track,
-
-  showMarker,
-
-  label,
-
-  children,
-}) => {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setReady(true));
-
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  const radius = 42;
-
-  const circumference = 2 * Math.PI * radius;
-
-  const offset = circumference * (1 - (ready ? value : 0) / 100);
+const GetTrainedDetail = ({ onVideoCompleted }) => {
+  const { trainingPathID } = useParams();
 
   return (
-    <div
-      role="img"
-      aria-label={label}
-      className="relative w-[72px] h-[72px] shrink-0"
-    >
-      {" "}
-      <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
-        {" "}
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke={track}
-          strokeWidth="9"
-        />{" "}
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform="rotate(-90 50 50)"
-          className="motion-safe:transition-[stroke-dashoffset] motion-safe:duration-1000"
-        />{" "}
-        {showMarker && (
-          <line
-            x1="50"
-            y1="1"
-            x2="50"
-            y2="16"
-            stroke={AMBER}
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            transform={`rotate(${TARGET_SCORE * 3.6} 50 50)`}
-          />
-        )}{" "}
-      </svg>{" "}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        {children}{" "}
-      </div>{" "}
-    </div>
+    <GetTrainedDetailContent
+      key={trainingPathID}
+      trainingPathID={trainingPathID}
+      onVideoCompleted={onVideoCompleted}
+    />
   );
 };
 
-/* -------------------------------------------------------------------------- */
-
-/* Certificate buttons                                                        */
-
-/* -------------------------------------------------------------------------- */
-
-const CertificateActions = ({ onView, onDownload }) => (
-  <div
-    role="group"
-    aria-label="Certificate actions"
-    className="ml-auto flex items-center gap-1 shrink-0"
-  >
-       {" "}
-    <button
-      type="button"
-      onClick={onView}
-      title="View certificate"
-      aria-label="View certificate"
-      className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white hover:bg-white/35"
-    >
-            <Eye size={16} />   {" "}
-    </button>
-       {" "}
-    <button
-      type="button"
-      onClick={onDownload}
-      title="Download certificate"
-      aria-label="Download certificate"
-      className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white hover:bg-white/35"
-    >
-            <Download size={16} />   {" "}
-    </button>
-     {" "}
-  </div>
-);
-
-/* -------------------------------------------------------------------------- */
-
-/* Main page                                                                  */
-
-/* -------------------------------------------------------------------------- */
-
-const GetTrainedDetail = ({ onVideoCompleted }) => {
+const GetTrainedDetailContent = ({ onVideoCompleted, trainingPathID }) => {
   const { isDark = false } = useUserType() || {};
 
-  const { trainingPathID } = useParams();
-
   const t = isDark ? THEMES.dark : THEMES.light;
-
-  const threeColumns = useMediaQuery(WIDE_SHORT_QUERY);
 
   const videoRef = useRef(null);
   const videoContainerRef = useRef(null);
@@ -814,16 +490,7 @@ const GetTrainedDetail = ({ onVideoCompleted }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
 
-  useEffect(() => {
-    maxWatchedTimeRef.current = 0;
-    isSeekingRef.current = false;
-    setVideoCompleted(false);
-    setIsPlaying(false);
-    setVideoDuration(0);
-    setCurrentTime(0);
-  }, [trainingPathID]);
-
-const handleVideoLoadedMetadata = (event) => {
+  const handleVideoLoadedMetadata = (event) => {
     const videoElement = event.currentTarget;
     setVideoDuration(
       Number.isFinite(videoElement.duration) ? videoElement.duration : 0,
@@ -831,7 +498,7 @@ const handleVideoLoadedMetadata = (event) => {
     videoElement.volume = volume;
   };
 
-const handleVideoTimeUpdate = (event) => {
+  const handleVideoTimeUpdate = (event) => {
     const videoElement = event.currentTarget;
     if (!videoElement.paused && !videoElement.seeking) {
       maxWatchedTimeRef.current = Math.max(
@@ -878,6 +545,22 @@ const handleVideoTimeUpdate = (event) => {
     }
   };
 
+  const handleReplay = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    maxWatchedTimeRef.current = 0;
+    video.currentTime = 0;
+    setCurrentTime(0);
+    setVideoCompleted(false);
+
+    try {
+      await video.play();
+    } catch (error) {
+      console.error("Unable to replay training video:", error);
+    }
+  };
+
   const handleVolumeChange = (event) => {
     const nextVolume = Number(event.target.value);
     setVolume(nextVolume);
@@ -898,16 +581,10 @@ const handleVideoTimeUpdate = (event) => {
     }
   };
 
-const formatVideoTime = (time) => {
+  const formatVideoTime = (time) => {
     if (!Number.isFinite(time) || time < 0) return "0:00";
     return `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, "0")}`;
   };
-
-  useEffect(() => {
-    maxWatchedTimeRef.current = 0;
-
-    setVideoCompleted(false);
-  }, [trainingPathID]);
 
   // Get the training allocation for the selected training and user
   const currentTrainingAllocation = trainingData.trainings.find(
@@ -923,7 +600,6 @@ const formatVideoTime = (time) => {
   );
 
   const campaignTitle = currentCampaign?.CampaignTitle || "Campaign not found";
- 
 
   const { allocation, path, video } = useMemo(() => {
     if (!trainingPathID) {
@@ -993,19 +669,15 @@ const formatVideoTime = (time) => {
           color: t.primaryText,
         }}
       >
-                <BookOpen size={38} color="#E60000" />       {" "}
-        <h2 className="text-xl font-bold">
-                    Training not found        {" "}
-        </h2>
-               {" "}
+        <BookOpen size={38} color="#E60000" />{" "}
+        <h2 className="text-xl font-bold">Training not found </h2>{" "}
         <p className="text-sm text-center" style={{ color: t.secondaryText }}>
-                    No training allocation was found for ID:          {" "}
-          {trainingPathID || "Unknown"}.        {" "}
-        </p>
-             {" "}
+          No training allocation was found for ID: {trainingPathID || "Unknown"}
+          .{" "}
+        </p>{" "}
       </div>
     );
-  } /* ------------------------------------------------------------------------ */ /* Status and training data                                                 */ /* ------------------------------------------------------------------------ */
+  }
 
   const statusKey = resolveStatus(allocation);
 
@@ -1045,13 +717,7 @@ const formatVideoTime = (time) => {
     RESULT_FIELDS,
   );
 
-  const certificateUrl = String(
-    pickFirst(allocation, CERTIFICATE_FIELDS) || "",
-  ).trim();
-
   const videoSrc = video ? pickFirst(video, VIDEO_URL_FIELDS) : "";
-
-  const learningPoints = getLearningPoints(video || {});
 
   const trainingName =
     path?.TrainingPathName ||
@@ -1065,37 +731,7 @@ const formatVideoTime = (time) => {
   const videoName =
     video?.TrainingVideoName ||
     allocation.TrainingVideoName ||
-    "Training video"; /* ------------------------------------------------------------------------ */ /* Score information                                                        */ /* ------------------------------------------------------------------------ */
-
-  const ringValue = TARGET_SCORE;
-
-  const ringColor = "#0D9B77";
-
-  const pointsAway = hasScore ? Math.round(Math.abs(score - TARGET_SCORE)) : 0;
-
-  const meetsTarget = hasScore && score >= TARGET_SCORE;
-
-  const scoreTitle = statusKey === "pending" ? "Target Score" : "Target Score";
-
-  const scoreDescription =
-    statusKey === "pending"
-      ? `Aim for at least ${TARGET_SCORE}% to pass.`
-      : !hasScore
-        ? `Score at least ${TARGET_SCORE}% to pass.`
-        : pointsAway === 0
-          ? `You have reached the ${TARGET_SCORE}% pass mark.`
-          : `${pointsAway} ${
-              pointsAway === 1 ? "point" : "points"
-            } ${meetsTarget ? "above" : "below"} the ${TARGET_SCORE}% pass mark.`;
-
-  const scoreChip =
-    statusKey === "pending"
-      ? "Required to pass"
-      : !hasScore
-        ? "Pass mark"
-        : meetsTarget
-          ? "Above pass mark"
-          : "Below pass mark"; /* ------------------------------------------------------------------------ */ /* Dynamic result facts                                                     */ /* ------------------------------------------------------------------------ */
+    "Training video";
 
   const facts = [
     {
@@ -1191,18 +827,7 @@ const formatVideoTime = (time) => {
 
       icon: Target,
     });
-  } /* ------------------------------------------------------------------------ */ /* Certificate actions                                                      */ /* ------------------------------------------------------------------------ */
-
-  const certificate = {
-    onView: () => openCertificate(certificateUrl),
-
-    onDownload: () =>
-      downloadCertificate(
-        certificateUrl,
-
-        `${allocation.TrainingPathID}-certificate`,
-      ),
-  }; /* ------------------------------------------------------------------------ */ /* Main UI                                                                   */ /* ------------------------------------------------------------------------ */
+  } /* ------------------------------------------------------------------------ */
 
   return (
     <div
@@ -1359,13 +984,13 @@ const formatVideoTime = (time) => {
                         <PlayCircle size={42} />
                       </button>
                     )}
-                    
                   </div>
                   <div className="shrink-0 px-3 py-2 bg-[#111318] text-white">
+                    {/* Video progress */}
                     <div
                       className="h-1.5 rounded-full bg-white/20 overflow-hidden mb-2"
-                      aria-label="Video progress"
                       role="progressbar"
+                      aria-label="Video progress"
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-valuenow={
@@ -1375,13 +1000,22 @@ const formatVideoTime = (time) => {
                       }
                     >
                       <div
-                        className="h-full rounded-full bg-emerald-500 transition-[width] duration-150"
+                        className="h-full rounded-full bg-emerald-500"
                         style={{
-                          width: `${videoDuration ? Math.min(100, (currentTime / videoDuration) * 100) : 0}%`,
+                          width: `${
+                            videoDuration
+                              ? Math.min(
+                                  100,
+                                  (currentTime / videoDuration) * 100,
+                                )
+                              : 0
+                          }%`,
                         }}
                       />
                     </div>
-                    <div className="flex items-center gap-3">
+
+                    {/* Always-visible video controls */}
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={handlePlayPause}
@@ -1395,12 +1029,25 @@ const formatVideoTime = (time) => {
                           <PlayCircle size={20} />
                         )}
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={handleReplay}
+                        title="Replay from beginning"
+                        aria-label="Replay from beginning"
+                        className="shrink-0 p-1 rounded hover:bg-white/10 text-white"
+                      >
+                        <RotateCcw size={20} />
+                      </button>
+
                       <span className="text-[11px] tabular-nums whitespace-nowrap">
                         {formatVideoTime(currentTime)} /{" "}
                         {formatVideoTime(videoDuration)}
                       </span>
+
                       <div className="ml-auto flex items-center gap-2 min-w-0">
                         <Volume2 size={17} className="shrink-0" />
+
                         <input
                           aria-label="Video volume"
                           type="range"
@@ -1409,12 +1056,14 @@ const formatVideoTime = (time) => {
                           step="0.05"
                           value={volume}
                           onChange={handleVolumeChange}
-                          className="w-16 sm:w-24 accent-emerald-500"
+                          className="w-10 sm:w-20 accent-emerald-500"
                         />
+
                         <button
                           type="button"
                           onClick={handleFullscreen}
                           aria-label="Toggle fullscreen"
+                          title="Fullscreen"
                           className="shrink-0 p-1 rounded hover:bg-white/10"
                         >
                           <Maximize size={18} />
