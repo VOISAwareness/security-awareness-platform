@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search
 } from 'lucide-react';
@@ -7,9 +7,10 @@ import { useUserType } from '../../UserTypeContext/UserTypeContext';
 // Assets imported strictly from src/assets/CampaignsAssets
 import OnGoingImg from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
 import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage.png';
+
 // Fallback direct JSON data
-import PendingTrainingTableData from './components/PendingTraining/PendingTrainingTableData';
-import HistoryTrainingTableData from './HistoryTrainingTableData';
+import PendingTrainingTableData from './PendingTraining/PendingTrainingTable';
+import HistoryTrainingTableData from './TrainingHistory/HistoryTrainingTable';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -56,7 +57,7 @@ const TAB_CONFIG = {
   historical: {
     id: 'historical',
     title: 'Training History',
-    subtitle: 'Traings that were successfully completed by user',
+    subtitle: 'Training that were successfully completed by the user',
     counterColor: '#E57A44', // Orange
     img: HistoricalImg
   }
@@ -125,7 +126,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
         style={{ zoom: VarTrainingScale }}
         className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
       >
-        {/* ── TOP HEADER BAR: "Training" ── */}
+        {/* ── TOP HEADER BAR: "My Training" ── */}
         <div
           className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
             }`}
@@ -149,7 +150,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
             style={{ width: VarLeftSectionWidth, flex: `0 0 ${VarLeftSectionWidth}` }}
             className="flex flex-col gap-3.5 min-w-[280px]"
           >
-            {/* 1. PENDING TRAINING CAPSULE*/}
+            {/* 1. ON GOING MY TRAINING CAPSULE */}
             <div
               onClick={() => setActiveTab('pending')}
               style={{
@@ -179,7 +180,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 3. HISTORICAL TRAINING CAPSULE */}
+            {/* 3. HISTORICAL MY TRAINING CAPSULE */}
             <div
               onClick={() => setActiveTab('historical')}
               style={{
@@ -266,7 +267,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
 
             </div>
 
-            {/* 🌟 2. CONTINUOUS LOWER L-BASE: TRAINING FEED */}
+            {/* 🌟 2. CONTINUOUS LOWER L-BASE: MY TRAINING FEED */}
 
             {/* LOWER SECTION: PENDING TABLE OR TRAINING HISTORY HEADER */}
             <div
@@ -290,10 +291,10 @@ const MyTraining = ({ isDark: propIsDark }) => {
                 />
               ) : activeTab === "historical" ? (
                 // History tab: display only the title header
-
-                <HistoryTrainingTableData searchTerm={searchTerm}
+                
+                  <HistoryTrainingTableData searchTerm={searchTerm}
                   onCountChange={setTrainingCount} />
-
+                
               ) : null}
             </div>
 

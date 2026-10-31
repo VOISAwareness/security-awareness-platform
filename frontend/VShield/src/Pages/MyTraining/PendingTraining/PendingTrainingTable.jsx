@@ -1,8 +1,8 @@
 
-import React, { useMemo, useState, useEffect } from "react";
-import trainingData from "../../data/TrainingAllocationData.json";
-import trainingPathData from "../../data/TrainingPath";
-import "../../TrainingTable.css";
+import { useMemo, useState, useEffect } from "react";
+import trainingData from "../TrainingAllocationData.json";
+import trainingPathData from "../TrainingPath";
+import "../TrainingTable.css";
 import { FilePlay, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 

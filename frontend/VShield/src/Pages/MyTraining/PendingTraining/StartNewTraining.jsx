@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import { useState, useEffect } from "react";
+import { useUserType } from "../../../UserTypeContext/UserTypeContext";
 import { useNavigate } from "react-router-dom";
 import TrainingCompletionDetails from "./TrainingHistoryDetails/TrainingCompletionDetails";
 
-import { Check, ArrowLeft, Image as ImageIcon } from "lucide-react";
+import { Check, ArrowLeft } from "lucide-react";
 
 import GetTrainedDetails from "./TrainingHistoryDetails/GetTrainedDetail";
 import TrainingQuizDetails from "./TrainingHistoryDetails/TrainingQuizDetails";
@@ -48,8 +48,6 @@ const VODAFONE_FONT_STYLE = `
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
 const TrainingTabs = ({ activeTab, onTabChange }) => {
-  const { isDark } = useUserType?.() || { isDark: false };
-
   const steps = [
     { id: 0, titleLine1: "Get Trained", titleLine2: "" },
     { id: 1, titleLine1: "Take Quiz", titleLine2: "" },
@@ -158,7 +156,7 @@ const TrainingTabs = ({ activeTab, onTabChange }) => {
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-const TrainingDeatils = () => {
+const StartNewTraining = () => {
   const { isDark } = useUserType?.() || {
     isDark: false,
   };
@@ -166,9 +164,7 @@ const TrainingDeatils = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishSuccessModal, setPublishSuccessModal] = useState(false);
-  const [showTrainingQuiz, setShowTrainingQuiz] = useState(false);
+  const isPublishing = false;
   const [isVideoCompleted, setIsVideoCompleted] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
@@ -196,15 +192,15 @@ const TrainingDeatils = () => {
     null;
 
   const handleQuizComplete = (result) => {
-  setQuizResult(result);
-  setQuizSubmitted(true);
-  setShowAssessmentPopup(true);
-};
+    setQuizResult(result);
+    setQuizSubmitted(true);
+    setShowAssessmentPopup(true);
+  };
 
-const handleViewResults = () => {
-  setShowAssessmentPopup(false);
-  setActiveTab(2);
-};
+  const handleViewResults = () => {
+    setShowAssessmentPopup(false);
+    setActiveTab(2);
+  };
 
   const handleRetake = () => {
     setQuizResult(null);
@@ -251,10 +247,10 @@ const handleViewResults = () => {
         {/* ====================================================
             PAGE HEADER
         ==================================================== */}
-        
-{/* PAGE HEADER */}
-<div
-  className={`
+
+        {/* PAGE HEADER */}
+        <div
+          className={`
     w-full
     h-[38px]
     px-5
@@ -271,12 +267,12 @@ const handleViewResults = () => {
         : "bg-[#06080D] text-white border-black/10"
     }
   `}
->
-  <button
-    type="button"
-    onClick={() => navigate("/my-training")}
-    aria-label="Back to My Training"
-    className="
+        >
+          <button
+            type="button"
+            onClick={() => navigate("/my-training")}
+            aria-label="Back to My Training"
+            className="
       inline-flex
       items-center
       gap-2
@@ -291,12 +287,11 @@ const handleViewResults = () => {
       focus-visible:ring-2
       focus-visible:ring-[#8ED973]
     "
-  >
-    <ArrowLeft className="h-4 w-4 shrink-0 stroke-[2.5]" />
-    <span>MY TRAINING</span>
-  </button>
-</div>
-
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0 stroke-[2.5]" />
+            <span>MY TRAINING</span>
+          </button>
+        </div>
 
         {/* ====================================================
             TABS + CONTENT — unified white/dark shell
@@ -509,54 +504,56 @@ const handleViewResults = () => {
         </div>
 
         {/* Assessment submitted confirmation popup */}
-{showAssessmentPopup && (
-  <div
-    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
-    role="presentation"
-  >
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="assessment-popup-title"
-      className={`
+        {showAssessmentPopup && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+            role="presentation"
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="assessment-popup-title"
+              className={`
         w-full max-w-md rounded-2xl border p-6 shadow-2xl
-        ${isDark
-          ? "bg-[#252830] border-[#41444F] text-white"
-          : "bg-white border-slate-200 text-slate-900"}
+        ${
+          isDark
+            ? "bg-[#252830] border-[#41444F] text-white"
+            : "bg-white border-slate-200 text-slate-900"
+        }
       `}
-    >
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-        <Check className="h-6 w-6 text-emerald-700" />
-      </div>
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+                <Check className="h-6 w-6 text-emerald-700" />
+              </div>
 
-      <h2
-        id="assessment-popup-title"
-        className="text-lg font-bold font-voda"
-      >
-        Assessment Submitted Successfully!
-      </h2>
+              <h2
+                id="assessment-popup-title"
+                className="text-lg font-bold font-voda"
+              >
+                Assessment Submitted Successfully!
+              </h2>
 
-      <p
-        className={`mt-3 text-sm leading-relaxed ${
-          isDark ? "text-slate-300" : "text-slate-600"
-        }`}
-      >
-        You have completed your assessment. Proceed to the Completion
-        section to check your score and see whether you achieved the
-        required passing score.
-      </p>
+              <p
+                className={`mt-3 text-sm leading-relaxed ${
+                  isDark ? "text-slate-300" : "text-slate-600"
+                }`}
+              >
+                You have completed your assessment. Proceed to the Completion
+                section to check your score and see whether you achieved the
+                required passing score.
+              </p>
 
-      <button
-        type="button"
-        onClick={handleViewResults}
-        className="mt-6 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#8ED973] px-4 text-sm font-bold text-white transition hover:bg-[#7ec963]"
-      >
-        View Results
-        <Check className="h-4 w-4" />
-      </button>
-    </div>
-  </div>
-)}
+              <button
+                type="button"
+                onClick={handleViewResults}
+                className="mt-6 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#8ED973] px-4 text-sm font-bold text-white transition hover:bg-[#7ec963]"
+              >
+                View Results
+                <Check className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ====================================================
             NAVIGATION BUTTONS
@@ -566,4 +563,4 @@ const handleViewResults = () => {
   );
 };
 
-export default TrainingDeatils;
+export default StartNewTraining;
