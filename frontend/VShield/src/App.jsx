@@ -58,7 +58,8 @@ import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
 
 // 🌟 My Training (a person's own training: pending, history, each path's details)
 import MyTraining from './Pages/MyTraining/MyTraining';
-import TrainingDetails from './Pages/MyTraining/TrainingDetails';
+import TrainingDetails from './Pages/MyTraining/PendingTraining/StartNewTraining';
+
 
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {

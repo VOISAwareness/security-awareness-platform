@@ -1,9 +1,9 @@
 
-import React, { useMemo, useState, useEffect } from "react";
-import trainingData from "./data/TrainingAllocationData.json";
-import trainingPathData from "./TrainingPath";
-import "./TrainingTable.css";
-import { FilePlay, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import trainingData from "../TrainingAllocationData.json";
+import trainingPathData from "../TrainingPath";
+import "../TrainingTable.css";
+import { FilePlay, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const ITEMS_PER_PAGE = 6;
@@ -34,27 +34,6 @@ const getTrainingStatusLabel = (status) => {
             return "Failed";
         default:
             return status || "—";
-    }
-};
-
-const getProficiencyColor = (status) => {
-    switch (String(status).toLowerCase()) {
-        case "pending":
-            return "#f59e0b";
-
-        case "ongoing":
-            return "#3b82f6";
-
-        case "evaluated":
-        case "evaluted":
-        case "completed":
-            return "#10b981";
-
-        case "failed":
-            return "#ef4444";
-
-        default:
-            return "#9ca3af";
     }
 };
 
