@@ -39,7 +39,6 @@ const getTrainingStatusLabel = (status) => {
 
 export default function MyTrainingTableData({
   searchTerm = "",
-  onExportCSVReady,
   onCountChange,
 }) {
   const [sortConfig, setSortConfig] = useState({
@@ -214,57 +213,6 @@ export default function MyTrainingTableData({
       timeZone: "UTC",
     });
   };
-
-  const exportCSV = () => {
-    const headers = [
-      "Training Name",
-      "Training Path ID",
-      "Assigned Date",
-      "Due Date",
-      "Due in Days",
-      "Status",
-    ];
-
-    const escapeCSV = (value) =>
-      `"${String(value ?? "").replace(/"/g, '""')}"`;
-
-    const rows = filteredTrainings.map((training) => [
-      training.TrainingPathName,
-      training.TrainingPathID,
-      formatDate(training.assignedDate ?? training.AssignedDate),
-      formatDate(training.dueDate ?? training.DueDate),
-      training.dueInDays ?? training.DueInDays ?? "—",
-      training.trainingStatus,
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map(escapeCSV).join(","))
-      .join("\r\n");
-
-    const blob = new Blob(["\uFEFF" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "pending-training.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  useEffect(() => {
-    if (typeof onExportCSVReady !== "function") return;
-
-    onExportCSVReady(exportCSV);
-
-    return () => {
-      onExportCSVReady(null);
-    };
-  }, [filteredTrainings]);
 
   return (
     <section className="training-table-card">

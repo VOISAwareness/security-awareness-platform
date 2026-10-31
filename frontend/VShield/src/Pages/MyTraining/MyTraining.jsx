@@ -15,7 +15,7 @@ import HistoryTrainingTableData from './TrainingHistory/HistoryTrainingTable';
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
 // =========================================================================
-export const VarCampaignsScale = 0.90;
+export const VarTrainingScale = 0.90;
 export const VarOverallCornerRoundednessAdjuster = 0.7;
 export const VarLeftSectionWidth = '22%';
 export const VarRightSectionWidth = '78%';
@@ -57,7 +57,7 @@ const TAB_CONFIG = {
   historical: {
     id: 'historical',
     title: 'Training History',
-    subtitle: 'Training that were successfully completed by user',
+    subtitle: 'Training that were successfully completed by the user',
     counterColor: '#E57A44', // Orange
     img: HistoricalImg
   }
@@ -123,7 +123,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
 
       {/* 🌟 ROOT CONTAINER */}
       <div
-        style={{ zoom: VarCampaignsScale }}
+        style={{ zoom: VarTrainingScale }}
         className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
       >
         {/* ── TOP HEADER BAR: "Campaigns" ── */}
