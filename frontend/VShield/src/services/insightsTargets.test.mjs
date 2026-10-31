@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { TARGETS, UNITS, checkTargets, standing, targetText, targetsWith, zones } from './insightsTargets.js';
+import { TARGETS, UNITS, checkTarget, checkTargets, pairFor, standing, targetText, targetsWith, zones } from './insightsTargets.js';
 
 test('standing: on track up to the target, at risk up to the next edge, off track beyond', () => {
   const t = TARGETS.hookRate; // lower is better: 5%, 10%
@@ -73,4 +73,24 @@ test('targetsWith: an admin\'s targets in place of the defaults, the rest unchan
   assert.deepEqual(t.gaveDetails, TARGETS.gaveDetails);
   // a rate's scale never passes 100%
   assert.equal(targetsWith({ reportRate: { target: 0.95, atRisk: 0.8 } }).reportRate.max, 1);
+});
+
+test('pairFor: the at-risk edge keeps the default\'s proportion, and gives back each default', () => {
+  for (const [key, t] of Object.entries(TARGETS)) assert.deepEqual(pairFor(key, t.target), { target: t.target, atRisk: t.atRisk }, key);
+  assert.deepEqual(pairFor('hookRate', 0.04), { target: 0.04, atRisk: 0.08 });
+  assert.deepEqual(pairFor('riskScore', 25), { target: 25, atRisk: 43.8 });
+  assert.deepEqual(pairFor('reportRate', 0.6), { target: 0.6, atRisk: 0.36 });
+  assert.deepEqual(pairFor('firstReport', 10), { target: 10, atRisk: 20 });
+  // never past the measure's range
+  assert.equal(pairFor('hookRate', 0.8).atRisk, 1);
+});
+
+test('checkTarget: a number in range that leaves room for an at-risk stretch', () => {
+  for (const [key, t] of Object.entries(TARGETS)) assert.equal(checkTarget(key, t.target), null, key);
+  assert.equal(checkTarget('hookRate', 0.12), null);
+  assert.match(checkTarget('hookRate', 1), /below 100%/);
+  assert.match(checkTarget('hookRate', 1.2), /0 to 100%/);
+  assert.match(checkTarget('reportRate', 0), /above 0/);
+  assert.match(checkTarget('riskScore', NaN), /0 to 100/);
+  assert.match(checkTarget('firstReport', -5), /1,440 min/);
 });

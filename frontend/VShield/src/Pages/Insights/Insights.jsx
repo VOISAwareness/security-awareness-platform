@@ -27,7 +27,7 @@ import { standing, targetText, targetsWith } from '../../services/insightsTarget
 import { deptTargets } from '../../services/deptTargets';
 import { api } from '../../services/api';
 import { actorFor } from '../../services/identity';
-import { TargetsButton, TargetsEditor } from './InsightsTargets';
+import { TargetBar, TargetsButton, TargetsEditor } from './InsightsTargets';
 
 // =============================================================================
 // Insights: how the organisation stands against phishing, for its leaders.
@@ -272,29 +272,6 @@ function HealthTile({ m, dept, reduce }) {
 const tileStyle = (opens) => ({ minWidth: 0, display: 'grid', justifyItems: 'center', alignContent: 'center', textAlign: 'center', rowGap: 3, padding: '6px 12px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: opens ? 'pointer' : 'default', outline: 'none' });
 const STANDING_WORD = { on: 'on track', risk: 'at risk', off: 'off track' };
 
-// The bar: the measure along its whole scale, as a department's "What they
-// fall for" bars are. The light green stretch of the track is the target.
-// Lower is better: green up to the target, red for the part beyond it.
-// Higher is better: red until the bar reaches the target, green once it does.
-function TargetBar({ value, target, ink }) {
-  const x = (q) => Math.max(0, Math.min(100, (q / target.max) * 100));
-  const seg = (from, to, bg, more) => <span style={{ position: 'absolute', top: 0, bottom: 0, left: `${x(from)}%`, width: `${x(to) - x(from)}%`, background: bg, ...more }} />;
-  const end = { borderRadius: '0 999px 999px 0' };
-  const down = target.better === 'down';
-  let fill = null;
-  if (Number.isFinite(value)) {
-    if (!down) fill = seg(0, value, value >= target.target ? ink.good : ink.bad, end);
-    else if (value <= target.target) fill = seg(0, value, ink.good, end);
-    else fill = <>{seg(0, target.target, ink.good)}{seg(target.target, value, ink.bad, { ...end, borderLeft: '2px solid var(--plate)' })}</>;
-  }
-  return (
-    <span aria-hidden style={{ position: 'relative', display: 'block', width: '100%', height: 10, borderRadius: 999, overflow: 'hidden', background: 'var(--tick)' }}>
-      {down ? seg(0, target.target, alpha(ink.good, 0.26)) : seg(target.target, target.max, alpha(ink.good, 0.26))}
-      <span className="ins-grow-x" style={{ position: 'absolute', inset: 0, transformOrigin: 'left' }}>{fill}</span>
-    </span>
-  );
-}
-
 // The foot of a tile's ⓘ: the measure the period before and now, and the change.
 function ChangeNote({ k, ink, days }) {
   if (!k.delta) return <span style={{ display: 'block', ...small, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hair)' }}>No figure for the {days} days before to compare with.</span>;
@@ -515,7 +492,7 @@ const Insights = () => {
         </div>
       </div>
       </motion.div>
-      {editing && <TargetsEditor saved={saved} isDark={isDark} reduce={reduce} onSave={saveTargets} onClose={() => setEditing(false)} />}
+      {editing && <TargetsEditor saved={saved} now={{ riskScore: p.now.score, highRiskShare: p.now.highRisk / p.now.people, hookRate: n.hooked, reportRate: n.reportRate, gaveDetails: gave, firstReport: n.firstReport, trainingCompletion: done }} depts={depts} isDark={isDark} reduce={reduce} onSave={saveTargets} onClose={() => setEditing(false)} />}
     </>
   );
 };
