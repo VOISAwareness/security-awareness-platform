@@ -76,6 +76,32 @@ export function campaignReport(campaign, { depts = [], personAt = () => ({ name:
   // drawn last, so the numbers above stay as they were
   const complained = Math.round(delivered * (0.0003 + r() * 0.0009)); // marked it as spam or complained
 
+  // Each department's part in the same shape as the whole report, so it can
+  // be read like a campaign of its own (scope.js): its opens, training and
+  // complaints in proportion, and its own times, the earliest department's
+  // first report being the campaign's. Worked from each department's lean,
+  // not drawn, so every number above stays as it was.
+  const later = (d, what, spread) => Math.round((lean(`${d.name}|${campaign.id}|${what}`, 1) - 0.5) * spread);
+  const earliest = (what, has) => Math.min(...departments.filter(has).map((d) => later(d, what, 8)));
+  const firstRep = earliest('first', (d) => d.reported > 0);
+  const firstClk = earliest('click', (d) => d.clicked > 0);
+  departments.forEach((d) => {
+    const n = d.recipients;
+    const fr = d.reported > 0 ? firstReport + later(d, 'first', 8) - firstRep : null;
+    Object.assign(d, {
+      sent: n,
+      delivered: n,
+      opened: Math.min(n, Math.max(d.reported + d.clicked, Math.round(n * pct(opened, delivered) * lean(`${d.name}|open`, 0.3)))),
+      trained: Math.min(d.clicked, Math.round(d.clicked * pct(trained, clicked))),
+      complained: Math.round(n * pct(complained, delivered)),
+      timing: {
+        firstReport: fr,
+        medianReport: fr === null ? null : Math.max(fr + 1, Math.round(medianReport * lean(`${d.name}|${campaign.id}|median`, 0.5))),
+        firstClick: d.clicked > 0 ? firstClick + later(d, 'click', 6) - firstClk : null,
+      },
+    });
+  });
+
   const earned = reported * pointsOf(rules, 'Reported') + trained * pointsOf(rules, 'Trained');
   const lost = clicked * Math.abs(pointsOf(rules, 'Clicked')) + compromised * Math.abs(pointsOf(rules, 'Compromised'));
 

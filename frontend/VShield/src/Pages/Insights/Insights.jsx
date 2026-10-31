@@ -25,6 +25,7 @@ import { EASE, HEALTH_WORD, INK, alpha, change, eyebrow, healthTone, mixHex, num
 import { GLOSSARY } from '../../services/glossary';
 import { standing, targetText, targetsWith } from '../../services/insightsTargets';
 import { deptTargets } from '../../services/deptTargets';
+import { scopeItems } from '../../services/scope';
 import { api } from '../../services/api';
 import { actorFor } from '../../services/identity';
 import { TargetBar, TargetsButton, TargetsEditor } from './InsightsTargets';
@@ -366,8 +367,13 @@ const Insights = () => {
     onCrumb: (k) => startTransition(() => setTrail((t) => t.slice(0, k))),
     onBack: () => startTransition(() => setTrail((t) => t.slice(0, -1))),
   };
-  // a department open: the corner tile and the band turn to it
-  const dept = top?.kind === 'department' ? depts.find((d) => d.name === top.key) : null;
+  // A department open, or anything opened inside one, is in its scope
+  // (services/scope.js): the corner tile and the band turn to it, and the
+  // profiles below it read the department's part of every campaign.
+  const scopeDept = [...trail].reverse().find((t) => t.kind === 'department')?.key ?? null;
+  const ms = useMemo(() => (scopeDept ? insights(scopeItems(items, { department: scopeDept }), { days, now: m.basis.end }) : m), [items, days, m, scopeDept]);
+  const dept = scopeDept ? depts.find((d) => d.name === scopeDept) : null;
+  const atDept = top?.kind === 'department';
   const corner = dept && { ...dept, clickedMost: m.deptLures[dept.name]?.[0]?.type };
   const backTo = trail.length > 1 ? trail.at(-2).label : tab === 'departments' ? 'All departments' : tabLabel;
   const ctx = { m, p, depts, targets: T, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
@@ -415,10 +421,12 @@ const Insights = () => {
   let body;
   if (top) {
     const props = { ctx, frame };
+    // a campaign type or a campaign opened inside a department: its part
+    const inScope = { ctx: scopeDept ? { ...ctx, m: ms, company: m, scope: scopeDept } : ctx, frame };
     body = top.kind === 'risk' ? <RiskProfile {...props} />
       : top.kind === 'department' ? <DepartmentView ctx={ctx} name={top.key} />
-        : top.kind === 'lure' ? <LureProfile {...props} type={top.key} />
-          : top.kind === 'campaign' ? <CampaignProfile {...props} id={top.key} />
+        : top.kind === 'lure' ? <LureProfile {...inScope} type={top.key} />
+          : top.kind === 'campaign' ? <CampaignProfile {...inScope} id={top.key} />
             : <TrainingProfile {...props} training={TRAINING} />;
   } else {
     body = tab === 'summary' ? <SummaryView ctx={ctx} />
@@ -462,7 +470,7 @@ const Insights = () => {
               Export; under them, six measures */}
           <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 7, padding: `9px 16px ${L_GAP}px 20px`, position: 'relative' }}>
             <div style={{ flexShrink: 0, height: 30, display: 'flex', alignItems: 'center', gap: 12 }}>
-              {dept && (
+              {atDept && (
                 <button type="button" className="ins-go" data-ins-back onClick={frame.onBack} style={{ flexShrink: 0, height: 30, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 12px 0 8px', borderRadius: 999, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   <ChevronLeft size={14} strokeWidth={2.6} aria-hidden />
                   {backTo}
