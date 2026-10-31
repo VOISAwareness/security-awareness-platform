@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Copy, FileText, GraduationCap, LayoutGrid, MousePointerClick, Users } from 'lucide-react';
 
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -312,6 +312,10 @@ const savedOf = (r) => {
 const Insights = () => {
   const { isDark, hasAccess, user } = useUserType() || {};
   const navigate = useNavigate();
+  const location = useLocation();
+  // back from the Big Picture (or the browser's Back): the view it was
+  // opened from, as "See the people" left it
+  const restore = location.state?.restore || null;
   const reduce = useReducedMotion();
   const ink = isDark ? INK.dark : INK.light;
   // a department's people are admins' to see, as on the Big Picture
@@ -333,11 +337,11 @@ const Insights = () => {
   const saveTargets = async (targets) => setSaved(savedOf(await api.insightsTargets.save({ targets, version: saved.version, role: user?.role, actor: actorFor(user) })));
   // what the switches show changes at once; what they change renders in the
   // background (a transition), so a big view never freezes what is moving
-  const [days, setDays] = useState(30);
-  const [shownDays, setShownDays] = useState(30);
-  const [tab, setTab] = useState('summary');
-  const [shownTab, setShownTab] = useState('summary');
-  const [trail, setTrail] = useState([]); // the profiles opened, in order: { kind, key, layoutId, label }
+  const [days, setDays] = useState(restore?.days || 30);
+  const [shownDays, setShownDays] = useState(restore?.days || 30);
+  const [tab, setTab] = useState(restore?.tab || 'summary');
+  const [shownTab, setShownTab] = useState(restore?.tab || 'summary');
+  const [trail, setTrail] = useState(restore?.trail || []); // the profiles opened, in order: { kind, key, layoutId, label }
   const [view, setView] = useState({ page: 0 });
   // the room under the top bar, for the sheet's outline
   const [lBox, { w: lW, h: lH }] = useSize();
@@ -376,7 +380,15 @@ const Insights = () => {
   const atDept = top?.kind === 'department';
   const corner = dept && { ...dept, clickedMost: m.deptLures[dept.name]?.[0]?.type };
   const backTo = trail.length > 1 ? trail.at(-2).label : tab === 'departments' ? 'All departments' : tabLabel;
-  const ctx = { m, p, depts, targets: T, ink, isDark, reduce, open, go, canSeePeople, seePeople: () => navigate('/leaderboard', { state: { view: 'reports' } }), nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
+  // The Big Picture's People, narrowed to a department and a campaign type,
+  // with the way back. This view is kept on the page's own history entry
+  // first, so the browser's Back returns to it too.
+  const seePeople = ({ dept: name, lure }) => {
+    const back = { days, tab, trail: trail.map(({ kind, key, label }) => ({ kind, key, label })) };
+    navigate(location.pathname, { replace: true, state: { restore: back } });
+    navigate('/leaderboard', { state: { view: 'reports', people: { dept: name || 'all', lure: lure || null }, back: { path: location.pathname, label: ['Insights', name, lure].filter(Boolean).join(' · '), restore: back } } });
+  };
+  const ctx = { m, p, depts, targets: T, ink, isDark, reduce, open, go, canSeePeople, seePeople, nav: (route) => navigate(route), view, onView: (patch) => setView((v) => ({ ...v, ...patch })) };
 
   const n = m.now;
   const b = m.before;

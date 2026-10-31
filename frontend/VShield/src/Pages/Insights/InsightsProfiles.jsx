@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, FileX, Ma
 
 import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { deptCode } from '../../GlobalComponents/deptCodes';
-import { Blocks, Card, CompareBars, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel, Tip } from './InsightsCharts';
+import { Blocks, Card, CompareBars, GoTo, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel, Tip } from './InsightsCharts';
 import { Delta, Fill, FitList, HealthChip, InlineBar, LureTile, Meter, Returning, RowsGrid } from './InsightsBits';
 import { useSize } from './useSize';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
@@ -385,7 +385,7 @@ export function RiskProfile({ ctx, frame }) {
 export function LureProfile({ ctx, frame, type }) {
   // `scope`: the department it was opened in (its part of every campaign);
   // `company`: the company's figures, to set it against
-  const { m, ink, isDark, reduce, open, scope, company } = ctx;
+  const { m, ink, isDark, reduce, open, scope, company, canSeePeople, seePeople } = ctx;
   // the campaigns sit two to a row where both names fit, else one
   const [campsBox, { w: campsW }] = useSize();
   const pair = campsW >= 880;
@@ -450,7 +450,7 @@ export function LureProfile({ ctx, frame, type }) {
         </Card>
       </Stack>
       {scope ? (
-        <AgainstCard i={5} reduce={reduce} ink={ink} title={`${scope} against the company`} sub={`${type}, the last ${m.basis.days} days`} us={l} them={company.lures.find((x) => x.type === type)} usLabel={scope} themLabel="The company" style={{ gridColumn: 'span 4' }} data-ins-lure-against />
+        <AgainstCard i={5} reduce={reduce} ink={ink} title={`${scope} against the company`} sub={`${type}, the last ${m.basis.days} days`} us={l} them={company.lures.find((x) => x.type === type)} usLabel={scope} themLabel="The company" action={canSeePeople && <GoTo label="See the people" onClick={() => seePeople({ dept: scope, lure: type })} data-ins-see-people />} style={{ gridColumn: 'span 4' }} data-ins-lure-against />
       ) : (
         <Card i={5} reduce={reduce} title="Departments" define="hookRate" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 4' }} data-ins-lure-depts>
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>

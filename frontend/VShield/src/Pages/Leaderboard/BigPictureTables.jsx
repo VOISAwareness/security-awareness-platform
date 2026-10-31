@@ -270,6 +270,13 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
           <option value="all">All levels</option>
           {GROUPS.map((g) => <option key={g.id} value={g.id}>{g.brief}</option>)}
         </select>
+        {/* a campaign type asked for from Insights ("See the people"): a chip, cleared with its ✕ */}
+        {view.lure && (
+          <button type="button" data-bp-lure onClick={() => change({ lure: null })} aria-label={`Clicked a ${view.lure}: show everyone again`} style={{ ...control(isDark), display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            Clicked a {view.lure}
+            <X size={12} strokeWidth={2.6} aria-hidden />
+          </button>
+        )}
       </div>
 
       <SelectionBar
@@ -290,7 +297,12 @@ export function PeopleTable({ r, view, onView, selected, onSelected, isDark, ink
           <span style={{ ...head, textAlign: 'center' }}>Stands out</span>
         </div>
         <div ref={box} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
-          {!rows.length && <div style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>No one matches.</div>}
+          {!rows.length && (
+            <div data-bp-none style={{ ...small, fontSize: 10.5, padding: '18px 12px' }}>
+              {view.lure ? `No one${view.dept && view.dept !== 'all' ? ` in ${view.dept}` : ''} clicked a ${view.lure} in this period.` : 'No one matches.'}
+              {view.lure && <> <button type="button" onClick={() => change({ lure: null })} style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', fontWeight: 800, color: 'var(--text)', textDecoration: 'underline', textUnderlineOffset: 2, cursor: 'pointer' }}>Show {view.dept && view.dept !== 'all' ? `everyone in ${view.dept}` : 'everyone'}</button></>}
+            </div>
+          )}
           {shown.map((x) => (
             <PersonRow key={x.key} x={x} ink={ink} cols={PEOPLE_COLS} rowH={ROW_H} center dept={view.dept === 'all'} picked={selected.has(x.key)} onPick={() => toggle(x.key)} />
           ))}
