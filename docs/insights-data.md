@@ -15,6 +15,7 @@ real data. Keep it current when a source, a shape or a rule changes.
 | People and risk | `services/sampleOrganisation.js` (`organisation`) | people and risk API, from the points ledger and users | thirty-day snapshots: tiers, departments, cohorts, training |
 | Targets | defaults in `services/insightsTargets.js` | `GET /insights-targets` (`settings` table) | `{ targets, version, modifiedBy, modifiedAt }` |
 | Training programmes | `DashboardAndAnalytics/dashboardData.json` | training API | `{ trainingPrograms }` |
+| The people behind a figure | `services/peopleBehind.js` (`sampleBehind`), from the department's figures | reports API, from `events` joined to `recipients` and `users` | one row per person per campaign (section 6) |
 
 ## 2. From sources to pages
 
@@ -36,6 +37,7 @@ Everything after the sources is a pure function in `services/`, covered by
 | `deptTargets(m, p, targets)` | the Departments table: six measures per department, now and before, most off target first |
 | `deptPage(m, p, name)` | a department's page: its Risk Score, months, campaign types, training |
 | `scopeItems(items, scope)` | the items as a scope sees them (section 3) |
+| `groupsOf(people)` | the people behind a campaign type in a department, by what they did (section 6) |
 
 ## 3. The scope: company or one department
 
@@ -96,14 +98,51 @@ them measure by measure (`targetsWith()`). The dialog asks for the target
 only; the at-risk edge keeps the default's proportion (`pairFor()`). The
 API stores both edges, so either way of setting them reads the same.
 
-## 6. From Insights to the people, and back
+## 6. The people behind a figure, and the Big Picture
 
-A figure in Insights can lead to the people behind it: on a campaign type
-opened inside a department, **See the people** (admins only, as the Big
-Picture's People list is) opens Leaderboard › The Big Picture on People,
-narrowed to that department and to those who clicked that campaign type.
+On a campaign type opened inside a department, **See the people** (admins
+only, as the Big Picture's People list is) opens a dialog over the page
+(`Pages/Insights/InsightsPeople.jsx`): everyone that type's campaigns
+reached in the department, in four groups that do not overlap and add up
+to the emails delivered, as "What people did" splits them:
 
-The two pages pass the view in the router's navigation state:
+| Group | Who | Last column |
+|---|---|---|
+| Clicked | clicked, gave no details away | Training after (Completed, Started, Not yet) |
+| Gave details away | clicked and entered details on the practice page | Training after |
+| Reported | reported it without clicking | Time to report |
+| Did nothing | neither clicked nor reported | Opened it |
+
+Each person counts once per campaign, in the worst group they reached
+(gave details away, then clicked, then reported). The list pages to fit,
+finds a name or a campaign, and **Export** downloads every group, a sheet
+each (`peopleBehindBook()`). No email addresses are shown or exported.
+
+What the reports API must return for it, one row per person per campaign:
+
+```
+{
+  name, department,
+  campaign: { id, name, started },
+  did: 'gave' | 'clicked' | 'reported' | 'nothing',
+  sentAt, at,              // when it was sent; when they did it (the send for 'nothing')
+  minutes,                 // from the send to `at`; null for 'nothing'
+  opened,                  // for 'nothing': whether they opened it
+  training,                // after a click: 'completed' | 'started' | 'not yet'; else null
+  clicks,                  // their clicks in the period, every campaign type
+}
+```
+
+Until then `sampleBehind()` makes them up from the department's part of
+each campaign: the same counts, its first click and first report at the
+figures' minutes, half its reports in by their median, and its training
+after a click. "Gave details away" records that it happened, never what was
+typed (AGENTS.md rule 5).
+
+**Open in the Big Picture**, in the dialog, opens Leaderboard › The Big
+Picture on People, narrowed to that department and to those who clicked
+that campaign type. The two pages pass the view in the router's navigation
+state:
 
 ```
 Insights ──► /leaderboard  state: { view: 'reports',
@@ -122,9 +161,10 @@ Insights ──► /leaderboard  state: { view: 'reports',
   so the browser's Back works the same way.
 
 With sample data the two pages read different samples (Insights about
-15,000 people, the Big Picture the board's 104), so a narrow filter can
-find no one; the list then says so and offers to widen it. With real data
-both read the same events and people.
+15,000 people, the Big Picture the board's 104), so the dialog's people
+and the Big Picture's differ, and a narrow filter there can find no one;
+the list then says so and offers to widen it. With real data both read the
+same events and people.
 
 ## 7. Adding a page or a measure
 

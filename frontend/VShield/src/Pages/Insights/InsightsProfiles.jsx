@@ -7,6 +7,7 @@ import { deptCode } from '../../GlobalComponents/deptCodes';
 import { Blocks, Card, CompareBars, GoTo, Insight, Legend, MakeupBars, PillColumns, RingGauge, Segmented, Staircase, StepFunnel, Tip } from './InsightsCharts';
 import { Delta, Fill, FitList, HealthChip, InlineBar, LureTile, Meter, Returning, RowsGrid } from './InsightsBits';
 import { useSize } from './useSize';
+import { PeopleDialog } from './InsightsPeople';
 import { TIER_WEIGHT } from '../../services/sampleOrganisation';
 import { GLOSSARY } from '../../services/glossary';
 import { EASE, SPANS, TIER_WORD, TINT, change, day, glow, heads, healthInk, healthTone, didParts, eyebrow, lureShort, mins, num, pc, pc1, riskInk, riskWord, small, tierInk, tierText, times, TYPE } from './insightsUi';
@@ -388,6 +389,8 @@ export function LureProfile({ ctx, frame, type }) {
   const { m, ink, isDark, reduce, open, scope, company, canSeePeople, seePeople } = ctx;
   // the campaigns sit two to a row where both names fit, else one
   const [campsBox, { w: campsW }] = useSize();
+  // the people behind it, in a dialog over the page (InsightsPeople.jsx)
+  const [seeing, setSeeing] = useState(false);
   const pair = campsW >= 880;
   const l = m.lures.find((x) => x.type === type);
   if (!l) return null;
@@ -399,73 +402,78 @@ export function LureProfile({ ctx, frame, type }) {
   // the campaigns' row is as tall as two columns of them need (up to three rows); the charts take the rest
   const campRows = Math.min(3, Math.max(1, Math.ceil(camps.length / (pair ? 2 : 1))));
   return (
-    <ProfileShell
-      {...frame}
-      tone={healthTone(l.health?.word)}
-      reduce={reduce}
-      isDark={isDark}
-      art={<LureTile type={type} size={54} tone="var(--base)" />}
-      eyebrowText={scope ? `Campaign type · ${scope}` : 'Campaign type'}
-      title={type}
-      sub={`${l.campaigns} ${l.campaigns === 1 ? 'campaign' : 'campaigns'} · ${num(l.delivered)} emails${scope ? ` to ${scope}` : ''} in the last ${m.basis.days} days`}
-      figures={[
-        { label: GLOSSARY.hookRate.name, value: pc1(l.hooked), delta: <Delta c={vsAll} ink={ink} title="Against every campaign type together" />, sub: 'against every type' },
-        // the same base as the Hook Rate and the blocks below: the emails delivered
-        { label: GLOSSARY.gaveDetails.name, value: pc1(l.delivered ? l.compromised / l.delivered : null), sub: 'of emails delivered' },
-        { label: GLOSSARY.health.name, node: <HealthChip h={l.health} ink={ink} />, sub: `${GLOSSARY.perClick.name} ${times(l.perClick)}` },
-      ]}
-    >
-      <Stack style={{ gridColumn: 'span 8' }} sizes={['minmax(0,1fr)', `minmax(0,${84 + campRows * 44}px)`]}>
-        <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 6' }}>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
-            <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={34} legendCols={2} />
-            <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people{scope ? ` in ${scope}` : ''} who got one clicked it</Insight>
-          </div>
-        </Card>
-        <Card i={4} reduce={reduce} title="All campaign types" define="hookRate" sub={GLOSSARY.hookRate.name} style={{ gridColumn: 'span 6' }}>
-          <PillColumns
-            items={m.lures.map((x) => ({ key: x.type, label: lureShort(x.type), value: x.hooked, text: pc1(x.hooked), tip: [x.type, `${num(x.clicked)} of ${num(x.delivered)} clicked · ${pc1(x.reportRate)} reported`] }))}
-            lit={type}
-            color={ink.bad}
-            format={pc1}
-            reduce={reduce}
-            onOpen={(key) => { if (key !== type) open('lure', key, null, true); }}
-            label="clicked. Open its profile"
-          />
-        </Card>
-        <Card i={6} reduce={reduce} title="Campaigns" sub="Newest first" style={{ gridColumn: 'span 12' }} data-ins-lure-campaigns>
-          <div ref={campsBox} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <FitList items={camps} rowH={44} cols={pair ? 2 : 1} what="campaigns" style={{ display: 'grid', gridTemplateColumns: `repeat(${pair ? 2 : 1}, minmax(0,1fr))`, gridAutoRows: 'min-content', columnGap: 24, marginTop: 4 }} render={(c, k) => (
-              <Row key={c.id} k={pair ? (k > 1 ? 1 : 0) : k} height={44} cols="minmax(0,1.8fr) minmax(0,1fr) auto 12px" onClick={() => open('campaign', c.id)} label={`${c.name}: ${GLOSSARY.hookRate.name} ${pc1(c.hooked)}. Open its profile`}>
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ ...nameStyle, display: 'block' }}>{c.name}</span>
-                  <span style={{ ...small, display: 'block', marginTop: 2 }}>Started {c.started}</span>
-                </span>
-                <Meter value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} sub="clicked" delay={rowDelay(k)} reduce={reduce} height={4} />
-                <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} width={100} /></span>
-                {arrow}
-              </Row>
-            )} />
-          </div>
-        </Card>
-      </Stack>
-      {scope ? (
-        <AgainstCard i={5} reduce={reduce} ink={ink} title={`${scope} against the company`} sub={`${type}, the last ${m.basis.days} days`} us={l} them={company.lures.find((x) => x.type === type)} usLabel={scope} themLabel="The company" action={canSeePeople && <GoTo label="See the people" onClick={() => seePeople({ dept: scope, lure: type })} data-ins-see-people />} style={{ gridColumn: 'span 4' }} data-ins-lure-against />
-      ) : (
-        <Card i={5} reduce={reduce} title="Departments" define="hookRate" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 4' }} data-ins-lure-depts>
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>
-            <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
-              <Row key={x.name} k={k} cols="22px minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.hooked)}, ${num(x.clicked)} of ${num(x.recipients)} clicked. Open its profile`}>
-                <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
-                <span style={nameStyle}>{x.name}</span>
-                <Meter value={x.hooked} max={maxDept} color={ink.bad} label={pc1(x.hooked)} sub={`${num(x.clicked)} of ${num(x.recipients)}`} delay={rowDelay(k)} reduce={reduce} height={4} />
-                {arrow}
-              </Row>
-            )} />
-          </div>
-        </Card>
+    <>
+      <ProfileShell
+        {...frame}
+        tone={healthTone(l.health?.word)}
+        reduce={reduce}
+        isDark={isDark}
+        art={<LureTile type={type} size={54} tone="var(--base)" />}
+        eyebrowText={scope ? `Campaign type · ${scope}` : 'Campaign type'}
+        title={type}
+        sub={`${l.campaigns} ${l.campaigns === 1 ? 'campaign' : 'campaigns'} · ${num(l.delivered)} emails${scope ? ` to ${scope}` : ''} in the last ${m.basis.days} days`}
+        figures={[
+          { label: GLOSSARY.hookRate.name, value: pc1(l.hooked), delta: <Delta c={vsAll} ink={ink} title="Against every campaign type together" />, sub: 'against every type' },
+          // the same base as the Hook Rate and the blocks below: the emails delivered
+          { label: GLOSSARY.gaveDetails.name, value: pc1(l.delivered ? l.compromised / l.delivered : null), sub: 'of emails delivered' },
+          { label: GLOSSARY.health.name, node: <HealthChip h={l.health} ink={ink} />, sub: `${GLOSSARY.perClick.name} ${times(l.perClick)}` },
+        ]}
+      >
+        <Stack style={{ gridColumn: 'span 8' }} sizes={['minmax(0,1fr)', `minmax(0,${84 + campRows * 44}px)`]}>
+          <Card i={3} reduce={reduce} title="What people did" define="outcomes" style={{ gridColumn: 'span 6' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
+              <Blocks parts={didParts(l, ink, isDark)} reduce={reduce} height={34} legendCols={2} />
+              <Insight tone={ink.bad} sub={`${pc(l.reportRate)} reported it`}>{Math.round((l.hooked || 0) * 100)} in every 100 people{scope ? ` in ${scope}` : ''} who got one clicked it</Insight>
+            </div>
+          </Card>
+          <Card i={4} reduce={reduce} title="All campaign types" define="hookRate" sub={GLOSSARY.hookRate.name} style={{ gridColumn: 'span 6' }}>
+            <PillColumns
+              items={m.lures.map((x) => ({ key: x.type, label: lureShort(x.type), value: x.hooked, text: pc1(x.hooked), tip: [x.type, `${num(x.clicked)} of ${num(x.delivered)} clicked · ${pc1(x.reportRate)} reported`] }))}
+              lit={type}
+              color={ink.bad}
+              format={pc1}
+              reduce={reduce}
+              onOpen={(key) => { if (key !== type) open('lure', key, null, true); }}
+              label="clicked. Open its profile"
+            />
+          </Card>
+          <Card i={6} reduce={reduce} title="Campaigns" sub="Newest first" style={{ gridColumn: 'span 12' }} data-ins-lure-campaigns>
+            <div ref={campsBox} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <FitList items={camps} rowH={44} cols={pair ? 2 : 1} what="campaigns" style={{ display: 'grid', gridTemplateColumns: `repeat(${pair ? 2 : 1}, minmax(0,1fr))`, gridAutoRows: 'min-content', columnGap: 24, marginTop: 4 }} render={(c, k) => (
+                <Row key={c.id} k={pair ? (k > 1 ? 1 : 0) : k} height={44} cols="minmax(0,1.8fr) minmax(0,1fr) auto 12px" onClick={() => open('campaign', c.id)} label={`${c.name}: ${GLOSSARY.hookRate.name} ${pc1(c.hooked)}. Open its profile`}>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ ...nameStyle, display: 'block' }}>{c.name}</span>
+                    <span style={{ ...small, display: 'block', marginTop: 2 }}>Started {c.started}</span>
+                  </span>
+                  <Meter value={c.hooked} max={maxHook} color={ink.bad} label={pc1(c.hooked)} sub="clicked" delay={rowDelay(k)} reduce={reduce} height={4} />
+                  <span style={{ display: 'flex', justifyContent: 'flex-end' }}><HealthChip h={c.health} ink={ink} width={100} /></span>
+                  {arrow}
+                </Row>
+              )} />
+            </div>
+          </Card>
+        </Stack>
+        {scope ? (
+          <AgainstCard i={5} reduce={reduce} ink={ink} title={`${scope} against the company`} sub={`${type}, the last ${m.basis.days} days`} us={l} them={company.lures.find((x) => x.type === type)} usLabel={scope} themLabel="The company" action={canSeePeople && <GoTo label="See the people" onClick={() => setSeeing(true)} aria-haspopup="dialog" data-ins-see-people />} style={{ gridColumn: 'span 4' }} data-ins-lure-against />
+        ) : (
+          <Card i={5} reduce={reduce} title="Departments" define="hookRate" sub={`${GLOSSARY.hookRate.name}, highest first`} style={{ gridColumn: 'span 4' }} data-ins-lure-depts>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+              <FitList items={depts} rowH={30} what="departments" render={(x, k) => (
+                <Row key={x.name} k={k} cols="22px minmax(0,1fr) minmax(0,1fr) 12px" onClick={() => open('department', x.name)} label={`${x.name}: ${GLOSSARY.hookRate.name} ${pc1(x.hooked)}, ${num(x.clicked)} of ${num(x.recipients)} clicked. Open its profile`}>
+                  <DeptCrest code={deptCode(x.name)} size={22} compact flat metal={isDark ? 'steelDark' : 'steel'} />
+                  <span style={nameStyle}>{x.name}</span>
+                  <Meter value={x.hooked} max={maxDept} color={ink.bad} label={pc1(x.hooked)} sub={`${num(x.clicked)} of ${num(x.recipients)}`} delay={rowDelay(k)} reduce={reduce} height={4} />
+                  {arrow}
+                </Row>
+              )} />
+            </div>
+          </Card>
+        )}
+      </ProfileShell>
+      {seeing && scope && (
+        <PeopleDialog type={type} department={scope} days={m.basis.days} campaigns={camps} hookRate={m.now.hooked} isDark={isDark} reduce={reduce} onBigPicture={() => seePeople({ dept: scope, lure: type })} onClose={() => setSeeing(false)} />
       )}
-    </ProfileShell>
+    </>
   );
 }
 
