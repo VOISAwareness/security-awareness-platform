@@ -22,7 +22,12 @@ import trainingQuizJson from "./TrainingQuiz.json";
 import trainingCertificateJson from "./TrainingCertificate.json";
 
 // Asset URL & Image Imports
-import scormZipUrl from "@/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip?url";
+const optionalScormZips = import.meta.glob(
+  "/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip",
+  { eager: true, import: "default", query: "?url" }
+);
+const scormZipUrl =
+  optionalScormZips["/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip"] || "";
 import videosMetadataUrl from "@/assets/Training(LMS)/uploads/videos/metadata.json?url";
 import certsMetadataUrl from "@/assets/Training(LMS)/uploads/certificates/metadata.json?url";
 
@@ -82,7 +87,7 @@ export const TrainingProvider = ({ children }) => {
       FileName: "scorm12-176523-148.zip",
       CreatedOn: "06-Oct-2026",
       Size: "14.2 MB",
-      isLocalUrl: true,
+      isLocalUrl: !!scormZipUrl,
       localPath: scormZipUrl,
       compiledHtmlUrl: ""
     }
