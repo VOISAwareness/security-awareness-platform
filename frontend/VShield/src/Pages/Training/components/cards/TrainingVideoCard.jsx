@@ -1,6 +1,7 @@
 import { Play, Settings } from "lucide-react";
 
 import { VideoThumbnail } from "../shared/VideoThumbnail";
+import { CARD_THEME_COLORS, getDynamicButtonBg } from "../utility/colorHelpers";
 
 export const TrainingVideoCard = ({
   video,
@@ -12,21 +13,26 @@ export const TrainingVideoCard = ({
 }) => {
   const videoSrc = video.TrainingVideo;
 
+  const lightBg = CARD_THEME_COLORS.video.parentBg;
+  const lightBorder = CARD_THEME_COLORS.video.border;
+  const lightButtonBg = getDynamicButtonBg(lightBg);
+
   return (
     <div
       onClick={() => onSelect ? onSelect() : onPreview(video)}
-      className={`rounded-3xl flex flex-col h-[350px] transition-all duration-200 relative overflow-hidden select-none text-left cursor-pointer group ${
+      style={!isDark && !isSelected ? { backgroundColor: lightBg, borderColor: lightBorder } : {}}
+      className={`rounded-3xl flex flex-col h-[280px] border transition-all duration-200 relative overflow-hidden select-none text-left cursor-pointer group ${
         isSelected
           ? isDark
             ? "border-transparent bg-[#15161A] text-white hover:bg-[#15161A]"
             : "border-transparent bg-white text-slate-900 hover:bg-white"
           : isDark
           ? "bg-[#4A2D08] text-white border-white/10 hover:shadow-lg"
-          : "bg-[#FFEFCE] text-black hover:border-[#FB9296] hover:shadow-md"
+          : "text-black hover:shadow-md"
       }`}
     >
       {/* 16:9 Native Video Thumbnail Preview with floating overlay ID badge */}
-      <div className="relative w-full aspect-video bg-black rounded-t-3xl overflow-hidden flex-shrink-0 border-b border-black/5 dark:border-white/5">
+      <div className="relative w-[calc(100%+2px)] h-[141px] bg-black rounded-t-3xl overflow-hidden flex-shrink-0 border-b border-black/5 dark:border-white/5 -mt-[1px] -mx-[1px]">
         <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[8.5px] font-black bg-white text-slate-800 shadow-md z-20 uppercase tracking-wider flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
           {video.TrainingVideoID}
@@ -53,7 +59,7 @@ export const TrainingVideoCard = ({
           <h3 className="text-[12.5px] font-black tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
             {video.TrainingVideoName}
           </h3>
-          <p className="text-[9.5px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+          <p className="text-[9.5px] text-slate-950 dark:text-slate-300 line-clamp-2 leading-relaxed">
             {video.Description}
           </p>
         </div>
@@ -79,9 +85,12 @@ export const TrainingVideoCard = ({
                 e.stopPropagation();
                 onPreview(video);
               }}
-              className="h-8 px-3.5 rounded-xl bg-white/10 hover:bg-white/15 dark:bg-white/10 dark:hover:bg-white/15 border border-slate-200 dark:border-white/10 text-[9.5px] font-bold text-slate-700 dark:text-white flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+              style={!isDark ? { backgroundColor: lightButtonBg, color: "#FFFFFF", borderColor: "transparent" } : {}}
+              className={`h-8 px-4 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
+                isDark ? "bg-white/10 hover:bg-white/15 border-white/10 text-white" : ""
+              }`}
             >
-              Preview <Play className="w-3.5 h-3.5 text-[#E60000] fill-current" />
+              Preview <Play className="w-3.5 h-3.5 text-inherit fill-current" />
             </button>
           </div>
         </div>

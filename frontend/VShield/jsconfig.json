@@ -1,4 +1,3 @@
-cat << 'EOF' > jsconfig.json
 {
   "compilerOptions": {
     "target": "ES6",
@@ -12,4 +11,3 @@ cat << 'EOF' > jsconfig.json
   },
   "include": ["src/**/*"]
 }
-EOF

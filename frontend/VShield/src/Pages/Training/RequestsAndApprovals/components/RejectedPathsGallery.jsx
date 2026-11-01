@@ -1,4 +1,4 @@
- function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { 
   Search, 
   ChevronDown, 
@@ -15,7 +15,7 @@ export const VarGalleryLowerBaseHeightAdjuster = 460;
 // =========================================================================
 //  1.  CAPSULE HEADER (TOP-LEFT)                            //
 // =========================================================================
-const getLCardBg = (isDark) => (isDark ? '#1C1E24' : '#FFFFFF');
+const getLCardBg = (isDark) => (isDark ? '#0B1121' : '#FFFFFF');
 
 const CAPSULE_THEME_COLOR = '#FCD5CE';
 const CAPSULE_COUNTER_COLOR = '#F43F5E';
@@ -55,7 +55,7 @@ const RejectedPathsGallery = ({
       const month = d.toLocaleString('en-US', { month: 'short' });
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
-    } catch (e2) {
+    } catch { /* ignore */
       return dateStr.split(' ')[0] || 'N/A';
     }
   };
@@ -91,7 +91,7 @@ const RejectedPathsGallery = ({
 
   return (
     <>
-      <div className="gallery-wrapper relative flex flex-col w-full select-none font-sans overflow-x-hidden">
+      <div className="gallery-wrapper relative flex flex-col w-full select-none font-sans overflow-x-hidden pb-2">
         
         {/*  1.  CAPSULE HEADER (TOP-LEFT) */}
         <div
@@ -193,10 +193,11 @@ const RejectedPathsGallery = ({
             backgroundColor: lCardBg,
             height: `${VarGalleryLowerBaseHeightAdjuster}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
+            borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
           }}
-          className="w-full p-3 pb-5 flex flex-col gap-2.5 overflow-y-auto z-10 border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
+          className="w-full p-5 pb-6 flex flex-col gap-4 overflow-y-auto z-10 border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
         >
           {filteredPaths.length === 0 ? (
             <div className="w-full h-full min-h-[160px] flex items-center justify-center text-center">
@@ -215,7 +216,7 @@ const RejectedPathsGallery = ({
                     borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
                     transform: `scale(${VarGallaryCardsScaleAdjuster})`
                   }}
-                  className="w-full box-border bg-[#EEF2F6] dark:bg-[#15171E] px-3.5 py-3.5 flex items-center justify-between text-slate-900 dark:text-slate-100 shadow-2xs border border-black/5 dark:border-white/5 hover:border-black/10 transition-colors hover:scale-[1.01] cursor-pointer flex-shrink-0"
+                  className="w-full box-border bg-[#EEF2F6] dark:bg-[#15171E] px-6 py-5 flex items-center justify-between text-slate-900 dark:text-slate-100 shadow-2xs border border-black/5 dark:border-white/5 hover:border-black/10 transition-colors hover:scale-[1.01] cursor-pointer flex-shrink-0"
                 >
                   <div className="flex flex-col text-left leading-tight min-w-0 flex-1 pr-2">
                     <div className="flex items-center gap-2">
@@ -227,7 +228,7 @@ const RejectedPathsGallery = ({
                           ? 'bg-amber-100 text-amber-800 border-amber-300/40' 
                           : 'bg-violet-100 text-violet-800 border-violet-300/40'
                       }`}>
-                        {path.isZipPath ? 'Zip + Certs' : 'Vids + Quizzes + Certs'}
+                        {path.isZipPath ? 'Package + Certificate' : 'Videos + Quiz + Certificate'}
                       </span>
                     </div>
                     <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900 dark:text-white truncate mt-1">
@@ -251,7 +252,7 @@ const RejectedPathsGallery = ({
                       </span>
 
                       <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 hidden sm:inline whitespace-nowrap">
-                        Created By: <span className="font-semibold text-slate-500">{_optionalChain([path, 'access', _ => _.createdBy, 'optionalAccess', _2 => _2.split, 'call', _3 => _3('@'), 'access', _4 => _4[0]]) || 'Editor'}</span>
+                        Created By: <span className="font-semibold text-slate-500">{path.createdBy?.split('@')?.[0] || 'Editor'}</span>
                       </span>
 
                       <button
@@ -272,7 +273,7 @@ const RejectedPathsGallery = ({
                             e.stopPropagation();
                             onEdit(path);
                           }}
-                          className="h-5 px-2.5 rounded-md bg-slate-600 hover:bg-slate-700 text-white text-[8px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-102 active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                          className="h-6 px-2.5 rounded-md bg-slate-600 hover:bg-slate-700 text-white text-[8px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-102 active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
                         >
                           <Settings className="w-2.5 h-2.5" />
                           Settings
@@ -285,7 +286,7 @@ const RejectedPathsGallery = ({
                             e.stopPropagation();
                             onSendForApproval(path);
                           }}
-                          className="h-5 px-2.5 rounded-md bg-violet-600 hover:bg-violet-700 text-white text-[8px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-102 active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                          className="h-6 px-2.5 rounded-md bg-violet-600 hover:bg-violet-700 text-white text-[8px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-102 active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
                         >
                           <UploadCloud className="w-2.5 h-2.5" />
                           Send for Approval
@@ -371,17 +372,17 @@ const RejectedPathsGallery = ({
                 <div className="sm:col-span-2">
                   <strong>Attached Videos:</strong>
                   <ul className="list-disc pl-5 mt-1 text-[11px] text-slate-600 space-y-1">
-                    {_optionalChain([detailModalItem, 'access', _5 => _5.TrainingVideoAttached, 'optionalAccess', _6 => _6.map, 'call', _7 => _7(vidId => {
+                    {detailModalItem.TrainingVideoAttached?.map(vidId => {
                       const v = videos.find(x => x.TrainingVideoID === vidId);
                       return <li key={vidId}>{v ? v.TrainingVideoName : vidId}</li>;
-                    })]) || <li>None</li>}
+                    }) || <li>None</li>}
                   </ul>
                 </div>
                 <div className="sm:col-span-2">
                   <strong>Attached Quiz:</strong>
                   <div className="text-[11px] text-slate-600 mt-0.5">
                     {(() => {
-                      const qzId = _optionalChain([detailModalItem, 'access', _8 => _8.TrainingQuizAttached, 'optionalAccess', _9 => _9[0]]);
+                      const qzId = detailModalItem.TrainingQuizAttached?.[0];
                       const q = quizzes.find(x => x.TrainingQuizID === qzId);
                       return q ? `${q.TrainingQuizName} (${Object.keys(q.QuizData || {}).length} Questions)` : 'None';
                     })()}
@@ -391,7 +392,7 @@ const RejectedPathsGallery = ({
                   <strong>Attached Certificate:</strong>
                   <div className="text-[11px] text-slate-600 mt-0.5">
                     {(() => {
-                      const certId = _optionalChain([detailModalItem, 'access', _10 => _10.TrainingCertificateAttached, 'optionalAccess', _11 => _11[0]]);
+                      const certId = detailModalItem.TrainingCertificateAttached?.[0];
                       const cert = certificates.find(x => x.TrainingCertificateID === certId);
                       return cert ? cert.TrainingCertificateName : 'None';
                     })()}

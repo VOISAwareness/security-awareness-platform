@@ -1,4 +1,4 @@
- function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useUserType } from '@/UserTypeContext/UserTypeContext';
 
 // Ported Galleries
@@ -15,7 +15,6 @@ import MyApprovedImg from '@/assets/RequestAndApprovalsAssets/MyApprovedCampaign
 
 // DB & Types
 import { savePath } from '../components/utility/db';
-
 
 // =========================================================================
 //  CONSTANTS
@@ -41,7 +40,7 @@ const RequestsAndApprovals = ({
   onSendForApproval,
   onLaunch
 }) => {
-  const { user } = _optionalChain([useUserType, 'optionalCall', _ => _()]) || { isDark: false };
+  const { user } = useUserType?.() || { isDark: false };
 
   // =========================================================================
   //  EMAIL RESOLVER
@@ -62,14 +61,15 @@ const RequestsAndApprovals = ({
     ).trim().toLowerCase();
   }, [user]);
 
-  const isCampaignCreator = _optionalChain([user, 'optionalAccess', _2 => _2.role]) === 'Campaign Creator';
+  const isCampaignCreator = user?.role === 'Campaign Creator';
 
   // Active view tab state: 'queue' | 'rejected' | 'expired' | 'approved'
   const [activeTab, setActiveTab] = useState('queue');
 
-  // Trigger for rejection note window modal
-  const [rejectingPath, setRejectingPath] = useState(null);
+  console.log("Requests & Approvals rendering: user =", user, "isCampaignCreator =", isCampaignCreator, "activeTab =", activeTab, "paths =", paths);
 
+  // Trigger for rejection note window modal
+  
   const handleApprove = async (path) => {
     const updatedPath = {
       ...path,
@@ -97,8 +97,7 @@ const RequestsAndApprovals = ({
     } catch (e) {
       console.error("Failed to reject learning path", e);
     }
-    setRejectingPath(null);
-  };
+      };
 
 
   // Switcher navigation items configuration (Notified removed)
@@ -139,7 +138,7 @@ const RequestsAndApprovals = ({
         : 'bg-black text-white shadow-md border-transparent';
     }
     return isDark
-      ? 'bg-[#1C1E24] text-white hover:bg-[#252830] border-white/10 shadow-xs hover:shadow-md'
+      ? 'bg-[#0B1121] text-white hover:bg-[#151a2d] border-white/10 shadow-xs hover:shadow-md'
       : 'bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs hover:shadow-md';
   };
 

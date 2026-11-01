@@ -1,4 +1,4 @@
- function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   ChevronDown,
@@ -133,6 +133,7 @@ export const CreateNewCertificates = ({
     if (editorCanvasRef.current) {
       editorCanvasRef.current.innerHTML = activeHtml;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFullScreen]);
 
   const saveSelection = () => {
@@ -182,11 +183,11 @@ export const CreateNewCertificates = ({
   };
 
   const handleFileChange = (e) => {
-    const file = _optionalChain([e, 'access', _ => _.target, 'access', _2 => _2.files, 'optionalAccess', _3 => _3[0]]);
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBgImage(_optionalChain([event, 'access', _4 => _4.target, 'optionalAccess', _5 => _5.result])  || "");
+        setBgImage(event.target?.result || "");
       };
       reader.readAsDataURL(file);
     }
@@ -230,7 +231,7 @@ export const CreateNewCertificates = ({
               </span>
               <button
                 type="button"
-                onClick={() => setIsFullScreen(false)}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsFullScreen(false); }}
                 className="h-7 px-3.5 rounded-lg text-[9px] font-voda font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-all"
               >
                 Minimize Editor
@@ -415,14 +416,16 @@ export const CreateNewCertificates = ({
             <div className="px-6 py-4 bg-black/40 border-t border-white/10 flex items-center justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setIsFullScreen(false)}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsFullScreen(false); }}
                 className="h-10 px-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-white cursor-pointer uppercase tracking-wider"
               >
                 Exit Fullscreen
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
                   setIsFullScreen(false);
                 }}
                 className="h-10 px-6 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-xs font-bold text-white cursor-pointer shadow-md uppercase tracking-wider"
@@ -507,7 +510,7 @@ export const CreateNewCertificates = ({
                   />
                   <button
                     type="button"
-                    onClick={() => _optionalChain([fileInputRef, 'access', _6 => _6.current, 'optionalAccess', _7 => _7.click, 'call', _8 => _8()])}
+                    onClick={() => fileInputRef.current?.click()}
                     className={`h-9 px-4 rounded-xl border font-bold text-xs uppercase flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
                       isDark ? "bg-white/5 border-white/5 text-slate-300 hover:bg-white/10" : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
                     }`}
@@ -706,7 +709,7 @@ export const CreateNewCertificates = ({
                   {/* Fullscreen Button */}
                   <button
                     type="button"
-                    onClick={() => setIsFullScreen(true)}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsFullScreen(true); }}
                     className="h-6 px-2.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase tracking-wide flex items-center gap-1 cursor-pointer ml-1.5 shadow-sm"
                     title="Fullscreen Certificate Editing"
                   >
