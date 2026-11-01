@@ -8,12 +8,35 @@ import {
   Eye,
   Check,
   X,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  RemoveFormatting,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  ListOrdered,
+  Indent,
+  Outdent,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Code,
+  Palette,
+  Highlighter,
   Edit3,
   Trash2,
-  AlertTriangle,
-  Monitor
+  Maximize2,
+  Minimize2,
+  AlertTriangle
 } from 'lucide-react';
 import LandingPageCatalogues from './LandingPageCatalogues.json';
+import { api } from '../../services/api';
+import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 import LandingPageDesigner from './LandingPageDesigner';
 
 // =========================================================================
@@ -71,30 +94,24 @@ const LandingPageCatalogue = () => {
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
-  // Data Store with safe JSON fallback
-  const [catalogues, setCatalogues] = useState(() => {
-    try {
-      const stored = localStorage.getItem('voisshield_landing_pages');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-      return LandingPageCatalogues?.landingPages || [];
-    } catch {
-      return LandingPageCatalogues?.landingPages || [];
-    }
-  });
+  // Backed by the API (bundled JSON is only a fallback if it is unreachable).
+  const [catalogues, setCatalogues] = useState([]);
 
-  // Keep localStorage synchronized
   useEffect(() => {
-    try {
-      localStorage.setItem('voisshield_landing_pages', JSON.stringify(catalogues));
-    } catch (e) {
-      console.error('Failed to save to localStorage:', e);
-    }
-  }, [catalogues]);
+    let active = true;
+    api.landingPages
+      .list()
+      .then((rows) => {
+        if (active) setCatalogues(Array.isArray(rows) ? rows : []);
+      })
+      .catch((e) => {
+        console.error('Failed to load landing pages', e);
+        if (active) setCatalogues(LandingPageCatalogues?.landingPages || []);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // View & Filter States (Directly lands in Editor mode if navigated with createNew state)
   const shouldOpenCreateImmediately = Boolean(location.state?.createNew || location.state?.openCreate);
@@ -164,21 +181,6 @@ const LandingPageCatalogue = () => {
   const getItemContent = (item) => item?.LandingPageContent || item?.landingPageContent || item?.content || '';
   const getItemDate = (item) => item?.CreatedDate || item?.createdDate || item?.date || '';
 
-  // Formatter for timestamp: dd/mm/yyyy hh:mm am/pm
-  const getFormattedTimestamp = () => {
-    const d = new Date();
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const strHours = String(hours).padStart(2, '0');
-    return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
-  };
-
   // Compute Next ID based on highest existing index
   const getNextAvailableId = () => {
     let highestNum = 0;
@@ -220,17 +222,17 @@ const LandingPageCatalogue = () => {
 
   // Delete Action
   const handleDeleteItem = (id) => {
-    setCatalogues((prev) => {
-      const updated = prev.filter((item) => getItemId(item) !== id);
-      try {
-        localStorage.setItem('voisshield_landing_pages', JSON.stringify(updated));
-      } catch (e) {
+    api.landingPages
+      .remove(id)
+      .then(() => {
+        setCatalogues((prev) => prev.filter((item) => getItemId(item) !== id));
+        setDeleteConfirmationItem(null);
+        showToast(`Deleted ${id}`);
+      })
+      .catch((e) => {
         console.error(e);
-      }
-      return updated;
-    });
-    setDeleteConfirmationItem(null);
-    showToast(`Deleted ${id}`);
+        showToast('Could not delete landing page. Please try again.');
+      });
   };
 
   // Toggle Expand Safely without losing canvas content
@@ -346,8 +348,8 @@ const LandingPageCatalogue = () => {
     const htmlContent = rawHtmlMode
       ? rawHtmlCode
       : editorCanvasRef.current
-        ? editorCanvasRef.current.innerHTML
-        : activeHtmlRef.current || '';
+      ? editorCanvasRef.current.innerHTML
+      : activeHtmlRef.current || '';
 
     if (!htmlContent.trim()) {
       showToast('Landing Page canvas cannot be empty!');
@@ -367,45 +369,39 @@ const LandingPageCatalogue = () => {
       (rawHtmlMode ? rawHtmlCode : editorCanvasRef.current?.innerHTML || '');
 
     if (editorId) {
-      setCatalogues((prev) => {
-        const updated = prev.map((item) =>
-          getItemId(item) === editorId
-            ? {
-              ...item,
-              LandingPageName: pageName.trim() || getItemName(item),
-              LandingPageDescription: pageDescription.trim(),
-              LandingPageContent: htmlContent
-            }
-            : item
-        );
-        try {
-          localStorage.setItem('voisshield_landing_pages', JSON.stringify(updated));
-        } catch (e) {
+      api.landingPages
+        .update(editorId, {
+          LandingPageName: pageName.trim() || undefined,
+          LandingPageDescription: pageDescription.trim(),
+          LandingPageContent: htmlContent
+        })
+        .then((saved) => {
+          setCatalogues((prev) =>
+            prev.map((item) => (getItemId(item) === editorId ? saved : item))
+          );
+          showToast(`Updated '${pageName.trim()}'`);
+        })
+        .catch((e) => {
           console.error(e);
-        }
-        return updated;
-      });
-      showToast(`Updated '${pageName.trim()}'`);
+          showToast('Could not save landing page. Please try again.');
+        });
     } else {
-      const newId = getNextAvailableId();
-      const newPage = {
-        LandingPageID: newId,
-        LandingPageName: pageName.trim() || `Landing Page ${newId}`,
-        LandingPageDescription: pageDescription.trim() || 'Custom created security awareness landing page.',
-        CreatedDate: getFormattedTimestamp(),
-        LandingPageContent: htmlContent
-      };
-
-      setCatalogues((prev) => {
-        const updated = [newPage, ...prev];
-        try {
-          localStorage.setItem('voisshield_landing_pages', JSON.stringify(updated));
-        } catch (e) {
+      // The backend assigns the next LP-00N id.
+      api.landingPages
+        .create({
+          LandingPageName: pageName.trim() || 'Untitled Landing Page',
+          LandingPageDescription:
+            pageDescription.trim() || 'Custom created security awareness landing page.',
+          LandingPageContent: htmlContent
+        })
+        .then((created) => {
+          setCatalogues((prev) => [created, ...prev]);
+          showToast(`Created '${created?.LandingPageID || ''}' successfully!`);
+        })
+        .catch((e) => {
           console.error(e);
-        }
-        return updated;
-      });
-      showToast(`Created '${newId}' successfully!`);
+          showToast('Could not create landing page. Please try again.');
+        });
     }
 
     setShowSaveChoiceModal(false);
@@ -440,29 +436,434 @@ const LandingPageCatalogue = () => {
 
   const currentDisplayId = editorId || getNextAvailableId();
 
-  const renderLandingPageDesigner = () => (
-    <LandingPageDesigner
-      isEditorExpanded={isEditorExpanded}
-      isDark={isDark}
-      currentDisplayId={currentDisplayId}
-      pageName={pageName}
-      setPageName={setPageName}
-      pageDescription={pageDescription}
-      setPageDescription={setPageDescription}
-      rawHtmlMode={rawHtmlMode}
-      rawHtmlCode={rawHtmlCode}
-      setRawHtmlCode={setRawHtmlCode}
-      activeHtmlRef={activeHtmlRef}
-      editorCanvasRef={editorCanvasRef}
-      imageInputRef={imageInputRef}
-      handleImageUpload={handleImageUpload}
-      runCommand={runCommand}
-      insertComponent={insertComponent}
-      promptInsertLink={promptInsertLink}
-      handleToggleCodeMode={handleToggleCodeMode}
-      handleToggleExpand={handleToggleExpand}
-      handleInitiateSave={handleInitiateSave}
-    />
+  // Helper function to render the editor workspace
+  const renderEditorContent = () => (
+    <div
+      className={`w-full flex-1 min-h-0 flex flex-col gap-2.5 overflow-hidden ${
+        isEditorExpanded
+          ? 'w-screen h-screen p-4 bg-slate-100 dark:bg-[#0c0d10] fixed inset-0'
+          : ''
+      }`}
+      style={isEditorExpanded ? { zIndex: 2147483640 } : {}}
+    >
+      {/* ── 1. TOP BENTO ROW: REQUIRED DETAILS CARD (Hidden when expanded) ── */}
+      {!isEditorExpanded && (
+        <div
+          className={`w-full p-3 rounded-2xl border flex flex-col md:flex-row items-stretch gap-4 flex-shrink-0 shadow-2xs ${
+            isDark ? 'bg-[#1F2128] border-white/5' : 'bg-[#ffffff] border-slate-200'
+          }`}
+        >
+          {/* Isolated Solid Black Title Box */}
+          <div className="w-full md:w-[155px] p-3 rounded-xl bg-black text-white flex flex-col justify-between flex-shrink-0 shadow-xs">
+            <div>
+              <h3 className="text-[12.5px] font-voda-exb leading-tight tracking-tight uppercase">
+                Required<br />Details
+              </h3>
+            </div>
+            <p className="text-[8px] text-slate-300 font-medium leading-tight mt-2">
+              Fill in the required details to store a landing page and to use it in future
+            </p>
+          </div>
+
+          {/* Middle Inputs: Landing Page ID & Landing Page Name */}
+          <div className="w-full md:w-[380px] flex flex-col justify-center gap-2.5 flex-shrink-0">
+            {/* Landing Page ID */}
+            <div className="flex items-center gap-2">
+              <label className="text-[11.5px] font-voda-exb text-slate-800 dark:text-slate-100 w-24 flex-shrink-0 leading-tight">
+                Landing<br />Page ID
+              </label>
+              <div
+                className={`flex-1 h-8 px-3.5 rounded-lg flex items-center text-[10.5px] font-mono-tech font-bold select-none ${
+                  isDark ? 'bg-[#15161A] text-slate-300' : 'bg-[#E9EEF4] text-slate-600'
+                }`}
+              >
+                {currentDisplayId}
+              </div>
+            </div>
+
+            {/* Landing Page Name */}
+            <div className="flex items-center gap-2">
+              <label className="text-[11.5px] font-voda-exb text-slate-800 dark:text-slate-100 w-24 flex-shrink-0 leading-tight">
+                Landing<br />Page Name
+              </label>
+              <div
+                className={`flex-1 h-8 px-3.5 rounded-lg flex items-center ${
+                  isDark ? 'bg-[#15161A] text-white' : 'bg-[#E9EEF4] text-slate-900'
+                }`}
+              >
+                <input
+                  type="text"
+                  value={pageName}
+                  onChange={(e) => setPageName(e.target.value)}
+                  placeholder="Type here"
+                  className="w-full bg-transparent text-[11px] font-medium outline-none placeholder-slate-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Input: Description */}
+          <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
+            <label className="text-[11.5px] font-voda-exb text-slate-800 dark:text-slate-100">
+              Description
+            </label>
+            <div
+              className={`w-full h-[52px] p-2.5 px-3.5 rounded-lg flex items-start ${
+                isDark ? 'bg-[#15161A] text-white' : 'bg-[#E9EEF4] text-slate-900'
+              }`}
+            >
+              <textarea
+                rows={2}
+                value={pageDescription}
+                onChange={(e) => setPageDescription(e.target.value)}
+                placeholder="Type here"
+                className="w-full h-full bg-transparent text-[11px] font-medium outline-none resize-none placeholder-slate-400 leading-snug"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 2. ULTIMATE ADVANCED CAPABILITIES CANVAS CONTAINER ── */}
+      <div className="w-full flex-1 min-h-0 rounded-2xl bg-black dark:bg-[#1F2128] border border-black flex flex-col overflow-hidden shadow-sm">
+        {/* Full Ribbon Toolbar */}
+        <div className="w-full px-3 py-1.5 flex flex-wrap items-center justify-between gap-1 text-white flex-shrink-0 select-none bg-black dark:bg-[#1F2128] border-b border-white/10">
+          <div className="flex flex-wrap items-center gap-1 text-xs">
+            {/* Headings */}
+            <select
+              onChange={(e) => runCommand('formatBlock', e.target.value)}
+              className="px-2 py-0.5 rounded bg-[#181A20] text-[10px] font-bold text-white border border-white/20 outline-none cursor-pointer"
+              title="Block Format"
+            >
+              <option value="<p>">Paragraph</option>
+              <option value="<h1>">Heading 1</option>
+              <option value="<h2>">Heading 2</option>
+              <option value="<h3>">Heading 3</option>
+              <option value="<h4>">Heading 4</option>
+              <option value="<blockquote>">Quote Block</option>
+            </select>
+
+            {/* Font Family */}
+            <select
+              onChange={(e) => runCommand('fontName', e.target.value)}
+              className="px-2 py-0.5 rounded bg-[#181A20] text-[10px] font-bold text-white border border-white/20 outline-none cursor-pointer"
+              title="Font Family"
+            >
+              <option value="'Vodafone ExB', 'Montserrat', Arial, sans-serif">Vodafone ExB</option>
+              <option value="'Segoe UI', Arial, sans-serif">Segoe UI</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Montserrat', sans-serif">Montserrat</option>
+              <option value="'JetBrains Mono', monospace">Mono Tech</option>
+            </select>
+
+            {/* Font Size */}
+            <select
+              onChange={(e) => runCommand('fontSize', e.target.value)}
+              className="px-1.5 py-0.5 rounded bg-[#181A20] text-[10px] font-bold text-white border border-white/20 outline-none cursor-pointer"
+              title="Font Size"
+            >
+              <option value="3">Size 14px</option>
+              <option value="1">Size 11px</option>
+              <option value="2">Size 12px</option>
+              <option value="4">Size 18px</option>
+              <option value="5">Size 24px</option>
+              <option value="6">Size 32px</option>
+              <option value="7">Size 42px</option>
+            </select>
+
+            <span className="text-white/25 mx-0.5">|</span>
+
+            {/* Formatting Buttons */}
+            <button
+              type="button"
+              onClick={() => runCommand('bold')}
+              className="p-1 rounded hover:bg-white/10 font-black cursor-pointer text-white"
+              title="Bold"
+            >
+              <Bold className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('italic')}
+              className="p-1 rounded hover:bg-white/10 italic cursor-pointer text-white"
+              title="Italic"
+            >
+              <Italic className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('underline')}
+              className="p-1 rounded hover:bg-white/10 underline cursor-pointer text-white"
+              title="Underline"
+            >
+              <Underline className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('strikeThrough')}
+              className="p-1 rounded hover:bg-white/10 line-through cursor-pointer text-white"
+              title="Strikethrough"
+            >
+              <Strikethrough className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('subscript')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Subscript"
+            >
+              <Subscript className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('superscript')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Superscript"
+            >
+              <Superscript className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('removeFormat')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-slate-400 hover:text-white"
+              title="Clear Formatting"
+            >
+              <RemoveFormatting className="w-3.5 h-3.5" />
+            </button>
+
+            <span className="text-white/25 mx-0.5">|</span>
+
+            {/* Alignments */}
+            <button
+              type="button"
+              onClick={() => runCommand('justifyLeft')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Align Left"
+            >
+              <AlignLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('justifyCenter')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Align Center"
+            >
+              <AlignCenter className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('justifyRight')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Align Right"
+            >
+              <AlignRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('justifyFull')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Justify"
+            >
+              <AlignJustify className="w-3.5 h-3.5" />
+            </button>
+
+            <span className="text-white/25 mx-0.5">|</span>
+
+            {/* Lists & Indentation */}
+            <button
+              type="button"
+              onClick={() => runCommand('insertUnorderedList')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Bullet List"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('insertOrderedList')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Numbered List"
+            >
+              <ListOrdered className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('indent')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Increase Indent"
+            >
+              <Indent className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => runCommand('outdent')}
+              className="p-1 rounded hover:bg-white/10 cursor-pointer text-white"
+              title="Decrease Indent"
+            >
+              <Outdent className="w-3.5 h-3.5" />
+            </button>
+
+            <span className="text-white/25 mx-0.5">|</span>
+
+            {/* Color Pickers */}
+            <label className="flex items-center gap-1 cursor-pointer p-1 rounded hover:bg-white/10 text-[10px] font-bold text-white" title="Text Color">
+              <Palette className="w-3.5 h-3.5 text-[#E60000]" />
+              <input
+                type="color"
+                onChange={(e) => runCommand('foreColor', e.target.value)}
+                className="w-4 h-4 rounded cursor-pointer opacity-0 absolute pointer-events-auto"
+              />
+              <span>Text</span>
+            </label>
+
+            <label className="flex items-center gap-1 cursor-pointer p-1 rounded hover:bg-white/10 text-[10px] font-bold text-white" title="Highlight / Fill Color">
+              <Highlighter className="w-3.5 h-3.5 text-amber-400" />
+              <input
+                type="color"
+                defaultValue="#FFF1F2"
+                onChange={(e) => runCommand('hiliteColor', e.target.value)}
+                className="w-4 h-4 rounded cursor-pointer opacity-0 absolute pointer-events-auto"
+              />
+              <span>Highlight</span>
+            </label>
+
+            <span className="text-white/25 mx-0.5">|</span>
+
+            {/* Image & Link */}
+            <input
+              type="file"
+              ref={imageInputRef}
+              accept="image/png, image/jpeg, image/jpg, image/svg+xml"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="px-2 py-0.5 rounded bg-[#181A20] hover:bg-white/20 border border-white/20 text-[10px] font-bold text-white flex items-center gap-1 cursor-pointer"
+              title="Upload & Embed Local Image"
+            >
+              <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
+              Image
+            </button>
+
+            <button
+              type="button"
+              onClick={promptInsertLink}
+              className="px-2 py-0.5 rounded bg-[#181A20] hover:bg-white/20 border border-white/20 text-[10px] font-bold text-white flex items-center gap-1 cursor-pointer"
+              title="Insert Link"
+            >
+              <LinkIcon className="w-3.5 h-3.5 text-emerald-400" />
+              Link
+            </button>
+
+            <span className="text-white/25 mx-0.5">|</span>
+
+            {/* Components Menu */}
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  insertComponent(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+              className="px-2 py-0.5 rounded bg-[#181A20] text-[10px] font-bold text-white border border-white/20 outline-none cursor-pointer"
+              defaultValue=""
+              title="Insert Designed Elements"
+            >
+              <option value="" disabled>+ Add Component</option>
+              <option value="primary-btn">Primary Action Button (Red)</option>
+              <option value="secondary-btn">Corporate Button (Blue)</option>
+              <option value="warning-banner">Alert Warning Banner</option>
+              <option value="two-cols">2-Column Layout Grid</option>
+              <option value="divider">Horizontal Divider</option>
+            </select>
+          </div>
+
+          {/* Right: Code Toggle & Expand */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            <button
+              type="button"
+              onClick={handleToggleCodeMode}
+              className={`px-2 py-0.5 rounded border text-[10px] font-bold flex items-center gap-1 cursor-pointer ${
+                rawHtmlMode
+                  ? 'bg-[#E60000] text-white border-[#E60000]'
+                  : 'bg-[#181A20] text-white border-white/20 hover:bg-white/10'
+              }`}
+              title="Toggle Raw HTML Source Code"
+            >
+              <Code className="w-3 h-3" />
+              {rawHtmlMode ? 'Visual Mode' : 'HTML Code'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleToggleExpand}
+              className="hover:text-[#E60000] cursor-pointer transition-colors p-1 rounded hover:bg-white/10"
+              title={isEditorExpanded ? 'Minimize Screen' : 'Expand Full Screen'}
+            >
+              {isEditorExpanded ? (
+                <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+              ) : (
+                <Maximize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Main White Bordered Canvas Area */}
+        <div className="flex-1 min-h-0 mx-2.5 mb-2.5 rounded-xl border border-white/20 overflow-hidden bg-white flex flex-col shadow-inner">
+          {rawHtmlMode ? (
+            <HtmlCodeEditor
+              value={rawHtmlCode}
+              onChange={(code) => {
+                setRawHtmlCode(code);
+                activeHtmlRef.current = code;
+              }}
+              fontSize={12}
+              className="rounded-xl"
+              ariaLabel="Landing page HTML"
+              placeholder="Enter custom HTML code here..."
+            />
+          ) : (
+            <div
+              ref={editorCanvasRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={() => {
+                if (editorCanvasRef.current) {
+                  activeHtmlRef.current = editorCanvasRef.current.innerHTML;
+                }
+              }}
+              className="w-full h-full overflow-y-auto outline-none cursor-text shadow-sm [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-black/20"
+              style={{ minHeight: isEditorExpanded ? 'calc(100vh - 120px)' : '360px' }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ── 3. BOTTOM BUTTONS (With BACK button to the left of SAVE when expanded) ── */}
+      <div className="flex items-center justify-center gap-3 pt-0.5 flex-shrink-0">
+        {isEditorExpanded && (
+          <button
+            type="button"
+            onClick={handleToggleExpand}
+            className="px-6 py-1.5 rounded-md bg-slate-700 hover:bg-slate-800 text-white font-voda-exb text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+            Back
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={handleInitiateSave}
+          className="px-10 py-1.5 rounded-md bg-[#84cc16] hover:bg-[#65a30d] text-white font-voda-exb text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
+        >
+          SAVE
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -477,8 +878,9 @@ const LandingPageCatalogue = () => {
         {/* ── 1. TOP HEADER BAR: "LANDING PAGE CATALOGUE"                            */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${isDark ? 'bg-[#ffffff] text-white border-white/10' : 'bg-[#000000] text-white border-black/10'
-            }`}
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
+            isDark ? 'bg-[#ffffff] text-white border-white/10' : 'bg-[#000000] text-white border-black/10'
+          }`}
         >
           <div className="flex items-center gap-3">
             {currentView === VIEW_EDITOR && (
@@ -508,23 +910,26 @@ const LandingPageCatalogue = () => {
                 <div className="flex items-center gap-2.5">
                   {/* Search Pill */}
                   <div
-                    className={`flex items-center rounded-xl overflow-hidden border shadow-2xs ${isDark ? 'bg-[#ffffff] text-black border-white/10' : 'bg-[#000000] text-slate-900 border-slate-300/80'
-                      }`}
+                    className={`flex items-center rounded-xl overflow-hidden border shadow-2xs ${
+                      isDark ? 'bg-[#ffffff] text-black border-white/10' : 'bg-[#000000] text-slate-900 border-slate-300/80'
+                    }`}
                   >
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Type here"
-                      className={`px-3.5 py-1.5 text-[11px] font-medium bg-transparent outline-none w-56 ${isDark ? 'text-white dark:text-black placeholder-slate-400' : 'text-slate-900 placeholder-slate-500'
-                        }`}
+                      className={`px-3.5 py-1.5 text-[11px] font-medium bg-transparent outline-none w-56 ${
+                        isDark ? 'text-white dark:text-black placeholder-slate-400' : 'text-slate-900 placeholder-slate-500'
+                      }`}
                     />
                     <div className={`h-4 w-px ${isDark ? 'bg-white/20' : 'bg-slate-300'}`} />
                     <select
                       value={searchFilter}
                       onChange={(e) => setSearchFilter(e.target.value)}
-                      className={`px-3 py-1.5 text-[10px] font-voda font-bold uppercase bg-transparent outline-none cursor-pointer pr-4 ${isDark ? 'text-black/70' : 'text-white/90'
-                        }`}
+                      className={`px-3 py-1.5 text-[10px] font-voda font-bold uppercase bg-transparent outline-none cursor-pointer pr-4 ${
+                        isDark ? 'text-black/70' : 'text-white/90'
+                      }`}
                     >
                       <option value="Name" className={isDark ? 'bg-[#15161A] text-black' : 'bg-white text-slate-900'}>
                         SEARCH BY NAME
@@ -556,8 +961,9 @@ const LandingPageCatalogue = () => {
                 {filteredCatalogues.map((item) => (
                   <div
                     key={getItemId(item)}
-                    className={`relative rounded-2xl overflow-hidden border shadow-sm flex flex-col justify-between h-[215px] group transition-all select-none ${isDark ? 'border-white/10 hover:border-white/25 bg-slate-900' : 'border-slate-200 hover:border-slate-300 bg-slate-100'
-                      }`}
+                    className={`relative rounded-2xl overflow-hidden border shadow-sm flex flex-col justify-between h-[215px] group transition-all select-none ${
+                      isDark ? 'border-white/10 hover:border-white/25 bg-slate-900' : 'border-slate-200 hover:border-slate-300 bg-slate-100'
+                    }`}
                   >
                     {/* Center-Aligned HTML Canvas */}
                     <div className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-hidden z-0">
@@ -603,8 +1009,9 @@ const LandingPageCatalogue = () => {
                     {/* Top Floating Overlays */}
                     <div className="relative z-10 p-2.5 flex items-center justify-between pointer-events-auto">
                       <span
-                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-voda-exb tracking-wide shadow-sm border ${isDark ? 'bg-[#202127]/80 text-white border-white/15' : 'bg-[#ffffff]/85 text-slate-900 border-slate-300/80'
-                          }`}
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-voda-exb tracking-wide shadow-sm border ${
+                          isDark ? 'bg-[#202127]/80 text-white border-white/15' : 'bg-[#ffffff]/85 text-slate-900 border-slate-300/80'
+                        }`}
                       >
                         {getItemId(item)}
                       </span>
@@ -614,10 +1021,11 @@ const LandingPageCatalogue = () => {
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(item)}
-                          className={`p-1.5 rounded-lg shadow-sm border hover:scale-105 active:scale-95 transition-all cursor-pointer ${isDark
+                          className={`p-1.5 rounded-lg shadow-sm border hover:scale-105 active:scale-95 transition-all cursor-pointer ${
+                            isDark
                               ? 'bg-[#202127]/80 text-white border-white/15 hover:bg-[#202127]'
                               : 'bg-[#ffffff]/85 text-slate-900 border-slate-300/80 hover:bg-white'
-                            }`}
+                          }`}
                           title="Edit in Designer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -627,10 +1035,11 @@ const LandingPageCatalogue = () => {
                         <button
                           type="button"
                           onClick={() => setDeleteConfirmationItem(item)}
-                          className={`p-1.5 rounded-lg shadow-sm border hover:scale-105 active:scale-95 transition-all cursor-pointer ${isDark
+                          className={`p-1.5 rounded-lg shadow-sm border hover:scale-105 active:scale-95 transition-all cursor-pointer ${
+                            isDark
                               ? 'bg-[#202127]/80 text-red-400 border-white/15 hover:bg-red-500/20'
                               : 'bg-[#ffffff]/85 text-red-600 border-slate-300/80 hover:bg-red-50'
-                            }`}
+                          }`}
                           title="Delete Landing Page"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -640,8 +1049,9 @@ const LandingPageCatalogue = () => {
 
                     {/* Bottom Floating Themed Dock */}
                     <div
-                      className={`relative z-10 m-2.5 p-2 px-3 rounded-xl border shadow-md flex items-center justify-between gap-2.5 pointer-events-auto ${isDark ? 'bg-[#202127]/80 border-white/15 text-white' : 'bg-[#ffffff]/85 border-slate-300/80 text-slate-900'
-                        }`}
+                      className={`relative z-10 m-2.5 p-2 px-3 rounded-xl border shadow-md flex items-center justify-between gap-2.5 pointer-events-auto ${
+                        isDark ? 'bg-[#202127]/80 border-white/15 text-white' : 'bg-[#ffffff]/85 border-slate-300/80 text-slate-900'
+                      }`}
                     >
                       <div className="flex flex-col min-w-0 flex-1">
                         <span
@@ -672,174 +1082,19 @@ const LandingPageCatalogue = () => {
           </>
         )}
 
-        {/* ========================================================================= */}
-        {/* ── 🌟 VIEW 2: DESIGN LANDING PAGE CANVAS (DIRECT VIEWPORT RENDERING)      */}
-        {/* ========================================================================= */}
-        {currentView === VIEW_EDITOR &&
-          !isEditorExpanded &&
-          renderLandingPageDesigner()}
-
-        {/* ── 🌟 PORTALED EXPANDED VIEW (When user clicks Fullscreen on Designer) ── */}
-        {currentView === VIEW_EDITOR &&
-          isEditorExpanded &&
-          typeof document !== 'undefined' &&
-          createPortal(renderLandingPageDesigner(), document.body)}
-
-        {/* ========================================================================= */}
-        {/* ── 🌟 SAVE CHOICE DIALOGUE MODAL (PORTALED TO PREVENT ANY Z-INDEX HIDING) */}
-        {/* ========================================================================= */}
-        {showSaveChoiceModal &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 2147483646,
-                backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(6px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '16px'
-              }}
-            >
-              <div className="w-full max-w-md bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/15 p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-sm font-voda-exb text-slate-900 dark:text-white uppercase tracking-tight">
-                      Confirm Landing Page Save
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Choose how you want to proceed with saving your landing page:
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveChoiceModal(false)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-black dark:hover:text-white cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleLaunchFullScreenPreview}
-                    className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer group"
-                  >
-                    <Monitor className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-[11.5px] font-voda-exb text-slate-900 dark:text-white uppercase">
-                      Full Screen Preview
-                    </span>
-                    <span className="text-[9px] text-slate-400">
-                      Test live browser viewport
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleCommitSubmit}
-                    className="p-3.5 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer shadow-sm group hover:scale-[1.02]"
-                  >
-                    <Check className="w-5 h-5 stroke-[3] text-white group-hover:scale-110 transition-transform" />
-                    <span className="text-[11.5px] font-voda-exb text-white uppercase">
-                      Submit
-                    </span>
-                    <span className="text-[9px] text-white/80">
-                      Save to catalogue gallery
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-
-        {/* ========================================================================= */}
-        {/* ── 🌟 COMPLETE BROWSER SCREEN LIVE PREVIEW VIA REACT PORTAL               */}
-        {/* ========================================================================= */}
-        {isFullScreenLivePreview &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              id="lp-fullscreen-viewport-portal"
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 2147483647,
-                backgroundColor: '#ffffff',
-                display: 'flex',
-                flexDirection: 'column',
-                margin: 0,
-                padding: 0,
-                overflow: 'hidden'
-              }}
-            >
-              {/* Floating Top Left Button: "Go Back & Submit" */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  left: '16px',
-                  zIndex: 2147483647
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleCommitSubmit}
-                  className="px-4 py-2 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white font-voda-exb text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/30"
-                >
-                  <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
-                  Go Back & Submit
-                </button>
-              </div>
-
-              {/* Floating Top Right Button: Exit Close 'X' */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  zIndex: 2147483647
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsFullScreenLivePreview(false)}
-                  className="p-2 rounded-xl bg-black/70 hover:bg-black text-white backdrop-blur-md border border-white/20 shadow-2xl cursor-pointer hover:scale-105 active:scale-95 transition-all"
-                  title="Exit Preview"
-                >
-                  <X className="w-5 h-5 stroke-[2.5]" />
-                </button>
-              </div>
-
-              {/* 100% Full-Viewport Interactive Simulation Preview */}
-              <iframe
-                title="Full Screen Live Landing Page"
-                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>html,body{margin:0;padding:0;width:100%;min-height:100vh;}</style></head><body>${stagedHtmlForPreview}</body></html>`}
-                style={{
-                  width: '100vw',
-                  height: '100vh',
-                  border: 'none',
-                  margin: 0,
-                  padding: 0,
-                  display: 'block',
-                  backgroundColor: '#ffffff'
-                }}
-              />
-            </div>,
-            document.body
-          )}
+        <LandingPageDesigner
+          currentView={currentView}
+          VIEW_EDITOR={VIEW_EDITOR}
+          isEditorExpanded={isEditorExpanded}
+          renderEditorContent={renderEditorContent}
+          showSaveChoiceModal={showSaveChoiceModal}
+          setShowSaveChoiceModal={setShowSaveChoiceModal}
+          handleLaunchFullScreenPreview={handleLaunchFullScreenPreview}
+          handleCommitSubmit={handleCommitSubmit}
+          isFullScreenLivePreview={isFullScreenLivePreview}
+          setIsFullScreenLivePreview={setIsFullScreenLivePreview}
+          stagedHtmlForPreview={stagedHtmlForPreview}
+        />
 
         {/* ========================================================================= */}
         {/* ── 🌟 DELETE CONFIRMATION MODAL (PORTALED)                                */}
