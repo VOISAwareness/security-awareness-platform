@@ -32,10 +32,10 @@ import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApproval
 
 // 🌟 Announcements: the list, a three-step send (details, email, review) and a new announcement
 import Announcements from './Pages/Announcement/Announcement';
-import AnnouncementsDetailsAndSettings from './Pages/Announcement/AnnouncementsDetailsAndSettings';
-import AnnouncementsCampaignEmail from './Pages/Announcement/AnnouncementsCampaignEmail';
-import AnnouncementsReviewPublish from './Pages/Announcement/AnnouncementsReviewPublish';
-import AnnouncementScenarioDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementScenarioDetails';
+import AnnouncementsDetailsAndSettings from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateDetails/AnnouncementsDetailsAndSettings';
+import AnnouncementsCampaignEmail from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementsCampaignEmail';
+import AnnouncementsReviewPublish from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateReview/AnnouncementsReviewPublish';
+import AnnouncementScenarioDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementScenarioDetails/AnnouncementScenarioDetails';
 
 // 🌟 Leaderboard (opened from My Space)
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
