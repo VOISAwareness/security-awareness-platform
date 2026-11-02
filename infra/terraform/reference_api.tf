@@ -85,16 +85,21 @@ resource "aws_iam_role_policy" "reference_api_s3" {
         Resource = [
           "${aws_s3_bucket.assets.arn}/uploads/recipients/*",
           "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*",
+          "${aws_s3_bucket.assets.arn}/uploads/training-packages/*",
         ]
       },
       {
-        # Scenario covers only. The bucket is private, so the browser cannot
-        # fetch a bare S3 URL and the API hands out presigned GETs instead.
-        # Recipient uploads stay write-and-delete only: they hold PII, and
-        # nothing in this API should be able to read them back.
-        Effect   = "Allow"
-        Action   = ["s3:GetObject"]
-        Resource = "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*"
+        # Scenario covers and training packages only. The bucket is private,
+        # so the browser cannot fetch a bare S3 URL and the API hands out
+        # presigned GETs instead (and reads a package's size before saving
+        # its row). Recipient uploads stay write-and-delete only: they hold
+        # PII, and nothing in this API should be able to read them back.
+        Effect = "Allow"
+        Action = ["s3:GetObject"]
+        Resource = [
+          "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*",
+          "${aws_s3_bucket.assets.arn}/uploads/training-packages/*",
+        ]
       },
       {
         # Needed to enumerate a list's or a scenario's files before deleting them.
@@ -106,6 +111,7 @@ resource "aws_iam_role_policy" "reference_api_s3" {
             "s3:prefix" = [
               "uploads/recipients/*",
               "uploads/scenario-covers/*",
+              "uploads/training-packages/*",
             ]
           }
         }
@@ -167,6 +173,12 @@ locals {
     "GET /training/videos",
     "GET /training/quizzes",
     "GET /training/certificates",
+    # Training packages: zips in S3, a row each (tables.tf: training_packages).
+    # The upload path is static, so it never collides with POST /training/packages.
+    "GET /training/packages",
+    "POST /training/packages/upload",
+    "POST /training/packages",
+    "DELETE /training/packages/{id}",
     "GET /campaigns-catalog",
     # The scenario editor's drafts (tables.tf: scenario_drafts).
     "GET /scenario-drafts",

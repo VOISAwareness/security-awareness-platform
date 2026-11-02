@@ -158,6 +158,28 @@ resource "aws_dynamodb_table" "training_certificates" {
   }
 }
 
+# training-packages — the Training screen's SCORM / HTML5 packages, one row
+# each, PK PackageID (SP-00N). The zip itself is in the assets bucket under
+# uploads/training-packages/ (reference-api presigns the upload and the
+# download); the row keeps its name, size and S3 key.
+#
+# PROVISIONED 1 + 1 like settings: inside DynamoDB's always-free 25 + 25
+# (this brings the project to 17 + 17). Packages are read when the Training
+# screen opens and written when someone uploads one; a burst beyond a unit is
+# answered 503 and retried.
+resource "aws_dynamodb_table" "training_packages" {
+  name           = "${var.name_prefix}-training-packages"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 1
+  write_capacity = 1
+  hash_key       = "PackageID"
+
+  attribute {
+    name = "PackageID"
+    type = "S"
+  }
+}
+
 # --- Campaigns catalogue (CampaignsData.json) — dummy history for the hub. ---
 # Separate from the live "campaigns" table that backs the wizard/approval spine.
 resource "aws_dynamodb_table" "campaigns_catalog" {

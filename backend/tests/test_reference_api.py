@@ -392,3 +392,158 @@ def _targets_on_db(mod, method, body=None):
     event = {"routeKey": f"{method} /insights-targets", "body": json.dumps(body) if body is not None else None}
     resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
     return resp["statusCode"], json.loads(resp["body"])
+
+
+# --- training packages ----------------------------------------------------
+
+
+def test_package_keys_are_only_the_ones_the_api_makes(mod):
+    good = mod.package_key("0" * 32, "Green Fleet (v2).zip")
+    assert good == f"uploads/training-packages/{'0' * 32}/Green_Fleet__v2_.zip"
+    assert mod.is_package_key(good)
+    for bad in (
+        None,
+        42,
+        "uploads/scenario-covers/x/a.zip",
+        f"uploads/training-packages/{'0' * 32}/a.html",
+        "uploads/training-packages/short/a.zip",
+        f"uploads/training-packages/{'0' * 32}/../a.zip",
+        f"uploads/training-packages/{'0' * 32}/a/b.zip",
+    ):
+        assert not mod.is_package_key(bad), bad
+
+
+def test_package_size_and_date_read_as_the_screen_shows_them(mod):
+    from datetime import datetime
+
+    assert mod.package_size_text(14_889_779) == "14.2 MB"
+    assert mod.package_date(datetime(2026, 10, 6)) == "06-Oct-2026"
+
+
+@pytest.mark.parametrize(
+    "body,says",
+    [
+        (None, "JSON object"),
+        ({}, "PackageName is required"),
+        ({"PackageName": "   "}, "PackageName is required"),
+        ({"PackageName": 5}, "must be text"),
+        ({"PackageName": "x" * 121}, "at most 120"),
+        ({"PackageName": "A", "Duration": -1}, "whole minutes"),
+        ({"PackageName": "A", "Duration": 2.5}, "whole minutes"),
+        ({"PackageName": "A", "Duration": True}, "whole minutes"),
+        ({"PackageName": "A", "Duration": 601}, "whole minutes"),
+    ],
+)
+def test_clean_package_refuses_what_cannot_be_saved(mod, body, says):
+    fields, problem = mod.clean_package(body)
+    assert fields is None and says in problem
+
+
+def test_clean_package_keeps_trimmed_fields_only(mod):
+    fields, problem = mod.clean_package(
+        {"PackageName": " Green Fleet ", "Description": "", "Difficulty": "Intermediate", "Duration": 20, "PackageID": "SP-999", "Size": "1 MB"}
+    )
+    assert problem is None
+    assert fields == {"PackageName": "Green Fleet", "Difficulty": "Intermediate", "Duration": 20}
+
+
+def _packages(mod, method, path="/training/packages", body=None, pid=None):
+    import json
+    from types import SimpleNamespace
+
+    event = {
+        "routeKey": f"{method} {path}",
+        "pathParameters": {"id": pid} if pid else None,
+        "body": json.dumps(body) if body is not None else None,
+    }
+    resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
+    return resp["statusCode"], json.loads(resp["body"])
+
+
+def test_training_packages_round_trip_on_s3_and_dynamodb(mod, monkeypatch):
+    """moto's in-memory S3 and DynamoDB: upload link, the browser's PUT, the
+    row, the list's download link, the size cap and the delete."""
+    import boto3
+    from moto import mock_aws
+
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.setenv(name, "testing")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    with mock_aws():
+        region = "ap-south-1"
+        s3 = boto3.client("s3", region_name=region)
+        s3.create_bucket(Bucket="assets", CreateBucketConfiguration={"LocationConstraint": region})
+        db = boto3.resource("dynamodb", region_name=region)
+        db.create_table(
+            TableName=f"{mod.TABLE_PREFIX}-training-packages",
+            KeySchema=[{"AttributeName": "PackageID", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "PackageID", "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 1, "WriteCapacityUnits": 1},
+        )
+        monkeypatch.setattr(mod, "dynamodb", db)
+        monkeypatch.setattr(mod, "s3_client", s3)
+        monkeypatch.setattr(mod, "UPLOAD_BUCKET", "assets")
+
+        # only a .zip gets an upload link
+        assert _packages(mod, "POST", "/training/packages/upload", {"fileName": "course.html"})[0] == 400
+        status, body = _packages(mod, "POST", "/training/packages/upload", {"fileName": "Green Fleet.ZIP"})
+        assert status == 201
+        key = body["data"]["packageKey"]
+        assert mod.is_package_key(key) and key.endswith("/Green_Fleet.zip")
+        assert "X-Amz-Signature" in body["data"]["uploadUrl"]
+
+        # no row before the zip is there, and none for a key the API did not make
+        assert _packages(mod, "POST", body={"PackageName": "Green Fleet", "PackageKey": key})[0] == 400
+        assert _packages(mod, "POST", body={"PackageName": "Green Fleet", "PackageKey": "uploads/recipients/x/a.zip"})[0] == 400
+
+        s3.put_object(Bucket="assets", Key=key, Body=b"PK" + b"0" * 2048, ContentType="application/zip")
+        status, body = _packages(mod, "POST", body={"PackageName": "Green Fleet", "Description": "SCORM", "Duration": 20, "PackageKey": key})
+        assert status == 201
+        row = body["data"]
+        assert row["PackageID"] == "SP-001"
+        assert row["FileName"] == "Green_Fleet.zip"
+        assert row["SizeBytes"] == 2050 and row["Size"] == "0.0 MB"
+        assert "X-Amz-Signature" in row["PackageURL"]
+
+        # a second one takes the next number
+        _, up = _packages(mod, "POST", "/training/packages/upload", {"fileName": "b.zip"})
+        s3.put_object(Bucket="assets", Key=up["data"]["packageKey"], Body=b"PK")
+        status, body = _packages(mod, "POST", body={"PackageName": "B", "PackageKey": up["data"]["packageKey"]})
+        assert status == 201 and body["data"]["PackageID"] == "SP-002"
+
+        status, body = _packages(mod, "GET")
+        assert status == 200 and [r["PackageID"] for r in body["data"]] == ["SP-002", "SP-001"]
+        assert all("PackageURL" in r for r in body["data"])
+
+        # over the cap: refused, and the zip is removed
+        monkeypatch.setattr(mod, "MAX_PACKAGE_BYTES", 1024)
+        _, up = _packages(mod, "POST", "/training/packages/upload", {"fileName": "big.zip"})
+        big = up["data"]["packageKey"]
+        s3.put_object(Bucket="assets", Key=big, Body=b"0" * 4096)
+        status, body = _packages(mod, "POST", body={"PackageName": "Big", "PackageKey": big})
+        assert status == 413 and "limit" in body["error"]["message"]
+        assert s3.list_objects_v2(Bucket="assets", Prefix=big).get("KeyCount") == 0
+
+        # delete takes the row and its zip; deleting again is fine
+        assert _packages(mod, "DELETE", "/training/packages/{id}", pid="SP-001")[0] == 204
+        assert s3.list_objects_v2(Bucket="assets", Prefix=key).get("KeyCount") == 0
+        assert [r["PackageID"] for r in _packages(mod, "GET")[1]["data"]] == ["SP-002"]
+        assert _packages(mod, "DELETE", "/training/packages/{id}", pid="SP-001")[0] == 204
+
+
+def test_a_throttled_packages_table_is_503(mod, monkeypatch):
+    from botocore.exceptions import ClientError
+
+    class Throttled:
+        def get_item(self, **kwargs):
+            raise ClientError({"Error": {"Code": "ProvisionedThroughputExceededException"}}, "GetItem")
+
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", "assets")
+    monkeypatch.setattr(mod, "table", lambda name: Throttled())
+    status, body = _packages(mod, "DELETE", "/training/packages/{id}", pid="SP-001")
+    assert status == 503 and body["error"]["code"] == "BUSY"
+
+
+def test_packages_need_the_upload_bucket(mod, monkeypatch):
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", None)
+    assert _packages(mod, "GET")[0] == 500
