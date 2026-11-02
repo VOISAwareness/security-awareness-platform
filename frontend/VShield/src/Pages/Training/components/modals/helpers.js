@@ -1,4 +1,4 @@
-function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 export const useIsDarkMode = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -42,7 +42,7 @@ export const loadJSZip = () => {
 };
 
 export const getMimeType = (filename) => {
-  const ext = _optionalChain([filename, 'access', _ => _.split, 'call', _2 => _2("."), 'access', _3 => _3.pop, 'call', _4 => _4(), 'optionalAccess', _5 => _5.toLowerCase, 'call', _6 => _6()]);
+  const ext = filename?.split(".").pop()?.toLowerCase();
   switch (ext) {
     case "js": return "application/javascript";
     case "css": return "text/css";

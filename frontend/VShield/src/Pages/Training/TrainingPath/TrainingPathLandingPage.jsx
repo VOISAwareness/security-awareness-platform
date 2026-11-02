@@ -24,7 +24,7 @@ export const TrainingPathLandingPage = ({
   onAddQuiz,
   onAddCertificate,
   onAddPackage,
-  setCurrentView
+  
 }) => {
   if (pathsSubTab === "create" || editingPath) {
     return (

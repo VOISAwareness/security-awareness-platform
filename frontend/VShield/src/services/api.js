@@ -185,6 +185,28 @@ export const api = {
     quizzes: () => request('/training/quizzes'),
     certificates: () => request('/training/certificates'),
   },
+  // SCORM / HTML5 packages: the zip goes straight to S3 through a presigned
+  // PUT, then the row is saved; listing gives each a presigned GET (PackageURL).
+  trainingPackages: {
+    list: () => request('/training/packages'),
+    async upload({ file, fields }) {
+      const presign = await request('/training/packages/upload', {
+        method: 'POST',
+        body: { fileName: file.name },
+      });
+      const put = await fetch(uploadTarget(presign.uploadUrl), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/zip' },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Package upload failed (${put.status})`);
+      return request('/training/packages', {
+        method: 'POST',
+        body: { ...fields, PackageKey: presign.packageKey },
+      });
+    },
+    remove: (id) => request(`/training/packages/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   campaignsCatalog: { list: () => request('/campaigns-catalog') },
 
   campaigns: {

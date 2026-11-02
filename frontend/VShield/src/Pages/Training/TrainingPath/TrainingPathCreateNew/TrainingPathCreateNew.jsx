@@ -1,5 +1,4 @@
- function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }import React, { useState, } from "react";
-import { useUserType } from "@/UserTypeContext/UserTypeContext";
+import { useState } from "react";
 import {
   X,
   Play,
@@ -46,23 +45,7 @@ export const CreateNewTrainingPath = ({
   onAddPackage
 }) => {
   const isDark = useIsDarkMode();
-  const userContext = _optionalChain([useUserType, 'optionalCall', _ => _()]) || {};
-  const loggedInName = React.useMemo(() => {
-    if (_optionalChain([userContext, 'access', _2 => _2.user, 'optionalAccess', _3 => _3.UserName])) return userContext.user.UserName;
-    try {
-      const activeUser = localStorage.getItem("voisshield_active_user");
-      if (activeUser) {
-        const parsed = JSON.parse(activeUser);
-        if (_optionalChain([parsed, 'optionalAccess', _4 => _4.UserName])) return parsed.UserName;
-      }
-      const currentUser = localStorage.getItem("voisshield_current_user");
-      if (currentUser) {
-        const parsed = JSON.parse(currentUser);
-        if (_optionalChain([parsed, 'optionalAccess', _5 => _5.UserName])) return parsed.UserName;
-      }
-    } catch (e2) {}
-    return "Abhay H S";
-  }, [userContext.user]);
+    
 
   const [step, setStep] = useState(1);
   const [pathName, setPathName] = useState(editingPath ? editingPath.TrainingPathName : "");
@@ -74,20 +57,20 @@ export const CreateNewTrainingPath = ({
 
   // Selection state
   const [pathType, setPathType] = useState(
-    _optionalChain([editingPath, 'optionalAccess', _6 => _6.isZipPath]) ? "zip" : "individual"
+    editingPath?.isZipPath ? "zip" : "individual"
   );
   
   const [selectedVideos, setSelectedVideos] = useState(
     editingPath ? editingPath.TrainingVideoAttached || [] : []
   );
   const [selectedQuiz, setSelectedQuiz] = useState(
-    editingPath ? _optionalChain([editingPath, 'access', _7 => _7.TrainingQuizAttached, 'optionalAccess', _8 => _8[0]]) || "" : ""
+    editingPath ? editingPath.TrainingQuizAttached?.[0] || "" : ""
   );
   const [selectedCert, setSelectedCert] = useState(
-    editingPath ? _optionalChain([editingPath, 'access', _9 => _9.TrainingCertificateAttached, 'optionalAccess', _10 => _10[0]]) || "" : ""
+    editingPath ? editingPath.TrainingCertificateAttached?.[0] || "" : ""
   );
   const [selectedPackage, setSelectedPackage] = useState(
-    _optionalChain([editingPath, 'optionalAccess', _11 => _11.attachedZipID]) || ""
+    editingPath?.attachedZipID || ""
   );
 
   // Nested upload modal triggers
@@ -124,7 +107,7 @@ export const CreateNewTrainingPath = ({
       setPackageLaunchHtmlUrl(url);
     } catch (e) {
       console.error(e);
-      setPackageZipError(_optionalChain([e, 'optionalAccess', _12 => _12.message]) || "Internal error compiling HTML5 zip website package.");
+      setPackageZipError(e?.message || "Internal error compiling HTML5 zip website package.");
     }
   };
 
@@ -164,13 +147,10 @@ export const CreateNewTrainingPath = ({
   };
 
   const bgCard = isDark ? "bg-[#090D1A] border-white/5 text-white" : "bg-[#F8FAFC] border-slate-200 text-slate-800 shadow-xl";
-  const bgHeader = isDark ? "bg-black/40 border-white/10 text-white" : "bg-slate-100 border-slate-200 text-slate-800";
-  const bgSteps = isDark ? "bg-black/20 border-white/5 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600";
-  const textPrimary = isDark ? "text-white" : "text-slate-800";
+      const textPrimary = isDark ? "text-white" : "text-slate-800";
   const textSecondary = isDark ? "text-slate-400" : "text-slate-500";
   const bgInput = isDark ? "bg-[#04060d] border-white/10 text-white" : "bg-white border-slate-300 text-slate-800";
-  const bgItem = isDark ? "bg-white/[0.01] border-white/5 hover:border-white/10" : "bg-white border-slate-200 hover:border-slate-300";
-
+  
   if (showVideoUpload) {
     return (
       <CreateNewVideos
@@ -224,6 +204,77 @@ export const CreateNewTrainingPath = ({
         }}
         onClose={() => setShowCertCreate(false)}
       />
+    );
+  }
+
+  if (previewVideo) {
+    return (
+      <VideoPlayerModal
+        video={previewVideo}
+        onClose={() => setPreviewVideo(null)}
+        isInline={true}
+      />
+    );
+  }
+
+  if (previewQuiz) {
+    return (
+      <QuizTakerModal
+        quiz={previewQuiz}
+        onClose={() => setPreviewQuiz(null)}
+        isInline={true}
+      />
+    );
+  }
+
+  if (previewCert) {
+    return (
+      <CertificateViewerModal
+        certificate={previewCert}
+        onClose={() => setPreviewCert(null)}
+        isInline={true}
+      />
+    );
+  }
+
+  if (previewPackage) {
+    return (
+      <div className="flex-1 h-full min-h-[500px] bg-[#090D1A] rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-white/10 text-left">
+        <div className="px-6 py-4 bg-black/40 border-b border-white/10 flex items-center justify-between">
+          <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+            PREVIEW SIMULATION • {previewPackage.PackageName}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPreviewPackage(null)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 bg-black relative flex items-center justify-center">
+          {packageZipError ? (
+            <div className="p-6 text-center max-w-md">
+              <p className="text-red-400 text-sm font-bold uppercase">Compilation Error</p>
+              <p className="text-xs text-slate-400 mt-2">{packageZipError}</p>
+            </div>
+          ) : packageLaunchHtmlUrl ? (
+            <iframe
+              src={packageLaunchHtmlUrl}
+              title={previewPackage.PackageName}
+              className="w-full h-full border-none"
+              sandbox="allow-scripts allow-same-origin allow-modals"
+            />
+          ) : (
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                Extracting preview...
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -419,11 +470,15 @@ export const CreateNewTrainingPath = ({
               {pathType === "individual" ? (
                 <>
                   {/* Videos Accordion Section */}
-                  <div className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left">
+                  <div
+                    onClick={() => toggleSection("videos")}
+                    className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left cursor-pointer"
+                  >
                     <div
-                      onClick={() => toggleSection("videos")}
-                      className={`w-full flex items-center justify-between border-b pb-2 mb-3.5 text-left font-bold text-xs uppercase tracking-wider cursor-pointer ${textPrimary} ${
-                        isDark ? "border-white/5" : "border-slate-200"
+                      className={`w-full flex items-center justify-between text-left font-bold text-xs uppercase tracking-wider ${textPrimary} ${
+                        expandedSection === "videos"
+                          ? (isDark ? "border-b pb-2 mb-3.5 border-white/5" : "border-b pb-2 mb-3.5 border-slate-200")
+                          : ""
                       }`}
                     >
                       <span className="flex items-center gap-1.5">
@@ -445,7 +500,7 @@ export const CreateNewTrainingPath = ({
                     </div>
                         
                     {expandedSection === "videos" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
+                      <div onClick={(e) => e.stopPropagation()} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
                         {videos.map((vid) => {
                           const selected = selectedVideos.includes(vid.TrainingVideoID);
                           return (
@@ -464,11 +519,15 @@ export const CreateNewTrainingPath = ({
                   </div>
 
                   {/* Quizzes Accordion Section */}
-                  <div className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left">
+                  <div
+                    onClick={() => toggleSection("quizzes")}
+                    className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left cursor-pointer"
+                  >
                     <div
-                      onClick={() => toggleSection("quizzes")}
-                      className={`w-full flex items-center justify-between border-b pb-2 mb-3.5 text-left font-bold text-xs uppercase tracking-wider cursor-pointer ${textPrimary} ${
-                        isDark ? "border-white/5" : "border-slate-200"
+                      className={`w-full flex items-center justify-between text-left font-bold text-xs uppercase tracking-wider ${textPrimary} ${
+                        expandedSection === "quizzes"
+                          ? (isDark ? "border-b pb-2 mb-3.5 border-white/5" : "border-b pb-2 mb-3.5 border-slate-200")
+                          : ""
                       }`}
                     >
                       <span className="flex items-center gap-1.5">
@@ -490,7 +549,7 @@ export const CreateNewTrainingPath = ({
                     </div>
 
                     {expandedSection === "quizzes" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
+                      <div onClick={(e) => e.stopPropagation()} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
                         {quizzes.map((qz) => {
                           const selected = selectedQuiz === qz.TrainingQuizID;
                           return (
@@ -510,33 +569,37 @@ export const CreateNewTrainingPath = ({
                 </>
               ) : (
                 /* Standalone Zip Accordion Section */
-                <div className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left">
                 <div
                   onClick={() => toggleSection("zips")}
-                  className={`w-full flex items-center justify-between border-b pb-2 mb-3.5 text-left font-bold text-xs uppercase tracking-wider cursor-pointer ${textPrimary} ${
-                    isDark ? "border-white/5" : "border-slate-200"
-                  }`}
+                  className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left cursor-pointer"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <UploadCloud className="w-3.5 h-3.5 text-amber-500" /> Attach Standalone Zip (Select One)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowZipUpload(true);
-                      }}
-                      className="h-6 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[8.5px] font-bold text-amber-500 flex items-center gap-1 cursor-pointer hover:bg-amber-500/20"
-                    >
-                      <Plus className="w-3 h-3" /> Upload New Zip
-                    </button>
-                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedSection === "zips" ? "rotate-180" : ""}`} />
+                  <div
+                    className={`w-full flex items-center justify-between text-left font-bold text-xs uppercase tracking-wider ${textPrimary} ${
+                      expandedSection === "zips"
+                        ? (isDark ? "border-b pb-2 mb-3.5 border-white/5" : "border-b pb-2 mb-3.5 border-slate-200")
+                        : ""
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <UploadCloud className="w-3.5 h-3.5 text-amber-500" /> Attach Standalone Zip (Select One)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowZipUpload(true);
+                        }}
+                        className="h-6 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[8.5px] font-bold text-amber-500 flex items-center gap-1 cursor-pointer hover:bg-amber-500/20"
+                      >
+                        <Plus className="w-3 h-3" /> Upload New Zip
+                      </button>
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedSection === "zips" ? "rotate-180" : ""}`} />
+                    </div>
                   </div>
-                </div>
 
                   {expandedSection === "zips" && (
-                    <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-light-scrollbar">
+                    <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-light-scrollbar">
                       {packages.map((pkg) => {
                         const selected = selectedPackage === pkg.PackageID;
                         return (
@@ -588,11 +651,15 @@ export const CreateNewTrainingPath = ({
               )}
 
               {/* Certificate Accordion Selection (Common to both) */}
-              <div className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left">
+              <div
+                onClick={() => toggleSection("certificates")}
+                className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left cursor-pointer"
+              >
                 <div
-                  onClick={() => toggleSection("certificates")}
-                  className={`w-full flex items-center justify-between border-b pb-2 mb-3.5 text-left font-bold text-xs uppercase tracking-wider cursor-pointer ${textPrimary} ${
-                    isDark ? "border-white/5" : "border-slate-200"
+                  className={`w-full flex items-center justify-between text-left font-bold text-xs uppercase tracking-wider ${textPrimary} ${
+                    expandedSection === "certificates"
+                      ? (isDark ? "border-b pb-2 mb-3.5 border-white/5" : "border-b pb-2 mb-3.5 border-slate-200")
+                      : ""
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
@@ -614,7 +681,7 @@ export const CreateNewTrainingPath = ({
                 </div>
 
                 {expandedSection === "certificates" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
+                  <div onClick={(e) => e.stopPropagation()} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
                     {certificates.map((cert) => {
                       const selected = selectedCert === cert.TrainingCertificateID;
                       return (
@@ -692,7 +759,7 @@ export const CreateNewTrainingPath = ({
                       <div className="pt-1 text-left">
                         <h4 className={`text-xs font-bold ${textPrimary}`}>Standalone Zip</h4>
                         <p className={`text-[10px] mt-0.5 ${textSecondary}`}>
-                          {selectedPackage ? `Package: ${_optionalChain([packages, 'access', _13 => _13.find, 'call', _14 => _14(p => p.PackageID === selectedPackage), 'optionalAccess', _15 => _15.PackageName]) || selectedPackage}` : "None attached"}
+                          {selectedPackage ? `Package: ${packages.find(p => p.PackageID === selectedPackage)?.PackageName || selectedPackage}` : "None attached"}
                         </p>
                       </div>
                     </div>
@@ -765,77 +832,6 @@ export const CreateNewTrainingPath = ({
           )}
         </div>
 
-        {/* Video Player Preview inside Builder */}
-        {previewVideo && (
-          <VideoPlayerModal
-            video={previewVideo}
-            onClose={() => setPreviewVideo(null)}
-          />
-        )}
-
-        {/* Quiz Preview inside Builder */}
-        {previewQuiz && (
-          <QuizTakerModal
-            quiz={previewQuiz}
-            onClose={() => setPreviewQuiz(null)}
-          />
-        )}
-
-        {/* Certificate Template Preview inside Builder */}
-        {previewCert && (
-          <CertificateViewerModal
-            certificate={previewCert}
-            onClose={() => setPreviewCert(null)}
-          />
-        )}
-
-        {/* Standalone Zip Package Player Preview inside Builder */}
-        {previewPackage && (
-          <div
-            onClick={() => setPreviewPackage(null)}
-            className="fixed inset-0 z-[200] backdrop-blur-2xl bg-black/60 flex items-center justify-center p-4 text-left cursor-pointer"
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-5xl bg-[#090D1A] rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[90vh] border border-white/10 cursor-default"
-            >
-              <div className="px-6 py-4 bg-black/40 border-b border-white/10 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
-                  PREVIEW SIMULATION • {previewPackage.PackageName}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPreviewPackage(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 bg-black relative flex items-center justify-center">
-                {packageZipError ? (
-                  <div className="p-6 text-center max-w-md">
-                    <p className="text-red-400 text-sm font-bold uppercase">Compilation Error</p>
-                    <p className="text-xs text-slate-400 mt-2">{packageZipError}</p>
-                  </div>
-                ) : packageLaunchHtmlUrl ? (
-                  <iframe
-                    src={packageLaunchHtmlUrl}
-                    title={previewPackage.PackageName}
-                    className="w-full h-full border-none"
-                    sandbox="allow-scripts allow-same-origin allow-modals"
-                  />
-                ) : (
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                      Extracting preview...
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
 

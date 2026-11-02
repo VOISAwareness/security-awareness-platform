@@ -135,7 +135,7 @@ const LearningProgress = ({ isDark }) => {
 
       return matchSearch && matchDept && matchStatus;
     });
-  }, [searchTerm, deptFilter, statusFilter]);
+  }, [rawRecords, searchTerm, deptFilter, statusFilter]);
 
   return (
     <div className="w-full select-none font-sans flex flex-col gap-6 text-left animate-clay-stagger-2">

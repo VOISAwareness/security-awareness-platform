@@ -1,4 +1,3 @@
- function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }
 import React from "react";
 import { Layers, X, Play, HelpCircle, Award, Check, UploadCloud } from "lucide-react";
 
@@ -13,23 +12,24 @@ export const PathwaySequencePlayerModal = ({
   packages = [],
   isDark,
   onClose,
-  onSendForApproval
+  onSendForApproval,
+  isInline = false
 }) => {
-  const userContext = _optionalChain([useUserType, 'optionalCall', _ => _()]) || {};
+  const userContext = useUserType?.() || {};
   const loggedInName = React.useMemo(() => {
-    if (_optionalChain([userContext, 'access', _2 => _2.user, 'optionalAccess', _3 => _3.UserName])) return userContext.user.UserName;
+    if (userContext.user?.UserName) return userContext.user.UserName;
     try {
       const activeUser = localStorage.getItem("voisshield_active_user");
       if (activeUser) {
         const parsed = JSON.parse(activeUser);
-        if (_optionalChain([parsed, 'optionalAccess', _4 => _4.UserName])) return parsed.UserName;
+        if (parsed?.UserName) return parsed.UserName;
       }
       const currentUser = localStorage.getItem("voisshield_current_user");
       if (currentUser) {
         const parsed = JSON.parse(currentUser);
-        if (_optionalChain([parsed, 'optionalAccess', _5 => _5.UserName])) return parsed.UserName;
+        if (parsed?.UserName) return parsed.UserName;
       }
-    } catch (e2) {}
+    } catch { /* ignore */ }
     return "Abhay H S";
   }, [userContext.user]);
 
@@ -112,7 +112,8 @@ export const PathwaySequencePlayerModal = ({
   const [zipError, setZipError] = React.useState("");
 
   React.useEffect(() => {
-    if (_optionalChain([activeItem, 'optionalAccess', _6 => _6.type]) === "zip") {
+    if (activeItem?.type === "zip") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setZipHtmlUrl("");
       setZipError("");
       const pkg = activeItem.data;
@@ -130,19 +131,19 @@ export const PathwaySequencePlayerModal = ({
 
   if (!activeItem) return null;
 
-  return (
+  const content = (
     <div
-      onClick={onClose}
-      className={`fixed inset-0 z-50 backdrop-blur-2xl bg-black/60 flex items-center justify-center p-4 text-left cursor-pointer transition-all duration-300`}
+      onClick={(e) => e.stopPropagation()}
+      className={`w-full overflow-hidden flex flex-col border cursor-default rounded-[28px] ${
+        isInline 
+          ? "h-full min-h-[500px]" 
+          : "max-w-7xl h-[92vh] shadow-2xl"
+      } ${
+        isDark ? "bg-[#0B1121] border-white/10" : "bg-[#F8FAFC] border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
+      }`}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-7xl rounded-[28px] overflow-hidden shadow-2xl flex flex-col h-[92vh] border cursor-default ${
-          isDark ? "bg-[#0B1121] border-white/10" : "bg-[#F8FAFC] border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
-        }`}
-      >
-        {/* Header */}
-        <div className={`px-6 py-4 border-b flex items-center justify-between flex-shrink-0 ${
+      {/* Header */}
+      <div className={`px-4 py-2 border-b flex items-center justify-between flex-shrink-0 ${
           isDark ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200"
         }`}>
           <div className="flex items-center gap-3">
@@ -182,7 +183,7 @@ export const PathwaySequencePlayerModal = ({
                      const errorDiv = document.createElement('div');
                      errorDiv.className = "w-full h-full flex flex-col items-center justify-center text-center p-8 bg-black";
                      errorDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 mb-4"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg><p class="text-white text-sm font-bold uppercase tracking-widest">Video Stream Unavailable</p><p class="text-slate-500 text-xs mt-2 max-w-sm">The requested media asset (${activeItem.data.TrainingVideoName}) cannot be loaded in this sandboxed environment.</p>`;
-                     _optionalChain([e, 'access', _7 => _7.currentTarget, 'access', _8 => _8.parentNode, 'optionalAccess', _9 => _9.appendChild, 'call', _10 => _10(errorDiv)]);
+                     e.currentTarget.parentNode?.appendChild(errorDiv);
                   }}
                 />
               </div>
@@ -276,13 +277,13 @@ export const PathwaySequencePlayerModal = ({
                       </div>
 
                       <h3 className={`text-base font-black ${isDark ? "text-white" : "text-slate-800"} leading-snug`}>
-                        {_optionalChain([questionItem, 'optionalAccess', _11 => _11.question])}
+                        {questionItem?.question}
                       </h3>
 
                       {/* Options */}
                       <div className="flex flex-col gap-2.5">
                         {(["optionA", "optionB", "optionC", "optionD"] ).map((optKey) => {
-                          const text = _optionalChain([questionItem, 'optionalAccess', _12 => _12[optKey]]);
+                          const text = questionItem?.[optKey];
                           if (!text) return null;
                           const isSelected = quizAnswers[currentKey] === optKey;
 
@@ -496,6 +497,18 @@ export const PathwaySequencePlayerModal = ({
           </div>
         </div>
       </div>
+    );
+
+  if (isInline) {
+    return content;
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 backdrop-blur-2xl bg-black/60 flex items-center justify-center p-4 text-left cursor-pointer transition-all duration-300"
+    >
+      {content}
     </div>
   );
 };

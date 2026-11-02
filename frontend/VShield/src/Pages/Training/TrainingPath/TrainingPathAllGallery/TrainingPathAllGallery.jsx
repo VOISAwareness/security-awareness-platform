@@ -48,7 +48,7 @@ export const AllTrainingPathGallery = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-3 pb-24 overflow-x-visible custom-light-scrollbar">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8 items-start content-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12 items-start content-start">
           {filteredPaths.map((path) => (
             <TrainingPathCard
               key={path.TrainingPathID}

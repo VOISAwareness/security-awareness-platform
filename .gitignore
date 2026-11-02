@@ -24,3 +24,10 @@ email-sender.zip
 url.txt
 response.json
 infra/terraform/build/
+
+# Local dev helpers
+v_export*.js
+
+# SCORM / HTML5 packages are uploaded through the Training screen (stored in
+# S3), never committed: keep local test zips here
+/frontend/VShield/src/assets/Training(LMS)/uploads/zips/
