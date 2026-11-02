@@ -9,7 +9,7 @@ import HomeScreen from './Pages/HomeScreen/HomeScreen';
 
 // Import Scenario Pages
 import Scenarios from './Pages/Scenarios/Scenarios';
-import NewScenario from './Pages/Scenarios/ScenarioDeatils';
+import NewScenario from './Pages/Scenarios/CreateNewScenario/CreateNewScenario';
 
 // 🌟 Import MySpace Page
 import MySpace from './Pages/UserProfileandPointsScoreing/MySpace';
