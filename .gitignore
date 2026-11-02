@@ -28,5 +28,6 @@ infra/terraform/build/
 # Local dev helpers
 v_export*.js
 
-# Local dev scrom package
-/frontend/VShield/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip
+# SCORM / HTML5 packages are uploaded through the Training screen (stored in
+# S3), never committed: keep local test zips here
+/frontend/VShield/src/assets/Training(LMS)/uploads/zips/
