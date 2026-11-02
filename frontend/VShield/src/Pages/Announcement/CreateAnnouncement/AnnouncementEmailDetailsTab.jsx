@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useUserType } from '../../../UserTypeContext/UserTypeContext';
 import { ChevronDown } from 'lucide-react';
 
-import EmailBodyRichTextEditor from '../../Scenarios/EmailBodyRichTextEditor';
+import EmailBodyRichTextEditor from '../../Scenarios/CreateNewScenario/EmailDetailsTab/EmailBodyRichTextEditor';
 import announcamentScenariosJsonData from '../../Announcement/AnnouncementData.json';
 
 const FX_PARAMETERS = [
