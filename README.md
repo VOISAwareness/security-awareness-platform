@@ -288,7 +288,7 @@ destroy is genuinely intended.
 
 ## Data model
 
-Eighteen DynamoDB tables, all prefixed `security-awareness-poc-`:
+Nineteen DynamoDB tables, all prefixed `security-awareness-poc-`:
 
 **Campaign execution** — `campaigns` (PK `campaignId`, GSI `status-index` on
 `status`+`createdAt`), `recipients` (PK `campaignId`, SK `recipientId`, GSI
@@ -297,7 +297,8 @@ Eighteen DynamoDB tables, all prefixed `security-awareness-poc-`:
 **Reference data** — `users`, `sender-identities`, `scenarios`, `landing-pages`,
 `user-lists`, `user-list-members`, `gamification-rules`, `training-paths`,
 `training-videos`, `training-quizzes`, `training-certificates`,
-`campaigns-catalog`.
+`training-packages` (PK `PackageID`; the zip itself is in S3 under
+`uploads/training-packages/`), `campaigns-catalog`.
 
 **Per person and settings** — `scenario-drafts` (the scenario editor's
 autosave), `points-ledger` (points, written by `points-engine`) and `settings`
@@ -356,6 +357,10 @@ POST                /user-lists/bulk-upload     # returns a presigned S3 PUT URL
 POST                /user-lists/{id}/ingest
 GET                 /gamification-rules
 GET                 /training/paths|videos|quizzes|certificates
+GET                 /training/packages          # the SCORM/HTML5 packages, each with a presigned GET (PackageURL)
+POST                /training/packages/upload   # {fileName} -> a presigned S3 PUT for the zip
+POST                /training/packages          # save the package once its zip is uploaded: {PackageName, PackageKey, ...}
+DELETE              /training/packages/{id}     # the row and its zip
 GET                 /campaigns-catalog
 GET                 /levels                     # the level and grade table
 GET                 /standing?viewer=<email>    # points, rank, level, progress, best level, latest changes

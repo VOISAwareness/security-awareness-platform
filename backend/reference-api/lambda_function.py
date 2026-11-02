@@ -1284,6 +1284,191 @@ def insights_targets(route, event, context):
         return err(503, "Settings are busy right now; try again shortly", code="BUSY")
 
 
+# --- training packages (SCORM / HTML5 zips) ------------------------------
+# A package is a zip the Training screen unpacks and plays in the browser.
+# The zip itself goes straight from the browser to S3 through a presigned PUT
+# (it can be far larger than an API request), under
+# uploads/training-packages/<uploadId>/<file>.zip; the table keeps one row per
+# package, PK PackageID (SP-00N), with its S3 key. Listing hands back a
+# presigned GET (PackageURL) so the browser can fetch the zip and play it:
+#   POST   /training/packages/upload  {fileName}  -> {packageKey, uploadUrl}
+#   (browser PUTs the zip to uploadUrl)
+#   POST   /training/packages  {PackageName, PackageKey, ...}  -> the row
+#   GET    /training/packages  -> rows, each with PackageURL
+#   DELETE /training/packages/{id}  -> the row and its zip
+# Field names follow the Training screen's own (PackageName, Size, ...).
+PACKAGE_ROUTES = frozenset(
+    {
+        "GET /training/packages",
+        "POST /training/packages/upload",
+        "POST /training/packages",
+        "DELETE /training/packages/{id}",
+    }
+)
+PACKAGE_PREFIX = "uploads/training-packages/"
+PACKAGE_KEY_RE = re.compile(r"uploads/training-packages/[0-9a-f]{32}/[A-Za-z0-9._-]{1,200}\.zip")
+# A presigned PUT cannot cap the size, so a zip over this is refused (and
+# deleted) when its row is created. The largest real course so far is 94 MB.
+MAX_PACKAGE_BYTES = 250 * 1024 * 1024
+PACKAGE_TEXT_LIMITS = {
+    "PackageName": 120,
+    "Description": 2000,
+    "TargetAudience": 120,
+    "Difficulty": 40,
+}
+MAX_PACKAGE_MINUTES = 600
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def package_key(upload_id, file_name):
+    return f"{PACKAGE_PREFIX}{upload_id}/{safe_name(file_name)}"
+
+
+def is_package_key(value):
+    return isinstance(value, str) and PACKAGE_KEY_RE.fullmatch(value) is not None
+
+
+def package_size_text(size):
+    """'14.2 MB', as the Training screen shows sizes."""
+    return f"{size / (1024 * 1024):.1f} MB"
+
+
+def package_date(now):
+    """'06-Oct-2026', as the Training screen dates packages."""
+    return f"{now.day:02d}-{MONTHS[now.month - 1]}-{now.year}"
+
+
+def clean_package(body):
+    """The row's own fields from a POST body: (fields, None) or (None, why).
+    Text is trimmed and capped; Duration is whole minutes."""
+    if not isinstance(body, dict):
+        return None, "The body must be a JSON object"
+    fields = {}
+    for name, limit in PACKAGE_TEXT_LIMITS.items():
+        value = body.get(name)
+        if value is None:
+            continue
+        if not isinstance(value, str):
+            return None, f"{name} must be text"
+        value = value.strip()
+        if len(value) > limit:
+            return None, f"{name} must be at most {limit} characters"
+        if value:
+            fields[name] = value
+    if not fields.get("PackageName"):
+        return None, "PackageName is required"
+    duration = body.get("Duration")
+    if duration is not None:
+        if isinstance(duration, bool) or not isinstance(duration, int) or not 0 <= duration <= MAX_PACKAGE_MINUTES:
+            return None, f"Duration must be whole minutes, 0 to {MAX_PACKAGE_MINUTES}"
+        fields["Duration"] = duration
+    return fields, None
+
+
+def sign_package(item):
+    """The row as the browser needs it: a presigned GET for its zip
+    (PackageURL, an hour) beside the stored key."""
+    key = (item or {}).get("PackageKey")
+    if not UPLOAD_BUCKET or not is_package_key(key):
+        return item
+    signed = dict(item)
+    signed["PackageURL"] = s3_client.generate_presigned_url(
+        "get_object", Params={"Bucket": UPLOAD_BUCKET, "Key": key}, ExpiresIn=3600
+    )
+    return signed
+
+
+def package_folder(key):
+    return key.rsplit("/", 1)[0] + "/"
+
+
+def training_packages(route, event, params, context):
+    if not UPLOAD_BUCKET:
+        return err(500, "Upload bucket is not configured")
+    tbl = table("training-packages")
+    try:
+        if route == "GET /training/packages":
+            rows = scan_all("training-packages")
+            rows.sort(key=lambda r: str(r.get("PackageID", "")), reverse=True)
+            return ok([sign_package(r) for r in rows], count=len(rows))
+
+        if route == "POST /training/packages/upload":
+            try:
+                body = parse_body(event)
+            except ValueError:
+                body = None
+            file_name = body.get("fileName") if isinstance(body, dict) else None
+            if not isinstance(file_name, str) or not file_name.lower().endswith(".zip"):
+                return err(400, "fileName must name a .zip file")
+            base = safe_name(file_name[:-4])[:196] or "package"
+            key = package_key(uuid.uuid4().hex, base + ".zip")
+            upload_url = s3_client.generate_presigned_url(
+                "put_object",
+                Params={"Bucket": UPLOAD_BUCKET, "Key": key, "ContentType": "application/zip"},
+                ExpiresIn=900,
+            )
+            return respond(201, {"data": {"packageKey": key, "uploadUrl": upload_url}})
+
+        if route == "POST /training/packages":
+            try:
+                body = parse_body(event)
+            except ValueError:
+                body = None
+            fields, problem = clean_package(body)
+            if problem:
+                return err(400, problem)
+            key = body.get("PackageKey")
+            if not is_package_key(key):
+                return err(400, "PackageKey must be the key POST /training/packages/upload returned")
+            try:
+                size = s3_client.head_object(Bucket=UPLOAD_BUCKET, Key=key)["ContentLength"]
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+                    return err(400, "The zip has not been uploaded yet")
+                raise
+            if size > MAX_PACKAGE_BYTES:
+                delete_s3_prefix(UPLOAD_BUCKET, package_folder(key))
+                return err(413, f"The zip is {package_size_text(size)}; the limit is {package_size_text(MAX_PACKAGE_BYTES)}")
+            item = {
+                **fields,
+                "FileName": key.rsplit("/", 1)[1],
+                "Size": package_size_text(size),
+                "SizeBytes": size,
+                "PackageKey": key,
+                "CreatedOn": package_date(datetime.now(UTC)),
+            }
+            # SP-00N, as the screen numbers them; two saves at once may pick
+            # the same number, so the write refuses a taken one and tries the next.
+            for _ in range(3):
+                item["PackageID"] = next_sequence_id(scan_all("training-packages"), "PackageID", "SP")
+                try:
+                    tbl.put_item(Item=item, ConditionExpression="attribute_not_exists(PackageID)")
+                    break
+                except ClientError as e:
+                    if not conditional_failed(e):
+                        raise
+            else:
+                return err(409, "Could not number the package; try again", code="STALE")
+            log(context, "training package saved", packageId=item["PackageID"], sizeBytes=size)
+            return respond(201, {"data": sign_package(item)})
+
+        # DELETE /training/packages/{id}
+        item = tbl.get_item(Key={"PackageID": params["id"]}).get("Item")
+        if not item:
+            return respond(204, {"data": None})
+        tbl.delete_item(Key={"PackageID": params["id"]})
+        if is_package_key(item.get("PackageKey")):
+            delete_s3_prefix(UPLOAD_BUCKET, package_folder(item["PackageKey"]))
+        log(context, "training package deleted", packageId=params["id"])
+        return respond(204, {"data": None})
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code not in THROTTLED_CODES:
+            raise
+        log(context, "training packages throttled", code=code)
+        return err(503, "Training packages are busy right now; try again shortly", code="BUSY")
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /sender-identities": "sender-identities",
@@ -1320,6 +1505,9 @@ def lambda_handler(event, context):
 
         if route in TARGET_ROUTES:
             return insights_targets(route, event, context)
+
+        if route in PACKAGE_ROUTES:
+            return training_packages(route, event, params, context)
 
         if route == "GET /scenarios":
             items = scan_all("scenarios")
