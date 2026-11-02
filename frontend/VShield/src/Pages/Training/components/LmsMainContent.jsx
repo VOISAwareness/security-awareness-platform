@@ -19,6 +19,8 @@ import {
   deleteCertificateItem,
   deletePackage
 } from "../components/utility/db";
+import { api } from "@/services/api";
+import { fromServer, serverFields } from "@/services/trainingPackages";
 
 export const LmsMainContent = () => {
   const userContext = useUserType?.() || {};
@@ -68,6 +70,44 @@ export const LmsMainContent = () => {
     filteredPaths,
     showToast
   } = useTraining();
+
+  // A new package goes to S3 through the API, so everyone sees it. If the
+  // API can't take it, it stays in this browser, as packages did before.
+  const addPackage = async (p) => {
+    const toast = showToast;
+    if (p.fileBlob) {
+      toast(`Uploading ${p.PackageName}…`);
+      try {
+        const row = await api.trainingPackages.upload({ file: p.fileBlob, fields: serverFields(p) });
+        // already unpacked on upload, so it plays at once
+        setPackages((prev) => [{ ...fromServer(row), compiledHtmlUrl: p.compiledHtmlUrl || "" }, ...prev]);
+        toast(`Uploaded ${row.PackageName} as ${row.PackageID}`);
+        return;
+      } catch (err) {
+        console.error("Package upload failed; keeping it in this browser", err);
+        toast(`Couldn't upload to the server (${err?.message || "error"}). Saved in this browser only.`);
+      }
+    }
+    try {
+      await savePackage(p);
+    } catch (err) {
+      console.error("Failed to save package", err);
+    }
+    setPackages((prev) => [p, ...prev]);
+  };
+
+  const removePackage = async (id) => {
+    const pkg = packages.find((p) => p.PackageID === id);
+    try {
+      if (pkg?.onServer) await api.trainingPackages.remove(id);
+      else if (!pkg?.isSample) await deletePackage(id);
+    } catch (err) {
+      console.error(err);
+      showToast(`Couldn't delete ${id}: ${err?.message || "error"}`);
+      return;
+    }
+    setPackages((prev) => prev.filter((p) => p.PackageID !== id));
+  };
 
   return (
     <div className={`flex-1 min-w-0 rounded-[28px] border shadow-md flex flex-col h-full overflow-hidden ${
@@ -188,14 +228,7 @@ export const LmsMainContent = () => {
             }
             setCertificates((prev) => [c, ...prev]);
           }}
-          onAddPackage={async (p) => {
-            try {
-              await savePackage(p);
-            } catch (err) {
-              console.error("Failed to save package", err);
-            }
-            setPackages((prev) => [p, ...prev]);
-          }}
+          onAddPackage={addPackage}
         />
       ) : (
         <InvidualTrainingsLandingPage
@@ -294,14 +327,9 @@ export const LmsMainContent = () => {
             }
           }}
           onAddPackage={async (newPkg) => {
-            try {
-              await savePackage(newPkg);
-            } catch (err) {
-              console.error("Failed to save package", err);
-            }
-            setPackages((prev) => [newPkg, ...prev]);
             setCurrentView("individual");
             setIndividualSubTab("packages");
+            await addPackage(newPkg);
           }}
           onDeleteVideo={async (id) => {
             try {
@@ -330,14 +358,7 @@ export const LmsMainContent = () => {
             setCertificates((prev) => prev.filter((c) => c.TrainingCertificateID !== id));
             setEditingCert(null);
           }}
-          onDeletePackage={async (id) => {
-            try {
-              await deletePackage(id);
-            } catch (err) {
-              console.error(err);
-            }
-            setPackages((prev) => prev.filter((p) => p.PackageID !== id));
-          }}
+          onDeletePackage={removePackage}
         />
       )}
     </div>

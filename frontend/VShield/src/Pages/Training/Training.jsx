@@ -52,7 +52,8 @@ function TrainingDashboardInner() {
     setLaunchStandalonePkg,
     launchHtmlUrl,
     zipError,
-    packages
+    packages,
+    toastMessage
   } = useTraining();
 
   return (
@@ -224,6 +225,13 @@ function TrainingDashboardInner() {
           )}
         </div>
       </div>
+
+      {/* Feedback from the Training screen (uploads, submissions) */}
+      {toastMessage && (
+        <div role="status" className="fixed top-5 right-5 z-[200] max-w-[420px] bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-white/10 font-bold text-xs">
+          {toastMessage}
+        </div>
+      )}
     </>
   );
 }

@@ -121,6 +121,8 @@ export const CreateNewPackages = ({
           year: "numeric"
         }).replace(/ /g, "-"),
         Size: `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`,
+        TargetAudience: targetAudience,
+        Difficulty: difficulty,
         fileBlob: selectedFile,
         compiledHtmlUrl,
         duration: duration

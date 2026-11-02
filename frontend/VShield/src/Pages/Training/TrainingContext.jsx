@@ -22,16 +22,31 @@ import trainingQuizJson from "./TrainingQuiz.json";
 import trainingCertificateJson from "./TrainingCertificate.json";
 
 // Asset URL & Image Imports
-const optionalScormZips = import.meta.glob(
-  "/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip",
-  { eager: true, import: "default", query: "?url" }
-);
-const scormZipUrl =
-  optionalScormZips["/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip"] || "";
+// A small built-in SCORM 1.2 sample (3 KB), so the Packages screen shows how a
+// package plays before anyone uploads one. Real packages are uploaded through
+// Add ZIP Package and stored in S3 (GET/POST /training/packages).
+import sampleScormUrl from "@/assets/Training(LMS)/samples/sample-scorm12-spot-the-phish.zip?url";
 import videosMetadataUrl from "@/assets/Training(LMS)/uploads/videos/metadata.json?url";
 import certsMetadataUrl from "@/assets/Training(LMS)/uploads/certificates/metadata.json?url";
 
 import { extractZipHtml } from "./components/utility/zipHelpers";
+import { api } from "@/services/api";
+import { fromServer, mergePackages } from "@/services/trainingPackages";
+
+const SAMPLE_PACKAGE = {
+  PackageID: "SP-SAMPLE",
+  PackageName: "Sample: Spot the phish",
+  Description:
+    "A small built-in SCORM 1.2 package: three emails, phishing or genuine, then a score. Upload your own with Add ZIP Package.",
+  FileName: "sample-scorm12-spot-the-phish.zip",
+  CreatedOn: "02-Nov-2026",
+  Size: "0.0 MB",
+  duration: 5,
+  isLocalUrl: true,
+  localPath: sampleScormUrl,
+  compiledHtmlUrl: "",
+  isSample: true
+};
 
 const TrainingContext = createContext(null);
 
@@ -78,20 +93,7 @@ export const TrainingProvider = ({ children }) => {
   const [videos, setVideos] = useState(() => trainingVideosJson);
   const [quizzes, setQuizzes] = useState(() => trainingQuizJson);
   const [certificates, setCertificates] = useState(() => trainingCertificateJson);
-  const [packages, setPackages] = useState([
-    {
-      PackageID: "SP-00001",
-      PackageName: "SCORM Interactive Green Fleet Simulation",
-      Description:
-        "SCORM-compliant simulation with an integrated simulated electric vehicle charging dashboard designed to train eco-compliance.",
-      FileName: "scorm12-176523-148.zip",
-      CreatedOn: "06-Oct-2026",
-      Size: "14.2 MB",
-      isLocalUrl: !!scormZipUrl,
-      localPath: scormZipUrl,
-      compiledHtmlUrl: ""
-    }
-  ]);
+  const [packages, setPackages] = useState([SAMPLE_PACKAGE]);
 
   // Load dynamic uploads and assets metadata on mount
   useEffect(() => {
@@ -200,11 +202,16 @@ export const TrainingProvider = ({ children }) => {
           }
           return pkg;
         }));
-        setPackages((prev) => {
-          const existingIds = new Set(prev.map(p => p.PackageID));
-          const toAdd = extractedDbPkgs.filter(p => !existingIds.has(p.PackageID));
-          return [...prev, ...toAdd];
-        });
+        // The packages stored in S3 first (everyone's), then any kept in this
+        // browser only, then the sample. Without the API, the browser's alone.
+        let serverPkgs = [];
+        try {
+          const rows = await api.trainingPackages.list();
+          serverPkgs = (Array.isArray(rows) ? rows : []).map(fromServer);
+        } catch (err) {
+          console.error("Could not load training packages from the server", err);
+        }
+        setPackages((prev) => mergePackages(serverPkgs, prev.filter((p) => !p.isSample), extractedDbPkgs, [SAMPLE_PACKAGE]));
       } catch (err) {
         console.error("Failed to run progressive JSON-to-IDB migration flow:", err);
       }

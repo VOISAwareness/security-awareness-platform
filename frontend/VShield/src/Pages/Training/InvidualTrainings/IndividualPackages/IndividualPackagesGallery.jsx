@@ -96,7 +96,7 @@ export const IndividualPackagesGallery = ({
                   {pkg.duration || 20} Mins
                 </span>
                 <div className="flex items-center gap-2">
-                  {pkg.PackageID !== "SP-00001" && (
+                  {!pkg.isSample && (
                     <button
                       type="button"
                       onClick={async (e) => {
