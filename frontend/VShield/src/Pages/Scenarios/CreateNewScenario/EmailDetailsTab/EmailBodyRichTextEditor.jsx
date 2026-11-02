@@ -1,9 +1,9 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
-  useState
+  useState,
 } from "react";
 
 import {
@@ -14,36 +14,57 @@ import {
   Bold,
   ChevronDown,
   Code,
-  Highlighter,
   Image as ImageIcon,
-  Indent,
   Italic,
   Link as LinkIcon,
-  List,
-  ListOrdered,
   Maximize2,
   Minimize2,
-  Outdent,
   Palette,
   RemoveFormatting,
   Strikethrough,
-  Subscript,
-  Superscript,
   Underline,
-  X
+  X,
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
+import HtmlCodeEditor from "../../../../GlobalComponents/HtmlCodeEditor";
 
 const FX_PARAMETERS = [
   { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
-  { label: "@UserEmailID", code: "{{email}}", desc: "Target user email address" },
-  { label: "@UserDepartment", code: "{{department}}", desc: "Target user department" },
-  { label: "@UserCountry", code: "{{country}}", desc: "Target user work location" },
-  { label: "@PhishLink", code: "{{phishLink}}", desc: "Simulation trackable landing link" },
-  { label: "@ManagerName", code: "{{managerName}}", desc: "Target direct reporting manager" },
-  { label: "@EmployeeID", code: "{{employeeId}}", desc: "Corporate employee badge number" },
-  { label: "@CurrentDate", code: "{{currentDate}}", desc: "Simulation execution timestamp" }
+  {
+    label: "@UserEmailID",
+    code: "{{email}}",
+    desc: "Target user email address",
+  },
+  {
+    label: "@UserDepartment",
+    code: "{{department}}",
+    desc: "Target user department",
+  },
+  {
+    label: "@UserCountry",
+    code: "{{country}}",
+    desc: "Target user work location",
+  },
+  {
+    label: "@PhishLink",
+    code: "{{phishLink}}",
+    desc: "Simulation trackable landing link",
+  },
+  {
+    label: "@ManagerName",
+    code: "{{managerName}}",
+    desc: "Target direct reporting manager",
+  },
+  {
+    label: "@EmployeeID",
+    code: "{{employeeId}}",
+    desc: "Corporate employee badge number",
+  },
+  {
+    label: "@CurrentDate",
+    code: "{{currentDate}}",
+    desc: "Simulation execution timestamp",
+  },
 ];
 
 const EMPTY_HTML_VALUES = ["", "<br>", "<div><br></div>", "<p><br></p>"];
@@ -55,7 +76,7 @@ const EmailBodyRichTextEditor = ({
   disabled = false,
   minHeight = 300,
   className = "",
-  compact = false // NEW: renders the slim toolbar shown in the screenshot
+  compact = false, // NEW: renders the slim toolbar shown in the screenshot
 }) => {
   const editorRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -84,7 +105,7 @@ const EmailBodyRichTextEditor = ({
       internalHtmlRef.current = updatedHtml;
       onChange?.(updatedHtml);
     },
-    [onChange]
+    [onChange],
   );
 
   const isEditorSelection = useCallback((range) => {
@@ -175,28 +196,26 @@ const EmailBodyRichTextEditor = ({
     saveSelection();
   }, [emitChange, saveSelection]);
 
- useLayoutEffect(() => {
-  if (rawHtmlMode || !editorRef.current) {
-    return;
-  }
+  useLayoutEffect(() => {
+    if (rawHtmlMode || !editorRef.current) {
+      return;
+    }
 
-  const incomingHtml = value || "";
+    const incomingHtml = value || "";
 
-  // Sync React value → contentEditable DOM
-  // This is important on the first render because
-  // internalHtmlRef can already contain the same value.
-  if (editorRef.current.innerHTML !== incomingHtml) {
-    editorRef.current.innerHTML = incomingHtml;
-  }
+    // Sync React value → contentEditable DOM
+    // This is important on the first render because
+    // internalHtmlRef can already contain the same value.
+    if (editorRef.current.innerHTML !== incomingHtml) {
+      editorRef.current.innerHTML = incomingHtml;
+    }
 
-  // Always keep our internal reference synchronized
-  internalHtmlRef.current = incomingHtml;
+    // Always keep our internal reference synchronized
+    internalHtmlRef.current = incomingHtml;
 
-  // Keep HTML source mode synchronized as well
-  setRawHtmlCode(incomingHtml);
-}, [value, rawHtmlMode, isExpanded]);
-
-  
+    // Keep HTML source mode synchronized as well
+    setRawHtmlCode(incomingHtml);
+  }, [value, rawHtmlMode, isExpanded]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -250,12 +269,7 @@ const EmailBodyRichTextEditor = ({
 
       synchroniseEditorValue();
     },
-    [
-      disabled,
-      rawHtmlMode,
-      restoreSelection,
-      synchroniseEditorValue
-    ]
+    [disabled, rawHtmlMode, restoreSelection, synchroniseEditorValue],
   );
 
   const handleToolbarMouseDown = (event) => {
@@ -349,7 +363,7 @@ const EmailBodyRichTextEditor = ({
   const insertLink = () => {
     const url = prompt(
       "Enter Destination URL (e.g., https://learning.vodafone.com):",
-      "#training"
+      "#training",
     );
 
     if (url) {
@@ -385,7 +399,7 @@ const EmailBodyRichTextEditor = ({
       "image/jpg",
       "image/gif",
       "image/webp",
-      "image/svg+xml"
+      "image/svg+xml",
     ];
 
     if (!allowedImageTypes.includes(file.type)) {
@@ -425,10 +439,7 @@ const EmailBodyRichTextEditor = ({
       const selection = window.getSelection();
       let range = savedSelectionRef.current;
 
-      if (
-        !range ||
-        !editor.contains(range.commonAncestorContainer)
-      ) {
+      if (!range || !editor.contains(range.commonAncestorContainer)) {
         range = document.createRange();
         range.selectNodeContents(editor);
         range.collapse(false);
@@ -502,7 +513,7 @@ const EmailBodyRichTextEditor = ({
   };
 
   const editorIsEmpty = EMPTY_HTML_VALUES.includes(
-    (internalHtmlRef.current || "").trim().toLowerCase()
+    (internalHtmlRef.current || "").trim().toLowerCase(),
   );
 
   const toolbarButtonClass = `
@@ -516,7 +527,7 @@ const EmailBodyRichTextEditor = ({
   // COMPACT TOOLBAR — matches the "Email Body" screenshot:
   // B / I / U | Align-left / Align-center / Align-right ... Expand
   // ==========================================================
-   // ==========================================================
+  // ==========================================================
   // COMPACT TOOLBAR — matches the "Email Body" screenshot
   // (No outer wrapper here — the wrapper lives in renderEditorWorkspace)
   // ==========================================================
@@ -566,29 +577,85 @@ const EmailBodyRichTextEditor = ({
           <option value="5">24px</option>
         </select>
 
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("bold")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Bold">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("bold")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Bold"
+        >
           <Bold className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("italic")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Italic">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("italic")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Italic"
+        >
           <Italic className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("underline")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Underline">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("underline")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Underline"
+        >
           <Underline className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("strikeThrough")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Strikethrough">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("strikeThrough")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Strikethrough"
+        >
           <Strikethrough className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("removeFormat")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black text-slate-400 hover:text-white dark:hover:text-black" title="Clear formatting">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("removeFormat")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black text-slate-400 hover:text-white dark:hover:text-black"
+          title="Clear formatting"
+        >
           <RemoveFormatting className="h-3.5 w-3.5" />
         </button>
 
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyLeft")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Align left">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("justifyLeft")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Align left"
+        >
           <AlignLeft className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyCenter")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Align center">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("justifyCenter")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Align center"
+        >
           <AlignCenter className="h-3.5 w-3.5" />
         </button>
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyRight")} className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black" title="Align right">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={() => runCommand("justifyRight")}
+          className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black"
+          title="Align right"
+        >
           <AlignRight className="h-3.5 w-3.5" />
         </button>
 
@@ -614,11 +681,24 @@ const EmailBodyRichTextEditor = ({
           className="hidden"
         />
 
-        <button type="button" disabled={disabled || rawHtmlMode} onClick={() => imageInputRef.current?.click()} className={`${toolbarButtonClass} text-blue-400`} title="Upload & Embed Local Image">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onClick={() => imageInputRef.current?.click()}
+          className={`${toolbarButtonClass} text-blue-400`}
+          title="Upload & Embed Local Image"
+        >
           <ImageIcon className="h-3.5 w-3.5" />
         </button>
 
-        <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={insertLink} className={`${toolbarButtonClass} text-emerald-400`} title="Insert link">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={handleToolbarMouseDown}
+          onClick={insertLink}
+          className={`${toolbarButtonClass} text-emerald-400`}
+          title="Insert link"
+        >
           <LinkIcon className="h-3.5 w-3.5" />
         </button>
 
@@ -682,7 +762,11 @@ const EmailBodyRichTextEditor = ({
           className={toolbarButtonClass}
           title={isExpanded ? "Minimize editor" : "Expand editor"}
         >
-          {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          {isExpanded ? (
+            <Minimize2 className="h-3.5 w-3.5" />
+          ) : (
+            <Maximize2 className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
     </div>
@@ -806,7 +890,7 @@ const EmailBodyRichTextEditor = ({
                 fontSize={12}
                 className="rounded-none"
                 style={{
-                  minHeight: expanded ? "calc(100vh - 82px)" : `${minHeight}px`
+                  minHeight: expanded ? "calc(100vh - 82px)" : `${minHeight}px`,
                 }}
                 ariaLabel="Email body HTML"
                 placeholder="Enter HTML source code here..."
@@ -849,7 +933,9 @@ const EmailBodyRichTextEditor = ({
                     ${disabled ? "cursor-not-allowed bg-slate-100 opacity-70" : "cursor-text"}
                   `}
                   style={{
-                    minHeight: expanded ? "calc(100vh - 82px)" : `${minHeight}px`
+                    minHeight: expanded
+                      ? "calc(100vh - 82px)"
+                      : `${minHeight}px`,
                   }}
                 />
               </>
@@ -908,29 +994,142 @@ const EmailBodyRichTextEditor = ({
         <option value="5">24px</option>
       </select>
 
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("bold")} className={toolbarButtonClass} title="Bold"><Bold className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("italic")} className={toolbarButtonClass} title="Italic"><Italic className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("underline")} className={toolbarButtonClass} title="Underline"><Underline className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("strikeThrough")} className={toolbarButtonClass} title="Strikethrough"><Strikethrough className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("removeFormat")} className={toolbarButtonClass} title="Clear formatting"><RemoveFormatting className="h-3.5 w-3.5" /></button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("bold")}
+        className={toolbarButtonClass}
+        title="Bold"
+      >
+        <Bold className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("italic")}
+        className={toolbarButtonClass}
+        title="Italic"
+      >
+        <Italic className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("underline")}
+        className={toolbarButtonClass}
+        title="Underline"
+      >
+        <Underline className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("strikeThrough")}
+        className={toolbarButtonClass}
+        title="Strikethrough"
+      >
+        <Strikethrough className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("removeFormat")}
+        className={toolbarButtonClass}
+        title="Clear formatting"
+      >
+        <RemoveFormatting className="h-3.5 w-3.5" />
+      </button>
 
       <div className="mx-0.5 h-4 w-px bg-white/20" />
 
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyLeft")} className={toolbarButtonClass} title="Align left"><AlignLeft className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyCenter")} className={toolbarButtonClass} title="Align center"><AlignCenter className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyRight")} className={toolbarButtonClass} title="Align right"><AlignRight className="h-3.5 w-3.5" /></button>
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={() => runCommand("justifyFull")} className={toolbarButtonClass} title="Justify"><AlignJustify className="h-3.5 w-3.5" /></button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("justifyLeft")}
+        className={toolbarButtonClass}
+        title="Align left"
+      >
+        <AlignLeft className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("justifyCenter")}
+        className={toolbarButtonClass}
+        title="Align center"
+      >
+        <AlignCenter className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("justifyRight")}
+        className={toolbarButtonClass}
+        title="Align right"
+      >
+        <AlignRight className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("justifyFull")}
+        className={toolbarButtonClass}
+        title="Justify"
+      >
+        <AlignJustify className="h-3.5 w-3.5" />
+      </button>
 
-      <label className={`relative flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-white/15 ${disabled || rawHtmlMode ? "pointer-events-none opacity-40" : ""}`} title="Text color" onMouseDown={saveSelection}>
+      <label
+        className={`relative flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-white/15 ${disabled || rawHtmlMode ? "pointer-events-none opacity-40" : ""}`}
+        title="Text color"
+        onMouseDown={saveSelection}
+      >
         <Palette className="h-3.5 w-3.5 text-[#E60000]" />
-        <input type="color" disabled={disabled || rawHtmlMode} onChange={(event) => runCommand("foreColor", event.target.value)} className="absolute inset-0 h-3 w-3 cursor-pointer rounded opacity-0" />
+        <input
+          type="color"
+          disabled={disabled || rawHtmlMode}
+          onChange={(event) => runCommand("foreColor", event.target.value)}
+          className="absolute inset-0 h-3 w-3 cursor-pointer rounded opacity-0"
+        />
       </label>
 
-      <input type="file" ref={imageInputRef} accept="image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml" onChange={handleImageUpload} className="hidden" />
+      <input
+        type="file"
+        ref={imageInputRef}
+        accept="image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
 
-      <button type="button" disabled={disabled || rawHtmlMode} onClick={() => imageInputRef.current?.click()} className={`${toolbarButtonClass} text-blue-400`} title="Upload & Embed Local Image"><ImageIcon className="h-3.5 w-3.5" /></button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onClick={() => imageInputRef.current?.click()}
+        className={`${toolbarButtonClass} text-blue-400`}
+        title="Upload & Embed Local Image"
+      >
+        <ImageIcon className="h-3.5 w-3.5" />
+      </button>
 
-      <button type="button" disabled={disabled || rawHtmlMode} onMouseDown={handleToolbarMouseDown} onClick={insertLink} className={`${toolbarButtonClass} text-emerald-400`} title="Insert link"><LinkIcon className="h-3.5 w-3.5" /></button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={insertLink}
+        className={`${toolbarButtonClass} text-emerald-400`}
+        title="Insert link"
+      >
+        <LinkIcon className="h-3.5 w-3.5" />
+      </button>
 
       <div ref={fxRef} className="relative flex-shrink-0">
         <button
@@ -950,11 +1149,23 @@ const EmailBodyRichTextEditor = ({
 
         {showFxMenu && (
           <div className="absolute left-0 top-full z-[9999] mt-1 flex max-h-48 w-52 flex-col gap-0.5 overflow-y-auto rounded-xl border border-white/20 bg-[#1A1C23] p-1 text-left shadow-2xl">
-            <span className="px-2 py-0.5 font-mono-tech text-[7.5px] font-bold uppercase text-slate-400">Dynamic Placeholders</span>
+            <span className="px-2 py-0.5 font-mono-tech text-[7.5px] font-bold uppercase text-slate-400">
+              Dynamic Placeholders
+            </span>
             {FX_PARAMETERS.map((fx) => (
-              <button key={fx.label} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => insertFxPlaceholder(fx)} className="flex items-center justify-between rounded-lg p-1 px-2 text-left transition-colors hover:bg-white/10">
-                <span className="font-mono-tech text-[9px] font-bold text-[#FF8595]">{fx.label}</span>
-                <span className="max-w-[80px] truncate text-[8px] text-slate-400">{fx.desc}</span>
+              <button
+                key={fx.label}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => insertFxPlaceholder(fx)}
+                className="flex items-center justify-between rounded-lg p-1 px-2 text-left transition-colors hover:bg-white/10"
+              >
+                <span className="font-mono-tech text-[9px] font-bold text-[#FF8595]">
+                  {fx.label}
+                </span>
+                <span className="max-w-[80px] truncate text-[8px] text-slate-400">
+                  {fx.desc}
+                </span>
               </button>
             ))}
           </div>
@@ -974,12 +1185,26 @@ const EmailBodyRichTextEditor = ({
           {rawHtmlMode ? "Visual" : "HTML"}
         </button>
 
-        <button type="button" onClick={handleToggleExpand} className={toolbarButtonClass} title={isExpanded ? "Minimize editor" : "Expand editor"}>
-          {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+        <button
+          type="button"
+          onClick={handleToggleExpand}
+          className={toolbarButtonClass}
+          title={isExpanded ? "Minimize editor" : "Expand editor"}
+        >
+          {isExpanded ? (
+            <Minimize2 className="h-3.5 w-3.5" />
+          ) : (
+            <Maximize2 className="h-3.5 w-3.5" />
+          )}
         </button>
 
         {isExpanded && (
-          <button type="button" onClick={() => setIsExpanded(false)} className={toolbarButtonClass} title="Close full-screen editor">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(false)}
+            className={toolbarButtonClass}
+            title="Close full-screen editor"
+          >
             <X className="h-3.5 w-3.5" />
           </button>
         )}
@@ -991,11 +1216,10 @@ const EmailBodyRichTextEditor = ({
   // Reusable editor workspace.
   // Normal mode and fullscreen mode both use this same canvas.
   // ==========================================================
-  
 
   return (
     <>
-    {!isExpanded && (
+      {!isExpanded && (
         <div className={`w-full min-w-0 ${className}`}>
           {renderEditorWorkspace(false)}
         </div>
@@ -1018,7 +1242,7 @@ const EmailBodyRichTextEditor = ({
               </button>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
 
       {toastMessage && (

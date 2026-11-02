@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import {
   ChevronDown,
   ChevronUp,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { createPortal } from "react-dom";
-import { DEMO_USER } from '../../appConfig';
+import { DEMO_USER } from '../../../../appConfig';
 // ============================================================
 // REVIEW CARD THEMES
 // ============================================================

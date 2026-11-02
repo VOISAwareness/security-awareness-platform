@@ -24,7 +24,7 @@
 export const SCENARIO_DRAFT_KEY = 'voisshield_scenario_draft';
 export const SCENARIO_DRAFT_VERSION = 1;
 
-// Mirrors the step strip in ScenarioDeatils.jsx (ScenarioTabs).
+// Mirrors the step strip in CreateNewScenario.jsx (ScenarioTabs).
 export const SCENARIO_STEPS = [
   'Scenario Details',
   'Email Details',

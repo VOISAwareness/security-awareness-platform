@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import OutcomeRichTextEditorModal from './OutcomeRichTextEditorModal';
-import imageCatalogue from "./imageCatalogue.json";
-import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
-//import TrainingPathGrid from '../StartCampaign/AddTrainingPath';
-import TrainingPathGrid from './TrainingPathGrid';
+import React, { useState } from "react";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
+import OutcomeRichTextEditorModal from "./OutcomeRichTextEditorModal";
+import imageCatalogue from "../../imageCatalogue.json";
+import initialLandingCatalogues from "../../../LandingPageCatalogue/LandingPageCatalogues.json";
+import TrainingPathGrid from "./TrainingPathGrid";
 
 import {
   ChevronRight,
-  Check,
   Link2,
   Image as ImageIcon,
   X,
@@ -18,8 +16,7 @@ import {
   Upload,
   Play,
   CircleHelp,
-} from 'lucide-react';
-
+} from "lucide-react";
 
 /* ============================================================
    COVER IMAGE DROPZONE
@@ -32,7 +29,7 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
     role="button"
     tabIndex={0}
     onKeyDown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === "Enter" || e.key === " ") {
         onClick();
       }
     }}
@@ -53,21 +50,19 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
       cursor-pointer transition-all
       ${
         isDark
-          ? 'border-white/25 bg-white/5 hover:bg-white/10 hover:border-white/50'
-          : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400'
+          ? "border-white/25 bg-white/5 hover:bg-white/10 hover:border-white/50"
+          : "border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400"
       }
     `}
   >
     <Upload
-      className={`w-6 h-6 ${
-        isDark ? 'text-white/70' : 'text-slate-500'
-      }`}
+      className={`w-6 h-6 ${isDark ? "text-white/70" : "text-slate-500"}`}
     />
 
     <span
       className={`
         text-[10px] font-bold uppercase tracking-wide
-        ${isDark ? 'text-white' : 'text-slate-800'}
+        ${isDark ? "text-white" : "text-slate-800"}
       `}
     >
       Choose from catalogue
@@ -76,7 +71,7 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
     <span
       className={`
         text-[8px] font-semibold
-        ${isDark ? 'text-white/50' : 'text-slate-500'}
+        ${isDark ? "text-white/50" : "text-slate-500"}
       `}
     >
       or drop your own image here
@@ -84,15 +79,20 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
   </div>
 );
 
-
 // "or" + "Upload your own image", under the cover dropzone. Same look as the
 // landing page card's OrDivider + secondary AttachButton, kept at module scope.
 const CoverUploadChoice = ({ onUpload, isDark }) => (
   <>
     <div className="flex items-center gap-2 my-3 w-full">
-      <span className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
-      <span className="text-[8px] font-voda-exb uppercase text-slate-400">or</span>
-      <span className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+      <span
+        className={`flex-1 h-px ${isDark ? "bg-white/10" : "bg-slate-200"}`}
+      />
+      <span className="text-[8px] font-voda-exb uppercase text-slate-400">
+        or
+      </span>
+      <span
+        className={`flex-1 h-px ${isDark ? "bg-white/10" : "bg-slate-200"}`}
+      />
     </div>
 
     <button
@@ -104,8 +104,8 @@ const CoverUploadChoice = ({ onUpload, isDark }) => (
         flex items-center justify-center gap-2 transition-all cursor-pointer
         ${
           isDark
-            ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
-            : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
+            ? "bg-white/10 text-white border border-white/15 hover:bg-white/15"
+            : "bg-white text-slate-800 border border-slate-300 hover:bg-slate-50"
         }
       `}
     >
@@ -114,7 +114,6 @@ const CoverUploadChoice = ({ onUpload, isDark }) => (
     </button>
   </>
 );
-
 
 /* ============================================================
    SELECTED TRAINING PREVIEW
@@ -136,31 +135,20 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
   ---------------------------------------------------------- */
 
   const trainingId =
-    training.TrainingPathID ||
-    training.trainingCode ||
-    training.id ||
-    '';
-
+    training.TrainingPathID || training.trainingCode || training.id || "";
 
   /* ----------------------------------------------------------
      TRAINING NAME
   ---------------------------------------------------------- */
 
   const trainingName =
-    training.TrainingPathName ||
-    training.title ||
-    'Training Path';
-
+    training.TrainingPathName || training.title || "Training Path";
 
   /* ----------------------------------------------------------
      DESCRIPTION
   ---------------------------------------------------------- */
 
-  const description =
-    training.Description ||
-    training.description ||
-    '';
-
+  const description = training.Description || training.description || "";
 
   /* ----------------------------------------------------------
      RESOLVED VIDEOS
@@ -173,57 +161,41 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
     ? training.resolvedVideos
     : [];
 
-
   /* ----------------------------------------------------------
      QUESTION COUNT
   ---------------------------------------------------------- */
 
-  const questionCount =
-    training.questionCount ??
-    training.questions ??
-    0;
-
+  const questionCount = training.questionCount ?? training.questions ?? 0;
 
   /* ----------------------------------------------------------
      PASSING SCORE
   ---------------------------------------------------------- */
 
-  const passingScore =
-    training.passingScore ??
-    80;
-
+  const passingScore = training.passingScore ?? 80;
 
   /* ----------------------------------------------------------
      CERTIFICATE
   ---------------------------------------------------------- */
 
-  const certificate =
-    training.resolvedCertificate ||
-    training.certificate;
-
+  const certificate = training.resolvedCertificate || training.certificate;
 
   /* ----------------------------------------------------------
      COVER IMAGE
   ---------------------------------------------------------- */
 
   const coverImage =
-    training['Thumbnail(CoverImage)'] ||
+    training["Thumbnail(CoverImage)"] ||
     training.ThumbnailCoverImage ||
     training.coverImage ||
-    'CovImg-001.png';
+    "CovImg-001.png";
 
-
-  let coverSrc = '';
+  let coverSrc = "";
 
   try {
-    coverSrc = new URL(
-      `../Scenarios/`+coverImage,
-      import.meta.url
-    ).href;
+    coverSrc = new URL(`../Scenarios/` + coverImage, import.meta.url).href;
   } catch {
     coverSrc = `/assets/Scenarios/${coverImage}`;
   }
-
 
   return (
     <div
@@ -241,7 +213,6 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
         h-[210px]
       "
     >
-
       {/* ======================================================
           REDO BUTTON
       ====================================================== */}
@@ -263,27 +234,24 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
 
           ${
             isDark
-              ? 'bg-white text-black hover:bg-slate-200'
-              : 'bg-[#06080D] text-white hover:bg-slate-800'
+              ? "bg-white text-black hover:bg-slate-200"
+              : "bg-[#06080D] text-white hover:bg-slate-800"
           }
         `}
       >
         ↻ Redo
       </button>
 
-
       {/* ======================================================
           TRAINING CARD
       ====================================================== */}
 
       <div className="relative h-[200px] p-3.5 overflow-hidden">
-
         {/* ====================================================
             TOP SECTION
         ==================================================== */}
 
         <div className="relative z-10 flex items-center justify-between">
-
           {/* TRAINING ID */}
 
           <div
@@ -302,11 +270,8 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
 
-            <span>
-              {trainingId}
-            </span>
+            <span>{trainingId}</span>
           </div>
-
 
           {/* CREATED DATE */}
 
@@ -315,9 +280,7 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
               Created on: {training.CreatedOn}
             </span>
           )}
-
         </div>
-
 
         {/* ====================================================
             TITLE + DESCRIPTION
@@ -332,7 +295,6 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
             text-left
           "
         >
-
           <h3
             className="
               text-[13px]
@@ -346,7 +308,6 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
             {trainingName}
           </h3>
 
-
           <p
             className="
               text-[8.5px]
@@ -357,11 +318,9 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
           >
             <strong>Description: </strong>
 
-            {description || 'No description available.'}
+            {description || "No description available."}
           </p>
-
         </div>
-
 
         {/* ====================================================
             STATS
@@ -378,7 +337,6 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
             gap-2
           "
         >
-
           {/* ==================================================
               VIDEOS
           ================================================== */}
@@ -396,23 +354,16 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
               border-white/10
             "
           >
-
             <Play className="w-3 h-3" />
 
             <div className="flex flex-col leading-none">
-
               <span className="text-[8px] font-bold">
                 {videos.length} Videos
               </span>
 
-              <span className="text-[7px] text-white/60">
-                Training
-              </span>
-
+              <span className="text-[7px] text-white/60">Training</span>
             </div>
-
           </div>
-
 
           {/* ==================================================
               QUIZ
@@ -431,23 +382,16 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
               border-white/10
             "
           >
-
             <CircleHelp className="w-3 h-3" />
 
             <div className="flex flex-col leading-none">
-
-              <span className="text-[8px] font-bold">
-                1 Quiz
-              </span>
+              <span className="text-[8px] font-bold">1 Quiz</span>
 
               <span className="text-[7px] text-white/60">
                 {questionCount} Qs
               </span>
-
             </div>
-
           </div>
-
 
           {/* ==================================================
               CERTIFICATE
@@ -466,25 +410,19 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
               border-white/10
             "
           >
-
             <Award className="w-3 h-3" />
 
             <div className="flex flex-col leading-none">
-
               <span className="text-[8px] font-bold">
-                {certificate ? '1 Cert' : 'No Cert'}
+                {certificate ? "1 Cert" : "No Cert"}
               </span>
 
               <span className="text-[7px] text-white/60">
                 Pass: {passingScore}%
               </span>
-
             </div>
-
           </div>
-
         </div>
-
 
         {/* ====================================================
             COVER IMAGE
@@ -503,7 +441,6 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
             justify-center
           "
         >
-
           <img
             src={coverSrc}
             alt={trainingName}
@@ -515,125 +452,17 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
               drop-shadow-md
             "
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
+              e.currentTarget.style.display = "none";
             }}
           />
-
         </div>
-
       </div>
-
-    </div>
-  );
-};
-
-
-/* ============================================================
-   RICH TEXT PREVIEW
-============================================================ */
-
-const OutcomeRichTextPreview = ({
-  content,
-  onRedo,
-}) => {
-  if (!content) {
-    return null;
-  }
-
-  const previewDocument = `
-    <html>
-      <head>
-        <style>
-          body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background: #ffffff;
-          }
-
-          * {
-            box-sizing: border-box;
-          }
-        </style>
-      </head>
-
-      <body>
-        ${content}
-      </body>
-    </html>
-  `;
-
-  return (
-    <div className="mt-4 flex justify-center">
-
-      <div
-        className="
-          relative
-          w-full
-          h-[200px]
-          p-3
-          rounded-lg
-          overflow-hidden
-          border
-          border-white/20
-          bg-white/5
-          shadow-lg
-        "
-      >
-
-        {/* REDO */}
-
-        <button
-          type="button"
-          onClick={onRedo}
-          className="
-            absolute
-            top-2
-            right-2
-            z-10
-            px-2
-            h-[24px]
-            rounded-md
-            bg-black/70
-            text-white
-            text-[8px]
-            font-bold
-            hover:bg-black
-            transition-all
-          "
-        >
-          ↻ Redo
-        </button>
-
-
-        {/* PREVIEW */}
-
-        <iframe
-          title="Custom Outcome Preview"
-          srcDoc={previewDocument}
-          className="
-            w-full
-            h-full
-            border-0
-            rounded-md
-            bg-white
-          "
-        />
-
-      </div>
-
     </div>
   );
 };
 
 /* ============================================================
    SELECTED LANDING PAGE PREVIEW
-
-   Uses the same design as the Landing Page Catalogue popup.
-
-   Difference:
-   - Popup: Select button
-   - Main preview: Redo button
 ============================================================ */
 
 const LandingPageSelectedPreview = ({
@@ -643,11 +472,9 @@ const LandingPageSelectedPreview = ({
   onRedo,
   isDark,
 }) => {
-
   if (!itemContent) {
     return null;
   }
-
 
   return (
     <div
@@ -668,7 +495,6 @@ const LandingPageSelectedPreview = ({
         dark:bg-[#1A1C23]
       "
     >
-
       {/* ======================================================
           LANDING PAGE PREVIEW
       ====================================================== */}
@@ -684,9 +510,8 @@ const LandingPageSelectedPreview = ({
           z-0
         "
       >
-
         <iframe
-          title={itemName || 'Selected Landing Page'}
+          title={itemName || "Selected Landing Page"}
           srcDoc={`
             <!DOCTYPE html>
             <html>
@@ -740,14 +565,12 @@ const LandingPageSelectedPreview = ({
             border-none
           "
           style={{
-            transform: 'scale(0.5)',
-            transformOrigin: 'top left',
+            transform: "scale(0.5)",
+            transformOrigin: "top left",
           }}
           sandbox="allow-same-origin"
         />
-
       </div>
-
 
       {/* ======================================================
           TOP BADGE
@@ -763,7 +586,6 @@ const LandingPageSelectedPreview = ({
           justify-between
         "
       >
-
         {/* LANDING PAGE ID */}
 
         <span
@@ -784,7 +606,6 @@ const LandingPageSelectedPreview = ({
           {itemId}
         </span>
 
-
         <button
           type="button"
           onClick={onRedo}
@@ -802,20 +623,14 @@ const LandingPageSelectedPreview = ({
 
           ${
             isDark
-              ? 'bg-white text-black hover:bg-slate-200'
-              : 'bg-[#06080D] text-white hover:bg-slate-800'
+              ? "bg-white text-black hover:bg-slate-200"
+              : "bg-[#06080D] text-white hover:bg-slate-800"
           }
         `}
         >
-
-          <span>
-            ↻ Redo
-          </span>
-
+          <span>↻ Redo</span>
         </button>
-
       </div>
-
 
       {/* ======================================================
           FOOTER
@@ -841,7 +656,6 @@ const LandingPageSelectedPreview = ({
           gap-2
         "
       >
-
         {/* ====================================================
             NAME
         ==================================================== */}
@@ -854,7 +668,6 @@ const LandingPageSelectedPreview = ({
             flex-1
           "
         >
-
           <span
             className="
               text-[11px]
@@ -869,7 +682,6 @@ const LandingPageSelectedPreview = ({
             {itemName}
           </span>
 
-
           <span
             className="
               text-[8px]
@@ -880,11 +692,8 @@ const LandingPageSelectedPreview = ({
           >
             Landing Page
           </span>
-
         </div>
-
       </div>
-
     </div>
   );
 };
@@ -899,54 +708,21 @@ const AttachOutcomesTab = ({
   // (a File can't be kept in the saved draft; its storage key can).
   onCoverFileChosen,
 }) => {
+  const { isDark } = useUserType?.() || { isDark: false };
 
-  const { isDark } =
-    useUserType?.() || { isDark: false };
+  const shellBg = isDark ? "#1C1E24" : "#F1F5F7";
 
-  const shellBg = isDark
-    ? '#1C1E24'
-    : '#F1F5F7';
+  const coverImageInputRef = React.useRef(null);
 
+  const [isImageCatalogueOpen, setIsImageCatalogueOpen] = useState(false);
 
-  const coverImageInputRef =
-    React.useRef(null);
+  const [isLandingPageCatalogueOpen, setIsLandingPageCatalogueOpen] =
+    useState(false);
 
+  const [isTrainingPathCatalogueOpen, setIsTrainingPathCatalogueOpen] =
+    useState(false);
 
-  const [
-    isImageCatalogueOpen,
-    setIsImageCatalogueOpen,
-  ] = useState(false);
-
-
-  const [
-    isLandingPageCatalogueOpen,
-    setIsLandingPageCatalogueOpen,
-  ] = useState(false);
-
-
-  const [
-    isTrainingPathCatalogueOpen,
-    setIsTrainingPathCatalogueOpen,
-  ] = useState(false);
-
-
-  const [
-    isLandingPageBuilderOpen,
-    setIsLandingPageBuilderOpen,
-  ] = useState(false);
-
-
-  const [
-    isIndividualTrainingOpen,
-    setIsIndividualTrainingOpen,
-  ] = useState(false);
-
-
-  const [
-    isOutcomeEditorOpen,
-    setIsOutcomeEditorOpen,
-  ] = useState(false);
-
+  const [isOutcomeEditorOpen, setIsOutcomeEditorOpen] = useState(false);
 
   /* ==========================================================
      SHARED DESIGN
@@ -954,48 +730,44 @@ const AttachOutcomesTab = ({
 
   const OUTCOME_SECTION_THEMES = {
     coverImage: {
-      bgLight: '#ECE8FF',
-      bgDark: '#22193E',
+      bgLight: "#ECE8FF",
+      bgDark: "#22193E",
     },
 
     landingPage: {
-      bgLight: '#FFEFCE',
-      bgDark: '#2E200C',
+      bgLight: "#FFEFCE",
+      bgDark: "#2E200C",
     },
 
     training: {
-      bgLight: '#CEFBEA',
-      bgDark: '#0D271E',
+      bgLight: "#CEFBEA",
+      bgDark: "#0D271E",
     },
   };
 
-
-  const landingPageCatalogue =
-    initialLandingCatalogues?.landingPages || [];
-
+  const landingPageCatalogue = initialLandingCatalogues?.landingPages || [];
 
   /* ==========================================================
      REDO TRAINING
   ========================================================== */
 
   const handleRedoTraining = () => {
-
     setFormData((previous) => ({
       ...previous,
 
-      trainingSource: '',
+      trainingSource: "",
 
       selectedTrainingPath: null,
 
       trainingPathId: null,
 
-      trainingPathCode: '',
+      trainingPathCode: "",
 
-      trainingPathName: '',
+      trainingPathName: "",
 
       trainingPathVideos: 0,
 
-      trainingPathDuration: '',
+      trainingPathDuration: "",
 
       trainingPathQuestions: 0,
 
@@ -1007,43 +779,17 @@ const AttachOutcomesTab = ({
         certificate: null,
       },
     }));
-
   };
-
-
-  /* ==========================================================
-     REDO INDIVIDUAL TRAINING
-  ========================================================== */
-
-  const handleRedoIndividualTraining = () => {
-
-    setFormData((prev) => ({
-      ...prev,
-
-      trainingSource: '',
-
-      selectedTrainingPath: null,
-
-      individualTraining: {
-        videos: [],
-        quiz: null,
-        certificate: null,
-      },
-    }));
-
-  };
-
 
   /* ==========================================================
      COVER IMAGE CATALOGUE SELECT
   ========================================================== */
 
   const handleCatalogueImageSelect = (image) => {
-
     setFormData((previous) => ({
       ...previous,
 
-      coverImageSource: 'catalogue',
+      coverImageSource: "catalogue",
 
       coverImage: null,
 
@@ -1054,190 +800,122 @@ const AttachOutcomesTab = ({
       selectedCatalogueImageId: image.id,
 
       // A catalogue cover replaces any earlier upload.
-      coverImageKey: '',
+      coverImageKey: "",
 
-      coverImageKeyScenarioId: '',
+      coverImageKeyScenarioId: "",
 
-      coverImageThumbnail: '',
+      coverImageThumbnail: "",
 
-      coverImageReattach: '',
+      coverImageReattach: "",
     }));
 
     setIsImageCatalogueOpen(false);
   };
-
 
   /* ==========================================================
      REDO COVER IMAGE
   ========================================================== */
 
   const handleRedoCoverImage = () => {
-
     setFormData((prev) => ({
       ...prev,
 
-      coverImageSource: '',
+      coverImageSource: "",
 
       coverImage: null,
 
-      coverImageName: '',
+      coverImageName: "",
 
-      coverImagePreview: '',
+      coverImagePreview: "",
 
       selectedCatalogueImageId: null,
 
-      coverImageKey: '',
+      coverImageKey: "",
 
-      coverImageKeyScenarioId: '',
+      coverImageKeyScenarioId: "",
 
-      coverImageThumbnail: '',
+      coverImageThumbnail: "",
 
-      coverImageReattach: '',
+      coverImageReattach: "",
 
       // An edited scenario's stored cover goes too (scenarioMapper's
       // toEditFormData); a new scenario never has one here.
-      CoverImageID: '',
+      CoverImageID: "",
     }));
-
   };
-
 
   /* ==========================================================
      REDO LANDING PAGE
   ========================================================== */
 
   const handleRedoLandingPage = () => {
-
     setFormData((previous) => ({
       ...previous,
 
-      outcomeSource: '',
+      outcomeSource: "",
 
-      outcomeRichText: '',
+      outcomeRichText: "",
 
-      landingPageSource: '',
+      landingPageSource: "",
 
       landingPageContent: null,
 
       coverLandingImage: null,
 
-      coverLandingImageName: '',
+      coverLandingImageName: "",
 
-      coverLandingPagePreview: '',
+      coverLandingPagePreview: "",
 
       selectedLandingCatalogueImageId: null,
 
-      landingPageId: '',
+      landingPageId: "",
     }));
-
   };
-
-
-  /* ==========================================================
-     REDO CUSTOM OUTCOME
-  ========================================================== */
-
-  const handleRedoOutcome = () => {
-
-    setFormData((previous) => ({
-      ...previous,
-
-      outcomeSource: '',
-
-      outcomeRichText: '',
-    }));
-
-  };
-
 
   /* ============================================================
    LANDING PAGE SELECT
 ============================================================ */
 
-const handleLandingPageImageSelect = (item) => {
+  const handleLandingPageImageSelect = (item) => {
+    const landingPageId =
+      item?.LandingPageID || item?.landingPageId || item?.id || "";
 
-  const landingPageId =
-    item?.LandingPageID ||
-    item?.landingPageId ||
-    item?.id ||
-    '';
+    const landingPageName =
+      item?.LandingPageName || item?.landingPageName || item?.name || "";
 
-
-  const landingPageName =
-    item?.LandingPageName ||
-    item?.landingPageName ||
-    item?.name ||
-    '';
-
-
-  const landingPageContent =
-    item?.LandingPageContent ||
-    item?.landingPageContent ||
-    item?.content ||
-    '';
-
-
-  setFormData((previous) => ({
-    ...previous,
-
-    landingPageSource: 'catalogue',
-
-    landingPageContent: landingPageContent,
-
-    selectedLandingCatalogueImageId:
-      landingPageId,
-
-    // Published as the scenario's landingPageId. The catalogue page itself is
-    // only linked, never edited.
-    landingPageId,
-
-    // A catalogue pick replaces a page designed earlier.
-    outcomeSource: '',
-
-    outcomeRichText: '',
-
-    coverLandingImageName:
-      landingPageName,
-
-    coverLandingPagePreview: '',
-
-    landingPagePreviewImage: '',
-  }));
-
-
-  setIsLandingPageCatalogueOpen(false);
-};
-
-
-  /* ==========================================================
-     LANDING PAGE BUILDER SAVE
-  ========================================================== */
-
-  const handleLandingPageBuilderSave = (
-    builderContent,
-    previewImage
-  ) => {
+    const landingPageContent =
+      item?.LandingPageContent ||
+      item?.landingPageContent ||
+      item?.content ||
+      "";
 
     setFormData((previous) => ({
       ...previous,
 
-      landingPageSource: 'builder',
+      landingPageSource: "catalogue",
 
-      landingPageContent: builderContent,
+      landingPageContent: landingPageContent,
 
-      landingPagePreviewImage: previewImage,
+      selectedLandingCatalogueImageId: landingPageId,
 
-      coverLandingImageName: '',
+      // Published as the scenario's landingPageId. The catalogue page itself is
+      // only linked, never edited.
+      landingPageId,
 
-      coverLandingPagePreview: '',
+      // A catalogue pick replaces a page designed earlier.
+      outcomeSource: "",
 
-      selectedLandingCatalogueImageId: null,
+      outcomeRichText: "",
+
+      coverLandingImageName: landingPageName,
+
+      coverLandingPagePreview: "",
+
+      landingPagePreviewImage: "",
     }));
 
-
-    setIsLandingPageBuilderOpen(false);
+    setIsLandingPageCatalogueOpen(false);
   };
-
 
   /* ==========================================================
      TRAINING PATH SELECT
@@ -1248,61 +926,36 @@ const handleLandingPageImageSelect = (item) => {
   ========================================================== */
 
   const handleTrainingPathSelect = (training) => {
-
     if (!training) {
       return;
     }
 
-
-    console.log(
-      'AttachOutcomes - Selected Training:',
-      training
-    );
-
+    console.log("AttachOutcomes - Selected Training:", training);
 
     setFormData((previous) => ({
       ...previous,
 
-      trainingSource: 'training-path',
+      trainingSource: "training-path",
 
       /* COMPLETE TRAINING OBJECT */
       selectedTrainingPath: training,
 
       /* NORMALIZED VALUES */
-      trainingPathId:
-        training.id ||
-        training.TrainingPathID ||
-        null,
+      trainingPathId: training.id || training.TrainingPathID || null,
 
-      trainingPathCode:
-        training.trainingCode ||
-        training.TrainingPathID ||
-        '',
+      trainingPathCode: training.trainingCode || training.TrainingPathID || "",
 
-      trainingPathName:
-        training.title ||
-        training.TrainingPathName ||
-        '',
+      trainingPathName: training.title || training.TrainingPathName || "",
 
-      trainingPathVideos:
-        training.videos ||
-        0,
+      trainingPathVideos: training.videos || 0,
 
-      trainingPathDuration:
-        training.duration ||
-        training.Duration ||
-        '',
+      trainingPathDuration: training.duration || training.Duration || "",
 
-      trainingPathQuestions:
-        training.questions ||
-        training.questionCount ||
-        0,
+      trainingPathQuestions: training.questions || training.questionCount || 0,
 
-      trainingPathCertificate:
-        Boolean(
-          training.certificate ||
-          training.resolvedCertificate
-        ),
+      trainingPathCertificate: Boolean(
+        training.certificate || training.resolvedCertificate,
+      ),
 
       individualTraining: {
         videos: [],
@@ -1311,28 +964,8 @@ const handleLandingPageImageSelect = (item) => {
       },
     }));
 
-
     setIsTrainingPathCatalogueOpen(false);
   };
-
-
-  /* ==========================================================
-     GENERIC FIELD UPDATE
-  ========================================================== */
-
-  const updateField = (
-    field,
-    value
-  ) => {
-
-    setFormData((previous) => ({
-      ...previous,
-
-      [field]: value,
-    }));
-
-  };
-
 
   /* ============================================================
      TRAINING PATH CATALOGUE MODAL
@@ -1345,16 +978,10 @@ const handleLandingPageImageSelect = (item) => {
      Only the AddTrainingPath-style grid is displayed.
   ============================================================ */
 
-  const TrainingPathCatalogueModal = ({
-    isOpen,
-    onClose,
-    onSelect,
-  }) => {
-
+  const TrainingPathCatalogueModal = ({ isOpen, onClose, onSelect }) => {
     if (!isOpen) {
       return null;
     }
-
 
     return (
       <div
@@ -1371,7 +998,6 @@ const handleLandingPageImageSelect = (item) => {
         "
         onClick={onClose}
       >
-
         {/* ====================================================
             MODAL
         ==================================================== */}
@@ -1391,11 +1017,8 @@ const handleLandingPageImageSelect = (item) => {
             shadow-2xl
             overflow-hidden
           "
-          onClick={(event) =>
-            event.stopPropagation()
-          }
+          onClick={(event) => event.stopPropagation()}
         >
-
           {/* ==================================================
               HEADER
           ================================================== */}
@@ -1412,9 +1035,7 @@ const handleLandingPageImageSelect = (item) => {
               dark:border-white/10
             "
           >
-
             <div className="flex items-center gap-3">
-
               <div
                 className="
                   w-9
@@ -1426,7 +1047,6 @@ const handleLandingPageImageSelect = (item) => {
                   justify-center
                 "
               >
-
                 <Award
                   className="
                     w-4
@@ -1434,12 +1054,9 @@ const handleLandingPageImageSelect = (item) => {
                     text-[#990099]
                   "
                 />
-
               </div>
 
-
               <div>
-
                 <h2
                   className="
                     text-[13px]
@@ -1453,7 +1070,6 @@ const handleLandingPageImageSelect = (item) => {
                   Attach Training Path
                 </h2>
 
-
                 <p
                   className="
                     text-[8px]
@@ -1463,11 +1079,8 @@ const handleLandingPageImageSelect = (item) => {
                 >
                   Select a training path for this scenario
                 </p>
-
               </div>
-
             </div>
-
 
             {/* CLOSE */}
 
@@ -1489,13 +1102,9 @@ const handleLandingPageImageSelect = (item) => {
                 dark:hover:bg-white/10
               "
             >
-
               <X className="w-3.5 h-3.5" />
-
             </button>
-
           </div>
-
 
           {/* ==================================================
               TRAINING GRID ONLY
@@ -1511,7 +1120,6 @@ const handleLandingPageImageSelect = (item) => {
               max-h-[calc(90vh-58px)]
             "
           >
-
             <div
               className="
                 grid
@@ -1521,21 +1129,13 @@ const handleLandingPageImageSelect = (item) => {
                 gap-4
               "
             >
-
-              <TrainingPathGrid
-                onSelect={onSelect}
-              />
-
+              <TrainingPathGrid onSelect={onSelect} />
             </div>
-
           </div>
-
         </div>
-
       </div>
     );
   };
-
 
   /* ============================================================
      ATTACH BUTTON
@@ -1545,10 +1145,9 @@ const handleLandingPageImageSelect = (item) => {
     icon: Icon,
     label,
     onClick,
-    variant = 'primary',
+    variant = "primary",
     isDark,
   }) => (
-
     <button
       type="button"
       onClick={onClick}
@@ -1571,47 +1170,33 @@ const handleLandingPageImageSelect = (item) => {
         cursor-pointer
 
         ${
-          variant === 'primary'
+          variant === "primary"
             ? isDark
-              ? 'bg-white text-black hover:bg-slate-200'
-              : 'bg-[#06080D] text-white hover:bg-slate-800'
+              ? "bg-white text-black hover:bg-slate-200"
+              : "bg-[#06080D] text-white hover:bg-slate-800"
             : isDark
-              ? 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
-              : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50'
+              ? "bg-white/10 text-white border border-white/15 hover:bg-white/15"
+              : "bg-white text-slate-800 border border-slate-300 hover:bg-slate-50"
         }
       `}
     >
+      {Icon && <Icon className="w-3.5 h-3.5" />}
 
-      {Icon && (
-        <Icon className="w-3.5 h-3.5" />
-      )}
-
-      <span>
-        {label}
-      </span>
-
+      <span>{label}</span>
     </button>
   );
-
 
   /* ============================================================
      OR DIVIDER
   ============================================================ */
 
-  const OrDivider = ({
-    isDark,
-  }) => (
-
+  const OrDivider = ({ isDark }) => (
     <div className="flex items-center gap-2 my-3">
-
       <span
         className={`
           flex-1
           h-px
-          ${isDark
-            ? 'bg-white/10'
-            : 'bg-slate-200'
-          }
+          ${isDark ? "bg-white/10" : "bg-slate-200"}
         `}
       />
 
@@ -1630,28 +1215,17 @@ const handleLandingPageImageSelect = (item) => {
         className={`
           flex-1
           h-px
-          ${isDark
-            ? 'bg-white/10'
-            : 'bg-slate-200'
-          }
+          ${isDark ? "bg-white/10" : "bg-slate-200"}
         `}
       />
-
     </div>
   );
-
 
   /* ============================================================
      PREVIEW CARD SHELL
   ============================================================ */
 
-  const PreviewCardShell = ({
-    onRedo,
-    footer,
-    children,
-    isDark,
-  }) => (
-
+  const PreviewCardShell = ({ onRedo, footer, children, isDark }) => (
     <div
       className={`
         relative
@@ -1662,13 +1236,10 @@ const handleLandingPageImageSelect = (item) => {
         border
         h-[210px]
         ${
-          isDark
-            ? 'border-white/10 bg-white/5'
-            : 'border-slate-200 bg-slate-50'
+          isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
         }
       `}
     >
-
       <button
         type="button"
         onClick={onRedo}
@@ -1686,20 +1257,17 @@ const handleLandingPageImageSelect = (item) => {
 
           ${
             isDark
-              ? 'bg-white text-black hover:bg-slate-200'
-              : 'bg-[#06080D] text-white hover:bg-slate-800'
+              ? "bg-white text-black hover:bg-slate-200"
+              : "bg-[#06080D] text-white hover:bg-slate-800"
           }
         `}
       >
         ↻ Redo
       </button>
 
-
       {children}
 
-
       {footer && (
-
         <div
           className={`
             px-3
@@ -1711,34 +1279,25 @@ const handleLandingPageImageSelect = (item) => {
 
             ${
               isDark
-                ? 'border-white/10 text-slate-300'
-                : 'border-slate-200 text-slate-600'
+                ? "border-white/10 text-slate-300"
+                : "border-slate-200 text-slate-600"
             }
           `}
         >
           {footer}
         </div>
-
       )}
-
     </div>
   );
-
 
   /* ============================================================
      IMAGE CATALOGUE MODAL
   ============================================================ */
 
-  const ImageCatalogueModal = ({
-    isOpen,
-    onClose,
-    onSelect,
-  }) => {
-
+  const ImageCatalogueModal = ({ isOpen, onClose, onSelect }) => {
     if (!isOpen) {
       return null;
     }
-
 
     return (
       <div
@@ -1755,7 +1314,6 @@ const handleLandingPageImageSelect = (item) => {
         "
         onClick={onClose}
       >
-
         <div
           className="
             relative
@@ -1771,11 +1329,8 @@ const handleLandingPageImageSelect = (item) => {
             shadow-2xl
             overflow-hidden
           "
-          onClick={(event) =>
-            event.stopPropagation()
-          }
+          onClick={(event) => event.stopPropagation()}
         >
-
           {/* HEADER */}
 
           <div
@@ -1790,9 +1345,7 @@ const handleLandingPageImageSelect = (item) => {
               dark:border-white/10
             "
           >
-
             <div>
-
               <h2
                 className="
                   text-[13px]
@@ -1805,9 +1358,7 @@ const handleLandingPageImageSelect = (item) => {
               >
                 Cover Image Catalogue
               </h2>
-
             </div>
-
 
             <button
               type="button"
@@ -1826,13 +1377,9 @@ const handleLandingPageImageSelect = (item) => {
                 transition-all
               "
             >
-
               <X className="w-4 h-4" />
-
             </button>
-
           </div>
-
 
           {/* CONTENT */}
 
@@ -1843,7 +1390,6 @@ const handleLandingPageImageSelect = (item) => {
               max-h-[calc(85vh-58px)]
             "
           >
-
             <div
               className="
                 grid
@@ -1853,9 +1399,7 @@ const handleLandingPageImageSelect = (item) => {
                 gap-4
               "
             >
-
               {imageCatalogue.map((item) => (
-
                 <div
                   key={item.id}
                   className="
@@ -1872,7 +1416,6 @@ const handleLandingPageImageSelect = (item) => {
                     dark:hover:border-white/20
                   "
                 >
-
                   {/* IMAGE */}
 
                   <div
@@ -1884,7 +1427,6 @@ const handleLandingPageImageSelect = (item) => {
                       overflow-hidden
                     "
                   >
-
                     <img
                       src={item.image}
                       alt={item.title}
@@ -1897,14 +1439,11 @@ const handleLandingPageImageSelect = (item) => {
                         hover:scale-[1.03]
                       "
                     />
-
                   </div>
-
 
                   {/* CONTENT */}
 
                   <div className="p-3">
-
                     <h3
                       className="
                         text-[10px]
@@ -1919,9 +1458,7 @@ const handleLandingPageImageSelect = (item) => {
                       {item.title}
                     </h3>
 
-
                     <div className="grid grid-cols-2 gap-2 mt-3">
-
                       {/* PREVIEW */}
 
                       <button
@@ -1948,21 +1485,15 @@ const handleLandingPageImageSelect = (item) => {
                           transition-all
                         "
                       >
-
                         <Eye className="w-3 h-3" />
-
                         Preview
-
                       </button>
-
 
                       {/* SELECT */}
 
                       <button
                         type="button"
-                        onClick={() =>
-                          onSelect(item)
-                        }
+                        onClick={() => onSelect(item)}
                         className="
                           h-[30px]
                           rounded-md
@@ -1979,31 +1510,19 @@ const handleLandingPageImageSelect = (item) => {
                           transition-all
                         "
                       >
-
                         <CheckCircle2 className="w-3 h-3" />
-
                         Select
-
                       </button>
-
                     </div>
-
                   </div>
-
                 </div>
-
               ))}
-
             </div>
-
           </div>
-
         </div>
-
       </div>
     );
   };
-
 
   /* ============================================================
      LANDING PAGE CATALOGUE MODAL
@@ -2016,32 +1535,21 @@ const handleLandingPageImageSelect = (item) => {
     selectedLandingPageId,
     isDark,
   }) => {
-
     if (!isOpen) {
       return null;
     }
 
-
     const getItemId = (item) =>
-      item?.LandingPageID ||
-      item?.landingPageId ||
-      item?.id ||
-      '';
-
+      item?.LandingPageID || item?.landingPageId || item?.id || "";
 
     const getItemName = (item) =>
-      item?.LandingPageName ||
-      item?.landingPageName ||
-      item?.name ||
-      '';
-
+      item?.LandingPageName || item?.landingPageName || item?.name || "";
 
     const getItemContent = (item) =>
       item?.LandingPageContent ||
       item?.landingPageContent ||
       item?.content ||
-      '';
-
+      "";
 
     return (
       <div
@@ -2058,7 +1566,6 @@ const handleLandingPageImageSelect = (item) => {
         "
         onClick={onClose}
       >
-
         <div
           className="
             w-full
@@ -2074,11 +1581,8 @@ const handleLandingPageImageSelect = (item) => {
             bg-white
             dark:bg-[#181A20]
           "
-          onClick={(e) =>
-            e.stopPropagation()
-          }
+          onClick={(e) => e.stopPropagation()}
         >
-
           {/* HEADER */}
 
           <div
@@ -2095,9 +1599,7 @@ const handleLandingPageImageSelect = (item) => {
               dark:bg-[#121418]
             "
           >
-
             <div className="flex flex-col">
-
               <span
                 className="
                   text-xs
@@ -2112,7 +1614,6 @@ const handleLandingPageImageSelect = (item) => {
                 Attach Landing Page From Catalogue
               </span>
 
-
               <span
                 className="
                   text-[9px]
@@ -2123,9 +1624,7 @@ const handleLandingPageImageSelect = (item) => {
               >
                 Choose an existing landing page for this scenario
               </span>
-
             </div>
-
 
             <button
               type="button"
@@ -2142,13 +1641,9 @@ const handleLandingPageImageSelect = (item) => {
                 transition-colors
               "
             >
-
               <X className="w-4 h-4" />
-
             </button>
-
           </div>
-
 
           {/* LANDING PAGE GRID */}
 
@@ -2166,21 +1661,14 @@ const handleLandingPageImageSelect = (item) => {
               dark:bg-[#0c0d10]
             "
           >
-
             {landingPageCatalogue.map((item) => {
+              const itemId = getItemId(item);
 
-              const itemId =
-                getItemId(item);
+              const itemName = getItemName(item);
 
-              const itemName =
-                getItemName(item);
+              const itemContent = getItemContent(item);
 
-              const itemContent =
-                getItemContent(item);
-
-              const isSelected =
-                itemId === selectedLandingPageId;
-
+              const isSelected = itemId === selectedLandingPageId;
 
               return (
                 <div
@@ -2201,12 +1689,11 @@ const handleLandingPageImageSelect = (item) => {
 
                     ${
                       isSelected
-                        ? 'ring-2 ring-[#E60000] border-transparent'
-                        : 'border-slate-200 dark:border-white/10'
+                        ? "ring-2 ring-[#E60000] border-transparent"
+                        : "border-slate-200 dark:border-white/10"
                     }
                   `}
                 >
-
                   {/* LANDING PAGE PREVIEW */}
 
                   <div
@@ -2220,7 +1707,6 @@ const handleLandingPageImageSelect = (item) => {
                       z-0
                     "
                   >
-
                     <iframe
                       title={itemName}
                       srcDoc={`
@@ -2269,14 +1755,12 @@ const handleLandingPageImageSelect = (item) => {
                         border-none
                       "
                       style={{
-                        transform: 'scale(0.5)',
-                        transformOrigin: 'top left',
+                        transform: "scale(0.5)",
+                        transformOrigin: "top left",
                       }}
                       sandbox="allow-same-origin"
                     />
-
                   </div>
-
 
                   {/* TOP BADGE */}
 
@@ -2290,7 +1774,6 @@ const handleLandingPageImageSelect = (item) => {
                       justify-between
                     "
                   >
-
                     <span
                       className="
                         px-2
@@ -2309,9 +1792,7 @@ const handleLandingPageImageSelect = (item) => {
                       {itemId}
                     </span>
 
-
                     {isSelected && (
-
                       <span
                         className="
                           px-2
@@ -2328,11 +1809,8 @@ const handleLandingPageImageSelect = (item) => {
                       >
                         Selected
                       </span>
-
                     )}
-
                   </div>
-
 
                   {/* FOOTER */}
 
@@ -2356,7 +1834,6 @@ const handleLandingPageImageSelect = (item) => {
                       gap-2
                     "
                   >
-
                     <div
                       className="
                         flex
@@ -2365,7 +1842,6 @@ const handleLandingPageImageSelect = (item) => {
                         flex-1
                       "
                     >
-
                       <span
                         className="
                           text-[11px]
@@ -2380,7 +1856,6 @@ const handleLandingPageImageSelect = (item) => {
                         {itemName}
                       </span>
 
-
                       <span
                         className="
                           text-[8px]
@@ -2391,17 +1866,13 @@ const handleLandingPageImageSelect = (item) => {
                       >
                         Landing Page
                       </span>
-
                     </div>
-
 
                     {/* SELECT */}
 
                     <button
                       type="button"
-                      onClick={() =>
-                        onSelect(item)
-                      }
+                      onClick={() => onSelect(item)}
                       className="
                         px-2.5
                         py-1
@@ -2425,13 +1896,7 @@ const handleLandingPageImageSelect = (item) => {
                         flex-shrink-0
                       "
                     >
-
-                      <span>
-                        {isSelected
-                          ? 'Selected'
-                          : 'Select'}
-                      </span>
-
+                      <span>{isSelected ? "Selected" : "Select"}</span>
 
                       {!isSelected && (
                         <ChevronRight
@@ -2442,21 +1907,15 @@ const handleLandingPageImageSelect = (item) => {
                           "
                         />
                       )}
-
                     </button>
-
                   </div>
-
                 </div>
               );
-
             })}
-
 
             {/* EMPTY */}
 
             {landingPageCatalogue.length === 0 && (
-
               <div
                 className="
                   col-span-full
@@ -2466,9 +1925,7 @@ const handleLandingPageImageSelect = (item) => {
                   py-16
                 "
               >
-
                 <div className="text-center">
-
                   <div
                     className="
                       text-sm
@@ -2480,7 +1937,6 @@ const handleLandingPageImageSelect = (item) => {
                     No Landing Pages Available
                   </div>
 
-
                   <div
                     className="
                       text-[10px]
@@ -2491,97 +1947,62 @@ const handleLandingPageImageSelect = (item) => {
                   >
                     Create a new landing page to add it to the catalogue.
                   </div>
-
                 </div>
-
               </div>
-
             )}
-
           </div>
-
         </div>
-
       </div>
     );
   };
-
 
   /* ============================================================
      COVER IMAGE CLICK
   ============================================================ */
 
   const handleCoverImageClick = () => {
-
     coverImageInputRef.current?.click();
-
   };
-
 
   /* ============================================================
      COVER IMAGE CHANGE
   ============================================================ */
 
-  const handleCoverImageChange = (
-    event
-  ) => {
-
-    const file =
-      event.target.files?.[0];
+  const handleCoverImageChange = (event) => {
+    const file = event.target.files?.[0];
 
     // Clear the input so choosing the same file again still fires onChange.
-    event.target.value = '';
+    event.target.value = "";
 
     acceptCoverFile(file);
-
   };
 
-
   // Shared by the file picker and drag-and-drop onto the cover dropzone.
-  const acceptCoverFile = (
-    file
-  ) => {
-
+  const acceptCoverFile = (file) => {
     if (!file) {
       return;
     }
 
-
-    const allowedTypes = [
-      'image/png',
-      'image/jpeg',
-      'image/jpg',
-    ];
-
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
 
     if (!allowedTypes.includes(file.type)) {
-
-      alert(
-        'Please upload a PNG, JPEG or JPG image.'
-      );
+      alert("Please upload a PNG, JPEG or JPG image.");
 
       return;
     }
-
 
     if (file.size > 5 * 1024 * 1024) {
-
-      alert(
-        'Image size should not exceed 5MB.'
-      );
+      alert("Image size should not exceed 5MB.");
 
       return;
     }
 
-
-    const previewUrl =
-      URL.createObjectURL(file);
-
+    const previewUrl = URL.createObjectURL(file);
 
     setFormData((previous) => ({
       ...previous,
 
-      coverImageSource: 'upload',
+      coverImageSource: "upload",
 
       coverImage: file,
 
@@ -2590,40 +2011,20 @@ const handleLandingPageImageSelect = (item) => {
       coverImagePreview: previewUrl,
 
       // Filled in by onCoverFileChosen once this file is uploaded.
-      coverImageKey: '',
+      coverImageKey: "",
 
-      coverImageKeyScenarioId: '',
+      coverImageKeyScenarioId: "",
 
-      coverImageThumbnail: '',
+      coverImageThumbnail: "",
 
-      coverImageReattach: '',
+      coverImageReattach: "",
     }));
 
-
     onCoverFileChosen?.(file);
-
   };
-
-
-  /* ============================================================
-     LANDING PAGE ATTACHED
-  ============================================================ */
-
-  const isLandingPageAttached =
-    (
-      formData.landingPageSource === 'catalogue' &&
-      Boolean(formData.landingPageContent)
-    ) ||
-    formData.landingPageSource === 'builder' ||
-    (
-      formData.outcomeSource === 'custom' &&
-      Boolean(formData.outcomeRichText)
-    );
-
 
   return (
     <div className="w-full">
-
       <div
         className="
           grid
@@ -2633,7 +2034,6 @@ const handleLandingPageImageSelect = (item) => {
           items-stretch
         "
       >
-
         {/* ====================================================
             CARD 1
             ATTACH COVER IMAGE
@@ -2648,15 +2048,13 @@ const handleLandingPageImageSelect = (item) => {
             min-h-[420px]
           "
         >
-
           {/* CAPSULE */}
 
           <div
             style={{
-              backgroundColor:
-                isDark
-                  ? OUTCOME_SECTION_THEMES.coverImage.bgDark
-                  : OUTCOME_SECTION_THEMES.coverImage.bgLight,
+              backgroundColor: isDark
+                ? OUTCOME_SECTION_THEMES.coverImage.bgDark
+                : OUTCOME_SECTION_THEMES.coverImage.bgLight,
             }}
             className="
               absolute
@@ -2673,7 +2071,6 @@ const handleLandingPageImageSelect = (item) => {
               z-20
             "
           >
-
             <h3
               className={`
                 text-[14px]
@@ -2682,18 +2079,13 @@ const handleLandingPageImageSelect = (item) => {
                 font-bold
                 tracking-normal
                 leading-tight
-                ${
-                  isDark
-                    ? 'text-white'
-                    : 'text-slate-900'
-                }
+                ${isDark ? "text-white" : "text-slate-900"}
               `}
             >
               Attach
               <br />
               Cover Image
             </h3>
-
 
             <p
               className={`
@@ -2702,11 +2094,7 @@ const handleLandingPageImageSelect = (item) => {
                 leading-tight
                 opacity-75
                 mt-1
-                ${
-                  isDark
-                    ? 'text-slate-300'
-                    : 'text-slate-600'
-                }
+                ${isDark ? "text-slate-300" : "text-slate-600"}
               `}
             >
               Choose a cover
@@ -2715,9 +2103,7 @@ const handleLandingPageImageSelect = (item) => {
               <br />
               scenario
             </p>
-
           </div>
-
 
           {/* ARC */}
 
@@ -2733,22 +2119,10 @@ const handleLandingPageImageSelect = (item) => {
               overflow-hidden
             "
           >
-
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
-
-              <path
-                d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
-                fill={shellBg}
-              />
-
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+              <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={shellBg} />
             </svg>
-
           </div>
-
 
           {/* TOP RIGHT */}
 
@@ -2769,21 +2143,14 @@ const handleLandingPageImageSelect = (item) => {
               z-10
             "
           >
-
             <ImageIcon
               className={`
                 w-8
                 h-8
-                ${
-                  isDark
-                    ? 'text-white/15'
-                    : 'text-slate-900/10'
-                }
+                ${isDark ? "text-white/15" : "text-slate-900/10"}
               `}
             />
-
           </div>
-
 
           {/* BOTTOM */}
 
@@ -2806,17 +2173,13 @@ const handleLandingPageImageSelect = (item) => {
               z-10
             "
           >
-
             {formData.coverImagePreview || formData.coverImageKey ? (
-
               <PreviewCardShell
                 onRedo={handleRedoCoverImage}
                 footer={formData.coverImageName}
                 isDark={isDark}
               >
-
                 {formData.coverImagePreview ? (
-
                   <img
                     src={formData.coverImagePreview}
                     alt="Preview"
@@ -2827,67 +2190,47 @@ const handleLandingPageImageSelect = (item) => {
                       p-2
                     "
                   />
-
                 ) : (
-
                   /* Uploaded, but no thumbnail was saved with the draft */
                   <div className="w-full h-[150px] flex items-center justify-center">
                     <ImageIcon
                       className={`w-8 h-8 ${
-                        isDark ? 'text-white/40' : 'text-slate-400'
+                        isDark ? "text-white/40" : "text-slate-400"
                       }`}
                     />
                   </div>
-
                 )}
-
               </PreviewCardShell>
-
             ) : (
-
               <>
-
                 <CoverImageDropzone
-                  onClick={() =>
-                    setIsImageCatalogueOpen(true)
-                  }
+                  onClick={() => setIsImageCatalogueOpen(true)}
                   onFileDrop={acceptCoverFile}
                   isDark={isDark}
                 />
-
 
                 <CoverUploadChoice
                   onUpload={handleCoverImageClick}
                   isDark={isDark}
                 />
 
-
                 {/* A resumed draft whose upload never reached storage */}
                 {formData.coverImageReattach && (
-
                   <p
                     className={`
                       text-[8px]
                       font-semibold
                       text-center
-                      ${
-                        isDark
-                          ? 'text-amber-200'
-                          : 'text-amber-700'
-                      }
+                      ${isDark ? "text-amber-200" : "text-amber-700"}
                     `}
                   >
-                    Please attach your cover image again
-                    ({formData.coverImageReattach}): it was not
-                    uploaded before you left.
+                    Please attach your cover image again (
+                    {formData.coverImageReattach}): it was not uploaded before
+                    you left.
                   </p>
-
                 )}
-
               </>
-
             )}
-
 
             <input
               ref={coverImageInputRef}
@@ -2896,11 +2239,8 @@ const handleLandingPageImageSelect = (item) => {
               onChange={handleCoverImageChange}
               className="hidden"
             />
-
           </div>
-
         </div>
-
 
         {/* ====================================================
             CARD 2
@@ -2916,15 +2256,13 @@ const handleLandingPageImageSelect = (item) => {
             min-h-[420px]
           "
         >
-
           {/* CAPSULE */}
 
           <div
             style={{
-              backgroundColor:
-                isDark
-                  ? OUTCOME_SECTION_THEMES.landingPage.bgDark
-                  : OUTCOME_SECTION_THEMES.landingPage.bgLight,
+              backgroundColor: isDark
+                ? OUTCOME_SECTION_THEMES.landingPage.bgDark
+                : OUTCOME_SECTION_THEMES.landingPage.bgLight,
             }}
             className="
               absolute
@@ -2941,7 +2279,6 @@ const handleLandingPageImageSelect = (item) => {
               z-20
             "
           >
-
             <h3
               className={`
                 text-[14px]
@@ -2950,18 +2287,13 @@ const handleLandingPageImageSelect = (item) => {
                 font-bold
                 tracking-normal
                 leading-tight
-                ${
-                  isDark
-                    ? 'text-white'
-                    : 'text-slate-900'
-                }
+                ${isDark ? "text-white" : "text-slate-900"}
               `}
             >
               Attach
               <br />
               Landing Page
             </h3>
-
 
             <p
               className={`
@@ -2970,11 +2302,7 @@ const handleLandingPageImageSelect = (item) => {
                 leading-tight
                 opacity-75
                 mt-1
-                ${
-                  isDark
-                    ? 'text-slate-300'
-                    : 'text-slate-600'
-                }
+                ${isDark ? "text-slate-300" : "text-slate-600"}
               `}
             >
               Attach or create a
@@ -2983,9 +2311,7 @@ const handleLandingPageImageSelect = (item) => {
               <br />
               this scenario
             </p>
-
           </div>
-
 
           {/* ARC */}
 
@@ -3001,22 +2327,10 @@ const handleLandingPageImageSelect = (item) => {
               overflow-hidden
             "
           >
-
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
-
-              <path
-                d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
-                fill={shellBg}
-              />
-
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+              <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={shellBg} />
             </svg>
-
           </div>
-
 
           {/* TOP RIGHT */}
 
@@ -3037,21 +2351,14 @@ const handleLandingPageImageSelect = (item) => {
               z-10
             "
           >
-
             <Link2
               className={`
                 w-8
                 h-8
-                ${
-                  isDark
-                    ? 'text-white/15'
-                    : 'text-slate-900/10'
-                }
+                ${isDark ? "text-white/15" : "text-slate-900/10"}
               `}
             />
-
           </div>
-
 
           {/* BOTTOM */}
 
@@ -3074,97 +2381,44 @@ const handleLandingPageImageSelect = (item) => {
               z-10
             "
           >
-
-            {formData.landingPageSource === 'catalogue' &&
+            {formData.landingPageSource === "catalogue" &&
             formData.landingPageContent ? (
-
               <LandingPageSelectedPreview
-    itemId={
-      formData.selectedLandingCatalogueImageId
-    }
-    itemName={
-      formData.coverLandingImageName
-    }
-    itemContent={
-      formData.landingPageContent
-    }
-    onRedo={
-      handleRedoLandingPage
-    }
-    isDark={isDark}
-  />
-
-            ) : formData.landingPageSource === 'builder' ? (
-
-              <PreviewCardShell
-    onRedo={handleRedoLandingPage}
-    footer={formData.coverLandingImageName}
-    isDark={isDark}
-  >
-
-    <LandingPageBuilderPreview
-      content={formData.landingPageContent}
-    />
-
-  </PreviewCardShell>
-
-            ) : formData.outcomeSource === 'custom' &&
+                itemId={formData.selectedLandingCatalogueImageId}
+                itemName={formData.coverLandingImageName}
+                itemContent={formData.landingPageContent}
+                onRedo={handleRedoLandingPage}
+                isDark={isDark}
+              />
+            ) :formData.outcomeSource === "custom" &&
               formData.outcomeRichText ? (
-
-              
-
               <LandingPageSelectedPreview
-    
-    itemContent={
-      formData.outcomeRichText
-    }
-    onRedo={
-      handleRedoLandingPage
-    }
-    isDark={isDark}
-  />
-
+                itemContent={formData.outcomeRichText}
+                onRedo={handleRedoLandingPage}
+                isDark={isDark}
+              />
             ) : (
-
               <>
-
                 <AttachButton
                   label="Choose from Landing Page Catalogue"
-                  onClick={() =>
-                    setIsLandingPageCatalogueOpen(true)
-                  }
+                  onClick={() => setIsLandingPageCatalogueOpen(true)}
                   variant="primary"
                   isDark={isDark}
                 />
 
-
-                <OrDivider
-                  isDark={isDark}
-                />
-
+                <OrDivider isDark={isDark} />
 
                 <AttachButton
-                  icon={() => (
-                    <span className="text-[11px]">
-                      ✎
-                    </span>
-                  )}
+                  icon={() => <span className="text-[11px]">✎</span>}
                   label="Design a new one"
-                  onClick={() =>
-                    setIsOutcomeEditorOpen(true)
-                  }
+                  onClick={() => setIsOutcomeEditorOpen(true)}
                   variant="secondary"
                   isDark={isDark}
                 />
-
               </>
-
             )}
-
           </div>
-
         </div>
-
 
         {/* ====================================================
             CARD 3
@@ -3180,15 +2434,13 @@ const handleLandingPageImageSelect = (item) => {
             min-h-[420px]
           "
         >
-
           {/* CAPSULE */}
 
           <div
             style={{
-              backgroundColor:
-                isDark
-                  ? OUTCOME_SECTION_THEMES.training.bgDark
-                  : OUTCOME_SECTION_THEMES.training.bgLight,
+              backgroundColor: isDark
+                ? OUTCOME_SECTION_THEMES.training.bgDark
+                : OUTCOME_SECTION_THEMES.training.bgLight,
             }}
             className="
               absolute
@@ -3205,7 +2457,6 @@ const handleLandingPageImageSelect = (item) => {
               z-20
             "
           >
-
             <h3
               className={`
                 text-[14px]
@@ -3214,18 +2465,13 @@ const handleLandingPageImageSelect = (item) => {
                 font-bold
                 tracking-normal
                 leading-tight
-                ${
-                  isDark
-                    ? 'text-white'
-                    : 'text-slate-900'
-                }
+                ${isDark ? "text-white" : "text-slate-900"}
               `}
             >
               Attach
               <br />
               Training
             </h3>
-
 
             <p
               className={`
@@ -3234,11 +2480,7 @@ const handleLandingPageImageSelect = (item) => {
                 leading-tight
                 opacity-75
                 mt-1
-                ${
-                  isDark
-                    ? 'text-slate-300'
-                    : 'text-slate-600'
-                }
+                ${isDark ? "text-slate-300" : "text-slate-600"}
               `}
             >
               Attach a training
@@ -3247,9 +2489,7 @@ const handleLandingPageImageSelect = (item) => {
               <br />
               scenario
             </p>
-
           </div>
-
 
           {/* ARC */}
 
@@ -3265,22 +2505,10 @@ const handleLandingPageImageSelect = (item) => {
               overflow-hidden
             "
           >
-
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
-
-              <path
-                d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
-                fill={shellBg}
-              />
-
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+              <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={shellBg} />
             </svg>
-
           </div>
-
 
           {/* TOP RIGHT */}
 
@@ -3301,21 +2529,14 @@ const handleLandingPageImageSelect = (item) => {
               z-10
             "
           >
-
             <Award
               className={`
                 w-8
                 h-8
-                ${
-                  isDark
-                    ? 'text-white/15'
-                    : 'text-slate-900/10'
-                }
+                ${isDark ? "text-white/15" : "text-slate-900/10"}
               `}
             />
-
           </div>
-
 
           {/* BOTTOM */}
 
@@ -3338,42 +2559,30 @@ const handleLandingPageImageSelect = (item) => {
               z-10
             "
           >
-
             {/* =================================================
                 SELECTED TRAINING
             ================================================= */}
 
-            {formData.trainingSource &&
-            formData.selectedTrainingPath ? (
-
+            {formData.trainingSource && formData.selectedTrainingPath ? (
               <SelectedTrainingPreview
                 formData={formData}
                 onRedo={handleRedoTraining}
               />
-
             ) : (
-
               /* =================================================
                  NO TRAINING SELECTED
               ================================================= */
 
               <AttachButton
                 label="Attach Training Path"
-                onClick={() =>
-                  setIsTrainingPathCatalogueOpen(true)
-                }
+                onClick={() => setIsTrainingPathCatalogueOpen(true)}
                 variant="primary"
                 isDark={isDark}
               />
-
             )}
-
           </div>
-
         </div>
-
       </div>
-
 
       {/* ======================================================
           IMAGE CATALOGUE
@@ -3381,12 +2590,9 @@ const handleLandingPageImageSelect = (item) => {
 
       <ImageCatalogueModal
         isOpen={isImageCatalogueOpen}
-        onClose={() =>
-          setIsImageCatalogueOpen(false)
-        }
+        onClose={() => setIsImageCatalogueOpen(false)}
         onSelect={handleCatalogueImageSelect}
       />
-
 
       {/* ======================================================
           LANDING PAGE CATALOGUE
@@ -3394,16 +2600,11 @@ const handleLandingPageImageSelect = (item) => {
 
       <LandingPageCatalogueModal
         isOpen={isLandingPageCatalogueOpen}
-        onClose={() =>
-          setIsLandingPageCatalogueOpen(false)
-        }
+        onClose={() => setIsLandingPageCatalogueOpen(false)}
         onSelect={handleLandingPageImageSelect}
-        selectedLandingPageId={
-          formData.selectedLandingCatalogueImageId
-        }
+        selectedLandingPageId={formData.selectedLandingCatalogueImageId}
         isDark={isDark}
       />
-
 
       {/* ======================================================
           TRAINING PATH CATALOGUE
@@ -3411,12 +2612,9 @@ const handleLandingPageImageSelect = (item) => {
 
       <TrainingPathCatalogueModal
         isOpen={isTrainingPathCatalogueOpen}
-        onClose={() =>
-          setIsTrainingPathCatalogueOpen(false)
-        }
+        onClose={() => setIsTrainingPathCatalogueOpen(false)}
         onSelect={handleTrainingPathSelect}
       />
-
 
       {/* ======================================================
           OUTCOME RICH TEXT EDITOR
@@ -3424,38 +2622,29 @@ const handleLandingPageImageSelect = (item) => {
 
       <OutcomeRichTextEditorModal
         isOpen={isOutcomeEditorOpen}
-        value={
-          formData.outcomeRichText || ''
-        }
-        onClose={() =>
-          setIsOutcomeEditorOpen(false)
-        }
+        value={formData.outcomeRichText || ""}
+        onClose={() => setIsOutcomeEditorOpen(false)}
         onSave={(value) => {
-
           setFormData((prev) => ({
             ...prev,
 
-            outcomeSource: 'custom',
+            outcomeSource: "custom",
 
             outcomeRichText: value,
 
             // Published as a NEW landing page; it replaces any catalogue pick.
-            landingPageSource: '',
+            landingPageSource: "",
 
             selectedLandingCatalogueImageId: null,
 
-            landingPageId: '',
+            landingPageId: "",
           }));
 
-
           setIsOutcomeEditorOpen(false);
-
         }}
       />
-
     </div>
   );
 };
-
 
 export default AttachOutcomesTab;
