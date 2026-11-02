@@ -33,9 +33,9 @@ import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApproval
 // 🌟 Announcements: the list, a three-step send (details, email, review) and a new announcement
 import Announcements from './Pages/Announcement/Announcement';
 import AnnouncementsDetailsAndSettings from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateDetails/AnnouncementsDetailsAndSettings';
-import AnnouncementsCampaignEmail from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementsCampaignEmail';
+import AnnouncementsTemplateEmail from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementTemplateEmail';
 import AnnouncementsReviewPublish from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateReview/AnnouncementsReviewPublish';
-import AnnouncementScenarioDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementScenarioDetails/AnnouncementScenarioDetails';
+import AnnouncementTemplateDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementTemplateDetails/AnnouncementTemplateDetails';
 
 // 🌟 Leaderboard (opened from My Space)
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
@@ -172,9 +172,9 @@ function App() {
             {/* Communications & Directories */}
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/announcements/details" element={<AnnouncementsDetailsAndSettings />} />
-            <Route path="/announcements/email" element={<AnnouncementsCampaignEmail />} />
+            <Route path="/announcements/email" element={<AnnouncementsTemplateEmail />} />
             <Route path="/announcements/review" element={<AnnouncementsReviewPublish />} />
-            <Route path="/new-announcement-details" element={<AnnouncementScenarioDetails />} />
+            <Route path="/new-announcement-details" element={<AnnouncementTemplateDetails />} />
 
             {/* Fallback inside dashboard -> Route to user role default */}
             <Route path="*" element={<DashboardFallback />} />

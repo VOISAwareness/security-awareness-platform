@@ -1147,7 +1147,7 @@ const Announcement = () => {
               <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
                 {(() => {
                   const modalTheme =
-                    DIFFICULTY_THEMES[detailModalItem.difficulty] ||
+                    DIFFICULTY_THEMES[detailModalItem.announcementDifficulty] ||
                     DIFFICULTY_THEMES.Low;
 
                   return (
@@ -1166,7 +1166,7 @@ const Announcement = () => {
                       <div className="flex items-center justify-between">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 shadow-2xs text-slate-900 dark:text-white">
                           <span className="w-2 h-2 rounded-full bg-[#E60000]" />
-                          <span>{detailModalItem.scenarioId}</span>
+                          <span>{detailModalItem.announcementScenarioId}</span>
                         </div>
 
                         <button
@@ -1181,14 +1181,14 @@ const Announcement = () => {
                       {/* Title & Description */}
                       <div className="flex flex-col gap-1">
                         <h3 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">
-                          {detailModalItem.scenarioName}
+                          {detailModalItem.announcementScenarioName}
                         </h3>
                         <p className="text-[12px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
                           <strong>Description: </strong>
-                          {detailModalItem.description}
+                          {detailModalItem.announcementDescription}
                         </p>
                         <div className="text-[11px] font-bold text-slate-800 dark:text-slate-300 mt-0.5">
-                          Created on: {detailModalItem.CreatedOn}
+                          Created on: {detailModalItem.announcementCreatedOn}
                         </div>
                       </div>
 
@@ -1198,24 +1198,19 @@ const Announcement = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800 dark:text-slate-200">
                         <div>
                           <strong>Campaign Type: </strong>
-                          <span>{detailModalItem.campaignType}</span>
+                          <span>{detailModalItem.announcementCampaignType}</span>
                         </div>
-                        <div>
-                          <strong>Motivator: </strong>
-                          <span>
-                            {detailModalItem.motivator || "Security / Urgency"}
-                          </span>
-                        </div>
+                        
                         <div>
                           <strong>Target Audience: </strong>
-                          <span>{detailModalItem.targetAudience}</span>
+                          <span>{detailModalItem.announcementTargetAudience}</span>
                         </div>
                         <div>
                           <strong>Difficulty: </strong>
                           <span
                             className={`font-bold ${modalTheme.diffTextColor}`}
                           >
-                            {detailModalItem.difficulty}
+                            {detailModalItem.announcementDifficulty}
                           </span>
                         </div>
                       </div>
@@ -1230,28 +1225,28 @@ const Announcement = () => {
                           <div>
                             <strong>Sender Email Id: </strong>
                             <span className="font-mono-tech">
-                              {detailModalItem.senderEmailId}
+                              {detailModalItem.announcementSenderEmailId}
                             </span>
                           </div>
                           <div>
                             <strong>Landing Page Id: </strong>
                             <span className="font-mono-tech">
-                              {detailModalItem.landingPageId || "LP-001"}
+                              {detailModalItem.announcementLandingPageId || "LP-001"}
                             </span>
                           </div>
                           <div>
                             <strong>Sender Name: </strong>
-                            <span>{detailModalItem.senderName}</span>
+                            <span>{detailModalItem.announcementSenderName}</span>
                           </div>
                           <div>
                             <strong>Training Id: </strong>
                             <span className="font-mono-tech">
-                              {detailModalItem.trainingId || "TP-005"}
+                              {detailModalItem.announcementTrainingId || "TP-005"}
                             </span>
                           </div>
                           <div className="sm:col-span-2">
                             <strong>Email Subject: </strong>
-                            <span>{detailModalItem.emailSubject}</span>
+                            <span>{detailModalItem.announcementEmailSubject}</span>
                           </div>
                         </div>
 
@@ -1260,7 +1255,7 @@ const Announcement = () => {
                           <button
                             type="button"
                             onClick={() =>
-                              setPreviewEmailHtml(detailModalItem.emailBody)
+                              setPreviewEmailHtml(detailModalItem.announcementEmailBody)
                             }
                             className="px-3 py-1 rounded-lg bg-white/90 dark:bg-black/60 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-white/15 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-white shadow-2xs cursor-pointer"
                           >

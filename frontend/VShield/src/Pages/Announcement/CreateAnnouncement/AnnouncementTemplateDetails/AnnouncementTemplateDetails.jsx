@@ -585,7 +585,7 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-const AnnouncementScenarioDetails = () => {
+const AnnouncementTemplateDetails = () => {
   const { isDark } = useUserType?.() || {
     isDark: false,
   };
@@ -1129,4 +1129,4 @@ const AnnouncementScenarioDetails = () => {
   );
 };
 
-export default AnnouncementScenarioDetails;
+export default AnnouncementTemplateDetails;
