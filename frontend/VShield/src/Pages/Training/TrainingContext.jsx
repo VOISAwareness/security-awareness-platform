@@ -26,8 +26,7 @@ const optionalScormZips = import.meta.glob(
   "/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip",
   { eager: true, import: "default", query: "?url" }
 );
-const scormZipUrl =
-  optionalScormZips["/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip"] || "";
+const scormZipUrl = optionalScormZips["/src/assets/Training(LMS)/uploads/zips/scorm12-176523-148.zip"] || "";
 import videosMetadataUrl from "@/assets/Training(LMS)/uploads/videos/metadata.json?url";
 import certsMetadataUrl from "@/assets/Training(LMS)/uploads/certificates/metadata.json?url";
 
