@@ -99,7 +99,7 @@ export const TrainingLandingPage = () => {
           squareBgClass="bg-[#E5F5F7] dark:bg-[#1E3F45]"
           squareBorderClass="border-cyan-200/20"
           squareTitle="Requests & Approvals"
-          squareSubtitle="All about approvals and request for any newly created Traning Paths."
+          squareSubtitle="All about approvals and request for newly created Traning Paths."
           squareImage="/src/assets/Training(LMS)/ui/main_right_bottom.png"
           title="Content Creators can Request & Content Managers can Approve those Requests."
           description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."

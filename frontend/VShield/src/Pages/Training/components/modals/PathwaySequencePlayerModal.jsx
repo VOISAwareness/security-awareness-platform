@@ -41,13 +41,7 @@ export const PathwaySequencePlayerModal = ({
   const [quizCompleted, setQuizCompleted] = React.useState(false);
 
   const sequenceItems = React.useMemo(() => {
-    const items
-
-
-
-
-
- = [];
+    const items = [];
 
     if (path.isZipPath && path.attachedZipID) {
       const pkg = (packages || []).find(p => p.PackageID === path.attachedZipID);
@@ -135,8 +129,8 @@ export const PathwaySequencePlayerModal = ({
     <div
       onClick={(e) => e.stopPropagation()}
       className={`w-full overflow-hidden flex flex-col border cursor-default rounded-[28px] ${
-        isInline 
-          ? "h-full min-h-[500px]" 
+        isInline
+          ? "h-full min-h-[500px]"
           : "max-w-7xl h-[92vh] shadow-2xl"
       } ${
         isDark ? "bg-[#0B1121] border-white/10" : "bg-[#F8FAFC] border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
@@ -295,8 +289,8 @@ export const PathwaySequencePlayerModal = ({
                               className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 flex items-center justify-between text-xs font-semibold cursor-pointer ${
                                 isSelected
                                   ? "bg-[#7C3AED]/15 border-[#7C3AED] text-slate-900 dark:text-white shadow-sm"
-                                  : isDark 
-                                  ? "bg-white/[0.02] border-white/5 hover:border-white/15 text-slate-300 hover:text-white" 
+                                  : isDark
+                                  ? "bg-white/[0.02] border-white/5 hover:border-white/15 text-slate-300 hover:text-white"
                                   : "bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900"
                               }`}
                             >
@@ -426,13 +420,13 @@ export const PathwaySequencePlayerModal = ({
           </div>
 
           {/* Sequence Timeline Sidebar (Right) */}
-          <div className={`w-full md:w-[320px] lg:w-[380px] flex-shrink-0 border-l flex flex-col p-4 overflow-x-hidden overflow-y-auto ${
+          <div className={`w-full md:w-[320px] lg:w-[380px] custom-light-scrollbar flex-shrink-0 border-l flex flex-col p-4 overflow-x-hidden ${
             isDark ? "bg-[#121418] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
-            <h4 className={`text-[10px] font-extrabold uppercase tracking-widest mb-4 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
-              Timeline
+            <h4 className={`text-[10px]  font-extrabold uppercase tracking-widest mb-4 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+              Modules
             </h4>
-            <div className="flex-1 overflow-y-auto custom-light-scrollbar flex flex-col gap-3 pr-1 pb-4">
+            <div className="flex-1 custom-light-scrollbar flex flex-col gap-3 pr-1 pb-4">
               {sequenceItems.map((item, index) => {
                 const isActive = activeItemIndex === index;
                 const isPassed = activeItemIndex > index;
@@ -440,7 +434,7 @@ export const PathwaySequencePlayerModal = ({
                   <div
                     key={item.id}
                     onClick={() => setActiveItemIndex(index)}
-                    className={`relative p-4 rounded-2xl border transition-all cursor-pointer overflow-hidden flex flex-col gap-1 shadow-sm ${
+                    className={`relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1 shadow-sm ${
                       isActive
                         ? (isDark ? "bg-white text-slate-900 border-white animate-clay-stagger-1" : "bg-slate-900 text-white border-slate-900")
                         : (isDark ? "bg-white/[0.02] border-white/5 hover:border-white/10 text-slate-300" : "bg-white border-slate-200 hover:border-slate-300 text-slate-600 hover:shadow-md")
@@ -472,7 +466,7 @@ export const PathwaySequencePlayerModal = ({
                 );
               })}
             </div>
-            
+
             {/* Complete/Exit Button */}
             <div className={`pt-4 border-t mt-auto flex flex-col gap-2.5 ${isDark ? "border-white/10" : "border-slate-200"}`}>
                {path.status === 'Draft' && onSendForApproval && (

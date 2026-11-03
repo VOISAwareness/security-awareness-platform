@@ -67,7 +67,18 @@ function TrainingDashboardInner() {
           <div className="flex items-center gap-3 w-full">
             <h1 className="text-[13.5px] font-voda font-bold tracking-tight uppercase flex items-center justify-between w-full">
               <span>
-                LMS {activeVideo ? "– Video Lesson" : activeQuiz ? "– Assessment Quiz" : activeCert ? "– Certificate Preview" : activeInteractivePath ? "– Pathway Sequence" : launchStandalonePkg ? "– Simulation Sandbox" : (currentView === "paths" ? "– Training Path" : currentView === "individual" ? "– Storage Room" : currentView === "add-package" ? "– Configure SCORM Package" : currentView === "requests" ? "– Requests & Approvals" : currentView === "reports" ? "– Learning Progress" : "")}
+                LMS {activeVideo ? "– Videos" :
+                activeQuiz ? "– Assessment" :
+                activeCert ? "– Certificate Preview" :
+                activeInteractivePath ? "– Training Path" :
+                launchStandalonePkg ? "– Simulation Sandbox" : (
+                  currentView === "paths" ? "– Training Path" :
+                  currentView === "individual" ? "– Storage Room" :
+                  currentView === "add-package" ? "– Configure Package" :
+                  currentView === "requests" ? "– Requests & Approvals" :
+                  currentView === "reports" ? "– Learning Progress" : ""
+                )
+                }
               </span>
               {(currentView !== "hub" || activeVideo || activeQuiz || activeCert || activeInteractivePath || launchStandalonePkg) && (
                 <button
@@ -87,7 +98,10 @@ function TrainingDashboardInner() {
                     isDark ? 'bg-black/10 hover:bg-black/20 text-black' : 'bg-white/10 hover:bg-white/20 text-white'
                   } cursor-pointer transition-all scale-100 active:scale-98`}
                 >
-                  ← { (activeVideo || activeQuiz || activeCert || activeInteractivePath || launchStandalonePkg) ? "Exit Viewer" : "Back to Hub" }
+                  { (activeVideo || activeQuiz || activeCert || activeInteractivePath || launchStandalonePkg) ?
+                   "Exit Viewer" :
+                   "Back to Hub"
+                  }
                 </button>
               )}
             </h1>

@@ -1,14 +1,20 @@
 import { useState, useMemo } from "react";
 import {
-  Clock, 
-  AlertTriangle, 
-  Play, 
-  Search, 
+  Clock,
+  AlertTriangle,
+  Play,
+  Search,
   TrendingUp,
   UserCheck
 } from 'lucide-react';
 
 import myTrainingData from '../MyTrainingData.json';
+
+const fallbackUsers = {
+  "abhay.hs1@vodafone.com": { name: "Abhay H S", dept: "Tech (AIDA, Analytics Tower)" },
+  "priya.nair@vodafone.com": { name: "Priya Nair", dept: "HR (Talent Acquisition & Ops)" },
+  "ananya.roy@vodafone.com": { name: "Ananya Roy", dept: "Finance (Procurement Services)" }
+};
 
 const LearningProgress = ({ isDark }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,12 +93,6 @@ const LearningProgress = ({ isDark }) => {
   ];
 
   const rawRecords = useMemo(() => {
-    const fallbackUsers = {
-      "abhay.hs1@vodafone.com": { name: "Abhay H S", dept: "Tech (AIDA, Analytics Tower)" },
-      "priya.nair@vodafone.com": { name: "Priya Nair", dept: "HR (Talent Acquisition & Ops)" },
-      "ananya.roy@vodafone.com": { name: "Ananya Roy", dept: "Finance (Procurement Services)" }
-    };
-
     if (myTrainingData && myTrainingData.trainings) {
       return myTrainingData.trainings.map((t) => {
         const email = t.userEmailId.toLowerCase().trim();
@@ -120,7 +120,7 @@ const LearningProgress = ({ isDark }) => {
   // Departments list for filtering
   const departments = ['All', 'Tech', 'Finance', 'HR', 'Cybersecurity', 'Operations', 'Legal', 'Customer Care'];
 
-  // Filter records 
+  // Filter records
   const filteredRecords = useMemo(() => {
     return rawRecords.filter(r => {
       const matchSearch = r.fullName.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
@@ -139,7 +139,7 @@ const LearningProgress = ({ isDark }) => {
 
   return (
     <div className="w-full select-none font-sans flex flex-col gap-6 text-left animate-clay-stagger-2">
-      
+
       {/* ── 5 KPI CARDS ROW ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {kpis.map((kpi, idx) => {
@@ -148,8 +148,8 @@ const LearningProgress = ({ isDark }) => {
             <div
               key={idx}
               className={`p-4 rounded-2xl border flex flex-col justify-between h-[115px] transition-all duration-300 hover:scale-[1.02] shadow-xs select-none ${
-                isDark 
-                  ? 'bg-[#1C1E24] border-white/10 text-white shadow-md' 
+                isDark
+                  ? 'bg-[#1C1E24] border-white/10 text-white shadow-md'
                   : 'bg-white border-slate-200 text-slate-800'
               }`}
             >
@@ -261,7 +261,7 @@ const LearningProgress = ({ isDark }) => {
                 </tr>
               ) : (
                 filteredRecords.map((r, idx) => (
-                  <tr 
+                  <tr
                     key={idx}
                     className={`transition-colors ${
                       isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50'
@@ -296,22 +296,22 @@ const LearningProgress = ({ isDark }) => {
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2.5">
                         <div className="w-20 bg-slate-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden flex-shrink-0">
-                          <div 
+                          <div
                             style={{ width: `${r.completionPercentage}%` }}
                             className={`h-full rounded-full ${
-                              r.completionPercentage === 100 
-                                ? 'bg-emerald-500' 
-                                : r.completionPercentage > 0 
-                                ? 'bg-blue-500' 
+                              r.completionPercentage === 100
+                                ? 'bg-emerald-500'
+                                : r.completionPercentage > 0
+                                ? 'bg-blue-500'
                                 : 'bg-slate-400'
                             }`}
                           />
                         </div>
                         <span className={`text-[11px] font-black font-mono-tech ${
-                          r.completionPercentage === 100 
-                            ? 'text-emerald-500 dark:text-emerald-400' 
-                            : r.completionPercentage > 0 
-                            ? 'text-blue-500 dark:text-blue-400' 
+                          r.completionPercentage === 100
+                            ? 'text-emerald-500 dark:text-emerald-400'
+                            : r.completionPercentage > 0
+                            ? 'text-blue-500 dark:text-blue-400'
                             : 'text-slate-400'
                         }`}>
                           {r.completionPercentage}% Complete
