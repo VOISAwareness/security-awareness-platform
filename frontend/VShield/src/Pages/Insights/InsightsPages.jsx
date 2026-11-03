@@ -32,7 +32,7 @@ const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDow
 // --------------------------------------------------------------- Summary
 
 export function SummaryPage({ ctx }) {
-  const { m, p, ink, reduce, targets: T, people } = ctx;
+  const { m, p, ink, reduce, targets: T } = ctx;
   const t = trends(m, p);
   const R = T.riskScore; const H = T.hookRate; const P = T.reportRate; const G = T.gaveDetails; const F = T.firstReport;
   const lo = Math.floor(Math.min(...t.risk.map((s) => s.score), R.target) / 2) * 2 - 2;
@@ -42,7 +42,7 @@ export function SummaryPage({ ctx }) {
   const c = t.training;
   return (
     <div data-ins-summary style={grid('repeat(6, minmax(0,1fr))', 'minmax(0,1.1fr) minmax(0,1fr)')}>
-      <Card i={0} reduce={reduce} title="Risk score" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk" onOpen={() => people('People at high or critical risk', { levels: ['High', 'Critical'] })} openLabel="People">
+      <Card i={0} reduce={reduce} title="Risk score" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
         <Trend
           points={t.risk}
           label={`Risk Score, 30 days at a time: ${t.risk.at(-1)?.score.toFixed(1)} now; the target is ${targetText(R)}`}
@@ -57,22 +57,22 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: head(s), rows: [{ label: 'Risk Score', value: s.score.toFixed(1), color: s.score <= R.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={1} reduce={reduce} title="Clicked vs reported" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture" onOpen={() => people('Clicked a phishing email', { did: 'clicked' })} openLabel="People">
+      <Card i={1} reduce={reduce} title="Clicked vs reported" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
         <Trend
           points={t.months}
           label={`Reported ${pc1(t.months.at(-1)?.reportRate)} and clicked ${pc1(t.months.at(-1)?.hooked)} of emails delivered in the latest 30 days`}
-          lo={0}
-          hi={0.6}
+          lo={-0.05}
+          hi={0.62}
           ticks={[0, 0.2, 0.4, 0.6]}
           tickText={pc}
-          zones={[{ from: P.target, to: 0.6, color: ink.good }]}
-          targets={[{ v: H.target, color: ink.bad, label: '' }]}
+          zones={[{ from: P.target, to: 0.62, color: ink.good }]}
+          targets={[{ v: P.target, color: ink.good, label: `Report target ${targetText(P, '%')}`, below: true }, { v: H.target, color: ink.bad, label: `Click target ${targetText(H, '%')}`, below: true }]}
           lines={[{ key: 'reportRate', color: ink.good, end: true, name: 'Reported', text: pc1 }, { key: 'hooked', color: ink.bad, end: true, name: 'Clicked', text: pc1, dy: 6 }]}
           right={52}
           tip={(s) => ({ head: head(s), rows: [{ label: 'Reported', value: pc1(s.reportRate), color: ink.good }, { label: 'Clicked', value: pc1(s.hooked), color: ink.bad }] })}
         />
       </Card>
-      <Card i={2} reduce={reduce} title="Gave details away" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave" onOpen={() => people('Gave details away', { did: 'gave' })} openLabel="People">
+      <Card i={2} reduce={reduce} title="Gave details away" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
         <Trend
           points={t.months}
           label={`Gave details away: ${pc1(t.months.at(-1)?.gave)} in the latest 30 days; the target is ${targetText(G, '%')}`}
@@ -86,7 +86,7 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: head(s), rows: [{ label: 'Gave details away', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={3} reduce={reduce} title="Time to first report" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="first" onOpen={() => people('Reported a phishing email', { did: 'reported' })} openLabel="People">
+      <Card i={3} reduce={reduce} title="Time to first report" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="first">
         <Trend
           points={t.months}
           label={`Median minutes to the first report: ${mins(t.months.at(-1)?.firstReport)} in the latest 30 days; the target is ${targetText(F, 'min')}`}
@@ -99,18 +99,21 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: head(s), rows: [{ label: 'First report', value: mins(s.firstReport), color: s.firstReport <= F.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={4} reduce={reduce} title="Training effectiveness" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
-          {[['Not yet trained', c.untrained, ink.bad, p.now.cohorts?.untrained, 'Not started'], ['Trained', c.trained, ink.good, p.now.cohorts?.trained, 'Passed']].map(([label, v, col, who, step]) => (
-            <div key={label} {...pressable(() => people(`${label}, who clicked`, { step, did: 'clicked' }))} {...tip(`${num(who)} people`)} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 52px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
-              <span><span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600 }}>{label}</span><span style={small}>{num(who)} people</span></span>
-              <span style={{ height: 14, borderRadius: 6, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, ((v || 0) / 0.25) * 100)}%`, background: col, borderRadius: 6, transformOrigin: 'left' }} /></span>
-              <span style={{ textAlign: 'right', fontSize: TYPE.figure, fontWeight: 700 }}>{pc1(v)}</span>
-            </div>
-          ))}
+      <Card i={4} reduce={reduce} title="Training effectiveness" sub="Share of people who clicked a phishing email" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {[['Not trained', c.untrained, ink.bad, p.now.cohorts?.untrained], ['Trained', c.trained, ink.good, p.now.cohorts?.trained]].map(([label, v, col, who]) => (
+              <div key={label} data-ins-cohort={label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px', borderRadius: 12, background: 'var(--plate)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: TYPE.body, fontWeight: 600 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: col }} />{label}</span>
+                <span style={{ fontSize: TYPE.heading, fontWeight: 700, color: col, lineHeight: 1 }}>{pc1(v)}</span>
+                <span style={{ height: 6, borderRadius: 3, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, ((v || 0) / 0.25) * 100)}%`, background: col, borderRadius: 3 }} /></span>
+                <span style={small}>clicked, of {num(who)} people</span>
+              </div>
+            ))}
+          </div>
           {c.untrained !== null && c.trained !== null && (
-            <span style={{ borderTop: '1px solid var(--hair)', paddingTop: 10, ...small, fontSize: TYPE.body }}>
-              <strong style={{ fontSize: TYPE.figure, fontWeight: 700, color: 'var(--text)' }}>{((c.untrained - c.trained) * 100).toFixed(1)} pts</strong> fewer clicks when trained
+            <span data-ins-lift style={{ ...small, fontSize: TYPE.body, textAlign: 'center' }}>
+              Clicks drop from <strong style={{ color: ink.bad, fontWeight: 700 }}>{pc1(c.untrained)}</strong> to <strong style={{ color: ink.good, fontWeight: 700 }}>{pc1(c.trained)}</strong> after training
             </span>
           )}
         </div>
