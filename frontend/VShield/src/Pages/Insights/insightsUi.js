@@ -10,10 +10,10 @@ import { INK, tierInk } from './insightsColours';
 import { TYPE } from './insightsType';
 
 export { TYPE, onScale } from './insightsType';
-export const eyebrow = { fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
-export const small = { fontSize: TYPE.small, fontWeight: 600, color: 'var(--muted)' };
-export const heads = { ...small, fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' };
-export const cardTitle = { display: 'block', fontSize: TYPE.title, fontWeight: 800, letterSpacing: '-0.005em', color: 'var(--text)' };
+export const eyebrow = { fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
+export const small = { fontSize: TYPE.small, fontWeight: 500, color: 'var(--muted)' };
+export const heads = { ...small, fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' };
+export const cardTitle = { display: 'block', fontSize: TYPE.title, fontWeight: 600, letterSpacing: '-0.005em', color: 'var(--text)' };
 // A card's title line is as tall as the buttons and switches beside it, so
 // they all sit on one centre line, in every card alike.
 export const HEAD_H = 26;

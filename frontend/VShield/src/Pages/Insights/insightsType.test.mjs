@@ -13,7 +13,7 @@ test('the scale climbs, and nothing is under 8px', () => {
 });
 
 test('a size worked out from a chart lands on the nearest step', () => {
-  assert.equal(onScale(19), TYPE.heading);
+  assert.equal(onScale(16.6), TYPE.heading);
   assert.equal(onScale(13.9), TYPE.figure);
   assert.equal(onScale(12.2), TYPE.title);
   assert.equal(onScale(4), TYPE.label);

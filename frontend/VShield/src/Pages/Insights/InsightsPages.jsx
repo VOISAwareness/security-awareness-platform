@@ -80,6 +80,7 @@ export function SummaryPage({ ctx }) {
           hi={gaveHi}
           ticks={steps(gaveHi, gaveHi > 0.08 ? 0.05 : 0.02)}
           tickText={pc}
+          zones={[{ from: 0, to: G.target, color: ink.good }, { from: G.target, to: gaveHi, color: ink.bad }]}
           columns={{ key: 'gave', colorOf: (v) => (v <= G.target ? ink.good : ink.bad), text: pc1 }}
           right={10}
           tip={(s) => ({ head: head(s), rows: [{ label: 'Gave details away', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
@@ -102,14 +103,14 @@ export function SummaryPage({ ctx }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
           {[['Not yet trained', c.untrained, ink.bad, p.now.cohorts?.untrained, 'Not started'], ['Trained', c.trained, ink.good, p.now.cohorts?.trained, 'Passed']].map(([label, v, col, who, step]) => (
             <div key={label} {...pressable(() => people(`${label}, who clicked`, { step, did: 'clicked' }))} {...tip(`${num(who)} people`)} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 52px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
-              <span><span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 800 }}>{label}</span><span style={small}>{num(who)} people</span></span>
+              <span><span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600 }}>{label}</span><span style={small}>{num(who)} people</span></span>
               <span style={{ height: 14, borderRadius: 6, background: 'var(--track)', overflow: 'hidden' }}><span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${Math.min(100, ((v || 0) / 0.25) * 100)}%`, background: col, borderRadius: 6, transformOrigin: 'left' }} /></span>
-              <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.figure, fontWeight: 900 }}>{pc1(v)}</span>
+              <span style={{ textAlign: 'right', fontSize: TYPE.figure, fontWeight: 700 }}>{pc1(v)}</span>
             </div>
           ))}
           {c.untrained !== null && c.trained !== null && (
             <span style={{ borderTop: '1px solid var(--hair)', paddingTop: 10, ...small, fontSize: TYPE.body }}>
-              <strong className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900, color: 'var(--text)' }}>{((c.untrained - c.trained) * 100).toFixed(1)} pts</strong> fewer clicks when trained
+              <strong style={{ fontSize: TYPE.figure, fontWeight: 700, color: 'var(--text)' }}>{((c.untrained - c.trained) * 100).toFixed(1)} pts</strong> fewer clicks when trained
             </span>
           )}
         </div>
@@ -144,14 +145,14 @@ export function DepartmentsPage({ ctx }) {
     <Card i={0} reduce={reduce} title="Departments against targets" style={{ ...card, flex: 1 }} data-ins-depts>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
         <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_GRID, columnGap: 8, alignItems: 'end', padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
-          <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>Department</span>
+          <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>Department</span>
           {DEPT_COLS.map((c) => (
             <span key={c.key} style={{ textAlign: 'center', lineHeight: 1.3 }}>
-              <span style={{ display: 'block', fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-              <span style={{ fontSize: TYPE.small, fontWeight: 800, color: 'var(--text)' }}>{targetText(T[c.key], c.unit)}</span>
+              <span style={{ display: 'block', fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+              <span style={{ fontSize: TYPE.small, fontWeight: 600, color: 'var(--text)' }}>{targetText(T[c.key], c.unit)}</span>
             </span>
           ))}
-          <span style={{ textAlign: 'right', fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>People</span>
+          <span style={{ textAlign: 'right', fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>People</span>
           <span />
         </div>
         <FitList
@@ -160,19 +161,19 @@ export function DepartmentsPage({ ctx }) {
           what="departments"
           render={(d, k) => (
             <button key={d.name} type="button" className="ins-row ins-in-x" data-ins-dept-row={d.name} onClick={() => openDept(d.name)} aria-label={`${d.name}: ${DEPT_COLS.map((c) => `${c.name} ${Number.isFinite(d.now[c.key]) ? c.text(d.now[c.key]) : 'no figure'}`).join(', ')}. Open it`} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_GRID, columnGap: 8, alignItems: 'center', height: 30, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
-              <span style={{ fontSize: TYPE.strong, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
+              <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
               {DEPT_COLS.map((c) => {
                 const v = d.now[c.key];
                 const ok = Number.isFinite(v) && within(v, T[c.key]);
                 return (
-                  <span key={c.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TYPE.strong, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: ok ? ink.good : 'var(--text)' }}>
+                  <span key={c.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TYPE.strong, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: !Number.isFinite(v) ? 'var(--muted)' : ok ? ink.good : ink.bad }}>
                     {Number.isFinite(v) ? c.text(v) : '—'}
                     <Trendlet now={v} before={d.before?.[c.key]} T={T[c.key]} ink={ink} />
                   </span>
                 );
               })}
-              <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(d.people)}</span>
-              <span aria-hidden style={{ color: 'var(--muted)', fontWeight: 800 }}>›</span>
+              <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{num(d.people)}</span>
+              <span aria-hidden style={{ color: 'var(--muted)', fontWeight: 600 }}>›</span>
             </button>
           )}
         />
@@ -190,11 +191,11 @@ function Levels({ tiers, before, ink, onLevel }) {
     const n = total(t);
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr)', alignItems: 'center', gap: 10 }}>
-        <span style={{ ...small, fontWeight: 800 }}>{label}</span>
+        <span style={{ ...small, fontWeight: 600 }}>{label}</span>
         <span style={{ display: 'flex', height: 24, gap: 2, borderRadius: 6, overflow: 'hidden' }}>
           {TIERS.map(([k, word]) => {
             const w = n ? (t[k] / n) * 100 : 0;
-            return <span key={k} {...pressable(() => onLevel(word))} {...tip(`${num(t[k])} people`)} style={{ width: `${w}%`, background: col[k], color: '#FFFFFF', fontSize: TYPE.label, fontWeight: 800, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>{w > 7 ? `${Math.round(w)}%` : ''}</span>;
+            return <span key={k} {...pressable(() => onLevel(word))} {...tip(`${num(t[k])} people`)} style={{ width: `${w}%`, background: col[k], color: '#FFFFFF', fontSize: TYPE.label, fontWeight: 600, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>{w > 7 ? `${Math.round(w)}%` : ''}</span>;
           })}
         </span>
       </div>
@@ -204,7 +205,7 @@ function Levels({ tiers, before, ink, onLevel }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
       {bar(tiers, 'Now')}
       {before && bar(before, '30 days ago')}
-      <span style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginLeft: 94, ...small, fontWeight: 700 }}>
+      <span style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginLeft: 94, ...small, fontWeight: 600 }}>
         {TIERS.map(([k, word]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: col[k] }} />{word} {num(tiers[k])}</span>)}
       </span>
     </div>
@@ -218,10 +219,10 @@ function Ring({ value, label, count, onOpen, color }) {
       <svg width={68} height={68} aria-hidden>
         <circle cx={34} cy={34} r={r} fill="none" stroke="var(--track)" strokeWidth={7} />
         <circle cx={34} cy={34} r={r} fill="none" stroke={color} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${c * Math.min(1, value)} ${c}`} transform="rotate(-90 34 34)" />
-        <text x={34} y={38} textAnchor="middle" style={{ fontFamily: 'Montserrat', fontWeight: 900, fontSize: TYPE.title, fill: 'var(--text)' }}>{(value * 100).toFixed(1)}%</text>
+        <text x={34} y={38} textAnchor="middle" style={{ fontFamily: 'Montserrat', fontWeight: 700, fontSize: TYPE.title, fill: 'var(--text)' }}>{(value * 100).toFixed(1)}%</text>
       </svg>
-      <strong className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900 }}>{num(count)}</strong>
-      <span style={{ ...small, fontWeight: 700 }}>{label}</span>
+      <strong style={{ fontSize: TYPE.figure, fontWeight: 700 }}>{num(count)}</strong>
+      <span style={{ ...small, fontWeight: 600 }}>{label}</span>
     </div>
   );
 }
@@ -233,9 +234,9 @@ function RateRows({ rows, T, ink, onRow }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
       {rows.map((r) => (
         <div key={r.name} {...pressable(() => onRow(r))} {...tip(r.tip)} style={{ display: 'grid', gridTemplateColumns: '120px minmax(0,1fr) 56px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
-          <span style={{ fontSize: TYPE.strong, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+          <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
           <span style={{ height: 10, borderRadius: 5, background: 'var(--track)', overflow: 'hidden' }}><span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${((r.v || 0) / max) * 100}%`, background: within(r.v, T) ? ink.good : ink.bad, borderRadius: 5, transformOrigin: 'left' }} /></span>
-          <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900 }}>{pc1(r.v)}</span>
+          <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{pc1(r.v)}</span>
         </div>
       ))}
     </div>
@@ -305,10 +306,10 @@ export function CampaignsPage({ ctx }) {
   const [sort, setSort] = useState('newest');
   const rows = [...m.campaigns].sort(SORTS.find((s) => s.id === sort).by);
   const max = Math.max(0.3, ...m.lures.map((l) => Math.max(l.hooked || 0, l.reportRate || 0))) * 1.1;
-  const head = { fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' };
+  const head = { fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' };
   const seg = (
     <span role="tablist" aria-label="Sort campaigns" style={{ display: 'inline-flex', padding: 2, borderRadius: 9, background: 'var(--plate)', border: '1px solid var(--hair)' }}>
-      {SORTS.map((s) => <button key={s.id} type="button" role="tab" aria-selected={sort === s.id} onClick={() => setSort(s.id)} style={{ height: 24, padding: '0 10px', borderRadius: 7, border: 'none', background: sort === s.id ? 'var(--base)' : 'transparent', boxShadow: sort === s.id ? '0 1px 3px rgba(15,23,42,0.12)' : 'none', color: sort === s.id ? 'var(--brand)' : 'var(--muted)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer' }}>{s.label}</button>)}
+      {SORTS.map((s) => <button key={s.id} type="button" role="tab" aria-selected={sort === s.id} onClick={() => setSort(s.id)} style={{ height: 24, padding: '0 10px', borderRadius: 7, border: 'none', background: sort === s.id ? 'var(--base)' : 'transparent', boxShadow: sort === s.id ? '0 1px 3px rgba(15,23,42,0.12)' : 'none', color: sort === s.id ? 'var(--brand)' : 'var(--muted)', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer' }}>{s.label}</button>)}
     </span>
   );
   return (
@@ -317,16 +318,16 @@ export function CampaignsPage({ ctx }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', marginTop: 6 }}>
           {m.lures.map((l) => (
             <div key={l.type} {...pressable(() => people(`Clicked a ${l.type} email`, { campaignType: l.type, did: 'clicked' }))} {...tip(`${num(l.clicked)} clicks`)} style={{ display: 'grid', rowGap: 3, cursor: 'pointer' }}>
-              <span style={{ fontSize: TYPE.strong, fontWeight: 800 }}>{l.type}</span>
+              <span style={{ fontSize: TYPE.strong, fontWeight: 600 }}>{l.type}</span>
               {[[l.hooked, ink.bad], [l.reportRate, ink.good]].map(([v, col], k) => (
                 <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="ins-grow-x" style={{ display: 'block', height: 11, width: `${((v || 0) / max) * 100}%`, background: col, borderRadius: '0 5px 5px 0', transformOrigin: 'left' }} />
-                  <span className="vs-rank" style={{ fontSize: TYPE.body, fontWeight: 900, color: 'var(--text)' }}>{pc1(v)}</span>
+                  <span style={{ fontSize: TYPE.body, fontWeight: 700, color: 'var(--text)' }}>{pc1(v)}</span>
                 </span>
               ))}
             </div>
           ))}
-          <span style={{ display: 'flex', gap: 14, ...small, fontWeight: 700 }}>
+          <span style={{ display: 'flex', gap: 14, ...small, fontWeight: 600 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: ink.bad }} />Hook rate</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: ink.good }} />Report rate</span>
           </span>
@@ -344,12 +345,12 @@ export function CampaignsPage({ ctx }) {
             what="campaigns"
             render={(c, k) => (
               <button key={c.id} type="button" className="ins-row ins-in-x" data-ins-campaign-row={c.id} onClick={() => people(c.name, { campaign: c.name })} {...tip(`${num(c.delivered)} people`)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: CAMP_GRID, columnGap: 8, alignItems: 'center', height: 32, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
-                <span style={{ fontSize: TYPE.strong, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
                 <span style={{ ...small, fontSize: TYPE.body }}>{day(+new Date(c.started))}</span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900 }}>{num(c.delivered)}</span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, color: ink.bad }}>{pc1(c.hooked)}</span>
-                <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, color: ink.good }}>{pc1(c.reportRate)}</span>
-                <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{pc1(c.delivered ? c.compromised / c.delivered : null)}</span>
+                <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{num(c.delivered)}</span>
+                <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700, color: ink.bad }}>{pc1(c.hooked)}</span>
+                <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700, color: ink.good }}>{pc1(c.reportRate)}</span>
+                <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 600 }}>{pc1(c.delivered ? c.compromised / c.delivered : null)}</span>
               </button>
             )}
           />
@@ -380,8 +381,8 @@ function Sankey({ cohorts, ink, onOpen }) {
   const node = (x, y, hh, c) => <rect x={x} y={y} width={bw} height={Math.max(2, hh)} rx={3} fill={c} />;
   const label = (x, y, a, sub, anchor) => (
     <g style={{ pointerEvents: 'none' }}>
-      <text x={x} y={y - 2} textAnchor={anchor} style={{ fontSize: TYPE.strong, fontWeight: 800, fill: 'var(--text)', stroke: 'var(--card)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>{a}</text>
-      <text x={x} y={y + 12} textAnchor={anchor} style={{ fontSize: TYPE.small, fontWeight: 700, fill: 'var(--muted)', stroke: 'var(--card)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>{sub}</text>
+      <text x={x} y={y - 2} textAnchor={anchor} style={{ fontSize: TYPE.strong, fontWeight: 600, fill: 'var(--text)', stroke: 'var(--card)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>{a}</text>
+      <text x={x} y={y + 12} textAnchor={anchor} style={{ fontSize: TYPE.small, fontWeight: 600, fill: 'var(--muted)', stroke: 'var(--card)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>{sub}</text>
     </g>
   );
   return (
@@ -412,7 +413,7 @@ function Sankey({ cohorts, ink, onOpen }) {
 
 const TRAIN_GRID = 'minmax(0,1.6fr) minmax(0,1fr) 40px 64px';
 function TrainRows({ items, cols, what, ink, onRow }) {
-  const head = { fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' };
+  const head = { fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' };
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
       <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
@@ -424,10 +425,10 @@ function TrainRows({ items, cols, what, ink, onRow }) {
         what={what}
         render={(x, k) => (
           <button key={x.name} type="button" className="ins-row ins-in-x" onClick={() => onRow(x)} {...tip(x.tip)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, alignItems: 'center', height: 28, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
-            <span style={{ fontSize: TYPE.strong, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
+            <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
             <span style={{ height: 7, borderRadius: 4, background: 'var(--track)', overflow: 'hidden' }}><span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${(x.done || 0) * 100}%`, background: ink.measure, borderRadius: 4, transformOrigin: 'left' }} /></span>
-            <span className="vs-rank" style={{ fontSize: TYPE.strong, fontWeight: 900 }}>{pc(x.done)}</span>
-            <span className="vs-rank" style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900 }}>{x.right}</span>
+            <span style={{ fontSize: TYPE.strong, fontWeight: 700 }}>{pc(x.done)}</span>
+            <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{x.right}</span>
           </button>
         )}
       />
@@ -449,9 +450,9 @@ export function TrainingPage({ ctx, programmes }) {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap: 18, padding: '18px 10px 0' }}>
           {flow.map(([label, v, step]) => (
             <div key={label} {...pressable(() => people(label, step ? { step } : {}))} {...tip(`${num(v)} people`)} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', cursor: 'pointer' }}>
-              <span className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900, marginBottom: 4 }}>{num(v)}</span>
+              <span style={{ fontSize: TYPE.figure, fontWeight: 700, marginBottom: 4 }}>{num(v)}</span>
               <span style={{ width: '46%', height: `${t.assigned ? (v / t.assigned) * 78 : 0}%`, background: ink.measure, borderRadius: '6px 6px 0 0' }} />
-              <span style={{ ...small, fontWeight: 700, marginTop: 5 }}>{label}</span>
+              <span style={{ ...small, fontWeight: 600, marginTop: 5 }}>{label}</span>
             </div>
           ))}
         </div>

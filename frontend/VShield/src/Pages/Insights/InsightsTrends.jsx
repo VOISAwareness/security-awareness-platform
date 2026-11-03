@@ -13,7 +13,7 @@ import { TYPE, alpha } from './insightsUi';
 
 const month = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
 const ok = (v) => v !== null && v !== undefined && Number.isFinite(v);
-const tick = { fontSize: TYPE.label, fontWeight: 600, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' };
+const tick = { fontSize: TYPE.label, fontWeight: 500, fill: 'var(--muted)', fontVariantNumeric: 'tabular-nums' };
 
 /**
  * points:  [{ to, ... }] oldest first
@@ -116,7 +116,7 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
           {targets.map((t) => (
             <g key={t.label}>
               <line x1={L} x2={L + iw} y1={Y(t.v)} y2={Y(t.v)} stroke={t.color} strokeWidth={1.4} strokeDasharray="5 4" />
-              <text x={L + 6} y={Y(t.v) + (t.below ? 11 : -5)} style={{ fontSize: TYPE.label, fontWeight: 800, fill: t.color }}>{t.label}</text>
+              <text x={L + 6} y={Y(t.v) + (t.below ? 11 : -5)} style={{ fontSize: TYPE.label, fontWeight: 600, fill: t.color }}>{t.label}</text>
             </g>
           ))}
           {between && betweenMarks()}
@@ -135,31 +135,31 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
                     </g>
                   </>
                 ) : <rect x={X(i) - bw / 2} y={Y(v)} width={bw} height={Math.max(0, Y(lo) - Y(v))} rx={Math.min(5, bw / 3)} fill={columns.colorOf(v)} />}
-                <text x={X(i)} y={Y(v) - 5} textAnchor="middle" style={{ ...tick, fill: 'var(--text)', fontWeight: i === n - 1 ? 900 : 700 }}>{columns.text(v)}</text>
+                <text x={X(i)} y={Y(v) - 5} textAnchor="middle" style={{ ...tick, fill: 'var(--text)', fontWeight: i === n - 1 ? 700 : 600 }}>{columns.text(v)}</text>
               </g>
             );
           })}
           {lines.map(lineMarks)}
-          {pk >= 0 && <text x={X(pk)} y={Y(points[pk][peak.key]) - 9} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: 800, fill: peak.color }}>{peak.text(points[pk][peak.key])}</text>}
+          {pk >= 0 && <text x={X(pk)} y={Y(points[pk][peak.key]) - 9} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: 600, fill: peak.color }}>{peak.text(points[pk][peak.key])}</text>}
           {tag && ok(last[tag.key]) && (
             <g>
               <rect x={X(n - 1) + 9} y={Y(last[tag.key]) - 9} width={40} height={18} rx={9} fill="var(--text)" />
-              <text x={X(n - 1) + 29} y={Y(last[tag.key]) + 3.5} textAnchor="middle" style={{ fontSize: TYPE.small, fontWeight: 900, fill: 'var(--base)' }}>{tag.text(last[tag.key])}</text>
+              <text x={X(n - 1) + 29} y={Y(last[tag.key]) + 3.5} textAnchor="middle" style={{ fontSize: TYPE.small, fontWeight: 700, fill: 'var(--base)' }}>{tag.text(last[tag.key])}</text>
             </g>
           )}
           {lines.filter((l) => l.end && ok(last[l.key])).map((l) => (
             <g key={`end-${l.key}`}>
-              <text x={X(n - 1) + 9} y={Y(last[l.key]) + 3 + (l.dy || 0)} style={{ fontSize: TYPE.body, fontWeight: 900, fill: 'var(--text)' }}>{l.text(last[l.key])}</text>
-              <text x={X(n - 1) + 9} y={Y(last[l.key]) + 14 + (l.dy || 0)} style={{ fontSize: TYPE.label, fontWeight: 700, fill: l.color }}>{l.name}</text>
+              <text x={X(n - 1) + 9} y={Y(last[l.key]) + 3 + (l.dy || 0)} style={{ fontSize: TYPE.body, fontWeight: 700, fill: 'var(--text)' }}>{l.text(last[l.key])}</text>
+              <text x={X(n - 1) + 9} y={Y(last[l.key]) + 14 + (l.dy || 0)} style={{ fontSize: TYPE.label, fontWeight: 600, fill: l.color }}>{l.name}</text>
             </g>
           ))}
           {side.map((s) => (
             <g key={s.text}>
-              <text x={L + iw + (columns ? 8 : 12)} y={Y(s.v) + 3} style={{ fontSize: TYPE.label, fontWeight: 800, fill: s.color, letterSpacing: s.caps ? '0.06em' : 0 }}>{s.text}</text>
+              <text x={L + iw + (columns ? 8 : 12)} y={Y(s.v) + 3} style={{ fontSize: TYPE.label, fontWeight: 600, fill: s.color, letterSpacing: s.caps ? '0.06em' : 0 }}>{s.text}</text>
               {s.sub && <text x={L + iw + (columns ? 8 : 12)} y={Y(s.v) + 14} style={{ ...tick }}>{s.sub}</text>}
             </g>
           ))}
-          {points.map((p, i) => <text key={p.to} x={X(i)} y={h - 3} textAnchor="middle" style={{ ...tick, fill: i === n - 1 ? 'var(--text)' : 'var(--muted)', fontWeight: i === n - 1 ? 800 : 600 }}>{month(p.to)}</text>)}
+          {points.map((p, i) => <text key={p.to} x={X(i)} y={h - 3} textAnchor="middle" style={{ ...tick, fill: i === n - 1 ? 'var(--text)' : 'var(--muted)', fontWeight: i === n - 1 ? 600 : 500 }}>{month(p.to)}</text>)}
           {/* each month's hover strip, inside the plot */}
           {points.map((p, i) => {
             const half = columns ? iw / n / 2 : n > 1 ? iw / (n - 1) / 2 : iw / 2;
@@ -170,12 +170,12 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
       )}
       {ready && shown && (
         <Tip x={X(at)} y={top} w={w} edge={8}>
-          <div style={{ fontSize: TYPE.body, fontWeight: 800, color: 'var(--text)' }}>{shown.head}</div>
+          <div style={{ fontSize: TYPE.body, fontWeight: 600, color: 'var(--text)' }}>{shown.head}</div>
           {shown.rows.map((r) => (
-            <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 5, fontSize: TYPE.body, fontWeight: 600 }}>
+            <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 5, fontSize: TYPE.body, fontWeight: 500 }}>
               {r.color && <span aria-hidden style={{ flexShrink: 0, width: 10, height: 3, borderRadius: 2, background: r.color }} />}
               <span>{r.label}</span>
-              <strong className="vs-rank" style={{ marginLeft: 'auto', paddingLeft: 14, fontWeight: 900 }}>{r.value}</strong>
+              <strong style={{ marginLeft: 'auto', paddingLeft: 14, fontWeight: 700 }}>{r.value}</strong>
             </div>
           ))}
         </Tip>
@@ -190,14 +190,14 @@ export function GroupBars({ rows, max, text, gap }) {
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14, marginTop: 6 }}>
       {rows.map((r) => (
         <div key={r.label} data-ins-group={r.label} title={`${r.label}: ${text(r.value)} clicked`} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 54px', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: TYPE.strong, fontWeight: 800, color: 'var(--text)' }}>{r.label}</span>
+          <span style={{ fontSize: TYPE.strong, fontWeight: 600, color: 'var(--text)' }}>{r.label}</span>
           <span aria-hidden style={{ height: 20, borderRadius: 8, background: 'var(--track)', overflow: 'hidden' }}>
             <span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${ok(r.value) ? Math.min(100, (r.value / max) * 100) : 0}%`, borderRadius: 8, background: r.color, transformOrigin: 'left' }} />
           </span>
-          <span className="vs-rank" style={{ fontSize: TYPE.figure, fontWeight: 900, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{text(r.value)}</span>
+          <span style={{ fontSize: TYPE.figure, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{text(r.value)}</span>
         </div>
       ))}
-      {gap && <div style={{ paddingTop: 10, borderTop: '1px solid var(--hair)', fontSize: TYPE.strong, fontWeight: 700, color: 'var(--text)' }}>{gap}</div>}
+      {gap && <div style={{ paddingTop: 10, borderTop: '1px solid var(--hair)', fontSize: TYPE.strong, fontWeight: 600, color: 'var(--text)' }}>{gap}</div>}
     </div>
   );
 }

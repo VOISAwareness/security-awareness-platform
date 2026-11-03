@@ -146,8 +146,8 @@ const LEFT_W = 266;
 function TabCard({ t, on, onPick }) {
   return (
     <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 66, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 64px 0 16px', borderRadius: 14, border: on ? '1px solid #000000' : '1px solid var(--card-edge)', background: on ? '#000000' : 'var(--sheet)', color: on ? '#FFFFFF' : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 8px 18px rgba(15,23,42,0.18)' : 'none', transition: 'background .2s ease, color .2s ease, box-shadow .2s ease' }}>
-      <span style={{ fontSize: TYPE.figure, fontWeight: 800, letterSpacing: '-0.01em', color: on ? t.color : 'inherit' }}>{t.label}</span>
-      <span style={{ fontSize: TYPE.small, fontWeight: 600, color: on ? 'rgba(255,255,255,0.72)' : 'var(--muted)' }}>{t.sub}</span>
+      <span style={{ fontSize: TYPE.figure, fontWeight: 600, letterSpacing: '-0.01em', color: on ? t.color : 'inherit' }}>{t.label}</span>
+      <span style={{ fontSize: TYPE.small, fontWeight: 500, color: on ? 'rgba(255,255,255,0.72)' : 'var(--muted)' }}>{t.sub}</span>
       <img src={t.art} alt="" aria-hidden width={56} height={56} style={{ position: 'absolute', right: -8, bottom: -8, width: 56, height: 56, objectFit: 'contain', opacity: on ? 1 : 0.9 }} />
     </button>
   );
@@ -160,24 +160,24 @@ function ScopeCard({ shownDays, onDays, dept, depts, onDept, totals, upTo, reduc
     <section data-ins-scope aria-label="Scope" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 14, background: '#0F172A', color: '#FFFFFF' }}>
       <span style={{ ...eyebrow, color: 'rgba(255,255,255,0.6)' }}>Scope</span>
       <div role="radiogroup" aria-label="Period" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, padding: 2, borderRadius: 9, background: 'rgba(255,255,255,0.08)' }}>
-        {PERIODS.map((x) => <button key={x.id} type="button" role="radio" aria-checked={shownDays === x.id} title={x.title} data-ins-period={x.id} onClick={() => onDays(x.id)} style={{ height: 26, borderRadius: 7, border: 'none', background: shownDays === x.id ? '#FFFFFF' : 'transparent', color: shownDays === x.id ? '#0F172A' : 'rgba(255,255,255,0.72)', fontSize: TYPE.body, fontWeight: 800, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, color .2s ease' }}>{x.label}</button>)}
+        {PERIODS.map((x) => <button key={x.id} type="button" role="radio" aria-checked={shownDays === x.id} title={x.title} data-ins-period={x.id} onClick={() => onDays(x.id)} style={{ height: 26, borderRadius: 7, border: 'none', background: shownDays === x.id ? '#FFFFFF' : 'transparent', color: shownDays === x.id ? '#0F172A' : 'rgba(255,255,255,0.72)', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, color .2s ease' }}>{x.label}</button>)}
       </div>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Department</span>
-        <select data-ins-dept-select value={dept || ''} onChange={(e) => onDept(e.target.value || null)} style={{ height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', padding: '0 6px', fontFamily: 'inherit', fontSize: TYPE.body, fontWeight: 700 }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Department</span>
+        <select data-ins-dept-select value={dept || ''} onChange={(e) => onDept(e.target.value || null)} style={{ height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', padding: '0 6px', fontFamily: 'inherit', fontSize: TYPE.body, fontWeight: 600 }}>
           <option value="" style={{ color: '#0F172A' }}>All departments</option>
           {depts.map((d) => <option key={d.name} value={d.name} style={{ color: '#0F172A' }}>{d.name}</option>)}
         </select>
       </label>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>In this period</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>In this period</span>
         {totals.map(([label, v]) => (
           <span key={label} style={row}>
-            <span style={{ fontSize: TYPE.body, fontWeight: 600, color: 'rgba(255,255,255,0.72)' }}>{label}</span>
-            <strong className="vs-rank" style={{ fontSize: TYPE.strong, fontWeight: 900 }}>{num(v)}</strong>
+            <span style={{ fontSize: TYPE.body, fontWeight: 500, color: 'rgba(255,255,255,0.72)' }}>{label}</span>
+            <strong style={{ fontSize: TYPE.strong, fontWeight: 700 }}>{num(v)}</strong>
           </span>
         ))}
-        <span style={{ marginTop: 6, fontSize: TYPE.label, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Data up to {upTo}</span>
+        <span style={{ marginTop: 6, fontSize: TYPE.label, fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>Data up to {upTo}</span>
       </div>
     </section>
   );
@@ -192,13 +192,13 @@ function CornerTile({ tab, dept, people, onBack, reduce }) {
         <motion.div key={dept || tab} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -6 }} transition={{ duration: reduce ? 0 : 0.22, ease: EASE }} style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           {dept ? (
             <>
-              <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 800, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</span>
-              <span style={{ ...small, fontWeight: 700 }}>{num(people)} people</span>
+              <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 600, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
+              <span style={{ fontSize: TYPE.heading, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</span>
+              <span style={{ ...small, fontWeight: 600 }}>{num(people)} people</span>
             </>
           ) : (
             <>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--text)' }}>{t.label}</span>
+              <span style={{ fontSize: TYPE.heading, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--text)' }}>{t.label}</span>
               <span style={{ ...small, fontSize: TYPE.body, lineHeight: 1.35 }}>{t.says}</span>
             </>
           )}
@@ -239,9 +239,9 @@ function TargetKpi({ k, i, ink, reduce, days, dim }) {
         <span style={{ ...eyebrow, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
         <Explain label={`What ${k.label} means, and its change`}><Definition term={k.define}><ChangeNote k={k} ink={ink} days={days} /></Definition></Explain>
       </span>
-      <span data-ins-row="value" className="vs-rank" style={{ fontSize: TYPE.number, fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
+      <span data-ins-row="value" style={{ fontSize: TYPE.number, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
       <span data-ins-row="scale" style={{ width: '100%' }}><TargetBar value={k.scaleValue} target={k.target} ink={ink} /></span>
-      <span data-ins-row="target" style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>Target {k.targetText}</span>
+      <span data-ins-row="target" style={{ ...small, fontWeight: 600, whiteSpace: 'nowrap' }}>Target {k.targetText}</span>
     </motion.div>
   );
 }
@@ -262,7 +262,7 @@ function useHoverTip() {
     box.style.transform = `translate(${Math.round(e.clientX + 12)}px, ${Math.round(e.clientY - 30)}px)`;
   };
   const hide = () => { if (el.current) el.current.style.opacity = '0'; };
-  const tip = <div ref={el} aria-hidden data-ins-hover-tip style={{ position: 'fixed', left: 0, top: 0, zIndex: 60, opacity: 0, pointerEvents: 'none', padding: '4px 9px', borderRadius: 7, background: '#0F172A', color: '#FFFFFF', fontSize: TYPE.body, fontWeight: 800, whiteSpace: 'nowrap', boxShadow: '0 6px 16px rgba(15,23,42,0.22)', transition: 'opacity .12s ease' }} />;
+  const tip = <div ref={el} aria-hidden data-ins-hover-tip style={{ position: 'fixed', left: 0, top: 0, zIndex: 60, opacity: 0, pointerEvents: 'none', padding: '4px 9px', borderRadius: 7, background: '#0F172A', color: '#FFFFFF', fontSize: TYPE.body, fontWeight: 600, whiteSpace: 'nowrap', boxShadow: '0 6px 16px rgba(15,23,42,0.22)', transition: 'opacity .12s ease' }} />;
   return { tip, onMove, hide };
 }
 
@@ -406,7 +406,7 @@ const Insights = () => {
 
           {/* top bar: black on the light theme, glass on the dark */}
           <div style={{ background: isDark ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' : '#000000', border: isDark ? '1px solid var(--card-edge)' : 'none', boxSizing: 'border-box', color: isDark ? 'var(--text)' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px 0 18px', flexShrink: 0 }}>
-            <span style={{ fontSize: TYPE.title, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Insights</span>
+            <span style={{ fontSize: TYPE.title, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Insights</span>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
               {canSetTargets && <TargetsButton onClick={() => setEditing(true)} isDark={isDark} />}
               <ExportMenu items={exportItems} />
