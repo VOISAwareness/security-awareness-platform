@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
-import { Chip } from '../Leaderboard/BigPictureTables';
+import { Chip, Pager } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useSize } from './useSize';
@@ -240,21 +240,6 @@ export function Define({ term, onDark }) {
 
 const pagerBtn = (off) => ({ width: 22, height: 22, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid var(--hair)', background: 'var(--ghost)', color: 'var(--text)', cursor: off ? 'default' : 'pointer', opacity: off ? 0.35 : 1 });
 
-/** A slim "1–6 of 16" with back and next, under a list that pages. */
-export function MiniPager({ at, pages, total, per, onAt, what = 'rows' }) {
-  const from = at * per + 1; const to = Math.min(total, (at + 1) * per);
-  const go = (e, k) => { e.stopPropagation(); onAt(k); };
-  return (
-    <div data-ins-pager style={{ flexShrink: 0, height: 24, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, ...small }}>
-      <span style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)' }}>{from}–{to}</strong> of {total} {what}</span>
-      <span style={{ display: 'flex', gap: 4 }}>
-        <button type="button" aria-label={`Previous ${what}`} disabled={at === 0} onClick={(e) => go(e, at - 1)} style={pagerBtn(at === 0)}><ChevronLeft size={12} strokeWidth={2.6} aria-hidden /></button>
-        <button type="button" aria-label={`Next ${what}`} disabled={at >= pages - 1} onClick={(e) => go(e, at + 1)} style={pagerBtn(at >= pages - 1)}><ChevronRight size={12} strokeWidth={2.6} aria-hidden /></button>
-      </span>
-    </div>
-  );
-}
-
 /**
  * A list that shows as many rows of `rowH` as fit its card, a page at a
  * time, so it never scrolls; `cols` side by side. `render(item, k)` draws a
@@ -271,7 +256,7 @@ export function FitList({ items, rowH, render, cols = 1, what = 'rows', style })
       <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', ...style }}>
         {items.slice(at * per, at * per + per).map((x, k) => render(x, k))}
       </div>
-      {pages > 1 && <MiniPager at={at} pages={pages} total={items.length} per={per} onAt={setPage} what={what} />}
+      {pages > 1 && <Pager page={at} pages={pages} total={items.length} size={per} onPage={setPage} what={what} />}
     </div>
   );
 }
