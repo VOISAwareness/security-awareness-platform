@@ -32,14 +32,14 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-violet-200/20"
           squareTitle="Training Path"
           squareSubtitle="All about Training Paths required to run any campaign"
-          squareImage="/src/assets/Training(LMS)/ui/main_left_top.png"
+          squareImage="/src/assets/Training(LMS)/ui/TiltedPathIcon.png"
           title="Create New / Track Created Training Paths"
           description="Here you can Create new Training Path using stored individual elements as complete end to end path which will be available to attach as training path for any new campaign. You can also Check, Track, Edit or Delete those Created Training Paths."
           badgeImages={[
-            "/src/assets/Training(LMS)/ui/side_1_1.png",
-            "/src/assets/Training(LMS)/ui/side_1_2.png",
-            "/src/assets/Training(LMS)/ui/side_1_3.png",
-            "/src/assets/Training(LMS)/ui/side_1_4.png"
+            "/src/assets/Training(LMS)/ui/VideoIcon.png",
+            "/src/assets/Training(LMS)/ui/QuizIcon.png",
+            "/src/assets/Training(LMS)/ui/CertificateIcon.png",
+            "/src/assets/Training(LMS)/ui/PackageIcon.png"
           ]}
           badgeText="Use these Individual Elements to create a Training Path"
           buttonText="Go here"
@@ -58,11 +58,11 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-pink-200/20"
           squareTitle="Storage Room"
           squareSubtitle="It's the storage space for your all training elements"
-          squareImage="/src/assets/Training(LMS)/ui/main_right_top.png"
+          squareImage="/src/assets/Training(LMS)/ui/TiltedStorageIcon.png"
           title="Add New / Track Individual Training Materials"
           description="Here you can 'Add New and Track' Individual Training Video, Quiz, Certificate and Packages and use these space as storage room. Storing elements individually helps in structuring pathways."
           badgeImages={[
-            "/src/assets/Training(LMS)/ui/main_left_top.png"
+            "/src/assets/Training(LMS)/ui/TiltedPathIcon.png"
           ]}
           badgeText="Storing individual elements helps you in creating Training Paths in future"
           buttonText="Go here"
@@ -79,11 +79,11 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-green-200/20"
           squareTitle="Reports & Dashboard"
           squareSubtitle="All about Training progress and Tracking updates on Training"
-          squareImage="/src/assets/Training(LMS)/ui/main_left_bottom.png"
+          squareImage="/src/assets/Training(LMS)/ui/TiltedReportIcon.png"
           title="View Reports of Overall / By Campaign Training Progress"
           description="Here you can view detailed training progress reports for all users, with both overall and campaign-wise tracking capabilities. Monitor completion status, certifications achieve and pending activities."
           badgeImages={[
-            "/src/assets/Training(LMS)/ui/side_3_1.png"
+            "/src/assets/Training(LMS)/ui/ReportsIcon.png"
           ]}
           badgeText="Track Individual Campaigns Training Completion Rate for Each User"
           buttonText="Go here"
@@ -100,7 +100,7 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-cyan-200/20"
           squareTitle="Requests & Approvals"
           squareSubtitle="All about approvals and request for newly created Traning Paths."
-          squareImage="/src/assets/Training(LMS)/ui/main_right_bottom.png"
+          squareImage="/src/assets/Training(LMS)/ui/TiltedApprovalIcon.png"
           title="Content Creators can Request & Content Managers can Approve those Requests."
           description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."
           customBadgeRow={

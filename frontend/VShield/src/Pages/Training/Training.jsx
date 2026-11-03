@@ -60,7 +60,7 @@ function TrainingDashboardInner() {
     <>
       <div
         style={{ zoom: VarMySpaceScale }}
-        className={`w-full max-w-[1780px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} h-[calc(104vh-0px)] overflow-hidden animate-clay-stagger-1`}
+        className={`w-full max-w-[1780px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} h-[calc(104vh-0px)] overflow-hidden`}
       >
         {/* PAGE HEADER TOOLBAR */}
         <div className={VarLmsHeaderClass(isDark)}>
@@ -110,7 +110,7 @@ function TrainingDashboardInner() {
 
         {/* UNIFIED TRAINING SHELL */}
         <div
-          className={`w-full flex-1 min-h-0 transition-all duration-300 overflow-hidden flex flex-col ${
+          className={`w-full flex-1 min-h-0 overflow-hidden flex flex-col ${
             (currentView === "hub" && !activeVideo && !activeQuiz && !activeCert && !activeInteractivePath && !launchStandalonePkg)
               ? (isDark ? "bg-[#0B1121] border border-white/10 shadow-xl p-4 sm:p-5 gap-4 rounded-xl" : "bg-white border border-slate-200 shadow-sm p-4 sm:p-5 gap-4 rounded-xl")
               : "bg-transparent border-none shadow-none p-0 gap-0"
@@ -232,7 +232,7 @@ function TrainingDashboardInner() {
             <ReportsLandingPage isDark={isDark} />
           ) : (
             /* SUB-VIEW SIDEBAR + CONTAINER SHELL */
-            <div className="flex-1 flex flex-col lg:flex-row items-stretch gap-6 min-h-0 select-none w-full animate-clay-stagger-2 text-left">
+            <div className="flex-1 flex flex-col lg:flex-row items-stretch gap-6 min-h-0 select-none w-full text-left">
               <LmsLeftSidebar />
               <LmsMainContent />
             </div>

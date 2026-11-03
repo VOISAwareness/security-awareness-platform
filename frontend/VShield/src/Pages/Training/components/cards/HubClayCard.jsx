@@ -19,7 +19,7 @@ export const HubClayCard = ({
     <div
       onClick={onClick}
       style={{ '--l-wall-x': lWallX } }
-      className="clay-card-container hover:scale-[1.015] hover:-translate-y-1 hover:brightness-[1.02]"
+      className="clay-card-container hover:-translate-y-1 hover:brightness-[1.02]"
     >
       <svg className="absolute inset-0 w-full h-full z-0" viewBox="0 0 500 250" preserveAspectRatio="none">
         <path
@@ -58,7 +58,7 @@ export const HubClayCard = ({
       </div>
 
       {/* Footer row (spanning full width at the bottom, from far left to far right) */}
-      <div className="clay-card-footer border-black/5 dark:border-white/5">
+      <div className="clay-card-footer">
         {customBadgeRow ? (
           customBadgeRow
         ) : (
@@ -94,7 +94,8 @@ export const HubClayCard = ({
               onClick();
             }
           }}
-          className="h-8 px-5 rounded-full bg-[#13151A] hover:bg-black dark:bg-white dark:text-[#13151A] dark:hover:bg-slate-100 text-white text-[11px] font-black tracking-wide cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center"
+          className="h-8 px-5 rounded-full bg-[#13151A] hover:bg-black dark:bg-white dark:text-[#13151A] dark:hover:bg-slate-100 text-white
+          text-[11px] font-black tracking-wide cursor-pointer text-center flex items-center justify-center"
         >
           {buttonText}
         </button>

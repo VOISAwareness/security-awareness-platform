@@ -1,12 +1,12 @@
 
 import { useTraining } from "../TrainingContext";
 
-import side11Img from "@/assets/Training(LMS)/ui/side_1_1.png";
-import side31Img from "@/assets/Training(LMS)/ui/side_3_1.png";
-import soloVidsImg from "@/assets/Training(LMS)/ui/solo_vids.png";
-import soloQuizImg from "@/assets/Training(LMS)/ui/solo_quiz.png";
-import side14Img from "@/assets/Training(LMS)/ui/side_1_4.png";
-import certificateIconImg from "@/assets/Training(LMS)/ui/cretificate_icon.png";
+import side11Img from "@/assets/Training(LMS)/ui/VideoIcon.png";
+import side31Img from "@/assets/Training(LMS)/ui/ReportsIcon.png";
+import soloVidsImg from "@/assets/Training(LMS)/ui/TiltedVideoIcon.png";
+import soloQuizImg from "@/assets/Training(LMS)/ui/TiltedQuizIcon.png";
+import side14Img from "@/assets/Training(LMS)/ui/PackageIcon.png";
+import certificateIconImg from "@/assets/Training(LMS)/ui/CertificateIcon.png";
 
 export const LmsLeftSidebar = () => {
   const {

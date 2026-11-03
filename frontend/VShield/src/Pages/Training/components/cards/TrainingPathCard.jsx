@@ -4,7 +4,7 @@ import { Play, HelpCircle, Award, Settings, ExternalLink, UploadCloud } from "lu
 const getCoverImage = (imgName) => {
   try {
     return new URL(`../../../Scenarios/` + imgName, import.meta.url).href;
-  } catch { /* ignore */ 
+  } catch {
     return `/assets/Scenarios/${imgName}`;
   }
 };
