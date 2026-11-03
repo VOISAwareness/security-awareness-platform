@@ -65,6 +65,7 @@ const FONT_IMPORT = `
   .ins-row .ins-arrow, .ins-find .ins-arrow { transition: transform .2s ease, color .2s ease; }
   .ins-row:hover .ins-arrow, .ins-find:hover .ins-arrow { transform: translateX(3px); color: var(--text) !important; }
   .ins-tabcard:hover { border-color: var(--hair-strong); }
+  .ins-period[aria-checked="false"]:hover { background: var(--base) !important; }
   .ins-crumb:hover { color: var(--text) !important; text-decoration: underline; }
   .ins-col:hover > span:first-child { background: var(--track) !important; }
   .ins-page button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
@@ -156,27 +157,26 @@ function TabCard({ t, on, onPick, isDark }) {
   );
 }
 
-// The period, and what it holds in six boxes; black, or white on the dark theme.
-function ScopeCard({ shownDays, onDays, totals, upTo, reduce, isDark }) {
-  const c = isDark
-    ? { bg: '#FFFFFF', text: '#0F172A', soft: '#475569', faint: '#64748B', box: '#F1F5F9', track: '#E2E8F0', on: '#0F172A', onText: '#FFFFFF' }
-    : { bg: '#0F172A', text: '#FFFFFF', soft: 'rgba(255,255,255,0.72)', faint: 'rgba(255,255,255,0.55)', box: 'rgba(255,255,255,0.07)', track: 'rgba(255,255,255,0.08)', on: '#FFFFFF', onText: '#0F172A' };
+// The period, and what it holds in six boxes, on a light card like the tabs.
+function ScopeCard({ shownDays, onDays, totals, reduce }) {
   return (
-    <section data-ins-scope aria-label="Scope" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, background: c.bg, color: c.text }}>
-      <span style={{ ...eyebrow, color: c.faint }}>Scope</span>
-      <div role="radiogroup" aria-label="Period" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, padding: 2, borderRadius: 9, background: c.track }}>
-        {PERIODS.map((x) => <button key={x.id} type="button" role="radio" aria-checked={shownDays === x.id} title={x.title} data-ins-period={x.id} onClick={() => onDays(x.id)} style={{ height: 26, borderRadius: 7, border: 'none', background: shownDays === x.id ? c.on : 'transparent', color: shownDays === x.id ? c.onText : c.soft, fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, color .2s ease' }}>{x.label}</button>)}
+    <section data-ins-scope aria-label="Scope" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
+      <span style={eyebrow}>Scope</span>
+      <div role="radiogroup" aria-label="Period" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, padding: 2, borderRadius: 9, background: 'var(--plate)' }}>
+        {PERIODS.map((x) => {
+          const on = shownDays === x.id;
+          return <button key={x.id} type="button" role="radio" aria-checked={on} title={x.title} data-ins-period={x.id} className="ins-period" onClick={() => onDays(x.id)} style={{ height: 26, borderRadius: 7, border: on ? '1px solid var(--hair-strong)' : '1px solid transparent', background: on ? 'var(--base)' : 'transparent', boxShadow: on ? '0 1px 3px rgba(15,23,42,0.1)' : 'none', color: 'var(--text)', fontSize: TYPE.body, fontWeight: on ? 600 : 500, cursor: 'pointer', transition: reduce ? 'none' : 'background .15s ease, box-shadow .15s ease' }}>{x.label}</button>;
+        })}
       </div>
-      <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: c.faint }}>In this period</span>
+      <span style={eyebrow}>In this period</span>
       <div data-ins-totals style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'minmax(0,1fr)', gap: 6 }}>
         {totals.map(([label, v]) => (
-          <div key={label} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, background: c.box }}>
+          <div key={label} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, background: 'var(--plate)' }}>
             <strong style={{ fontSize: TYPE.figure, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{num(v)}</strong>
-            <span style={{ fontSize: TYPE.small, fontWeight: 500, color: c.soft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+            <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
           </div>
         ))}
       </div>
-      <span style={{ fontSize: TYPE.label, fontWeight: 500, color: c.faint }}>Data up to {upTo}</span>
     </section>
   );
 }
@@ -383,7 +383,6 @@ const Insights = () => {
     ['Emails reported', n.reported],
     ['Trainings assigned', p.now.training?.assigned],
   ];
-  const upTo = new Date(m.basis.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
   // the page's colours (insightsUi.js)
   const vars = themeVars(isDark);
@@ -421,9 +420,7 @@ const Insights = () => {
                 shownDays={shownDays}
                 onDays={(d) => { setShownDays(d); startTransition(() => setDays(d)); }}
                 totals={totals}
-                upTo={upTo}
                 reduce={reduce}
-                isDark={isDark}
               />
             </nav>
 
