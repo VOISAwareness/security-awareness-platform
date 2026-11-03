@@ -13,7 +13,7 @@ export const TrainingPathCard = ({
   path,
   videos,
   quizzes,
-    isDark,
+  isDark,
   onLaunch,
   onEdit,
   onSendForApproval
@@ -172,7 +172,7 @@ export const TrainingPathCard = ({
         }`}>
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
-              {path.isAlwaysAvailable ? "Always Available" : "Interactive Sequence"}
+              {path.isAlwaysAvailable ? "Always Available" : "Videos & Quiz"}
             </span>
             {path.status === 'Pending' && (
               <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-500 text-[8.5px] font-bold uppercase tracking-wide animate-pulse">

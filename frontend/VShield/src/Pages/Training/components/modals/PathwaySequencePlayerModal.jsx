@@ -128,7 +128,7 @@ export const PathwaySequencePlayerModal = ({
   const content = (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={`w-full overflow-hidden flex flex-col border cursor-default rounded-[28px] ${
+      className={`w-full overflow-hidden flex flex-col border cursor-default rounded-[8px] ${
         isInline
           ? "h-full min-h-[500px]"
           : "max-w-7xl h-[92vh] shadow-2xl"
@@ -434,7 +434,7 @@ export const PathwaySequencePlayerModal = ({
                   <div
                     key={item.id}
                     onClick={() => setActiveItemIndex(index)}
-                    className={`relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1 shadow-sm ${
+                    className={`relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1 shadow-sm overflow-hidden  ${
                       isActive
                         ? (isDark ? "bg-white text-slate-900 border-white" : "bg-slate-900 text-white border-slate-900")
                         : (isDark ? "bg-white/[0.02] border-white/5 hover:border-white/10 text-slate-300" : "bg-white border-slate-200 hover:border-slate-300 text-slate-600 hover:shadow-md")

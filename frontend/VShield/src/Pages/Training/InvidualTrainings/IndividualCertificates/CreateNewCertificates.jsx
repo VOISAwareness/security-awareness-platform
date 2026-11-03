@@ -36,7 +36,7 @@ export const CreateNewCertificates = ({
     if (editingCert && editingCert["Certificate(html)"]) {
       // Extract innerHTML of the cert-card or use full HTML
       const raw = editingCert["Certificate(html)"];
-      const match = raw.match(/<div[^>]*class='cert-card'[^>]*>([\s\S]*)<\/div>/i) || 
+      const match = raw.match(/<div[^>]*class='cert-card'[^>]*>([\s\S]*)<\/div>/i) ||
                     raw.match(/<div[^>]*class="cert-card"[^>]*>([\s\S]*)<\/div>/i) ||
                     raw.match(/<div[^>]*class='cert-container'[^>]*>([\s\S]*)<\/div>/i) ||
                     raw.match(/<div[^>]*class="cert-container"[^>]*>([\s\S]*)<\/div>/i);
@@ -49,7 +49,7 @@ export const CreateNewCertificates = ({
   const [bgImage, setBgImage] = useState(() => {
     if (editingCert && editingCert["Certificate(html)"]) {
       const raw = editingCert["Certificate(html)"];
-      const match = raw.match(/background-image:\s*url\(['"]?([^'")]+)['"]?\)/i) || 
+      const match = raw.match(/background-image:\s*url\(['"]?([^'")]+)['"]?\)/i) ||
                     raw.match(/background:\s*[^;]*url\(['"]?([^'")]+)['"]?\)/i);
       return match ? match[1] : "";
     }
@@ -111,7 +111,7 @@ export const CreateNewCertificates = ({
         // Find the absolute top and bottom visual coordinates among all child elements
         let minTop = Infinity;
         let maxBottom = -Infinity;
-        
+
         children.forEach((child) => {
           const rect = child.getBoundingClientRect();
           if (rect.top < minTop) minTop = rect.top;
@@ -283,55 +283,55 @@ export const CreateNewCertificates = ({
                     <option value="5">24px</option>
                   </select>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-bold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-bold"
                     title="Bold"
                   >
                     B
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white italic" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white italic"
                     title="Italic"
                   >
                     I
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white underline" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white underline"
                     title="Underline"
                   >
                     U
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold"
                     title="Align Left"
                   >
                     L
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold"
                     title="Align Center"
                   >
                     C
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold"
                     title="Align Right"
                   >
                     R
@@ -439,8 +439,8 @@ export const CreateNewCertificates = ({
 
       {/* Normal / Inline Render Block */}
       <div className={`w-full flex flex-col text-left ${
-        isInline 
-          ? "h-full min-h-[500px] border-none bg-transparent shadow-none" 
+        isInline
+          ? "h-full min-h-[500px] border-none bg-transparent shadow-none"
           : `max-w-5xl border rounded-2xl overflow-hidden shadow-2xl h-[90vh] ${
               isDark ? "bg-[#12141A] border-white/10 text-white shadow-[0_20px_50px_rgba(0,0,0,0.6)]" : "bg-white border-slate-200 text-slate-800"
             }`
@@ -458,7 +458,7 @@ export const CreateNewCertificates = ({
         )}
 
         {/* Editor Body */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-light-scrollbar">
+        <div className="flex-1 overflow-y-auto px-2 flex flex-col gap-6 custom-light-scrollbar">
           {/* Settings Panel */}
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -608,55 +608,55 @@ export const CreateNewCertificates = ({
                     <option value="5">24px</option>
                   </select>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Bold"
                   >
                     <strong>B</strong>
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Italic"
                   >
                     <em>I</em>
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Underline"
                   >
                     <u>U</u>
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Align Left"
                   >
                     L
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Align Center"
                   >
                     C
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Align Right"
                   >
                     R
@@ -720,8 +720,8 @@ export const CreateNewCertificates = ({
               </div>
 
               {/* contentEditable Scaled Preview Canvas with Strict Aspect Ratio */}
-              <div 
-                ref={canvasContainerRef} 
+              <div
+                ref={canvasContainerRef}
                 className="w-full overflow-hidden flex items-start justify-center border border-black/10 dark:border-white/10 rounded-b-xl"
                 style={{ height: `${500 * canvasScale}px` }}
               >

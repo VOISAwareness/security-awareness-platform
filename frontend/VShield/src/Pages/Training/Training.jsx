@@ -60,7 +60,7 @@ function TrainingDashboardInner() {
     <>
       <div
         style={{ zoom: VarMySpaceScale }}
-        className={`w-full max-w-[1780px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} h-[calc(104vh-0px)] overflow-hidden`}
+        className={`w-full max-w-[1780px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} h-[calc(104vh-3.5px)] overflow-hidden`}
       >
         {/* PAGE HEADER TOOLBAR */}
         <div className={VarLmsHeaderClass(isDark)}>
@@ -95,7 +95,7 @@ function TrainingDashboardInner() {
                     }
                   }}
                   className={`h-7 px-3.5 rounded-lg text-[9px] font-voda font-black uppercase tracking-wider ${
-                    isDark ? 'bg-black/10 hover:bg-black/20 text-black' : 'bg-white/10 hover:bg-white/20 text-white'
+                    isDark ? 'bg-black/10 hover:bg-black/20 text-black' : 'bg-white hover:bg-gray-200 text-black'
                   } cursor-pointer transition-all scale-100 active:scale-98`}
                 >
                   { (activeVideo || activeQuiz || activeCert || activeInteractivePath || launchStandalonePkg) ?
@@ -232,7 +232,7 @@ function TrainingDashboardInner() {
             <ReportsLandingPage isDark={isDark} />
           ) : (
             /* SUB-VIEW SIDEBAR + CONTAINER SHELL */
-            <div className="flex-1 flex flex-col lg:flex-row items-stretch gap-6 min-h-0 select-none w-full text-left">
+            <div className="flex-1 flex flex-col lg:flex-row items-stretch gap-2 min-h-0 select-none w-full text-left">
               <LmsLeftSidebar />
               <LmsMainContent />
             </div>

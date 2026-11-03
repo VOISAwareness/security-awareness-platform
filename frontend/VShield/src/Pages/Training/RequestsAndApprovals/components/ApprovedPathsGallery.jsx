@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { 
-  Search, 
+import {
+  Search,
   ChevronDown,
-  ExternalLink, 
+  ExternalLink,
   User,
   Check
 } from 'lucide-react';
@@ -84,12 +84,12 @@ const ApprovedPathsGallery = ({
   return (
     <>
       <div className="gallery-wrapper relative flex flex-col w-full select-none font-sans overflow-x-hidden pb-2">
-        
+
         {/* ========================================================================= */}
         {/*  1.  CAPSULE HEADER (TOP-LEFT)                            */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: CAPSULE_THEME_COLOR,
             borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
           }}
@@ -117,7 +117,7 @@ const ApprovedPathsGallery = ({
         {/*  3. TOP-RIGHT ARM OF L-SHAPE CONTAINER                                 */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
@@ -127,7 +127,7 @@ const ApprovedPathsGallery = ({
           {/* Controls Column */}
           <div className="flex flex-col -mt-8 gap-2 max-w-[340px] w-full text-left">
             <div className="relative flex items-center">
-              <input 
+              <input
                 type="text"
                 placeholder="Search by Path ID or Title"
                 value={searchTerm}
@@ -158,8 +158,8 @@ const ApprovedPathsGallery = ({
                         setShowSortDropdown(false);
                       }}
                       className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
-                        sortBy === option 
-                          ? 'bg-[#D9F2D0] text-[#16A34A] dark:bg-emerald-950 dark:text-emerald-300' 
+                        sortBy === option
+                          ? 'bg-[#D9F2D0] text-[#16A34A] dark:bg-emerald-950 dark:text-emerald-300'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
@@ -173,7 +173,7 @@ const ApprovedPathsGallery = ({
 
           {/* Dynamic Big Counter */}
           <div className="flex flex-col items-end justify-center text-right pr-2">
-            <span 
+            <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
               className="text-5xl font-black leading-none tracking-tight font-voda-exb"
             >
@@ -189,7 +189,7 @@ const ApprovedPathsGallery = ({
         {/*  4. CONTINUOUS LOWER L-BASE                                            */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             height: `${VarGalleryLowerBaseHeightAdjuster}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
@@ -208,12 +208,12 @@ const ApprovedPathsGallery = ({
               <div
                 key={path.TrainingPathID}
                 onClick={(e) => handleDetailsClick(e, path)}
-                style={{ 
+                style={{
                   borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
                   transform: `scale(${VarGallaryCardsScaleAdjuster})`,
                   width: `${100 * VarGallaryCardLenghtAdjuster}%`
                 }}
-                className="mx-auto px-6 py-5 bg-[#EEF2F6] dark:bg-[#15171E] text-slate-900 dark:text-white shadow-2xs flex flex-col gap-2 relative overflow-hidden transition-all hover:shadow-xs hover:scale-[1.01] cursor-pointer border border-black/5 dark:border-white/5 origin-top flex-shrink-0"
+                className="mx-auto px-3 pt-1 pb-2 bg-[#EEF2F6] dark:bg-[#15171E] text-slate-900 dark:text-white shadow-2xs flex flex-col gap-2 relative overflow-hidden transition-all hover:shadow-xs hover:scale-[1.01] cursor-pointer border border-black/5 dark:border-white/5 origin-top flex-shrink-0"
               >
                 {/* Top Meta Line */}
                 <div className="flex items-center justify-between">
@@ -223,8 +223,8 @@ const ApprovedPathsGallery = ({
                       {path.TrainingPathID}
                     </span>
                     <span className={`px-2.5 py-0.5 rounded-full text-[8.5px] font-black tracking-wide shadow-2xs border ${
-                      path.isZipPath 
-                        ? 'bg-amber-100 text-amber-800 border-amber-300/40' 
+                      path.isZipPath
+                        ? 'bg-amber-100 text-amber-800 border-amber-300/40'
                         : 'bg-violet-100 text-violet-800 border-violet-300/40'
                     }`}>
                       {path.isZipPath ? 'Package + Certificate' : 'Videos + Quiz + Certificate'}
@@ -295,7 +295,7 @@ const ApprovedPathsGallery = ({
         {detailModalItem && (
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
-              style={{ 
+              style={{
                 borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
               }}
               className="w-full max-w-2xl bg-white border border-black/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 transition-colors"
