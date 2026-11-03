@@ -43,10 +43,10 @@ export function Delta({ c, ink, title, onDark = false, say = false }) {
   const tint = flat || neutral ? (ink?.context ?? STEADY_INK) : c.good ? ink.good : ink.bad;
   const sign = c.dir === 'up' ? '+' : c.dir === 'down' ? '−' : '';
   return (
-    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${tint} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 600, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
+    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${tint} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 700, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
       {!flat && <span aria-hidden style={{ fontSize: TYPE.label }}>{c.dir === 'up' ? '▲' : '▼'}</span>}
       <span>{flat ? c.shown : `${sign}${c.shown}`}</span>
-      {say ? <span style={{ fontWeight: 600, color: onDark ? 'inherit' : 'var(--muted)' }}>{verdict}</span> : <span style={unseen}>{`, ${verdict}`}</span>}
+      {say ? <span style={{ fontWeight: 700, color: onDark ? 'inherit' : 'var(--muted)' }}>{verdict}</span> : <span style={unseen}>{`, ${verdict}`}</span>}
     </span>
   );
 }
@@ -85,7 +85,7 @@ export function Meter({ value, max, color, label, sub, delay = 0, reduce, height
   return (
     <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
-        <span style={{ fontSize: TYPE.title, fontWeight: 700, lineHeight: 1, color: 'var(--text)' }}>{label}</span>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{label}</span>
         {sub && <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
       </span>
       <span aria-hidden style={{ height, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
@@ -103,7 +103,7 @@ export function InlineBar({ value, max, color, label, delay = 0, reduce, grow = 
       <span aria-hidden style={{ flex: 1, minWidth: 0, height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
         <Fill width={w} color={color} delay={delay} reduce={reduce} grow={grow} returning={returning} />
       </span>
-      <span style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
+      <span style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
     </span>
   );
 }
@@ -195,8 +195,8 @@ function RiskScoreMeaning({ colors }) {
   return (
     <>
       <span style={{ display: 'block', ...eyebrow }}>{g.name}</span>
-      <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600, lineHeight: 1.45, marginTop: 6 }}>{g.what}</span>
-      <span style={{ display: 'block', ...small, fontWeight: 600, marginTop: 9, color: 'var(--text)' }}>Each person has a level, from their phishing record:</span>
+      <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>{g.what}</span>
+      <span style={{ display: 'block', ...small, fontWeight: 700, marginTop: 9, color: 'var(--text)' }}>Each person has a level, from their phishing record:</span>
       <span style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 5 }}>
         {LEVELS.map((k) => (
           <span key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: TYPE.small, lineHeight: 1.35 }}>
@@ -206,7 +206,7 @@ function RiskScoreMeaning({ colors }) {
         ))}
       </span>
       <span style={{ display: 'block', ...small, marginTop: 8, paddingTop: 7, borderTop: '1px solid var(--hair)', lineHeight: 1.45 }}>{g.how}</span>
-      <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 6, fontSize: TYPE.small, fontWeight: 600 }}>
+      <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 6, fontSize: TYPE.small, fontWeight: 700 }}>
         {LEVELS.map((k) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: 2, background: colors[k] }} />{TIER_WORD[k]} <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{RANGE[k]}</span></span>)}
       </span>
     </>
@@ -222,7 +222,7 @@ export function Definition({ term, children }) {
   return (
     <>
       <span style={{ display: 'block', ...eyebrow }}>{g.name}</span>
-      <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600, lineHeight: 1.45, marginTop: 6 }}>{g.what}</span>
+      <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700, lineHeight: 1.45, marginTop: 6 }}>{g.what}</span>
       <span style={{ display: 'block', ...small, lineHeight: 1.45, marginTop: 7, paddingTop: 7, borderTop: '1px solid var(--hair)' }}>{g.how}</span>
       {children}
     </>
@@ -306,7 +306,7 @@ export function RowsGrid({ children, minRow = 180, gap = 14, sizes, ...rest }) {
           <button type="button" aria-label="Next charts" aria-describedby={other > at ? say : undefined} disabled={at >= rows - 1} onClick={() => go(at + 1)} style={pagerBtn(at >= rows - 1)}><ChevronRight size={12} strokeWidth={2.6} aria-hidden /></button>
           {names && (
             <span id={say} data-ins-rows-next onClick={() => go(other)} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              {other > at ? 'Next' : 'Before'}: <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{names}</strong>
+              {other > at ? 'Next' : 'Before'}: <strong style={{ color: 'var(--text)', fontWeight: 700 }}>{names}</strong>
             </span>
           )}
         </div>

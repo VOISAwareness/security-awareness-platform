@@ -83,7 +83,7 @@ export function TargetsButton({ onClick, isDark }) {
       data-ins-targets
       onClick={onClick}
       title="Set where each measure should be"
-      style={{ flexShrink: 0, height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px 0 10px', borderRadius: 8, border: `1px solid ${isDark ? 'var(--card-edge)' : 'rgba(255,255,255,0.28)'}`, background: 'transparent', color: 'inherit', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+      style={{ flexShrink: 0, height: 28, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px 0 10px', borderRadius: 8, border: `1px solid ${isDark ? 'var(--card-edge)' : 'rgba(255,255,255,0.28)'}`, background: 'transparent', color: 'inherit', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
     >
       <SlidersHorizontal size={13} strokeWidth={2.4} aria-hidden />
       Set targets
@@ -138,10 +138,10 @@ function MeasureCard({ k, box, onBox, now, depts, ink }) {
   return (
     <div data-ins-target-row={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,250px)', columnGap: 22, alignItems: 'center', padding: '13px 16px', borderRadius: 14, border: '1px solid var(--hair-strong)' }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: TYPE.figure, fontWeight: 700 }}>{NAMES[k]}</div>
+        <div style={{ fontSize: TYPE.figure, fontWeight: 800 }}>{NAMES[k]}</div>
         <div style={{ ...small, marginTop: 1 }}>{COUNTS[k]}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: TYPE.strong, fontWeight: 600, marginRight: 4 }}>Should be {down ? 'at most' : 'at least'}</span>
+          <span style={{ fontSize: TYPE.strong, fontWeight: 700, marginRight: 4 }}>Should be {down ? 'at most' : 'at least'}</span>
           <button type="button" aria-label={`Lower the ${NAMES[k]} target`} onClick={() => nudge(-1)} style={stepBtn}><Minus size={13} strokeWidth={2.6} aria-hidden /></button>
           <input
             id={`ins-target-${k}`}
@@ -150,19 +150,19 @@ function MeasureCard({ k, box, onBox, now, depts, ink }) {
             aria-invalid={problem ? true : undefined}
             value={box}
             onChange={(e) => onBox(e.target.value)}
-            style={{ width: 54, height: 32, boxSizing: 'border-box', padding: '0 6px', borderRadius: 8, border: `1px solid ${problem ? ink.bad : 'var(--hair-strong)'}`, background: 'var(--base)', color: 'var(--text)', fontSize: TYPE.strong, fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'center', outline: 'none' }}
+            style={{ width: 54, height: 32, boxSizing: 'border-box', padding: '0 6px', borderRadius: 8, border: `1px solid ${problem ? ink.bad : 'var(--hair-strong)'}`, background: 'var(--base)', color: 'var(--text)', fontSize: TYPE.strong, fontWeight: 700, fontVariantNumeric: 'tabular-nums', textAlign: 'center', outline: 'none' }}
           />
           <button type="button" aria-label={`Raise the ${NAMES[k]} target`} onClick={() => nudge(1)} style={stepBtn}><Plus size={13} strokeWidth={2.6} aria-hidden /></button>
-          <span style={{ ...small, fontWeight: 600, whiteSpace: 'nowrap' }}>{u}</span>
+          <span style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>{u}</span>
         </div>
-        {problem && <div role="alert" style={{ marginTop: 6, fontSize: TYPE.small, fontWeight: 600, color: ink.bad }}>{problem}</div>}
+        {problem && <div role="alert" style={{ marginTop: 6, fontSize: TYPE.small, fontWeight: 700, color: ink.bad }}>{problem}</div>}
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, ...small }}>Company now <strong style={{ fontSize: TYPE.figure, fontWeight: 700, color: 'var(--text)' }}>{shown(k, now)}</strong></div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, ...small }}>Company now <strong style={{ fontSize: TYPE.figure, fontWeight: 800, color: 'var(--text)' }}>{shown(k, now)}</strong></div>
         <div style={{ marginTop: 6 }}>{t ? <TargetBar value={now} target={t} ink={ink} gap="var(--base)" /> : <span aria-hidden style={{ display: 'block', height: 10, borderRadius: 999, background: 'var(--track)' }} />}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 6, ...small, whiteSpace: 'nowrap' }}>
           <span>{pair ? `At risk ${down ? 'up to' : 'down to'} ${shown(k, pair.atRisk)}` : ' '}</span>
-          {onTarget !== null && <span>Departments on target <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{onTarget} of {depts.length}</strong></span>}
+          {onTarget !== null && <span>Departments on target <strong style={{ color: 'var(--text)', fontWeight: 700 }}>{onTarget} of {depts.length}</strong></span>}
         </div>
       </div>
     </div>
@@ -228,7 +228,7 @@ export function TargetsEditor({ saved, now, depts, isDark, reduce, onSave, onClo
         style={{ width: 'min(900px, 100%)', height: 'min(500px, calc(100vh - 32px))', display: 'grid', gridTemplateColumns: '230px minmax(0,1fr)', overflow: 'hidden', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--base)', boxShadow: '0 30px 70px rgba(15,23,42,0.28)', color: 'var(--text)' }}
       >
         <nav aria-label="Target sections" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '22px 14px', background: 'var(--plate)', borderRight: '1px solid var(--hair)' }}>
-          <h2 id="ins-targets-title" style={{ margin: '0 8px', fontSize: TYPE.heading, fontWeight: 700 }}>Targets</h2>
+          <h2 id="ins-targets-title" style={{ margin: '0 8px', fontSize: TYPE.heading, fontWeight: 800 }}>Targets</h2>
           <span style={{ margin: '4px 8px 14px', ...small, fontSize: TYPE.body, lineHeight: 1.4 }}>Where each measure should be. The company and every department are measured against these.</span>
           <div role="tablist" aria-orientation="vertical" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {SECTIONS.map((s) => {
@@ -238,7 +238,7 @@ export function TargetsEditor({ saved, now, depts, isDark, reduce, onSave, onClo
                 <button key={s.id} type="button" role="tab" aria-selected={sel} aria-controls="ins-targets-panel" data-ins-targets-section={s.id} onClick={() => setSection(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 12, border: 'none', background: sel ? 'var(--base)' : 'transparent', boxShadow: sel ? '0 2px 8px rgba(15,23,42,0.08)' : 'none', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                   <span aria-hidden style={{ width: 30, height: 30, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: 9, background: sel ? alpha(ink.bad, 0.12) : 'var(--base)', border: sel ? 'none' : '1px solid var(--hair)', color: sel ? 'var(--brand)' : 'var(--muted)' }}><s.Icon size={15} strokeWidth={2.3} /></span>
                   <span style={{ minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600 }}>{s.name}</span>
+                    <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700 }}>{s.name}</span>
                     <span style={{ display: 'block', ...small, color: wrong ? ink.bad : 'var(--muted)', fontWeight: wrong ? 800 : 600 }}>{wrong ? 'A number needs fixing' : `${s.keys.length} measures`}</span>
                   </span>
                 </button>
@@ -249,18 +249,18 @@ export function TargetsEditor({ saved, now, depts, isDark, reduce, onSave, onClo
 
         <div style={{ position: 'relative', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '22px 26px 18px' }}>
           <button type="button" aria-label="Close" onClick={close} style={{ position: 'absolute', right: 20, top: 18, width: 30, height: 30, display: 'grid', placeItems: 'center', borderRadius: 999, border: 'none', background: 'var(--track)', color: 'var(--text)', cursor: 'pointer' }}><X size={15} strokeWidth={2.4} aria-hidden /></button>
-          <h3 style={{ margin: 0, paddingRight: 40, fontSize: TYPE.heading, fontWeight: 700 }}>{on.name}</h3>
+          <h3 style={{ margin: 0, paddingRight: 40, fontSize: TYPE.heading, fontWeight: 800 }}>{on.name}</h3>
           <span style={{ ...small, fontSize: TYPE.body, marginTop: 3 }}>{on.what}</span>
           <div ref={panel} id="ins-targets-panel" role="tabpanel" aria-label={on.name} style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
             {on.keys.map((k) => <MeasureCard key={k} k={k} box={boxes[k]} onBox={setBox(k)} now={now[k]} depts={depts} ink={ink} />)}
           </div>
           <footer style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingTop: 14, marginTop: 12, borderTop: '1px solid var(--hair)' }}>
             <span style={{ ...small, minWidth: 0, flex: '1 1 180px' }}>{note}</span>
-            <button type="button" onClick={reset} disabled={state.busy} style={{ height: 32, padding: '0 10px', border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>Reset to defaults</button>
-            <button type="button" onClick={close} disabled={state.busy} style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-            <button type="button" data-ins-targets-save onClick={save} disabled={bad || !changed || state.busy} style={{ height: 32, padding: '0 16px', borderRadius: 10, border: 'none', background: 'var(--brand)', color: '#FFFFFF', fontSize: TYPE.body, fontWeight: 600, cursor: bad || !changed || state.busy ? 'not-allowed' : 'pointer', opacity: bad || !changed ? 0.45 : 1 }}>{state.busy ? 'Saving…' : 'Save targets'}</button>
+            <button type="button" onClick={reset} disabled={state.busy} style={{ height: 32, padding: '0 10px', border: 'none', background: 'transparent', color: 'var(--muted)', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>Reset to defaults</button>
+            <button type="button" onClick={close} disabled={state.busy} style={{ height: 32, padding: '0 14px', borderRadius: 10, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+            <button type="button" data-ins-targets-save onClick={save} disabled={bad || !changed || state.busy} style={{ height: 32, padding: '0 16px', borderRadius: 10, border: 'none', background: 'var(--brand)', color: '#FFFFFF', fontSize: TYPE.body, fontWeight: 700, cursor: bad || !changed || state.busy ? 'not-allowed' : 'pointer', opacity: bad || !changed ? 0.45 : 1 }}>{state.busy ? 'Saving…' : 'Save targets'}</button>
           </footer>
-          {state.error && <div role="alert" data-ins-targets-error style={{ marginTop: 10, padding: '8px 12px', borderRadius: 10, background: alpha(ink.bad, 0.1), fontSize: TYPE.body, fontWeight: 600, color: 'var(--text)' }}>{state.error}</div>}
+          {state.error && <div role="alert" data-ins-targets-error style={{ marginTop: 10, padding: '8px 12px', borderRadius: 10, background: alpha(ink.bad, 0.1), fontSize: TYPE.body, fontWeight: 700, color: 'var(--text)' }}>{state.error}</div>}
         </div>
       </motion.div>
     </div>,

@@ -34,10 +34,10 @@ function Filter({ f, value, counts, open, onOpen, onPick }) {
     <div data-ins-people-filter={f.key}>
       <button type="button" onClick={onOpen} aria-expanded={open} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, border: 'none', background: open ? 'var(--base)' : 'transparent', boxShadow: open ? '0 2px 8px rgba(15,23,42,0.08)' : 'none', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600 }}>{f.name}</span>
+          <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700 }}>{f.name}</span>
           <span style={{ display: 'block', ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || f.all}</span>
         </span>
-        <span style={{ fontSize: TYPE.label, fontWeight: 600, color: 'var(--muted)', background: 'var(--track)', borderRadius: 999, padding: '2px 8px' }}>{counts.length}</span>
+        <span style={{ fontSize: TYPE.label, fontWeight: 700, color: 'var(--muted)', background: 'var(--track)', borderRadius: 999, padding: '2px 8px' }}>{counts.length}</span>
         <ChevronDown size={14} strokeWidth={2.4} aria-hidden style={{ color: 'var(--muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s ease' }} />
       </button>
       {open && (
@@ -54,8 +54,8 @@ function Filter({ f, value, counts, open, onOpen, onPick }) {
               return (
                 <button key={c.value ?? 'all'} type="button" onClick={() => onPick(c.value)} aria-pressed={on} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', borderRadius: 7, border: 'none', background: on ? 'rgba(230,0,0,0.06)' : 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                   <span aria-hidden style={{ width: 14, height: 14, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: 4, border: on ? 'none' : '1.5px solid var(--tick)', background: on ? 'var(--brand-fill)' : 'transparent', color: '#FFFFFF' }}>{on && <Check size={10} strokeWidth={3.2} />}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: TYPE.body, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.value ?? f.all}</span>
-                  <span style={{ ...small, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{num(c.count)}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.value ?? f.all}</span>
+                  <span style={{ ...small, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{num(c.count)}</span>
                 </button>
               );
             })}
@@ -66,7 +66,7 @@ function Filter({ f, value, counts, open, onOpen, onPick }) {
   );
 }
 
-const cell = (v, color) => <span role="cell" style={{ textAlign: 'center', fontSize: TYPE.figure, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: v ? color : 'var(--tick)' }}>{v}</span>;
+const cell = (v, color) => <span role="cell" style={{ textAlign: 'center', fontSize: TYPE.figure, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: v ? color : 'var(--tick)' }}>{v}</span>;
 
 /**
  * The list. `title` is what was clicked; `where` the tab or department it
@@ -98,13 +98,13 @@ export function PeopleList({ title, where, rows, isDark, reduce, onBigPicture, o
   const pick = (key, v) => { setPicked((p) => ({ ...p, [key]: v })); setAt(0); };
   const saveAs = () => downloadXlsx(xlsxName('insights', title, 'people'), peopleBook(list, { title: `${title} · ${where}` }));
 
-  const btn = { height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', borderRadius: 10, fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' };
+  const btn = { height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', borderRadius: 10, fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' };
 
   return createPortal(
     <div data-ins-people-list onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ ...themeVars(isDark), position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16, background: 'rgba(15,23,42,0.42)', backdropFilter: 'blur(3px)', fontFamily: "'Inter', system-ui, sans-serif" }}>
       <motion.div role="dialog" aria-modal="true" aria-label={`People · ${title}`} initial={{ opacity: 0, y: reduce ? 0 : 10, scale: reduce ? 1 : 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduce ? 0 : 0.22, ease: EASE }} style={{ width: 'min(1060px, 100%)', maxHeight: 'calc(100vh - 32px)', display: 'grid', gridTemplateColumns: '250px minmax(0,1fr)', overflow: 'hidden', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--base)', boxShadow: '0 30px 70px rgba(15,23,42,0.28)', color: 'var(--text)' }}>
         <nav aria-label="Narrow the list" className="ins-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '20px 12px', background: 'var(--plate)', borderRight: '1px solid var(--hair)', overflowY: 'auto' }}>
-          <h2 style={{ margin: '0 8px', fontSize: TYPE.heading, fontWeight: 700 }}>People</h2>
+          <h2 style={{ margin: '0 8px', fontSize: TYPE.heading, fontWeight: 800 }}>People</h2>
           <span style={{ margin: '4px 8px 12px', ...small, fontSize: TYPE.body, lineHeight: 1.4 }}>Narrow the list. Each choice adds to what you clicked.</span>
           {FILTERS.map((f) => <Filter key={f.key} f={f} value={picked[f.key]} counts={counts[f.key]} open={open === f.key} onOpen={() => setOpen((o) => (o === f.key ? null : f.key))} onPick={(v) => pick(f.key, v)} />)}
         </nav>
@@ -112,7 +112,7 @@ export function PeopleList({ title, where, rows, isDark, reduce, onBigPicture, o
         <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column', padding: '20px 24px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: TYPE.heading, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+              <span style={{ display: 'block', fontSize: TYPE.heading, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
               <span style={{ display: 'block', ...small, fontSize: TYPE.body, marginTop: 2 }}>{where}</span>
             </span>
             {onBigPicture && <button type="button" data-ins-people-bp onClick={() => onBigPicture(picked)} style={{ ...btn, border: '1px solid var(--card-edge)', background: 'var(--ghost)', color: 'var(--text)' }}>Open in the Big Picture <ArrowUpRight size={13} strokeWidth={2.6} aria-hidden /></button>}
@@ -126,7 +126,7 @@ export function PeopleList({ title, where, rows, isDark, reduce, onBigPicture, o
           </label>
 
           <div role="table" aria-label={`People · ${title}`} style={{ marginTop: 12 }}>
-            <div role="row" style={{ display: 'grid', gridTemplateColumns: COLS, padding: '0 16px 6px', fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            <div role="row" style={{ display: 'grid', gridTemplateColumns: COLS, padding: '0 16px 6px', fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>
               <span role="columnheader">Person</span>
               {['Emails', 'Clicked', 'Reported', 'Gave details'].map((h) => <span key={h} role="columnheader" style={{ textAlign: 'center' }}>{h}</span>)}
             </div>
@@ -134,7 +134,7 @@ export function PeopleList({ title, where, rows, isDark, reduce, onBigPicture, o
               {shown.map((x) => (
                 <div key={x.id} role="row" data-ins-people-row style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', height: ROW_H, padding: '0 16px', borderRadius: 12, border: '1px solid var(--hair-strong)', background: 'var(--base)' }}>
                   <span role="cell" style={{ minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: TYPE.strong + 1, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
+                    <span style={{ display: 'block', fontSize: TYPE.strong + 1, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
                     <span style={{ display: 'block', ...small, fontSize: TYPE.body, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.department}</span>
                   </span>
                   {cell(x.emails, 'var(--text)')}
