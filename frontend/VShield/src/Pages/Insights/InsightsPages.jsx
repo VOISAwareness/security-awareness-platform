@@ -80,8 +80,8 @@ export function SummaryPage({ ctx }) {
           hi={gaveHi}
           ticks={steps(gaveHi, gaveHi > 0.08 ? 0.05 : 0.02)}
           tickText={pc}
-          zones={[{ from: 0, to: G.target, color: ink.good }, { from: G.target, to: gaveHi, color: ink.bad }]}
-          columns={{ key: 'gave', colorOf: (v) => (v <= G.target ? ink.good : ink.bad), text: pc1 }}
+          zones={[{ from: 0, to: G.target, color: ink.good }]}
+          columns={{ key: 'gave', split: { at: G.target, below: ink.good, above: ink.bad }, text: pc1 }}
           right={10}
           tip={(s) => ({ head: head(s), rows: [{ label: 'Gave details away', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
         />
@@ -104,7 +104,7 @@ export function SummaryPage({ ctx }) {
           {[['Not yet trained', c.untrained, ink.bad, p.now.cohorts?.untrained, 'Not started'], ['Trained', c.trained, ink.good, p.now.cohorts?.trained, 'Passed']].map(([label, v, col, who, step]) => (
             <div key={label} {...pressable(() => people(`${label}, who clicked`, { step, did: 'clicked' }))} {...tip(`${num(who)} people`)} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 52px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
               <span><span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600 }}>{label}</span><span style={small}>{num(who)} people</span></span>
-              <span style={{ height: 14, borderRadius: 6, background: 'var(--track)', overflow: 'hidden' }}><span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${Math.min(100, ((v || 0) / 0.25) * 100)}%`, background: col, borderRadius: 6, transformOrigin: 'left' }} /></span>
+              <span style={{ height: 14, borderRadius: 6, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, ((v || 0) / 0.25) * 100)}%`, background: col, borderRadius: 6, transformOrigin: 'left' }} /></span>
               <span style={{ textAlign: 'right', fontSize: TYPE.figure, fontWeight: 700 }}>{pc1(v)}</span>
             </div>
           ))}
@@ -160,7 +160,7 @@ export function DepartmentsPage({ ctx }) {
           rowH={30}
           what="departments"
           render={(d, k) => (
-            <button key={d.name} type="button" className="ins-row ins-in-x" data-ins-dept-row={d.name} onClick={() => openDept(d.name)} aria-label={`${d.name}: ${DEPT_COLS.map((c) => `${c.name} ${Number.isFinite(d.now[c.key]) ? c.text(d.now[c.key]) : 'no figure'}`).join(', ')}. Open it`} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_GRID, columnGap: 8, alignItems: 'center', height: 30, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+            <button key={d.name} type="button" className="ins-row" data-ins-dept-row={d.name} onClick={() => openDept(d.name)} aria-label={`${d.name}: ${DEPT_COLS.map((c) => `${c.name} ${Number.isFinite(d.now[c.key]) ? c.text(d.now[c.key]) : 'no figure'}`).join(', ')}. Open it`} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_GRID, columnGap: 8, alignItems: 'center', height: 30, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
               <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
               {DEPT_COLS.map((c) => {
                 const v = d.now[c.key];
@@ -235,7 +235,7 @@ function RateRows({ rows, T, ink, onRow }) {
       {rows.map((r) => (
         <div key={r.name} {...pressable(() => onRow(r))} {...tip(r.tip)} style={{ display: 'grid', gridTemplateColumns: '120px minmax(0,1fr) 56px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
           <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-          <span style={{ height: 10, borderRadius: 5, background: 'var(--track)', overflow: 'hidden' }}><span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${((r.v || 0) / max) * 100}%`, background: within(r.v, T) ? ink.good : ink.bad, borderRadius: 5, transformOrigin: 'left' }} /></span>
+          <span style={{ height: 10, borderRadius: 5, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${((r.v || 0) / max) * 100}%`, background: within(r.v, T) ? ink.good : ink.bad, borderRadius: 5, transformOrigin: 'left' }} /></span>
           <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{pc1(r.v)}</span>
         </div>
       ))}
@@ -321,7 +321,7 @@ export function CampaignsPage({ ctx }) {
               <span style={{ fontSize: TYPE.strong, fontWeight: 600 }}>{l.type}</span>
               {[[l.hooked, ink.bad], [l.reportRate, ink.good]].map(([v, col], k) => (
                 <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="ins-grow-x" style={{ display: 'block', height: 11, width: `${((v || 0) / max) * 100}%`, background: col, borderRadius: '0 5px 5px 0', transformOrigin: 'left' }} />
+                  <span style={{ display: 'block', height: 11, width: `${((v || 0) / max) * 100}%`, background: col, borderRadius: '0 5px 5px 0', transformOrigin: 'left' }} />
                   <span style={{ fontSize: TYPE.body, fontWeight: 700, color: 'var(--text)' }}>{pc1(v)}</span>
                 </span>
               ))}
@@ -344,7 +344,7 @@ export function CampaignsPage({ ctx }) {
             rowH={32}
             what="campaigns"
             render={(c, k) => (
-              <button key={c.id} type="button" className="ins-row ins-in-x" data-ins-campaign-row={c.id} onClick={() => people(c.name, { campaign: c.name })} {...tip(`${num(c.delivered)} people`)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: CAMP_GRID, columnGap: 8, alignItems: 'center', height: 32, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+              <button key={c.id} type="button" className="ins-row" data-ins-campaign-row={c.id} onClick={() => people(c.name, { campaign: c.name })} {...tip(`${num(c.delivered)} people`)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: CAMP_GRID, columnGap: 8, alignItems: 'center', height: 32, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                 <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
                 <span style={{ ...small, fontSize: TYPE.body }}>{day(+new Date(c.started))}</span>
                 <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{num(c.delivered)}</span>
@@ -424,9 +424,9 @@ function TrainRows({ items, cols, what, ink, onRow }) {
         rowH={28}
         what={what}
         render={(x, k) => (
-          <button key={x.name} type="button" className="ins-row ins-in-x" onClick={() => onRow(x)} {...tip(x.tip)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, alignItems: 'center', height: 28, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+          <button key={x.name} type="button" className="ins-row" onClick={() => onRow(x)} {...tip(x.tip)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, alignItems: 'center', height: 28, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
             <span style={{ fontSize: TYPE.strong, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
-            <span style={{ height: 7, borderRadius: 4, background: 'var(--track)', overflow: 'hidden' }}><span className="ins-grow-x" style={{ display: 'block', height: '100%', width: `${(x.done || 0) * 100}%`, background: ink.measure, borderRadius: 4, transformOrigin: 'left' }} /></span>
+            <span style={{ height: 7, borderRadius: 4, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${(x.done || 0) * 100}%`, background: ink.measure, borderRadius: 4, transformOrigin: 'left' }} /></span>
             <span style={{ fontSize: TYPE.strong, fontWeight: 700 }}>{pc(x.done)}</span>
             <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{x.right}</span>
           </button>

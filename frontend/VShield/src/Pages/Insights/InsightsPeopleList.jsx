@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Search, X } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, Download, Search, X } from 'lucide-react';
 
 import { countsBy, findPeople, peopleBook } from '../../services/insightsPeople';
+import { Pager } from '../Leaderboard/BigPictureTables';
 import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { EASE, INK, num, small, themeVars, TYPE } from './insightsUi';
 
@@ -24,13 +25,6 @@ const FILTERS = [
   { key: 'campaign', name: 'Campaign', all: 'All campaigns' },
   { key: 'level', name: 'Risk level', all: 'Any level' },
 ];
-
-// the page numbers to show: the first few, then … and the last
-function pages(at, n) {
-  if (n <= 7) return Array.from({ length: n }, (_, i) => i);
-  const head = at < 4 ? [0, 1, 2, 3, 4] : [0, null, at - 1, at, at + 1];
-  return [...head.filter((p) => p === null || p < n - 1), ...(head.at(-1) < n - 2 ? [null] : []), n - 1];
-}
 
 function Filter({ f, value, counts, open, onOpen, onPick }) {
   const [q, setQ] = useState('');
@@ -105,7 +99,6 @@ export function PeopleList({ title, where, rows, isDark, reduce, onBigPicture, o
   const saveAs = () => downloadXlsx(xlsxName('insights', title, 'people'), peopleBook(list, { title: `${title} · ${where}` }));
 
   const btn = { height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', borderRadius: 10, fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' };
-  const pg = (on, disabled) => ({ minWidth: 30, height: 30, padding: '0 8px', borderRadius: 6, border: `1px solid ${on ? 'var(--brand-fill)' : 'var(--hair-strong)'}`, background: on ? 'var(--brand-fill)' : disabled ? 'var(--plate)' : 'var(--base)', color: on ? '#FFFFFF' : disabled ? 'var(--tick)' : 'var(--text)', fontSize: TYPE.title, fontWeight: 600, cursor: disabled ? 'default' : 'pointer', display: 'inline-grid', placeItems: 'center' });
 
   return createPortal(
     <div data-ins-people-list onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ ...themeVars(isDark), position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16, background: 'rgba(15,23,42,0.42)', backdropFilter: 'blur(3px)', fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -154,16 +147,7 @@ export function PeopleList({ title, where, rows, isDark, reduce, onBigPicture, o
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--hair)' }}>
-            <span style={{ ...small, fontSize: TYPE.body, fontWeight: 600 }}>{list.length ? `${num(page * PER_PAGE + 1)}–${num(page * PER_PAGE + shown.length)} of ${num(list.length)} people` : '0 people'}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }} aria-label="Pages">
-              <button type="button" aria-label="Previous page" disabled={page === 0} onClick={() => setAt(page - 1)} style={pg(false, page === 0)}><ChevronLeft size={14} /></button>
-              {pages(page, n).map((p, i) => (p === null
-                ? <span key={`gap${i}`} style={{ color: 'var(--muted)', fontWeight: 600 }}>…</span>
-                : <button key={p} type="button" aria-label={`Page ${p + 1}`} aria-current={p === page ? 'page' : undefined} onClick={() => setAt(p)} style={pg(p === page, false)}>{p + 1}</button>))}
-              <button type="button" aria-label="Next page" disabled={page >= n - 1} onClick={() => setAt(page + 1)} style={pg(false, page >= n - 1)}><ChevronRight size={14} /></button>
-            </span>
-          </div>
+          <div style={{ marginTop: 12 }}><Pager page={page} pages={n} total={list.length} size={PER_PAGE} onPage={setAt} /></div>
         </div>
       </motion.div>
     </div>,
