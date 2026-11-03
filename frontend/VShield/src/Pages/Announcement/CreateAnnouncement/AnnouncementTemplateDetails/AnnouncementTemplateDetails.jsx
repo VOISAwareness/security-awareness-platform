@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import AnnouncementReviewPublishDashboard from "../AnnouncementReviewPublishDashboard/AnnouncementReviewPublishDashboard";
 import announcamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
@@ -307,45 +307,6 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
       [field]: value,
     }));
   };
-
-  // =========================================================
-  // CLICK OUTSIDE
-  // =========================================================
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (editorFxRef.current && !editorFxRef.current.contains(e.target)) {
-        setShowEditorFxMenu(false);
-      }
-
-      if (subjectFxRef.current && !subjectFxRef.current.contains(e.target)) {
-        setShowSubjectFxMenu(false);
-      }
-
-      if (
-        userListDropdownRef.current &&
-        !userListDropdownRef.current.contains(e.target)
-      ) {
-        if (typeof setIsDropdownOpen === "function") {
-          setIsDropdownOpen(false);
-        }
-      }
-
-      if (
-        singleUserDropdownRef.current &&
-        !singleUserDropdownRef.current.contains(e.target)
-      ) {
-        if (typeof setIsSingleUserDropdownOpen === "function") {
-          setIsSingleUserDropdownOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const shellBg = isDark ? "#1C1E24" : "#F1F5F7";
 
@@ -1077,6 +1038,8 @@ const AnnouncementTemplateDetails = () => {
       bg-[#000000]
       text-white
       cursor-pointer
+      dark:bg-[#ffffff]
+      dark:text-black
     `}
               >
                 BACK
