@@ -250,6 +250,8 @@ export function movement(start, end, churn = 0) {
 const cohortOf = (c) => c && ({
   trained: c.trained,
   untrained: c.untrained,
+  trainedClicks: c.trainedClicks ?? null, // how many of each clicked
+  untrainedClicks: c.untrainedClicks ?? null,
   trainedShare: rate(c.trained, c.trained + c.untrained),
   trainedRate: rate(c.trainedClicks, c.trained), // of those who finished their training, clicked in the step's simulations
   untrainedRate: rate(c.untrainedClicks, c.untrained),

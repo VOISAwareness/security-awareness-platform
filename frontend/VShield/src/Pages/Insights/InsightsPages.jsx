@@ -29,6 +29,49 @@ const card = { background: 'var(--base)', borderRadius: 16, padding: '12px 16px 
 const tip = (text) => ({ 'data-tip': text });
 const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }, style: { cursor: 'pointer' } });
 
+// Who is trained and who is not, each a bar as long as its number of
+// people, its red part those who clicked a phishing email; the share who
+// clicked on the right, green for the trained and red for the rest.
+function TrainingSplit({ cohorts, ink }) {
+  if (!cohorts) return null;
+  const all = cohorts.trained + cohorts.untrained;
+  const biggest = Math.max(cohorts.trained, cohorts.untrained) || 1;
+  const groups = [
+    { key: 'untrained', label: 'Not trained', people: cohorts.untrained, clicks: cohorts.untrainedClicks, rate: cohorts.untrainedRate, color: ink.bad },
+    { key: 'trained', label: 'Trained', people: cohorts.trained, clicks: cohorts.trainedClicks, rate: cohorts.trainedRate, color: ink.good },
+  ];
+  const swatch = (bg) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: bg }} />;
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
+        {groups.map((g) => {
+          const clicked = g.clicks ?? Math.round(g.people * (g.rate || 0));
+          return (
+            <div key={g.key} data-ins-cohort={g.key}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{ fontSize: TYPE.body, fontWeight: 800 }}>{g.label}</span>
+                  <span style={small}> · {num(g.people)} people ({pc(all ? g.people / all : null)})</span>
+                </span>
+                <span style={{ flexShrink: 0, fontSize: TYPE.body, fontWeight: 800, color: g.color }}>{pc1(g.rate)} clicked</span>
+              </div>
+              <div role="img" aria-label={`${g.label}: ${num(clicked)} of ${num(g.people)} people clicked`} style={{ display: 'flex', gap: 2, height: 18, marginTop: 4, width: `${(g.people / biggest) * 100}%`, minWidth: 24 }}>
+                <span style={{ width: `${(g.rate || 0) * 100}%`, minWidth: 4, background: ink.bad, borderRadius: '5px 0 0 5px' }} />
+                <span style={{ flex: 1, background: 'var(--track)', borderRadius: '0 5px 5px 0' }} />
+              </div>
+              <span style={{ display: 'block', ...small, marginTop: 3 }}>{num(clicked)} clicked</span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', gap: 14, paddingTop: 6, borderTop: '1px solid var(--hair)', ...small, fontWeight: 700 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{swatch(ink.bad)}Clicked</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{swatch('var(--track)')}Didn&apos;t click</span>
+      </div>
+    </div>
+  );
+}
+
 // --------------------------------------------------------------- Summary
 
 export function SummaryPage({ ctx }) {
@@ -39,7 +82,6 @@ export function SummaryPage({ ctx }) {
   const hi = Math.ceil(Math.max(...t.risk.map((s) => s.score), R.target) / 2) * 2 + 2;
   const gaveHi = Math.max(G.target * 3, ...t.months.map((s) => s.gave || 0)) * 1.2;
   const firstHi = Math.max(F.target + 5, ...t.months.map((s) => s.firstReport || 0)) * 1.15;
-  const c = t.training;
   return (
     <div data-ins-summary style={grid('repeat(6, minmax(0,1fr))', 'minmax(0,1.1fr) minmax(0,1fr)')}>
       <Card i={0} reduce={reduce} title="Risk score" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
@@ -99,24 +141,8 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: head(s), rows: [{ label: 'First report', value: mins(s.firstReport), color: s.firstReport <= F.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={4} reduce={reduce} title="Training effectiveness" sub="Share of people who clicked a phishing email" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {[['Not trained', c.untrained, ink.bad, p.now.cohorts?.untrained], ['Trained', c.trained, ink.good, p.now.cohorts?.trained]].map(([label, v, col, who]) => (
-              <div key={label} data-ins-cohort={label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px', borderRadius: 12, background: 'var(--plate)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: TYPE.body, fontWeight: 700 }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: col }} />{label}</span>
-                <span style={{ fontSize: TYPE.heading, fontWeight: 800, color: col, lineHeight: 1 }}>{pc1(v)}</span>
-                <span style={{ height: 6, borderRadius: 3, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, ((v || 0) / 0.25) * 100)}%`, background: col, borderRadius: 3 }} /></span>
-                <span style={small}>clicked, of {num(who)} people</span>
-              </div>
-            ))}
-          </div>
-          {c.untrained !== null && c.trained !== null && (
-            <span data-ins-lift style={{ ...small, fontSize: TYPE.body, textAlign: 'center' }}>
-              Clicks drop from <strong style={{ color: ink.bad, fontWeight: 800 }}>{pc1(c.untrained)}</strong> to <strong style={{ color: ink.good, fontWeight: 800 }}>{pc1(c.trained)}</strong> after training
-            </span>
-          )}
-        </div>
+      <Card i={4} reduce={reduce} title="Training effectiveness" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">
+        <TrainingSplit cohorts={p.now.cohorts} ink={ink} />
       </Card>
     </div>
   );
