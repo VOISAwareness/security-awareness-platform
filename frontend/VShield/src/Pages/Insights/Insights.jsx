@@ -17,7 +17,7 @@ import TabSummaryIcon from '../../assets/InsightsAssets/TabSummaryIcon.png';
 import TabDepartmentsIcon from '../../assets/InsightsAssets/TabDepartmentsIcon.png';
 import TabCampaignsIcon from '../../assets/InsightsAssets/TabCampaignsIcon.png';
 import TabTrainingIcon from '../../assets/InsightsAssets/TabTrainingIcon.png';
-import { Count, Definition, Delta, Explain } from './InsightsBits';
+import { Definition, Delta, Explain } from './InsightsBits';
 import { useSize } from './useSize';
 import { CampaignsPage, DepartmentPage, DepartmentsPage, SummaryPage, TrainingPage } from './InsightsPages';
 import { PeopleList } from './InsightsPeopleList';
@@ -143,42 +143,40 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 const FLOOR = 560;
 const LEFT_W = 266;
 
-function TabCard({ t, on, onPick }) {
+// The picked card is black, or white on the dark theme, as on Requests & Approvals.
+function TabCard({ t, on, onPick, isDark }) {
+  const fill = isDark ? '#FFFFFF' : '#000000';
+  const ink = isDark ? '#0F172A' : '#FFFFFF';
   return (
-    <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 66, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 64px 0 16px', borderRadius: 14, border: on ? '1px solid #000000' : '1px solid var(--card-edge)', background: on ? '#000000' : 'var(--sheet)', color: on ? '#FFFFFF' : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 8px 18px rgba(15,23,42,0.18)' : 'none', transition: 'background .2s ease, color .2s ease, box-shadow .2s ease' }}>
-      <span style={{ fontSize: TYPE.figure, fontWeight: 600, letterSpacing: '-0.01em', color: on ? t.color : 'inherit' }}>{t.label}</span>
-      <span style={{ fontSize: TYPE.small, fontWeight: 500, color: on ? 'rgba(255,255,255,0.72)' : 'var(--muted)' }}>{t.sub}</span>
+    <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 66, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 64px 0 16px', borderRadius: 14, border: on ? `1px solid ${fill}` : '1px solid var(--card-edge)', background: on ? fill : 'var(--sheet)', color: on ? ink : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 6px 14px rgba(15,23,42,0.16)' : 'none', transition: 'background .2s ease, color .2s ease' }}>
+      <span style={{ fontSize: TYPE.figure, fontWeight: 600, letterSpacing: '-0.01em', color: on ? (isDark ? '#0F172A' : t.color) : 'inherit' }}>{t.label}</span>
+      <span style={{ fontSize: TYPE.small, fontWeight: 500, color: on ? (isDark ? '#475569' : 'rgba(255,255,255,0.72)') : 'var(--muted)' }}>{t.sub}</span>
       <img src={t.art} alt="" aria-hidden width={56} height={56} style={{ position: 'absolute', right: -8, bottom: -8, width: 56, height: 56, objectFit: 'contain', opacity: on ? 1 : 0.9 }} />
     </button>
   );
 }
 
-// What the period holds, and how far the data goes.
-function ScopeCard({ shownDays, onDays, dept, depts, onDept, totals, upTo, reduce }) {
-  const row = { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, padding: '3px 0', borderTop: '1px solid rgba(255,255,255,0.08)' };
+// The period, and what it holds in six boxes; black, or white on the dark theme.
+function ScopeCard({ shownDays, onDays, totals, upTo, reduce, isDark }) {
+  const c = isDark
+    ? { bg: '#FFFFFF', text: '#0F172A', soft: '#475569', faint: '#64748B', box: '#F1F5F9', track: '#E2E8F0', on: '#0F172A', onText: '#FFFFFF' }
+    : { bg: '#0F172A', text: '#FFFFFF', soft: 'rgba(255,255,255,0.72)', faint: 'rgba(255,255,255,0.55)', box: 'rgba(255,255,255,0.07)', track: 'rgba(255,255,255,0.08)', on: '#FFFFFF', onText: '#0F172A' };
   return (
-    <section data-ins-scope aria-label="Scope" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 14, background: '#0F172A', color: '#FFFFFF' }}>
-      <span style={{ ...eyebrow, color: 'rgba(255,255,255,0.6)' }}>Scope</span>
-      <div role="radiogroup" aria-label="Period" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, padding: 2, borderRadius: 9, background: 'rgba(255,255,255,0.08)' }}>
-        {PERIODS.map((x) => <button key={x.id} type="button" role="radio" aria-checked={shownDays === x.id} title={x.title} data-ins-period={x.id} onClick={() => onDays(x.id)} style={{ height: 26, borderRadius: 7, border: 'none', background: shownDays === x.id ? '#FFFFFF' : 'transparent', color: shownDays === x.id ? '#0F172A' : 'rgba(255,255,255,0.72)', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, color .2s ease' }}>{x.label}</button>)}
+    <section data-ins-scope aria-label="Scope" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, background: c.bg, color: c.text }}>
+      <span style={{ ...eyebrow, color: c.faint }}>Scope</span>
+      <div role="radiogroup" aria-label="Period" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, padding: 2, borderRadius: 9, background: c.track }}>
+        {PERIODS.map((x) => <button key={x.id} type="button" role="radio" aria-checked={shownDays === x.id} title={x.title} data-ins-period={x.id} onClick={() => onDays(x.id)} style={{ height: 26, borderRadius: 7, border: 'none', background: shownDays === x.id ? c.on : 'transparent', color: shownDays === x.id ? c.onText : c.soft, fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, color .2s ease' }}>{x.label}</button>)}
       </div>
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Department</span>
-        <select data-ins-dept-select value={dept || ''} onChange={(e) => onDept(e.target.value || null)} style={{ height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', padding: '0 6px', fontFamily: 'inherit', fontSize: TYPE.body, fontWeight: 600 }}>
-          <option value="" style={{ color: '#0F172A' }}>All departments</option>
-          {depts.map((d) => <option key={d.name} value={d.name} style={{ color: '#0F172A' }}>{d.name}</option>)}
-        </select>
-      </label>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>In this period</span>
+      <span style={{ fontSize: TYPE.label, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: c.faint }}>In this period</span>
+      <div data-ins-totals style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'minmax(0,1fr)', gap: 6 }}>
         {totals.map(([label, v]) => (
-          <span key={label} style={row}>
-            <span style={{ fontSize: TYPE.body, fontWeight: 500, color: 'rgba(255,255,255,0.72)' }}>{label}</span>
-            <strong style={{ fontSize: TYPE.strong, fontWeight: 700 }}>{num(v)}</strong>
-          </span>
+          <div key={label} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, background: c.box }}>
+            <strong style={{ fontSize: TYPE.figure, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{num(v)}</strong>
+            <span style={{ fontSize: TYPE.small, fontWeight: 500, color: c.soft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+          </div>
         ))}
-        <span style={{ marginTop: 6, fontSize: TYPE.label, fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>Data up to {upTo}</span>
       </div>
+      <span style={{ fontSize: TYPE.label, fontWeight: 500, color: c.faint }}>Data up to {upTo}</span>
     </section>
   );
 }
@@ -189,7 +187,7 @@ function CornerTile({ tab, dept, people, onBack, reduce }) {
   return (
     <div data-ins-corner={dept ? 'department' : tab} style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', borderRadius: L_R, background: 'var(--sheet)', border: '1px solid var(--sheet-edge)', padding: '12px 18px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, overflow: 'hidden' }}>
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={dept || tab} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -6 }} transition={{ duration: reduce ? 0 : 0.22, ease: EASE }} style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+        <motion.div key={dept || tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.15, ease: EASE }} style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           {dept ? (
             <>
               <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 600, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
@@ -229,17 +227,17 @@ function ChangeNote({ k, ink, days }) {
 }
 const changeWords = (k, days) => (!k.delta ? '' : k.delta.dir === 'flat' ? `; no change on the ${days} days before` : `; ${k.delta.dir === 'up' ? 'up' : 'down'} ${k.delta.shown} on the ${days} days before`);
 
-function TargetKpi({ k, i, ink, reduce, days, dim }) {
+function TargetKpi({ k, ink, reduce, days, dim }) {
   const at = standing(k.scaleValue, k.target);
   const opens = Boolean(k.onOpen);
   const press = opens ? { role: 'button', tabIndex: 0, onClick: k.onOpen, onKeyDown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } } } : { role: 'group' };
   return (
-    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={{ opacity: 0, y: reduce ? 0 : 6 }} animate={{ opacity: dim ? 0.4 : 1, y: 0 }} transition={{ duration: reduce ? 0 : 0.3, delay: reduce ? 0 : 0.03 * i, ease: EASE }} style={tileStyle(opens)}>
+    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={false} animate={{ opacity: dim ? 0.4 : 1 }} transition={{ duration: reduce ? 0 : 0.2, ease: EASE }} style={tileStyle(opens)}>
       <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}>
         <span style={{ ...eyebrow, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
         <Explain label={`What ${k.label} means, and its change`}><Definition term={k.define}><ChangeNote k={k} ink={ink} days={days} /></Definition></Explain>
       </span>
-      <span data-ins-row="value" style={{ fontSize: TYPE.number, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}><Count value={k.value} format={k.format} reduce={reduce} /></span>
+      <span data-ins-row="value" style={{ fontSize: TYPE.number, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>{k.format(k.value)}</span>
       <span data-ins-row="scale" style={{ width: '100%' }}><TargetBar value={k.scaleValue} target={k.target} ink={ink} /></span>
       <span data-ins-row="target" style={{ ...small, fontWeight: 600, whiteSpace: 'nowrap' }}>Target {k.targetText}</span>
     </motion.div>
@@ -417,17 +415,15 @@ const Insights = () => {
             {/* the tabs, and the scope under them */}
             <nav aria-label="Insights" style={{ width: LEFT_W, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
               <div role="tablist" aria-orientation="vertical" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {TABS.map((t) => <TabCard key={t.id} t={t} on={tab === t.id} onPick={() => pick(t.id)} />)}
+                {TABS.map((t) => <TabCard key={t.id} t={t} on={tab === t.id} onPick={() => pick(t.id)} isDark={isDark} />)}
               </div>
               <ScopeCard
                 shownDays={shownDays}
                 onDays={(d) => { setShownDays(d); startTransition(() => setDays(d)); }}
-                dept={dept}
-                depts={depts}
-                onDept={(name) => (name ? openDept(name) : setDept(null))}
                 totals={totals}
                 upTo={upTo}
                 reduce={reduce}
+                isDark={isDark}
               />
             </nav>
 
@@ -443,7 +439,7 @@ const Insights = () => {
 
               {/* the arm: six measures, each against its target */}
               <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 6, padding: `10px 10px ${L_GAP + 3}px 12px`, position: 'relative' }}>
-                {kpis.map((k, i) => <TargetKpi key={k.id} k={k} i={i} ink={ink} reduce={reduce} days={m.basis.days} dim={focus && !focus.includes(k.id)} />)}
+                {kpis.map((k) => <TargetKpi key={k.id} k={k} ink={ink} reduce={reduce} days={m.basis.days} dim={focus && !focus.includes(k.id)} />)}
               </div>
 
               {/* the base: the tab on show, or a department's own charts */}
