@@ -110,10 +110,8 @@ export const LmsMainContent = () => {
   };
 
   return (
-    <div className={`flex-1 min-w-0 rounded-[28px] border shadow-md flex flex-col h-full overflow-hidden ${
-      ((currentView === "paths" && (pathsSubTab === "create" || editingPath)) ||
-       (currentView === "individual" && (showVideoUploader || editingVideo || showQuizCreator || editingQuiz || showCertCreator || editingCert)) ||
-       (currentView === "add-package")) ? "p-0" : "p-6"
+    <div className={`flex-1 min-w-0 rounded-[8px] border flex flex-col h-full overflow-hidden ${
+      currentView === "paths" && (pathsSubTab === "create" || editingPath) ? "" : "p-3 pb-1"
     } ${
       isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
     }`}>

@@ -5,17 +5,14 @@ import {
   HelpCircle,
   Award,
   Check,
-  ChevronRight,
-  ChevronLeft,
   ChevronDown,
   Plus,
   Trash2,
   Eye,
-  UploadCloud,
-  Sparkles
+  UploadCloud
 } from "lucide-react";
 
-import CreateNewCertificates from "../../InvidualTrainings/IndividualCertificates/CreateNewCertificates"; 
+import CreateNewCertificates from "../../InvidualTrainings/IndividualCertificates/CreateNewCertificates";
 import { useIsDarkMode } from "../../components/modals/helpers";
 import { VideoPlayerModal } from "../../components/modals/VideoPlayerModal";
 import { QuizTakerModal } from "../../components/modals/QuizTakerModal";
@@ -45,7 +42,7 @@ export const CreateNewTrainingPath = ({
   onAddPackage
 }) => {
   const isDark = useIsDarkMode();
-    
+
 
   const [step, setStep] = useState(1);
   const [pathName, setPathName] = useState(editingPath ? editingPath.TrainingPathName : "");
@@ -59,7 +56,7 @@ export const CreateNewTrainingPath = ({
   const [pathType, setPathType] = useState(
     editingPath?.isZipPath ? "zip" : "individual"
   );
-  
+
   const [selectedVideos, setSelectedVideos] = useState(
     editingPath ? editingPath.TrainingVideoAttached || [] : []
   );
@@ -147,10 +144,10 @@ export const CreateNewTrainingPath = ({
   };
 
   const bgCard = isDark ? "bg-[#090D1A] border-white/5 text-white" : "bg-[#F8FAFC] border-slate-200 text-slate-800 shadow-xl";
-      const textPrimary = isDark ? "text-white" : "text-slate-800";
+  const textPrimary = isDark ? "text-white" : "text-black";
   const textSecondary = isDark ? "text-slate-400" : "text-slate-500";
   const bgInput = isDark ? "bg-[#04060d] border-white/10 text-white" : "bg-white border-slate-300 text-slate-800";
-  
+
   if (showVideoUpload) {
     return (
       <CreateNewVideos
@@ -242,7 +239,7 @@ export const CreateNewTrainingPath = ({
       <div className="flex-1 h-full min-h-[500px] bg-[#090D1A] rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-white/10 text-left">
         <div className="px-6 py-4 bg-black/40 border-b border-white/10 flex items-center justify-between">
           <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
-            PREVIEW SIMULATION • {previewPackage.PackageName}
+            {previewPackage.PackageName}
           </span>
           <button
             type="button"
@@ -269,7 +266,7 @@ export const CreateNewTrainingPath = ({
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                Extracting preview...
+                Setting up preview...
               </p>
             </div>
           )}
@@ -280,22 +277,22 @@ export const CreateNewTrainingPath = ({
 
   const wizardContent = (
     <div className={`overflow-hidden flex flex-col ${
-      isInline 
-        ? "w-full h-full min-h-[500px]" 
+      isInline
+        ? "w-full h-full min-h-[500px]"
         : `border rounded-2xl ${bgCard} w-full max-w-3xl h-[85vh]`
     }`}>
         {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
         <div
           className={`w-full h-12 flex items-stretch flex-shrink-0 select-none border-b ${
             isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
-          } ${isInline ? "rounded-t-[28px] overflow-hidden mb-6" : ""}`}
+          } ${isInline ? "rounded-t-[8px] overflow-hidden mb-6" : ""}`}
         >
           <div className="flex-1 flex items-stretch">
             {[
-              { id: 1, step: "1", titleLine1: "1. Specifications" },
-              { id: 2, step: "2", titleLine1: "2. Pathway Model" },
-              { id: 3, step: "3", titleLine1: "3. Select Assets" },
-              { id: 4, step: "4", titleLine1: "4. Review & Publish" }
+              { id: 1, step: "1", titleLine1: "Describe Path" },
+              { id: 2, step: "2", titleLine1: "Select Type" },
+              { id: 3, step: "3", titleLine1: "Select Assets" },
+              { id: 4, step: "4", titleLine1: "Review & Publish" }
             ].map((s) => {
               const isCurrent = s.id === step;
 
@@ -318,18 +315,28 @@ export const CreateNewTrainingPath = ({
               return (
                 <div
                   key={s.id}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 transition-opacity ${
-                    isDark ? 'opacity-80 text-white' : 'opacity-85 text-black'
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 transition-opacity
+                    ${
+                      s.id < step
+                        ? "text-[#8ED973] opacity-100"
+                        : isDark
+                        ? "text-white opacity-80"
+                        : "text-black opacity-85"
+                    }`}
                 >
+                  {/* green step text and ball */}
                   <div
                     className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${
-                      isDark ? 'bg-white text-black' : 'bg-black text-white'
+                      s.id < step
+                        ? "bg-[#8ED973] text-white"
+                        : isDark
+                        ? "bg-white text-black"
+                        : "bg-black text-white"
                     }`}
                   >
                     {s.step}
                   </div>
-                  <span className="text-[10px] font-bold truncate">{s.titleLine1.split('. ')[1]}</span>
+                  <span className="text-[10px] font-bold truncate">{s.titleLine1}</span>
                 </div>
               );
             })}
@@ -353,7 +360,7 @@ export const CreateNewTrainingPath = ({
             <div className="flex flex-col gap-4">
               <div>
                 <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${textSecondary}`}>
-                  Pathway Name
+                  Learning Path Name
                 </label>
                 <input
                   type="text"
@@ -405,12 +412,8 @@ export const CreateNewTrainingPath = ({
           {step === 2 && (
             <div className="flex flex-col gap-5 text-left">
               <h3 className={`text-sm font-black uppercase tracking-tight ${textPrimary}`}>
-                Select Pathway Model
+                Select the type of learning path
               </h3>
-              <p className={`text-xs -mt-2 leading-relaxed ${textSecondary}`}>
-                Choose the format of this training path. You can either construct a sequence of standard lessons or attach a pre-compiled zip package directly.
-              </p>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                 {/* Option A: Modular Sequence */}
                 <div
@@ -431,13 +434,13 @@ export const CreateNewTrainingPath = ({
                       {pathType === "individual" && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
                     </span>
                   </div>
-                  <h4 className={`text-sm font-black uppercase ${textPrimary}`}>Modular Sequence</h4>
+                  <h4 className={`text-sm font-black uppercase ${textPrimary}`}>Videos & Quizzes</h4>
                   <p className={`text-[10.5px] leading-relaxed ${textSecondary}`}>
-                    Assemble multiple videos, assessment quizzes, and design achievement certifications.
+                    Select multiple videos, assessment, and design certificates.
                   </p>
                 </div>
 
-                {/* Option B: Zip Package */}
+                {/* Option B: Imported Package */}
                 <div
                   onClick={() => setPathType("zip")}
                   className={`p-5 rounded-2xl border flex flex-col gap-2.5 cursor-pointer transition-all ${
@@ -456,9 +459,9 @@ export const CreateNewTrainingPath = ({
                       {pathType === "zip" && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
                     </span>
                   </div>
-                  <h4 className={`text-sm font-black uppercase ${textPrimary}`}>Standalone Zip</h4>
+                  <h4 className={`text-sm font-black uppercase ${textPrimary}`}>Import Package (Zip)</h4>
                   <p className={`text-[10.5px] leading-relaxed ${textSecondary}`}>
-                    Run pre-compiled HTML5 training packages.
+                    Run HTML based training packages.
                   </p>
                 </div>
               </div>
@@ -498,7 +501,7 @@ export const CreateNewTrainingPath = ({
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedSection === "videos" ? "rotate-180" : ""}`} />
                       </div>
                     </div>
-                        
+
                     {expandedSection === "videos" && (
                       <div onClick={(e) => e.stopPropagation()} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[340px] overflow-y-auto pr-1 custom-light-scrollbar">
                         {videos.map((vid) => {
@@ -568,7 +571,7 @@ export const CreateNewTrainingPath = ({
                   </div>
                 </>
               ) : (
-                /* Standalone Zip Accordion Section */
+                /* Imported Package Accordion Section */
                 <div
                   onClick={() => toggleSection("zips")}
                   className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left cursor-pointer"
@@ -581,7 +584,7 @@ export const CreateNewTrainingPath = ({
                     }`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <UploadCloud className="w-3.5 h-3.5 text-amber-500" /> Attach Standalone Zip (Select One)
+                      <UploadCloud className="w-3.5 h-3.5 text-amber-500" /> Attach Imported Packages (Select One)
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -592,7 +595,7 @@ export const CreateNewTrainingPath = ({
                         }}
                         className="h-6 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[8.5px] font-bold text-amber-500 flex items-center gap-1 cursor-pointer hover:bg-amber-500/20"
                       >
-                        <Plus className="w-3 h-3" /> Upload New Zip
+                        <Plus className="w-3 h-3" /> Import New Package (Zip)
                       </button>
                       <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedSection === "zips" ? "rotate-180" : ""}`} />
                     </div>
@@ -607,8 +610,8 @@ export const CreateNewTrainingPath = ({
                             key={pkg.PackageID}
                             onClick={() => setSelectedPackage(pkg.PackageID)}
                             className={`p-3 rounded-xl border text-left flex items-center justify-between gap-2.5 transition-colors cursor-pointer ${
-                              selected 
-                                ? "bg-amber-500/10 border-amber-500" 
+                              selected
+                                ? "bg-amber-500/10 border-amber-500"
                                 : isDark ? "bg-white/[0.02] border-white/5 hover:border-white/10" : "bg-white border-slate-200 hover:border-slate-300"
                             }`}
                           >
@@ -707,9 +710,9 @@ export const CreateNewTrainingPath = ({
                 isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50"
               }`}>
                 <span className="text-[10px] font-extrabold tracking-widest text-[#E60000] block uppercase mb-1">
-                  {pathType === "zip" ? "STANDALONE ZIP PACKAGE PATHWAY" : "MODULAR SEQUENCE PATHWAY"}
+                  {pathType === "zip" ? "Import Package (Zip)" : "Videos & Quizzes"}
                 </span>
-                <h3 className={`text-base font-black ${textPrimary}`}>{pathName || "Untitled Training Pathway"}</h3>
+                <h3 className={`text-base font-black ${textPrimary}`}>{pathName || "Untitled Learning Path"}</h3>
                 <p className={`text-xs mt-1 ${textSecondary}`}>{description || "No description provided."}</p>
               </div>
 
@@ -730,9 +733,9 @@ export const CreateNewTrainingPath = ({
                           <Play className="w-4 h-4" />
                         </span>
                         <div className="pt-1 text-left">
-                          <h4 className={`text-xs font-bold ${textPrimary}`}>Training Media</h4>
+                          <h4 className={`text-xs font-bold ${textPrimary}`}>Training Videos</h4>
                           <p className={`text-[10px] mt-0.5 ${textSecondary}`}>
-                            {selectedVideos.length} Attached Video Modules ({selectedVideos.length * 5} mins est)
+                            {selectedVideos.length} Attached Video ({selectedVideos.length * 5} mins est)
                           </p>
                         </div>
                       </div>
@@ -743,21 +746,21 @@ export const CreateNewTrainingPath = ({
                           <HelpCircle className="w-4 h-4" />
                         </span>
                         <div className="pt-1 text-left">
-                          <h4 className={`text-xs font-bold ${textPrimary}`}>Evaluation Assessment</h4>
+                          <h4 className={`text-xs font-bold ${textPrimary}`}>Quiz</h4>
                           <p className={`text-[10px] mt-0.5 ${textSecondary}`}>
-                            {selectedQuiz ? "Custom Assessment Quiz Attached" : "None attached"}
+                            {selectedQuiz ? "Quiz Attached" : "None attached"}
                           </p>
                         </div>
                       </div>
                     </>
                   ) : (
-                    /* Sequence: Zip */
+                    /* Sequence: Imported Package */
                     <div className="flex items-start gap-4 relative z-10">
                       <span className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500 flex items-center justify-center text-amber-500 flex-shrink-0">
                         <UploadCloud className="w-4 h-4" />
                       </span>
                       <div className="pt-1 text-left">
-                        <h4 className={`text-xs font-bold ${textPrimary}`}>Standalone Zip</h4>
+                        <h4 className={`text-xs font-bold ${textPrimary}`}>Imported Package</h4>
                         <p className={`text-[10px] mt-0.5 ${textSecondary}`}>
                           {selectedPackage ? `Package: ${packages.find(p => p.PackageID === selectedPackage)?.PackageName || selectedPackage}` : "None attached"}
                         </p>
@@ -771,9 +774,9 @@ export const CreateNewTrainingPath = ({
                       <Award className="w-4 h-4" />
                     </span>
                     <div className="pt-1 text-left">
-                      <h4 className={`text-xs font-bold ${textPrimary}`}>Compliance Certificate</h4>
+                      <h4 className={`text-xs font-bold ${textPrimary}`}>Certificate</h4>
                       <p className={`text-[10px] mt-0.5 ${textSecondary}`}>
-                        {selectedCert ? "Dynamic Achievement Certificate Attached" : "None attached"}
+                        {selectedCert ? "Achievement Certificate Attached" : "None attached"}
                       </p>
                     </div>
                   </div>
@@ -784,28 +787,28 @@ export const CreateNewTrainingPath = ({
         </div>
 
         {/* Footer */}
-        <div className={`px-6 py-4 bg-black/40 border-t border-white/10 flex items-center justify-between ${isInline ? "rounded-b-[28px] mt-6" : ""}`}>
+        <div className={`px-6 py-2 bg-black/40 border-t border-white/10 flex items-center justify-end gap-2 ${isInline ? "rounded-b-[8px] mt-6" : ""}`}>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => setStep(step - 1)}
               disabled={step === 1}
-              className="h-10 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed text-xs font-bold text-white flex items-center gap-1 cursor-pointer"
+              className="h-10 px-4 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed text-xs font-bold text-white flex items-center gap-1 cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" /> Back
+            Back
             </button>
             {editingPath && onDelete && (
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm("Are you sure you want to delete this training pathway? This action cannot be undone.")) {
+                  if (confirm("Are you sure you want to delete this learning path? This action cannot be undone.")) {
                     onDelete(editingPath.TrainingPathID);
                     onClose();
                   }
                 }}
                 className="h-10 px-4 rounded-xl border border-red-500/30 bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md transition-colors"
               >
-                <Trash2 className="w-4 h-4" /> Delete Pathway
+                <Trash2 className="w-4 h-4" /> Delete Learning Path
               </button>
             )}
           </div>
@@ -817,7 +820,7 @@ export const CreateNewTrainingPath = ({
               disabled={(step === 1 && !pathName.trim()) || (step === 3 && pathType === "individual" && selectedVideos.length === 0) || (step === 3 && pathType === "zip" && !selectedPackage)}
               className="h-10 px-5 rounded-xl bg-white text-[#0B1121] hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold flex items-center gap-1 cursor-pointer shadow-md"
             >
-              Continue <ChevronRight className="w-4 h-4" />
+              Next
             </button>
           ) : (
             <div className="flex gap-2.5">
@@ -826,7 +829,7 @@ export const CreateNewTrainingPath = ({
                 onClick={() => handlePublish("Pending")}
                 className="h-10 px-6 rounded-xl bg-[#E60000] hover:bg-[#c40000] transition-colors text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-lg"
               >
-                <Sparkles className="w-4 h-4" /> Send for Approval
+                Request Approval
               </button>
             </div>
           )}

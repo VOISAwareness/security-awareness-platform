@@ -69,8 +69,8 @@ export const IndividualPackagesGallery = ({
             <div
               key={pkg.PackageID}
               className={`border rounded-3xl p-5 flex flex-col justify-between h-[220px] transition-all duration-200 relative overflow-hidden select-none text-left ${
-                isDark 
-                  ? "bg-[#2E200C] text-white border-white/10 hover:shadow-lg" 
+                isDark
+                  ? "bg-[#2E200C] text-white border-white/10 hover:shadow-lg"
                   : "bg-[#FFEFCE] text-slate-900 border-[#FFE19C] hover:bg-[#FFEFCE] hover:border-[#FFE19C] hover:shadow-md"
               }`}
             >
@@ -114,7 +114,7 @@ export const IndividualPackagesGallery = ({
                   <button
                     type="button"
                     onClick={() => handleLaunchStandalone(pkg)}
-                    className="h-8 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-white flex items-center gap-1 cursor-pointer shadow-md transition-colors"
+                    className="h-8 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-white flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     Launch <ArrowRightCircle className="w-3.5 h-3.5" />
                   </button>
