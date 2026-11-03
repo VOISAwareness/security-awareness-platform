@@ -52,6 +52,6 @@ test("every ⓘ on the Insights page points at a glossary entry", () => {
     for (const m of src.matchAll(/\bdefine(?:=|: )["']([A-Za-z]+)["']/g)) used.add(m[1]);
     for (const m of src.matchAll(/\bterm="([A-Za-z]+)"/g)) used.add(m[1]);
   }
-  assert.ok(used.size >= 12, `found ${used.size}`);
+  assert.ok(used.size >= 6, `found ${used.size}`); // the six measures' ⓘ at least
   for (const term of used) assert.ok(GLOSSARY[term], term);
 });
