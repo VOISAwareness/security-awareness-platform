@@ -138,7 +138,7 @@ const LearningProgress = ({ isDark }) => {
   }, [rawRecords, searchTerm, deptFilter, statusFilter]);
 
   return (
-    <div className="w-full select-none font-sans flex flex-col gap-6 text-left animate-clay-stagger-2">
+    <div className="w-full select-none font-sans flex flex-col gap-6 text-left">
 
       {/* ── 5 KPI CARDS ROW ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

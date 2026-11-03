@@ -2,6 +2,19 @@
 import { useTraining } from "./TrainingContext";
 import { HubClayCard } from "./components/cards/HubClayCard";
 
+import tiltedPathIcon from "@/assets/Training(LMS)/ui/TiltedPathIcon.png";
+import tiltedStorageIcon from "@/assets/Training(LMS)/ui/TiltedStorageIcon.png";
+import tiltedReportIcon from "@/assets/Training(LMS)/ui/TiltedReportIcon.png";
+import tiltedApprovalIcon from "@/assets/Training(LMS)/ui/TiltedApprovalIcon.png";
+import videoIcon from "@/assets/Training(LMS)/ui/VideoIcon.png";
+import quizIcon from "@/assets/Training(LMS)/ui/QuizIcon.png";
+import certificateIcon from "@/assets/Training(LMS)/ui/CertificateIcon.png";
+import packageIcon from "@/assets/Training(LMS)/ui/PackageIcon.png";
+import reportsIcon from "@/assets/Training(LMS)/ui/ReportsIcon.png";
+import approvalQueueImg from "@/assets/Training(LMS)/ui/ApprovalQueueImage.png";
+import myApprovedCampaignsImg from "@/assets/Training(LMS)/ui/MyApprovedCampaignsImage.png";
+import rejectedCampaignsImg from "@/assets/Training(LMS)/ui/RejectedCampaignsImage.png";
+
 export const TrainingLandingPage = () => {
   const {
     setCurrentView,
@@ -32,14 +45,14 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-violet-200/20"
           squareTitle="Training Path"
           squareSubtitle="All about Training Paths required to run any campaign"
-          squareImage="/src/assets/Training(LMS)/ui/TiltedPathIcon.png"
+          squareImage={tiltedPathIcon}
           title="Create New / Track Created Training Paths"
           description="Here you can Create new Training Path using stored individual elements as complete end to end path which will be available to attach as training path for any new campaign. You can also Check, Track, Edit or Delete those Created Training Paths."
           badgeImages={[
-            "/src/assets/Training(LMS)/ui/VideoIcon.png",
-            "/src/assets/Training(LMS)/ui/QuizIcon.png",
-            "/src/assets/Training(LMS)/ui/CertificateIcon.png",
-            "/src/assets/Training(LMS)/ui/PackageIcon.png"
+            videoIcon,
+            quizIcon,
+            certificateIcon,
+            packageIcon
           ]}
           badgeText="Use these Individual Elements to create a Training Path"
           buttonText="Go here"
@@ -58,11 +71,11 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-pink-200/20"
           squareTitle="Storage Room"
           squareSubtitle="It's the storage space for your all training elements"
-          squareImage="/src/assets/Training(LMS)/ui/TiltedStorageIcon.png"
+          squareImage={tiltedStorageIcon}
           title="Add New / Track Individual Training Materials"
           description="Here you can 'Add New and Track' Individual Training Video, Quiz, Certificate and Packages and use these space as storage room. Storing elements individually helps in structuring pathways."
           badgeImages={[
-            "/src/assets/Training(LMS)/ui/TiltedPathIcon.png"
+            tiltedPathIcon
           ]}
           badgeText="Storing individual elements helps you in creating Training Paths in future"
           buttonText="Go here"
@@ -79,11 +92,11 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-green-200/20"
           squareTitle="Reports & Dashboard"
           squareSubtitle="All about Training progress and Tracking updates on Training"
-          squareImage="/src/assets/Training(LMS)/ui/TiltedReportIcon.png"
+          squareImage={tiltedReportIcon}
           title="View Reports of Overall / By Campaign Training Progress"
           description="Here you can view detailed training progress reports for all users, with both overall and campaign-wise tracking capabilities. Monitor completion status, certifications achieve and pending activities."
           badgeImages={[
-            "/src/assets/Training(LMS)/ui/ReportsIcon.png"
+            reportsIcon
           ]}
           badgeText="Track Individual Campaigns Training Completion Rate for Each User"
           buttonText="Go here"
@@ -100,17 +113,17 @@ export const TrainingLandingPage = () => {
           squareBorderClass="border-cyan-200/20"
           squareTitle="Requests & Approvals"
           squareSubtitle="All about approvals and request for newly created Traning Paths."
-          squareImage="/src/assets/Training(LMS)/ui/TiltedApprovalIcon.png"
+          squareImage={tiltedApprovalIcon}
           title="Content Creators can Request & Content Managers can Approve those Requests."
           description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."
           customBadgeRow={
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-1.5 items-center">
-                <img src="/src/assets/Training(LMS)/ui/ApprovalQueueImage.png" className="badge" />
+                <img src={approvalQueueImg} alt="Approval Queue" className="badge" />
                 <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">Approval Queue</span>
-                <img src="/src/assets/Training(LMS)/ui/MyApprovedCampaignsImage.png" className="badge" />
+                <img src={myApprovedCampaignsImg} alt="Approved" className="badge" />
                 <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">Approved</span>
-                <img src="/src/assets/Training(LMS)/ui/RejectedCampaignsImage.png" className="badge" />
+                <img src={rejectedCampaignsImg} alt="Rejected" className="badge" />
                 <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">Rejected</span>
               </div>
             </div>

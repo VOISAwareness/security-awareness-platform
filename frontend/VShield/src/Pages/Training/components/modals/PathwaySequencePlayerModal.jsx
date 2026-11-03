@@ -436,7 +436,7 @@ export const PathwaySequencePlayerModal = ({
                     onClick={() => setActiveItemIndex(index)}
                     className={`relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1 shadow-sm ${
                       isActive
-                        ? (isDark ? "bg-white text-slate-900 border-white animate-clay-stagger-1" : "bg-slate-900 text-white border-slate-900")
+                        ? (isDark ? "bg-white text-slate-900 border-white" : "bg-slate-900 text-white border-slate-900")
                         : (isDark ? "bg-white/[0.02] border-white/5 hover:border-white/10 text-slate-300" : "bg-white border-slate-200 hover:border-slate-300 text-slate-600 hover:shadow-md")
                     }`}
                   >

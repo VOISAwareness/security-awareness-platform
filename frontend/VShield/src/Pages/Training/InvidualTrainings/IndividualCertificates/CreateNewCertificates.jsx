@@ -222,7 +222,7 @@ export const CreateNewCertificates = ({
     <>
       {/* Full Screen overlay container */}
       {isFullScreen && (
-        <div className="fixed inset-0 z-[160] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 text-left select-none animate-clay-stagger-1">
+        <div className="fixed inset-0 z-[160] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 text-left select-none">
           <div className={`w-[840px] max-w-full rounded-2xl border flex flex-col overflow-hidden shadow-2xl bg-[#0B1121] border-white/10 text-white`}>
             {/* Fullscreen Header */}
             <div className="px-6 py-3.5 bg-black/40 border-b border-white/10 flex items-center justify-between">
