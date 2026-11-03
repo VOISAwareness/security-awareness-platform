@@ -1,12 +1,12 @@
 
 import { useTraining } from "../TrainingContext";
 
-import side11Img from "@/assets/Training(LMS)/ui/side_1_1.png";
-import side31Img from "@/assets/Training(LMS)/ui/side_3_1.png";
-import soloVidsImg from "@/assets/Training(LMS)/ui/solo_vids.png";
-import soloQuizImg from "@/assets/Training(LMS)/ui/solo_quiz.png";
-import side14Img from "@/assets/Training(LMS)/ui/side_1_4.png";
-import certificateIconImg from "@/assets/Training(LMS)/ui/cretificate_icon.png";
+import videoIcon from "@/assets/Training(LMS)/ui/VideoIcon.png";
+import reportsIcon from "@/assets/Training(LMS)/ui/ReportsIcon.png";
+import tiltedVideoIcon from "@/assets/Training(LMS)/ui/TiltedVideoIcon.png";
+import tiltedQuizIcon from "@/assets/Training(LMS)/ui/TiltedQuizIcon.png";
+import packageIcon from "@/assets/Training(LMS)/ui/PackageIcon.png";
+import certificateIcon from "@/assets/Training(LMS)/ui/CertificateIcon.png";
 
 export const LmsLeftSidebar = () => {
   const {
@@ -20,10 +20,6 @@ export const LmsLeftSidebar = () => {
     individualSubTab,
     setIndividualSubTab
   } = useTraining();
-
-  const VideoCardImg = soloVidsImg;
-  const QuizIconImg = soloQuizImg;
-  const CertificateCardImg = side14Img;
 
   const handlePathsClick = (subTab) => {
     setPathsSubTab(subTab);
@@ -58,7 +54,7 @@ export const LmsLeftSidebar = () => {
               Every created training paths are stored here
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={side11Img} alt="All Paths" className="w-full h-full object-contain" />
+              <img src={videoIcon} alt="All Paths" className="w-full h-full object-contain" />
             </div>
           </div>
 
@@ -80,7 +76,7 @@ export const LmsLeftSidebar = () => {
               Start here to create a new training path
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={side31Img} alt="Create Path" className="w-full h-full object-contain" />
+              <img src={reportsIcon} alt="Create Path" className="w-full h-full object-contain" />
             </div>
           </div>
         </>
@@ -104,7 +100,7 @@ export const LmsLeftSidebar = () => {
               Upload new videos to add in your training paths
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={VideoCardImg} alt="Videos" className="w-full h-full object-contain" />
+              <img src={tiltedVideoIcon} alt="Videos" className="w-full h-full object-contain" />
             </div>
           </div>
 
@@ -126,7 +122,7 @@ export const LmsLeftSidebar = () => {
               Create interactive quizzes and test the knowledge of your users.
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={QuizIconImg} alt="Quizzes" className="w-full h-full object-contain" />
+              <img src={tiltedQuizIcon} alt="Quizzes" className="w-full h-full object-contain" />
             </div>
           </div>
 
@@ -148,7 +144,7 @@ export const LmsLeftSidebar = () => {
               Create and Award certifications on successful completions.
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={CertificateCardImg} alt="Certificates" className="w-full h-full object-contain" />
+              <img src={certificateIcon} alt="Certificates" className="w-full h-full object-contain" />
             </div>
           </div>
 
@@ -170,7 +166,7 @@ export const LmsLeftSidebar = () => {
               Upload and deploy scorm packages.
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={certificateIconImg} alt="Standalone Zip" className="w-full h-full object-contain" />
+              <img src={packageIcon} alt="Training Packages" className="w-full h-full object-contain" />
             </div>
           </div>
         </>

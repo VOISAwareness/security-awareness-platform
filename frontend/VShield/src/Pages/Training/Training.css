@@ -47,57 +47,6 @@
   border-radius: calc(6px * var(--overall-corner-roundedness)) !important;
 }
 
-/* Keyframes & Animations */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-6px) rotate(1.5deg);
-  }
-}
-
-.float-element {
-  animation: float 5s ease-in-out infinite;
-}
-
-@keyframes clay-entrance {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.97);
-    filter: brightness(0.9) blur(1px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0px) scale(1);
-    filter: brightness(1) blur(0px);
-  }
-}
-
-.animate-clay-stagger-1 {
-  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 80ms;
-  opacity: 0;
-}
-
-.animate-clay-stagger-2 {
-  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 160ms;
-  opacity: 0;
-}
-
-.animate-clay-stagger-3 {
-  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 240ms;
-  opacity: 0;
-}
-
-.animate-clay-stagger-4 {
-  animation: clay-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  animation-delay: 320ms;
-  opacity: 0;
-}
-
 /* Custom Scrollbars */
 .custom-light-scrollbar::-webkit-scrollbar {
   width: 5px;
@@ -159,7 +108,6 @@
   border-radius: 24px;
   display: flex;
   user-select: none;
-  transition: all 0.3s ease-in-out;
   cursor: pointer;
   padding: 2px; /* Slight padding to parent to prevent hover scale overflow cuts */
 }
@@ -200,7 +148,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
   padding-top: 12px;
   z-index: 10;
 }

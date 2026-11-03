@@ -136,7 +136,7 @@ export const CreateNewPackages = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 text-left">
+    <div className="flex-1 flex flex-col min-h-0 text-left pt-5 px-5">
       <div className={`flex items-center justify-between border-b pb-3 mb-4 ${isDark ? "border-white/5" : "border-slate-100"}`}>
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-amber-500" />
@@ -166,8 +166,8 @@ export const CreateNewPackages = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               className={`w-full h-10 px-3 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 ${
-                isDark 
-                  ? "border-white/10 bg-black/40 text-white" 
+                isDark
+                  ? "border-white/10 bg-black/40 text-white"
                   : "border-slate-200 bg-slate-50 text-slate-800"
               }`}
               placeholder="e.g., Simulated Electric Vehicle Compliance Sandbox"
@@ -182,8 +182,8 @@ export const CreateNewPackages = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className={`w-full h-24 p-3 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 resize-none ${
-                isDark 
-                  ? "border-white/10 bg-black/40 text-white" 
+                isDark
+                  ? "border-white/10 bg-black/40 text-white"
                   : "border-slate-200 bg-slate-50 text-slate-800"
               }`}
               placeholder="Provide a comprehensive summary of what the compiled sandbox program evaluates..."
@@ -199,8 +199,8 @@ export const CreateNewPackages = ({
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
                 className={`w-full h-10 px-2.5 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer ${
-                  isDark 
-                    ? "border-white/10 bg-black/40 text-white [&>option]:bg-slate-900 [&>option]:text-white" 
+                  isDark
+                    ? "border-white/10 bg-black/40 text-white [&>option]:bg-slate-900 [&>option]:text-white"
                     : "border-slate-200 bg-slate-50 text-slate-800 [&>option]:bg-white [&>option]:text-slate-800"
                 }`}
               >
@@ -219,8 +219,8 @@ export const CreateNewPackages = ({
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
                 className={`w-full h-10 px-2.5 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer ${
-                  isDark 
-                    ? "border-white/10 bg-black/40 text-white [&>option]:bg-slate-900 [&>option]:text-white" 
+                  isDark
+                    ? "border-white/10 bg-black/40 text-white [&>option]:bg-slate-900 [&>option]:text-white"
                     : "border-slate-200 bg-slate-50 text-slate-800 [&>option]:bg-white [&>option]:text-slate-800"
                 }`}
               >
@@ -257,8 +257,8 @@ export const CreateNewPackages = ({
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             className={`border-2 border-dashed transition-all rounded-2xl p-8 flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[160px] ${
-              isDark 
-                ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-amber-500/40" 
+              isDark
+                ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-amber-500/40"
                 : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-amber-500/40"
             }`}
           >
@@ -308,8 +308,8 @@ export const CreateNewPackages = ({
               type="button"
               onClick={onCancel}
               className={`h-10 px-5 rounded-xl border font-bold text-xs cursor-pointer uppercase tracking-wider transition-colors ${
-                isDark 
-                  ? "border-white/10 bg-white/5 hover:bg-white/10 text-white" 
+                isDark
+                  ? "border-white/10 bg-white/5 hover:bg-white/10 text-white"
                   : "border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700"
               }`}
             >
@@ -353,7 +353,7 @@ export const ZipUploader = ({
 
   const processSelectedFile = (file) => {
     setSelectedFile(file);
-    
+
     // Extract base name, remove digits, clean up hyphens and underscores
     const baseName = file.name.replace(/\.zip$/i, "");
     const cleanedName = baseName.replace(/[0-9]/g, "").replace(/[-_]+/g, " ").trim();
@@ -468,8 +468,8 @@ export const ZipUploader = ({
 
   return (
     <div className={`w-full flex flex-col text-left ${
-      isInline 
-        ? "h-full min-h-[500px] border-none bg-transparent shadow-none" 
+      isInline
+        ? "h-full min-h-[500px] border-none bg-transparent shadow-none"
         : `max-w-lg border rounded-2xl overflow-hidden shadow-2xl ${
             isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
           }`
@@ -519,8 +519,8 @@ export const ZipUploader = ({
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           className={`border-2 border-dashed transition-colors rounded-xl p-8 flex flex-col items-center justify-center gap-3 text-center cursor-pointer ${
-            isDark 
-              ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/35" 
+            isDark
+              ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/35"
               : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-450"
           }`}
         >
