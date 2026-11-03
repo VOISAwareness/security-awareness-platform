@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useUserType } from '../../../../UserTypeContext/UserTypeContext';
 import {
   Check,
   ChevronDown,
@@ -14,8 +14,6 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  List,
-  ListOrdered,
   Image as ImageIcon,
   Link as LinkIcon,
   Code,
@@ -26,9 +24,9 @@ import {
   AlertTriangle,
   X
 } from 'lucide-react';
-import userDLsJson from '../UserDLs/UserDLsData.json';
-import AnnouncamentScenariosJsonData from '../Announcement/AnnouncementData.json';
-import masterUsersData from '../../MasterUserData.json';
+import userDLsJson from '../../../UserDLs/UserDLsData.json';
+import AnnouncamentScenariosJsonData from '../../../Announcement/AnnouncementData.json';
+import masterUsersData from '../../../../MasterUserData.json';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -135,7 +133,7 @@ const AnnouncementsCampaignEmail = () => {
  }, [userContext.isDark]);
 
  // Read saved draft from prior steps
- const [draft, setDraft] = useState(() => {
+ const [draft] = useState(() => {
   try {
    const stored = localStorage.getItem('voisshield_active_announcement_draft');
    return stored ? JSON.parse(stored) : {};

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { Check, Calendar, AlertTriangle, X, Edit2 } from 'lucide-react';
-import AnnouncamentScenariosJsonData from '../Announcement/AnnouncementData.json';
-import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+import { useUserType } from '../../../../UserTypeContext/UserTypeContext';
+import { Check, AlertTriangle, X, Edit2 } from 'lucide-react';
+import AnnouncamentScenariosJsonData from '../../../Announcement/AnnouncementData.json';
+import gamificationCardLogo from '../../../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -87,7 +87,7 @@ const AnnouncementsDetailsAndSettings = () => {
   }, [userContext.isDark]);
 
   // Read saved draft from step 1
-  const [draft, setDraft] = useState(() => {
+  const [draft] = useState(() => {
     try {
       const stored = localStorage.getItem('voisshield_active_announcement_draft');
       return stored ? JSON.parse(stored) : {};
@@ -135,7 +135,7 @@ const AnnouncementsDetailsAndSettings = () => {
   }, [errorMsg]);
 
   // Gamification Card Flip State
-  const [isGamificationFlipped, setIsGamificationFlipped] = useState(false);
+  const isGamificationFlipped = false;
 
   // Save changes to draft
   const persistChanges = (fields) => {
