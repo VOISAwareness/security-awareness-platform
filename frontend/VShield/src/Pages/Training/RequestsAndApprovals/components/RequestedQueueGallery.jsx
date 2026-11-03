@@ -300,7 +300,7 @@ const RequestedQueueGallery = ({
                         <span className="text-slate-400 font-bold">&bull;</span>
                         <span className="font-bold flex items-center gap-1 text-amber-600">
                           <UploadCloud className="w-2.5 h-2.5" />
-                          Standalone Package
+                          Imported Package
                         </span>
                       </>
                     )}

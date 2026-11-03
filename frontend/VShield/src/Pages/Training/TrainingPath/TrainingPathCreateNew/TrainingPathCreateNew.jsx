@@ -145,8 +145,7 @@ export const CreateNewTrainingPath = ({
 
   const bgCard = isDark ? "bg-[#090D1A] border-white/5 text-white" : "bg-[#F8FAFC] border-slate-200 text-slate-800 shadow-xl";
   const textPrimary = isDark ? "text-white" : "text-black";
-  const textSecondary = textPrimary
-  // isDark ? "text-slate-400" : "text-slate-500";
+  const textSecondary = isDark ? "text-slate-400" : "text-slate-500";
   const bgInput = isDark ? "bg-[#04060d] border-white/10 text-white" : "bg-white border-slate-300 text-slate-800";
 
   if (showVideoUpload) {
@@ -441,7 +440,7 @@ export const CreateNewTrainingPath = ({
                   </p>
                 </div>
 
-                {/* Option B: Zip Package */}
+                {/* Option B: Imported Package */}
                 <div
                   onClick={() => setPathType("zip")}
                   className={`p-5 rounded-2xl border flex flex-col gap-2.5 cursor-pointer transition-all ${
@@ -572,7 +571,7 @@ export const CreateNewTrainingPath = ({
                   </div>
                 </>
               ) : (
-                /* Standalone Zip Accordion Section */
+                /* Imported Package Accordion Section */
                 <div
                   onClick={() => toggleSection("zips")}
                   className="border border-white/5 bg-black/10 rounded-2xl p-4 flex flex-col text-left cursor-pointer"
@@ -755,7 +754,7 @@ export const CreateNewTrainingPath = ({
                       </div>
                     </>
                   ) : (
-                    /* Sequence: Zip */
+                    /* Sequence: Imported Package */
                     <div className="flex items-start gap-4 relative z-10">
                       <span className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500 flex items-center justify-center text-amber-500 flex-shrink-0">
                         <UploadCloud className="w-4 h-4" />
@@ -794,7 +793,7 @@ export const CreateNewTrainingPath = ({
               type="button"
               onClick={() => setStep(step - 1)}
               disabled={step === 1}
-              className="h-10 px-4 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 disabled:cursor-not-allowed text-xs font-bold text-white flex items-center gap-1 cursor-pointer"
+              className="h-10 px-4 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed text-xs font-bold text-white flex items-center gap-1 cursor-pointer"
             >
             Back
             </button>
