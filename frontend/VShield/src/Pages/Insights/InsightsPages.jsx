@@ -30,15 +30,14 @@ const tip = (text) => ({ 'data-tip': text });
 const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }, style: { cursor: 'pointer' } });
 
 // Who is trained and who is not, each a bar as long as its number of
-// people, its red part those who clicked a phishing email; the share who
-// clicked on the right, green for the trained and red for the rest.
+// people, its red part those who clicked a phishing email, counted under it.
 function TrainingSplit({ cohorts, ink }) {
   if (!cohorts) return null;
   const all = cohorts.trained + cohorts.untrained;
   const biggest = Math.max(cohorts.trained, cohorts.untrained) || 1;
   const groups = [
-    { key: 'untrained', label: 'Not trained', people: cohorts.untrained, clicks: cohorts.untrainedClicks, rate: cohorts.untrainedRate, color: ink.bad },
-    { key: 'trained', label: 'Trained', people: cohorts.trained, clicks: cohorts.trainedClicks, rate: cohorts.trainedRate, color: ink.good },
+    { key: 'untrained', label: 'Not trained', people: cohorts.untrained, clicks: cohorts.untrainedClicks, rate: cohorts.untrainedRate },
+    { key: 'trained', label: 'Trained', people: cohorts.trained, clicks: cohorts.trainedClicks, rate: cohorts.trainedRate },
   ];
   const swatch = (bg) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: bg }} />;
   return (
@@ -48,12 +47,11 @@ function TrainingSplit({ cohorts, ink }) {
           const clicked = g.clicks ?? Math.round(g.people * (g.rate || 0));
           return (
             <div key={g.key} data-ins-cohort={g.key}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   <span style={{ fontSize: TYPE.body, fontWeight: 800 }}>{g.label}</span>
                   <span style={small}> · {num(g.people)} people ({pc(all ? g.people / all : null)})</span>
                 </span>
-                <span style={{ flexShrink: 0, fontSize: TYPE.body, fontWeight: 800, color: g.color }}>{pc1(g.rate)} clicked</span>
               </div>
               <div role="img" aria-label={`${g.label}: ${num(clicked)} of ${num(g.people)} people clicked`} style={{ display: 'flex', gap: 2, height: 18, marginTop: 4, width: `${(g.people / biggest) * 100}%`, minWidth: 24 }}>
                 <span style={{ width: `${(g.rate || 0) * 100}%`, minWidth: 4, background: ink.bad, borderRadius: '5px 0 0 5px' }} />
