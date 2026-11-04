@@ -922,15 +922,15 @@ const AnnouncementTemplateDetails = () => {
             PAGE HEADER
         ==================================================== */}
         <div
-          className={`w-full h-[38px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
               ? "bg-white text-black border-white/10"
               : "bg-[#000000] text-white border-black/10"
           }`}
         >
-          <span className="text-[13.5px] font-bold tracking-tight uppercase">
+          <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
             CREATE NEW ANNOUNCEMENT TEMPLATE
-          </span>
+          </h1>
 
           <span className="text-[9px] font-bold opacity-60 uppercase">
             Template Creation
