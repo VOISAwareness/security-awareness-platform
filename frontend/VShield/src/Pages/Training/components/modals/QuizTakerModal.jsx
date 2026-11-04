@@ -97,7 +97,7 @@ export const QuizTakerModal = ({
               {onEdit && (
                 <button
                   type="button"
-                  onClick={() => onEdit(quiz)}
+                  onClick={() => onEdit(quiz, currentIdx)}
                   className="h-7 px-3 rounded-lg border text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors border-[#0D9B77] text-[#0D9B77] hover:bg-[#0D9B77]/10"
                   title="Edit this question"
                 >

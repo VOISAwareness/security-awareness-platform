@@ -29,7 +29,7 @@ export const TrainingQuizCard = ({
     >
       <div className="flex flex-col gap-2 z-10">
         <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[9px] font-bold bg-black/10 dark:bg-white/10 text-slate-500 dark:text-slate-300 shadow-2xs w-max">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[9px] font-bold font-mono-tech bg-black/10 dark:bg-white/10 text-slate-500 dark:text-slate-300 shadow-2xs w-max">
             <span className="w-1.5 h-1.5 rounded-full bg-[#7C3AED]" />
             {quiz.TrainingQuizID}
           </div>
@@ -39,7 +39,7 @@ export const TrainingQuizCard = ({
             </div>
           )}
         </div>
-        <h3 className="text-sm font-black tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
+        <h3 className="text-sm font-black font-voda tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
           {quiz.TrainingQuizName}
         </h3>
         <p className="text-[10px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">

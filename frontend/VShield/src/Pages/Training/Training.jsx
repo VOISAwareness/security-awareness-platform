@@ -129,9 +129,13 @@ function TrainingDashboardInner() {
             <QuizTakerModal
               quiz={activeQuiz}
               onClose={() => setActiveQuiz(null)}
-              onEdit={(q) => {
+              onEdit={(q, qIdx) => {
                 setActiveQuiz(null);
-                setEditingQuiz(q);
+                setEditingQuiz(
+                  qIdx !== undefined
+                    ? { ...q, _startQuestionIdx: qIdx, _startIsEditing: true }
+                    : q
+                );
                 setCurrentView("individual");
                 setIndividualSubTab("quizzes");
               }}

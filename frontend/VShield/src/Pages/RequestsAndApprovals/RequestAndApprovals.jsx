@@ -44,11 +44,15 @@ export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the 
 // 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
 // =========================================================================
 const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
   
+  .font-voda {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 800;
+  }
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
-    font-weight: 900;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 800;
   }
   .font-mono-tech {
     font-family: 'JetBrains Mono', monospace;
@@ -483,7 +487,7 @@ const RequestAndApprovals = () => {
         {rejectingCampaign && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
             <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white p-6 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col gap-3">
-              <h2 className="text-[16px] font-black tracking-tight">Reject this campaign?</h2>
+              <h2 className="text-[16px] font-voda font-black tracking-tight">Reject this campaign?</h2>
               <p className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug">
                 <span className="font-bold text-slate-900 dark:text-white">{rejectingCampaign.CampaignTitle}</span>{' '}
                 ({rejectingCampaign.campaignId}) will move to Rejected Campaigns. To ask the creator for
@@ -499,7 +503,7 @@ const RequestAndApprovals = () => {
                     setActionError('');
                     setRejectingCampaign(null);
                   }}
-                  className="px-5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
+                  className="px-5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
                 >
                   Go Back
                 </button>
@@ -507,7 +511,7 @@ const RequestAndApprovals = () => {
                   type="button"
                   onClick={confirmReject}
                   disabled={pendingAction === rejectingCampaign.campaignId}
-                  className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
+                  className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
                 >
                   {pendingAction === rejectingCampaign.campaignId ? 'Rejecting…' : 'Reject'}
                 </button>

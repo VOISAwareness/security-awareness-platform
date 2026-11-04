@@ -518,7 +518,7 @@ const ApprovalQueueGallery = ({
                           setModalRejecting(false);
                           setModalRejectComment('');
                         }}
-                        className="h-8 px-4 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-750 hover:bg-slate-50 cursor-pointer"
+                        className="h-8 px-4 rounded-xl border border-slate-200 bg-white text-[10px] font-voda font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-50 cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -531,7 +531,7 @@ const ApprovalQueueGallery = ({
                           setModalRejecting(false);
                           setModalRejectComment('');
                         }}
-                        className="h-8 px-5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold uppercase cursor-pointer"
+                        className="h-8 px-5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
                       >
                         Submit Rejection
                       </button>

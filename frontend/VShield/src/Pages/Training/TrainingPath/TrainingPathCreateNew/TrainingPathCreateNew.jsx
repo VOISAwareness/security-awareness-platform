@@ -348,17 +348,6 @@ export const CreateNewTrainingPath = ({
               );
             })}
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className={`px-4 flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
-              isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
-            }`}
-            title="Exit Wizard"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Step Body */}

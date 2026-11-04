@@ -249,7 +249,7 @@ export const PathwaySequencePlayerModal = ({
                   {!quizCompleted ? (
                     <div className="max-w-2xl mx-auto w-full flex flex-col gap-6 text-left">
                       <div className="text-center">
-                        <h2 className={`text-xl font-black ${isDark ? "text-white" : "text-slate-800"} uppercase tracking-tight`}>
+                        <h2 className={`text-xl font-voda font-black ${isDark ? "text-white" : "text-slate-800"} uppercase tracking-tight`}>
                           {quiz.TrainingQuizName}
                         </h2>
                         <p className={`text-xs mt-1.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
@@ -270,7 +270,7 @@ export const PathwaySequencePlayerModal = ({
                         <span>Passing Threshold: {quiz.TrainingCompletionThreshold}%</span>
                       </div>
 
-                      <h3 className={`text-base font-black ${isDark ? "text-white" : "text-slate-800"} leading-snug`}>
+                      <h3 className={`text-base font-voda font-black ${isDark ? "text-white" : "text-slate-800"} leading-snug`}>
                         {questionItem?.question}
                       </h3>
 
@@ -345,7 +345,7 @@ export const PathwaySequencePlayerModal = ({
                         {passed ? "🏆" : "⚡"}
                       </div>
                       <div className="flex flex-col gap-1">
-                        <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? "text-white" : "text-slate-800"}`}>
+                        <h3 className={`text-lg font-voda font-black uppercase tracking-tight ${isDark ? "text-white" : "text-slate-800"}`}>
                           {passed ? "Assessment Passed" : "Criteria Not Met"}
                         </h3>
                         <p className="text-xs text-slate-400">
@@ -461,7 +461,7 @@ export const PathwaySequencePlayerModal = ({
                         </div>
                       )}
                     </div>
-                    <h4 className={`text-sm font-black leading-tight line-clamp-2 mt-1 relative z-10 ${
+                    <h4 className={`text-sm font-voda font-black leading-tight line-clamp-2 mt-1 relative z-10 ${
                       isActive ? (isDark ? "text-black" : "text-white") : (isDark ? "text-white" : "text-slate-800")
                     }`}>
                       {item.name}
