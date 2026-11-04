@@ -4,6 +4,7 @@ import os
 import secrets
 import uuid
 from datetime import UTC, datetime
+from email.utils import formataddr
 from html import escape
 from urllib.parse import quote, urlparse
 
@@ -19,6 +20,13 @@ CAMPAIGNS_TABLE = os.environ["CAMPAIGNS_TABLE"]
 RECIPIENTS_TABLE = os.environ["RECIPIENTS_TABLE"]
 SES_REGION = os.environ["SES_REGION"]
 SES_SENDER_EMAIL = os.environ["SES_SENDER_EMAIL"]
+# The addresses a campaign may send from: SES identities verified (whitelisted)
+# in this account, comma-separated. A campaign's chosen sender (senderEmailId,
+# picked from Email IDs & Domains) is used only when it is one of them;
+# otherwise, or when this is unset, every email comes from SES_SENDER_EMAIL.
+SES_ALLOWED_SENDERS = frozenset(
+    a.strip().lower() for a in os.environ.get("SES_ALLOWED_SENDERS", "").split(",") if a.strip()
+)
 SES_RECIPIENT_EMAIL = os.environ["SES_RECIPIENT_EMAIL"]
 API_BASE_URL = os.environ["API_BASE_URL"].rstrip("/")
 
@@ -615,6 +623,18 @@ def mark_recipient_failed(
 # Main Lambda handler
 # ---------------------------------------------------------------------------
 
+def sender_for(campaign):
+    """
+    The From address for a campaign: its chosen sender (with its display name)
+    when that address is in SES_ALLOWED_SENDERS, else SES_SENDER_EMAIL.
+    """
+    chosen = str(campaign.get("senderEmailId") or "").strip()
+    if not chosen or chosen.lower() not in SES_ALLOWED_SENDERS:
+        return SES_SENDER_EMAIL
+    name = str(campaign.get("senderName") or "").strip()
+    return formataddr((name, chosen)) if name else chosen
+
+
 def lambda_handler(event, context):
     """Send one recipient-specific tracked POC email."""
     campaign_id = get_campaign_id(event)
@@ -734,6 +754,7 @@ def lambda_handler(event, context):
         # for a list-based campaign raises ValueError -> 400 below, before
         # anything is locked.
         recipients = resolve_recipients(campaign)
+        source_address = sender_for(campaign)
 
         if not recipients:
             return build_response(
@@ -854,7 +875,7 @@ def lambda_handler(event, context):
 
                 # Send the email through SES.
                 ses_response = ses_client.send_email(
-                    Source=SES_SENDER_EMAIL,
+                    Source=source_address,
                     Destination={
                         "ToAddresses": [recipient_email]
                     },

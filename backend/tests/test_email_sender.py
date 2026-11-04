@@ -221,3 +221,33 @@ def test_not_a_test_campaign_ignores_test_emails(mod, monkeypatch):
         {"isTestCampaign": False, "testRecipientEmails": ["me@example.com"], "selectedSingleUserEmail": "one@example.com"}
     )
     assert out == [{"email": "one@example.com", "name": "POC User"}]
+
+
+# --- the From address: the campaign's chosen sender, when whitelisted ---------
+
+def test_sender_is_the_default_when_nothing_is_whitelisted(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset())
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com"}) == "sender@example.com"
+
+
+def test_sender_is_the_campaigns_when_whitelisted(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset({"it-desk@example.com"}))
+    assert mod.sender_for({"senderEmailId": "IT-Desk@example.com"}) == "IT-Desk@example.com"
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com", "senderName": "IT Service Desk"}) == (
+        "IT Service Desk <it-desk@example.com>"
+    )
+
+
+def test_a_sender_not_whitelisted_falls_back(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset({"it-desk@example.com"}))
+    assert mod.sender_for({"senderEmailId": "ceo@example.com"}) == "sender@example.com"
+    assert mod.sender_for({}) == "sender@example.com"
+
+
+def test_allowed_senders_read_from_the_environment(mod, monkeypatch):
+    monkeypatch.setenv("SES_ALLOWED_SENDERS", " A@example.com, ,b@example.com ")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("email_sender_env", mod.__file__)
+    fresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fresh)
+    assert fresh.SES_ALLOWED_SENDERS == frozenset({"a@example.com", "b@example.com"})
