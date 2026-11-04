@@ -126,7 +126,7 @@ const RejectedPathsGallery = ({
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
           }}
-          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
+          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
           <div className="flex flex-col gap-2 -mt-8 max-w-[340px] w-full text-left">
             <div className="relative flex items-center">

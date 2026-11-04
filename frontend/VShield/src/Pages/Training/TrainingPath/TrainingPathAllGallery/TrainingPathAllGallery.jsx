@@ -85,7 +85,7 @@ export const AllTrainingPathGallery = ({
           <button
             type="button"
             onClick={onCreateClick}
-            className="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/30 bg-slate-50/50 dark:bg-white/[0.01] hover:bg-slate-100/50 dark:hover:bg-[#E60000]/5 transition-all rounded-[24px] p-6 flex flex-col items-center justify-center text-center h-[250px] gap-2.5 cursor-pointer"
+            className="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/30 bg-slate-50/50 dark:bg-white/[0.01] hover:bg-slate-100/50 dark:hover:bg-[#E60000]/5 transition-all rounded-3xl p-6 flex flex-col items-center justify-center text-center h-[220px] gap-2.5 cursor-pointer"
           >
             <div className="w-12 h-12 rounded-full bg-slate-200/60 dark:bg-white/5 flex items-center justify-center">
               <Plus className="w-6 h-6 text-slate-500 dark:text-slate-400" />
