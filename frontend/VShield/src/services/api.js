@@ -1,3 +1,5 @@
+import { withScheduleInstants } from './calendarDates.js';
+
 // Central API client for the VShield backend (AWS HTTP API).
 // Base URL comes from VITE_API_BASE_URL; falls back to the POC endpoint so the
 // app works out of the box in development.
@@ -215,9 +217,12 @@ export const api = {
     list: (status) =>
       request(`/campaigns${status ? `?status=${encodeURIComponent(status)}` : ''}`),
     get: (id) => request(`/campaigns/${encodeURIComponent(id)}`),
-    create: (fields) => request('/campaigns', { method: 'POST', body: fields }),
+    // Every write of a start / end time also sends it as a UTC instant and the
+    // zone it was picked in (calendarDates.withScheduleInstants), which is what
+    // the scheduler sends on.
+    create: (fields) => request('/campaigns', { method: 'POST', body: withScheduleInstants(fields) }),
     update: (id, patch) =>
-      request(`/campaigns/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
+      request(`/campaigns/${encodeURIComponent(id)}`, { method: 'PUT', body: withScheduleInstants(patch) }),
     remove: (id) =>
       request(`/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
