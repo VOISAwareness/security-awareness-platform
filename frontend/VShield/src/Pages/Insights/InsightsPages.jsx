@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Card } from './InsightsCharts';
 import { FitList } from './InsightsBits';
 import { Trend } from './InsightsTrends';
 import { useSize } from './useSize';
 import { trends } from '../../services/insightsSummary';
+import { DRIVERS, levelsByMonth } from '../../services/insightsPeople';
 import { targetText } from '../../services/insightsTargets';
 import { alpha, day, mins, num, pc, pc1, small, TYPE } from './insightsUi';
 
@@ -214,7 +215,7 @@ const TIERS = [['low', 'Low'], ['moderate', 'Moderate'], ['high', 'High'], ['cri
 function Levels({ tiers, before, ink, onLevel }) {
   const col = { low: ink.good, moderate: ink.caution, high: ink.bad, critical: ink.severe };
   const total = (t) => TIERS.reduce((a, [k]) => a + (t?.[k] || 0), 0);
-  const bar = (t, label) => {
+  const bar = (t, label, when) => {
     const n = total(t);
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr)', alignItems: 'center', gap: 10 }}>
@@ -222,7 +223,7 @@ function Levels({ tiers, before, ink, onLevel }) {
         <span style={{ display: 'flex', height: 24, gap: 2, borderRadius: 6, overflow: 'hidden' }}>
           {TIERS.map(([k, word]) => {
             const w = n ? (t[k] / n) * 100 : 0;
-            return <span key={k} {...pressable(() => onLevel(word))} {...tip(`${num(t[k])} people`)} style={{ width: `${w}%`, background: col[k], color: '#FFFFFF', fontSize: TYPE.label, fontWeight: 700, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>{w > 7 ? `${Math.round(w)}%` : ''}</span>;
+            return <span key={k} data-ins-level={`${when}:${word}`} {...pressable(() => onLevel(word, when))} {...tip(`${num(t[k])} people`)} style={{ width: `${w}%`, background: col[k], color: '#FFFFFF', fontSize: TYPE.label, fontWeight: 700, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>{w > 7 ? `${Math.round(w)}%` : ''}</span>;
           })}
         </span>
       </div>
@@ -230,8 +231,8 @@ function Levels({ tiers, before, ink, onLevel }) {
   };
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
-      {bar(tiers, 'Now')}
-      {before && bar(before, '30 days ago')}
+      {bar(tiers, 'Now', 'now')}
+      {before && bar(before, '30 days ago', 'before')}
       <span style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginLeft: 94, ...small, fontWeight: 700 }}>
         {TIERS.map(([k, word]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: col[k] }} />{word} {num(tiers[k])}</span>)}
       </span>
@@ -239,10 +240,10 @@ function Levels({ tiers, before, ink, onLevel }) {
   );
 }
 
-function Ring({ value, label, count, onOpen, color }) {
+function Ring({ value, label, count, onOpen, color, id }) {
   const r = 26; const c = 2 * Math.PI * r;
   return (
-    <div {...pressable(onOpen)} {...tip(`${num(count)} people`)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', cursor: 'pointer' }}>
+    <div data-ins-driver={id} {...pressable(onOpen)} {...tip(`${num(count)} people`)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', cursor: 'pointer' }}>
       <svg width={68} height={68} aria-hidden>
         <circle cx={34} cy={34} r={r} fill="none" stroke="var(--track)" strokeWidth={7} />
         <circle cx={34} cy={34} r={r} fill="none" stroke={color} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${c * Math.min(1, value)} ${c}`} transform="rotate(-90 34 34)" />
@@ -260,7 +261,7 @@ function RateRows({ rows, T, ink, onRow }) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
       {rows.map((r) => (
-        <div key={r.name} {...pressable(() => onRow(r))} {...tip(r.tip)} style={{ display: 'grid', gridTemplateColumns: '120px minmax(0,1fr) 56px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
+        <div key={r.name} data-ins-lure={r.name} {...pressable(() => onRow(r))} {...tip(r.tip)} style={{ display: 'grid', gridTemplateColumns: '120px minmax(0,1fr) 56px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
           <span style={{ fontSize: TYPE.strong, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
           <span style={{ height: 10, borderRadius: 5, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${((r.v || 0) / max) * 100}%`, background: within(r.v, T) ? ink.good : ink.bad, borderRadius: 5, transformOrigin: 'left' }} /></span>
           <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800 }}>{pc1(r.v)}</span>
@@ -270,30 +271,43 @@ function RateRows({ rows, T, ink, onRow }) {
   );
 }
 
-/** One department's own charts: the second level. */
+const monthName = (to) => new Date(to).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
+const TIER_KEY = { Low: 'low', Moderate: 'moderate', High: 'high', Critical: 'critical' };
+const asTiers = (c) => Object.fromEntries(Object.entries(TIER_KEY).map(([w, k]) => [k, c[w]]));
+
+/**
+ * One department's own charts, the second level, all counted from the
+ * people table (services/insightsPeople.js), so each figure opens exactly
+ * the people it counts: a month's column its people at high risk that
+ * month, a level its people at that level, a reason the people it applies
+ * to, a campaign type those who clicked one.
+ */
 export function DepartmentPage({ ctx, name }) {
-  const { m, p, org, ink, reduce, targets: T, people } = ctx;
-  const d = p.departments.find((x) => x.name === name);
-  if (!d) return null;
-  const idx = org.at(-1).departments.findIndex((x) => x.name === name);
-  const months = org.slice(-6).map((s) => { const x = s.departments[idx]; return { to: s.to, high: x.tiers.high + x.tiers.critical, people: x.people }; });
-  const limit = T.highRiskShare.target * d.people;
-  const hi = Math.max(limit, ...months.map((s) => s.high)) * 1.2;
-  // what puts people at risk, as the organisation's sample works it out from the levels
-  const drivers = [
-    ['Never reported', Math.round(d.tiers.moderate * 0.46), { did: 'clicked', levels: ['Moderate'] }],
-    ['Clicked 2+ times', Math.round(d.tiers.high * 0.86), { did: 'twice' }],
-    ['Training overdue', Math.round(d.people * (1 - (d.training.completion ?? 0.9)) * 0.2), { step: 'Not started' }],
-    ['Failed quiz twice', Math.round(d.people * 0.016), { step: 'Completed' }],
-  ];
-  const lures = (m.deptLures[name] || []).slice(0, 6);
+  const { table, ink, reduce, targets: T, people } = ctx;
+  const byMonth = useMemo(() => levelsByMonth(table.rows, table.months, name), [table, name]);
+  const mine = useMemo(() => table.rows.filter((x) => x.department === name), [table, name]);
+  const lures = useMemo(() => {
+    const by = {};
+    mine.forEach((x) => {
+      const seen = {};
+      x.records.forEach((r) => { (seen[r.type] ||= { got: 1, clicked: 0 }).clicked ||= r.clicked; });
+      Object.entries(seen).forEach(([type, v]) => { const t = (by[type] ||= { type, got: 0, clicked: 0 }); t.got += 1; t.clicked += v.clicked; });
+    });
+    return Object.values(by).map((t) => ({ ...t, v: t.got ? t.clicked / t.got : null })).sort((a, b) => b.v - a.v).slice(0, 6);
+  }, [mine]);
+  const now = byMonth.at(-1);
+  if (!now?.people) return null;
+  const last = byMonth.length - 1;
+  const limit = T.highRiskShare.target * now.people;
+  const hi = Math.max(limit, ...byMonth.map((s) => s.high)) * 1.2;
+  const drivers = DRIVERS.map((dr) => ({ ...dr, count: mine.filter((x) => x.drivers[dr.key]).length }));
   const at = { department: name };
   return (
     <div data-ins-dept={name} style={grid('minmax(0,1fr) minmax(0,1fr)', 'minmax(0,1fr) minmax(0,1fr)')}>
-      <Card i={0} reduce={reduce} title="People at high risk" style={card} onOpen={() => people('People at high or critical risk', { ...at, levels: ['High', 'Critical'] })} openLabel="People">
+      <Card i={0} reduce={reduce} title="People at high risk" style={card}>
         <Trend
-          points={months}
-          label={`People at high risk in ${name}, 30 days at a time: ${num(months.at(-1)?.high)} now`}
+          points={byMonth}
+          label={`People at high risk in ${name}, 30 days at a time: ${num(now.high)} now`}
           lo={0}
           hi={hi}
           ticks={steps(hi, hi > 300 ? 100 : 50)}
@@ -302,18 +316,21 @@ export function DepartmentPage({ ctx, name }) {
           columns={{ key: 'high', colorOf: (v) => (v <= limit ? ink.good : ink.bad), text: num }}
           right={10}
           tip={(s) => ({ head: head(s), rows: [{ label: 'At high risk', value: num(s.high), color: s.high <= limit ? ink.good : ink.bad }] })}
+          onPick={(k) => people(`At high risk in ${monthName(byMonth[k].to)}`, { ...at, levels: ['High', 'Critical'], month: k, monthLabel: monthName(byMonth[k].to) })}
         />
       </Card>
       <Card i={1} reduce={reduce} title="Risk levels" style={card}>
-        <Levels tiers={d.tiers} before={d.tiersBefore} ink={ink} onLevel={(level) => people(`${level} risk`, { ...at, level })} />
+        <Levels tiers={asTiers(now)} before={last > 0 ? asTiers(byMonth[last - 1]) : null} ink={ink} onLevel={(level, when) => (when === 'before'
+          ? people(`${level} risk, 30 days ago`, { ...at, level, month: last - 1, monthLabel: monthName(byMonth[last - 1].to) })
+          : people(`${level} risk`, { ...at, level }))} />
       </Card>
       <Card i={2} reduce={reduce} title="What puts people at risk" style={card}>
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', alignItems: 'center' }}>
-          {drivers.map(([label, count, f]) => <Ring key={label} label={label} count={count} value={count / d.people} color={ink.bad} onOpen={() => people(label, { ...at, ...f })} />)}
+          {drivers.map((dr) => <Ring key={dr.key} id={dr.key} label={dr.label} count={dr.count} value={dr.count / now.people} color={ink.bad} onOpen={() => people(dr.label, { ...at, driver: dr.key })} />)}
         </div>
       </Card>
       <Card i={3} reduce={reduce} title="Hook rate, by campaign type" style={card}>
-        <RateRows rows={lures.map((l) => ({ name: l.type, v: l.hooked, tip: `${num(l.clicked)} clicks` }))} T={T.hookRate} ink={ink} onRow={(r) => people(`Clicked a ${r.name} email`, { ...at, campaignType: r.name, did: 'clicked' })} />
+        <RateRows rows={lures.map((l) => ({ name: l.type, v: l.v, tip: `${num(l.clicked)} of ${num(l.got)} people` }))} T={T.hookRate} ink={ink} onRow={(r) => people(`${r.name} emails · who clicked`, { ...at, campaignType: r.name, did: 'clicked' })} />
       </Card>
     </div>
   );
