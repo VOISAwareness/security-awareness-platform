@@ -210,7 +210,7 @@ function TrainingDashboardInner() {
               onLaunch={handleLaunchPathway}
               onEdit={(path) => {
                 setEditingPath(path);
-                setPathsSubTab("create");
+                setPathsSubTab(path.isAlwaysAvailable ? "courses" : "all");
                 setCurrentView("paths");
               }}
               onSendForApproval={async (pToSubmit) => {

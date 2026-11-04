@@ -47,10 +47,7 @@ export const CreateNewTrainingPath = ({
   const [step, setStep] = useState(1);
   const [pathName, setPathName] = useState(editingPath ? editingPath.TrainingPathName : "");
   const [description, setDescription] = useState(editingPath ? editingPath.Description : "");
-  const [isAlwaysAvailable, setIsAlwaysAvailable] = useState(() => {
-    if (editingPath) return !!editingPath.isAlwaysAvailable;
-    return !!defaultAlwaysAvailable;
-  });
+  const isAlwaysAvailable = editingPath ? !!editingPath.isAlwaysAvailable : !!defaultAlwaysAvailable;
 
   // Selection state
   const [pathType, setPathType] = useState(
@@ -289,7 +286,7 @@ export const CreateNewTrainingPath = ({
         >
           <div className="flex-1 flex items-stretch">
             {[
-              { id: 1, step: "1", titleLine1: "Describe Path" },
+              { id: 1, step: "1", titleLine1: isAlwaysAvailable ? "Describe Course" : "Describe Path" },
               { id: 2, step: "2", titleLine1: "Select Type" },
               { id: 3, step: "3", titleLine1: "Select Assets" },
               { id: 4, step: "4", titleLine1: "Review & Publish" }
@@ -360,14 +357,14 @@ export const CreateNewTrainingPath = ({
             <div className="flex flex-col gap-4">
               <div>
                 <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${textSecondary}`}>
-                  Learning Path Name
+                  {isAlwaysAvailable ? "Course Name" : "Learning Path Name"}
                 </label>
                 <input
                   type="text"
                   value={pathName}
                   onChange={(e) => setPathName(e.target.value)}
                   className={`w-full h-10 px-3 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#E60000] border ${bgInput}`}
-                  placeholder="e.g., Advanced Multi-Factor & Credential Security"
+                  placeholder={isAlwaysAvailable ? "e.g., Executive Cybersecurity Fundamentals" : "e.g., Advanced Multi-Factor & Credential Security"}
                 />
               </div>
 
@@ -379,32 +376,8 @@ export const CreateNewTrainingPath = ({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className={`w-full h-24 p-3 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#E60000] resize-none border ${bgInput}`}
-                  placeholder="Enter path purpose and target objectives..."
+                  placeholder={isAlwaysAvailable ? "Enter course purpose and target objectives..." : "Enter path purpose and target objectives..."}
                 />
-              </div>
-
-              <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                isDark ? "border-white/5 bg-white/[0.01]" : "border-slate-200 bg-slate-50"
-              }`}>
-                <div>
-                  <h4 className={`text-xs font-bold ${textPrimary}`}>Always Available Course</h4>
-                  <p className={`text-[10px] mt-0.5 ${textSecondary}`}>
-                    Enable to make this an elective course open to all users at any time.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAlwaysAvailable(!isAlwaysAvailable)}
-                  className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
-                    isAlwaysAvailable ? "bg-[#16A34A]" : "bg-slate-600"
-                  }`}
-                >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                      isAlwaysAvailable ? "translate-x-6" : "translate-x-0"
-                    }`}
-                  />
-                </button>
               </div>
             </div>
           )}
@@ -801,14 +774,14 @@ export const CreateNewTrainingPath = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm("Are you sure you want to delete this learning path? This action cannot be undone.")) {
+                  if (confirm(isAlwaysAvailable ? "Are you sure you want to delete this course? This action cannot be undone." : "Are you sure you want to delete this learning path? This action cannot be undone.")) {
                     onDelete(editingPath.TrainingPathID);
                     onClose();
                   }
                 }}
                 className="h-10 px-4 rounded-xl border border-red-500/30 bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md transition-colors"
               >
-                <Trash2 className="w-4 h-4" /> Delete Learning Path
+                <Trash2 className="w-4 h-4" /> {isAlwaysAvailable ? "Delete Course" : "Delete Learning Path"}
               </button>
             )}
           </div>

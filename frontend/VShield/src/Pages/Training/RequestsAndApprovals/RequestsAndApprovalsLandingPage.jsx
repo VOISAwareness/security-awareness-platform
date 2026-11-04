@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useUserType } from '@/UserTypeContext/UserTypeContext';
+import { useTraining } from '../TrainingContext';
 
 // Ported Galleries
 import ApprovalQueueGallery from './components/ApprovalQueueGallery';
@@ -41,6 +42,7 @@ const RequestsAndApprovals = ({
   onLaunch
 }) => {
   const { user } = useUserType?.() || { isDark: false };
+  const { showToast } = useTraining?.() || {};
 
   // =========================================================================
   //  EMAIL RESOLVER
@@ -79,6 +81,7 @@ const RequestsAndApprovals = ({
     try {
       await savePath(updatedPath);
       setPaths(prev => prev.map(p => p.TrainingPathID === path.TrainingPathID ? updatedPath : p));
+      showToast?.(`"${path.TrainingPathName}" approved and published successfully.`);
     } catch (e) {
       console.error("Failed to approve learning path", e);
     }
@@ -94,6 +97,7 @@ const RequestsAndApprovals = ({
     try {
       await savePath(updatedPath);
       setPaths(prev => prev.map(p => p.TrainingPathID === path.TrainingPathID ? updatedPath : p));
+      showToast?.(`"${path.TrainingPathName}" has been rejected.`);
     } catch (e) {
       console.error("Failed to reject learning path", e);
     }
