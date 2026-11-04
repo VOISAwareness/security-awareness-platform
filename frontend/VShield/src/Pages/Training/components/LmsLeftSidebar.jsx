@@ -15,15 +15,16 @@ export const LmsLeftSidebar = () => {
     setCurrentView,
     pathsSubTab,
     setPathsSubTab,
-    editingPath,
     setEditingPath,
     individualSubTab,
-    setIndividualSubTab
+    setIndividualSubTab,
+    setShowPathCreator
   } = useTraining();
 
   const handlePathsClick = (subTab) => {
     setPathsSubTab(subTab);
     setEditingPath(null);
+    if (setShowPathCreator) setShowPathCreator(false);
     setCurrentView("paths");
   };
 
@@ -40,7 +41,7 @@ export const LmsLeftSidebar = () => {
             onClick={() => handlePathsClick("all")}
             style={{ height: "80px", borderRadius: "14px" }}
             className={`relative p-3.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden border ${
-              pathsSubTab === "all" && !editingPath
+              pathsSubTab === "all"
                 ? (isDark ? "bg-white text-black shadow-md border-transparent" : "bg-black text-white shadow-md border-transparent")
                 : (isDark ? "bg-[#0B1121] text-white hover:bg-[#151a2d] border-white/10 shadow-xs" : "bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs")
             }`}
@@ -49,7 +50,7 @@ export const LmsLeftSidebar = () => {
               <h3 className="text-[13px] font-voda font-bold tracking-tight leading-tight">All Training Paths</h3>
             </div>
             <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
-              pathsSubTab === "all" && !editingPath ? (isDark ? "text-slate-700" : "text-slate-300") : (isDark ? "text-slate-400" : "text-slate-500")
+              pathsSubTab === "all" ? (isDark ? "text-slate-700" : "text-slate-300") : (isDark ? "text-slate-400" : "text-slate-500")
             }`}>
               Every created training paths are stored here
             </p>
@@ -59,24 +60,24 @@ export const LmsLeftSidebar = () => {
           </div>
 
           <div
-            onClick={() => handlePathsClick("create")}
+            onClick={() => handlePathsClick("courses")}
             style={{ height: "80px", borderRadius: "14px" }}
             className={`relative p-3.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden border ${
-              pathsSubTab === "create" || editingPath
+              pathsSubTab === "courses"
                 ? (isDark ? "bg-white text-black shadow-md border-transparent" : "bg-black text-white shadow-md border-transparent")
                 : (isDark ? "bg-[#0B1121] text-white hover:bg-[#151a2d] border-white/10 shadow-xs" : "bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs")
             }`}
           >
             <div className="flex justify-between items-start relative z-10">
-              <h3 className="text-[13px] font-voda font-bold tracking-tight leading-tight">Create New Training Path</h3>
+              <h3 className="text-[13px] font-voda font-bold tracking-tight leading-tight">All Courses</h3>
             </div>
             <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
-              pathsSubTab === "create" || editingPath ? (isDark ? "text-slate-700" : "text-slate-300") : (isDark ? "text-slate-400" : "text-slate-500")
+              pathsSubTab === "courses" ? (isDark ? "text-slate-700" : "text-slate-300") : (isDark ? "text-slate-400" : "text-slate-500")
             }`}>
-              Start here to create a new training path
+              Always available elective courses stored here
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
-              <img src={reportsIcon} alt="Create Path" className="w-full h-full object-contain" />
+              <img src={reportsIcon} alt="Courses" className="w-full h-full object-contain" />
             </div>
           </div>
         </>

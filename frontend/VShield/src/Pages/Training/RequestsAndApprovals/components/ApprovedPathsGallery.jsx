@@ -113,16 +113,16 @@ const ApprovedPathsGallery = ({
           </svg>
         </div>
 
-        {/* ========================================================================= */}
-        {/*  3. TOP-RIGHT ARM OF L-SHAPE CONTAINER                                 */}
-        {/* ========================================================================= */}
+        {/* ================================================================ */}
+        {/*  3. TOP-RIGHT ARM OF L-SHAPE CONTAINER                           */}
+        {/*================================================================= */}
         <div
           style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
           }}
-          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
+          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
           {/* Controls Column */}
           <div className="flex flex-col -mt-8 gap-2 max-w-[340px] w-full text-left">
