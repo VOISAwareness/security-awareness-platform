@@ -1063,7 +1063,8 @@ const AttachOutcomesTab = ({
                     font-bold
                     font-voda
                     uppercase
-                    tracking-light
+                    tracking-tight
+                    text-slate-900
                     dark:text-white
                   "
                 >
@@ -1353,7 +1354,8 @@ const AttachOutcomesTab = ({
                   font-voda
                   font-bold
                   uppercase
-                  tracking-light
+                  tracking-tight
+                  text-slate-900
                   dark:text-white
                 "
               >
@@ -1606,7 +1608,8 @@ const AttachOutcomesTab = ({
                   text-[13px]
                   font-voda
                   font-bold
-                  tracking-light
+                  tracking-tight
+                  text-slate-900
                   dark:text-white
                   uppercase
                   tracking-wider

@@ -61,7 +61,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
-  Heading1,
 } from "lucide-react";
 
 // ============================================================
