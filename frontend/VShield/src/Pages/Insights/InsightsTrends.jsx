@@ -34,8 +34,9 @@ const tick = { fontSize: TYPE.label, fontWeight: 500, fill: 'var(--muted)', font
  * step:    draw the lines as steps
  * right:   the right margin's width
  * tip:     (point) => { head, rows: [{ label, value, color }] }
+ * onPick:  (index) => … makes each month clickable (the people behind it)
  */
-export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [], lines = [], columns = null, between = null, side = [], peak = null, tag = null, step = false, right = 76, tip, label }) {
+export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [], lines = [], columns = null, between = null, side = [], peak = null, tag = null, step = false, right = 76, tip, label, onPick = null }) {
   const [box, { w, h }] = useSize();
   const [at, setAt] = useState(null);
   const clip = `ins-col${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -164,7 +165,7 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
           {points.map((p, i) => {
             const half = columns ? iw / n / 2 : n > 1 ? iw / (n - 1) / 2 : iw / 2;
             const x0 = Math.max(L, X(i) - half);
-            return <rect key={`hit-${p.to}`} x={x0} y={T} width={Math.max(0, Math.min(L + iw, X(i) + half) - x0)} height={ih} fill="transparent" onMouseEnter={() => setAt(i)} />;
+            return <rect key={`hit-${p.to}`} data-ins-pick={onPick ? i : undefined} x={x0} y={T} width={Math.max(0, Math.min(L + iw, X(i) + half) - x0)} height={ih} fill="transparent" onMouseEnter={() => setAt(i)} onClick={onPick ? () => onPick(i) : undefined} style={{ cursor: onPick ? 'pointer' : 'default' }} />;
           })}
         </svg>
       )}

@@ -9,7 +9,7 @@ import { campaignReport } from '../../services/sampleReports';
 import { insights, peopleInsights, standsOut } from '../../services/insights';
 import { organisation } from '../../services/sampleOrganisation';
 import { insightsBook, insightsSummary } from '../../services/insightsExport';
-import { peopleFor, samplePeople } from '../../services/insightsPeople';
+import { DRIVERS, peopleTable } from '../../services/insightsPeople';
 import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { ExportMenu } from '../Leaderboard/BigPicture';
 import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
@@ -149,6 +149,7 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 
 // Below this the page scrolls rather than squeeze; a laptop is well above it.
 const FLOOR = 560;
+const DID_NOTE = { clicked: 'Clicked', reported: 'Reported', gave: 'Gave details away', twice: 'Clicked 2+ times' };
 const LEFT_W = 266;
 
 // The picked card is black, or white on the dark theme, as on Requests & Approvals.
@@ -325,14 +326,29 @@ const Insights = () => {
   // The people behind every figure: a sample, one row per person, until
   // GET /people answers with the same rows (services/insightsPeople.js).
   const types = useMemo(() => Object.fromEntries(items.map((x) => [x.campaign.name, x.campaign.type || 'Other'])), [items]);
-  const everyone = useMemo(() => samplePeople({ campaigns: Object.keys(types), programmes: TRAINING.programmes.map((x) => x.program) }), [types]);
+  // one row per person, which every people list filters and the department
+  // charts count from (services/insightsPeople.js)
+  const table = useMemo(() => peopleTable({ org, campaigns: Object.entries(types).map(([name, type]) => ({ name, type })), programmes: TRAINING.programmes.map((x) => x.program) }), [org, types]);
 
   const pick = (id) => { setDept(null); startTransition(() => setTab(id)); };
   const openDept = (name) => startTransition(() => { setTab('departments'); setDept(name); });
   const where = dept || TABS.find((t) => t.id === tab)?.label;
   // what was clicked, as the people behind it; in a department, its people only
-  const people = (title, filters = {}) => setWho({ title, where, filters: dept ? { department: dept, ...filters } : filters });
-  const shown = useMemo(() => (who ? peopleFor(everyone, who.filters, { types }) : []), [who, everyone, types]);
+  // What was clicked, as the people list's filters: a department, the
+  // campaigns (one, or every one of a type) and the levels are chosen in its
+  // filters, ticked; the rest (who clicked, a reason, a training step, a
+  // month) holds for the whole list and is named under its title.
+  const people = (title, filters = {}) => {
+    const { department, campaign, campaignType, level, levels, monthLabel, ...fixed } = dept ? { department: dept, ...filters } : filters;
+    const campaigns = campaign ? [campaign] : campaignType ? Object.keys(types).filter((c) => types[c] === campaignType) : [];
+    const notes = [
+      monthLabel && `Risk level in ${monthLabel}`,
+      fixed.did && DID_NOTE[fixed.did],
+      fixed.driver && DRIVERS.find((d) => d.key === fixed.driver)?.rule,
+      fixed.step && `Training: ${fixed.step}${fixed.step === 'Not started' ? '' : ' or further'}`,
+    ].filter(Boolean);
+    setWho({ title, where, picked: { department: department ? [department] : [], campaign: campaigns, level: levels || (level ? [level] : []) }, fixed, notes, lure: campaignType || types[campaign] || null });
+  };
 
   // The Big Picture's People, narrowed to a department and a campaign type,
   // with the way back. This view is kept on the page's own history entry
@@ -342,7 +358,7 @@ const Insights = () => {
     navigate(location.pathname, { replace: true, state: { restore: back } });
     navigate('/leaderboard', { state: { view: 'reports', people: { dept: name || 'all', lure: lure || null }, back: { path: location.pathname, label: ['Insights', name, lure].filter(Boolean).join(' · '), restore: back } } });
   };
-  const ctx = { m, p, org, depts, targets: T, ink, isDark, reduce, people, openDept };
+  const ctx = { m, p, org, depts, table, types, targets: T, ink, isDark, reduce, people, openDept };
 
   const n = m.now;
   const b = m.before;
@@ -464,10 +480,14 @@ const Insights = () => {
         <PeopleList
           title={who.title}
           where={who.where}
-          rows={shown}
+          rows={table.rows}
+          picked={who.picked}
+          fixed={who.fixed}
+          notes={who.notes}
+          types={types}
           isDark={isDark}
           reduce={reduce}
-          onBigPicture={canSeePeople ? (picked) => seePeople({ dept: picked.department || who.filters.department, lure: who.filters.campaignType || types[who.filters.campaign] }) : undefined}
+          onBigPicture={canSeePeople ? (picked) => seePeople({ dept: picked.department.length === 1 ? picked.department[0] : null, lure: who.lure }) : undefined}
           onClose={() => setWho(null)}
         />
       )}
