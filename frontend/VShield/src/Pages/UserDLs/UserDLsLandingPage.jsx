@@ -20,6 +20,7 @@ import ExchangeIcon from '../../assets/UserListScreenAssets/ExchangeIconUserList
 // Fallback data & master user lookup
 import masterUsersData from '../../MasterUserData.json';
 import { api } from '../../services/api';
+import { listUsageCounts, timesUsed } from '../../services/listUsage';
 import PageLoading from '../../GlobalComponents/PageLoading';
 
 // =========================================================================
@@ -170,6 +171,22 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
       .finally(() => {
         if (active) setListsLoading(false);
       });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // "Used N times": counted from the campaigns sent to each list (null until
+  // they load, or if they cannot; then the number stored on the list shows).
+  const [usageCounts, setUsageCounts] = useState(null);
+  useEffect(() => {
+    let active = true;
+    api.campaigns
+      .list()
+      .then((rows) => {
+        if (active) setUsageCounts(listUsageCounts(rows));
+      })
+      .catch((err) => console.error('Failed to load campaigns for list usage', err));
     return () => {
       active = false;
     };
@@ -635,7 +652,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                     const userCount = list.TotalEmailIDsCount !== undefined
                       ? list.TotalEmailIDsCount
                       : (list.EMailIDs ? list.EMailIDs.length : (list.totalUsers || 0));
-                    const timesUsed = list.NumberofTimesUsed !== undefined ? list.NumberofTimesUsed : (list.usedCount || 0);
+                    const usedTimes = timesUsed(list, usageCounts);
 
                     return (
                       <div
@@ -717,7 +734,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                             </span>
 
                             <span className="text-[#16A34A] dark:text-[#4ADE80] font-bold">
-                              Used {timesUsed} Times
+                              Used {usedTimes} {usedTimes === 1 ? 'Time' : 'Times'}
                             </span>
                           </div>
 
