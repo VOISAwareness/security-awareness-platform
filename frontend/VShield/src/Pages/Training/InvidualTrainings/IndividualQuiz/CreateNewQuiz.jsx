@@ -48,13 +48,6 @@ export const CreateNewQuiz = ({
   const [previewIdx, setPreviewIdx] = useState(0);
   const [previewAnswers, setPreviewAnswers] = useState({});
 
-  const togglePreviewMode = () => {
-    if (!isPreviewMode) {
-      setPreviewIdx(activeQuestionIdx);
-    }
-    setIsPreviewMode(!isPreviewMode);
-  };
-
   // Questions addition helper
   const addQuestion = () => {
     setQuestions([
@@ -165,16 +158,16 @@ export const CreateNewQuiz = ({
               >
                 {/* Step Icon */}
                 {isCompleted ? (
-                  <div className="w-5 h-5 rounded-full bg-[#8ED973] dark:bg-[#74D054] text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+                  <div className="w-6 h-6 rounded-full bg-[#8ED973] dark:bg-[#74D054] text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
                   </div>
                 ) : isCurrent ? (
-                  <div className="w-5 h-5 rounded-full bg-white dark:bg-black text-black dark:text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0 shadow-2xs">
+                  <div className="w-6 h-6 rounded-full bg-white dark:bg-black text-black dark:text-white font-bold flex items-center justify-center text-[11px] flex-shrink-0 shadow-2xs">
                     {s.step}
                   </div>
                 ) : (
                   <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
                       isDark ? "bg-white text-black" : "bg-black text-white"
                     }`}
                   >
@@ -184,7 +177,7 @@ export const CreateNewQuiz = ({
 
                 {/* Step Label */}
                 <div
-                  className={`flex flex-col text-left leading-tight text-[11px] font-bold ${
+                  className={`flex flex-col text-left leading-tight text-[11.5px] font-bold ${
                     isCompleted
                       ? "text-[#8ED973] dark:text-[#74D054]"
                       : isCurrent
@@ -201,25 +194,6 @@ export const CreateNewQuiz = ({
             );
           })}
         </div>
-
-        {/* Step 2 action button in header */}
-        {step === 2 && (
-          <div className="flex items-center px-3 border-l border-white/10 dark:border-white/10 border-slate-200">
-            <button
-              type="button"
-              onClick={togglePreviewMode}
-              className={`h-7 px-3.5 rounded-full text-[9px] font-bold font-voda uppercase tracking-wider transition-all cursor-pointer shadow-xs ${
-                isPreviewMode
-                  ? "bg-[#0D9B77] text-white"
-                  : isDark
-                  ? "bg-white/10 text-slate-200 hover:bg-white/15"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              {isPreviewMode ? "Back to Editing" : "Preview Quiz"}
-            </button>
-          </div>
-        )}
 
         <button
           type="button"
