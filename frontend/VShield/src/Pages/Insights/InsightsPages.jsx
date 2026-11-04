@@ -149,12 +149,14 @@ export function SummaryPage({ ctx }) {
 
 // ----------------------------------------------------------- Departments
 
+// lower is better first (risk score, high risk, hook rate, gave details),
+// then higher is better (report rate, completed)
 const DEPT_COLS = [
   { key: 'riskScore', name: 'Risk score', text: (v) => v.toFixed(1), unit: '' },
   { key: 'highRiskShare', name: 'High risk', text: pc1, unit: '%' },
   { key: 'hookRate', name: 'Hook rate', text: pc1, unit: '%' },
-  { key: 'reportRate', name: 'Report rate', text: pc1, unit: '%' },
   { key: 'gaveDetails', name: 'Gave details', text: pc1, unit: '%' },
+  { key: 'reportRate', name: 'Report rate', text: pc1, unit: '%' },
   { key: 'trainingCompletion', name: 'Completed', text: pc, unit: '%' },
 ];
 const DEPT_GRID = 'minmax(0,1.6fr) repeat(6, minmax(0,1fr)) 64px 14px';
@@ -210,47 +212,62 @@ export function DepartmentsPage({ ctx }) {
   );
 }
 
-// the department's risk levels, now over 30 days before
+// The department's risk levels: a row each, its bar now and a thin grey
+// one for 30 days before on one scale, the count now and its change, green
+// when it moved the safe way (more Low, fewer of the rest) and red when not.
+// A row opens its people now; the grey bar, its people 30 days before.
 const TIERS = [['low', 'Low'], ['moderate', 'Moderate'], ['high', 'High'], ['critical', 'Critical']];
-function Levels({ tiers, before, ink, onLevel }) {
+function LevelRows({ tiers, before, ink, onLevel }) {
   const col = { low: ink.good, moderate: ink.caution, high: ink.bad, critical: ink.severe };
-  const total = (t) => TIERS.reduce((a, [k]) => a + (t?.[k] || 0), 0);
-  const bar = (t, label, when) => {
-    const n = total(t);
-    return (
-      <div style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr)', alignItems: 'center', gap: 10 }}>
-        <span style={{ ...small, fontWeight: 700 }}>{label}</span>
-        <span style={{ display: 'flex', height: 24, gap: 2, borderRadius: 6, overflow: 'hidden' }}>
-          {TIERS.map(([k, word]) => {
-            const w = n ? (t[k] / n) * 100 : 0;
-            return <span key={k} data-ins-level={`${when}:${word}`} {...pressable(() => onLevel(word, when))} {...tip(`${num(t[k])} people`)} style={{ width: `${w}%`, background: col[k], color: '#FFFFFF', fontSize: TYPE.label, fontWeight: 700, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>{w > 7 ? `${Math.round(w)}%` : ''}</span>;
-          })}
-        </span>
-      </div>
-    );
+  const max = Math.max(1, ...TIERS.map(([k]) => Math.max(tiers[k] || 0, before?.[k] || 0)));
+  const chip = (k) => {
+    if (!before) return null;
+    const d = (tiers[k] || 0) - (before[k] || 0);
+    const good = d === 0 ? null : (k === 'low') === (d > 0);
+    const c = good === null ? 'var(--muted)' : good ? ink.good : ink.bad;
+    return <span style={{ minWidth: 34, textAlign: 'center', padding: '1px 6px', borderRadius: 999, fontSize: TYPE.label, fontWeight: 800, color: c, background: good === null ? 'var(--track)' : alpha(c, 0.12) }}>{d > 0 ? '+' : ''}{num(d)}</span>;
   };
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
-      {bar(tiers, 'Now', 'now')}
-      {before && bar(before, '30 days ago', 'before')}
-      <span style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginLeft: 94, ...small, fontWeight: 700 }}>
-        {TIERS.map(([k, word]) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: col[k] }} />{word} {num(tiers[k])}</span>)}
-      </span>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
+        {TIERS.map(([k, word]) => (
+          <div key={k} data-ins-level={`now:${word}`} {...pressable(() => onLevel(word, 'now'))} {...tip(`${num(tiers[k])} people`)} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr) 92px', alignItems: 'center', columnGap: 10, cursor: 'pointer' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: TYPE.strong, fontWeight: 700 }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: col[k] }} />{word}</span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ height: 12, width: `${((tiers[k] || 0) / max) * 100}%`, minWidth: 3, background: col[k], borderRadius: '0 5px 5px 0' }} />
+              {before && <span data-ins-level={`before:${word}`} onClick={(e) => { e.stopPropagation(); onLevel(word, 'before'); }} data-tip={`${num(before[k])} people, 30 days ago`} style={{ height: 5, width: `${((before[k] || 0) / max) * 100}%`, minWidth: 3, background: 'var(--tick)', borderRadius: '0 3px 3px 0' }} />}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+              <strong style={{ fontSize: TYPE.figure, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(tiers[k])}</strong>
+              {chip(k)}
+            </span>
+          </div>
+        ))}
+      </div>
+      {before && (
+        <span style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', gap: 14, paddingTop: 6, borderTop: '1px solid var(--hair)', ...small, fontWeight: 700 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 9, height: 9, borderRadius: 3, background: 'var(--muted)' }} />Now</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span aria-hidden style={{ width: 9, height: 4, borderRadius: 2, background: 'var(--tick)' }} />30 days ago</span>
+        </span>
+      )}
     </div>
   );
 }
 
-function Ring({ value, label, count, onOpen, color, id }) {
-  const r = 26; const c = 2 * Math.PI * r;
+// The reasons people are at risk, four equal tiles in a 2 × 2 grid, each in
+// its own colour: how many people, the reason, their share of the
+// department. A person can have more than one. A tile opens its people.
+const DRIVER_COLOR = { neverReported: '#4F46E5', repeatClicker: '#D04052', overdue: '#C2690B', quizFailedTwice: '#7C3AED' };
+function DriverTiles({ drivers, people: total, onOpen }) {
   return (
-    <div data-ins-driver={id} {...pressable(onOpen)} {...tip(`${num(count)} people`)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', cursor: 'pointer' }}>
-      <svg width={68} height={68} aria-hidden>
-        <circle cx={34} cy={34} r={r} fill="none" stroke="var(--track)" strokeWidth={7} />
-        <circle cx={34} cy={34} r={r} fill="none" stroke={color} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${c * Math.min(1, value)} ${c}`} transform="rotate(-90 34 34)" />
-        <text x={34} y={38} textAnchor="middle" style={{ fontFamily: 'Montserrat', fontWeight: 800, fontSize: TYPE.title, fill: 'var(--text)' }}>{(value * 100).toFixed(1)}%</text>
-      </svg>
-      <strong style={{ fontSize: TYPE.figure, fontWeight: 800 }}>{num(count)}</strong>
-      <span style={{ ...small, fontWeight: 700 }}>{label}</span>
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridTemplateRows: 'repeat(2, minmax(0,1fr))', gap: 10, marginTop: 6 }}>
+      {drivers.map((dr) => (
+        <div key={dr.key} data-ins-driver={dr.key} {...pressable(() => onOpen(dr))} {...tip(dr.rule)} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '8px 14px', borderRadius: 12, background: DRIVER_COLOR[dr.key], color: '#FFFFFF', cursor: 'pointer' }}>
+          <strong style={{ fontSize: TYPE.heading, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{num(dr.count)}</strong>
+          <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dr.label}</span>
+          <span style={{ fontSize: TYPE.small, fontWeight: 500, opacity: 0.85 }}>{pc1(total ? dr.count / total : null)} of people</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -320,14 +337,12 @@ export function DepartmentPage({ ctx, name }) {
         />
       </Card>
       <Card i={1} reduce={reduce} title="Risk levels" style={card}>
-        <Levels tiers={asTiers(now)} before={last > 0 ? asTiers(byMonth[last - 1]) : null} ink={ink} onLevel={(level, when) => (when === 'before'
+        <LevelRows tiers={asTiers(now)} before={last > 0 ? asTiers(byMonth[last - 1]) : null} ink={ink} onLevel={(level, when) => (when === 'before'
           ? people(`${level} risk, 30 days ago`, { ...at, level, month: last - 1, monthLabel: monthName(byMonth[last - 1].to) })
           : people(`${level} risk`, { ...at, level }))} />
       </Card>
-      <Card i={2} reduce={reduce} title="What puts people at risk" style={card}>
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', alignItems: 'center' }}>
-          {drivers.map((dr) => <Ring key={dr.key} id={dr.key} label={dr.label} count={dr.count} value={dr.count / now.people} color={ink.bad} onOpen={() => people(dr.label, { ...at, driver: dr.key })} />)}
-        </div>
+      <Card i={2} reduce={reduce} title="Risk drivers" style={card} data-ins-drivers>
+        <DriverTiles drivers={drivers} people={now.people} onOpen={(dr) => people(dr.label, { ...at, driver: dr.key })} />
       </Card>
       <Card i={3} reduce={reduce} title="Hook rate, by campaign type" style={card}>
         <RateRows rows={lures.map((l) => ({ name: l.type, v: l.v, tip: `${num(l.clicked)} of ${num(l.got)} people` }))} T={T.hookRate} ink={ink} onRow={(r) => people(`${r.name} emails · who clicked`, { ...at, campaignType: r.name, did: 'clicked' })} />
