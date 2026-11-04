@@ -803,7 +803,7 @@ const AnnouncementTemplateDetails = () => {
                   className="
             text-xl
             font-voda
-            font-extrabold
+            font-bold
             text-slate-900
             dark:text-white
             tracking-tight
@@ -928,7 +928,7 @@ const AnnouncementTemplateDetails = () => {
               : "bg-[#000000] text-white border-black/10"
           }`}
         >
-          <span className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+          <span className="text-[13.5px] font-bold tracking-tight uppercase">
             CREATE NEW ANNOUNCEMENT TEMPLATE
           </span>
 

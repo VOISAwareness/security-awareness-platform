@@ -911,7 +911,7 @@ const handleSaveCampaign = () => {
                   <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-voda font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-xl font-voda font-bold font-voda text-slate-900 dark:text-white tracking-tight">
                     Announcement Campaign Launched!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
@@ -945,7 +945,7 @@ const handleSaveCampaign = () => {
                   <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-voda font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-xl font-voda font-bold font-voda text-slate-900 dark:text-white tracking-tight">
                     Announcement Campaign Saved!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">

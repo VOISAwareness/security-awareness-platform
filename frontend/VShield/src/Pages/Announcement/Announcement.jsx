@@ -165,7 +165,8 @@ const FilterRow = ({
               items-center
               justify-center
               text-[9px]
-              font-extrabold
+              font-bold
+              font-voda
               ${
                 selected.length > 0
                   ? "text-white"
@@ -389,7 +390,7 @@ const AnnouncementScenarioFilters = ({
 
             {activeCount > 0 && (
               <span
-                className="min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[8px] font-extrabold text-white flex-shrink-0"
+                className="min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[8px] font-voda font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: "#e60000" }}
               >
                 {activeCount}
@@ -401,7 +402,7 @@ const AnnouncementScenarioFilters = ({
             type="button"
             onClick={clearAll}
             disabled={activeCount === 0}
-            className={`w-full h-[20px] rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-extrabold uppercase tracking-wide transition-all ${
+            className={`w-full h-[20px] rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-voda font-bold uppercase tracking-wide transition-all ${
               activeCount > 0
                 ? "bg-[#e60000] text-white hover:bg-[#c40000] cursor-pointer shadow-sm"
                 : isDark
@@ -602,14 +603,12 @@ const Announcement = () => {
 
     return scenariosList.filter(
       (scenario) =>
-        scenario.title?.toLowerCase().includes(searchText) ||
         scenario.announcementScenarioId?.toLowerCase().includes(searchText) ||
-        scenario.type?.toLowerCase().includes(searchText) ||
-        scenario.description?.toLowerCase().includes(searchText) ||
+        scenario.announcementDescription?.toLowerCase().includes(searchText) ||
         scenario.announcementCampaignType?.toLowerCase().includes(searchText) ||
-        scenario.intensityColor?.toLowerCase().includes(searchText) ||
         scenario.announcementCreatedOn?.toLowerCase().includes(searchText) ||
-        scenario.announcementCoverImageID?.toLowerCase().includes(searchText),
+        scenario.announcementCoverImageID?.toLowerCase().includes(searchText) ||
+        scenario.announcementScenarioName?.toLowerCase().includes(searchText),
     );
   }, [search, scenariosList]);
 
@@ -690,7 +689,7 @@ const Announcement = () => {
           }`}
         >
           <div className="flex items-center gap-3">
-            <h1 className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               Announcement Template
             </h1>
           </div>
@@ -1198,12 +1197,16 @@ const Announcement = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800 dark:text-slate-200">
                         <div>
                           <strong>Campaign Type: </strong>
-                          <span>{detailModalItem.announcementCampaignType}</span>
+                          <span>
+                            {detailModalItem.announcementCampaignType}
+                          </span>
                         </div>
-                        
+
                         <div>
                           <strong>Target Audience: </strong>
-                          <span>{detailModalItem.announcementTargetAudience}</span>
+                          <span>
+                            {detailModalItem.announcementTargetAudience}
+                          </span>
                         </div>
                         <div>
                           <strong>Difficulty: </strong>
@@ -1231,22 +1234,28 @@ const Announcement = () => {
                           <div>
                             <strong>Landing Page Id: </strong>
                             <span className="font-mono-tech">
-                              {detailModalItem.announcementLandingPageId || "LP-001"}
+                              {detailModalItem.announcementLandingPageId ||
+                                "LP-001"}
                             </span>
                           </div>
                           <div>
                             <strong>Sender Name: </strong>
-                            <span>{detailModalItem.announcementSenderName}</span>
+                            <span>
+                              {detailModalItem.announcementSenderName}
+                            </span>
                           </div>
                           <div>
                             <strong>Training Id: </strong>
                             <span className="font-mono-tech">
-                              {detailModalItem.announcementTrainingId || "TP-005"}
+                              {detailModalItem.announcementTrainingId ||
+                                "TP-005"}
                             </span>
                           </div>
                           <div className="sm:col-span-2">
                             <strong>Email Subject: </strong>
-                            <span>{detailModalItem.announcementEmailSubject}</span>
+                            <span>
+                              {detailModalItem.announcementEmailSubject}
+                            </span>
                           </div>
                         </div>
 
@@ -1255,7 +1264,9 @@ const Announcement = () => {
                           <button
                             type="button"
                             onClick={() =>
-                              setPreviewEmailHtml(detailModalItem.announcementEmailBody)
+                              setPreviewEmailHtml(
+                                detailModalItem.announcementEmailBody,
+                              )
                             }
                             className="px-3 py-1 rounded-lg bg-white/90 dark:bg-black/60 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-white/15 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-white shadow-2xs cursor-pointer"
                           >

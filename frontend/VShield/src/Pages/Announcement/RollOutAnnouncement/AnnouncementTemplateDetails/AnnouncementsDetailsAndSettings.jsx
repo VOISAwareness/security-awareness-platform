@@ -216,7 +216,7 @@ const AnnouncementsDetailsAndSettings = () => {
         }`}
       >
           <div className="flex items-center gap-3">
-            <h1 className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               ROLLOUT NEW ANNOUNCEMENT
             </h1>
           </div>
