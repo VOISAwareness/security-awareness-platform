@@ -1,4 +1,4 @@
-import React from "react";
+import { useMemo } from "react";
 import { Play, HelpCircle, Award, Settings, ExternalLink, UploadCloud } from "lucide-react";
 
 const getCoverImage = (imgName) => {
@@ -13,13 +13,12 @@ export const TrainingPathCard = ({
   path,
   videos = [],
   quizzes = [],
-  certificates = [],
   isDark,
   onLaunch,
   onEdit,
   onSendForApproval
 }) => {
-  const { pathVideos, questionCount, passingScore } = React.useMemo(() => {
+  const { pathVideos, questionCount, passingScore } = useMemo(() => {
     const vids = (path.TrainingVideoAttached || []).map(
       (vidId) =>
         videos.find((v) => v.TrainingVideoID === vidId) || {

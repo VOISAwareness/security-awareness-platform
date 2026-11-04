@@ -1,4 +1,3 @@
-import React from "react";
 import { useTraining } from "../../TrainingContext";
 
 // Constants matching UserDLsLandingPage L-shaped bento cards
