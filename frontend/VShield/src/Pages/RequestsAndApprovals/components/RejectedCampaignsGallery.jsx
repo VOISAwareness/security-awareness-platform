@@ -39,15 +39,24 @@ const CAPSULE_COUNTER_COLOR = '#F43F5E';
 
 const RejectedCampaignsGallery = ({ 
   campaigns = [], 
-  onViewDetails,
-  isDark = false 
+  isDark = false,
+  // A rejected campaign is closed: its creator may delete it, or copy its
+  // content to a new draft and start again.
+  currentUserEmail = '',
+  pendingAction = null,
+  onDelete,
+  onCopy,
 }) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('Latest Date');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [detailModalItem, setDetailModalItem] = useState(null);
 
   const lCardBg = getLCardBg(isDark);
+  const me = String(currentUserEmail || '').trim().toLowerCase();
+  const isCreator = (camp) => Boolean(me) && String(camp.CreatedBy || '').trim().toLowerCase() === me;
+  const busy = (camp) => pendingAction === camp.campaignId;
 
   const formatShortDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -235,6 +244,53 @@ const RejectedCampaignsGallery = ({
                     <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900 dark:text-white truncate mt-0.5">
                       {camp.CampaignTitle}
                     </h4>
+                    <p className="text-[9.5px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-0.5 line-clamp-2" data-reject-reason>
+                      <strong className="font-bold text-[#BE123C] dark:text-rose-300">Reason: </strong>
+                      {camp.NotificationMessage || 'No reason given'}
+                    </p>
+                    {isCreator(camp) && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <button
+                          type="button"
+                          data-reject-copy
+                          disabled={busy(camp)}
+                          onClick={() => onCopy && onCopy(camp)}
+                          className="h-6 px-2.5 rounded-md bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-[9px] font-voda font-bold disabled:opacity-50 cursor-pointer"
+                        >
+                          Copy to new draft
+                        </button>
+                        {confirmDeleteId === camp.campaignId ? (
+                          <>
+                            <button
+                              type="button"
+                              data-reject-delete-confirm
+                              disabled={busy(camp)}
+                              onClick={() => { setConfirmDeleteId(null); onDelete && onDelete(camp); }}
+                              className="h-6 px-2.5 rounded-md bg-[#EF4444] hover:bg-[#DC2626] text-white text-[9px] font-voda font-bold disabled:opacity-50 cursor-pointer"
+                            >
+                              Delete for good
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="h-6 px-2 rounded-md text-slate-600 dark:text-slate-300 text-[9px] font-bold cursor-pointer"
+                            >
+                              Keep
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            data-reject-delete
+                            disabled={busy(camp)}
+                            onClick={() => setConfirmDeleteId(camp.campaignId)}
+                            className="h-6 px-2.5 rounded-md bg-white dark:bg-white/5 border border-rose-200 dark:border-rose-400/30 text-[#BE123C] dark:text-rose-300 text-[9px] font-voda font-bold disabled:opacity-50 cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col items-end gap-1 shrink-0">

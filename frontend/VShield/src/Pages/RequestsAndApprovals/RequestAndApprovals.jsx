@@ -4,7 +4,8 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
 import { openCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD, routeForStep } from '../../services/campaignWizard';
+import { IN_WIZARD, copyForNewDraft, routeForStep } from '../../services/campaignWizard';
+import { api } from '../../services/api';
 import { toDesignCampaign } from '../../services/campaignDesign';
 import { actorFor } from '../../services/identity';
 
@@ -86,6 +87,8 @@ const RequestAndApprovals = () => {
   // Trigger for notify window modal, and the plain-reject confirmation
   const [notifyingCampaign, setNotifyingCampaign] = useState(null);
   const [rejectingCampaign, setRejectingCampaign] = useState(null);
+  // A plain reject is final, so it always says why; the creator sees it.
+  const [rejectReason, setRejectReason] = useState('');
   const [actionError, setActionError] = useState('');
 
   const {
@@ -98,6 +101,7 @@ const RequestAndApprovals = () => {
     reject,
     notify,
     reschedule,
+    remove,
   } = useCampaigns({ actor: activeUserEmail });
 
   // Live campaigns, in the field names the galleries were drawn with.
@@ -129,13 +133,36 @@ const RequestAndApprovals = () => {
     if (done) setNotifyingCampaign(null);
   };
 
-  const handleReject = (camp) => setRejectingCampaign(camp);
+  const handleReject = (camp) => {
+    setRejectReason('');
+    setRejectingCampaign(camp);
+  };
 
   const confirmReject = async () => {
     const camp = rejectingCampaign;
-    const done = await runAction(() => reject(camp.campaignId), 'Could not reject that campaign.');
-    if (done) setRejectingCampaign(null);
+    if (!rejectReason.trim()) {
+      setActionError('Give a reason: the creator sees it.');
+      return;
+    }
+    const done = await runAction(() => reject(camp.campaignId, rejectReason), 'Could not reject that campaign.');
+    if (done) {
+      setRejectingCampaign(null);
+      setRejectReason('');
+    }
   };
+
+  // Creator only, on a rejected (closed) campaign: delete it, or start a new
+  // draft from its content and open it in the wizard on Details.
+  const handleDeleteRejected = (camp) =>
+    runAction(() => remove(camp.campaignId), 'Could not delete that campaign.');
+
+  const handleCopyRejected = (camp) =>
+    runAction(async () => {
+      const stored = await api.campaigns.get(camp.campaignId);
+      const created = await api.campaigns.create(copyForNewDraft(stored, activeUserEmail));
+      openCampaignDraft(created.campaignId);
+      navigate(routeForStep(2, 2), IN_WIZARD);
+    }, 'Could not copy that campaign.');
 
   // Creator only: open a campaign that came back with a notification in the
   // wizard, on the step it was last saved on (Details for older campaigns).
@@ -429,6 +456,10 @@ const RequestAndApprovals = () => {
               <RejectedCampaignsGallery
                 campaigns={campaigns}
                 isDark={isDark}
+                currentUserEmail={activeUserEmail}
+                pendingAction={pendingAction}
+                onDelete={handleDeleteRejected}
+                onCopy={handleCopyRejected}
               />
             )}
 
@@ -479,16 +510,29 @@ const RequestAndApprovals = () => {
           onSubmit={handleNotifySubmit}
         />
 
-        {/* Plain reject: one confirmation, no message to the creator. */}
+        {/* Plain reject: final, with the reason the creator will see. */}
         {rejectingCampaign && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
             <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white p-6 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col gap-3">
               <h2 className="text-[16px] font-black tracking-tight">Reject this campaign?</h2>
               <p className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug">
                 <span className="font-bold text-slate-900 dark:text-white">{rejectingCampaign.CampaignTitle}</span>{' '}
-                ({rejectingCampaign.campaignId}) will move to Rejected Campaigns. To ask the creator for
-                changes instead, use Notify For Changes.
+                ({rejectingCampaign.campaignId}) will move to Rejected Campaigns and be closed. To ask
+                the creator for changes instead, use Notify For Changes.
               </p>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
+                  Reason for rejecting <span className="text-[#EF4444]">*</span>
+                </span>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => { setRejectReason(e.target.value); setActionError(''); }}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="The creator sees this on the Rejected tab"
+                  className="w-full rounded-xl px-3 py-2 text-[11px] font-medium bg-[#EEF2F6] dark:bg-[#12141A] text-slate-900 dark:text-white border border-black/5 dark:border-white/10 outline-none resize-none"
+                />
+              </label>
               {actionError && (
                 <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-300">{actionError}</p>
               )}
@@ -506,7 +550,7 @@ const RequestAndApprovals = () => {
                 <button
                   type="button"
                   onClick={confirmReject}
-                  disabled={pendingAction === rejectingCampaign.campaignId}
+                  disabled={pendingAction === rejectingCampaign.campaignId || !rejectReason.trim()}
                   className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
                 >
                   {pendingAction === rejectingCampaign.campaignId ? 'Rejecting…' : 'Reject'}
