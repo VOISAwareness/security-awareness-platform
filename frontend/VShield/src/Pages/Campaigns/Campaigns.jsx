@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   ChevronDown, 
-  ArrowUp,
-  ArrowDown,
   Eye,
   X,
   RefreshCw,
@@ -22,8 +20,6 @@ import OnGoingImg from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
 import ScheduledImg from '../../assets/CampaignsAssets/ScheduledCampaignsImage.png';
 import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage.png';
 import CancelledImg from '../../assets/CampaignsAssets/CancelledCampaignsImage.png';
-import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
-import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import CampaignGalleryCard from './CampaignGalleryCard';
@@ -156,8 +152,6 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // View Analytics pop-up: the campaign and its card's position (for its colour)
   const [analyticsItem, setAnalyticsItem] = useState(null);
 
-  // Calendar month state
-  const [calendarDate, setCalendarDate] = useState(new Date());
 
   const lCardBg = getLCardBg(isDark);
 
@@ -268,30 +262,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
     return list;
   }, [categorizedCampaigns, activeTab, searchTerm, sortBy]);
 
-  // Calendar Day Click Matrix
-  const calendarMonthDays = useMemo(() => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const totalDays = new Date(year, month + 1, 0).getDate();
-    const prevMonthDays = new Date(year, month, 0).getDate();
-
-    const days = [];
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push({ day: prevMonthDays - i, isCurrentMonth: false });
-    }
-    for (let i = 1; i <= totalDays; i++) {
-      days.push({ day: i, isCurrentMonth: true });
-    }
-    const remaining = 35 - days.length;
-    for (let i = 1; i <= (remaining > 0 ? remaining : 42 - days.length); i++) {
-      days.push({ day: i, isCurrentMonth: false });
-    }
-    return days;
-  }, [calendarDate]);
-
   const activeTabConfig = TAB_CONFIG[activeTab];
-  const today = new Date();
 
   // Helper for Top Three Buttons styling
   const getTabButtonClasses = (tabId) => {
@@ -512,84 +483,6 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 4. DOCKED CALENDAR CARD */}
-            <div
-              style={{
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
-              }}
-              className="w-full bg-[#0B0C10] text-white p-4 shadow-md border border-white/10 flex flex-col gap-3 select-none"
-            >
-              {/* Header with Title and Month Navigation */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <img 
-                    src={CalendarWhiteIcon} 
-                    alt="Calendar Icon" 
-                    className="w-4 h-4 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                  <span className="text-[11.5px] font-voda font-bold tracking-tight">
-                    {activeTabConfig.title}
-                  </span>
-                </div>
-              </div>
-
-              {/* Month Navigator */}
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[12px] font-bold text-white">
-                  {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
-                    className="p-1 rounded bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
-                  >
-                    <ArrowUp className="w-3 h-3 text-white" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
-                    className="p-1 rounded bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
-                  >
-                    <ArrowDown className="w-3 h-3 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Weekday Names */}
-              <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                  <span key={i}>{d}</span>
-                ))}
-              </div>
-
-              {/* Days Grid */}
-              <div className="grid grid-cols-7 gap-y-1.5 text-center text-[10.5px]">
-                {calendarMonthDays.map((item, idx) => {
-                  const isCurrentDay =
-                    item.isCurrentMonth &&
-                    item.day === today.getDate() &&
-                    calendarDate.getMonth() === today.getMonth() &&
-                    calendarDate.getFullYear() === today.getFullYear();
-                  return (
-                    <div key={idx} className="flex items-center justify-center h-6">
-                      <span 
-                        className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold ${
-                          isCurrentDay
-                            ? 'bg-[#3730A3] text-white shadow-xs' 
-                            : item.isCurrentMonth 
-                              ? 'text-white' 
-                              : 'text-slate-600'
-                        }`}
-                      >
-                        {item.day}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           </div>
 
           {/* ========================================================================= */}
