@@ -34,6 +34,7 @@ import { currentActor } from '../../services/identity';
 import { scenariosForViewer } from '../../services/scenarioOwnership';
 import { IN_WIZARD } from '../../services/campaignWizard';
 import { TOP_COUNT, bodyKey, bodySnippet, emailBodyOptions, sameBody } from '../../services/emailBodies';
+import { noVerifiedSender, senderChoices } from '../../services/campaignSenders';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
@@ -182,14 +183,26 @@ const CampaignEmail = () => {
   (s) => s.scenarioId === draft.scenarioId
  ) || scenariosJsonData?.scenarios?.[0];
 
- // Unique list of sender email choices fetched from ScenariosData.json
- const availableSenderEmails = Array.from(
-  new Set(
-   (scenariosJsonData?.scenarios || [])
-    .map((s) => s.senderEmailId)
-    .filter(Boolean)
-  )
- );
+ // Sender Email ID choices: the addresses on Email IDs & Domains, where SES
+ // verifies each one; only verified ones can be picked. If the API cannot be
+ // reached, the bundled scenarios' senders stand in, as before.
+ const [senderRows, setSenderRows] = useState(null);
+ useEffect(() => {
+  let active = true;
+  api.senderIdentities
+   .list()
+   .then((rows) => {
+    if (active) setSenderRows(Array.isArray(rows) ? rows : []);
+   })
+   .catch(() => {
+    if (!active) return;
+    const bundled = Array.from(new Set((scenariosJsonData?.scenarios || []).map((s) => s.senderEmailId).filter(Boolean)));
+    setSenderRows(bundled.map((email) => ({ email })));
+   });
+  return () => {
+   active = false;
+  };
+ }, []);
 
  // Email bodies offered beside "fx": every template's body, most used first.
  // The bundled scenarios stand in until the API answers, and if it cannot.
@@ -1441,13 +1454,21 @@ const CampaignEmail = () => {
             <option value="" disabled className={isDark ? 'bg-[#15161A] text-slate-400' : 'bg-white text-slate-400'}>
              Select from dropdown
             </option>
-            {availableSenderEmails.map((email) => (
+            {senderRows === null && (
+             <option value="__loading" disabled>Loading Email IDs…</option>
+            )}
+            {senderRows !== null && noVerifiedSender(senderChoices(senderRows, senderEmailId)) && (
+             <option value="__none" disabled>No verified Email IDs yet: add one on Email IDs &amp; Domains</option>
+            )}
+            {senderChoices(senderRows || [], senderEmailId).map((choice) => (
              <option
-              key={email}
-              value={email}
+              key={choice.email}
+              value={choice.email}
+              disabled={!choice.selectable}
+              data-sender-choice={choice.selectable ? 'verified' : 'unverified'}
               className={isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'}
              >
-              {email}
+              {choice.label}
              </option>
             ))}
            </select>
