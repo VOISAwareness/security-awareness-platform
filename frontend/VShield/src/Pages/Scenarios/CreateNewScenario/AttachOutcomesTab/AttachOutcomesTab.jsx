@@ -87,7 +87,7 @@ const CoverUploadChoice = ({ onUpload, isDark }) => (
       <span
         className={`flex-1 h-px ${isDark ? "bg-white/10" : "bg-slate-200"}`}
       />
-      <span className="text-[8px] font-voda-exb uppercase text-slate-400">
+      <span className="text-[8px] font-voda font-bold uppercase text-slate-400">
         or
       </span>
       <span
@@ -1060,10 +1060,10 @@ const AttachOutcomesTab = ({
                 <h2
                   className="
                     text-[13px]
-                    font-voda-exb
+                    font-bold
+                    font-voda
                     uppercase
-                    tracking-tight
-                    text-slate-900
+                    tracking-light
                     dark:text-white
                   "
                 >
@@ -1203,7 +1203,8 @@ const AttachOutcomesTab = ({
       <span
         className="
           text-[8px]
-          font-voda-exb
+          font-voda
+          font-bold
           uppercase
           text-slate-400
         "
@@ -1349,10 +1350,10 @@ const AttachOutcomesTab = ({
               <h2
                 className="
                   text-[13px]
-                  font-voda-exb
+                  font-voda
+                  font-bold
                   uppercase
-                  tracking-tight
-                  text-slate-900
+                  tracking-light
                   dark:text-white
                 "
               >
@@ -1447,9 +1448,9 @@ const AttachOutcomesTab = ({
                     <h3
                       className="
                         text-[10px]
-                        font-voda-exb
+                        font-voda
+                        font-bold
                         uppercase
-                        text-slate-900
                         dark:text-white
                         truncate
                       "
@@ -1602,10 +1603,10 @@ const AttachOutcomesTab = ({
             <div className="flex flex-col">
               <span
                 className="
-                  text-xs
+                  text-[13px]
                   font-voda
                   font-bold
-                  text-slate-900
+                  tracking-light
                   dark:text-white
                   uppercase
                   tracking-wider
@@ -2390,7 +2391,7 @@ const AttachOutcomesTab = ({
                 onRedo={handleRedoLandingPage}
                 isDark={isDark}
               />
-            ) :formData.outcomeSource === "custom" &&
+            ) : formData.outcomeSource === "custom" &&
               formData.outcomeRichText ? (
               <LandingPageSelectedPreview
                 itemContent={formData.outcomeRichText}

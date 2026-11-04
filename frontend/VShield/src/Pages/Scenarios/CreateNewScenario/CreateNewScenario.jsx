@@ -55,7 +55,14 @@ import EmailDetailsTab from "./EmailDetailsTab/EmailDetailsTab";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
-import { Check, X, CheckCircle2, AlertTriangle, Info } from "lucide-react";
+import {
+  Check,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  Heading1,
+} from "lucide-react";
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -1085,7 +1092,7 @@ const ScenarioEditor = ({ opening }) => {
                   className="
             text-xl
             font-voda
-            font-extrabold
+            font-bold
             text-slate-900
             dark:text-white
             tracking-tight
@@ -1318,9 +1325,9 @@ const ScenarioEditor = ({ opening }) => {
             }
           `}
         >
-          <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
+          <h1 className="text-[13.5px] font-bold tracking-tight uppercase whitespace-nowrap">
             {edit || editRequest ? "EDIT SCENARIO" : "CREATE NEW SCENARIO"}
-          </span>
+          </h1>
           <div className="flex items-center justify-end gap-2 min-w-0 ml-4">
             {/* What Save will do with this edit (a copy, a pending revision...),
                 on the right in its own colour so it is seen. */}
@@ -1333,7 +1340,7 @@ const ScenarioEditor = ({ opening }) => {
                 <Info className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
                 <span className="truncate">
                   {edit.name && (
-                    <strong className="font-extrabold">{edit.name}</strong>
+                    <strong className="font-bold font-voda">{edit.name}</strong>
                   )}
                   {edit.name ? " · " : ""}
                   {editNote(edit)}
@@ -1418,7 +1425,7 @@ const ScenarioEditor = ({ opening }) => {
                 strokeWidth={2.2}
               />
               <h2
-                className={`text-[15px] font-extrabold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
+                className={`text-[15px] font-bold font-voda tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
               >
                 This scenario can't be opened for editing
               </h2>
@@ -1624,9 +1631,9 @@ const OpeningLoading = ({ isDark, editing }) => (
           : "bg-[#06080D] text-white border-black/10"
       }`}
     >
-      <span className="text-[13px] font-bold tracking-tight uppercase whitespace-nowrap">
+      <h1 className="text-[13.5px] font-bold tracking-tight uppercase whitespace-nowrap">
         {editing ? "EDIT SCENARIO" : "CREATE NEW SCENARIO"}
-      </span>
+      </h1>
     </div>
     <div
       className={`relative w-full min-h-[420px] rounded-2xl border overflow-hidden shadow-xs ${

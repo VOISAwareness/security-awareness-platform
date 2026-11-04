@@ -232,7 +232,8 @@ const FilterRow = ({
               items-center
               justify-center
               text-[9px]
-              font-extrabold
+              font-bold
+              font-voda
               ${
                 selected.length > 0
                   ? "text-white"
@@ -447,7 +448,7 @@ const ScenarioFilters = ({
 
             {activeCount > 0 && (
               <span
-                className="min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[8px] font-extrabold text-white flex-shrink-0"
+                className="min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[8px] font-bold font-voda text-white flex-shrink-0"
                 style={{ backgroundColor: "#e60000" }}
               >
                 {activeCount}
@@ -459,7 +460,7 @@ const ScenarioFilters = ({
             type="button"
             onClick={clearAll}
             disabled={activeCount === 0}
-            className={`w-full h-[20px] rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-extrabold uppercase tracking-wide transition-all ${
+            className={`w-full h-[20px] rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-bold font-voda uppercase tracking-wide transition-all ${
               activeCount > 0
                 ? "bg-[#e60000] text-white hover:bg-[#c40000] cursor-pointer shadow-sm"
                 : isDark
