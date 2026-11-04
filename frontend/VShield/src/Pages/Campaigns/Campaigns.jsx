@@ -229,7 +229,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
         else scheduled.push(c);
       } else if (
         (c.CampaignStatus === DESIGN_STATUS.DRAFTED && hasProgress(c)) ||
-        c.CampaignStatus === DESIGN_STATUS.FAILED
+        c.CampaignStatus === DESIGN_STATUS.FAILED ||
+        // sent back by an approver for changes: the creator's to fix and resubmit
+        c.CampaignStatus === DESIGN_STATUS.NOTIFIED
       ) {
         // Drafts are personal work in progress. Rows created before createdBy
         // was recorded have no owner, so everyone still sees those. A draft
@@ -395,15 +397,22 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // can only be deleted (the sender will not retry it).
   const renderDraftActions = (camp) => {
     const failed = camp.CampaignStatus === DESIGN_STATUS.FAILED;
+    const sentBack = camp.CampaignStatus === DESIGN_STATUS.NOTIFIED;
     const chip = failed
       ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
-      : 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300';
+      : sentBack
+        ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300'
+        : 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300';
     const busy = pendingAction === camp.campaignId;
 
     return (
       <span className="flex items-center gap-1.5 font-bold">
-        <span className={`px-2 py-0.5 rounded-full text-[8.5px] uppercase tracking-wide ${chip}`}>
-          {failed ? 'Send failed' : 'Draft'}
+        <span
+          className={`px-2 py-0.5 rounded-full text-[8.5px] uppercase tracking-wide ${chip}`}
+          title={sentBack && camp.NotificationMessage ? `Approver: ${camp.NotificationMessage}` : undefined}
+          data-draft-kind={failed ? 'failed' : sentBack ? 'changes-requested' : 'draft'}
+        >
+          {failed ? 'Send failed' : sentBack ? 'Changes requested' : 'Draft'}
         </span>
         {busy ? (
           <span className="text-slate-500">Working…</span>
@@ -433,7 +442,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
                 onClick={() => handleResume(camp)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black cursor-pointer"
               >
-                <FilePenLine className="w-3 h-3" /> Resume
+                <FilePenLine className="w-3 h-3" /> {sentBack ? 'Edit & resubmit' : 'Resume'}
               </button>
             )}
             <button
@@ -917,6 +926,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
                             <span className="font-bold text-slate-900 dark:text-white">Description: </span>
                             {camp.CampaignDescription}
                           </p>
+                          {camp.CampaignStatus === DESIGN_STATUS.NOTIFIED && camp.NotificationMessage && (
+                            <p data-draft-approver-note className="text-[9px] font-medium text-amber-800 dark:text-amber-300 leading-snug line-clamp-2 mt-0.5">
+                              <span className="font-bold">Changes requested: </span>
+                              {camp.NotificationMessage}
+                            </p>
+                          )}
                         </div>
 
                         {/* Bottom Row: Created By & Scheduled End Time */}

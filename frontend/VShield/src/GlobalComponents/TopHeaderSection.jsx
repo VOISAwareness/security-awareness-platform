@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Sun, Moon } from 'lucide-react';
 import { TRANSITION_CONFIG } from './Layout';
 import { SUPPORT_EMAIL } from '../appConfig';
+import CampaignNoticesBell from './CampaignNoticesBell';
 
 // =========================================================================
 // 🎛️ TOP HEADER SCALE CONTROL VARIABLE (0.9 = 90%, 1.0 = 100%, etc.)
@@ -50,6 +51,9 @@ const TopHeaderSection = ({ isSidebarExpanded = false, isScrolled = false }) => 
             {SUPPORT_EMAIL}
           </a>
         </span>
+
+        {/* Campaign notifications for creators: sent back for changes, or rejected */}
+        <CampaignNoticesBell />
 
         {/* Theme Toggle */}
         <div
