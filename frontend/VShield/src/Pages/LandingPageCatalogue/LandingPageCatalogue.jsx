@@ -456,7 +456,7 @@ const LandingPageCatalogue = () => {
           {/* Isolated Solid Black Title Box */}
           <div className="w-full md:w-[155px] p-3 rounded-xl bg-black text-white flex flex-col justify-between flex-shrink-0 shadow-xs">
             <div>
-              <h3 className="text-[14px] font-voda font-bold leading-tight tracking-normal">
+              <h3 className="text-[14px] font-bold leading-tight tracking-normal">
                 Required<br />Details
               </h3>
             </div>
@@ -893,7 +893,7 @@ const LandingPageCatalogue = () => {
                 <ArrowLeft className="w-4 h-4 stroke-[2.5] rounded-md text-white dark:text-black" />
               </button>
             )}
-            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase dark:text-black">
               LANDING PAGE CATALOGUE
             </h1>
           </div>
