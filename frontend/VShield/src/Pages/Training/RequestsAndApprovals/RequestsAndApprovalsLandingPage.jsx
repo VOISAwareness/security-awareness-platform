@@ -149,30 +149,30 @@ const RequestsAndApprovals = ({
   // =========================================================================
   // RATIO OF APPROVERS TO CREATORS CALCULATION
   // =========================================================================
-  const { creatorsCount, approversCount, creatorsPct, approversPct } = useMemo(() => {
-    const creatorsSet = new Set();
-    const approversSet = new Set();
+  // const { creatorsCount, approversCount, creatorsPct, approversPct } = useMemo(() => {
+  //   const creatorsSet = new Set();
+  //   const approversSet = new Set();
 
-    paths.forEach(p => {
-      if (p.createdBy) {
-        creatorsSet.add(p.createdBy.trim().toLowerCase());
-      }
-      if (p.approvedBy) {
-        approversSet.add(p.approvedBy.trim().toLowerCase());
-      }
-    });
+  //   paths.forEach(p => {
+  //     if (p.createdBy) {
+  //       creatorsSet.add(p.createdBy.trim().toLowerCase());
+  //     }
+  //     if (p.approvedBy) {
+  //       approversSet.add(p.approvedBy.trim().toLowerCase());
+  //     }
+  //   });
 
-    const cCount = creatorsSet.size > 0 ? creatorsSet.size : 5;
-    const aCount = approversSet.size > 0 ? approversSet.size : 8;
-    const total = cCount + aCount;
+  //   const cCount = creatorsSet.size > 0 ? creatorsSet.size : 5;
+  //   const aCount = approversSet.size > 0 ? approversSet.size : 8;
+  //   const total = cCount + aCount;
 
-    return {
-      creatorsCount: cCount,
-      approversCount: aCount,
-      creatorsPct: total > 0 ? (cCount / total) * 100 : 38.5,
-      approversPct: total > 0 ? (aCount / total) * 100 : 61.5
-    };
-  }, [paths]);
+  //   return {
+  //     creatorsCount: cCount,
+  //     approversCount: aCount,
+  //     creatorsPct: total > 0 ? (cCount / total) * 100 : 38.5,
+  //     approversPct: total > 0 ? (aCount / total) * 100 : 61.5
+  //   };
+  // }, [paths]);
 
   return (
     <>
@@ -233,38 +233,30 @@ const RequestsAndApprovals = ({
             {/* ========================================================================= */}
             {/* TOTAL APPROVERS TO CREATORS RATIO CARD                         */}
             {/* ========================================================================= */}
-            <div
+            {/* <div
               style={{
                 height: `${VarAppToCreRatioVisualHeight}px`,
                 borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
               }}
               className="w-full p-4 flex flex-col justify-between bg-black text-white dark:bg-white dark:text-black border border-black/10 dark:border-white/10 shadow-xs select-none transition-colors duration-200"
             >
-              {/* Card Title */}
               <h4 className="text-[15px] font-voda font-bold tracking-tight leading-tight text-left -mt-1">
                 Total Approvers to Creators Ratio
               </h4>
-
-              {/* Labels Row */}
               <div className="flex items-center justify-between text-[12px] font-voda font-bold px-7 pt-1">
                 <span className="text-white dark:text-black">Creators</span>
                 <span className="text-white dark:text-black">Approvers</span>
               </div>
-
-              {/* Segmented Bar */}
               <div 
                 style={{ transform: `scale(${VarAppToCreRatioVisualBarScale})` }}
                 className="w-full h-7 mb-2 rounded-full p-[1px] bg-white dark:bg-black/15 flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
               >
-                {/* Creators Segment (Left) */}
                 <div 
                   style={{ width: `${creatorsPct}%` }}
                   className="h-full rounded-l-full bg-[#93A5EC] border-r-2 border-white flex items-center justify-center text-white text-[11px] font-black font-voda tracking-wide transition-all"
                 >
                   {creatorsCount}
                 </div>
-
-                {/* Approvers Segment (Right) */}
                 <div 
                   style={{ width: `${approversPct}%` }}
                   className="h-full rounded-r-full bg-[#A7DB98] flex items-center justify-center text-white text-[11px] font-black font-voda tracking-wide transition-all"
@@ -272,7 +264,7 @@ const RequestsAndApprovals = ({
                   {approversCount}
                 </div>
               </div>
-            </div>
+            </div> */}
 
           </div>
 
