@@ -149,12 +149,14 @@ export function SummaryPage({ ctx }) {
 
 // ----------------------------------------------------------- Departments
 
+// lower is better first (risk score, high risk, hook rate, gave details),
+// then higher is better (report rate, completed)
 const DEPT_COLS = [
   { key: 'riskScore', name: 'Risk score', text: (v) => v.toFixed(1), unit: '' },
   { key: 'highRiskShare', name: 'High risk', text: pc1, unit: '%' },
   { key: 'hookRate', name: 'Hook rate', text: pc1, unit: '%' },
-  { key: 'reportRate', name: 'Report rate', text: pc1, unit: '%' },
   { key: 'gaveDetails', name: 'Gave details', text: pc1, unit: '%' },
+  { key: 'reportRate', name: 'Report rate', text: pc1, unit: '%' },
   { key: 'trainingCompletion', name: 'Completed', text: pc, unit: '%' },
 ];
 const DEPT_GRID = 'minmax(0,1.6fr) repeat(6, minmax(0,1fr)) 64px 14px';
