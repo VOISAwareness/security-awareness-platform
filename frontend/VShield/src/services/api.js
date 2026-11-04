@@ -64,6 +64,9 @@ export const api = {
       request(`/sender-identities/${encodeURIComponent(id)}`, { method: 'PUT', body: patch }),
     remove: (id) =>
       request(`/sender-identities/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    // Ask SES to email the address its verification link again.
+    sendVerification: (id) =>
+      request(`/sender-identities/${encodeURIComponent(id)}/verify`, { method: 'POST' }),
   },
   // Read-only reference data (used by later screens).
   users: { list: () => request('/users') },

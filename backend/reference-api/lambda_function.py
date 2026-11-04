@@ -28,6 +28,7 @@ INGEST_FUNCTION = os.environ.get("INGEST_FUNCTION")
 dynamodb = boto3.resource("dynamodb")
 s3_client = boto3.client("s3")
 lambda_client = boto3.client("lambda")
+ses_client = boto3.client("ses")
 
 
 def table(name):
@@ -1469,9 +1470,156 @@ def training_packages(route, event, params, context):
         return err(503, "Training packages are busy right now; try again shortly", code="BUSY")
 
 
+# --- Email IDs & Domains: sender addresses, verified by SES -----------------
+#
+# Saving an address asks SES to verify it: SES emails the address a link, and
+# once someone clicks it the address is a verified identity, which campaigns
+# can send from (and, while SES is in its sandbox, send to). The row keeps
+# what the page shows; the verification state is always read live from SES,
+# never stored, so it is never stale. Deleting a row leaves the SES identity
+# alone: other things (SES_SENDER_EMAIL, other tools) may rely on it.
+SENDER_ROUTES = frozenset(
+    {
+        "GET /sender-identities",
+        "POST /sender-identities",
+        "PUT /sender-identities/{id}",
+        "DELETE /sender-identities/{id}",
+        "POST /sender-identities/{id}/verify",
+    }
+)
+EMAIL_RE = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}")
+# SES's word -> the page's
+SES_STATUS = {
+    "Success": "Verified",
+    "Pending": "Pending",
+    "Failed": "Failed",
+    "TemporaryFailure": "Failed",
+    "NotStarted": "Not verified",
+}
+SES_BATCH = 100  # GetIdentityVerificationAttributes takes at most 100
+
+
+def clean_email(value):
+    """The address trimmed, or None when SES could never verify it."""
+    email = str(value or "").strip()
+    return email if EMAIL_RE.fullmatch(email) and len(email) <= 254 else None
+
+
+def verification_statuses(emails, context=None):
+    """{email: status} from SES for each address; 'Not verified' for one SES
+    has never heard of, and 'Unknown' for all when SES cannot be asked."""
+    emails = [e for e in dict.fromkeys(emails) if e]
+    found = {}
+    try:
+        for i in range(0, len(emails), SES_BATCH):
+            resp = ses_client.get_identity_verification_attributes(Identities=emails[i : i + SES_BATCH])
+            for identity, attrs in resp.get("VerificationAttributes", {}).items():
+                found[identity] = SES_STATUS.get(attrs.get("VerificationStatus"), "Not verified")
+    except ClientError as e:
+        if context is not None:
+            log(context, "SES status unavailable", code=e.response.get("Error", {}).get("Code", ""))
+        return dict.fromkeys(emails, "Unknown")
+    return {e: found.get(e, "Not verified") for e in emails}
+
+
+def send_verification(email, context):
+    """Ask SES to email `email` its verification link. (True, None) when
+    sent, else (False, why) -- the row is saved either way."""
+    try:
+        ses_client.verify_email_identity(EmailAddress=email)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        log(context, "SES verification not sent", code=code)
+        return False, "SES did not send the verification email" + (f" ({code})" if code else "")
+    log(context, "SES verification sent")
+    return True, None
+
+
+def with_status(item, statuses):
+    return {**item, "verificationStatus": statuses.get(item.get("email"), "Not verified")}
+
+
+def sender_identities(route, event, params, context):
+    tbl = table("sender-identities")
+
+    if route == "GET /sender-identities":
+        rows = scan_all("sender-identities")
+        statuses = verification_statuses([r.get("email") for r in rows], context)
+        return ok([with_status(r, statuses) for r in rows], count=len(rows))
+
+    if route == "DELETE /sender-identities/{id}":
+        tbl.delete_item(Key={"id": params["id"]})
+        return respond(204, {"data": None})
+
+    if route == "POST /sender-identities/{id}/verify":
+        item = get_one("sender-identities", {"id": params["id"]})
+        if not item:
+            return err(404, "Not found")
+        status = verification_statuses([item.get("email")], context).get(item.get("email"))
+        if status == "Verified":
+            return ok({**item, "verificationStatus": status, "verificationEmailSent": False})
+        sent, why = send_verification(item["email"], context)
+        out = {**item, "verificationStatus": "Pending" if sent else status, "verificationEmailSent": sent}
+        if why:
+            out["verificationError"] = why
+        return ok(out)
+
+    try:
+        body = parse_body(event)
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        return err(400, "The body must be a JSON object")
+
+    existing = None
+    if route == "PUT /sender-identities/{id}":
+        existing = get_one("sender-identities", {"id": params["id"]})
+        if not existing:
+            return err(404, "Not found")
+
+    raw = body.get("email", existing.get("email") if existing else None)
+    email = clean_email(raw)
+    unchanged = existing is not None and str(raw or "").strip() == existing.get("email")
+    if not email and not unchanged:
+        return err(400, "Enter a full email address SES can verify, like name@vodafone.com")
+    email = email or existing.get("email")
+
+    if not unchanged:
+        taken = [
+            r for r in scan_all("sender-identities")
+            if str(r.get("email", "")).lower() == email.lower() and r.get("id") != params.get("id")
+        ]
+        if taken:
+            return err(409, f"{email} is already on the list")
+
+    if existing is None:
+        item = {k: v for k, v in body.items() if k not in ("verificationStatus", "verificationEmailSent", "verificationError")}
+        item.update(email=email, id=f"em-{uuid.uuid4().hex[:8]}")
+        item.setdefault("status", "Active")
+        item.setdefault("usageCount", 0)
+        item.setdefault("createdDate", datetime.now(UTC).strftime("%d %b %Y"))
+    else:
+        item = {**existing, **{k: v for k, v in body.items() if k not in ("verificationStatus", "verificationEmailSent", "verificationError")}}
+        item.update(email=email, id=params["id"])
+    tbl.put_item(Item=item)
+    log(context, "sender identity saved", senderId=item["id"], created=existing is None)
+
+    # A new or changed address is sent its verification link, unless SES
+    # has it verified already.
+    status = verification_statuses([email], context).get(email)
+    out = {**item, "verificationStatus": status, "verificationEmailSent": False}
+    if not unchanged and status != "Verified":
+        sent, why = send_verification(email, context)
+        out["verificationEmailSent"] = sent
+        if sent:
+            out["verificationStatus"] = "Pending"
+        if why:
+            out["verificationError"] = why
+    return respond(201 if existing is None else 200, {"data": out})
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
-    "GET /sender-identities": "sender-identities",
     "GET /users": "users",
     "GET /landing-pages": "landing-pages",
     "GET /user-lists": "user-lists",
@@ -1541,33 +1689,8 @@ def lambda_handler(event, context):
             members = resp.get("Items", [])
             return ok(members, count=len(members))
 
-        # --- sender-identities CRUD (first wired screen) ---
-        if route == "POST /sender-identities":
-            body = parse_body(event)
-            if not body.get("email"):
-                return err(400, "email is required")
-            item = dict(body)
-            item.setdefault("id", f"em-{uuid.uuid4().hex[:8]}")
-            item.setdefault("status", "Active")
-            item.setdefault("usageCount", 0)
-            item.setdefault(
-                "createdDate", datetime.now(UTC).strftime("%d %b %Y")
-            )
-            table("sender-identities").put_item(Item=item)
-            return respond(201, {"data": item})
-
-        if route == "PUT /sender-identities/{id}":
-            body = parse_body(event)
-            existing = get_one("sender-identities", {"id": params["id"]})
-            if not existing:
-                return err(404, "Not found")
-            merged = {**existing, **body, "id": params["id"]}
-            table("sender-identities").put_item(Item=merged)
-            return ok(merged)
-
-        if route == "DELETE /sender-identities/{id}":
-            table("sender-identities").delete_item(Key={"id": params["id"]})
-            return respond(204, {"data": None})
+        if route in SENDER_ROUTES:
+            return sender_identities(route, event, params, context)
 
         # --- gamification rules (Gamification Engine screen) ---
         if route == "PUT /gamification-rules/{id}":
