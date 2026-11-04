@@ -16,7 +16,6 @@ export const TrainingPathLandingPage = ({
   editingPath,
   setEditingPath,
   pathsSubTab,
-  setPathsSubTab,
   showPathCreator,
   setShowPathCreator,
   handleLaunchPathway,

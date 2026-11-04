@@ -43,11 +43,11 @@ export const TrainingCertificateCard = ({
       className={`rounded-3xl flex flex-col h-[280px] border transition-all duration-200 relative overflow-hidden select-none text-left cursor-pointer group ${
         isSelected
           ? isDark
-            ? "border-transparent bg-white text-black hover:bg-[#15161A]"
-            : "border-transparent bg-white text-black hover:bg-white"
+            ? "border-transparent bg-[#15161A] text-white hover:bg-[#15161A]"
+            : "border-transparent bg-white text-slate-900 hover:bg-white"
           : isDark
           ? "bg-[#0D271E] text-white border-white/10 hover:shadow-lg"
-          : "text-black hover:shadow-md"
+          : "text-slate-800 hover:shadow-md"
       }`}
     >
       {/* overlay ID badge */}
@@ -66,8 +66,8 @@ export const TrainingCertificateCard = ({
         <CertificateThumbnail certificate={certificate} userName={loggedInName} />
 
         <div className="absolute inset-0 bg-black/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-black shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-200">
-            <Award className="w-4 h-4 text-black" />
+          <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-200">
+            <Award className="w-4 h-4 text-white" />
           </div>
         </div>
       </div>
@@ -75,10 +75,10 @@ export const TrainingCertificateCard = ({
       {/* Card Content Area */}
       <div className="p-4 flex flex-col justify-between flex-1 min-h-0">
         <div className="flex flex-col gap-1.5 min-h-0">
-          <h3 className="text-[12.5px] font-black tracking-tight text-black dark:text-white line-clamp-1 leading-snug">
+          <h3 className="text-[12.5px] font-black tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
             {certificate.TrainingCertificateName}
           </h3>
-          <p className="text-[9.5px] text-slate-950 dark:text-slate-300 line-clamp-2 leading-relaxed">
+          <p className="text-[9.5px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
             {certificate.Description}
           </p>
         </div>
@@ -105,11 +105,11 @@ export const TrainingCertificateCard = ({
                 onPreview(certificate);
               }}
               style={!isDark ? { backgroundColor: lightButtonBg, color: "#FFFFFF", borderColor: "transparent" } : {}}
-              className={`h-8 px-4 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
+              className={`h-8 px-4 rounded-xl border text-[10px] font-bold flex items-center justify-center cursor-pointer transition-colors shadow-2xs ${
                 isDark ? "bg-white/10 hover:bg-white/15 border-white/10 text-white" : ""
               }`}
             >
-              View Template <Award className="w-3.5 h-3.5 text-inherit" />
+              View Template
             </button>
           </div>
         </div>

@@ -15,7 +15,6 @@ export const LmsLeftSidebar = () => {
     setCurrentView,
     pathsSubTab,
     setPathsSubTab,
-    editingPath,
     setEditingPath,
     individualSubTab,
     setIndividualSubTab,
@@ -70,7 +69,7 @@ export const LmsLeftSidebar = () => {
             }`}
           >
             <div className="flex justify-between items-start relative z-10">
-              <h3 className="text-[13px] font-voda font-bold tracking-tight leading-tight">Courses</h3>
+              <h3 className="text-[13px] font-voda font-bold tracking-tight leading-tight">All Courses</h3>
             </div>
             <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
               pathsSubTab === "courses" ? (isDark ? "text-slate-700" : "text-slate-300") : (isDark ? "text-slate-400" : "text-slate-500")

@@ -25,10 +25,10 @@ export const AllTrainingPathGallery = ({
             {paths.length < 10 ? `0${paths.length}` : paths.length}
           </span>
           <div className="flex flex-col leading-none">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-[11px] font-voda font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               {isCourseTab ? "Total Available" : "Total Training"}
             </span>
-            <span className="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mt-0.5">
+            <span className="text-[12px] font-voda font-black text-slate-900 dark:text-white uppercase tracking-tight mt-0.5">
               {isCourseTab ? "Courses Stored" : "Paths Stored"}
             </span>
           </div>
@@ -85,16 +85,16 @@ export const AllTrainingPathGallery = ({
           <button
             type="button"
             onClick={onCreateClick}
-            className="border-2 border-dashed border-white/10 hover:border-[#E60000]/40 bg-white/[0.01] hover:bg-[#E60000]/5 transition-all rounded-[24px] p-6 flex flex-col items-center justify-center text-center h-[250px] gap-2.5 cursor-pointer"
+            className="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/30 bg-slate-50/50 dark:bg-white/[0.01] hover:bg-slate-100/50 dark:hover:bg-[#E60000]/5 transition-all rounded-[24px] p-6 flex flex-col items-center justify-center text-center h-[250px] gap-2.5 cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-              <Plus className="w-6 h-6 text-slate-400" />
+            <div className="w-12 h-12 rounded-full bg-slate-200/60 dark:bg-white/5 flex items-center justify-center">
+              <Plus className="w-6 h-6 text-slate-500 dark:text-slate-400" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider font-voda">
-                {isCourseTab ? "Construct Course" : "Construct Pathway"}
+              <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider font-voda">
+                {isCourseTab ? "Create Course" : "Create Training Path"}
               </h4>
-              <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 max-w-[200px] leading-relaxed">
                 {isCourseTab
                   ? "Build always available courses using videos, quizzes, and templates."
                   : "Build training paths using videos, quizzes, and templates."}

@@ -111,9 +111,18 @@ export const LmsMainContent = () => {
     setPackages((prev) => prev.filter((p) => p.PackageID !== id));
   };
 
+  const isFormActive =
+    (currentView === "paths" && (showPathCreator || editingPath)) ||
+    currentView === "add-package" ||
+    (currentView === "individual" && (
+      (individualSubTab === "videos" && (showVideoUploader || editingVideo)) ||
+      (individualSubTab === "quizzes" && (showQuizCreator || editingQuiz)) ||
+      (individualSubTab === "certificates" && (showCertCreator || editingCert))
+    ));
+
   return (
     <div className={`flex-1 min-w-0 rounded-[8px] border flex flex-col h-full overflow-hidden ${
-      currentView === "paths" && (showPathCreator || editingPath) ? "" : "p-3 pb-1"
+      isFormActive ? "" : "p-3 pb-1"
     } ${
       isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
     }`}>
@@ -131,7 +140,6 @@ export const LmsMainContent = () => {
           editingPath={editingPath}
           setEditingPath={setEditingPath}
           pathsSubTab={pathsSubTab}
-          setPathsSubTab={setPathsSubTab}
           showPathCreator={showPathCreator}
           setShowPathCreator={setShowPathCreator}
           handleLaunchPathway={handleLaunchPathway}
