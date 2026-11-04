@@ -19,7 +19,7 @@ locals {
   project_tables    = "arn:aws:dynamodb:${local.region}:${local.account_id}:table/${var.name_prefix}-*"
   project_functions = "arn:aws:lambda:${local.region}:${local.account_id}:function:${var.name_prefix}-*"
   project_rules     = "arn:aws:events:${local.region}:${local.account_id}:rule/${var.name_prefix}-*"
-  event_mappings    ="arn:aws:lambda:${local.region}:${local.account_id}:event-source-mapping:*"
+  event_mappings    = "arn:aws:lambda:${local.region}:${local.account_id}:event-source-mapping:*"
   api_arn           = "arn:aws:apigateway:${local.region}::/apis/${aws_apigatewayv2_api.main.id}"
 }
 
