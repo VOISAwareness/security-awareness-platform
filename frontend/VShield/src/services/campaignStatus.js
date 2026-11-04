@@ -259,12 +259,17 @@ function pick(raw, ...keys) {
  * one shape. Unknown extra fields are preserved so detail views can still read
  * them.
  */
+const STATUS_ALIASES = { SEND_FAILED: STATUS.FAILED };
+
 export function normalizeCampaign(raw) {
   if (!raw) return null;
 
-  const status = String(pick(raw, 'status', 'campaignStatus') || STATUS.DRAFT)
+  const written = String(pick(raw, 'status', 'campaignStatus') || STATUS.DRAFT)
     .toUpperCase()
     .replace(/\s+/g, '_');
+  // email-sender marks a failed send SEND_FAILED; read it as FAILED, not as an
+  // unknown status (which would make it look like an editable draft).
+  const status = STATUS_ALIASES[written] || written;
 
   const normalized = {
     ...raw,

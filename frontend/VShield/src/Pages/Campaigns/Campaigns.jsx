@@ -1,24 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   ChevronDown, 
-  ExternalLink, 
-  User, 
-  ArrowUp,
-  ArrowDown,
   Eye,
   X,
-  FilePenLine,
-  Trash2,
   RefreshCw,
   AlertTriangle,
   Send
 } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
-import { openCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD, hasProgress, lastSaved, routeForStep } from '../../services/campaignWizard';
+import { lastSaved } from '../../services/campaignWizard';
 import { DESIGN_STATUS, toDesignCampaign } from '../../services/campaignDesign';
 import { PHASE } from '../../services/campaignStatus';
 import { actorFor } from '../../services/identity';
@@ -28,8 +20,6 @@ import OnGoingImg from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
 import ScheduledImg from '../../assets/CampaignsAssets/ScheduledCampaignsImage.png';
 import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage.png';
 import CancelledImg from '../../assets/CampaignsAssets/CancelledCampaignsImage.png';
-import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
-import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import CampaignGalleryCard from './CampaignGalleryCard';
@@ -110,21 +100,13 @@ const TAB_CONFIG = {
     subtitle: 'Campaigns that were scheduled and then cancelled',
     counterColor: '#EF4444', // Red
     img: CancelledImg
-  },
-  drafts: {
-    id: 'drafts',
-    title: 'Drafts',
-    subtitle: 'Your unfinished campaigns, and sends that failed',
-    counterColor: '#94A3B8', // Slate
-    img: null
   }
 };
 
 const Campaigns = ({ isDark: propIsDark }) => {
   const userContext = useUserType?.() || {};
-  const navigate = useNavigate();
   const actor = actorFor(userContext.user);
-  const { campaigns, loading, error, pendingAction, refresh, remove, send } = useCampaigns({ actor });
+  const { campaigns, loading, error, pendingAction, refresh, send } = useCampaigns({ actor });
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
   const [isDark, setIsDark] = useState(() => {
@@ -159,10 +141,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
-  // Until a sort is picked, Drafts shows the one saved most recently first and
-  // the other tabs the one expiring soonest; a pick then applies to every tab.
+  // Until a sort is picked, the one expiring soonest comes first.
   const [sortChoice, setSortBy] = useState(null);
-  const sortBy = sortChoice || (activeTab === 'drafts' ? 'Latest Updated' : 'Shortest Expiring Date');
+  const sortBy = sortChoice || 'Shortest Expiring Date';
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Modals
@@ -171,13 +152,10 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // View Analytics pop-up: the campaign and its card's position (for its colour)
   const [analyticsItem, setAnalyticsItem] = useState(null);
 
-  // Calendar month state
-  const [calendarDate, setCalendarDate] = useState(new Date());
 
   const lCardBg = getLCardBg(isDark);
 
-  // Drafts tab: which card is asking "delete?", and the last action failure.
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  // The last action failure.
   const [actionError, setActionError] = useState('');
   // Send-test flow: which card is awaiting confirmation, and the success note.
   const [confirmSendId, setConfirmSendId] = useState(null);
@@ -210,15 +188,15 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
-  // Published campaigns split on their schedule (the derived phase); drafts
-  // and failed sends go to the Drafts tab. Pending, rejected and expired
-  // requests live on Requests & Approvals instead.
+  // Published campaigns split on their schedule (the derived phase). Drafts,
+  // failed sends and campaigns sent back for changes are under Start New
+  // Campaign -> Drafts; pending, rejected and expired requests live on
+  // Requests & Approvals.
   const categorizedCampaigns = useMemo(() => {
     const ongoing = [];
     const scheduled = [];
     const historical = [];
     const cancelled = [];
-    const drafts = [];
 
     campaignsList.forEach((c) => {
       if (c.CampaignStatus === DESIGN_STATUS.CANCELLED) {
@@ -227,44 +205,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
         if (c.phase === PHASE.COMPLETED) historical.push(c);
         else if (c.phase === PHASE.LIVE) ongoing.push(c);
         else scheduled.push(c);
-      } else if (
-        (c.CampaignStatus === DESIGN_STATUS.DRAFTED && hasProgress(c)) ||
-        c.CampaignStatus === DESIGN_STATUS.FAILED ||
-        // sent back by an approver for changes: the creator's to fix and resubmit
-        c.CampaignStatus === DESIGN_STATUS.NOTIFIED
-      ) {
-        // Drafts are personal work in progress. Rows created before createdBy
-        // was recorded have no owner, so everyone still sees those. A draft
-        // with nothing of the user's in it is not work in progress (see
-        // hasProgress): an empty one older versions saved on every visit to
-        // Start New Campaign, or one only opened from a template.
-        const owner = String(c.CreatedBy || '').toLowerCase();
-        if (!owner || owner === actor) drafts.push(c);
       }
     });
 
-    return { ongoing, scheduled, historical, cancelled, drafts };
-  }, [campaignsList, actor]);
-
-  // Reopen the draft on the step it was last saved on. Drafts saved before the
-  // step was recorded open on Details (not step 1, which reads as starting
-  // over). A draft opened from here is never asked about ("Continue your
-  // campaign?"): Drafts is where it is picked up.
-  const handleResume = (camp) => {
-    openCampaignDraft(camp.campaignId);
-    navigate(routeForStep(camp.wizardStep, 2), IN_WIZARD);
-  };
-
-  const handleDelete = async (camp) => {
-    setActionError('');
-    try {
-      await remove(camp.campaignId);
-    } catch (e) {
-      setActionError(e?.message || 'Could not delete that campaign.');
-    } finally {
-      setConfirmDeleteId(null);
-    }
-  };
+    return { ongoing, scheduled, historical, cancelled };
+  }, [campaignsList]);
 
   // Trigger the real send for an APPROVED campaign. The backend sends to the
   // campaign's recipient list, but in the SES sandbox only verified addresses
@@ -317,30 +262,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
     return list;
   }, [categorizedCampaigns, activeTab, searchTerm, sortBy]);
 
-  // Calendar Day Click Matrix
-  const calendarMonthDays = useMemo(() => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const totalDays = new Date(year, month + 1, 0).getDate();
-    const prevMonthDays = new Date(year, month, 0).getDate();
-
-    const days = [];
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push({ day: prevMonthDays - i, isCurrentMonth: false });
-    }
-    for (let i = 1; i <= totalDays; i++) {
-      days.push({ day: i, isCurrentMonth: true });
-    }
-    const remaining = 35 - days.length;
-    for (let i = 1; i <= (remaining > 0 ? remaining : 42 - days.length); i++) {
-      days.push({ day: i, isCurrentMonth: false });
-    }
-    return days;
-  }, [calendarDate]);
-
   const activeTabConfig = TAB_CONFIG[activeTab];
-  const today = new Date();
 
   // Helper for Top Three Buttons styling
   const getTabButtonClasses = (tabId) => {
@@ -390,71 +312,6 @@ const Campaigns = ({ isDark: propIsDark }) => {
       >
         <Send className="w-3 h-3" /> Send
       </button>
-    );
-  };
-
-  // Drafts tab card footer: a draft can be resumed or deleted; a failed send
-  // can only be deleted (the sender will not retry it).
-  const renderDraftActions = (camp) => {
-    const failed = camp.CampaignStatus === DESIGN_STATUS.FAILED;
-    const sentBack = camp.CampaignStatus === DESIGN_STATUS.NOTIFIED;
-    const chip = failed
-      ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
-      : sentBack
-        ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300'
-        : 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300';
-    const busy = pendingAction === camp.campaignId;
-
-    return (
-      <span className="flex items-center gap-1.5 font-bold">
-        <span
-          className={`px-2 py-0.5 rounded-full text-[8.5px] uppercase tracking-wide ${chip}`}
-          title={sentBack && camp.NotificationMessage ? `Approver: ${camp.NotificationMessage}` : undefined}
-          data-draft-kind={failed ? 'failed' : sentBack ? 'changes-requested' : 'draft'}
-        >
-          {failed ? 'Send failed' : sentBack ? 'Changes requested' : 'Draft'}
-        </span>
-        {busy ? (
-          <span className="text-slate-500">Working…</span>
-        ) : confirmDeleteId === camp.campaignId ? (
-          <>
-            <span className="text-slate-700 dark:text-slate-300">Delete?</span>
-            <button
-              type="button"
-              onClick={() => handleDelete(camp)}
-              className="px-2 py-0.5 rounded-md bg-[#E60000] text-white cursor-pointer"
-            >
-              Yes
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteId(null)}
-              className="px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 cursor-pointer"
-            >
-              No
-            </button>
-          </>
-        ) : (
-          <>
-            {!failed && (
-              <button
-                type="button"
-                onClick={() => handleResume(camp)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black cursor-pointer"
-              >
-                <FilePenLine className="w-3 h-3" /> {sentBack ? 'Edit & resubmit' : 'Resume'}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteId(camp.campaignId)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 text-[#E60000] cursor-pointer"
-            >
-              <Trash2 className="w-3 h-3" /> Delete
-            </button>
-          </>
-        )}
-      </span>
     );
   };
 
@@ -626,110 +483,6 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 5. DRAFTS CAPSULE (resume or delete unfinished work; failed sends) */}
-            <div
-              onClick={() => setActiveTab('drafts')}
-              style={{
-                height: `${VarThreeButtonsHeightAdjuster}px`,
-                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
-              }}
-              className={`relative p-3.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden border ${getTabButtonClasses('drafts')}`}
-            >
-              <div className="flex justify-between items-start relative z-10">
-                <h3 className="text-[14px] font-voda font-bold tracking-tight leading-tight">
-                  Drafts
-                </h3>
-              </div>
-              <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
-                activeTab === 'drafts' 
-                  ? (isDark ? 'text-slate-700' : 'text-slate-300')
-                  : (isDark ? 'text-slate-400' : 'text-slate-500')
-              }`}>
-                {TAB_CONFIG.drafts.subtitle}
-              </p>
-              <div className="absolute bottom-2 right-3 pointer-events-none select-none z-0">
-                <FilePenLine className="w-9 h-9 text-[#94A3B8]" strokeWidth={1.6} />
-              </div>
-            </div>
-
-            {/* 4. DOCKED CALENDAR CARD */}
-            <div
-              style={{
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
-              }}
-              className="w-full bg-[#0B0C10] text-white p-4 shadow-md border border-white/10 flex flex-col gap-3 select-none"
-            >
-              {/* Header with Title and Month Navigation */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <img 
-                    src={CalendarWhiteIcon} 
-                    alt="Calendar Icon" 
-                    className="w-4 h-4 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                  <span className="text-[11.5px] font-voda font-bold tracking-tight">
-                    {activeTabConfig.title}
-                  </span>
-                </div>
-              </div>
-
-              {/* Month Navigator */}
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[12px] font-bold text-white">
-                  {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
-                    className="p-1 rounded bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
-                  >
-                    <ArrowUp className="w-3 h-3 text-white" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
-                    className="p-1 rounded bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
-                  >
-                    <ArrowDown className="w-3 h-3 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Weekday Names */}
-              <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                  <span key={i}>{d}</span>
-                ))}
-              </div>
-
-              {/* Days Grid */}
-              <div className="grid grid-cols-7 gap-y-1.5 text-center text-[10.5px]">
-                {calendarMonthDays.map((item, idx) => {
-                  const isCurrentDay =
-                    item.isCurrentMonth &&
-                    item.day === today.getDate() &&
-                    calendarDate.getMonth() === today.getMonth() &&
-                    calendarDate.getFullYear() === today.getFullYear();
-                  return (
-                    <div key={idx} className="flex items-center justify-center h-6">
-                      <span 
-                        className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold ${
-                          isCurrentDay
-                            ? 'bg-[#3730A3] text-white shadow-xs' 
-                            : item.isCurrentMonth 
-                              ? 'text-white' 
-                              : 'text-slate-600'
-                        }`}
-                      >
-                        {item.day}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           </div>
 
           {/* ========================================================================= */}
@@ -866,7 +619,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
                     No {activeTabConfig.title.toLowerCase()} found matching criteria.
                   </p>
                 </div>
-              ) : activeTab !== 'drafts' ? (
+              ) : (
                 /* One campaign per row: its details beside its start-to-end timeline */
                 <div className="flex flex-col gap-3.5 w-full">
                   {currentCategoryList.map((camp, idx) => (
@@ -881,71 +634,6 @@ const Campaigns = ({ isDark: propIsDark }) => {
                       actions={camp.status === 'APPROVED' ? <span className="text-[9px]">{renderSendAction(camp)}</span> : null}
                     />
                   ))}
-                </div>
-              ) : (
-                /* Drafts: 2-Column Responsive Grid */
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
-                  {currentCategoryList.map((camp, idx) => {
-                    const cardBg = getCardBgColor(idx, isDark);
-
-                    return (
-                      <div
-                        key={camp.campaignId}
-                        style={{ 
-                          backgroundColor: cardBg,
-                          borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`
-                        }}
-                        className="p-3 text-slate-900 dark:text-white shadow-2xs flex flex-col justify-between gap-1.5 relative overflow-hidden transition-all hover:shadow-xs border border-black/5 dark:border-white/5 flex-shrink-0"
-                      >
-                        {/* Top Line: ID Badge & Created Date */}
-                        <div className="flex items-center justify-between">
-                          <span className="px-2.5 py-0.5 rounded-full bg-white/90 dark:bg-black/60 text-[9px] font-black text-slate-800 dark:text-slate-100 tracking-wide flex items-center gap-1 shadow-2xs font-mono-tech border border-black/5 dark:border-white/10">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
-                            {camp.campaignId}
-                          </span>
-
-                          <div className="flex items-center gap-1.5 text-[8.5px] font-bold text-slate-600 dark:text-slate-300">
-                            <span>Created on: {formatDisplayDate(camp.CreationDate)}</span>
-                            <button
-                              type="button"
-                              onClick={() => setDetailModalItem(camp)}
-                              className="text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white cursor-pointer ml-1"
-                              title="View Full Specifications & Email Preview"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5 stroke-[2.2]" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Title & Description */}
-                        <div>
-                          <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900 dark:text-white line-clamp-1">
-                            {camp.CampaignTitle}
-                          </h4>
-                          <p className="text-[9px] font-medium text-slate-700 dark:text-slate-300 leading-snug line-clamp-2 mt-0.5">
-                            <span className="font-bold text-slate-900 dark:text-white">Description: </span>
-                            {camp.CampaignDescription}
-                          </p>
-                          {camp.CampaignStatus === DESIGN_STATUS.NOTIFIED && camp.NotificationMessage && (
-                            <p data-draft-approver-note className="text-[9px] font-medium text-amber-800 dark:text-amber-300 leading-snug line-clamp-2 mt-0.5">
-                              <span className="font-bold">Changes requested: </span>
-                              {camp.NotificationMessage}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Bottom Row: Created By & Scheduled End Time */}
-                        <div className="flex items-center justify-between text-[9px] pt-1.5 border-t border-black/5 dark:border-white/5 flex-wrap gap-1">
-                          <span className="font-bold flex items-center gap-1 text-slate-800 dark:text-slate-200">
-                            <User className="w-2.5 h-2.5 text-slate-600 dark:text-slate-400" />
-                            Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy?.split('@')[0] || 'User'}</strong>
-                          </span>
-
-                          {renderDraftActions(camp)}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               )}
             </div>

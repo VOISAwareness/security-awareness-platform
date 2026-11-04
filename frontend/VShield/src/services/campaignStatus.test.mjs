@@ -188,3 +188,8 @@ test('no recipients at all leaves the fields alone', () => {
   assert.deepEqual(c.recipientEmails, []);
   assert.equal(c.selectedListName, '');
 });
+
+test("email-sender's SEND_FAILED reads as FAILED, never as an editable draft", () => {
+  const c = normalizeCampaign({ campaignId: 'C', status: 'SEND_FAILED', failureReason: 'MessageRejected' });
+  assert.equal(c.status, 'FAILED');
+});

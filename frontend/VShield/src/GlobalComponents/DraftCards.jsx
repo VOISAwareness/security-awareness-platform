@@ -16,7 +16,12 @@ const savedFull = (iso) =>
 // template's art in the corner, the action at the bottom left — so the two
 // tabs read as one system. Pages map their drafts onto `items`:
 //   { id, code, title, description, savedAt, step, stepCount, stepName,
-//     inProgress, busy, theme, image, imageClassName, photo }
+//     inProgress, busy, theme, image, imageClassName, photo,
+//     badge, note, continueLabel, canContinue }
+// Optional: `badge` { label, tone: 'amber' | 'rose' } beside the id; `note`
+// { label, text } in place of the description (e.g. what an approver asked
+// for); `continueLabel` for the button; `canContinue: false` leaves only
+// Delete (a send that failed).
 // `theme` is one of the page's template themes (NEUTRAL_DRAFT_THEME when the
 // draft has none); `image` is the art for the corner (`imageClassName` tints
 // it), `photo` an uploaded picture shown framed instead.
@@ -29,6 +34,11 @@ const savedFull = (iso) =>
 // description take two lines each (cut short with "…", the whole of it shown
 // on hover), even when shorter or empty, and the step sits at the same height
 // on every card, on one line.
+const BADGE_TONES = {
+  amber: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
+  rose: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
+};
+
 const DraftCards = ({
   items,
   isDark,
@@ -93,7 +103,17 @@ const DraftCards = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
                 <span className="truncate" title={info.code || undefined}>{info.code || 'No ID yet'}</span>
               </div>
-              {info.savedAt && (
+              {/* A badge (sent back, failed) takes the date's place; the date
+                  stays on hover. */}
+              {info.badge ? (
+                <span
+                  data-draft-badge={info.badge.label}
+                  title={info.savedAt ? `Saved ${savedFull(info.savedAt)}` : undefined}
+                  className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide whitespace-nowrap ${BADGE_TONES[info.badge.tone] || BADGE_TONES.amber}`}
+                >
+                  {info.badge.label}
+                </span>
+              ) : info.savedAt && (
                 <span
                   title={`Saved ${savedFull(info.savedAt)}`}
                   className="inline-flex items-center gap-1 flex-shrink-0 text-[10px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap"
@@ -118,7 +138,16 @@ const DraftCards = ({
               >
                 {info.title}
               </h3>
-              {info.description ? (
+              {info.note ? (
+                <p
+                  title={info.note.text}
+                  data-draft-note
+                  className="h-[3.25em] flex-shrink-0 text-[9.5px] text-amber-900 dark:text-amber-200 font-medium line-clamp-2 leading-relaxed cursor-default"
+                >
+                  <strong>{info.note.label}: </strong>
+                  {info.note.text}
+                </p>
+              ) : info.description ? (
                 <p
                   title={info.description}
                   className="h-[3.25em] flex-shrink-0 text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-2 leading-relaxed cursor-default"
@@ -179,14 +208,16 @@ const DraftCards = ({
                 </>
               ) : (
                 <>
+                  {info.canContinue !== false && (
                   <button
                     type="button"
                     onClick={() => onContinue(info.id)}
                     className={`px-3.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${theme.btnBg} ${theme.btnBorder} ${theme.btnText}`}
                   >
-                    <span>Continue</span>
+                    <span>{info.continueLabel || 'Continue'}</span>
                     <ArrowRight className="w-3 h-3 stroke-[2.5]" />
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(info.id)}
