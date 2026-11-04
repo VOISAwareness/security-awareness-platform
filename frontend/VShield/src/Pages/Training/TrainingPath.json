@@ -70,7 +70,8 @@
     ],
     "TrainingCertificateAttached": [
       "TC-00001"
-    ]
+    ],
+    "isAlwaysAvailable": true
   },
   {
     "TrainingPathID": "TP-00005",

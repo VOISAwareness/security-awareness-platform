@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
-import { 
-  Search, 
-  ChevronDown, 
-  ExternalLink, 
+import {
+  Search,
+  ChevronDown,
+  ExternalLink,
   UserX,
   Settings,
   UploadCloud
@@ -20,8 +20,8 @@ const getLCardBg = (isDark) => (isDark ? '#0B1121' : '#FFFFFF');
 const CAPSULE_THEME_COLOR = '#FCD5CE';
 const CAPSULE_COUNTER_COLOR = '#F43F5E';
 
-const RejectedPathsGallery = ({ 
-  paths = [], 
+const RejectedPathsGallery = ({
+  paths = [],
   isDark,
   videos = [],
   quizzes = [],
@@ -73,7 +73,7 @@ const RejectedPathsGallery = ({
     let list = paths.filter((p) => {
       const isRejected = p.status === 'Rejected';
       const q = searchTerm.trim().toLowerCase();
-      const matchesSearch = !q || 
+      const matchesSearch = !q ||
         (p.TrainingPathID && p.TrainingPathID.toLowerCase().includes(q)) ||
         (p.TrainingPathName && p.TrainingPathName.toLowerCase().includes(q));
       return isRejected && matchesSearch;
@@ -92,10 +92,10 @@ const RejectedPathsGallery = ({
   return (
     <>
       <div className="gallery-wrapper relative flex flex-col w-full select-none font-sans overflow-x-hidden pb-2">
-        
+
         {/*  1.  CAPSULE HEADER (TOP-LEFT) */}
         <div
-          style={{ 
+          style={{
             backgroundColor: CAPSULE_THEME_COLOR,
             borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
           }}
@@ -121,16 +121,16 @@ const RejectedPathsGallery = ({
 
         {/*  3. Top-Right Arm of L-Shape Container */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
           }}
-          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
+          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
           <div className="flex flex-col gap-2 -mt-8 max-w-[340px] w-full text-left">
             <div className="relative flex items-center">
-              <input 
+              <input
                 type="text"
                 placeholder="Search by Path ID or Title"
                 value={searchTerm}
@@ -161,8 +161,8 @@ const RejectedPathsGallery = ({
                         setShowSortDropdown(false);
                       }}
                       className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
-                        sortBy === option 
-                          ? 'bg-[#FCD5CE] text-[#BE123C] dark:bg-rose-950 dark:text-rose-300' 
+                        sortBy === option
+                          ? 'bg-[#FCD5CE] text-[#BE123C] dark:bg-rose-950 dark:text-rose-300'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
@@ -175,7 +175,7 @@ const RejectedPathsGallery = ({
           </div>
 
           <div className="flex flex-col items-end justify-center text-right pr-2">
-            <span 
+            <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
               className="text-5xl font-black leading-none tracking-tight font-voda-exb"
             >
@@ -189,7 +189,7 @@ const RejectedPathsGallery = ({
 
         {/*  4. Continuous Lower L-Base */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             height: `${VarGalleryLowerBaseHeightAdjuster}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
@@ -212,11 +212,11 @@ const RejectedPathsGallery = ({
                 <div
                   key={path.TrainingPathID}
                   onClick={(e) => handleDetailsClick(e, path)}
-                  style={{ 
+                  style={{
                     borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
                     transform: `scale(${VarGallaryCardsScaleAdjuster})`
                   }}
-                  className="w-full box-border bg-[#EEF2F6] dark:bg-[#15171E] px-6 py-5 flex items-center justify-between text-slate-900 dark:text-slate-100 shadow-2xs border border-black/5 dark:border-white/5 hover:border-black/10 transition-colors hover:scale-[1.01] cursor-pointer flex-shrink-0"
+                  className="w-full box-border bg-[#EEF2F6] dark:bg-[#15171E] px-3 pt-1 pb-2 flex items-center justify-between text-slate-900 dark:text-slate-100 shadow-2xs border border-black/5 dark:border-white/5 hover:border-black/10 transition-colors hover:scale-[1.01] cursor-pointer flex-shrink-0"
                 >
                   <div className="flex flex-col text-left leading-tight min-w-0 flex-1 pr-2">
                     <div className="flex items-center gap-2">
@@ -224,8 +224,8 @@ const RejectedPathsGallery = ({
                         {path.TrainingPathID}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black tracking-wide shadow-2xs border ${
-                        path.isZipPath 
-                          ? 'bg-amber-100 text-amber-800 border-amber-300/40' 
+                        path.isZipPath
+                          ? 'bg-amber-100 text-amber-800 border-amber-300/40'
                           : 'bg-violet-100 text-violet-800 border-violet-300/40'
                       }`}>
                         {path.isZipPath ? 'Package + Certificate' : 'Videos + Quiz + Certificate'}
@@ -243,7 +243,7 @@ const RejectedPathsGallery = ({
 
                   <div className="flex flex-col items-end gap-2.5 shrink-0">
                     <div className="flex items-center gap-1.5 flex-nowrap">
-                      <span 
+                      <span
                         title={`Rejected by ${rejectedByEmail}`}
                         className="h-5 px-2 rounded-md bg-[#FEE2E2] dark:bg-rose-950/60 text-[#BE123C] dark:text-rose-300 text-[8px] font-voda font-bold whitespace-nowrap flex items-center gap-1 border border-[#FCA5A5]/40 shadow-2xs"
                       >
@@ -309,7 +309,7 @@ const RejectedPathsGallery = ({
         {detailModalItem && (
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
-              style={{ 
+              style={{
                 borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
               }}
               className="w-full max-w-2xl bg-white border border-black/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 transition-colors"

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import LandingPageRichTextEditor from './LandingPageRichTextEditor';
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import LandingPageRichTextEditor from "./LandingPageRichTextEditor";
 
 const OutcomeRichTextEditorModal = ({
   isOpen,
-  value = '',
+  value = "",
   onClose,
   onSave,
 }) => {
@@ -12,7 +12,7 @@ const OutcomeRichTextEditorModal = ({
 
   useEffect(() => {
     if (isOpen) {
-      setEditorValue(value || '');
+      setEditorValue(value || "");
     }
   }, [isOpen, value]);
 
@@ -27,16 +27,11 @@ const OutcomeRichTextEditorModal = ({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-
       <div className="flex w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-900 px-5 py-3">
-
           <div>
-            <h2 className="text-sm font-bold text-white">
-              Design Outcome
-            </h2>
+            <h2 className="text-sm font-bold text-white">Design Outcome</h2>
 
             <p className="mt-0.5 text-[11px] text-slate-300">
               Create the content for this outcome
@@ -50,24 +45,20 @@ const OutcomeRichTextEditorModal = ({
           >
             <X className="h-4 w-4" />
           </button>
-
         </div>
 
         {/* Editor */}
         <div className="max-h-[75vh] overflow-auto p-4">
-
           <LandingPageRichTextEditor
             value={editorValue}
             onChange={setEditorValue}
             placeholder="Design your outcome content here..."
             minHeight={420}
           />
-
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-
           <button
             type="button"
             onClick={onClose}
@@ -83,11 +74,8 @@ const OutcomeRichTextEditorModal = ({
           >
             Save
           </button>
-
         </div>
-
       </div>
-
     </div>
   );
 };

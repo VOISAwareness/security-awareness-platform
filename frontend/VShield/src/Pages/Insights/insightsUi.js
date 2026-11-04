@@ -10,10 +10,10 @@ import { INK, tierInk } from './insightsColours';
 import { TYPE } from './insightsType';
 
 export { TYPE, onScale } from './insightsType';
-export const eyebrow = { fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
-export const small = { fontSize: TYPE.small, fontWeight: 600, color: 'var(--muted)' };
-export const heads = { ...small, fontSize: TYPE.label, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' };
-export const cardTitle = { display: 'block', fontSize: TYPE.title, fontWeight: 800, letterSpacing: '-0.005em', color: 'var(--text)' };
+export const eyebrow = { fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' };
+export const small = { fontSize: TYPE.small, fontWeight: 500, color: 'var(--muted)' };
+export const heads = { ...small, fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' };
+export const cardTitle = { display: 'block', fontSize: TYPE.title, fontWeight: 700, letterSpacing: '-0.005em', color: 'var(--text)' };
 // A card's title line is as tall as the buttons and switches beside it, so
 // they all sit on one centre line, in every card alike.
 export const HEAD_H = 26;
@@ -91,20 +91,20 @@ export const SPANS = [{ id: 12, label: '1Y', title: 'The last year' }, { id: 24,
 // slide between places, and a short blur-and-rise for what comes in.
 export const EASE = [0.22, 1, 0.36, 1];
 export const SPRING = { type: 'spring', stiffness: 520, damping: 42, mass: 0.9 };
-// A card pops in: it rises a little, grows to size and comes into focus,
-// one after another.
+// A card fades in, all together: one quiet transition, nothing moving about.
 // Only opacity and transforms move: the browser hands those to the GPU,
 // where a blur or a size would repaint or re-lay the page every frame.
+// eslint-disable-next-line no-unused-vars
 export const rise = (reduce, i = 0) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 14, scale: reduce ? 1 : 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  transition: { duration: reduce ? 0.01 : 0.4, delay: reduce ? 0 : 0.035 * i, ease: EASE },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: { duration: reduce ? 0.01 : 0.25, ease: EASE },
 });
 export const swap = (reduce) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: reduce ? 0 : -6, transition: { duration: reduce ? 0.08 : 0.18, ease: EASE } },
-  transition: { duration: reduce ? 0.12 : 0.34, ease: EASE },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0, transition: { duration: reduce ? 0.05 : 0.12, ease: EASE } },
+  transition: { duration: reduce ? 0.08 : 0.22, ease: EASE },
 });
 
 // What people did with the emails: reported (good), ignored (context, no

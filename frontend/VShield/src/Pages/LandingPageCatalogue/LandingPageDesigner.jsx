@@ -52,7 +52,7 @@ const LandingPageDesigner = ({
               <div className="w-full max-w-md bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/15 p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-sm font-voda-exb text-slate-900 dark:text-white uppercase tracking-tight">
+                    <h3 className="text-sm font-voda font-bold text-slate-900 dark:text-white uppercase tracking-tight">
                       Confirm Landing Page Save
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -75,7 +75,7 @@ const LandingPageDesigner = ({
                     className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer group"
                   >
                     <Monitor className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-[11.5px] font-voda-exb text-slate-900 dark:text-white uppercase">
+                    <span className="text-[11.5px] font-voda font-bold text-slate-900 dark:text-white uppercase">
                       Full Screen Preview
                     </span>
                     <span className="text-[9px] text-slate-400">
@@ -89,7 +89,7 @@ const LandingPageDesigner = ({
                     className="p-3.5 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer shadow-sm group hover:scale-[1.02]"
                   >
                     <Check className="w-5 h-5 stroke-[3] text-white group-hover:scale-110 transition-transform" />
-                    <span className="text-[11.5px] font-voda-exb text-white uppercase">
+                    <span className="text-[11.5px] font-voda font-bold text-white uppercase">
                       Submit
                     </span>
                     <span className="text-[9px] text-white/80">
@@ -139,7 +139,7 @@ const LandingPageDesigner = ({
                 <button
                   type="button"
                   onClick={handleCommitSubmit}
-                  className="px-4 py-2 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white font-voda-exb text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/30"
+                  className="px-4 py-2 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white font-voda font-bold text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/30"
                 >
                   <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
                   Go Back & Submit

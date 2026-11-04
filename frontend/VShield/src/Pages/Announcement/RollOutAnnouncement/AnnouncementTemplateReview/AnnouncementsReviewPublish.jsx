@@ -1,28 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useUserType } from '../../../../UserTypeContext/UserTypeContext';
 import {
   Check,
   Calendar,
   Eye,
   Send,
   X,
-  Play,
-  HelpCircle,
-  Award,
-  ArrowLeft,
   Users,
   CheckCircle2
 } from 'lucide-react';
-import announcamentScenariosJsonData from '../Announcement/AnnouncementData.json';
-import userDLsJson from '../UserDLs/UserDLsData.json';
-import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
-import trainingPathsJson from '../Training/TrainingPath.json';
-import trainingVideosJson from '../Training/TrainingVideos.json';
-import trainingQuizJson from '../Training/TrainingQuiz.json';
-import trainingCertificateJson from '../Training/TrainingCertificate.json';
-import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+import announcamentScenariosJsonData from '../../../Announcement/AnnouncementData.json';
+import userDLsJson from '../../../UserDLs/UserDLsData.json';
+import initialLandingCatalogues from '../../../LandingPageCatalogue/LandingPageCatalogues.json';
+import gamificationCardLogo from '../../../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -227,41 +219,9 @@ const AnnouncementsReviewPublish = () => {
   const matchedLanding = landingCatalogues.find(
     (c) => (c.LandingPageID || c.landingPageId || c.id) === landingPageId
   ) || landingCatalogues[0] || {};
-  const landingPageName = draft.landingPageName || matchedLanding.LandingPageName || 'Blue Security Alert Landing Page';
-  const landingPageContent = draft.landingPageContent || matchedLanding.LandingPageContent || '<div style="padding: 40px; text-align: center;"><h2>Phishing Intercept</h2><p>This is a simulated phishing campaign test.</p></div>';
-
-  // Training Path
-  const trainingId = draft.trainingId || matchedScenario?.trainingId || 'TP-00001';
-  const matchedPath = trainingPathsJson.find((p) => p.TrainingPathID === trainingId) || trainingPathsJson[0];
-  const trainingPathName = draft.trainingPathName || matchedPath?.TrainingPathName || 'Anti-Phishing & Social Engineering Remediation Path';
-
-  const resolvedTraining = (() => {
-    const videos = (matchedPath?.TrainingVideoAttached || []).map(
-      (vId) => trainingVideosJson.find((v) => v.TrainingVideoID === vId)
-    ).filter(Boolean);
-
-    const quiz = trainingQuizJson.find(
-      (q) => q.TrainingQuizID === (matchedPath?.TrainingQuizAttached?.[0] || 'TQ-00001')
-    ) || trainingQuizJson[0];
-
-    const certificate = trainingCertificateJson.find(
-      (c) => c.TrainingCertificateID === (matchedPath?.TrainingCertificateAttached?.[0] || 'TC-00001')
-    ) || trainingCertificateJson[0];
-
-    const questionCount = quiz?.QuizData ? Object.keys(quiz.QuizData).length : 10;
-    const passingScore = quiz?.TrainingCompletionThreshold || 80;
-
-    return {
-      videoCount: videos.length || 2,
-      questionCount,
-      passingScore,
-      certificateCount: certificate ? 1 : 1
-    };
-  })();
-
+  
   // Modals
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [showLandingModal, setShowLandingModal] = useState(false);
   const [showUserListModal, setShowUserListModal] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
   const [saveSuccessModal, setSaveSuccessModal] = useState(false);
@@ -359,18 +319,6 @@ const handleSaveCampaign = () => {
     console.error('Failed to submit announcement for approval:', error);
   }
 };
-
-
-  // Renderable landing page preview HTML
-  const getRenderablePreviewHtml = () => {
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>* { box-sizing: border-box; } html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: #ffffff; }</style></head><body>${
-      (landingPageContent || '')
-        .replace(/{{userName}}/g, draft.userName || 'Abhay H S')
-        .replace(/{{userEmailID}}/g, 'abhay.hs1@vodafone.com')
-        .replace(/{{department}}/g, 'AI & Data Analytics')
-        .replace(/{{phishLink}}/g, '#training')
-    }</body></html>`;
-  };
 
   return (
     <>
@@ -963,7 +911,7 @@ const handleSaveCampaign = () => {
                   <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-voda font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-xl font-voda font-bold font-voda text-slate-900 dark:text-white tracking-tight">
                     Announcement Campaign Launched!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
@@ -997,7 +945,7 @@ const handleSaveCampaign = () => {
                   <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-voda font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-xl font-voda font-bold text-slate-900 dark:text-white tracking-tight">
                     Announcement Campaign Saved!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">

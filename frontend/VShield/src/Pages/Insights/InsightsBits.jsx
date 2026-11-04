@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react';
 
-import { Chip } from '../Leaderboard/BigPictureTables';
+import { Chip, Pager } from '../Leaderboard/BigPictureTables';
 import { useFitRows } from '../Leaderboard/useFitRows';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useSize } from './useSize';
@@ -43,7 +43,7 @@ export function Delta({ c, ink, title, onDark = false, say = false }) {
   const tint = flat || neutral ? (ink?.context ?? STEADY_INK) : c.good ? ink.good : ink.bad;
   const sign = c.dir === 'up' ? '+' : c.dir === 'down' ? '−' : '';
   return (
-    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${tint} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 800, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
+    <span title={title} data-ins-delta={flat ? 'flat' : neutral ? 'neutral' : c.good ? 'better' : 'worse'} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', borderRadius: 999, background: onDark ? 'rgba(255,255,255,0.12)' : `color-mix(in srgb, ${tint} ${flat || neutral ? 8 : 14}%, var(--base))`, fontSize: TYPE.small, fontWeight: 700, color: onDark ? 'inherit' : 'var(--text)', whiteSpace: 'nowrap' }}>
       {!flat && <span aria-hidden style={{ fontSize: TYPE.label }}>{c.dir === 'up' ? '▲' : '▼'}</span>}
       <span>{flat ? c.shown : `${sign}${c.shown}`}</span>
       {say ? <span style={{ fontWeight: 700, color: onDark ? 'inherit' : 'var(--muted)' }}>{verdict}</span> : <span style={unseen}>{`, ${verdict}`}</span>}
@@ -85,7 +85,7 @@ export function Meter({ value, max, color, label, sub, delay = 0, reduce, height
   return (
     <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, whiteSpace: 'nowrap' }}>
-        <span className="vs-rank" style={{ fontSize: TYPE.title, fontWeight: 900, lineHeight: 1, color: 'var(--text)' }}>{label}</span>
+        <span style={{ fontSize: TYPE.title, fontWeight: 800, lineHeight: 1, color: 'var(--text)' }}>{label}</span>
         {sub && <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
       </span>
       <span aria-hidden style={{ height, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
@@ -103,7 +103,7 @@ export function InlineBar({ value, max, color, label, delay = 0, reduce, grow = 
       <span aria-hidden style={{ flex: 1, minWidth: 0, height: 6, borderRadius: 999, background: 'var(--track)', overflow: 'hidden' }}>
         <Fill width={w} color={color} delay={delay} reduce={reduce} grow={grow} returning={returning} />
       </span>
-      <span className="vs-rank" style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: TYPE.strong, fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
+      <span style={{ flexShrink: 0, width: 36, textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{label}</span>
     </span>
   );
 }
@@ -201,13 +201,13 @@ function RiskScoreMeaning({ colors }) {
         {LEVELS.map((k) => (
           <span key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: TYPE.small, lineHeight: 1.35 }}>
             <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 2, background: colors[k], transform: 'translateY(-1px)' }} />
-            <span><strong>{TIER_WORD[k]}</strong> <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{lower(TIER_RULE[k])}</span></span>
+            <span><strong>{TIER_WORD[k]}</strong> <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{lower(TIER_RULE[k])}</span></span>
           </span>
         ))}
       </span>
       <span style={{ display: 'block', ...small, marginTop: 8, paddingTop: 7, borderTop: '1px solid var(--hair)', lineHeight: 1.45 }}>{g.how}</span>
       <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 6, fontSize: TYPE.small, fontWeight: 700 }}>
-        {LEVELS.map((k) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: 2, background: colors[k] }} />{TIER_WORD[k]} <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{RANGE[k]}</span></span>)}
+        {LEVELS.map((k) => <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: 2, background: colors[k] }} />{TIER_WORD[k]} <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{RANGE[k]}</span></span>)}
       </span>
     </>
   );
@@ -240,21 +240,6 @@ export function Define({ term, onDark }) {
 
 const pagerBtn = (off) => ({ width: 22, height: 22, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 7, border: '1px solid var(--hair)', background: 'var(--ghost)', color: 'var(--text)', cursor: off ? 'default' : 'pointer', opacity: off ? 0.35 : 1 });
 
-/** A slim "1–6 of 16" with back and next, under a list that pages. */
-export function MiniPager({ at, pages, total, per, onAt, what = 'rows' }) {
-  const from = at * per + 1; const to = Math.min(total, (at + 1) * per);
-  const go = (e, k) => { e.stopPropagation(); onAt(k); };
-  return (
-    <div data-ins-pager style={{ flexShrink: 0, height: 24, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, ...small }}>
-      <span style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)' }}>{from}–{to}</strong> of {total} {what}</span>
-      <span style={{ display: 'flex', gap: 4 }}>
-        <button type="button" aria-label={`Previous ${what}`} disabled={at === 0} onClick={(e) => go(e, at - 1)} style={pagerBtn(at === 0)}><ChevronLeft size={12} strokeWidth={2.6} aria-hidden /></button>
-        <button type="button" aria-label={`Next ${what}`} disabled={at >= pages - 1} onClick={(e) => go(e, at + 1)} style={pagerBtn(at >= pages - 1)}><ChevronRight size={12} strokeWidth={2.6} aria-hidden /></button>
-      </span>
-    </div>
-  );
-}
-
 /**
  * A list that shows as many rows of `rowH` as fit its card, a page at a
  * time, so it never scrolls; `cols` side by side. `render(item, k)` draws a
@@ -271,7 +256,7 @@ export function FitList({ items, rowH, render, cols = 1, what = 'rows', style })
       <div ref={fit} style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', ...style }}>
         {items.slice(at * per, at * per + per).map((x, k) => render(x, k))}
       </div>
-      {pages > 1 && <MiniPager at={at} pages={pages} total={items.length} per={per} onAt={setPage} what={what} />}
+      {pages > 1 && <Pager page={at} pages={pages} total={items.length} size={per} onPage={setPage} what={what} />}
     </div>
   );
 }

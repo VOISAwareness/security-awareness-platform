@@ -7,10 +7,10 @@ export const TYPE = Object.freeze({
   small: 9.5, // lines under things, legends, notes
   body: 10.5, // names in rows, buttons, tooltips
   strong: 11.5, // numbers in tables, row titles
-  title: 12.5, // card titles
-  figure: 14, // numbers in charts and lists
-  heading: 18, // profile titles, figures in profile headers
-  number: 22, // the measures' numbers
+  title: 12, // card titles
+  figure: 13, // numbers in charts and lists
+  heading: 16, // profile titles, figures in profile headers
+  number: 20, // the measures' numbers
   hero: 30, // the health word, a card's big figure when short
   display: 40, // a card's big figure
 });

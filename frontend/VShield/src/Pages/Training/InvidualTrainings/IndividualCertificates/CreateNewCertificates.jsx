@@ -3,7 +3,6 @@ import {
   X,
   ChevronDown,
   Trash2,
-  Eye,
   UploadCloud,
   Palette
 } from "lucide-react";
@@ -36,7 +35,7 @@ export const CreateNewCertificates = ({
     if (editingCert && editingCert["Certificate(html)"]) {
       // Extract innerHTML of the cert-card or use full HTML
       const raw = editingCert["Certificate(html)"];
-      const match = raw.match(/<div[^>]*class='cert-card'[^>]*>([\s\S]*)<\/div>/i) || 
+      const match = raw.match(/<div[^>]*class='cert-card'[^>]*>([\s\S]*)<\/div>/i) ||
                     raw.match(/<div[^>]*class="cert-card"[^>]*>([\s\S]*)<\/div>/i) ||
                     raw.match(/<div[^>]*class='cert-container'[^>]*>([\s\S]*)<\/div>/i) ||
                     raw.match(/<div[^>]*class="cert-container"[^>]*>([\s\S]*)<\/div>/i);
@@ -49,7 +48,7 @@ export const CreateNewCertificates = ({
   const [bgImage, setBgImage] = useState(() => {
     if (editingCert && editingCert["Certificate(html)"]) {
       const raw = editingCert["Certificate(html)"];
-      const match = raw.match(/background-image:\s*url\(['"]?([^'")]+)['"]?\)/i) || 
+      const match = raw.match(/background-image:\s*url\(['"]?([^'")]+)['"]?\)/i) ||
                     raw.match(/background:\s*[^;]*url\(['"]?([^'")]+)['"]?\)/i);
       return match ? match[1] : "";
     }
@@ -111,7 +110,7 @@ export const CreateNewCertificates = ({
         // Find the absolute top and bottom visual coordinates among all child elements
         let minTop = Infinity;
         let maxBottom = -Infinity;
-        
+
         children.forEach((child) => {
           const rect = child.getBoundingClientRect();
           if (rect.top < minTop) minTop = rect.top;
@@ -222,7 +221,7 @@ export const CreateNewCertificates = ({
     <>
       {/* Full Screen overlay container */}
       {isFullScreen && (
-        <div className="fixed inset-0 z-[160] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 text-left select-none animate-clay-stagger-1">
+        <div className="fixed inset-0 z-[160] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 text-left select-none">
           <div className={`w-[840px] max-w-full rounded-2xl border flex flex-col overflow-hidden shadow-2xl bg-[#0B1121] border-white/10 text-white`}>
             {/* Fullscreen Header */}
             <div className="px-6 py-3.5 bg-black/40 border-b border-white/10 flex items-center justify-between">
@@ -283,55 +282,55 @@ export const CreateNewCertificates = ({
                     <option value="5">24px</option>
                   </select>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-bold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-bold"
                     title="Bold"
                   >
                     B
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white italic" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white italic"
                     title="Italic"
                   >
                     I
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white underline" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white underline"
                     title="Underline"
                   >
                     U
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold"
                     title="Align Left"
                   >
                     L
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold"
                     title="Align Center"
                   >
                     C
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white font-semibold"
                     title="Align Right"
                   >
                     R
@@ -439,54 +438,81 @@ export const CreateNewCertificates = ({
 
       {/* Normal / Inline Render Block */}
       <div className={`w-full flex flex-col text-left ${
-        isInline 
-          ? "h-full min-h-[500px] border-none bg-transparent shadow-none" 
+        isInline
+          ? "h-full min-h-0 border-none bg-transparent shadow-none"
           : `max-w-5xl border rounded-2xl overflow-hidden shadow-2xl h-[90vh] ${
               isDark ? "bg-[#12141A] border-white/10 text-white shadow-[0_20px_50px_rgba(0,0,0,0.6)]" : "bg-white border-slate-200 text-slate-800"
             }`
       }`}>
-        {/* Normal Header */}
-        {!isInline && (
-          <div className={`px-6 py-4 border-b flex items-center justify-between ${
-            isDark ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200"
-          }`}>
-            <h3 className="text-sm font-black font-voda uppercase">{editingCert ? "EDIT COMPLIANCE CERTIFICATE" : "ADD NEW ACCREDITED CERTIFICATE"}</h3>
-            <button type="button" onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
-              <X className="w-5 h-5" />
+        {/* ── DOCKED TOP HEADER BAR ── */}
+        <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
+          isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
+        }`}>
+          <div className="px-6 h-full flex items-center gap-2.5 flex-shrink-0">
+            <span className="font-voda font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
+              {editingCert ? "Edit Compliance Certificate" : "Add New Certificate"}
+            </span>
+          </div>
+
+          <div className="flex items-center h-full">
+            <div className="px-3 flex items-center">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsFullScreen(true); }}
+                className={`h-7 px-3.5 rounded-full text-[9px] font-bold font-voda uppercase tracking-wider transition-all cursor-pointer flex items-center shadow-2xs ${
+                  isDark ? "bg-white/10 text-slate-200 hover:bg-white/15" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+                title="Fullscreen Certificate Editing"
+              >
+                <span>Fullscreen View</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className={`px-4 h-full flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
+                isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
+              }`}
+              title="Close"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
-        )}
+        </div>
 
         {/* Editor Body */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-light-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 flex flex-col gap-5 custom-light-scrollbar">
           {/* Settings Panel */}
-          <div className="flex flex-col gap-4">
+          <div className={`p-5 rounded-2xl border flex flex-col gap-5 ${
+            isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
+          }`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
-                  Certificate Name
+              <div className="flex flex-col">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                  Certificate Name <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={`w-full h-10 px-3 rounded-lg border text-xs focus:outline-none ${
-                    isDark ? "border-white/10 bg-black/40 text-white focus:border-[#16A34A]" : "border-slate-200 bg-slate-50 text-slate-800 focus:border-[#16A34A]"
+                  className={`w-full h-10 px-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A] transition-all shadow-2xs ${
+                    isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
                   }`}
                   placeholder="e.g., Cyber Security Honors"
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+              <div className="flex flex-col">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
                   Description
                 </label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className={`w-full h-10 px-3 rounded-lg border text-xs focus:outline-none ${
-                    isDark ? "border-white/10 bg-black/40 text-white focus:border-[#16A34A]" : "border-slate-200 bg-slate-50 text-slate-800 focus:border-[#16A34A]"
+                  className={`w-full h-10 px-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A] transition-all shadow-2xs ${
+                    isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
                   }`}
                   placeholder="Certificate awarded for..."
                 />
@@ -494,12 +520,12 @@ export const CreateNewCertificates = ({
             </div>
 
             {/* Customizer Controls */}
-            <div className="flex flex-col gap-4 border-t pt-4 border-black/5 dark:border-white/5">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Canvas Settings:</span>
+            <div className={`flex flex-col gap-4 border-t pt-4 mt-1 ${isDark ? "border-white/10" : "border-slate-200"}`}>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 font-voda">Canvas Settings:</span>
 
               {/* Background Image Upload */}
-              <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-bold text-slate-400 uppercase block">Canvas Background Image</label>
+              <div className="flex flex-col gap-2 text-left mt-1">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">Canvas Background Image</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="file"
@@ -512,17 +538,17 @@ export const CreateNewCertificates = ({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className={`h-9 px-4 rounded-xl border font-bold text-xs uppercase flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
-                      isDark ? "bg-white/5 border-white/5 text-slate-300 hover:bg-white/10" : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+                      isDark ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs"
                     }`}
                   >
-                    <UploadCloud className="w-4 h-4" />
+                    <UploadCloud className="w-4 h-4 text-slate-400" />
                     <span>{bgImage ? "Replace Background Image" : "Upload Background Image"}</span>
                   </button>
                   {bgImage && (
                     <button
                       type="button"
                       onClick={() => setBgImage("")}
-                      className="h-9 px-3 rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-xs font-bold text-red-400 cursor-pointer"
+                      className="h-9 px-3 rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-xs font-bold text-red-500 cursor-pointer"
                     >
                       Clear BG
                     </button>
@@ -531,24 +557,24 @@ export const CreateNewCertificates = ({
               </div>
 
               {/* Border Color & Canvas Background Color */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Canvas Border</label>
+              <div className="grid grid-cols-2 gap-4 mt-1.5">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1.5">Canvas Border Color</label>
                   <input
                     type="color"
                     value={borderColor}
                     onChange={(e) => setBorderColor(e.target.value)}
-                    className="w-full h-8 rounded-lg cursor-pointer bg-transparent border border-white/15"
+                    className="w-full h-9 rounded-xl cursor-pointer bg-transparent border border-slate-200 dark:border-white/15"
                   />
                 </div>
                 {!bgImage && (
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Canvas Background</label>
+                  <div className="flex flex-col">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1.5">Canvas Background Color</label>
                     <input
                       type="color"
                       value={bgColor}
                       onChange={(e) => setBgColor(e.target.value)}
-                      className="w-full h-8 rounded-lg cursor-pointer bg-transparent border border-white/15"
+                      className="w-full h-9 rounded-xl cursor-pointer bg-transparent border border-slate-200 dark:border-white/15"
                     />
                   </div>
                 )}
@@ -559,7 +585,7 @@ export const CreateNewCertificates = ({
           {/* Interactive Preview Canvas */}
           {!isFullScreen && (
             <div className="flex flex-col gap-2 relative">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest block font-voda">
                 PREVIEW
               </span>
 
@@ -608,55 +634,55 @@ export const CreateNewCertificates = ({
                     <option value="5">24px</option>
                   </select>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('bold'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Bold"
                   >
                     <strong>B</strong>
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('italic'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Italic"
                   >
                     <em>I</em>
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('underline'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Underline"
                   >
                     <u>U</u>
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyLeft'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Align Left"
                   >
                     L
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyCenter'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Align Center"
                   >
                     C
                   </button>
 
-                  <button 
-                    type="button" 
-                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }} 
-                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white" 
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); runCommand('justifyRight'); }}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer bg-black/30 text-white"
                     title="Align Right"
                   >
                     R
@@ -710,18 +736,17 @@ export const CreateNewCertificates = ({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsFullScreen(true); }}
-                    className="h-6 px-2.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase tracking-wide flex items-center gap-1 cursor-pointer ml-1.5 shadow-sm"
+                    className="h-6 px-2.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase tracking-wide flex items-center justify-center cursor-pointer ml-1.5 shadow-sm"
                     title="Fullscreen Certificate Editing"
                   >
-                    <Eye className="w-3.5 h-3.5" />
                     <span>Fullscreen</span>
                   </button>
                 </div>
               </div>
 
               {/* contentEditable Scaled Preview Canvas with Strict Aspect Ratio */}
-              <div 
-                ref={canvasContainerRef} 
+              <div
+                ref={canvasContainerRef}
                 className="w-full overflow-hidden flex items-start justify-center border border-black/10 dark:border-white/10 rounded-b-xl"
                 style={{ height: `${500 * canvasScale}px` }}
               >
@@ -756,16 +781,16 @@ export const CreateNewCertificates = ({
                 />
               </div>
 
-              <span className="text-[9px] text-slate-400 text-center block mt-1">
+              <span className="text-[9px] text-slate-500 dark:text-slate-400 text-center block mt-1">
                 Select or type inside the canvas directly to edit the certificate. Insert dynamic {`{fx}`} for placeholders.
               </span>
             </div>
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className={`px-6 py-4 border-t flex items-center justify-between gap-3 ${
-          isDark ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200"
+        {/* ── DOCKED FOOTER BAR ── */}
+        <div className={`px-6 py-3 border-t flex items-center justify-between gap-3 flex-shrink-0 ${
+          isDark ? "bg-[#12141A] border-white/10" : "bg-slate-50 border-slate-200"
         }`}>
           {editingCert && onDelete ? (
             <button
@@ -776,20 +801,18 @@ export const CreateNewCertificates = ({
                   onClose();
                 }
               }}
-              className="h-10 px-4 rounded-xl border border-red-500/30 bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md transition-colors"
+              className="h-[28px] sm:h-[30px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
             >
-              <Trash2 className="w-4 h-4" /> Delete Template
+              <Trash2 className="w-3.5 h-3.5" /> Delete Template
             </button>
           ) : (
             <div />
           )}
-          <div className="flex gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className={`h-10 px-4 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-                isDark ? "border-white/10 bg-white/5 hover:bg-white/10 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
             >
               Cancel
             </button>
@@ -797,7 +820,7 @@ export const CreateNewCertificates = ({
               type="button"
               onClick={handleSave}
               disabled={!name.trim()}
-              className="h-10 px-5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-xs font-bold text-white cursor-pointer transition-all shadow-md"
+              className="min-w-[90px] px-5 h-[28px] sm:h-[30px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
               {editingCert ? "Save Changes" : "Save Template"}
             </button>

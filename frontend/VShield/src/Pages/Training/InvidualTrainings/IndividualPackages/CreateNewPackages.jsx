@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, UploadCloud, BookOpen, Sparkles } from "lucide-react";
+import { X, UploadCloud } from "lucide-react";
 import { useIsDarkMode, loadJSZip, getMimeType } from "../../components/modals/helpers";
 
 // AddNewPackageScreen (default export: CreateNewPackages)
@@ -136,72 +136,74 @@ export const CreateNewPackages = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 text-left">
-      <div className={`flex items-center justify-between border-b pb-3 mb-4 ${isDark ? "border-white/5" : "border-slate-100"}`}>
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-amber-500" />
-          <h2 className="text-lg font-voda font-black text-slate-900 dark:text-white uppercase tracking-tight">
-            Upload package
-          </h2>
+    <div className={`w-full h-full min-h-0 flex flex-col text-left ${isDark ? "bg-[#0B1121] text-white" : "bg-white text-slate-800"}`}>
+      {/* ── DOCKED TOP HEADER BAR ── */}
+      <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
+        isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
+      }`}>
+        <div className="px-6 h-full flex items-center gap-2.5 flex-shrink-0">
+          <span className="font-voda font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
+            Upload Package (.Zip)
+          </span>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          className={`h-8 px-3 rounded-lg text-[9px] font-voda font-bold uppercase tracking-wider transition-all cursor-pointer ${
-            isDark ? "bg-white/5 hover:bg-white/10 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+          className={`px-4 h-full flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
+            isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
           }`}
+          title="Close"
         >
-          ← Cancel
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto pr-1 pb-6 custom-light-scrollbar">
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              Package Title
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 custom-light-scrollbar">
+        <div className={`p-5 rounded-2xl border flex flex-col gap-5 ${
+          isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
+        }`}>
+          <div className="flex flex-col">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+              Package Title <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className={`w-full h-10 px-3 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 ${
-                isDark 
-                  ? "border-white/10 bg-black/40 text-white" 
-                  : "border-slate-200 bg-slate-50 text-slate-800"
+              className={`w-full h-10 px-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-2xs ${
+                isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
               }`}
               placeholder="e.g., Simulated Electric Vehicle Compliance Sandbox"
             />
           </div>
 
-          <div>
-            <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+          <div className="flex flex-col mt-1.5">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
               Description
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className={`w-full h-24 p-3 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 resize-none ${
-                isDark 
-                  ? "border-white/10 bg-black/40 text-white" 
-                  : "border-slate-200 bg-slate-50 text-slate-800"
+              rows={3}
+              className={`w-full p-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 resize-none transition-all shadow-2xs ${
+                isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
               }`}
               placeholder="Provide a comprehensive summary of what the compiled sandbox program evaluates..."
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-1.5">
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
                 Target Audience
               </label>
               <select
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
-                className={`w-full h-10 px-2.5 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer ${
-                  isDark 
-                    ? "border-white/10 bg-black/40 text-white [&>option]:bg-slate-900 [&>option]:text-white" 
-                    : "border-slate-200 bg-slate-50 text-slate-800 [&>option]:bg-white [&>option]:text-slate-800"
+                className={`w-full h-10 px-3 rounded-xl border text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer transition-all shadow-2xs ${
+                  isDark
+                    ? "border-white/10 bg-[#0B1121] text-white [&>option]:bg-slate-900 [&>option]:text-white"
+                    : "border-slate-200 bg-white text-slate-900 [&>option]:bg-white [&>option]:text-slate-800"
                 }`}
               >
                 <option value="All Employees">All Employees</option>
@@ -211,17 +213,17 @@ export const CreateNewPackages = ({
               </select>
             </div>
 
-            <div>
-              <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
                 Difficulty Level
               </label>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
-                className={`w-full h-10 px-2.5 rounded-lg border text-xs font-semibold focus:outline-none focus:border-amber-500 cursor-pointer ${
-                  isDark 
-                    ? "border-white/10 bg-black/40 text-white [&>option]:bg-slate-900 [&>option]:text-white" 
-                    : "border-slate-200 bg-slate-50 text-slate-800 [&>option]:bg-white [&>option]:text-slate-800"
+                className={`w-full h-10 px-3 rounded-xl border text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer transition-all shadow-2xs ${
+                  isDark
+                    ? "border-white/10 bg-[#0B1121] text-white [&>option]:bg-slate-900 [&>option]:text-white"
+                    : "border-slate-200 bg-white text-slate-900 [&>option]:bg-white [&>option]:text-slate-800"
                 }`}
               >
                 <option value="Beginner">Beginner</option>
@@ -230,9 +232,9 @@ export const CreateNewPackages = ({
               </select>
             </div>
 
-            <div>
-              <label className={`text-[10px] font-extrabold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                Est. Duration (Mins): {duration}m
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                Est. Duration: {duration}m
               </label>
               <input
                 type="range"
@@ -241,25 +243,27 @@ export const CreateNewPackages = ({
                 step="5"
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
-                className="w-full h-1 mt-4 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                className="w-full h-1.5 mt-3.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
               />
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <label className={`text-[10px] font-extrabold uppercase tracking-wider block ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Zip Package Upload
+        <div className={`p-5 rounded-2xl border flex flex-col gap-4 ${
+          isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
+        }`}>
+          <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+            Zip Package File <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
           </label>
 
           <div
             onClick={() => fileInputRef.current?.click()}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className={`border-2 border-dashed transition-all rounded-2xl p-8 flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[160px] ${
-              isDark 
-                ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-amber-500/40" 
-                : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-amber-500/40"
+            className={`border-2 border-dashed transition-all rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer min-h-[160px] ${
+              isDark
+                ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-amber-500/40"
+                : "border-slate-300 bg-white hover:bg-slate-50 hover:border-amber-500/50"
             }`}
           >
             <input
@@ -269,12 +273,12 @@ export const CreateNewPackages = ({
               accept=".zip"
               className="hidden"
             />
-            <UploadCloud className="w-10 h-10 text-slate-400" />
+            <UploadCloud className="w-9 h-9 text-slate-400" />
             <div>
-              <p className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-slate-800"}`}>
+              <p className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>
                 {selectedFile ? `Package: ${selectedFile.name}` : "Select compiled website zip"}
               </p>
-              <p className={`text-[9px] mt-1 max-w-[220px] leading-relaxed ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              <p className={`text-[10px] mt-0.5 max-w-[240px] leading-relaxed ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                 {selectedFile
                   ? `Size: ${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
                   : "Drag and drop SCORM compliant, HTML5 or standalone website .zip package"}
@@ -284,11 +288,9 @@ export const CreateNewPackages = ({
 
           {isCompiling && (
             <div className={`p-4 rounded-xl border flex flex-col gap-2 ${
-              isDark ? "border-white/5 bg-white/[0.01]" : "border-slate-200 bg-slate-50"
+              isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-white"
             }`}>
-              <div className={`flex justify-between items-center text-[10px] font-bold uppercase ${
-                isDark ? "text-slate-400" : "text-slate-500"
-              }`}>
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
                 <span>Extracting and mapping relative pathways...</span>
                 <span>{progress}%</span>
               </div>
@@ -302,29 +304,28 @@ export const CreateNewPackages = ({
               </div>
             </div>
           )}
-
-          <div className="flex items-center gap-3 mt-auto justify-end">
-            <button
-              type="button"
-              onClick={onCancel}
-              className={`h-10 px-5 rounded-xl border font-bold text-xs cursor-pointer uppercase tracking-wider transition-colors ${
-                isDark 
-                  ? "border-white/10 bg-white/5 hover:bg-white/10 text-white" 
-                  : "border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700"
-              }`}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleCompileAndSave}
-              disabled={!name.trim() || !selectedFile || isCompiling}
-              className="h-10 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-white cursor-pointer uppercase tracking-wider flex items-center gap-1 shadow-lg transition-colors"
-            >
-              <Sparkles className="w-4 h-4" /> Save Package
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* ── DOCKED FOOTER BAR ── */}
+      <div className={`px-6 py-3 border-t flex items-center justify-end gap-2.5 flex-shrink-0 ${
+        isDark ? "bg-[#12141A] border-white/10" : "bg-slate-50 border-slate-200"
+      }`}>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleCompileAndSave}
+          disabled={!name.trim() || !selectedFile || isCompiling}
+          className="min-w-[90px] px-6 h-[28px] sm:h-[30px] rounded-3xl bg-amber-500 hover:bg-amber-600 text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+        >
+          Save Package
+        </button>
       </div>
     </div>
   );
@@ -353,7 +354,7 @@ export const ZipUploader = ({
 
   const processSelectedFile = (file) => {
     setSelectedFile(file);
-    
+
     // Extract base name, remove digits, clean up hyphens and underscores
     const baseName = file.name.replace(/\.zip$/i, "");
     const cleanedName = baseName.replace(/[0-9]/g, "").replace(/[-_]+/g, " ").trim();
@@ -468,114 +469,139 @@ export const ZipUploader = ({
 
   return (
     <div className={`w-full flex flex-col text-left ${
-      isInline 
-        ? "h-full min-h-[500px] border-none bg-transparent shadow-none" 
+      isInline
+        ? "h-full min-h-0 border-none bg-transparent shadow-none"
         : `max-w-lg border rounded-2xl overflow-hidden shadow-2xl ${
             isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
           }`
     }`}>
-      <div className={`px-6 py-4 border-b flex items-center justify-between ${
-        isDark ? "border-white/10 bg-black/40 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
+      {/* ── DOCKED TOP HEADER BAR ── */}
+      <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
+        isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
       }`}>
-        <h3 className="text-sm font-black font-voda uppercase">UPLOAD PACKAGE (.ZIP)</h3>
-        <button type="button" onClick={onClose} className="cursor-pointer text-slate-400 hover:text-white">
-          <X className="w-5 h-5" />
+        <div className="px-6 h-full flex items-center gap-2.5 flex-shrink-0">
+          <span className="font-voda font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
+            Upload Package (.Zip)
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`px-4 h-full flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
+            isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
+          }`}
+          title="Close"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="p-6 flex flex-col gap-4">
-        <div>
-          <label className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Package Name
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`w-full h-10 px-3 rounded-lg border text-xs focus:outline-none focus:border-[#E60000] ${
-              isDark ? "border-white/10 bg-black/40 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
-            }`}
-            placeholder="e.g., HTML5 Interactive Spear Phishing Room"
-          />
-        </div>
-
-        <div>
-          <label className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Description
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={`w-full h-16 p-3 rounded-lg border text-xs focus:outline-none focus:border-[#E60000] resize-none ${
-              isDark ? "border-white/10 bg-black/40 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
-            }`}
-            placeholder="Describe standalone package objectives..."
-          />
-        </div>
-
-        {/* Upload drag dropzone */}
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed transition-colors rounded-xl p-8 flex flex-col items-center justify-center gap-3 text-center cursor-pointer ${
-            isDark 
-              ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/35" 
-              : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-450"
-          }`}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".zip"
-            className="hidden"
-          />
-          <UploadCloud className="w-9 h-9 text-slate-400" />
-          <div>
-            <p className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>
-              {selectedFile ? `Selected: ${selectedFile.name}` : "Drag & drop SCORM/HTML5 .zip file"}
-            </p>
-            <p className={`text-[9px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB` : "Zip archive containing index.html up to 250MB"}
-            </p>
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 flex flex-col gap-5 custom-light-scrollbar">
+        <div className={`p-5 rounded-2xl border flex flex-col gap-5 ${
+          isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
+        }`}>
+          <div className="flex flex-col">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+              Package Name <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={`w-full h-10 px-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-2xs ${
+                isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
+              }`}
+              placeholder="e.g., HTML5 Interactive Spear Phishing Room"
+            />
           </div>
-        </div>
 
-        {/* Progress bar */}
-        {isUploading && (
-          <div className="mt-2 text-left">
-            <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
-              <span>Uploading Zip Package</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? "bg-white/5" : "bg-slate-200"}`}>
-              <div
-                className="bg-amber-500 h-full transition-all duration-200"
-                style={{ width: `${uploadProgress}%` }}
+          <div className="flex flex-col mt-1.5">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className={`w-full p-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 resize-none transition-all shadow-2xs ${
+                isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
+              }`}
+              placeholder="Describe standalone package objectives..."
+            />
+          </div>
+
+          {/* Upload drag dropzone */}
+          <div className="flex flex-col mt-1.5">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+              Zip Package File <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+            </label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed transition-all rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer ${
+                isDark
+                  ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-amber-500/40"
+                  : "border-slate-300 bg-white hover:bg-slate-50 hover:border-amber-500/50"
+              }`}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".zip"
+                className="hidden"
               />
+              <UploadCloud className="w-8 h-8 text-slate-400" />
+              <div>
+                <p className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>
+                  {selectedFile ? `Selected: ${selectedFile.name}` : "Drag & drop SCORM/HTML5 .zip file"}
+                </p>
+                <p className={`text-[10px] mt-0.5 max-w-[240px] leading-relaxed ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                  {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB` : "Zip archive containing index.html up to 250MB"}
+                </p>
+              </div>
             </div>
           </div>
-        )}
+
+          {/* Progress bar */}
+          {isUploading && (
+            <div className={`p-4 rounded-xl border flex flex-col gap-2 ${
+              isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-white"
+            }`}>
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
+                <span>Uploading Zip Package</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className={`w-full h-1.5 rounded-full overflow-hidden ${
+                isDark ? "bg-white/5" : "bg-slate-200"
+              }`}>
+                <div
+                  className="bg-amber-500 h-full transition-all duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className={`px-6 py-4 border-t flex items-center justify-end gap-3 ${
-        isDark ? "bg-black/40 border-white/10" : "bg-slate-50 border-slate-200"
+      {/* ── DOCKED FOOTER BAR ── */}
+      <div className={`px-6 py-3 border-t flex items-center justify-end gap-2.5 flex-shrink-0 ${
+        isDark ? "bg-[#12141A] border-white/10" : "bg-slate-50 border-slate-200"
       }`}>
         <button
           type="button"
           onClick={onClose}
-          className={`h-10 px-4 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-            isDark ? "border-white/10 bg-white/5 hover:bg-white/10 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={handleUpload}
-          disabled={!name.trim() || isUploading}
-          className="h-10 px-5 rounded-xl bg-[#E60000] hover:bg-[#c40000] transition-colors text-xs font-bold text-white cursor-pointer disabled:opacity-40 disabled:hover:bg-[#E60000]"
+          disabled={!name.trim() || !selectedFile || isUploading}
+          className="min-w-[90px] px-6 h-[28px] sm:h-[30px] rounded-3xl bg-amber-500 hover:bg-amber-600 text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
           Upload Package
         </button>

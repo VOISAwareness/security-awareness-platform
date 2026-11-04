@@ -31,7 +31,7 @@ export const GLOSSARY = Object.freeze({
   riskScore: {
     name: 'Risk Score',
     what: 'How exposed the company is to phishing, from 0 (no one at risk) to 100 (everyone at the highest level). Lower is safer.',
-    how: "The average of everyone's risk level: low counts 0, moderate 33, high 67, critical 100. Its change is in points (pts).",
+    how: "The average of everyone's risk level: (0 × Low + 33 × Moderate + 67 × High + 100 × Critical) ÷ number of people. Its change is in points (pts).",
   },
   riskLevels: {
     name: 'Risk levels',

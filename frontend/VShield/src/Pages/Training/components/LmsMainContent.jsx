@@ -59,6 +59,8 @@ export const LmsMainContent = () => {
     setShowQuizCreator,
     showCertCreator,
     setShowCertCreator,
+    showPathCreator,
+    setShowPathCreator,
     activeVideo,
     setActiveVideo,
     activeQuiz,
@@ -109,11 +111,18 @@ export const LmsMainContent = () => {
     setPackages((prev) => prev.filter((p) => p.PackageID !== id));
   };
 
+  const isFormActive =
+    (currentView === "paths" && (showPathCreator || editingPath)) ||
+    currentView === "add-package" ||
+    (currentView === "individual" && (
+      (individualSubTab === "videos" && (showVideoUploader || editingVideo)) ||
+      (individualSubTab === "quizzes" && (showQuizCreator || editingQuiz)) ||
+      (individualSubTab === "certificates" && (showCertCreator || editingCert))
+    ));
+
   return (
-    <div className={`flex-1 min-w-0 rounded-[28px] border shadow-md flex flex-col h-full overflow-hidden ${
-      ((currentView === "paths" && (pathsSubTab === "create" || editingPath)) ||
-       (currentView === "individual" && (showVideoUploader || editingVideo || showQuizCreator || editingQuiz || showCertCreator || editingCert)) ||
-       (currentView === "add-package")) ? "p-0" : "p-6"
+    <div className={`flex-1 min-w-0 rounded-[8px] border flex flex-col h-full overflow-hidden ${
+      isFormActive ? "" : "p-3 pb-1"
     } ${
       isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
     }`}>
@@ -131,11 +140,10 @@ export const LmsMainContent = () => {
           editingPath={editingPath}
           setEditingPath={setEditingPath}
           pathsSubTab={pathsSubTab}
-          setPathsSubTab={setPathsSubTab}
+          showPathCreator={showPathCreator}
+          setShowPathCreator={setShowPathCreator}
           handleLaunchPathway={handleLaunchPathway}
           onSavePath={async (savedPath) => {
-            const userRole = userContext.user?.role || 'Regular User';
-            const isEditor = userRole === 'Campaign Creator';
             const activeEmail = (
               (typeof userContext.user === 'string' ? userContext.user : null) ||
               userContext.user?.email ||
@@ -146,9 +154,15 @@ export const LmsMainContent = () => {
               'abhay.hs1@vodafone.com'
             ).trim().toLowerCase();
 
+            // When editing an already published path, preserve published status.
+            // For new creations or resubmissions, always set status to 'Pending' so it goes right away for approval.
+            const pathStatus = editingPath && editingPath.status === 'Published'
+              ? 'Published'
+              : 'Pending';
+
             const pathWithMeta = {
               ...savedPath,
-              status: isEditor ? (savedPath.status || 'Pending') : 'Published',
+              status: pathStatus,
               createdBy: savedPath.createdBy || activeEmail,
             };
 
@@ -165,8 +179,18 @@ export const LmsMainContent = () => {
             } else {
               setPaths((prev) => [pathWithMeta, ...prev]);
             }
-            setPathsSubTab("all");
-            setCurrentView("requests");
+            if (setShowPathCreator) setShowPathCreator(false);
+            if (pathStatus === 'Pending') {
+              showToast(
+                savedPath.isAlwaysAvailable
+                  ? "Course submitted successfully for approval."
+                  : "Learning path submitted successfully for approval."
+              );
+              setCurrentView("requests");
+            } else {
+              showToast("Pathway updated successfully.");
+              setPathsSubTab(savedPath.isAlwaysAvailable ? "courses" : "all");
+            }
           }}
           onDeletePath={async (id) => {
             try {
@@ -175,7 +199,7 @@ export const LmsMainContent = () => {
               console.error("Failed to delete pathway", err);
             }
             setPaths((prev) => prev.filter((p) => p.TrainingPathID !== id));
-            setPathsSubTab("all");
+            if (setShowPathCreator) setShowPathCreator(false);
             setEditingPath(null);
           }}
           onSendForApproval={async (pToSubmit) => {

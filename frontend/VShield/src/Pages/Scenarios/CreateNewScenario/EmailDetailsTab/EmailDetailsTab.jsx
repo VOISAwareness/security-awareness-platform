@@ -1,69 +1,65 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useUserType } from '../../../UserTypeContext/UserTypeContext';
-import { ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
+import { ChevronDown } from "lucide-react";
 
-import EmailBodyRichTextEditor from '../../Scenarios/EmailBodyRichTextEditor';
-import announcamentScenariosJsonData from '../../Announcement/AnnouncementData.json';
+import EmailBodyRichTextEditor from "./EmailBodyRichTextEditor";
+import scenariosJsonData from "../../ScenariosData.json";
 
 const FX_PARAMETERS = [
   {
-    label: '@UserName',
-    code: '{{userName}}',
-    desc: 'Target user full name',
+    label: "@UserName",
+    code: "{{userName}}",
+    desc: "Target user full name",
   },
   {
-    label: '@UserEmailID',
-    code: '{{email}}',
-    desc: 'Target user email address',
+    label: "@UserEmailID",
+    code: "{{email}}",
+    desc: "Target user email address",
   },
   {
-    label: '@UserDepartment',
-    code: '{{department}}',
-    desc: 'Target user department',
+    label: "@UserDepartment",
+    code: "{{department}}",
+    desc: "Target user department",
   },
   {
-    label: '@UserCountry',
-    code: '{{country}}',
-    desc: 'Target user work location',
+    label: "@UserCountry",
+    code: "{{country}}",
+    desc: "Target user work location",
   },
   {
-    label: '@PhishLink',
-    code: '{{phishLink}}',
-    desc: 'Simulation trackable landing link',
+    label: "@PhishLink",
+    code: "{{phishLink}}",
+    desc: "Simulation trackable landing link",
   },
   {
-    label: '@ManagerName',
-    code: '{{managerName}}',
-    desc: 'Target direct reporting manager',
+    label: "@ManagerName",
+    code: "{{managerName}}",
+    desc: "Target direct reporting manager",
   },
   {
-    label: '@EmployeeID',
-    code: '{{employeeId}}',
-    desc: 'Corporate employee badge number',
+    label: "@EmployeeID",
+    code: "{{employeeId}}",
+    desc: "Corporate employee badge number",
   },
   {
-    label: '@CurrentDate',
-    code: '{{currentDate}}',
-    desc: 'Simulation execution timestamp',
+    label: "@CurrentDate",
+    code: "{{currentDate}}",
+    desc: "Simulation execution timestamp",
   },
 ];
 
-const FormInput = ({
-  label,
-  value,
-  onChange,
-  placeholder = 'Type here',
-}) => {
+const FormInput = ({ label, value, onChange, placeholder = "Type here" }) => {
   return (
     <div className="flex flex-col gap-0.5">
       <label className="text-[12.5px] mb-2 font-bold text-slate-900 dark:text-white leading-none">
-        {label} <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+        {label}{" "}
+        <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
       </label>
 
       <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900">
         <input
           type="text"
-          value={value || ''}
+          value={value || ""}
           onChange={onChange}
           placeholder={placeholder}
           className="
@@ -80,11 +76,7 @@ const FormInput = ({
   );
 };
 
-const AnnouncementEmailDetailsTab = ({
-  formData,
-  setFormData,
-  setErrorMsg,
-}) => {
+const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
   const { isDark } = useUserType?.() || {
     isDark: false,
   };
@@ -92,109 +84,52 @@ const AnnouncementEmailDetailsTab = ({
   const subjectInputRef = useRef(null);
   const subjectFxRef = useRef(null);
 
-  const [showSubjectFxMenu, setShowSubjectFxMenu] =
-    useState(false);
+  const [showSubjectFxMenu, setShowSubjectFxMenu] = useState(false);
 
-  const [draft, setDraft] = useState(() => {
-    try {
-      const stored = localStorage.getItem(
-        'voisshield_active_announcement_draft'
-      );
-
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const matchedScenario = (
-    announcamentScenariosJsonData?.announcement || []
-  ).find(
-    (scenario) =>
-      scenario.announcementScenarioId ===
-      (formData?.announcementScenarioId || draft.announcementScenarioId)
+  const matchedScenario = (scenariosJsonData?.scenarios || []).find(
+    (scenario) => scenario.scenarioId === formData?.scenarioId,
   );
 
   const availableSenderEmails = Array.from(
     new Set(
-      (announcamentScenariosJsonData?.announcement || [])
-        .map(
-          (scenario) =>
-            scenario.announcementSenderEmailId
-        )
-        .filter(Boolean)
-    )
+      (scenariosJsonData?.scenarios || [])
+        .map((scenario) => scenario.senderEmailId)
+        .filter(Boolean),
+    ),
   );
 
-  const announcementEmailSubject =
-formData?.announcementEmailSubject ?? '';
+  const emailSubject = formData?.emailSubject ?? "";
 
-  const announcementEmailBody =
-    formData?.announcementEmailBody ||
-    draft.announcementEmailBody ||
-    matchedScenario?.announcementEmailBody ||
-    '';
+  const emailBody = formData?.emailBody || matchedScenario?.emailBody || "";
 
-  const persistChanges = (fields) => {
-    try {
-      const current = localStorage.getItem(
-        'voisshield_active_announcement_draft'
-      );
-
-      const updated = {
-        ...(current ? JSON.parse(current) : {}),
-        ...fields,
-      };
-
-      localStorage.setItem(
-        'voisshield_active_announcement_draft',
-        JSON.stringify(updated)
-      );
-
-      setDraft(updated);
-    } catch (error) {
-      console.error(
-        'Unable to save email draft:',
-        error
-      );
-    }
-  };
-
+  // Sender, subject and body live in the scenario's own formData, which the
+  // wizard saves as this user's scenario draft. (They used to be mirrored into
+  // the campaign wizard's draft key, which the two screens then fought over.)
   const updateField = (field, value) => {
     setFormData((previous) => ({
       ...previous,
       [field]: value,
     }));
-
-    persistChanges({
-      [field]: value,
-    });
   };
 
- const handleEmailIdChange = (event) => {
-  const chosenEmail = event.target.value;
+  const handleEmailIdChange = (event) => {
+    const chosenEmail = event.target.value;
 
-  updateField('announcementSenderEmailId', chosenEmail);
+    updateField("emailId", chosenEmail);
 
-  // Clear validation error when user selects Email ID
-  if (chosenEmail) {
-    setErrorMsg('');
-  }
+    // Clear validation error when user selects Email ID
+    if (chosenEmail) {
+      setErrorMsg("");
+    }
 
-  const matchingScenario = (
-    announcamentScenariosJsonData?.announcement || []
-  ).find(
-    (scenario) =>
-      scenario.announcementSenderEmailId === chosenEmail
-  );
-
-  if (matchingScenario?.announcementSenderName) {
-    updateField(
-      'announcementSenderName',
-      matchingScenario.announcementSenderName
+    const matchingScenario = (scenariosJsonData?.scenarios || []).find(
+      (scenario) => scenario.senderEmailId === chosenEmail,
     );
-  }
-};
+
+    if (matchingScenario?.senderName) {
+      updateField("senderName", matchingScenario.senderName);
+    }
+  };
 
   const insertFxToSubject = (param) => {
     setShowSubjectFxMenu(false);
@@ -202,50 +137,31 @@ formData?.announcementEmailSubject ?? '';
     const input = subjectInputRef.current;
 
     if (input) {
-      const start =
-        input.selectionStart ??
-        announcementEmailSubject.length;
+      const start = input.selectionStart ?? emailSubject.length;
 
-      const end =
-        input.selectionEnd ??
-        announcementEmailSubject.length;
+      const end = input.selectionEnd ?? emailSubject.length;
 
-      const before =
-        announcementEmailSubject.substring(0, start);
+      const before = emailSubject.substring(0, start);
 
-      const after =
-        announcementEmailSubject.substring(end);
+      const after = emailSubject.substring(end);
 
-      const updated =
-        `${before}${param.label} ${after}`;
+      const updated = `${before}${param.label} ${after}`;
 
-      updateField(
-        'announcementEmailSubject',
-        updated
-      );
+      updateField("emailSubject", updated);
 
       setTimeout(() => {
         input.focus();
 
-        const newPosition =
-          start +
-          param.label.length +
-          1;
+        const newPosition = start + param.label.length + 1;
 
-        input.setSelectionRange(
-          newPosition,
-          newPosition
-        );
+        input.setSelectionRange(newPosition, newPosition);
       }, 0);
     } else {
-      const updated = announcementEmailSubject
-        ? `${announcementEmailSubject} ${param.label}`
+      const updated = emailSubject
+        ? `${emailSubject} ${param.label}`
         : param.label;
 
-      updateField(
-        'announcementEmailSubject',
-        updated
-      );
+      updateField("emailSubject", updated);
     }
   };
 
@@ -253,36 +169,25 @@ formData?.announcementEmailSubject ?? '';
     const handleClickOutside = (event) => {
       if (
         subjectFxRef.current &&
-        !subjectFxRef.current.contains(
-          event.target
-        )
+        !subjectFxRef.current.contains(event.target)
       ) {
         setShowSubjectFxMenu(false);
       }
     };
 
-    document.addEventListener(
-      'mousedown',
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        'mousedown',
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  const shellBg = isDark
-    ? '#1C1E24'
-    : '#F1F5F7';
+  const shellBg = isDark ? "#1C1E24" : "#F1F5F7";
 
-    const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
+  const lCardBg = isDark ? "#1C1E24" : "#F1F5F7";
 
   return (
     <div className="w-full">
-
       {/* ====================================================
           TRUE L-SHAPED EMAIL DETAILS
       ==================================================== */}
@@ -296,16 +201,17 @@ formData?.announcementEmailSubject ?? '';
           min-h-[420px]
         "
       >
-
         {/* ==================================================
             LEFT CAPSULE
         ================================================== */}
 
         <div
-                  className={`absolute top-0 left-0 w-[164px] h-[122px] p-3.5 rounded-2xl flex flex-col justify-between shadow-xs z-20 ${
-                    isDark ? 'bg-[#ECE8FF] text-slate-900' : 'bg-[#ECE8FF] text-slate-900'
-                  }`}
-                >
+          className={`absolute top-0 left-0 w-[164px] h-[122px] p-3.5 rounded-2xl flex flex-col justify-between shadow-xs z-20 ${
+            isDark
+              ? "bg-[#ECE8FF] text-slate-900"
+              : "bg-[#ECE8FF] text-slate-900"
+          }`}
+        >
           <div>
             <h3
               className="
@@ -330,11 +236,7 @@ formData?.announcementEmailSubject ?? '';
               leading-tight
               opacity-75
               mt-1
-              ${
-                isDark
-                  ? 'text-slate-300'
-                  : 'text-slate-600'
-              }
+              ${isDark ? "text-slate-300" : "text-slate-600"}
             `}
           >
             Set the sender and
@@ -345,11 +247,11 @@ formData?.announcementEmailSubject ?? '';
           </p>
         </div>
 
-              <div className="absolute top-[114px] left-[154px] w-4 h-4 pointer-events-none z-20 overflow-hidden">
-                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                    <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={lCardBg} />
-                  </svg>
-                </div>
+        <div className="absolute top-[114px] left-[154px] w-4 h-4 pointer-events-none z-20 overflow-hidden">
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={lCardBg} />
+          </svg>
+        </div>
         {/* ==================================================
             CONCAVE CORNER
         ================================================== */}
@@ -366,15 +268,8 @@ formData?.announcementEmailSubject ?? '';
             overflow-hidden
           "
         >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <path
-              d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
-              fill={shellBg}
-            />
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={shellBg} />
           </svg>
         </div>
 
@@ -386,8 +281,7 @@ formData?.announcementEmailSubject ?? '';
           style={{
             backgroundColor: shellBg,
           }}
-          
-  className="
+          className="
     w-[calc(100%-170px)]
     ml-auto
     h-[129px]
@@ -398,7 +292,6 @@ formData?.announcementEmailSubject ?? '';
     overflow-visible
   "
         >
-
           <div
             className="
               grid
@@ -408,7 +301,6 @@ formData?.announcementEmailSubject ?? '';
               h-full
             "
           >
-
             {/* ==================================================
                 LEFT COLUMN
 
@@ -425,11 +317,9 @@ formData?.announcementEmailSubject ?? '';
                 gap-1.5
               "
             >
-
               {/* EMAIL ID */}
 
               <div className="flex flex-col gap-0.5">
-
                 <label
                   className="
                     text-[12.5px]
@@ -440,7 +330,10 @@ formData?.announcementEmailSubject ?? '';
                     leading-none
                   "
                 >
-                  Email ID <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+                  Email ID{" "}
+                  <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">
+                    *
+                  </span>
                 </label>
 
                 <div
@@ -458,12 +351,9 @@ formData?.announcementEmailSubject ?? '';
                     text-slate-900
                   "
                 >
-
                   <select
-                    value={formData?.announcementSenderEmailId || ""}
-                    onChange={
-                      handleEmailIdChange
-                    }
+                    value={formData?.emailId || ""}
+                    onChange={handleEmailIdChange}
                     className="
                       w-full
                       bg-transparent
@@ -475,26 +365,20 @@ formData?.announcementEmailSubject ?? '';
                       appearance-none
                     "
                   >
+                    <option value="">Select Email</option>
 
-                    <option value="">
-                      Select Email 
-                    </option>
-
-                    {availableSenderEmails.map(
-                      (email) => (
-                        <option
-                          key={email}
-                          value={email || ""}
-                          className="
+                    {availableSenderEmails.map((email) => (
+                      <option
+                        key={email}
+                        value={email || ""}
+                        className="
                             bg-white
                             text-slate-900
                           "
-                        >
-                          {email}
-                        </option>
-                      )
-                    )}
-
+                      >
+                        {email}
+                      </option>
+                    ))}
                   </select>
 
                   <ChevronDown
@@ -507,30 +391,23 @@ formData?.announcementEmailSubject ?? '';
                       pointer-events-none
                     "
                   />
-
                 </div>
               </div>
 
               {/* SENDER NAME */}
 
               <FormInput
-  label="Sender Name"
-  value={
-    formData?.announcementSenderName || ''
-  }
-  onChange={(event) => {
-    updateField(
-      'announcementSenderName',
-      event.target.value
-    );
+                label="Sender Name"
+                value={formData?.senderName || ""}
+                onChange={(event) => {
+                  updateField("senderName", event.target.value);
 
-    if (event.target.value.trim()) {
-      setErrorMsg('');
-    }
-  }}
-  placeholder="Type here"
-/>
-
+                  if (event.target.value.trim()) {
+                    setErrorMsg("");
+                  }
+                }}
+                placeholder="Type here"
+              />
             </div>
 
             {/* ==================================================
@@ -550,9 +427,7 @@ formData?.announcementEmailSubject ?? '';
                 lg:pl-6
               "
             >
-
               <div className="flex flex-col gap-0.5">
-
                 <label
                   className="
                     text-[12.5px]
@@ -563,7 +438,10 @@ formData?.announcementEmailSubject ?? '';
                     leading-none
                   "
                 >
-                  Email Subject <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+                  Email Subject{" "}
+                  <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">
+                    *
+                  </span>
                 </label>
 
                 <div
@@ -581,16 +459,12 @@ formData?.announcementEmailSubject ?? '';
                     text-slate-900
                   "
                 >
-
                   <input
                     ref={subjectInputRef}
                     type="text"
-                    value={announcementEmailSubject}
+                    value={emailSubject}
                     onChange={(event) =>
-                      updateField(
-                        'announcementEmailSubject',
-                        event.target.value
-                      )
+                      updateField("emailSubject", event.target.value)
                     }
                     placeholder="Type here"
                     className="
@@ -607,29 +481,23 @@ formData?.announcementEmailSubject ?? '';
                   {/* FX */}
 
                   <div
-  ref={subjectFxRef}
-  className="
+                    ref={subjectFxRef}
+                    className="
     absolute
     right-2
     top-1/2
     -translate-y-1/2
     z-[99999]
   "
-  style={{
-    overflow: "visible",
-  }}
->
-
+                    style={{
+                      overflow: "visible",
+                    }}
+                  >
                     <button
                       type="button"
-                      onMouseDown={(event) =>
-                        event.preventDefault()
-                      }
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() =>
-                        setShowSubjectFxMenu(
-                          (previous) =>
-                            !previous
-                        )
+                        setShowSubjectFxMenu((previous) => !previous)
                       }
                       className="
                         px-2
@@ -683,7 +551,6 @@ formData?.announcementEmailSubject ?? '';
                           z-[99999]
                         "
                       >
-
                         <span
                           className="
                             text-[8px]
@@ -698,22 +565,13 @@ formData?.announcementEmailSubject ?? '';
                           Insert Into Subject
                         </span>
 
-                        {FX_PARAMETERS.map(
-                          (fx) => (
-                            <button
-                              key={fx.label}
-                              type="button"
-                              onMouseDown={(
-                                event
-                              ) =>
-                                event.preventDefault()
-                              }
-                              onClick={() =>
-                                insertFxToSubject(
-                                  fx
-                                )
-                              }
-                              className="
+                        {FX_PARAMETERS.map((fx) => (
+                          <button
+                            key={fx.label}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => insertFxToSubject(fx)}
+                            className="
                                 p-1.5
                                 px-2
                                 rounded-lg
@@ -726,46 +584,37 @@ formData?.announcementEmailSubject ?? '';
                                 cursor-pointer
                                 transition-colors
                               "
-                            >
-
-                              <span
-                                className="
+                          >
+                            <span
+                              className="
                                   text-[9.5px]
                                   font-mono
                                   font-bold
                                   text-[#FF8595]
                                   whitespace-nowrap
                                 "
-                              >
-                                {fx.label}
-                              </span>
+                            >
+                              {fx.label}
+                            </span>
 
-                              <span
-                                className="
+                            <span
+                              className="
                                   text-[8px]
                                   text-slate-400
                                   truncate
                                   max-w-[90px]
                                 "
-                              >
-                                {fx.desc}
-                              </span>
-
-                            </button>
-                          )
-                        )}
-
+                            >
+                              {fx.desc}
+                            </span>
+                          </button>
+                        ))}
                       </div>
                     )}
-
                   </div>
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
         </div>
 
@@ -788,7 +637,6 @@ formData?.announcementEmailSubject ?? '';
             z-10
           "
         >
-
           <div
             className="
               flex
@@ -797,7 +645,6 @@ formData?.announcementEmailSubject ?? '';
               w-full
             "
           >
-
             <label
               className="
                 text-[12.5px]
@@ -808,33 +655,27 @@ formData?.announcementEmailSubject ?? '';
                 leading-none
               "
             >
-              Email Body <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+              Email Body{" "}
+              <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">
+                *
+              </span>
             </label>
 
             <div className="w-full min-h-[220px]">
-
               <EmailBodyRichTextEditor
-                value={announcementEmailBody}
+                value={emailBody}
                 onChange={(updatedHtml) => {
-                  updateField(
-                    'announcementEmailBody',
-                    updatedHtml
-                  );
+                  updateField("emailBody", updatedHtml);
                 }}
                 placeholder="Type your email body here..."
                 minHeight={200}
               />
-
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 };
 
-export default AnnouncementEmailDetailsTab;
+export default EmailDetailsTab;

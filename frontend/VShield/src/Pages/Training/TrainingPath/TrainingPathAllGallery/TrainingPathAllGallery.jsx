@@ -14,7 +14,8 @@ export const AllTrainingPathGallery = ({
   handleLaunchPathway,
   onEdit,
   onSendForApproval,
-  onCreateClick
+  onCreateClick,
+  isCourseTab = false
 }) => {
   return (
     <div className="flex-1 flex flex-col min-h-0 h-full">
@@ -24,8 +25,12 @@ export const AllTrainingPathGallery = ({
             {paths.length < 10 ? `0${paths.length}` : paths.length}
           </span>
           <div className="flex flex-col leading-none">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Training</span>
-            <span className="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mt-0.5">Paths Stored</span>
+            <span className="text-[11px] font-voda font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              {isCourseTab ? "Total Available" : "Total Training"}
+            </span>
+            <span className="text-[12px] font-voda font-black text-slate-900 dark:text-white uppercase tracking-tight mt-0.5">
+              {isCourseTab ? "Courses Stored" : "Paths Stored"}
+            </span>
           </div>
         </div>
 
@@ -36,7 +41,7 @@ export const AllTrainingPathGallery = ({
             <Search className="w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by Campaign ID or Campaign Name"
+              placeholder={isCourseTab ? "Filter courses..." : "Search by Campaign ID or Campaign Name"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={`flex-1 min-w-0 text-[10px] font-medium bg-transparent outline-none ${
@@ -44,11 +49,24 @@ export const AllTrainingPathGallery = ({
               }`}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={onCreateClick}
+            className={`h-[34px] pl-4 pr-3.5 rounded-full text-[9px] font-voda font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer ${
+              isDark ? "bg-white text-[#0B1121] hover:bg-slate-200" : "bg-[#06080D] text-white hover:bg-slate-800"
+            }`}
+          >
+            {isCourseTab ? "Add Course" : "Add Training Path"}
+            <span className={`w-[18px] h-[18px] rounded-md flex items-center justify-center ${isDark ? "bg-[#0B1121]/10" : "bg-white/15"}`}>
+              <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+            </span>
+          </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-3 pb-24 overflow-x-visible custom-light-scrollbar">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12 items-start content-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-x-6 gap-y-6 items-start content-start">
           {filteredPaths.map((path) => (
             <TrainingPathCard
               key={path.TrainingPathID}
@@ -67,15 +85,19 @@ export const AllTrainingPathGallery = ({
           <button
             type="button"
             onClick={onCreateClick}
-            className="border-2 border-dashed border-white/10 hover:border-[#E60000]/40 bg-white/[0.01] hover:bg-[#E60000]/5 transition-all rounded-[24px] p-6 flex flex-col items-center justify-center text-center h-[250px] gap-2.5 cursor-pointer"
+            className="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/30 bg-slate-50/50 dark:bg-white/[0.01] hover:bg-slate-100/50 dark:hover:bg-[#E60000]/5 transition-all rounded-3xl p-6 flex flex-col items-center justify-center text-center h-[220px] gap-2.5 cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-              <Plus className="w-6 h-6 text-slate-400" />
+            <div className="w-12 h-12 rounded-full bg-slate-200/60 dark:bg-white/5 flex items-center justify-center">
+              <Plus className="w-6 h-6 text-slate-500 dark:text-slate-400" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider font-voda">Construct Pathway</h4>
-              <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
-                Build training paths using videos, quizzes, and templates.
+              <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider font-voda">
+                {isCourseTab ? "Create Course" : "Create Training Path"}
+              </h4>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+                {isCourseTab
+                  ? "Build always available courses using videos, quizzes, and templates."
+                  : "Build training paths using videos, quizzes, and templates."}
               </p>
             </div>
           </button>

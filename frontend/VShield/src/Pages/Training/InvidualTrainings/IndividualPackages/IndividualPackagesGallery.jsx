@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Search, Plus, Trash2, ArrowRightCircle } from "lucide-react";
+import { Search, Plus, Trash2 } from "lucide-react";
 
 export const IndividualPackagesGallery = ({
   packages,
@@ -25,8 +25,8 @@ export const IndividualPackagesGallery = ({
             {packages.length < 10 ? `0${packages.length}` : packages.length}
           </span>
           <div className="flex flex-col leading-none">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
-            <span className="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-tight mt-0.5">
+            <span className="text-[11px] font-voda font-bold text-slate-900 dark:text-white uppercase tracking-wider">Total</span>
+            <span className="text-[12px] font-voda font-black text-slate-900 dark:text-white uppercase tracking-tight mt-0.5">
               Zip Packages Stored
             </span>
           </div>
@@ -63,14 +63,14 @@ export const IndividualPackagesGallery = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 pb-12 custom-light-scrollbar animate-clay-stagger-3">
+      <div className="flex-1 overflow-y-auto pr-1 pb-12 custom-light-scrollbar">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start content-start">
           {filteredPackages.map((pkg) => (
             <div
               key={pkg.PackageID}
               className={`border rounded-3xl p-5 flex flex-col justify-between h-[220px] transition-all duration-200 relative overflow-hidden select-none text-left ${
-                isDark 
-                  ? "bg-[#2E200C] text-white border-white/10 hover:shadow-lg" 
+                isDark
+                  ? "bg-[#2E200C] text-white border-white/10 hover:shadow-lg"
                   : "bg-[#FFEFCE] text-slate-900 border-[#FFE19C] hover:bg-[#FFEFCE] hover:border-[#FFE19C] hover:shadow-md"
               }`}
             >
@@ -114,9 +114,9 @@ export const IndividualPackagesGallery = ({
                   <button
                     type="button"
                     onClick={() => handleLaunchStandalone(pkg)}
-                    className="h-8 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-white flex items-center gap-1 cursor-pointer shadow-md transition-colors"
+                    className="h-8 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-white flex items-center justify-center cursor-pointer transition-colors"
                   >
-                    Launch <ArrowRightCircle className="w-3.5 h-3.5" />
+                    Launch
                   </button>
                 </div>
               </div>
@@ -125,14 +125,14 @@ export const IndividualPackagesGallery = ({
           <button
             type="button"
             onClick={() => setCurrentView("add-package")}
-            className="border-2 border-dashed border-white/10 hover:border-amber-500/40 bg-white/[0.01] hover:bg-amber-500/5 transition-all rounded-2xl p-6 flex flex-col items-center justify-center text-center h-[220px] gap-2.5 cursor-pointer"
+            className="border-2 border-dashed border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/30 bg-slate-50/50 dark:bg-white/[0.01] hover:bg-slate-100/50 dark:hover:bg-amber-500/5 transition-all rounded-2xl p-6 flex flex-col items-center justify-center text-center h-[220px] gap-2.5 cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-              <Plus className="w-6 h-6 text-slate-400" />
+            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+              <Plus className="w-6 h-6 text-slate-500 dark:text-slate-400" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider font-voda">Upload Zip Package</h4>
-              <p className="text-[10px] text-slate-400 mt-1 max-w-[200px]">
+              <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider font-voda">Upload Zip Package</h4>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 max-w-[200px]">
                 Directly upload pre-compiled SCORM / HTML5 standalone packages.
               </p>
             </div>

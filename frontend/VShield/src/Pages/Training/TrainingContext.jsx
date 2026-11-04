@@ -371,19 +371,13 @@ export const TrainingProvider = ({ children }) => {
   const [showVideoUploader, setShowVideoUploader] = useState(false);
   const [showQuizCreator, setShowQuizCreator] = useState(false);
   const [showCertCreator, setShowCertCreator] = useState(false);
+  const [showPathCreator, setShowPathCreator] = useState(false);
 
   // Filters logic for the sidebars
   const filteredPaths = useMemo(() => {
-    const userRole = userContext.user?.role || "Regular User";
-    const isEditor = userRole === "Campaign Creator";
-
     return paths.filter((path) => {
       const pathStatus = path.status || "Published";
-      if (isEditor) {
-        if (pathStatus !== "Published" && pathStatus !== "Draft") return false;
-      } else {
-        if (pathStatus !== "Published") return false;
-      }
+      if (pathStatus !== "Published") return false;
 
       const matchSearch = path.TrainingPathName.toLowerCase().includes(search.toLowerCase());
       const matchesAudience =
@@ -408,7 +402,6 @@ export const TrainingProvider = ({ children }) => {
 
       return matchSearch && matchesAudience && matchesTime && matchesType;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paths, search, selectedAudiences, selectedTimes, selectedTypes]);
 
   const value = {
@@ -474,6 +467,8 @@ export const TrainingProvider = ({ children }) => {
     setShowQuizCreator,
     showCertCreator,
     setShowCertCreator,
+    showPathCreator,
+    setShowPathCreator,
     filteredPaths
   };
 

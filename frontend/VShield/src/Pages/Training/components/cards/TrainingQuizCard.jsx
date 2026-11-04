@@ -1,4 +1,4 @@
-import { HelpCircle, Settings, Check } from "lucide-react";
+import { Settings, Check } from "lucide-react";
 import { CARD_THEME_COLORS, getDynamicButtonBg } from "../utility/colorHelpers";
 
 export const TrainingQuizCard = ({
@@ -24,7 +24,7 @@ export const TrainingQuizCard = ({
             : "border-transparent bg-white text-slate-900 hover:bg-white"
           : isDark
           ? "bg-[#1A4A38] text-white border-white/10 hover:shadow-lg"
-          : "text-black hover:shadow-md"
+          : "text-slate-800 hover:shadow-md"
       }`}
     >
       <div className="flex flex-col gap-2 z-10">
@@ -42,7 +42,7 @@ export const TrainingQuizCard = ({
         <h3 className="text-sm font-black tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
           {quiz.TrainingQuizName}
         </h3>
-        <p className="text-[10px] text-slate-950 dark:text-slate-300 line-clamp-2 leading-relaxed">
+        <p className="text-[10px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
           {quiz.Description}
         </p>
       </div>
@@ -72,11 +72,11 @@ export const TrainingQuizCard = ({
               onPreview(quiz);
             }}
             style={!isDark ? { backgroundColor: lightButtonBg, color: "#FFFFFF", borderColor: "transparent" } : {}}
-            className={`h-8 px-4 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${
+            className={`h-8 px-4 rounded-xl border text-[10px] font-bold flex items-center justify-center cursor-pointer transition-colors shadow-2xs ${
               isDark ? "bg-white/10 hover:bg-white/15 border-white/10 text-white" : ""
             }`}
           >
-            Preview <HelpCircle className="w-3.5 h-3.5 text-inherit" />
+            Preview
           </button>
         </div>
       </div>
