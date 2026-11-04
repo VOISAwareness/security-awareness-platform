@@ -32,6 +32,9 @@ export const STATUS = {
   SENDING: 'SENDING',
   SENT: 'SENT',
   FAILED: 'FAILED',
+  // Not written by the backend yet: once campaigns-api can cancel a scheduled
+  // campaign, it shows on the Campaigns page's Cancelled tab.
+  CANCELLED: 'CANCELLED',
 };
 
 // Display metadata. `tone` drives the chip colours below; `blurb` is the plain
@@ -71,6 +74,11 @@ export const STATUS_META = {
     label: 'Failed',
     tone: 'red',
     blurb: 'Sending could not complete. Check the campaign for details.',
+  },
+  CANCELLED: {
+    label: 'Cancelled',
+    tone: 'red',
+    blurb: 'Scheduled, then cancelled before it ran.',
   },
 };
 

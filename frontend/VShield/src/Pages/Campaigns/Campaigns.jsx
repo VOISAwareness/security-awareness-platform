@@ -27,6 +27,7 @@ import { actorFor } from '../../services/identity';
 import OnGoingImg from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
 import ScheduledImg from '../../assets/CampaignsAssets/ScheduledCampaignsImage.png';
 import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage.png';
+import CancelledImg from '../../assets/CampaignsAssets/CancelledCampaignsImage.png';
 import CalendarWhiteIcon from '../../assets/CampaignsAssets/CalenderWhiteIconCampaignsImage.png';
 import CalendarBlackIcon from '../../assets/CampaignsAssets/CalenderBlackIconCampaignsImage.png';
 import { DEMO_USER } from '../../appConfig';
@@ -102,6 +103,13 @@ const TAB_CONFIG = {
     subtitle: 'Campaigns that were successfully ended over time',
     counterColor: '#E57A44', // Orange
     img: HistoricalImg
+  },
+  cancelled: {
+    id: 'cancelled',
+    title: 'Cancelled Campaigns',
+    subtitle: 'Campaigns that were scheduled and then cancelled',
+    counterColor: '#EF4444', // Red
+    img: CancelledImg
   },
   drafts: {
     id: 'drafts',
@@ -209,10 +217,13 @@ const Campaigns = ({ isDark: propIsDark }) => {
     const ongoing = [];
     const scheduled = [];
     const historical = [];
+    const cancelled = [];
     const drafts = [];
 
     campaignsList.forEach((c) => {
-      if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
+      if (c.CampaignStatus === DESIGN_STATUS.CANCELLED) {
+        cancelled.push(c);
+      } else if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
         if (c.phase === PHASE.COMPLETED) historical.push(c);
         else if (c.phase === PHASE.LIVE) ongoing.push(c);
         else scheduled.push(c);
@@ -230,7 +241,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
       }
     });
 
-    return { ongoing, scheduled, historical, drafts };
+    return { ongoing, scheduled, historical, cancelled, drafts };
   }, [campaignsList, actor]);
 
   // Reopen the draft on the step it was last saved on. Drafts saved before the
@@ -575,7 +586,38 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 4. DRAFTS CAPSULE (resume or delete unfinished work; failed sends) */}
+            {/* 4. CANCELLED CAMPAIGNS CAPSULE (scheduled, then cancelled) */}
+            <div
+              onClick={() => setActiveTab('cancelled')}
+              style={{
+                height: `${VarThreeButtonsHeightAdjuster}px`,
+                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
+              }}
+              className={`relative p-3.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden border ${getTabButtonClasses('cancelled')}`}
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <h3 className="text-[14px] font-voda font-bold tracking-tight leading-tight">
+                  Cancelled Campaigns
+                </h3>
+              </div>
+              <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
+                activeTab === 'cancelled'
+                  ? (isDark ? 'text-slate-700' : 'text-slate-300')
+                  : (isDark ? 'text-slate-400' : 'text-slate-500')
+              }`}>
+                {TAB_CONFIG.cancelled.subtitle}
+              </p>
+              <div className="absolute -bottom-1 -right-1 w-14 h-14 pointer-events-none select-none z-0">
+                <img
+                  src={TAB_CONFIG.cancelled.img}
+                  alt="Cancelled"
+                  className="w-full h-full object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              </div>
+            </div>
+
+            {/* 5. DRAFTS CAPSULE (resume or delete unfinished work; failed sends) */}
             <div
               onClick={() => setActiveTab('drafts')}
               style={{
@@ -826,7 +868,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
                       background={getCardBgColor(idx, isDark)}
                       roundness={VarOverallCornerRoundednessAdjuster}
                       onDetails={setDetailModalItem}
-                      onAnalytics={activeTab === 'scheduled' ? null : () => setAnalyticsItem({ camp, idx })}
+                      onAnalytics={activeTab === 'scheduled' || activeTab === 'cancelled' ? null : () => setAnalyticsItem({ camp, idx })}
                       actions={camp.status === 'APPROVED' ? <span className="text-[9px]">{renderSendAction(camp)}</span> : null}
                     />
                   ))}

@@ -72,6 +72,9 @@ const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, 
           {tab === 'historical' && (
             <span className={`${pill} bg-[#F43F5E] text-white`}>Campaign Ended</span>
           )}
+          {tab === 'cancelled' && (
+            <span className={`${pill} bg-[#EF4444] text-white`}>Campaign Cancelled</span>
+          )}
 
           {actions}
 
@@ -103,7 +106,12 @@ const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, 
           <h4 className="text-[13px] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-tight">
             {camp.CampaignTitle}
           </h4>
-          {camp.CampaignDescription && (
+          {tab === 'cancelled' ? (
+            <p className="text-[10px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-1 max-w-xl line-clamp-2">
+              <strong className="font-bold text-slate-900 dark:text-white">Reason for cancelling: </strong>
+              {camp.ReasonForCancel || 'No reason given'}
+            </p>
+          ) : camp.CampaignDescription && (
             <p className="text-[10px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-1 max-w-xl line-clamp-2">
               <strong className="font-bold text-slate-900 dark:text-white">Description: </strong>
               {camp.CampaignDescription}
@@ -132,23 +140,40 @@ const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, 
         </div>
       </div>
 
-      {/* Bottom Meta Line: Created By + Approved By + Published On */}
-      <div className="w-full pt-1.5 -mb-1 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3 flex-wrap text-[10px] font-voda font-bold text-slate-800 dark:text-slate-200">
-        <div className="flex items-center gap-1.5">
-          <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-          <span>Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy || 'User'}</strong></span>
+      {/* Bottom Meta Line: Created By + Approved By + Published On, or for a
+          cancelled campaign, who cancelled it and when */}
+      {tab === 'cancelled' ? (
+        <div className="w-full pt-1.5 -mb-1 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3 flex-wrap text-[10px] font-voda font-bold text-slate-800 dark:text-slate-200">
+          <div className="flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+            <span>Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy || 'User'}</strong></span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[#DC2626] dark:text-[#F87171]">
+            <User className="w-3.5 h-3.5" />
+            <span>Cancelled By: <strong>{camp.CancelledBy || 'N/A'}</strong></span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span>Cancelled On: <strong className="font-semibold text-slate-700 dark:text-slate-300">{formatPublishedTimestamp(camp.CancelledDate)}</strong></span>
+          </div>
         </div>
+      ) : (
+        <div className="w-full pt-1.5 -mb-1 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3 flex-wrap text-[10px] font-voda font-bold text-slate-800 dark:text-slate-200">
+          <div className="flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+            <span>Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy || 'User'}</strong></span>
+          </div>
 
-        <div className="flex items-center gap-1.5 text-[#9333EA] dark:text-[#C084FC]">
-          <User className="w-3.5 h-3.5" />
-          <span>Approved By: <strong>{approvedBy}</strong></span>
-        </div>
+          <div className="flex items-center gap-1.5 text-[#9333EA] dark:text-[#C084FC]">
+            <User className="w-3.5 h-3.5" />
+            <span>Approved By: <strong>{approvedBy}</strong></span>
+          </div>
 
-        <div className="flex items-center gap-1.5">
-          <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-          <span>Published On: <strong className="font-semibold text-slate-700 dark:text-slate-300">{formatPublishedTimestamp(camp.approvedAt || camp.sentAt)}</strong></span>
+          <div className="flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+            <span>Published On: <strong className="font-semibold text-slate-700 dark:text-slate-300">{formatPublishedTimestamp(camp.approvedAt || camp.sentAt)}</strong></span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
