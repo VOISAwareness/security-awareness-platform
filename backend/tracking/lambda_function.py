@@ -11,10 +11,24 @@ RECIPIENTS_TABLE = os.environ["RECIPIENTS_TABLE"]
 EVENTS_TABLE = os.environ["EVENTS_TABLE"]
 TRACKING_TOKEN_INDEX = os.environ["TRACKING_TOKEN_INDEX"]
 
+
+def _sibling_table(name):
+    """Default table name next to the recipients table (same prefix)."""
+    prefix = RECIPIENTS_TABLE.rsplit("-", 1)[0] if "-" in RECIPIENTS_TABLE else RECIPIENTS_TABLE
+    return f"{prefix}-{name}"
+
+
+# The clicked campaign and the landing page chosen for it in the wizard.
+CAMPAIGNS_TABLE = os.environ.get("CAMPAIGNS_TABLE") or _sibling_table("campaigns")
+LANDING_PAGES_TABLE = os.environ.get("LANDING_PAGES_TABLE") or _sibling_table("landing-pages")
+MAX_LANDING_BYTES = 350 * 1024
+
 dynamodb = boto3.resource("dynamodb")
 
 recipients_table = dynamodb.Table(RECIPIENTS_TABLE)
 events_table = dynamodb.Table(EVENTS_TABLE)
+campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
+landing_pages_table = dynamodb.Table(LANDING_PAGES_TABLE)
 
 
 def utc_timestamp():
@@ -43,9 +57,17 @@ def html_response(status_code, html):
             "Cache-Control": "no-store, no-cache, must-revalidate",
             "Pragma": "no-cache",
             "X-Content-Type-Options": "nosniff",
+            # Landing pages are authored HTML: styles, images and fonts
+            # load, but no script runs and no form can submit anywhere, so
+            # nothing a phished person types is ever sent.
             "Content-Security-Policy": (
                 "default-src 'none'; "
-                "style-src 'unsafe-inline'"
+                "style-src 'unsafe-inline' https:; "
+                "img-src https: data:; "
+                "font-src https: data:; "
+                "form-action 'none'; "
+                "base-uri 'none'; "
+                "frame-ancestors 'none'"
             )
         },
         "body": html,
@@ -348,6 +370,53 @@ def build_success_page(campaign_id):
     )
 
 
+def landing_html(campaign_id):
+    """
+    The landing page chosen for the campaign: its own edited copy
+    (landingPageContent) when it has one, else the catalogue page it names
+    (landingPageId). None when there is none, or it cannot be read; the
+    caller then shows the standard awareness page.
+    """
+    try:
+        campaign = campaigns_table.get_item(Key={"campaignId": campaign_id}).get("Item") or {}
+        content = campaign.get("landingPageContent")
+        if not (isinstance(content, str) and content.strip()):
+            page_id = campaign.get("landingPageId")
+            if not page_id:
+                return None
+            page = landing_pages_table.get_item(Key={"LandingPageID": str(page_id)}).get("Item") or {}
+            content = page.get("LandingPageContent")
+    except ClientError as error:
+        print(json.dumps({
+            "message": "Landing page unavailable; showing the standard page",
+            "campaignId": campaign_id,
+            "errorCode": error.response.get("Error", {}).get("Code", ""),
+        }))
+        return None
+    if not (isinstance(content, str) and content.strip()):
+        return None
+    if len(content.encode("utf-8")) > MAX_LANDING_BYTES:
+        return None
+    return build_landing_page(content)
+
+
+def build_landing_page(content):
+    """A whole page around a landing page's HTML fragment."""
+    return (
+        "<!DOCTYPE html>\n"
+        '<html lang="en"><head><meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        '<meta name="robots" content="noindex, nofollow">'
+        "<title>Security Awareness</title>"
+        "<style>html,body{margin:0;padding:0;}"
+        "body{min-height:100vh;display:flex;flex-direction:column;}"
+        "body>*{flex:1 0 auto;}</style>"
+        "</head><body>"
+        + content
+        + "</body></html>"
+    )
+
+
 def lambda_handler(event, context):
     """Record a recipient click event and return the awareness page."""
     tracking_token = get_tracking_token(event)
@@ -435,11 +504,11 @@ def lambda_handler(event, context):
             )
         )
 
+        # The click is recorded; now the page the campaign chose for people
+        # who click, or the standard awareness page.
         return html_response(
             200,
-            build_success_page(
-                campaign_id
-            )
+            landing_html(campaign_id) or build_success_page(campaign_id)
         )
 
     except ClientError as error:
