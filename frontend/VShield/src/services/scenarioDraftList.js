@@ -2,7 +2,7 @@
  * scenarioDraftList — the browser half of scenario drafts: every unpublished
  * scenario a person has saved, so "Start new" keeps the one they were on
  * (listed under Scenarios → Drafts), the way campaign drafts stay under
- * Campaigns → Drafts.
+ * Start New Campaign → Drafts.
  *
  * Drafts live on the server (scenarioDraftSync.js), so they follow the person
  * to any browser. Every change is also written here at once, and stays here

@@ -124,6 +124,35 @@ export function isOwnDraft(draft, actor) {
   return !draft?.createdBy || lower(draft.createdBy) === lower(actor);
 }
 
+// What a card under Start New Campaign -> Drafts is: an unfinished draft, a
+// campaign an approver sent back for changes (fix and resubmit), or a send
+// that failed (it can only be deleted; the sender will not retry it).
+export const DRAFT_KIND = { DRAFT: 'draft', CHANGES: 'changes-requested', FAILED: 'failed' };
+
+export function draftKind(campaign) {
+  if (campaign?.status === 'FAILED') return DRAFT_KIND.FAILED;
+  if (campaign?.status === 'REJECTED' && campaign?.changesRequested === true) return DRAFT_KIND.CHANGES;
+  return DRAFT_KIND.DRAFT;
+}
+
+/**
+ * `actor`'s campaigns for Start New Campaign -> Drafts (normalized rows), the
+ * one saved most recently first: drafts with something of theirs in them
+ * (hasProgress), campaigns sent back for changes, and failed sends.
+ */
+export function myCampaignDrafts(campaigns = [], actor) {
+  return latestSavedFirst(
+    (Array.isArray(campaigns) ? campaigns : []).filter(
+      (c) =>
+        c &&
+        isOwnDraft(c, actor) &&
+        ((c.status === 'DRAFT' && hasProgress(c)) ||
+          c.status === 'FAILED' ||
+          (c.status === 'REJECTED' && c.changesRequested === true))
+    )
+  );
+}
+
 /** Stricter: only a draft recorded as created by `actor`. Used to adopt the old shared pointer. */
 export function isCreatedBy(draft, actor) {
   return Boolean(draft?.createdBy) && lower(draft.createdBy) === lower(actor);
