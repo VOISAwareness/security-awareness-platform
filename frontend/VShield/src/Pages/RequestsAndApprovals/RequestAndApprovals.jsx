@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useCampaigns } from '../../services/useCampaigns';
@@ -74,6 +74,7 @@ const VODAFONE_FONT_STYLE = `
 const RequestAndApprovals = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Lower-cased profile email: the audit identity sent with every action and
   // used for "created by me" / "approved by me".
@@ -82,7 +83,16 @@ const RequestAndApprovals = () => {
   const isCampaignCreator = user?.role === 'Campaign Creator';
 
   // Active view tab state: 'queue' | 'rejected' | 'notified' | 'expired' | 'approved'
-  const [activeTab, setActiveTab] = useState('queue');
+  // A notification can open this page on a given tab (e.g. Rejected), also
+  // when this page is already open.
+  const TABS = ['queue', 'rejected', 'notified', 'expired', 'approved'];
+  const stateTab = TABS.includes(location.state?.tab) ? location.state.tab : null;
+  const [activeTab, setActiveTab] = useState(stateTab || 'queue');
+  const [tabFromKey, setTabFromKey] = useState(location.key);
+  if (location.key !== tabFromKey) {
+    setTabFromKey(location.key);
+    if (stateTab) setActiveTab(stateTab);
+  }
 
   // Trigger for notify window modal, and the plain-reject confirmation
   const [notifyingCampaign, setNotifyingCampaign] = useState(null);
