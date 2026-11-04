@@ -138,59 +138,65 @@ export const CreateNewQuiz = ({
       >
         <div className="flex-1 flex items-stretch">
           {[
-            { id: 1, step: "1", title: "Quiz Details" },
-            { id: 2, step: "2", title: "Questions" }
+            { id: 1, step: 1, titleLine1: "Quiz", titleLine2: "Details" },
+            { id: 2, step: 2, titleLine1: "Quiz", titleLine2: "Questions" }
           ].map((s) => {
-            const isCurrent = s.id === step;
-
-            if (isCurrent) {
-              return (
-                <div
-                  key={s.id}
-                  className="bg-black dark:bg-white text-white dark:text-black px-8 py-2 flex items-center gap-3 flex-shrink-0 shadow-sm"
-                >
-                  <div className="w-5 h-5 rounded-full bg-white dark:bg-black text-black dark:text-white font-black flex items-center justify-center text-[11px] flex-shrink-0">
-                    {s.step}
-                  </div>
-                  <div className="text-left leading-none text-[10px] font-voda font-bold tracking-tight">
-                    <span>{s.title}</span>
-                  </div>
-                </div>
-              );
-            }
+            const isCompleted = s.step < step;
+            const isCurrent = s.step === step;
+            const isFilled = s.step <= step;
 
             return (
               <button
                 type="button"
                 key={s.id}
                 onClick={() => {
-                  if (s.id === 1) {
+                  if (s.step === 1) {
                     setIsPreviewMode(false);
                     setStep(1);
-                  } else if (s.id === 2 && name.trim()) {
+                  } else if (s.step === 2 && name.trim()) {
                     setStep(2);
                   }
                 }}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 transition-opacity cursor-pointer ${
-                  s.id < step
-                    ? "text-[#8ED973] opacity-100"
-                    : isDark
-                    ? "text-white opacity-80"
-                    : "text-slate-800 opacity-85"
+                className={`flex-1 flex items-center justify-center gap-2.5 px-4 h-full transition-colors duration-200 select-none ${
+                  s.step <= step || (s.step === 2 && name.trim()) ? "cursor-pointer" : "cursor-default"
+                } ${
+                  isFilled ? "bg-black dark:bg-white text-white dark:text-black" : "bg-transparent"
                 }`}
               >
+                {/* Step Icon */}
+                {isCompleted ? (
+                  <div className="w-5 h-5 rounded-full bg-[#8ED973] dark:bg-[#74D054] text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
+                ) : isCurrent ? (
+                  <div className="w-5 h-5 rounded-full bg-white dark:bg-black text-black dark:text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0 shadow-2xs">
+                    {s.step}
+                  </div>
+                ) : (
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                      isDark ? "bg-white text-black" : "bg-black text-white"
+                    }`}
+                  >
+                    {s.step}
+                  </div>
+                )}
+
+                {/* Step Label */}
                 <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${
-                    s.id < step
-                      ? "bg-[#8ED973] text-white"
+                  className={`flex flex-col text-left leading-tight text-[11px] font-bold ${
+                    isCompleted
+                      ? "text-[#8ED973] dark:text-[#74D054]"
+                      : isCurrent
+                      ? "text-white dark:text-black"
                       : isDark
-                      ? "bg-white text-black"
-                      : "bg-slate-900 text-white"
+                      ? "text-white opacity-85"
+                      : "text-slate-900 opacity-85"
                   }`}
                 >
-                  {s.step}
+                  <span>{s.titleLine1}</span>
+                  {s.titleLine2 && <span>{s.titleLine2}</span>}
                 </div>
-                <span className="text-[10px] font-bold truncate">{s.title}</span>
               </button>
             );
           })}
