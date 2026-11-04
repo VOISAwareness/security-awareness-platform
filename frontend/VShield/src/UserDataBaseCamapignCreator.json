@@ -1,0 +1,26 @@
+[
+  {
+    "UserID_CamapignCreator": "VSLD-000004",
+    "UserName_CamapignCreator": "Sarah Jenkins",
+    "UserEmailD_CamapignCreator": "sarah.jenkins@vodafone.com",
+    "UserStatus_CamapignCreator": "Active"
+  },
+  {
+    "UserID_CamapignCreator": "VSLD-000005",
+    "UserName_CamapignCreator": "Karim Mostafa",
+    "UserEmailD_CamapignCreator": "karim.mostafa@vodafone.com",
+    "UserStatus_CamapignCreator": "Active"
+  },
+  {
+    "UserID_CamapignCreator": "VSLD-000007",
+    "UserName_CamapignCreator": "Priya Nair",
+    "UserEmailD_CamapignCreator": "priya.nair@vodafone.com",
+    "UserStatus_CamapignCreator": "Active"
+  },
+  {
+    "UserID_CamapignCreator": "VSLD-000008",
+    "UserName_CamapignCreator": "Oliver Hughes",
+    "UserEmailD_CamapignCreator": "oliver.hughes@vodafone.com",
+    "UserStatus_CamapignCreator": "Deactive"
+  }
+]

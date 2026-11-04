@@ -1,0 +1,20 @@
+[
+  {
+    "UserID_CamapignManager": "VSLD-000001",
+    "UserName_CamapignManager": "Abhay H S",
+    "UserEmailD_CamapignManager": "abhay.hs1@vodafone.com",
+    "UserStatus_CamapignManager": "Active"
+  },
+  {
+    "UserID_CamapignManager": "VSLD-000002",
+    "UserName_CamapignManager": "Trevor Sile",
+    "UserEmailD_CamapignManager": "trevor.sile@vodafone.com",
+    "UserStatus_CamapignManager": "Active"
+  },
+  {
+    "UserID_CamapignManager": "VSLD-000003",
+    "UserName_CamapignManager": "Mitin Rinis",
+    "UserEmailD_CamapignManager": "mitin.rinis@vodafone.com",
+    "UserStatus_CamapignManager": "Active"
+  }
+]
