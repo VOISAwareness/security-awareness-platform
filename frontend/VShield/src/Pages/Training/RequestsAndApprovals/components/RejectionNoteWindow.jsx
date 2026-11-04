@@ -57,13 +57,13 @@ const RejectionNoteWindow = ({
 
           {/* Modal Header & Meta Section */}
           <div className="relative z-20 flex flex-col gap-2.5 max-w-[560px]">
-            <h2 className={`text-[22px] font-black tracking-tight ${isDark ? 'text-rose-400' : 'text-red-950'}`}>
+            <h2 className={`text-[22px] font-voda font-black tracking-tight ${isDark ? 'text-rose-400' : 'text-red-950'}`}>
               Add rejection feedback and reject
             </h2>
 
             {/* Path ID Tag */}
             <div className="w-fit">
-              <span className={`px-3 py-1 rounded-full text-[10.5px] font-black tracking-wide flex items-center gap-1.5 shadow-2xs ${
+              <span className={`px-3 py-1 rounded-full text-[10.5px] font-black font-mono-tech tracking-wide flex items-center gap-1.5 shadow-2xs ${
                 isDark ? 'bg-white/10 text-white border border-white/5' : 'bg-slate-100 text-slate-800 border border-black/5'
               }`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
@@ -72,7 +72,7 @@ const RejectionNoteWindow = ({
             </div>
 
             {/* Title & Description */}
-            <h3 className={`text-[15px] font-black tracking-tight leading-tight mt-0.5 text-left ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <h3 className={`text-[15px] font-voda font-black tracking-tight leading-tight mt-0.5 text-left ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {path.TrainingPathName}
             </h3>
 
@@ -113,7 +113,7 @@ const RejectionNoteWindow = ({
             <button
               type="button"
               onClick={onClose}
-              className={`px-6 py-2 rounded-xl text-[11px] font-black tracking-wider uppercase transition-all shadow-xs cursor-pointer active:scale-95 ${
+              className={`px-6 py-2 rounded-xl text-[10px] font-voda font-bold tracking-wider uppercase transition-all shadow-xs cursor-pointer active:scale-95 ${
                 isDark 
                   ? 'bg-white/10 text-white hover:bg-white/15' 
                   : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
@@ -125,7 +125,7 @@ const RejectionNoteWindow = ({
               type="button"
               onClick={handleSubmit}
               disabled={!note.trim()}
-              className="px-7 py-2 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[11px] font-black tracking-wider uppercase transition-all shadow-xs cursor-pointer active:scale-95"
+              className="px-7 py-2 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-voda font-bold tracking-wider uppercase transition-all shadow-xs cursor-pointer active:scale-95"
             >
               Reject Path
             </button>

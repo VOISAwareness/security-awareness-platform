@@ -11,9 +11,9 @@ import TrainingLandingPage from "./TrainingLandingPage";
 import RequestsAndApprovalsLandingPage from "./RequestsAndApprovals/RequestsAndApprovalsLandingPage";
 import ReportsLandingPage from "./TrainingReport/TrainingReportLandingPage";
 
-import { VideoPlayerModal, QuizTakerModal, CertificateViewerModal } from "./components/modals/Modals";
+import { VideoPlayerModal, QuizTakerModal, CertificateViewerModal, PackageViewerModal } from "./components/modals/Modals";
 import PathwaySequencePlayerModal from "./components/modals/PathwaySequencePlayerModal";
-import { X } from "lucide-react";
+import TrainingToast from "./components/shared/TrainingToast";
 
 import { savePath } from "./components/utility/db";
 
@@ -34,10 +34,13 @@ function TrainingDashboardInner() {
     setPaths,
     setEditingPath,
     setPathsSubTab,
+    pathsSubTab,
     paths,
     videos,
     quizzes,
     certificates,
+    setEditingQuiz,
+    setIndividualSubTab,
     handleLaunchPathway,
     showToast,
     activeVideo,
@@ -52,8 +55,7 @@ function TrainingDashboardInner() {
     setLaunchStandalonePkg,
     launchHtmlUrl,
     zipError,
-    packages,
-    toastMessage
+    packages
   } = useTraining();
 
   return (
@@ -67,17 +69,18 @@ function TrainingDashboardInner() {
           <div className="flex items-center gap-3 w-full">
             <h1 className="text-[13.5px] font-voda font-bold tracking-tight uppercase flex items-center justify-between w-full">
               <span>
-                LMS {activeVideo ? "– Videos" :
-                activeQuiz ? "– Assessment" :
-                activeCert ? "– Certificate Preview" :
-                activeInteractivePath ? "– Training Path" :
-                launchStandalonePkg ? "– Simulation Sandbox" : (
-                  currentView === "paths" ? "– Training Path" :
+                LMS {
+                  activeInteractivePath ? "– Training Path" :
                   currentView === "individual" ? "– Storage Room" :
-                  currentView === "add-package" ? "– Configure Package" :
-                  currentView === "requests" ? "– Requests & Approvals" :
-                  currentView === "reports" ? "– Learning Progress" : ""
-                )
+                  activeVideo ? "– Videos" :
+                  activeQuiz ? "– Assessment" :
+                  activeCert ? "– Certificate Preview" :
+                  launchStandalonePkg ? "– Simulation Sandbox" : (
+                    currentView === "paths" ? (pathsSubTab === "courses" ? "– Courses" : "– Training Path") :
+                    currentView === "add-package" ? "– Configure Package" :
+                    currentView === "requests" ? "– Requests & Approvals" :
+                    currentView === "reports" ? "– Learning Progress" : ""
+                  )
                 }
               </span>
               {(currentView !== "hub" || activeVideo || activeQuiz || activeCert || activeInteractivePath || launchStandalonePkg) && (
@@ -116,19 +119,29 @@ function TrainingDashboardInner() {
               : "bg-transparent border-none shadow-none p-0 gap-0"
           }`}
         >
-          {activeVideo ? (
+          {(activeVideo && currentView !== "individual") ? (
             <VideoPlayerModal
               video={activeVideo}
               onClose={() => setActiveVideo(null)}
               isInline={true}
             />
-          ) : activeQuiz ? (
+          ) : (activeQuiz && currentView !== "individual") ? (
             <QuizTakerModal
               quiz={activeQuiz}
               onClose={() => setActiveQuiz(null)}
+              onEdit={(q, qIdx) => {
+                setActiveQuiz(null);
+                setEditingQuiz(
+                  qIdx !== undefined
+                    ? { ...q, _startQuestionIdx: qIdx, _startIsEditing: true }
+                    : q
+                );
+                setCurrentView("individual");
+                setIndividualSubTab("quizzes");
+              }}
               isInline={true}
             />
-          ) : activeCert ? (
+          ) : (activeCert && currentView !== "individual") ? (
             <CertificateViewerModal
               certificate={activeCert}
               onClose={() => setActiveCert(null)}
@@ -157,46 +170,14 @@ function TrainingDashboardInner() {
                 }
               }}
             />
-          ) : launchStandalonePkg ? (
-            <div className="flex-1 h-full min-h-[500px] bg-[#090D1A] rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-white/10 text-left">
-              <div className="px-6 py-4 bg-black/40 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
-                    {launchStandalonePkg.PackageName}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setLaunchStandalonePkg(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 bg-black relative flex items-center justify-center">
-                {zipError ? (
-                  <div className="p-6 text-center max-w-md">
-                    <p className="text-red-400 text-sm font-bold uppercase">Compilation Error</p>
-                    <p className="text-xs text-slate-400 mt-2">{zipError}</p>
-                  </div>
-                ) : launchHtmlUrl ? (
-                  <iframe
-                    src={launchHtmlUrl}
-                    title={launchStandalonePkg.PackageName}
-                    className="w-full h-full border-none"
-                    sandbox="allow-scripts allow-same-origin allow-modals"
-                  />
-                ) : (
-                  <div className="text-center">
-                    <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                      Extracting files and launching the package...
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+          ) : (launchStandalonePkg && currentView !== "individual") ? (
+            <PackageViewerModal
+              pkg={launchStandalonePkg}
+              launchHtmlUrl={launchHtmlUrl}
+              zipError={zipError}
+              onClose={() => setLaunchStandalonePkg(null)}
+              isInline={true}
+            />
           ) : currentView === "hub" ? (
             <TrainingLandingPage />
           ) : currentView === "requests" ? (
@@ -241,11 +222,7 @@ function TrainingDashboardInner() {
       </div>
 
       {/* Feedback from the Training screen (uploads, submissions) */}
-      {toastMessage && (
-        <div role="status" className="fixed top-5 right-5 z-[200] max-w-[420px] bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-white/10 font-bold text-xs">
-          {toastMessage}
-        </div>
-      )}
+      <TrainingToast />
     </>
   );
 }

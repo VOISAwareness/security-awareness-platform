@@ -249,7 +249,7 @@ export const PathwaySequencePlayerModal = ({
                   {!quizCompleted ? (
                     <div className="max-w-2xl mx-auto w-full flex flex-col gap-6 text-left">
                       <div className="text-center">
-                        <h2 className={`text-xl font-black ${isDark ? "text-white" : "text-slate-800"} uppercase tracking-tight`}>
+                        <h2 className={`text-xl font-voda font-black ${isDark ? "text-white" : "text-slate-800"} uppercase tracking-tight`}>
                           {quiz.TrainingQuizName}
                         </h2>
                         <p className={`text-xs mt-1.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
@@ -270,7 +270,7 @@ export const PathwaySequencePlayerModal = ({
                         <span>Passing Threshold: {quiz.TrainingCompletionThreshold}%</span>
                       </div>
 
-                      <h3 className={`text-base font-black ${isDark ? "text-white" : "text-slate-800"} leading-snug`}>
+                      <h3 className={`text-base font-voda font-black ${isDark ? "text-white" : "text-slate-800"} leading-snug`}>
                         {questionItem?.question}
                       </h3>
 
@@ -311,19 +311,28 @@ export const PathwaySequencePlayerModal = ({
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-black/5 dark:border-white/5">
                         <button
                           type="button"
-                          onClick={prevQuestion}
-                          disabled={quizCurrentIdx === 0}
-                          className="h-9 px-4 rounded-lg bg-white/5 border border-white/5 disabled:opacity-25 disabled:cursor-not-allowed text-xs font-bold uppercase tracking-wider cursor-pointer"
+                          onClick={() => {
+                            if (quizCurrentIdx === 0) {
+                              if (activeItemIndex > 0) {
+                                setActiveItemIndex(activeItemIndex - 1);
+                              } else {
+                                onClose();
+                              }
+                            } else {
+                              prevQuestion();
+                            }
+                          }}
+                          className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
                         >
-                          Previous
+                          BACK
                         </button>
                         <button
                           type="button"
                           onClick={nextQuestion}
                           disabled={!quizAnswers[currentKey]}
-                          className="h-9 px-5 rounded-lg bg-[#E60000] hover:bg-[#c40000] transition-colors disabled:opacity-40 disabled:hover:bg-[#E60000] disabled:cursor-not-allowed text-xs font-bold text-white uppercase tracking-wider cursor-pointer shadow-md"
+                          className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          {quizCurrentIdx === totalQuestions - 1 ? "Finish Assessment" : "Next"}
+                          {quizCurrentIdx === totalQuestions - 1 ? "FINISH" : "NEXT"}
                         </button>
                       </div>
                     </div>
@@ -336,7 +345,7 @@ export const PathwaySequencePlayerModal = ({
                         {passed ? "🏆" : "⚡"}
                       </div>
                       <div className="flex flex-col gap-1">
-                        <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? "text-white" : "text-slate-800"}`}>
+                        <h3 className={`text-lg font-voda font-black uppercase tracking-tight ${isDark ? "text-white" : "text-slate-800"}`}>
                           {passed ? "Assessment Passed" : "Criteria Not Met"}
                         </h3>
                         <p className="text-xs text-slate-400">
@@ -363,7 +372,7 @@ export const PathwaySequencePlayerModal = ({
                         </div>
                       </div>
 
-                      <div className="flex gap-3 mt-4 justify-center">
+                      <div className="flex gap-2.5 mt-4 justify-center">
                         {!passed && (
                           <button
                             type="button"
@@ -372,9 +381,9 @@ export const PathwaySequencePlayerModal = ({
                               setQuizAnswers({});
                               setQuizCompleted(false);
                             }}
-                            className="h-10 px-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-white cursor-pointer uppercase"
+                            className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
                           >
-                            Retry Quiz
+                            RETRY
                           </button>
                         )}
                         <button
@@ -386,9 +395,9 @@ export const PathwaySequencePlayerModal = ({
                               onClose();
                             }
                           }}
-                          className="h-10 px-5 rounded-xl bg-white text-[#0B1121] hover:bg-slate-200 text-xs font-bold cursor-pointer shadow-md uppercase"
+                          className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center"
                         >
-                          {activeItemIndex < sequenceItems.length - 1 ? "Proceed to Next Item" : "Finish Pathway"}
+                          {activeItemIndex < sequenceItems.length - 1 ? "NEXT" : "FINISH"}
                         </button>
                       </div>
                     </div>
@@ -452,7 +461,7 @@ export const PathwaySequencePlayerModal = ({
                         </div>
                       )}
                     </div>
-                    <h4 className={`text-sm font-black leading-tight line-clamp-2 mt-1 relative z-10 ${
+                    <h4 className={`text-sm font-voda font-black leading-tight line-clamp-2 mt-1 relative z-10 ${
                       isActive ? (isDark ? "text-black" : "text-white") : (isDark ? "text-white" : "text-slate-800")
                     }`}>
                       {item.name}

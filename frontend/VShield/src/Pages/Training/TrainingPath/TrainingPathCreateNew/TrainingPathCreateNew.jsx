@@ -284,69 +284,70 @@ export const CreateNewTrainingPath = ({
         >
           <div className="flex-1 flex items-stretch">
             {[
-              { id: 1, step: "1", titleLine1: isAlwaysAvailable ? "Describe Course" : "Describe Path" },
-              { id: 2, step: "2", titleLine1: "Select Type" },
-              { id: 3, step: "3", titleLine1: "Select Assets" },
-              { id: 4, step: "4", titleLine1: "Review & Publish" }
+              { id: 1, step: 1, titleLine1: "Describe", titleLine2: isAlwaysAvailable ? "Course" : "Path" },
+              { id: 2, step: 2, titleLine1: "Select", titleLine2: "Type" },
+              { id: 3, step: 3, titleLine1: "Select", titleLine2: "Assets" },
+              { id: 4, step: 4, titleLine1: "Review &", titleLine2: "Publish" }
             ].map((s) => {
-              const isCurrent = s.id === step;
-
-              if (isCurrent) {
-                return (
-                  <div
-                    key={s.id}
-                    className="bg-black dark:bg-white text-white dark:text-black px-8 py-2 flex items-center gap-3 flex-shrink-0 shadow-sm"
-                  >
-                    <div className="w-5 h-5 rounded-full bg-white dark:bg-black text-black dark:text-white font-black flex items-center justify-center text-[11px] flex-shrink-0">
-                      {s.step}
-                    </div>
-                    <div className="text-left leading-none text-[10px] font-voda font-bold tracking-tight">
-                      <span>{s.titleLine1}</span>
-                    </div>
-                  </div>
-                );
-              }
+              const isCompleted = s.step < step;
+              const isCurrent = s.step === step;
+              const isFilled = s.step <= step;
 
               return (
-                <div
+                <button
+                  type="button"
                   key={s.id}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 transition-opacity
-                    ${
-                      s.id < step
-                        ? "text-[#8ED973] opacity-100"
-                        : isDark
-                        ? "text-white opacity-80"
-                        : "text-slate-800 opacity-85"
-                    }`}
+                  onClick={() => {
+                    if (s.step <= step) {
+                      setStep(s.step);
+                    } else if (s.step === 2 && pathName.trim()) {
+                      setStep(2);
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2.5 px-3 h-full transition-colors duration-200 select-none ${
+                    s.step <= step || (s.step === 2 && pathName.trim()) ? "cursor-pointer" : "cursor-default"
+                  } ${
+                    isFilled ? "bg-black dark:bg-white text-white dark:text-black" : "bg-transparent"
+                  }`}
                 >
-                  {/* step text and ball */}
+                  {/* Step Icon */}
+                  {isCompleted ? (
+                    <div className="w-6 h-6 rounded-full bg-[#8ED973] dark:bg-[#74D054] text-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                  ) : isCurrent ? (
+                    <div className="w-6 h-6 rounded-full bg-white dark:bg-black text-black dark:text-white font-bold flex items-center justify-center text-[11px] flex-shrink-0 shadow-2xs">
+                      {s.step}
+                    </div>
+                  ) : (
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
+                        isDark ? "bg-white text-black" : "bg-black text-white"
+                      }`}
+                    >
+                      {s.step}
+                    </div>
+                  )}
+
+                  {/* Step Label */}
                   <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${
-                      s.id < step
-                        ? "bg-[#8ED973] text-white"
+                    className={`flex flex-col text-left leading-tight text-[11.5px] font-bold ${
+                      isCompleted
+                        ? "text-[#8ED973] dark:text-[#74D054]"
+                        : isCurrent
+                        ? "text-white dark:text-black"
                         : isDark
-                        ? "bg-white text-black"
-                        : "bg-slate-900 text-white"
+                        ? "text-white opacity-85"
+                        : "text-slate-900 opacity-85"
                     }`}
                   >
-                    {s.step}
+                    <span>{s.titleLine1}</span>
+                    {s.titleLine2 && <span>{s.titleLine2}</span>}
                   </div>
-                  <span className="text-[10px] font-bold truncate">{s.titleLine1}</span>
-                </div>
+                </button>
               );
             })}
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className={`px-4 flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
-              isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
-            }`}
-            title="Exit Wizard"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Step Body */}
@@ -780,7 +781,7 @@ export const CreateNewTrainingPath = ({
                     onClose();
                   }
                 }}
-                className="h-[28px] sm:h-[30px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
+                className="h-[24px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
               >
                 <Trash2 className="w-3.5 h-3.5" /> {isAlwaysAvailable ? "Delete Course" : "Delete Learning Path"}
               </button>
@@ -790,11 +791,16 @@ export const CreateNewTrainingPath = ({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setStep(step - 1)}
-              disabled={step === 1}
-              className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center disabled:opacity-25 disabled:cursor-not-allowed"
+              onClick={() => {
+                if (step === 1) {
+                  onClose();
+                } else {
+                  setStep(step - 1);
+                }
+              }}
+              className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
             >
-              Back
+              BACK
             </button>
 
             {step < 4 ? (
@@ -802,17 +808,17 @@ export const CreateNewTrainingPath = ({
                 type="button"
                 onClick={() => setStep(step + 1)}
                 disabled={(step === 1 && !pathName.trim()) || (step === 3 && pathType === "individual" && selectedVideos.length === 0) || (step === 3 && pathType === "zip" && !selectedPackage)}
-                className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                className="w-[90px] h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
-                Next
+                NEXT
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => handlePublish("Pending")}
-                className="px-6 h-[28px] sm:h-[30px] rounded-3xl bg-[#E60000] hover:bg-[#c40000] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5"
+                className="px-6 h-[24px] rounded-3xl bg-[#E60000] hover:bg-[#c40000] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5"
               >
-                Request Approval
+                REQUEST APPROVAL
               </button>
             )}
           </div>

@@ -29,11 +29,15 @@ export const VarGalleryLowerBaseHeightAdjuster = 445;
 // 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
 // =========================================================================
 const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
   
+  .font-voda {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 800;
+  }
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
-    font-weight: 900;
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 800;
   }
   .font-mono-tech {
     font-family: 'JetBrains Mono', monospace;

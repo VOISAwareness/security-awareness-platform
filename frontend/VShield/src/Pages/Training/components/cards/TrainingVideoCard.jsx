@@ -33,7 +33,7 @@ export const TrainingVideoCard = ({
     >
       {/* 16:9 Native Video Thumbnail Preview with floating overlay ID badge */}
       <div className="relative w-[calc(100%+2px)] h-[141px] bg-black rounded-t-3xl overflow-hidden flex-shrink-0 border-b border-black/5 dark:border-white/5 -mt-[1px] -mx-[1px]">
-        <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[8.5px] font-black bg-white text-slate-800 shadow-md z-20 uppercase tracking-wider flex items-center gap-1">
+        <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[8.5px] font-black font-mono-tech bg-white text-slate-800 shadow-md z-20 uppercase tracking-wider flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
           {video.TrainingVideoID}
         </div>
@@ -56,7 +56,7 @@ export const TrainingVideoCard = ({
       {/* Card Content Area */}
       <div className="p-4 flex flex-col justify-between flex-1 min-h-0">
         <div className="flex flex-col gap-1.5 min-h-0">
-          <h3 className="text-[12.5px] font-black tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
+          <h3 className="text-[12.5px] font-black font-voda tracking-tight text-slate-900 dark:text-white line-clamp-1 leading-snug">
             {video.TrainingVideoName}
           </h3>
           <p className="text-[9.5px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
