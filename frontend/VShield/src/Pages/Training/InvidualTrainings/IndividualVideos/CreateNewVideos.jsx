@@ -202,7 +202,7 @@ export const CreateNewVideos = ({
                 onClose();
               }
             }}
-            className="h-[28px] sm:h-[30px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
+            className="h-[24px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
           >
             <Trash2 className="w-3.5 h-3.5" /> Delete Video
           </button>
@@ -213,17 +213,17 @@ export const CreateNewVideos = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
+            className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
           >
-            Cancel
+            CLOSE
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={!name.trim() || (!editingVideo && !selectedFile) || isUploading}
-            className="min-w-[90px] px-5 h-[28px] sm:h-[30px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
-            {isUploading ? "Saving..." : (editingVideo ? "Save Changes" : "Save Video")}
+            {isUploading ? "SAVING..." : (editingVideo ? "SAVE CHANGES" : "SAVE VIDEO")}
           </button>
         </div>
       </div>

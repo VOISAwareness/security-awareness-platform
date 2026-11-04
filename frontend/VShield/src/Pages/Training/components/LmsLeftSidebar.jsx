@@ -18,7 +18,17 @@ export const LmsLeftSidebar = () => {
     setEditingPath,
     individualSubTab,
     setIndividualSubTab,
-    setShowPathCreator
+    setShowPathCreator,
+    setActiveVideo,
+    setActiveQuiz,
+    setActiveCert,
+    setLaunchStandalonePkg,
+    setShowVideoUploader,
+    setShowQuizCreator,
+    setShowCertCreator,
+    setEditingVideo,
+    setEditingQuiz,
+    setEditingCert
   } = useTraining();
 
   const handlePathsClick = (subTab) => {
@@ -29,6 +39,18 @@ export const LmsLeftSidebar = () => {
   };
 
   const handleIndClick = (subTab) => {
+    if (subTab !== individualSubTab) {
+      if (setActiveVideo) setActiveVideo(null);
+      if (setActiveQuiz) setActiveQuiz(null);
+      if (setActiveCert) setActiveCert(null);
+      if (setLaunchStandalonePkg) setLaunchStandalonePkg(null);
+      if (setShowVideoUploader) setShowVideoUploader(false);
+      if (setShowQuizCreator) setShowQuizCreator(false);
+      if (setShowCertCreator) setShowCertCreator(false);
+      if (setEditingVideo) setEditingVideo(null);
+      if (setEditingQuiz) setEditingQuiz(null);
+      if (setEditingCert) setEditingCert(null);
+    }
     setIndividualSubTab(subTab);
     setCurrentView("individual");
   };
@@ -164,7 +186,7 @@ export const LmsLeftSidebar = () => {
             <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
               individualSubTab === "packages" ? (isDark ? "text-slate-700" : "text-slate-300") : (isDark ? "text-slate-400" : "text-slate-500")
             }`}>
-              Upload and deploy scorm packages.
+              Upload and deploy Imported Packages.
             </p>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 pointer-events-none select-none z-0">
               <img src={packageIcon} alt="Training Packages" className="w-full h-full object-contain" />

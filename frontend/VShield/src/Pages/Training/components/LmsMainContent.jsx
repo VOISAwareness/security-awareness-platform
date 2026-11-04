@@ -67,6 +67,10 @@ export const LmsMainContent = () => {
     setActiveQuiz,
     activeCert,
     setActiveCert,
+    launchStandalonePkg,
+    setLaunchStandalonePkg,
+    launchHtmlUrl,
+    zipError,
     handleLaunchStandalone,
     handleLaunchPathway,
     filteredPaths,
@@ -115,9 +119,10 @@ export const LmsMainContent = () => {
     (currentView === "paths" && (showPathCreator || editingPath)) ||
     currentView === "add-package" ||
     (currentView === "individual" && (
-      (individualSubTab === "videos" && (showVideoUploader || editingVideo)) ||
-      (individualSubTab === "quizzes" && (showQuizCreator || editingQuiz)) ||
-      (individualSubTab === "certificates" && (showCertCreator || editingCert))
+      (individualSubTab === "videos" && (showVideoUploader || editingVideo || activeVideo)) ||
+      (individualSubTab === "quizzes" && (showQuizCreator || editingQuiz || activeQuiz)) ||
+      (individualSubTab === "certificates" && (showCertCreator || editingCert || activeCert)) ||
+      (individualSubTab === "packages" && launchStandalonePkg)
     ));
 
   return (
@@ -289,6 +294,10 @@ export const LmsMainContent = () => {
           setActiveQuiz={setActiveQuiz}
           activeCert={activeCert}
           setActiveCert={setActiveCert}
+          launchStandalonePkg={launchStandalonePkg}
+          setLaunchStandalonePkg={setLaunchStandalonePkg}
+          launchHtmlUrl={launchHtmlUrl}
+          zipError={zipError}
           handleLaunchStandalone={handleLaunchStandalone}
           onAddVideo={async (newVideo, file) => {
             try {

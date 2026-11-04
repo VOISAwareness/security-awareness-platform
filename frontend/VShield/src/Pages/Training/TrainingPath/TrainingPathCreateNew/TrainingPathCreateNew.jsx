@@ -780,7 +780,7 @@ export const CreateNewTrainingPath = ({
                     onClose();
                   }
                 }}
-                className="h-[28px] sm:h-[30px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
+                className="h-[24px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
               >
                 <Trash2 className="w-3.5 h-3.5" /> {isAlwaysAvailable ? "Delete Course" : "Delete Learning Path"}
               </button>
@@ -790,11 +790,16 @@ export const CreateNewTrainingPath = ({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setStep(step - 1)}
-              disabled={step === 1}
-              className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center disabled:opacity-25 disabled:cursor-not-allowed"
+              onClick={() => {
+                if (step === 1) {
+                  onClose();
+                } else {
+                  setStep(step - 1);
+                }
+              }}
+              className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
             >
-              Back
+              BACK
             </button>
 
             {step < 4 ? (
@@ -802,17 +807,17 @@ export const CreateNewTrainingPath = ({
                 type="button"
                 onClick={() => setStep(step + 1)}
                 disabled={(step === 1 && !pathName.trim()) || (step === 3 && pathType === "individual" && selectedVideos.length === 0) || (step === 3 && pathType === "zip" && !selectedPackage)}
-                className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                className="w-[90px] h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
-                Next
+                NEXT
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => handlePublish("Pending")}
-                className="px-6 h-[28px] sm:h-[30px] rounded-3xl bg-[#E60000] hover:bg-[#c40000] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5"
+                className="px-6 h-[24px] rounded-3xl bg-[#E60000] hover:bg-[#c40000] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5"
               >
-                Request Approval
+                REQUEST APPROVAL
               </button>
             )}
           </div>

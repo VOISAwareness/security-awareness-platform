@@ -311,19 +311,28 @@ export const PathwaySequencePlayerModal = ({
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-black/5 dark:border-white/5">
                         <button
                           type="button"
-                          onClick={prevQuestion}
-                          disabled={quizCurrentIdx === 0}
-                          className="h-9 px-4 rounded-lg bg-white/5 border border-white/5 disabled:opacity-25 disabled:cursor-not-allowed text-xs font-bold uppercase tracking-wider cursor-pointer"
+                          onClick={() => {
+                            if (quizCurrentIdx === 0) {
+                              if (activeItemIndex > 0) {
+                                setActiveItemIndex(activeItemIndex - 1);
+                              } else {
+                                onClose();
+                              }
+                            } else {
+                              prevQuestion();
+                            }
+                          }}
+                          className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
                         >
-                          Previous
+                          BACK
                         </button>
                         <button
                           type="button"
                           onClick={nextQuestion}
                           disabled={!quizAnswers[currentKey]}
-                          className="h-9 px-5 rounded-lg bg-[#E60000] hover:bg-[#c40000] transition-colors disabled:opacity-40 disabled:hover:bg-[#E60000] disabled:cursor-not-allowed text-xs font-bold text-white uppercase tracking-wider cursor-pointer shadow-md"
+                          className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          {quizCurrentIdx === totalQuestions - 1 ? "Finish Assessment" : "Next"}
+                          {quizCurrentIdx === totalQuestions - 1 ? "FINISH" : "NEXT"}
                         </button>
                       </div>
                     </div>
@@ -363,7 +372,7 @@ export const PathwaySequencePlayerModal = ({
                         </div>
                       </div>
 
-                      <div className="flex gap-3 mt-4 justify-center">
+                      <div className="flex gap-2.5 mt-4 justify-center">
                         {!passed && (
                           <button
                             type="button"
@@ -372,9 +381,9 @@ export const PathwaySequencePlayerModal = ({
                               setQuizAnswers({});
                               setQuizCompleted(false);
                             }}
-                            className="h-10 px-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-white cursor-pointer uppercase"
+                            className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
                           >
-                            Retry Quiz
+                            RETRY
                           </button>
                         )}
                         <button
@@ -386,9 +395,9 @@ export const PathwaySequencePlayerModal = ({
                               onClose();
                             }
                           }}
-                          className="h-10 px-5 rounded-xl bg-white text-[#0B1121] hover:bg-slate-200 text-xs font-bold cursor-pointer shadow-md uppercase"
+                          className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center"
                         >
-                          {activeItemIndex < sequenceItems.length - 1 ? "Proceed to Next Item" : "Finish Pathway"}
+                          {activeItemIndex < sequenceItems.length - 1 ? "NEXT" : "FINISH"}
                         </button>
                       </div>
                     </div>

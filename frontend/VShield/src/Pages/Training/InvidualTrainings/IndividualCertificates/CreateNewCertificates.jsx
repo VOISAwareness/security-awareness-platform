@@ -455,19 +455,6 @@ export const CreateNewCertificates = ({
           </div>
 
           <div className="flex items-center h-full">
-            <div className="px-3 flex items-center">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsFullScreen(true); }}
-                className={`h-7 px-3.5 rounded-full text-[9px] font-bold font-voda uppercase tracking-wider transition-all cursor-pointer flex items-center shadow-2xs ${
-                  isDark ? "bg-white/10 text-slate-200 hover:bg-white/15" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-                title="Fullscreen Certificate Editing"
-              >
-                <span>Fullscreen View</span>
-              </button>
-            </div>
-
             <button
               type="button"
               onClick={onClose}
@@ -801,7 +788,7 @@ export const CreateNewCertificates = ({
                   onClose();
                 }
               }}
-              className="h-[28px] sm:h-[30px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
+              className="h-[24px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
             >
               <Trash2 className="w-3.5 h-3.5" /> Delete Template
             </button>
@@ -812,17 +799,17 @@ export const CreateNewCertificates = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
+              className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
             >
-              Cancel
+              CLOSE
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={!name.trim()}
-              className="min-w-[90px] px-5 h-[28px] sm:h-[30px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+              className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
-              {editingCert ? "Save Changes" : "Save Template"}
+              {editingCert ? "SAVE CHANGES" : "SAVE TEMPLATE"}
             </button>
           </div>
         </div>

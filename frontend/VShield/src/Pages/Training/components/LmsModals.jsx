@@ -1,6 +1,7 @@
 
 import { useTraining } from "../TrainingContext";
-import { X, Check } from "lucide-react";
+import { X } from "lucide-react";
+import TrainingToast from "./shared/TrainingToast";
 
 import {
   VideoPlayerModal,
@@ -11,7 +12,6 @@ import { PathwaySequencePlayerModal } from "./modals/PathwaySequencePlayerModal"
 
 export const LmsModals = () => {
   const {
-    toastMessage,
     isDark,
     setPaths,
     videos,
@@ -149,12 +149,7 @@ export const LmsModals = () => {
       )}
 
       {/* Toast Feedback Notification */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-[200] bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg border border-emerald-500 font-bold text-xs uppercase tracking-wide flex items-center gap-2 animate-in fade-in slide-in-from-top-3 duration-200">
-          <Check className="w-4 h-4 stroke-[3]" />
-          {toastMessage}
-        </div>
-      )}
+      <TrainingToast />
     </>
   );
 };

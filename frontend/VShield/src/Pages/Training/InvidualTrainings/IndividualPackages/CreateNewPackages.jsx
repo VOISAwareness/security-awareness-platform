@@ -314,17 +314,17 @@ export const CreateNewPackages = ({
         <button
           type="button"
           onClick={onCancel}
-          className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
+          className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
         >
-          Cancel
+          CLOSE
         </button>
         <button
           type="button"
           onClick={handleCompileAndSave}
           disabled={!name.trim() || !selectedFile || isCompiling}
-          className="min-w-[90px] px-6 h-[28px] sm:h-[30px] rounded-3xl bg-amber-500 hover:bg-amber-600 text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          className="min-w-[90px] px-6 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
-          Save Package
+          SAVE PACKAGE
         </button>
       </div>
     </div>
@@ -593,17 +593,17 @@ export const ZipUploader = ({
         <button
           type="button"
           onClick={onClose}
-          className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
+          className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
         >
-          Cancel
+          CLOSE
         </button>
         <button
           type="button"
           onClick={handleUpload}
           disabled={!name.trim() || !selectedFile || isUploading}
-          className="min-w-[90px] px-6 h-[28px] sm:h-[30px] rounded-3xl bg-amber-500 hover:bg-amber-600 text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          className="min-w-[90px] px-6 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
-          Upload Package
+          UPLOAD PACKAGE
         </button>
       </div>
     </div>

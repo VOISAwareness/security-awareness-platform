@@ -406,6 +406,7 @@ export const TrainingProvider = ({ children }) => {
 
   const value = {
     toastMessage,
+    setToastMessage,
     showToast,
     isDark,
     setIsDark,

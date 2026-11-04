@@ -6,6 +6,12 @@ import IndividualCertificatesGallery from "./IndividualCertificates/IndividualCe
 import CreateNewCertificates from "./IndividualCertificates/CreateNewCertificates";
 import IndividualPackagesGallery from "./IndividualPackages/IndividualPackagesGallery";
 import CreateNewPackages from "./IndividualPackages/CreateNewPackages";
+import {
+  VideoPlayerModal,
+  QuizTakerModal,
+  CertificateViewerModal,
+  PackageViewerModal
+} from "../components/modals/Modals";
 
 export const InvidualTrainingsLandingPage = ({
   individualSubTab,
@@ -31,9 +37,16 @@ export const InvidualTrainingsLandingPage = ({
   setShowCertCreator,
   currentView,
   setCurrentView,
+  activeVideo,
   setActiveVideo,
+  activeQuiz,
   setActiveQuiz,
+  activeCert,
   setActiveCert,
+  launchStandalonePkg,
+  setLaunchStandalonePkg,
+  launchHtmlUrl,
+  zipError,
   handleLaunchStandalone,
   onAddVideo,
   onAddQuiz,
@@ -60,6 +73,15 @@ export const InvidualTrainingsLandingPage = ({
 
   // Videos Tab Render
   if (individualSubTab === "videos") {
+    if (activeVideo) {
+      return (
+        <VideoPlayerModal
+          video={activeVideo}
+          onClose={() => setActiveVideo(null)}
+          isInline={true}
+        />
+      );
+    }
     if (showVideoUploader || editingVideo) {
       return (
         <CreateNewVideos
@@ -89,6 +111,19 @@ export const InvidualTrainingsLandingPage = ({
 
   // Quizzes Tab Render
   if (individualSubTab === "quizzes") {
+    if (activeQuiz) {
+      return (
+        <QuizTakerModal
+          quiz={activeQuiz}
+          onClose={() => setActiveQuiz(null)}
+          onEdit={(q) => {
+            setActiveQuiz(null);
+            setEditingQuiz(q);
+          }}
+          isInline={true}
+        />
+      );
+    }
     if (showQuizCreator || editingQuiz) {
       return (
         <CreateNewQuiz
@@ -118,6 +153,15 @@ export const InvidualTrainingsLandingPage = ({
 
   // Certificates Tab Render
   if (individualSubTab === "certificates") {
+    if (activeCert) {
+      return (
+        <CertificateViewerModal
+          certificate={activeCert}
+          onClose={() => setActiveCert(null)}
+          isInline={true}
+        />
+      );
+    }
     if (showCertCreator || editingCert) {
       return (
         <CreateNewCertificates
@@ -147,6 +191,17 @@ export const InvidualTrainingsLandingPage = ({
 
   // Packages Tab Render
   if (individualSubTab === "packages") {
+    if (launchStandalonePkg) {
+      return (
+        <PackageViewerModal
+          pkg={launchStandalonePkg}
+          launchHtmlUrl={launchHtmlUrl}
+          zipError={zipError}
+          onClose={() => setLaunchStandalonePkg(null)}
+          isInline={true}
+        />
+      );
+    }
     return (
       <IndividualPackagesGallery
         packages={packages}

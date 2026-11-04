@@ -16,53 +16,83 @@ export const VideoPlayerModal = ({
   const videoRef = useRef(null);
 
   const content = (
-    <div className={`w-full bg-[#0B1121] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col ${isInline ? "h-full min-h-[500px]" : "max-w-4xl"}`}>
-      {/* Header */}
-      <div className="px-4 py-2 border-b border-white/10 flex items-center justify-between bg-black/40">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#E60000] animate-pulse" />
-          <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+    <div className={`w-full overflow-hidden flex flex-col select-none font-sans text-left ${
+      isInline
+        ? `flex-1 h-full justify-between ${isDark ? "bg-[#0B1121] text-white" : "bg-white text-slate-800"}`
+        : `bg-[#0B1121] border border-white/10 rounded-2xl shadow-2xl max-w-4xl`
+    }`}>
+      {/* ── DOCKED TOP HEADER BAR ── */}
+      <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
+        isDark ? "border-white/10 bg-[#12141A]" : "border-slate-200/90 bg-white"
+      }`}>
+        <div className="px-6 h-full flex items-center gap-2.5 flex-shrink-0">
+          <span className="w-2 h-2 rounded-full bg-[#E60000] animate-pulse" />
+          <span className="font-voda font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
             {video.TrainingVideoName}
           </span>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+          className={`px-4 h-full flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
+            isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
+          }`}
+          title="Close"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Player Container */}
-      <div className="relative bg-black flex flex-col items-center justify-center group flex-1 min-h-0 max-h-[55vh]">
-        <video
-          ref={videoRef}
-          src={video.TrainingVideo}
-          className="w-full h-full object-contain"
-          autoPlay
-          controls
-          onPlay={() => setIsVideoPlaying(true)}
-          onPause={() => setIsVideoPlaying(false)}
-          onError={(e) => {
-            // Handle fallback if mp4 is missing or not playable
-            console.log("Video source error", e);
-          }}
-        />
+      {/* ── SCROLLABLE VIDEO & INFO BODY ── */}
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        {/* Player Container */}
+        <div className="relative bg-black flex flex-col items-center justify-center flex-1 min-h-[300px]">
+          <video
+            ref={videoRef}
+            src={video.TrainingVideo}
+            className="w-full h-full max-h-[50vh] object-contain"
+            autoPlay
+            controls
+            onPlay={() => setIsVideoPlaying(true)}
+            onPause={() => setIsVideoPlaying(false)}
+            onError={(e) => {
+              console.log("Video source error", e);
+            }}
+          />
+        </div>
+
+        {/* Info Area */}
+        <div className={`p-6 flex flex-col gap-2 ${
+          isDark ? "bg-[#0B1121]/90 text-white" : "bg-slate-50/90 text-slate-800"
+        }`}>
+          <h2 className="text-lg font-bold font-voda leading-tight">
+            {video.TrainingVideoName}
+          </h2>
+          <p className={`text-xs leading-relaxed max-w-3xl text-left ${
+            isDark ? "text-slate-300" : "text-slate-600"
+          }`}>
+            {video.Description}
+          </p>
+          <div className={`mt-3 flex items-center justify-between text-[11px] font-semibold border-t pt-3 ${
+            isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
+          }`}>
+            <span>Video Format: MP4 / H.264</span>
+            <span>Created On: {video.CreatedOn}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Info Area */}
-      <div className="p-6 bg-black/60 flex flex-col gap-2">
-        <h2 className="text-xl font-bold font-voda text-white leading-tight">
-          {video.TrainingVideoName}
-        </h2>
-        <p className="text-xs text-slate-300 leading-relaxed max-w-3xl text-left">
-          {video.Description}
-        </p>
-        <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 font-semibold border-t border-white/5 pt-4">
-          <span>Video Format: MP4 / H.264</span>
-          <span>Created On: {video.CreatedOn}</span>
-        </div>
+      {/* ── DOCKED FOOTER BAR ── */}
+      <div className={`w-full px-6 py-3 border-t flex items-center justify-end gap-2.5 flex-shrink-0 select-none ${
+        isDark ? "border-white/10 bg-[#12141A]" : "border-slate-200 bg-white"
+      }`}>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
+        >
+          CLOSE
+        </button>
       </div>
     </div>
   );
