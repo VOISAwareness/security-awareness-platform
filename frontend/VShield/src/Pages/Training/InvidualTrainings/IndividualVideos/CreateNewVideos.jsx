@@ -84,90 +84,114 @@ export const CreateNewVideos = ({
   const uploaderContent = (
     <div className={`w-full flex flex-col text-left ${
       isInline 
-        ? "h-full min-h-[500px] border-none bg-transparent shadow-none" 
+        ? "h-full min-h-0 border-none bg-transparent shadow-none" 
         : `max-w-lg border rounded-2xl overflow-hidden shadow-2xl ${
             isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
           }`
     }`}>
-      <div className={`px-6 py-4 border-b flex items-center justify-between ${
-        isDark ? "border-white/10 bg-black/40 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
+      {/* ── DOCKED TOP HEADER BAR ── */}
+      <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
+        isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
       }`}>
-        <h3 className="text-sm font-black font-voda uppercase">{editingVideo ? "EDIT VIDEO MODULE" : "ADD NEW VIDEO"}</h3>
-        <button type="button" onClick={onClose} className={`cursor-pointer ${isDark ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
-          <X className="w-5 h-5" />
+        <div className="px-6 h-full flex items-center gap-2.5 flex-shrink-0">
+          <span className="font-voda font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">
+            {editingVideo ? "Edit Video" : "Add New Video"}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`px-4 h-full flex items-center justify-center border-l hover:bg-red-500/10 hover:text-red-500 transition-colors cursor-pointer ${
+            isDark ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-500"
+          }`}
+          title="Close"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="p-6 flex flex-col gap-4">
-        <div>
-          <label className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Video Title
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`w-full h-10 px-3 rounded-lg border text-xs focus:outline-none focus:border-[#E60000] ${
-              isDark ? "border-white/10 bg-black/40 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
-            }`}
-            placeholder="e.g., Deceptive Hyperlinks & Domain Inspection"
-          />
-        </div>
-
-        <div>
-          <label className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Description
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={`w-full h-20 p-3 rounded-lg border text-xs focus:outline-none focus:border-[#E60000] resize-none ${
-              isDark ? "border-white/10 bg-black/40 text-white" : "border-slate-200 bg-slate-50 text-slate-800"
-            }`}
-            placeholder="Provide summary and learning metrics..."
-          />
-        </div>
-
-        {/* Upload Dropzone */}
-        {editingVideo ? (
-          <div className={`border p-4 rounded-xl text-center text-xs leading-normal ${
-            isDark ? "border-white/5 bg-white/[0.02] text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"
-          }`}>
-            Media file is locked ({editingVideo.TrainingVideoID}). Video files cannot be replaced during metadata modifications.
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed transition-colors rounded-xl p-6 flex flex-col items-center justify-center gap-2 text-center cursor-pointer ${
-              isDark 
-                ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/35" 
-                : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-450"
-            }`}
-          >
+      {/* ── BODY WORKSPACE ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 flex flex-col gap-5 custom-light-scrollbar">
+        <div className={`p-5 rounded-2xl border flex flex-col gap-5 ${
+          isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
+        }`}>
+          <div className="flex flex-col">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+              Video Title <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+            </label>
             <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="video/*"
-              className="hidden"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={`w-full h-10 px-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#E60000] focus:ring-1 focus:ring-[#E60000] transition-all shadow-2xs ${
+                isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
+              }`}
+              placeholder="e.g., Deceptive Hyperlinks & Domain Inspection"
             />
-            <UploadCloud className="w-8 h-8 text-slate-400" />
-            <div>
-              <p className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>
-                {selectedFile ? `Selected: ${selectedFile.name}` : "Drag & drop or click to select video file"}
-              </p>
-              <p className={`text-[9px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB` : "MP4, WEBM, or MOV up to 100MB"}
-              </p>
-            </div>
           </div>
-        )}
+
+          <div className="flex flex-col mt-1.5">
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className={`w-full p-3.5 rounded-xl border text-xs font-medium focus:outline-none focus:border-[#E60000] focus:ring-1 focus:ring-[#E60000] resize-none transition-all shadow-2xs ${
+                isDark ? "border-white/10 bg-[#0B1121] text-white placeholder-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder-slate-400"
+              }`}
+              placeholder="Provide summary and learning metrics..."
+            />
+          </div>
+
+          {/* Upload Dropzone */}
+          {editingVideo ? (
+            <div className={`border p-4 rounded-xl text-center text-xs leading-normal mt-1.5 ${
+              isDark ? "border-white/10 bg-white/[0.02] text-slate-400" : "border-slate-200 bg-white text-slate-600"
+            }`}>
+              Media file is locked ({editingVideo.TrainingVideoID}). Video files cannot be replaced during metadata modifications.
+            </div>
+          ) : (
+            <div className="flex flex-col mt-1.5">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                Video File <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+              </label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed transition-all rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer ${
+                  isDark 
+                    ? "border-white/15 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/35" 
+                    : "border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400"
+                }`}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="video/*"
+                  className="hidden"
+                />
+                <UploadCloud className="w-8 h-8 text-slate-400" />
+                <div>
+                  <p className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>
+                    {selectedFile ? `Selected: ${selectedFile.name}` : "Drag & drop or click to select video file"}
+                  </p>
+                  <p className={`text-[10px] mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                    {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB` : "MP4, WEBM, or MOV up to 100MB"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className={`px-6 py-4 border-t flex items-center justify-between gap-3 ${
-        isDark ? "bg-black/40 border-white/10" : "bg-slate-50 border-slate-200"
+      {/* ── DOCKED FOOTER BAR ── */}
+      <div className={`px-6 py-3 border-t flex items-center justify-between gap-3 flex-shrink-0 ${
+        isDark ? "bg-[#12141A] border-white/10" : "bg-slate-50 border-slate-200"
       }`}>
         {editingVideo && onDelete ? (
           <button
@@ -178,20 +202,18 @@ export const CreateNewVideos = ({
                 onClose();
               }
             }}
-            className="h-10 px-4 rounded-xl border border-red-500/30 bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-md transition-colors"
+            className="h-[28px] sm:h-[30px] px-4 rounded-3xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-all font-voda uppercase text-[10px] tracking-wider"
           >
-            <Trash2 className="w-4 h-4" /> Delete Video
+            <Trash2 className="w-3.5 h-3.5" /> Delete Video
           </button>
         ) : (
           <div />
         )}
-        <div className="flex gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className={`h-10 px-4 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
-              isDark ? "border-white/10 bg-white/5 hover:bg-white/10 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
+            className="w-[90px] h-[28px] sm:h-[30px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center"
           >
             Cancel
           </button>
@@ -199,9 +221,9 @@ export const CreateNewVideos = ({
             type="button"
             onClick={handleSave}
             disabled={!name.trim() || (!editingVideo && !selectedFile) || isUploading}
-            className="h-10 px-5 rounded-xl bg-[#E60000] hover:bg-[#c40000] transition-colors text-xs font-bold text-white cursor-pointer disabled:opacity-40 disabled:hover:bg-[#E60000]"
+            className="min-w-[90px] px-5 h-[28px] sm:h-[30px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
           >
-            {isUploading ? "Saving..." : (editingVideo ? "Save Changes" : "Save Module")}
+            {isUploading ? "Saving..." : (editingVideo ? "Save Changes" : "Save Video")}
           </button>
         </div>
       </div>

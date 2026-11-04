@@ -375,9 +375,6 @@ export const TrainingProvider = ({ children }) => {
 
   // Filters logic for the sidebars
   const filteredPaths = useMemo(() => {
-    const userRole = userContext.user?.role || "Regular User";
-    const isEditor = userRole === "Campaign Creator";
-
     return paths.filter((path) => {
       const pathStatus = path.status || "Published";
       if (pathStatus !== "Published") return false;
@@ -405,7 +402,6 @@ export const TrainingProvider = ({ children }) => {
 
       return matchSearch && matchesAudience && matchesTime && matchesType;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paths, search, selectedAudiences, selectedTimes, selectedTypes]);
 
   const value = {
