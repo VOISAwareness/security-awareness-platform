@@ -149,6 +149,7 @@ const TRAINING = { programmes: dashboardData.trainingPrograms };
 
 // Below this the page scrolls rather than squeeze; a laptop is well above it.
 const FLOOR = 560;
+const PAGE_DAYS = 30;
 const DID_NOTE = { clicked: 'Clicked', reported: 'Reported', gave: 'Gave details away', twice: 'Clicked 2+ times' };
 const LEFT_W = 266;
 
@@ -307,8 +308,10 @@ const Insights = () => {
   const saveTargets = async (targets) => setSaved(savedOf(await api.insightsTargets.save({ targets, version: saved.version, role: user?.role, actor: actorFor(user) })));
 
   // the period shows at once; what it changes renders in the background
-  const [days, setDays] = useState(restore?.days || 30);
-  const [shownDays, setShownDays] = useState(restore?.days || 30);
+  // The page reads the last 30 days; the Scope card's own period (30, 60 or
+  // 90 days) changes only the totals in that card.
+  const days = PAGE_DAYS;
+  const [scopeDays, setScopeDays] = useState(restore?.scopeDays || PAGE_DAYS);
   const [tab, setTab] = useState(restore?.tab || 'summary');
   const [dept, setDept] = useState(restore?.dept || null); // a department's own charts, the second level
   const [who, setWho] = useState(null); // the people behind what was clicked, the third
@@ -321,6 +324,8 @@ const Insights = () => {
   // The sample organisation, thirty days at a time, until the people and risk APIs report it.
   const org = useMemo(() => organisation({ end: m.basis.end, steps: 24 }), [m.basis.end]);
   const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
+  // the Scope card's totals, over its own period
+  const scope = useMemo(() => (scopeDays === days ? { m, p } : { m: insights(items, { days: scopeDays }), p: peopleInsights(org, { days: scopeDays }) }), [scopeDays, days, m, p, items, org]);
   const list = useMemo(() => standsOut(m, p), [m, p]);
   const depts = useMemo(() => deptTargets(m, p, T), [m, p, T]);
   // The people behind every figure: a sample, one row per person, until
@@ -354,7 +359,7 @@ const Insights = () => {
   // with the way back. This view is kept on the page's own history entry
   // first, so the browser's Back returns to it too.
   const seePeople = ({ dept: name, lure }) => {
-    const back = { days, tab, dept };
+    const back = { scopeDays, tab, dept };
     navigate(location.pathname, { replace: true, state: { restore: back } });
     navigate('/leaderboard', { state: { view: 'reports', people: { dept: name || 'all', lure: lure || null }, back: { path: location.pathname, label: ['Insights', name, lure].filter(Boolean).join(' · '), restore: back } } });
   };
@@ -400,12 +405,12 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
   const totals = [
-    ['Campaigns', m.basis.campaigns],
-    ['Emails delivered', n.delivered],
-    ['People', p.now.people],
-    ['Departments', p.departments.length],
-    ['Emails reported', n.reported],
-    ['Trainings assigned', p.now.training?.assigned],
+    ['Campaigns', scope.m.basis.campaigns],
+    ['Emails delivered', scope.m.now.delivered],
+    ['People', scope.p.now.people],
+    ['Departments', scope.p.departments.length],
+    ['Emails reported', scope.m.now.reported],
+    ['Trainings assigned', scope.p.now.training?.assigned],
   ];
 
   // the page's colours (insightsUi.js)
@@ -441,8 +446,8 @@ const Insights = () => {
                 {TABS.map((t) => <TabCard key={t.id} t={t} on={tab === t.id} onPick={() => pick(t.id)} isDark={isDark} />)}
               </div>
               <ScopeCard
-                shownDays={shownDays}
-                onDays={(d) => { setShownDays(d); startTransition(() => setDays(d)); }}
+                shownDays={scopeDays}
+                onDays={setScopeDays}
                 totals={totals}
                 reduce={reduce}
               />
