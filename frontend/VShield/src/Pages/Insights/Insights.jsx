@@ -155,11 +155,12 @@ const LEFT_W = 266;
 function TabCard({ t, on, onPick, isDark }) {
   const fill = isDark ? '#FFFFFF' : '#000000';
   const ink = isDark ? '#0F172A' : '#FFFFFF';
+  // the same card as Requests & Approvals: a 15.5px bold title, a 9px line
   return (
-    <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 66, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 64px 0 16px', borderRadius: 14, border: on ? `1px solid ${fill}` : '1px solid var(--card-edge)', background: on ? fill : 'var(--sheet)', color: on ? ink : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 6px 14px rgba(15,23,42,0.16)' : 'none', transition: 'background .2s ease, color .2s ease' }}>
-      <span style={{ fontSize: TYPE.figure, fontWeight: 600, letterSpacing: '-0.01em', color: on ? (isDark ? '#0F172A' : t.color) : 'inherit' }}>{t.label}</span>
-      <span style={{ fontSize: TYPE.small, fontWeight: 500, color: on ? (isDark ? '#475569' : 'rgba(255,255,255,0.72)') : 'var(--muted)' }}>{t.sub}</span>
-      <img src={t.art} alt="" aria-hidden width={56} height={56} style={{ position: 'absolute', right: -8, bottom: -8, width: 56, height: 56, objectFit: 'contain', opacity: on ? 1 : 0.9 }} />
+    <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 72, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 12, borderRadius: 20, border: on ? `1px solid ${fill}` : '1px solid var(--card-edge)', background: on ? fill : 'var(--sheet)', color: on ? ink : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 4px 10px rgba(15,23,42,0.14)' : 'none', transition: 'background .2s ease, color .2s ease' }}>
+      <span className="text-[15.5px] font-bold tracking-tight leading-tight" style={{ position: 'relative', zIndex: 1, color: on ? (isDark ? '#0F172A' : t.color) : 'inherit' }}>{t.label}</span>
+      <span className="text-[9px] font-medium leading-tight" style={{ position: 'relative', zIndex: 1, maxWidth: 170, color: on ? (isDark ? '#334155' : '#CBD5E1') : (isDark ? '#94A3B8' : '#64748B') }}>{t.sub}</span>
+      <img src={t.art} alt="" aria-hidden width={56} height={56} style={{ position: 'absolute', right: -8, bottom: -8, width: 56, height: 56, objectFit: 'contain' }} />
     </button>
   );
 }
@@ -172,14 +173,14 @@ function ScopeCard({ shownDays, onDays, totals, reduce }) {
       <div role="radiogroup" aria-label="Period" className="ins-glass" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 3, borderRadius: 12 }}>
         {PERIODS.map((x) => {
           const on = shownDays === x.id;
-          return <button key={x.id} type="button" role="radio" aria-checked={on} title={x.title} data-ins-period={x.id} className="ins-period" onClick={() => onDays(x.id)} style={{ height: 28, borderRadius: 9, border: '1px solid transparent', background: 'transparent', color: on ? 'var(--text)' : 'var(--muted)', fontSize: TYPE.body, fontWeight: on ? 600 : 500, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, box-shadow .2s ease, color .2s ease' }}>{x.label}</button>;
+          return <button key={x.id} type="button" role="radio" aria-checked={on} title={x.title} data-ins-period={x.id} className="ins-period" onClick={() => onDays(x.id)} style={{ height: 28, borderRadius: 9, border: '1px solid transparent', background: 'transparent', color: on ? 'var(--text)' : 'var(--muted)', fontSize: TYPE.body, fontWeight: on ? 700 : 500, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, box-shadow .2s ease, color .2s ease' }}>{x.label}</button>;
         })}
       </div>
       <span style={eyebrow}>In this period</span>
       <div data-ins-totals style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'minmax(0,1fr)', gap: 6 }}>
         {totals.map(([label, v]) => (
           <div key={label} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, background: 'var(--plate)' }}>
-            <strong style={{ fontSize: TYPE.figure, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{num(v)}</strong>
+            <strong style={{ fontSize: TYPE.figure, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{num(v)}</strong>
             <span style={{ ...small, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
           </div>
         ))}
@@ -197,13 +198,13 @@ function CornerTile({ tab, dept, people, onBack, reduce }) {
         <motion.div key={dept || tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.15, ease: EASE }} style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           {dept ? (
             <>
-              <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 600, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</span>
-              <span style={{ ...small, fontWeight: 600 }}>{num(people)} people</span>
+              <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
+              <span style={{ fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</span>
+              <span style={{ ...small, fontWeight: 700 }}>{num(people)} people</span>
             </>
           ) : (
             <>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--text)' }}>{t.label}</span>
+              <span style={{ fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--text)' }}>{t.label}</span>
               <span style={{ ...small, fontSize: TYPE.body, lineHeight: 1.35 }}>{t.says}</span>
             </>
           )}
@@ -239,14 +240,14 @@ function TargetKpi({ k, ink, reduce, days, dim }) {
   const opens = Boolean(k.onOpen);
   const press = opens ? { role: 'button', tabIndex: 0, onClick: k.onOpen, onKeyDown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } } } : { role: 'group' };
   return (
-    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} title={k.hint} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={false} animate={{ opacity: dim ? 0.4 : 1 }} transition={{ duration: reduce ? 0 : 0.2, ease: EASE }} style={tileStyle(opens)}>
+    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={false} animate={{ opacity: dim ? 0.4 : 1 }} transition={{ duration: reduce ? 0 : 0.2, ease: EASE }} style={tileStyle(opens)}>
       <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}>
         <span style={{ ...eyebrow, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
         <Explain label={`What ${k.label} means, and its change`}><Definition term={k.define}><ChangeNote k={k} ink={ink} days={days} /></Definition></Explain>
       </span>
-      <span data-ins-row="value" style={{ fontSize: TYPE.number, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>{k.format(k.value)}</span>
+      <span data-ins-row="value" style={{ fontSize: TYPE.number, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>{k.format(k.value)}</span>
       <span data-ins-row="scale" style={{ width: '100%' }}><TargetBar value={k.scaleValue} target={k.target} ink={ink} /></span>
-      <span data-ins-row="target" style={{ ...small, fontWeight: 600, whiteSpace: 'nowrap' }}>Target {k.targetText}</span>
+      <span data-ins-row="target" style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>Target {k.targetText}</span>
     </motion.div>
   );
 }
@@ -267,7 +268,7 @@ function useHoverTip() {
     box.style.transform = `translate(${Math.round(e.clientX + 12)}px, ${Math.round(e.clientY - 30)}px)`;
   };
   const hide = () => { if (el.current) el.current.style.opacity = '0'; };
-  const tip = <div ref={el} aria-hidden data-ins-hover-tip style={{ position: 'fixed', left: 0, top: 0, zIndex: 60, opacity: 0, pointerEvents: 'none', padding: '4px 9px', borderRadius: 7, background: '#0F172A', color: '#FFFFFF', fontSize: TYPE.body, fontWeight: 600, whiteSpace: 'nowrap', boxShadow: '0 6px 16px rgba(15,23,42,0.22)', transition: 'opacity .12s ease' }} />;
+  const tip = <div ref={el} aria-hidden data-ins-hover-tip style={{ position: 'fixed', left: 0, top: 0, zIndex: 60, opacity: 0, pointerEvents: 'none', padding: '4px 9px', borderRadius: 7, background: '#0F172A', color: '#FFFFFF', fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', boxShadow: '0 6px 16px rgba(15,23,42,0.22)', transition: 'opacity .12s ease' }} />;
   return { tip, onMove, hide };
 }
 
@@ -354,12 +355,12 @@ const Insights = () => {
   const toHome = (id) => () => pick(HOME[id]);
   // the company's six, each opening the tab it belongs to
   const company = [
-    { id: 'risk', define: 'riskScore', label: 'Risk score', value: p.now.score, before: p.before?.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: T.riskScore, targetText: targetText(T.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }), hint: 'Out of 100: under 20 is Low risk' },
-    { id: 'highRisk', define: 'highRisk', label: 'High risk', value: hundred(p.now.highRisk / p.now.people), before: hundred(p.before ? p.before.highRisk / p.before.people : null), format: pctText, scaleValue: p.now.highRisk / p.now.people, target: T.highRiskShare, targetText: targetText(T.highRiskShare, '%'), delta: change(p.now.highRisk / p.now.people, p.before ? p.before.highRisk / p.before.people : null, { kind: 'pct', better: 'down' }), hint: `${num(p.now.highRisk)} people at high or critical risk` },
-    { id: 'hooked', define: 'hookRate', label: 'Hook rate', value: hundred(n.hooked), before: hundred(b?.hooked), format: pctText, scaleValue: n.hooked, target: T.hookRate, targetText: targetText(T.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }), hint: 'Clicked, of the emails delivered' },
-    { id: 'reported', define: 'reportRate', label: 'Report rate', value: hundred(n.reportRate), before: hundred(b?.reportRate), format: pctText, scaleValue: n.reportRate, target: T.reportRate, targetText: targetText(T.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }), hint: 'Reported, of the emails delivered' },
-    { id: 'gave', define: 'gaveDetails', label: 'Gave details', value: hundred(gave), before: hundred(b ? share(b.compromised, b.delivered) : null), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }), hint: 'Entered details on the practice page, of the emails delivered' },
-    { id: 'completion', define: 'trainingCompletion', label: 'Completed', value: hundred(done), before: hundred(p.before?.training?.completion ?? null), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }), hint: 'Trainings completed, of those assigned in the period' },
+    { id: 'risk', define: 'riskScore', label: 'Risk score', value: p.now.score, before: p.before?.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: T.riskScore, targetText: targetText(T.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }) },
+    { id: 'highRisk', define: 'highRisk', label: 'High risk', value: hundred(p.now.highRisk / p.now.people), before: hundred(p.before ? p.before.highRisk / p.before.people : null), format: pctText, scaleValue: p.now.highRisk / p.now.people, target: T.highRiskShare, targetText: targetText(T.highRiskShare, '%'), delta: change(p.now.highRisk / p.now.people, p.before ? p.before.highRisk / p.before.people : null, { kind: 'pct', better: 'down' }) },
+    { id: 'hooked', define: 'hookRate', label: 'Hook rate', value: hundred(n.hooked), before: hundred(b?.hooked), format: pctText, scaleValue: n.hooked, target: T.hookRate, targetText: targetText(T.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }) },
+    { id: 'reported', define: 'reportRate', label: 'Report rate', value: hundred(n.reportRate), before: hundred(b?.reportRate), format: pctText, scaleValue: n.reportRate, target: T.reportRate, targetText: targetText(T.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }) },
+    { id: 'gave', define: 'gaveDetails', label: 'Gave details', value: hundred(gave), before: hundred(b ? share(b.compromised, b.delivered) : null), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }) },
+    { id: 'completion', define: 'trainingCompletion', label: 'Completed', value: hundred(done), before: hundred(p.before?.training?.completion ?? null), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }) },
   ];
   // a department's six, the same measures as its row on the Departments tab
   const ofDept = (d) => [
@@ -371,7 +372,7 @@ const Insights = () => {
     ['completion', 'trainingCompletion', 'trainingCompletion', 'Completed'],
   ].map(([id, key, define, label]) => {
     const score = key === 'riskScore';
-    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), before: score ? d.before[key] : hundred(d.before[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: T[key], targetText: targetText(T[key], score ? '' : '%'), delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: T[key].better }), hint: `${d.name}: ${label}` };
+    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), before: score ? d.before[key] : hundred(d.before[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: T[key], targetText: targetText(T[key], score ? '' : '%'), delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: T[key].better }) };
   });
   const deptRow = dept ? depts.find((d) => d.name === dept) : null;
   const kpis = (deptRow ? ofDept(deptRow) : company).map((k) => ({ ...k, onOpen: deptRow ? undefined : toHome(k.id) }));
@@ -405,12 +406,12 @@ const Insights = () => {
       <style>{FONT_IMPORT}</style>
 
       <div className="ins-page" data-ins-page={deptRow ? 'department' : tab} onMouseMove={hover.onMove} onMouseLeave={hover.hide} onClick={hover.hide} style={{ ...vars, position: 'relative', background: 'var(--bg-edge)', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}>
-        <div className="ins-sheet" style={{ position: 'relative', isolation: 'isolate', height: '100%', minHeight: FLOOR, boxSizing: 'border-box', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="ins-sheet" style={{ position: 'relative', isolation: 'isolate', height: '100%', minHeight: FLOOR, boxSizing: 'border-box', padding: '6px 14px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: -1, background: 'var(--bg)', pointerEvents: 'none' }} />
 
           {/* top bar: black on the light theme, glass on the dark */}
           <div style={{ background: isDark ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' : '#000000', border: isDark ? '1px solid var(--card-edge)' : 'none', boxSizing: 'border-box', color: isDark ? 'var(--text)' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px 0 18px', flexShrink: 0 }}>
-            <span style={{ fontSize: TYPE.title, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Insights</span>
+            <h1 className="text-[14.5px] font-bold tracking-tight uppercase" style={{ margin: 0 }}>Insights</h1>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
               {canSetTargets && <TargetsButton onClick={() => setEditing(true)} isDark={isDark} />}
               <ExportMenu items={exportItems} />

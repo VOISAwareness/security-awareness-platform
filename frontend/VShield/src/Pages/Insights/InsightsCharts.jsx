@@ -108,7 +108,7 @@ export function Tip({ x, y, w, children, edge, below = false, style, id }) {
     </div>
   );
 }
-const tipTitle = { fontSize: TYPE.body, fontWeight: 600, color: 'var(--text)' };
+const tipTitle = { fontSize: TYPE.body, fontWeight: 700, color: 'var(--text)' };
 const tipLine = { ...small, marginTop: 3 };
 // A tip's lines: a head, then rows whose value leads (a short key in the
 // mark's colour, the name quieter), then notes.
@@ -120,7 +120,7 @@ function TipBody({ head, rows = [], notes = [] }) {
         <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 5, fontSize: TYPE.body, fontWeight: 500 }}>
           {r.color && <span aria-hidden style={{ flexShrink: 0, width: 10, height: 3, borderRadius: 2, background: r.color }} />}
           <span>{r.label}</span>
-          <strong style={{ marginLeft: 'auto', paddingLeft: 14, fontWeight: 700 }}>{r.value}</strong>
+          <strong style={{ marginLeft: 'auto', paddingLeft: 14, fontWeight: 800 }}>{r.value}</strong>
         </div>
       ))}
       {notes.filter(Boolean).map((t) => <div key={t} style={tipLine}>{t}</div>)}
@@ -202,7 +202,7 @@ export function Card({ title, sub, action, define, children, i = 0, reduce, styl
 /** A quiet pill that leads somewhere. */
 export function GoTo({ label, onClick, dark = false, ...rest }) {
   return (
-    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--card-edge)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--ghost)', color: dark ? 'inherit' : 'var(--text)', fontSize: TYPE.body, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+    <button type="button" className="ins-go" onClick={onClick} {...rest} style={{ height: 26, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 9px 0 11px', borderRadius: 999, border: dark ? 'none' : '1px solid var(--card-edge)', background: dark ? 'rgba(255,255,255,0.12)' : 'var(--ghost)', color: dark ? 'inherit' : 'var(--text)', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
       {label} <ArrowUpRight className="ins-go-arrow" size={12} strokeWidth={2.6} aria-hidden />
     </button>
   );
@@ -213,7 +213,7 @@ export function Legend({ items }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       {items.map((x) => (
-        <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: TYPE.small, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+        <span key={x.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: TYPE.small, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
           <span aria-hidden style={{ width: x.line ? 14 : 8, height: x.line ? 3 : 8, borderRadius: 999, background: x.color, opacity: x.faint ? 0.5 : 1 }} />{x.label}
         </span>
       ))}
@@ -256,7 +256,7 @@ export function Segmented({ id, label, value, options, onChange, reduce, tabs = 
             data-ins-option={`${id}:${o.id}`}
             title={o.title}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange(o.id); }}
-            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: TYPE.body, fontWeight: 600, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
+            style={{ position: 'relative', height: 26, padding: '0 11px', borderRadius: 8, border: 'none', background: 'transparent', cursor: on ? 'default' : 'pointer', fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', color: on ? 'var(--brand)' : 'var(--muted)', transition: 'color .2s ease' }}
           >
             {on && <motion.span layoutId={`${id}-pill`} transition={reduce ? { duration: 0 } : SPRING} style={{ position: 'absolute', inset: 0, borderRadius: 8, background: 'var(--pill)', boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }} />}
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -419,8 +419,8 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
             <motion.g initial={{ opacity: still ? 1 : 0 }} animate={{ opacity: 1 }} transition={after(still)}>
               {from >= 0 && <circle cx={x(from)} cy={y(values[from])} r={4} fill="var(--base)" stroke={tone} strokeWidth={2} />}
               <circle cx={x(last)} cy={y(values[last])} r={4.5} fill={tone} stroke="var(--base)" strokeWidth={2} />
-              {from >= 0 && from !== last && <text x={x(from)} y={above ? y(values[from]) - 10 : y(values[from]) + 10 + TYPE.small} textAnchor="middle" style={{ fontSize: TYPE.small, fontWeight: 600, fill: 'var(--text)', fontVariantNumeric: 'tabular-nums', paintOrder: 'stroke', stroke: 'var(--base)', strokeWidth: 3, strokeLinejoin: 'round' }}>{format(values[from])}</text>}
-              <text x={x(last) + 9} y={y(values[last]) + TYPE.strong * 0.36} style={{ fontSize: TYPE.strong, fontWeight: 700, fill: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{format(values[last])}</text>
+              {from >= 0 && from !== last && <text x={x(from)} y={above ? y(values[from]) - 10 : y(values[from]) + 10 + TYPE.small} textAnchor="middle" style={{ fontSize: TYPE.small, fontWeight: 700, fill: 'var(--text)', fontVariantNumeric: 'tabular-nums', paintOrder: 'stroke', stroke: 'var(--base)', strokeWidth: 3, strokeLinejoin: 'round' }}>{format(values[from])}</text>}
+              <text x={x(last) + 9} y={y(values[last]) + TYPE.strong * 0.36} style={{ fontSize: TYPE.strong, fontWeight: 800, fill: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{format(values[last])}</text>
             </motion.g>
             {hover !== null && (
               <g>
@@ -459,7 +459,7 @@ export function Insight({ children, sub, tone }) {
     <div className="ins-optional" style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, padding: '9px 12px', borderRadius: 12, border: '1px solid var(--hair)', background: 'var(--plate)' }}>
       {tone && <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 999, marginTop: 4, background: tone }} />}
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>{children}</span>
+        <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700, color: 'var(--text)', lineHeight: 1.35 }}>{children}</span>
         {sub && <span style={{ display: 'block', ...small, marginTop: 2, lineHeight: 1.4 }}>{sub}</span>}
       </span>
     </div>
@@ -505,8 +505,8 @@ export function Blocks({ parts, reduce, height = 34, onDark = false, legendCols 
         {parts.map((x) => (
           <span key={x.key} style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
             <span aria-hidden style={{ alignSelf: 'center', flexShrink: 0, width: 8, height: 8, borderRadius: 3, background: x.color }} />
-            <span style={{ fontSize: TYPE.figure, fontWeight: 700 }}>{legendText ? x.text : `${Math.round((x.value / total) * 100)}%`}</span>
-            <span style={{ fontSize: TYPE.small, fontWeight: 600, opacity: onDark ? 0.75 : 1, color: onDark ? 'inherit' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
+            <span style={{ fontSize: TYPE.figure, fontWeight: 800 }}>{legendText ? x.text : `${Math.round((x.value / total) * 100)}%`}</span>
+            <span style={{ fontSize: TYPE.small, fontWeight: 700, opacity: onDark ? 0.75 : 1, color: onDark ? 'inherit' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
           </span>
         ))}
       </div>
@@ -570,8 +570,8 @@ export function Donut({ parts, label, children, reduce, returning }) {
         {parts.map((p, k) => (
           <div key={p.key} onMouseEnter={() => marks.choose(k)} className={still ? undefined : 'ins-in-x'} style={{ '--d': `${lag(k, 0.03)}s`, animationDuration: '0.3s', display: 'grid', gridTemplateColumns: '8px minmax(0,1fr) auto 38px', alignItems: 'center', gap: 9, height: 30, padding: '0 8px', borderRadius: 8, background: hover === k ? 'var(--track)' : 'none', opacity: hover !== null && hover !== k ? 0.55 : 1, transition: 'background .15s ease, opacity .2s ease' }}>
             <span aria-hidden style={{ width: 8, height: 8, borderRadius: 3, background: p.color }} />
-            <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
-            <span style={{ fontSize: TYPE.strong, fontWeight: 700, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{p.value.toLocaleString('en-US')}</span>
+            <span style={{ minWidth: 0, fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
+            <span style={{ fontSize: TYPE.strong, fontWeight: 800, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{p.value.toLocaleString('en-US')}</span>
             <span style={{ ...small, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{Math.round((p.value / total) * 100)}%</span>
           </div>
         ))}
@@ -628,7 +628,7 @@ export function PillColumns({ items, color, reduce, onOpen, label, lit = null, f
                 transition={after(still)}
                 style={{ position: 'absolute', left: '50%', bottom: `calc((100% - 10px) * ${share} + 11px)`, marginLeft: -40, width: 80, display: 'flex', justifyContent: 'center', pointerEvents: 'none', transition: 'bottom .5s ease' }}
               >
-                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--base)', color: 'var(--text)', boxShadow: '0 2px 6px rgba(15,23,42,0.10)', fontSize: TYPE.small, fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{textOf(x)}</span>
+                <span style={{ height: 20, padding: '0 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', background: 'var(--base)', color: 'var(--text)', boxShadow: '0 2px 6px rgba(15,23,42,0.10)', fontSize: TYPE.small, fontWeight: 700, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{textOf(x)}</span>
               </motion.span>
             </span>
             <span style={{ ...small, fontWeight: on ? 800 : 700, textAlign: 'center', color: on ? 'var(--text)' : 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>
@@ -669,14 +669,14 @@ export function MakeupBars({ rows, max, reduce, format, returning }) {
           <div key={r.key} style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px minmax(0,1fr)`, alignItems: 'center', gap: 12 }}>
             <span>
               <span style={{ display: 'block', ...small }}>{r.label}</span>
-              <span style={{ display: 'block', fontSize: TYPE.heading, fontWeight: 700, lineHeight: 1.1 }}>{format(r.total)}</span>
+              <span style={{ display: 'block', fontSize: TYPE.heading, fontWeight: 800, lineHeight: 1.1 }}>{format(r.total)}</span>
             </span>
             <span style={{ position: 'relative', height: 30, display: 'flex' }}>
               <motion.span initial={{ clipPath: still ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={enter(still, k, 0.05)} style={{ display: 'flex', gap: 2, height: '100%', width: `${(r.total / max) * 100}%`, overflow: 'hidden', transition: 'width .5s ease' }}>
                 {r.parts.map((pt, j) => {
                   const i = offset[k] + j;
                   return (
-                    <span key={pt.key} data-ins-part={`${r.key}:${pt.key}`} onMouseEnter={() => marks.choose(i)} style={{ flex: `${pt.value} 1 0`, minWidth: 4, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: pt.color, color: inkOn(pt.color, pt.ink), fontSize: TYPE.body, fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', opacity: pick && pick.i !== i ? 0.45 : 1, transition: 'opacity .15s ease' }}>{w > 0 && fits(pt.value) ? format(pt.value) : ''}</span>
+                    <span key={pt.key} data-ins-part={`${r.key}:${pt.key}`} onMouseEnter={() => marks.choose(i)} style={{ flex: `${pt.value} 1 0`, minWidth: 4, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: pt.color, color: inkOn(pt.color, pt.ink), fontSize: TYPE.body, fontWeight: 700, overflow: 'hidden', whiteSpace: 'nowrap', opacity: pick && pick.i !== i ? 0.45 : 1, transition: 'opacity .15s ease' }}>{w > 0 && fits(pt.value) ? format(pt.value) : ''}</span>
                   );
                 })}
               </motion.span>
@@ -713,12 +713,12 @@ export function CompareBars({ rows, reduce, max, height = 30, returning }) {
         return (
           <div key={r.key}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-              <span style={{ fontSize: TYPE.body, fontWeight: 600 }}>{r.label}</span>
+              <span style={{ fontSize: TYPE.body, fontWeight: 700 }}>{r.label}</span>
               {r.sub && <span style={{ ...small }}>{r.sub}</span>}
             </div>
             <div className="ins-cbar" onMouseEnter={() => marks.choose(k)} style={{ position: 'relative', height, borderRadius: 10, background: 'var(--plate)' }}>
               <motion.div data-ins-cbar={r.key} initial={{ clipPath: still ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)' }} animate={{ clipPath: 'inset(0 0% 0 0)' }} transition={enter(still, k, 0.06)} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `calc((100% - ${room}px) * ${share})`, minWidth: 8, borderRadius: 10, background: r.color, opacity: pick && pick.i !== k ? 0.45 : 1, transition: 'width .5s ease, opacity .15s ease' }} />
-              <motion.span initial={{ opacity: still ? 1 : 0 }} animate={{ opacity: 1 }} transition={after(still)} style={{ position: 'absolute', top: 0, bottom: 0, left: `calc((100% - ${room}px) * ${share} + 8px)`, display: 'flex', alignItems: 'center', fontSize: TYPE.title, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', transition: 'left .5s ease' }}>{r.text}</motion.span>
+              <motion.span initial={{ opacity: still ? 1 : 0 }} animate={{ opacity: 1 }} transition={after(still)} style={{ position: 'absolute', top: 0, bottom: 0, left: `calc((100% - ${room}px) * ${share} + 8px)`, display: 'flex', alignItems: 'center', fontSize: TYPE.title, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', transition: 'left .5s ease' }}>{r.text}</motion.span>
             </div>
           </div>
         );
@@ -767,8 +767,8 @@ export function StepFunnel({ steps, color, reduce, returning }) {
                 <rect x={cx(i) - slot / 2} y={0} width={slot} height={h} rx={10} fill={hover === i ? 'var(--track)' : 'transparent'} />
                 {i < n - 1 && <motion.path d={`M${cx(i) + colW / 2},${y} L${cx(i + 1) - colW / 2},${yOf(steps[i + 1].value)} L${cx(i + 1) - colW / 2},${base} L${cx(i) + colW / 2},${base} Z`} fill={color} pointerEvents="none" initial={{ opacity: still ? 0.14 : 0 }} animate={{ opacity: 0.14 }} transition={after(still)} />}
                 <motion.path d={col(i, y)} fill={color} pointerEvents="none" initial={{ scaleY: still ? 1 : 0 }} animate={{ scaleY: 1 }} transition={enter(still, i, 0.04)} style={{ transformBox: 'fill-box', transformOrigin: 'bottom' }} />
-                <text x={cx(i)} y={y - 8} textAnchor="middle" pointerEvents="none" style={{ fontSize: TYPE.figure, fontWeight: 700, fill: 'var(--text)' }}>{s.value.toLocaleString('en-US')}</text>
-                <text x={cx(i)} y={h - 4 - TYPE.label * 1.3} textAnchor="middle" pointerEvents="none" style={{ fontSize: TYPE.body, fontWeight: 600, fill: 'var(--text)' }}>{s.label}</text>
+                <text x={cx(i)} y={y - 8} textAnchor="middle" pointerEvents="none" style={{ fontSize: TYPE.figure, fontWeight: 800, fill: 'var(--text)' }}>{s.value.toLocaleString('en-US')}</text>
+                <text x={cx(i)} y={h - 4 - TYPE.label * 1.3} textAnchor="middle" pointerEvents="none" style={{ fontSize: TYPE.body, fontWeight: 700, fill: 'var(--text)' }}>{s.label}</text>
                 <text x={cx(i)} y={h - 3} textAnchor="middle" pointerEvents="none" style={{ fontSize: TYPE.label, fontWeight: 500, fill: 'var(--muted)' }}>{share(s, i)}</text>
               </g>
             );
