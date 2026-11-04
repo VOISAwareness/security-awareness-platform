@@ -221,3 +221,74 @@ def test_not_a_test_campaign_ignores_test_emails(mod, monkeypatch):
         {"isTestCampaign": False, "testRecipientEmails": ["me@example.com"], "selectedSingleUserEmail": "one@example.com"}
     )
     assert out == [{"email": "one@example.com", "name": "POC User"}]
+
+
+# --- the From address: the campaign's chosen sender, when whitelisted ---------
+
+class _SES:
+    """Stands in for SES's verification lookup."""
+
+    def __init__(self, verified=(), fail=False):
+        self.verified, self.fail, self.asked = set(verified), fail, []
+
+    def get_identity_verification_attributes(self, Identities):
+        self.asked.extend(Identities)
+        if self.fail:
+            from botocore.exceptions import ClientError
+            raise ClientError({"Error": {"Code": "AccessDenied", "Message": "no"}}, "GetIdentityVerificationAttributes")
+        return {"VerificationAttributes": {i: {"VerificationStatus": "Success" if i in self.verified else "Pending"} for i in Identities}}
+
+
+@pytest.fixture(autouse=True)
+def _no_real_ses(mod, monkeypatch):
+    monkeypatch.setattr(mod, "ses_client", _SES())
+
+
+def test_sender_is_the_default_when_nothing_is_whitelisted(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset())
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com"}) == "sender@example.com"
+
+
+def test_sender_is_the_campaigns_when_whitelisted(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset({"it-desk@example.com"}))
+    assert mod.sender_for({"senderEmailId": "IT-Desk@example.com"}) == "IT-Desk@example.com"
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com", "senderName": "IT Service Desk"}) == (
+        "IT Service Desk <it-desk@example.com>"
+    )
+
+
+def test_a_sender_not_whitelisted_falls_back(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset({"it-desk@example.com"}))
+    assert mod.sender_for({"senderEmailId": "ceo@example.com"}) == "sender@example.com"
+    assert mod.sender_for({}) == "sender@example.com"
+
+
+def test_allowed_senders_read_from_the_environment(mod, monkeypatch):
+    monkeypatch.setenv("SES_ALLOWED_SENDERS", " A@example.com, ,b@example.com ")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("email_sender_env", mod.__file__)
+    fresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fresh)
+    assert fresh.SES_ALLOWED_SENDERS == frozenset({"a@example.com", "b@example.com"})
+
+
+def test_a_sender_verified_in_ses_is_used(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset())
+    monkeypatch.setattr(mod, "ses_client", _SES(verified={"it-desk@example.com"}))
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com", "senderName": "IT"}) == "IT <it-desk@example.com>"
+    # pending in SES: the default
+    assert mod.sender_for({"senderEmailId": "new@example.com"}) == "sender@example.com"
+
+
+def test_ses_unreachable_falls_back_to_the_default(mod, monkeypatch):
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset())
+    monkeypatch.setattr(mod, "ses_client", _SES(fail=True))
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com"}) == "sender@example.com"
+
+
+def test_the_env_list_skips_the_ses_lookup(mod, monkeypatch):
+    ses = _SES()
+    monkeypatch.setattr(mod, "ses_client", ses)
+    monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset({"it-desk@example.com"}))
+    assert mod.sender_for({"senderEmailId": "it-desk@example.com"}) == "it-desk@example.com"
+    assert ses.asked == []

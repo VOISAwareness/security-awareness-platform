@@ -27,6 +27,10 @@ export const DESIGN_STATUS = {
   NOTIFIED: 'Notified',
   REJECTED: 'Rejected',
   FAILED: 'Failed',
+  // Cancelled after it was scheduled. The backend has no CANCELLED status
+  // yet; once it writes one (with cancelledBy, cancelledAt and
+  // cancellationReason), the Campaigns page's Cancelled tab lists it.
+  CANCELLED: 'Cancelled',
 };
 
 export function designStatus(campaign, now = new Date()) {
@@ -43,6 +47,8 @@ export function designStatus(campaign, now = new Date()) {
       return campaign.changesRequested ? DESIGN_STATUS.NOTIFIED : DESIGN_STATUS.REJECTED;
     case STATUS.FAILED:
       return DESIGN_STATUS.FAILED;
+    case STATUS.CANCELLED:
+      return DESIGN_STATUS.CANCELLED;
     default:
       return DESIGN_STATUS.DRAFTED;
   }
@@ -91,5 +97,8 @@ export function toDesignCampaign(campaign, now = new Date()) {
     RecipientGroupType: audience,
     UserList: audience,
     TargetUsers: audience,
+    CancelledBy: campaign.cancelledBy || '',
+    CancelledDate: campaign.cancelledAt || null,
+    ReasonForCancel: campaign.cancellationReason || '',
   };
 }

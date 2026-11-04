@@ -32,6 +32,9 @@ export const STATUS = {
   SENDING: 'SENDING',
   SENT: 'SENT',
   FAILED: 'FAILED',
+  // Not written by the backend yet: once campaigns-api can cancel a scheduled
+  // campaign, it shows on the Campaigns page's Cancelled tab.
+  CANCELLED: 'CANCELLED',
 };
 
 // Display metadata. `tone` drives the chip colours below; `blurb` is the plain
@@ -71,6 +74,11 @@ export const STATUS_META = {
     label: 'Failed',
     tone: 'red',
     blurb: 'Sending could not complete. Check the campaign for details.',
+  },
+  CANCELLED: {
+    label: 'Cancelled',
+    tone: 'red',
+    blurb: 'Scheduled, then cancelled before it ran.',
   },
 };
 
@@ -251,12 +259,17 @@ function pick(raw, ...keys) {
  * one shape. Unknown extra fields are preserved so detail views can still read
  * them.
  */
+const STATUS_ALIASES = { SEND_FAILED: STATUS.FAILED };
+
 export function normalizeCampaign(raw) {
   if (!raw) return null;
 
-  const status = String(pick(raw, 'status', 'campaignStatus') || STATUS.DRAFT)
+  const written = String(pick(raw, 'status', 'campaignStatus') || STATUS.DRAFT)
     .toUpperCase()
     .replace(/\s+/g, '_');
+  // email-sender marks a failed send SEND_FAILED; read it as FAILED, not as an
+  // unknown status (which would make it look like an editable draft).
+  const status = STATUS_ALIASES[written] || written;
 
   const normalized = {
     ...raw,

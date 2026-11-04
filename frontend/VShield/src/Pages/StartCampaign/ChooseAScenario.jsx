@@ -17,12 +17,12 @@ import { editedScenarioIds, readScenarioDraftItems } from '../../services/scenar
 import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
   BACK_TO_STEP_1,
+  DRAFT_KIND,
   IN_WIZARD,
   START_FRESH_ID,
+  draftKind,
   draftLabel,
-  hasProgress,
-  isOwnDraft,
-  latestSavedFirst,
+  myCampaignDrafts,
   routeForStep,
   savedStep,
   shouldOfferResume,
@@ -70,6 +70,22 @@ export const CAMPAIGN_STEPS = [
   { id: 'training', step: 5, titleLine1: 'Add Training', titleLine2: 'Path', path: '/start-campaign/training' },
   { id: 'review', step: 6, titleLine1: 'Review &', titleLine2: 'Publish', path: '/start-campaign/review' }
 ];
+
+// How each kind of card under Drafts differs: a campaign an approver sent
+// back says so, with their message, and opens to be fixed and resubmitted; a
+// failed send can only be deleted.
+const DRAFT_CARD_EXTRAS = {
+  [DRAFT_KIND.DRAFT]: () => ({}),
+  [DRAFT_KIND.CHANGES]: (c) => ({
+    badge: { label: 'Changes requested', tone: 'amber' },
+    note: String(c.rejectionComments || '').trim() ? { label: 'Approver', text: String(c.rejectionComments).trim() } : null,
+    continueLabel: 'Edit & resubmit',
+  }),
+  [DRAFT_KIND.FAILED]: () => ({
+    badge: { label: 'Send failed', tone: 'rose' },
+    canContinue: false,
+  }),
+};
 
 // Campaign drafts show the Scenarios drafts' art, turned from orange to blue,
 // so the two kinds of draft match without being mistaken for each other.
@@ -155,7 +171,7 @@ const ChooseAScenario = () => {
   // ---------------------------------------------------------------------------
   // Create new | Drafts: start a campaign from a template or Start fresh, or
   // carry on with one of this person's unfinished campaigns (as listed under
-  // Campaigns → Drafts). Same switch as the Scenarios page. Drafts with nothing
+  // Start New Campaign → Drafts). Same switch as the Scenarios page. Drafts with nothing
   // of the user's in them (hasProgress) are not listed: a blank one left by
   // older versions, or one only opened from a template, which the next
   // template reuses.
@@ -180,14 +196,13 @@ const ChooseAScenario = () => {
     loading: draftsLoading,
     pendingAction: draftAction,
     remove: removeCampaign,
-  } = useCampaigns({ status: 'DRAFT' });
+  } = useCampaigns();
   const [draftsError, setDraftsError] = useState('');
   const actorEmail = currentActor();
   // The one saved most recently first (the one in progress is put first by the cards).
-  const myDrafts = latestSavedFirst(
-    draftCampaigns.filter((c) => c.status === 'DRAFT' && isOwnDraft(c, actorEmail) && hasProgress(c))
-  );
-  // Open a draft on the step it was saved on, as Campaigns → Drafts does.
+  // Drafts, campaigns an approver sent back for changes, and failed sends.
+  const myDrafts = myCampaignDrafts(draftCampaigns, actorEmail);
+  // Open a draft on the step it was saved on, as Start New Campaign → Drafts does.
   const continueCampaignDraft = (id) => {
     const camp = myDrafts.find((c) => c.campaignId === id);
     openCampaignDraft(id);
@@ -333,6 +348,7 @@ const ChooseAScenario = () => {
       theme: template ? DIFFICULTY_THEMES[template.difficulty] || DIFFICULTY_THEMES.Low : NEUTRAL_DRAFT_THEME,
       image: draftArt,
       imageClassName: CAMPAIGN_DRAFT_ART_TINT,
+      ...DRAFT_CARD_EXTRAS[draftKind(c)](c),
     };
   });
 
@@ -367,7 +383,7 @@ const ChooseAScenario = () => {
   };
 
   // The saved campaign is left exactly as it is (still a DRAFT, listed under
-  // Campaigns -> Drafts); this user simply gets a brand-new one.
+  // Start New Campaign -> Drafts); this user simply gets a brand-new one.
   const handleStartNew = async () => {
     markResumeAnswered();
     navigate(location.pathname, { replace: true, ...IN_WIZARD });
@@ -938,7 +954,7 @@ const ChooseAScenario = () => {
         open={offerResume}
         isDark={isDark}
         title="Continue your campaign?"
-        body="You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Campaigns → Drafts either way."
+        body="You have a campaign in progress. Pick up where you left off, or start a new one. Your saved campaign stays under Start New Campaign → Drafts either way."
         detail={
           <>
             <span className="block">{draftLabel(draft)}</span>

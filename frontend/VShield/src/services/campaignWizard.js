@@ -124,6 +124,35 @@ export function isOwnDraft(draft, actor) {
   return !draft?.createdBy || lower(draft.createdBy) === lower(actor);
 }
 
+// What a card under Start New Campaign -> Drafts is: an unfinished draft, a
+// campaign an approver sent back for changes (fix and resubmit), or a send
+// that failed (it can only be deleted; the sender will not retry it).
+export const DRAFT_KIND = { DRAFT: 'draft', CHANGES: 'changes-requested', FAILED: 'failed' };
+
+export function draftKind(campaign) {
+  if (campaign?.status === 'FAILED') return DRAFT_KIND.FAILED;
+  if (campaign?.status === 'REJECTED' && campaign?.changesRequested === true) return DRAFT_KIND.CHANGES;
+  return DRAFT_KIND.DRAFT;
+}
+
+/**
+ * `actor`'s campaigns for Start New Campaign -> Drafts (normalized rows), the
+ * one saved most recently first: drafts with something of theirs in them
+ * (hasProgress), campaigns sent back for changes, and failed sends.
+ */
+export function myCampaignDrafts(campaigns = [], actor) {
+  return latestSavedFirst(
+    (Array.isArray(campaigns) ? campaigns : []).filter(
+      (c) =>
+        c &&
+        isOwnDraft(c, actor) &&
+        ((c.status === 'DRAFT' && hasProgress(c)) ||
+          c.status === 'FAILED' ||
+          (c.status === 'REJECTED' && c.changesRequested === true))
+    )
+  );
+}
+
 /** Stricter: only a draft recorded as created by `actor`. Used to adopt the old shared pointer. */
 export function isCreatedBy(draft, actor) {
   return Boolean(draft?.createdBy) && lower(draft.createdBy) === lower(actor);
@@ -290,5 +319,35 @@ export function templatePatch(scenario, draft = {}, previous = null) {
     ...scenarioContent(scenario),
     ...reset,
     CoverImageID: scenario.CoverImageID,
+  };
+}
+
+// What a copy of a campaign leaves behind: who it is, where it is in the
+// workflow and when it runs (a new start time is picked in the wizard).
+const NOT_COPIED = new Set([
+  'campaignId', 'status', 'createdAt', 'updatedAt', 'createdBy', 'changesRequested', 'wizardStep',
+  'startTime', 'endTime', 'startAt', 'endAt', 'timeZone',
+]);
+// "send" alone would also catch senderEmailId / senderName, which are content.
+const WORKFLOW_FIELD = /^(submitted|submission|approved|approval|rejected|rejection|withdrawn|withdrawal|sent|sending|sendStatus|failed|failure|cancel|recipientCount|sesMessageId)/i;
+
+/**
+ * A rejected campaign is closed; "Copy to new draft" starts a new one from it.
+ * The fields for that new DRAFT from the stored campaign: its content (title,
+ * email, landing page, training, recipients…) without its identity, workflow
+ * history or schedule, created by `actor`, opening on Details.
+ */
+export function copyForNewDraft(stored, actor) {
+  const out = {};
+  Object.entries(stored || {}).forEach(([k, v]) => {
+    if (!NOT_COPIED.has(k) && !WORKFLOW_FIELD.test(k)) out[k] = v;
+  });
+  const title = String(stored?.campaignTitle || '').trim();
+  return {
+    ...out,
+    campaignTitle: title ? `${title} (copy)` : '',
+    campaignTitleSetByUser: Boolean(title),
+    createdBy: actor,
+    wizardStep: 2,
   };
 }

@@ -7,12 +7,16 @@ import {
   Edit3,
   Check,
   X,
-  ChevronDown
+  ChevronDown,
+  RefreshCw,
+  Send,
+  AlertCircle
 } from 'lucide-react';
 
 // Default initial dataset
 import defaultEmailData from './EmailIDsAndDomains.json';
 import { api } from '../../services/api';
+import { canSendVerification, isVerifiableEmail, verificationMessage, verificationOf } from '../../services/senderVerification';
 
 //Import Assets
 import EmailIDsDarkIcon from '../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsDarkModeIcon.png';
@@ -42,12 +46,18 @@ const VODAFONE_FONT_STYLE = `
 `;
 
 const PRESET_DOMAINS = [
-  '@domain',
   '@vodafone.com',
   '@internal.secure',
-  '@notify.hub',
-  '@vodafonepasswordnotification'
+  '@notify.hub'
 ];
+
+// Badge colours for each SES verification state
+const TONE_CLASS = {
+  good: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+  warn: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  bad: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+  muted: 'bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300',
+};
 
 const EmailIDsAndDomains = () => {
   const { isDark } = useUserType?.() || { isDark: false };
@@ -65,14 +75,20 @@ const EmailIDsAndDomains = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingItem, setEditingItem] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastTone, setToastTone] = useState('good');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sendingId, setSendingId] = useState(null);
 
-  // Load sender identities from the backend on mount.
+  // Load sender identities (with their live SES verification state).
+  const loadEmails = () =>
+    api.senderIdentities.list().then((items) => (Array.isArray(items) ? items : []));
+
   useEffect(() => {
     let active = true;
-    api.senderIdentities
-      .list()
+    loadEmails()
       .then((items) => {
-        if (active) setEmailsList(Array.isArray(items) ? items : []);
+        if (active) setEmailsList(items);
       })
       .catch((err) => {
         console.error('Failed to load sender identities', err);
@@ -83,9 +99,36 @@ const EmailIDsAndDomains = () => {
     };
   }, []);
 
-  const showToast = (msg) => {
+  const showToast = (msg, tone = 'good', ms = 2500) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 2500);
+    setToastTone(tone);
+    setTimeout(() => setToastMessage(''), ms);
+  };
+
+  // Re-read every address's state from SES (after someone clicks a link).
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadEmails()
+      .then((items) => {
+        setEmailsList(items);
+        showToast('Verification status updated from SES');
+      })
+      .catch(() => showToast('Could not reach the server. Please try again.', 'bad'))
+      .finally(() => setIsRefreshing(false));
+  };
+
+  // Ask SES to email the verification link again.
+  const handleSendVerification = (item) => {
+    setSendingId(item.id);
+    api.senderIdentities
+      .sendVerification(item.id)
+      .then((saved) => {
+        setEmailsList((prev) => prev.map((x) => (x.id === item.id ? { ...x, ...saved } : x)));
+        const m = verificationMessage(saved);
+        showToast(m.text, m.tone, 6000);
+      })
+      .catch((err) => showToast(err?.message || 'Could not send the verification email.', 'bad', 6000))
+      .finally(() => setSendingId(null));
   };
 
   // Formatted Current Date (e.g., July 17th, 2026)
@@ -140,11 +183,17 @@ const EmailIDsAndDomains = () => {
     }
 
     const cleanDomain = domainPart.trim();
-    const finalDomain = cleanDomain
-      ? (cleanDomain.startsWith('@') ? cleanDomain : `@${cleanDomain}`)
-      : '@domain';
+    if (!cleanDomain) {
+      showToast('Please enter the domain part of the Email ID', 'bad');
+      return;
+    }
+    const finalDomain = cleanDomain.startsWith('@') ? cleanDomain : `@${cleanDomain}`;
 
     const fullEmail = `${cleanLocal}${finalDomain}`;
+    if (!isVerifiableEmail(fullEmail)) {
+      showToast(`${fullEmail} is not a full email address SES can verify, like name@vodafone.com`, 'bad', 5000);
+      return;
+    }
 
     // Duplicate Check
     if (emailsList.some((item) => item.email.toLowerCase() === fullEmail.toLowerCase())) {
@@ -154,12 +203,13 @@ const EmailIDsAndDomains = () => {
 
     const newItem = {
       email: fullEmail,
-      description: description.trim() || "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text eve",
+      description: description.trim() || 'No description',
       createdDate: getFormattedDate(),
       status: 'Active',
       usageCount: 0
     };
 
+    setIsSaving(true);
     api.senderIdentities
       .create(newItem)
       .then((saved) => {
@@ -167,12 +217,14 @@ const EmailIDsAndDomains = () => {
         setLocalPart('');
         setDomainPart('');
         setDescription('');
-        showToast(`Saved ${fullEmail} successfully!`);
+        const m = verificationMessage(saved);
+        showToast(`Saved. ${m.text}`, m.tone, 7000);
       })
       .catch((err) => {
         console.error(err);
-        showToast('Could not save Email ID. Please try again.');
-      });
+        showToast(err?.message || 'Could not save Email ID. Please try again.', 'bad', 5000);
+      })
+      .finally(() => setIsSaving(false));
   };
 
   // Handle Delete
@@ -199,11 +251,16 @@ const EmailIDsAndDomains = () => {
       .then((updated) => {
         setEmailsList((prev) => prev.map((item) => (item.id === id ? updated : item)));
         setEditingItem(null);
-        showToast('Updated Email record');
+        if (updated?.verificationEmailSent || updated?.verificationError) {
+          const m = verificationMessage(updated);
+          showToast(`Updated. ${m.text}`, m.tone, 7000);
+        } else {
+          showToast('Updated Email record');
+        }
       })
       .catch((err) => {
         console.error(err);
-        showToast('Could not update Email record. Please try again.');
+        showToast(err?.message || 'Could not update Email record. Please try again.', 'bad', 5000);
       });
   };
 
@@ -261,7 +318,7 @@ const EmailIDsAndDomains = () => {
     <span className={`text-[9.5px] font-bold leading-normal ${
       isDark ? 'text-slate-400' : 'text-slate-500'
     }`}>
-      Upload Whitelisted Email ID/IDs here, use these email IDs to ‘Start a new campaign’ or to ‘Create a new scenario’ (Template)
+      Add an Email ID here and SES emails it a verification link. Once the link is clicked the ID is verified, and campaigns can send from it.
     </span>
   </div>
 </div>
@@ -446,10 +503,12 @@ const EmailIDsAndDomains = () => {
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      className="w-full h-[120px] -ml-2 mt-2 rounded-2xl bg-[#15171C] dark:bg-[#f1f4f9] hover:bg-[#595959] text-white dark:text-black flex flex-col items-start justify-top text-center shadow-xs cursor-pointer transition-transform active:scale-98"
+                      disabled={isSaving}
+                      data-sender-submit
+                      className="w-full h-[120px] disabled:opacity-60 disabled:cursor-wait -ml-2 mt-2 rounded-2xl bg-[#15171C] dark:bg-[#f1f4f9] hover:bg-[#595959] text-white dark:text-black flex flex-col items-start justify-top text-center shadow-xs cursor-pointer transition-transform active:scale-98"
                     >
                       <span className="text-[14px] mt-2 ml-2 font-voda font-bold leading-tight drop-shadow-xs">
-                        Save &<br />Submit
+                        {isSaving ? <>Sending<br />to SES…</> : <>Save &<br />Submit</>}
                       </span>
                     </button>
                   </div>
@@ -529,6 +588,26 @@ const EmailIDsAndDomains = () => {
                 <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
               </div>
 
+              {/* Verification summary + refresh from SES */}
+              <div className="flex items-center justify-between gap-2 -mt-1">
+                <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Verified in SES: {emailsList.filter((x) => x.verificationStatus === 'Verified').length} of {emailsList.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  data-sender-refresh
+                  title="Check every Email ID's verification status in SES again"
+                  className={`px-2.5 py-1 rounded-lg text-[9.5px] font-bold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-60 ${
+                    isDark ? 'bg-[#202127] text-slate-200 hover:bg-[#2E313D]' : 'bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh status
+                </button>
+              </div>
+
               {/* 🌟 SCROLLABLE RECORDS LIST CONTAINER */}
               <div className="max-h-[300px] overflow-y-auto flex flex-col gap-2.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredEmails.length === 0 ? (
@@ -586,9 +665,35 @@ const EmailIDsAndDomains = () => {
                         <strong className="font-bold text-slate-900 dark:text-white">Description:</strong> {item.description}
                       </p>
 
-                      {/* Bottom Right: Created Date */}
-                      <div className="w-full flex justify-end mt-0.5">
-                        <span className={`text-[9px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {/* Bottom: SES verification state + Created Date */}
+                      <div className="w-full flex items-center justify-between gap-2 mt-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            data-sender-status={item.verificationStatus || 'Not verified'}
+                            title={verificationOf(item).hint}
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${TONE_CLASS[verificationOf(item).tone]}`}
+                          >
+                            {verificationOf(item).label}
+                          </span>
+                          {canSendVerification(item) && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendVerification(item)}
+                              disabled={sendingId === item.id}
+                              data-sender-verify={item.id}
+                              className="text-[9px] font-bold text-[#E60000] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-60 whitespace-nowrap"
+                            >
+                              <Send className="w-2.5 h-2.5" />
+                              {sendingId === item.id ? 'Sending…' : item.verificationStatus === 'Pending' ? 'Resend' : 'Send verification'}
+                            </button>
+                          )}
+                          {!isVerifiableEmail(item.email) && (
+                            <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate" title="SES can only verify a full address with a real domain">
+                              Placeholder address
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[9px] font-medium whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           Created On: {item.createdDate}
                         </span>
                       </div>
@@ -682,9 +787,13 @@ const EmailIDsAndDomains = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#22C55E] text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2"
+              role="status"
+              data-sender-toast={toastTone}
+              className={`fixed bottom-6 right-6 z-50 max-w-md px-4 py-2 rounded-xl text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2 ${
+                toastTone === 'bad' ? 'bg-[#E60000]' : 'bg-[#22C55E]'
+              }`}
             >
-              <Check className="w-4 h-4 stroke-[3]" />
+              {toastTone === 'bad' ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 stroke-[3] flex-shrink-0" />}
               {toastMessage}
             </motion.div>
           )}

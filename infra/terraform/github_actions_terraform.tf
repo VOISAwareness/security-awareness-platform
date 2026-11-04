@@ -18,6 +18,7 @@ locals {
   project_roles     = "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*"
   project_tables    = "arn:aws:dynamodb:${local.region}:${local.account_id}:table/${var.name_prefix}-*"
   project_functions = "arn:aws:lambda:${local.region}:${local.account_id}:function:${var.name_prefix}-*"
+  project_rules     = "arn:aws:events:${local.region}:${local.account_id}:rule/${var.name_prefix}-*"
   event_mappings    = "arn:aws:lambda:${local.region}:${local.account_id}:event-source-mapping:*"
   api_arn           = "arn:aws:apigateway:${local.region}::/apis/${aws_apigatewayv2_api.main.id}"
 }
@@ -170,6 +171,25 @@ resource "aws_iam_role_policy" "github_terraform" {
         Action    = "iam:PassRole"
         Resource  = local.project_roles
         Condition = { StringEquals = { "iam:PassedToService" = "lambda.amazonaws.com" } }
+      },
+      {
+        # Schedules (EventBridge rules), e.g. every minute -> campaign-scheduler.
+        Sid    = "Schedules"
+        Effect = "Allow"
+        Action = [
+          "events:DescribeRule",
+          "events:PutRule",
+          "events:DeleteRule",
+          "events:EnableRule",
+          "events:DisableRule",
+          "events:ListTargetsByRule",
+          "events:PutTargets",
+          "events:RemoveTargets",
+          "events:ListTagsForResource",
+          "events:TagResource",
+          "events:UntagResource",
+        ]
+        Resource = local.project_rules
       },
       {
         # Read itself so plans can refresh this file; never write itself.

@@ -547,3 +547,168 @@ def test_a_throttled_packages_table_is_503(mod, monkeypatch):
 def test_packages_need_the_upload_bucket(mod, monkeypatch):
     monkeypatch.setattr(mod, "UPLOAD_BUCKET", None)
     assert _packages(mod, "GET")[0] == 500
+
+
+# --- Email IDs & Domains: SES verification ---------------------------------
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (" Name.Last@vodafone.com ", "Name.Last@vodafone.com"),
+        ("a+b@mail.example.co.uk", "a+b@mail.example.co.uk"),
+        ("Spirit_VOIS@domain", None),  # the seeded placeholders: no real domain
+        ("no-at-sign.vodafone.com", None),
+        ("two@@vodafone.com", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_clean_email_only_passes_addresses_ses_can_verify(mod, value, expected):
+    assert mod.clean_email(value) == expected
+
+
+class _FakeSES:
+    def __init__(self, statuses=None, fail=None):
+        self.statuses = dict(statuses or {})
+        self.fail = fail
+        self.sent = []
+
+    def _maybe_fail(self):
+        if self.fail:
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": self.fail, "Message": "no"}}, "SES")
+
+    def get_identity_verification_attributes(self, Identities):
+        self._maybe_fail()
+        assert len(Identities) <= 100
+        return {"VerificationAttributes": {i: {"VerificationStatus": self.statuses[i]} for i in Identities if i in self.statuses}}
+
+    def verify_email_identity(self, EmailAddress):
+        self._maybe_fail()
+        self.sent.append(EmailAddress)
+        self.statuses[EmailAddress] = "Pending"
+
+
+def test_statuses_in_the_page_words_and_in_batches_of_100(mod, monkeypatch):
+    ses = _FakeSES({"a@x.com": "Success", "b@x.com": "Pending", "c@x.com": "TemporaryFailure"})
+    monkeypatch.setattr(mod, "ses_client", ses)
+    many = ["a@x.com", "b@x.com", "c@x.com", "d@x.com"] + [f"u{i}@x.com" for i in range(150)]
+    got = mod.verification_statuses(many)
+    assert [got[e] for e in ("a@x.com", "b@x.com", "c@x.com", "d@x.com")] == ["Verified", "Pending", "Failed", "Not verified"]
+    assert len(got) == 154
+
+
+def test_statuses_say_unknown_when_ses_cannot_be_asked(mod, monkeypatch):
+    monkeypatch.setattr(mod, "ses_client", _FakeSES(fail="AccessDenied"))
+    assert mod.verification_statuses(["a@x.com"]) == {"a@x.com": "Unknown"}
+
+
+def _senders(mod, method, path="/sender-identities", body=None, sid=None):
+    import json
+    from types import SimpleNamespace
+
+    event = {
+        "routeKey": f"{method} {path}",
+        "pathParameters": {"id": sid} if sid else None,
+        "body": json.dumps(body) if body is not None else None,
+    }
+    resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
+    return resp["statusCode"], json.loads(resp["body"])
+
+
+@pytest.fixture
+def sender_db(mod, monkeypatch):
+    import boto3
+    from moto import mock_aws
+
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.setenv(name, "testing")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    with mock_aws():
+        db = boto3.resource("dynamodb", region_name="ap-south-1")
+        db.create_table(
+            TableName=f"{mod.TABLE_PREFIX}-sender-identities",
+            KeySchema=[{"AttributeName": "id", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "id", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        monkeypatch.setattr(mod, "dynamodb", db)
+        yield db
+
+
+def test_saving_an_address_asks_ses_to_verify_it(mod, monkeypatch, sender_db):
+    ses = _FakeSES()
+    monkeypatch.setattr(mod, "ses_client", ses)
+    status, body = _senders(mod, "POST", body={"email": " it.alerts@vodafone.com ", "description": "IT"})
+    assert status == 201
+    row = body["data"]
+    assert row["email"] == "it.alerts@vodafone.com" and row["id"].startswith("em-")
+    assert row["verificationStatus"] == "Pending" and row["verificationEmailSent"] is True
+    assert ses.sent == ["it.alerts@vodafone.com"]
+    # the list reads the state live: still pending, then verified once clicked
+    assert _senders(mod, "GET")[1]["data"][0]["verificationStatus"] == "Pending"
+    ses.statuses["it.alerts@vodafone.com"] = "Success"
+    assert _senders(mod, "GET")[1]["data"][0]["verificationStatus"] == "Verified"
+    # the status is never stored
+    stored = sender_db.Table(f"{mod.TABLE_PREFIX}-sender-identities").scan()["Items"][0]
+    assert "verificationStatus" not in stored and "verificationEmailSent" not in stored
+
+
+def test_an_address_ses_already_verified_gets_no_email(mod, monkeypatch, sender_db):
+    ses = _FakeSES({"ok@vodafone.com": "Success"})
+    monkeypatch.setattr(mod, "ses_client", ses)
+    status, body = _senders(mod, "POST", body={"email": "ok@vodafone.com"})
+    assert status == 201 and body["data"]["verificationStatus"] == "Verified"
+    assert ses.sent == []
+
+
+def test_bad_or_duplicate_addresses_are_refused(mod, monkeypatch, sender_db):
+    ses = _FakeSES()
+    monkeypatch.setattr(mod, "ses_client", ses)
+    assert _senders(mod, "POST", body={"email": "Spirit_VOIS@domain"})[0] == 400
+    assert _senders(mod, "POST", body=["not", "an", "object"])[0] == 400
+    assert _senders(mod, "POST", body={"email": "a@vodafone.com"})[0] == 201
+    status, body = _senders(mod, "POST", body={"email": "A@Vodafone.com"})
+    assert status == 409 and "already" in body["error"]["message"]
+    assert ses.sent == ["a@vodafone.com"]
+
+
+def test_the_row_is_saved_even_when_ses_will_not_send(mod, monkeypatch, sender_db):
+    monkeypatch.setattr(mod, "ses_client", _FakeSES(fail="AccessDenied"))
+    status, body = _senders(mod, "POST", body={"email": "a@vodafone.com"})
+    assert status == 201
+    assert body["data"]["verificationEmailSent"] is False
+    assert "AccessDenied" in body["data"]["verificationError"]
+    assert body["data"]["verificationStatus"] == "Unknown"
+
+
+def test_resend_and_edit(mod, monkeypatch, sender_db):
+    ses = _FakeSES()
+    monkeypatch.setattr(mod, "ses_client", ses)
+    sid = _senders(mod, "POST", body={"email": "a@vodafone.com", "description": "x"})[1]["data"]["id"]
+    # resend while pending
+    status, body = _senders(mod, "POST", "/sender-identities/{id}/verify", sid=sid)
+    assert status == 200 and body["data"]["verificationEmailSent"] is True
+    assert ses.sent == ["a@vodafone.com", "a@vodafone.com"]
+    # no resend once verified
+    ses.statuses["a@vodafone.com"] = "Success"
+    assert _senders(mod, "POST", "/sender-identities/{id}/verify", sid=sid)[1]["data"]["verificationEmailSent"] is False
+    # editing the description alone sends nothing
+    status, body = _senders(mod, "PUT", "/sender-identities/{id}", {"email": "a@vodafone.com", "description": "y"}, sid)
+    assert status == 200 and body["data"]["description"] == "y" and len(ses.sent) == 2
+    # changing the address verifies the new one
+    status, body = _senders(mod, "PUT", "/sender-identities/{id}", {"email": "b@vodafone.com"}, sid)
+    assert status == 200 and body["data"]["verificationStatus"] == "Pending"
+    assert ses.sent[-1] == "b@vodafone.com"
+    assert _senders(mod, "POST", "/sender-identities/{id}/verify", sid="em-none")[0] == 404
+
+
+def test_a_seeded_placeholder_can_still_have_its_description_edited(mod, monkeypatch, sender_db):
+    monkeypatch.setattr(mod, "ses_client", _FakeSES())
+    sender_db.Table(f"{mod.TABLE_PREFIX}-sender-identities").put_item(Item={"id": "em-002", "email": "Spirit_VOIS@domain", "description": "old"})
+    status, body = _senders(mod, "PUT", "/sender-identities/{id}", {"email": "Spirit_VOIS@domain", "description": "new"}, "em-002")
+    assert status == 200 and body["data"]["description"] == "new"
+    assert body["data"]["verificationStatus"] == "Not verified"
+    assert _senders(mod, "DELETE", "/sender-identities/{id}", sid="em-002")[0] == 204

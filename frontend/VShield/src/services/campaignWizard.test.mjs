@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
+import { DRAFT_KIND, draftKind, myCampaignDrafts, copyForNewDraft,
   START_FRESH_ID,
   WIZARD_STEPS,
   routeForStep,
@@ -352,4 +352,39 @@ test('latestSavedFirst: the draft saved most recently first, by update then crea
   // The Campaigns screen's shape (LastModified / CreationDate) too.
   assert.equal(lastSaved({ LastModified: '2026-10-02T00:00:00Z', CreationDate: '2026-10-01T00:00:00Z' }), '2026-10-02T00:00:00Z');
   assert.equal(lastSaved(null), '');
+});
+
+test('a copy of a rejected campaign keeps its content, not its identity, history or schedule', () => {
+  const stored = {
+    campaignId: 'CMP-1', status: 'REJECTED', createdAt: 'a', updatedAt: 'b', createdBy: 'old@x.com',
+    campaignTitle: 'Payroll update', campaignDescription: 'D', emailSubject: 'S', emailBody: '<p>x</p>',
+    senderEmailId: 'it@x.com', selectedListId: 'UL-1', landingPageId: 'LP-1', trainingId: 'TP-1',
+    startTime: '2026-11-05T14:30', endTime: '2026-11-06T14:30', startAt: 'z', endAt: 'z', timeZone: 'Asia/Kolkata',
+    submittedBy: 'c', submittedAt: 'c', submissionComments: 'c', approvedBy: 'm', rejectedBy: 'm', rejectedAt: 'm',
+    rejectionComments: 'No', changesRequested: false, withdrawnBy: 'c', sentCount: 3, wizardStep: 5,
+    senderName: 'IT Desk', sendingStartedAt: 's', sendStatus: 's', failedCount: 1, failureReason: 'f', recipientCount: 9, sesMessageId: 'm',
+  };
+  const copy = copyForNewDraft(stored, 'new@x.com');
+  assert.deepEqual(copy, {
+    campaignTitle: 'Payroll update (copy)', campaignTitleSetByUser: true, campaignDescription: 'D', emailSubject: 'S',
+    emailBody: '<p>x</p>', senderEmailId: 'it@x.com', senderName: 'IT Desk', selectedListId: 'UL-1', landingPageId: 'LP-1', trainingId: 'TP-1',
+    createdBy: 'new@x.com', wizardStep: 2,
+  });
+});
+
+
+test('Start New Campaign -> Drafts: own drafts, sent back for changes, failed sends', () => {
+  const me = 'sarah@vodafone.com';
+  const rows = [
+    { campaignId: 'D1', status: 'DRAFT', createdBy: me, campaignTitleSetByUser: true, campaignTitle: 'a', updatedAt: '2026-11-01' },
+    { campaignId: 'D2', status: 'DRAFT', createdBy: me, updatedAt: '2026-11-05' }, // nothing of hers in it
+    { campaignId: 'C1', status: 'REJECTED', changesRequested: true, createdBy: 'Sarah@Vodafone.com', updatedAt: '2026-11-04' },
+    { campaignId: 'R1', status: 'REJECTED', changesRequested: false, createdBy: me, updatedAt: '2026-11-06' }, // final
+    { campaignId: 'F1', status: 'FAILED', createdBy: me, updatedAt: '2026-11-03' },
+    { campaignId: 'P1', status: 'PENDING_APPROVAL', createdBy: me },
+    { campaignId: 'X1', status: 'REJECTED', changesRequested: true, createdBy: 'karim@vodafone.com' },
+  ];
+  const got = myCampaignDrafts(rows, me);
+  assert.deepEqual(got.map((c) => c.campaignId), ['C1', 'F1', 'D1']);
+  assert.deepEqual(got.map(draftKind), [DRAFT_KIND.CHANGES, DRAFT_KIND.FAILED, DRAFT_KIND.DRAFT]);
 });

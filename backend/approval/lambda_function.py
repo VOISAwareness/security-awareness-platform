@@ -1,20 +1,22 @@
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 import boto3
 from botocore.exceptions import ClientError
 
 CAMPAIGNS_TABLE = os.environ["CAMPAIGNS_TABLE"]
+# Campaigns saved before the wizard sent startAt (a UTC instant) have only the
+# local startTime with no zone; it is read at this offset from UTC (IST).
+DEFAULT_UTC_OFFSET_MINUTES = int(os.environ.get("DEFAULT_UTC_OFFSET_MINUTES", "330"))
 
 dynamodb = boto3.resource("dynamodb")
 campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
 
 
 # `required_statuses` is a tuple: SUBMIT accepts more than one starting state.
-# A REJECTED campaign must be able to go back for review once its owner has
-# fixed it — otherwise rejection is a dead end, the campaign is editable but
-# permanently unsubmittable, and the only way out is to rebuild it from scratch.
+# A REJECTED campaign goes back for review only when the approver asked for
+# changes (changesRequested); a plain reject is final (checked in the handler).
 TRANSITIONS = {
     "SUBMIT": {
         "required_statuses": ("DRAFT", "REJECTED"),
@@ -85,6 +87,37 @@ def check_test_recipients(campaign):
 # Fields a campaign must carry before it can leave DRAFT. The wizard's Review &
 # Publish step performs NO validation of its own — every missing value silently
 # falls back to a demo default — so this is the only place it is enforced.
+def utc_now():
+    return datetime.now(UTC)
+
+
+def start_instant(campaign):
+    """
+    When the campaign starts, as an aware UTC datetime, or None if it has no
+    readable start: startAt (UTC ISO, written by the wizard) first, else the
+    local startTime ("2026-11-05T14:30") at the default offset.
+    """
+    raw = str(campaign.get("startAt") or "").strip()
+    if raw:
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+        except ValueError:
+            pass
+    local = str(campaign.get("startTime") or "").strip()[:16]
+    try:
+        naive = datetime.strptime(local, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return None
+    zone = timezone(timedelta(minutes=DEFAULT_UTC_OFFSET_MINUTES))
+    return naive.replace(tzinfo=zone).astimezone(UTC)
+
+
+def has_started(campaign):
+    start = start_instant(campaign)
+    return start is not None and start <= utc_now()
+
+
 def validate_for_submit(campaign):
     """Return a list of human-readable problems blocking submission."""
     problems = []
@@ -219,15 +252,18 @@ def lambda_handler(event, context):
                 }
             )
 
-        # A plain reject may carry an optional reason; a reject with
-        # notification is the message to the creator, so it cannot be empty.
-        if action == "REJECT" and notify and not comments.strip():
+        # Every reject says why: a plain reject is final and its reason is all
+        # the creator gets; a reject with notification is the message asking
+        # for changes.
+        if action == "REJECT" and not comments.strip():
             return build_response(
                 400,
                 {
                     "message": (
                         "comments are required when rejecting with a "
                         "notification to the creator"
+                        if notify
+                        else "A reason is required to reject a campaign"
                     )
                 }
             )
@@ -265,6 +301,45 @@ def lambda_handler(event, context):
                     "action": action,
                     "currentStatus": current_status,
                     "requiredStatus": list(required_statuses)
+                }
+            )
+
+        # A plain reject is final: only a campaign sent back with a request
+        # for changes goes back for review. The rest are copied to a new draft.
+        if (
+            action == "SUBMIT"
+            and current_status == "REJECTED"
+            and campaign.get("changesRequested") is not True
+        ):
+            return build_response(
+                409,
+                {
+                    "message": (
+                        "This campaign was rejected and is closed. "
+                        "Copy it to a new draft to try again."
+                    ),
+                    "campaignId": campaign_id,
+                    "code": "REJECTED_FINAL"
+                }
+            )
+
+        # Nothing is approved, or submitted, to start in the past: an expired
+        # request is rescheduled by its creator ("Extend and invoke") and
+        # submitted again, so nothing ever sends at an unexpected time.
+        if action in ("SUBMIT", "APPROVE") and has_started(campaign):
+            return build_response(
+                409,
+                {
+                    "message": (
+                        "The campaign's start time has passed. "
+                        + (
+                            "The creator can reschedule it and submit it again."
+                            if action == "APPROVE"
+                            else "Pick a later start time."
+                        )
+                    ),
+                    "campaignId": campaign_id,
+                    "code": "START_PASSED"
                 }
             )
 

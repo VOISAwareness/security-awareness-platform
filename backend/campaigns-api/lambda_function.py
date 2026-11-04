@@ -155,6 +155,12 @@ def lambda_handler(event, context):
             if not existing:
                 return err(404, "Campaign not found")
             current_status = existing.get("status", "DRAFT")
+            # A plain reject is final; only one sent back for changes is edited.
+            if current_status == "REJECTED" and existing.get("changesRequested") is not True:
+                return err(
+                    409,
+                    "This campaign was rejected and is closed. Copy it to a new draft to try again.",
+                )
             if current_status not in EDITABLE_STATUSES:
                 return err(
                     409,

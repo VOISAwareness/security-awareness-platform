@@ -109,7 +109,7 @@ export function openCampaignDraft(id) {
 /**
  * One-time move from the old browser-wide pointer to the per-user one. The old
  * pointer is adopted only by the person recorded as the draft's creator; anyone
- * else just drops it (the draft itself stays in Campaigns -> Drafts). If the
+ * else just drops it (the draft itself stays in Start New Campaign -> Drafts). If the
  * draft cannot be read right now, the old pointer is left for the next try.
  */
 async function adoptLegacyPointer() {
@@ -277,7 +277,7 @@ export function useCampaignDraft({ step, lazy = false } = {}) {
 
   /**
    * Leave the current campaign as it is (it stays a DRAFT, listed under
-   * Campaigns -> Drafts) and start this user on a brand-new one. Nothing is
+   * Start New Campaign -> Drafts) and start this user on a brand-new one. Nothing is
    * deleted. Resolves to the new draft, or null if it could not be created.
    */
   const startNew = useCallback(() => {

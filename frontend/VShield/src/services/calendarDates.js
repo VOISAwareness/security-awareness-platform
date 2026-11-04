@@ -116,3 +116,34 @@ export function isAfter(end, start) {
   if (!e || !s) return true;
   return toDateTimeValue(e) > toDateTimeValue(s);
 }
+
+/** The browser's IANA time zone ("Asia/Kolkata"), or null where it cannot say. */
+export function localTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A campaign patch with its schedule also as instants the server can act on.
+ * The picker's startTime / endTime are local wall-clock times with no zone
+ * ("2026-11-05T14:30"), which a server in UTC would read hours off. Wherever a
+ * patch sets one, this adds startAt / endAt (UTC ISO, null when cleared or not
+ * a real date) and the zone they were picked in. The local fields stay as they
+ * are, so screens and older campaigns read them unchanged.
+ */
+export function withScheduleInstants(patch, timeZone = localTimeZone()) {
+  if (!patch || typeof patch !== 'object') return patch;
+  const out = { ...patch };
+  let touched = false;
+  for (const [local, instant] of [['startTime', 'startAt'], ['endTime', 'endAt']]) {
+    if (!(local in patch)) continue;
+    touched = true;
+    const p = parseDateTimeValue(patch[local]);
+    out[instant] = p ? new Date(p.year, p.month, p.day, p.hours, p.minutes).toISOString() : null;
+  }
+  if (touched && timeZone) out.timeZone = timeZone;
+  return out;
+}

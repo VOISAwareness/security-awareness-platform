@@ -77,12 +77,22 @@ def test_identify_action_covers_every_route(mod):
         assert mod.identify_action(event) == action.upper()
 
 
-def test_plain_reject_needs_no_reason(mod, monkeypatch):
-    status, _, table = call(mod, monkeypatch, pending(), "reject", {"actor": "m@x.com"})
+def test_plain_reject_needs_a_reason(mod, monkeypatch):
+    status, body, table = call(mod, monkeypatch, pending(), "reject", {"actor": "m@x.com"})
+    assert status == 400
+    assert "reason" in body["message"]
+    assert table.updates == []
+
+
+def test_plain_reject_with_a_reason(mod, monkeypatch):
+    status, _, table = call(
+        mod, monkeypatch, pending(), "reject", {"actor": "m@x.com", "comments": "Not this quarter"}
+    )
     assert status == 200
     values = table.updates[0]["ExpressionAttributeValues"]
     assert values[":newStatus"] == "REJECTED"
     assert values[":notify"] is False
+    assert values[":comments"] == "Not this quarter"
 
 
 def test_reject_with_notification_requires_message(mod, monkeypatch):
@@ -111,7 +121,7 @@ def test_reject_with_notification_flags_changes_requested(mod, monkeypatch):
 def test_notify_must_be_a_real_boolean(mod, monkeypatch):
     """A stray truthy string must not silently turn a plain reject into a notify."""
     status, _, table = call(
-        mod, monkeypatch, pending(), "reject", {"actor": "m@x.com", "notify": "yes"}
+        mod, monkeypatch, pending(), "reject", {"actor": "m@x.com", "notify": "yes", "comments": "No"}
     )
     assert status == 200
     assert table.updates[0]["ExpressionAttributeValues"][":notify"] is False
@@ -204,3 +214,59 @@ def test_test_campaign_saved_before_test_emails_keeps_list_rules(mod):
     old = {**READY, "isTestCampaign": True}
     assert mod.validate_for_submit(old) == ["Recipient List is required"]
     assert mod.validate_for_submit({**old, "selectedListId": "UL-1"}) == []
+
+
+# --- a plain reject is final; only "changes requested" goes back for review --
+
+def test_a_rejected_campaign_is_closed(mod, monkeypatch):
+    item = {**READY, "selectedListId": "UL-1", "campaignId": "CMP-1", "status": "REJECTED"}
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 1, 1, tzinfo=mod.UTC))
+    status, body, table = call(mod, monkeypatch, item, "submit", {"actor": "c@x.com"})
+    assert status == 409
+    assert body["code"] == "REJECTED_FINAL"
+    assert table.updates == []
+
+
+def test_changes_requested_can_be_resubmitted(mod, monkeypatch):
+    item = {**READY, "selectedListId": "UL-1", "campaignId": "CMP-1", "status": "REJECTED", "changesRequested": True}
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 1, 1, tzinfo=mod.UTC))
+    status, body, _ = call(mod, monkeypatch, item, "submit", {"actor": "c@x.com"})
+    assert status == 200
+    assert body["currentStatus"] == "PENDING_APPROVAL"
+
+
+# --- nothing is approved or submitted to start in the past -------------------
+
+def test_start_instant_prefers_the_utc_instant(mod):
+    assert mod.start_instant({"startAt": "2026-11-05T09:00:00.000Z", "startTime": "2026-11-05T14:30"}) == mod.datetime(
+        2026, 11, 5, 9, 0, tzinfo=mod.UTC
+    )
+    # no instant: the local time is read at the default offset (IST, +5:30)
+    assert mod.start_instant({"startTime": "2026-11-05T14:30"}) == mod.datetime(2026, 11, 5, 9, 0, tzinfo=mod.UTC)
+    assert mod.start_instant({"startTime": "soon"}) is None
+    assert mod.start_instant({}) is None
+
+
+def test_an_expired_request_cannot_be_approved(mod, monkeypatch):
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 11, 5, 9, 1, tzinfo=mod.UTC))
+    status, body, table = call(
+        mod, monkeypatch, pending(startAt="2026-11-05T09:00:00Z"), "approve", {"actor": "m@x.com"}
+    )
+    assert status == 409
+    assert body["code"] == "START_PASSED"
+    assert table.updates == []
+
+
+def test_a_request_starting_later_is_approved(mod, monkeypatch):
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 11, 5, 8, 59, tzinfo=mod.UTC))
+    status, body, _ = call(mod, monkeypatch, pending(startAt="2026-11-05T09:00:00Z"), "approve", {"actor": "m@x.com"})
+    assert status == 200
+    assert body["currentStatus"] == "APPROVED"
+
+
+def test_cannot_submit_to_start_in_the_past(mod, monkeypatch):
+    item = {**READY, "selectedListId": "UL-1", "campaignId": "CMP-1", "status": "DRAFT"}
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 11, 4, tzinfo=mod.UTC))
+    status, body, _ = call(mod, monkeypatch, item, "submit", {"actor": "c@x.com"})
+    assert status == 409
+    assert body["code"] == "START_PASSED"
