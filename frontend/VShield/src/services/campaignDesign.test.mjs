@@ -91,3 +91,14 @@ test('actorFor prefers the lower-cased profile email, then the role', () => {
   assert.equal(actorFor({ role: 'Admin' }), 'Admin');
   assert.equal(actorFor(null), 'wizard-user');
 });
+
+test('a cancelled campaign reads as Cancelled, with who, when and why', () => {
+  // through normalizeCampaign, as the page reads it: CANCELLED is not turned into a draft
+  const c = toDesignCampaign(normalizeCampaign({ campaignId: 'CMP-1', status: 'CANCELLED', cancelledBy: 'jack.roberts@example.com', cancelledAt: '2026-11-01T10:00:00Z', cancellationReason: 'Overlaps the audit week' }));
+  assert.equal(c.CampaignStatus, DESIGN_STATUS.CANCELLED);
+  assert.equal(c.CancelledBy, 'jack.roberts@example.com');
+  assert.equal(c.CancelledDate, '2026-11-01T10:00:00Z');
+  assert.equal(c.ReasonForCancel, 'Overlaps the audit week');
+  // any other campaign has no cancellation
+  assert.equal(toDesignCampaign({ campaignId: 'CMP-2', status: 'SENT' }).ReasonForCancel, '');
+});
