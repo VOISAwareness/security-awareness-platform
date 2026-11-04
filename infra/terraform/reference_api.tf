@@ -125,6 +125,25 @@ resource "aws_iam_role_policy" "reference_api_s3" {
   })
 }
 
+# Email IDs & Domains: saving an address asks SES to email it a verification
+# link, and the list reads each address's verification state from SES. Nothing
+# here can send mail or delete an identity.
+resource "aws_iam_role_policy" "reference_api_ses" {
+  name = "reference-api-ses-verify"
+  role = aws_iam_role.reference_api.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ses:VerifyEmailIdentity", "ses:GetIdentityVerificationAttributes"]
+      Resource = "*"
+      Condition = {
+        StringEquals = { "aws:RequestedRegion" = data.aws_region.current.region }
+      }
+    }]
+  })
+}
+
 resource "aws_lambda_permission" "reference_api" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
@@ -147,6 +166,8 @@ locals {
     "POST /sender-identities",
     "PUT /sender-identities/{id}",
     "DELETE /sender-identities/{id}",
+    # Ask SES to send the address its verification email again.
+    "POST /sender-identities/{id}/verify",
     "GET /users",
     "GET /users/{id}",
     "GET /scenarios",

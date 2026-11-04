@@ -10,7 +10,7 @@ from urllib.parse import quote, urlparse
 
 import boto3
 from boto3.dynamodb.conditions import Key
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -623,13 +623,29 @@ def mark_recipient_failed(
 # Main Lambda handler
 # ---------------------------------------------------------------------------
 
+def ses_verified(address):
+    """True when SES has `address` as a verified identity. Any failure to
+    ask (e.g. the role lacks ses:GetIdentityVerificationAttributes) is False,
+    so the send falls back to SES_SENDER_EMAIL rather than failing."""
+    try:
+        attrs = ses_client.get_identity_verification_attributes(Identities=[address])
+    except (BotoCoreError, ClientError):
+        return False
+    status = attrs.get("VerificationAttributes", {}).get(address, {}).get("VerificationStatus")
+    return status == "Success"
+
+
 def sender_for(campaign):
     """
     The From address for a campaign: its chosen sender (with its display name)
-    when that address is in SES_ALLOWED_SENDERS, else SES_SENDER_EMAIL.
+    when that address is in SES_ALLOWED_SENDERS or is verified in SES (Email
+    IDs & Domains asks SES to verify each address added there), else
+    SES_SENDER_EMAIL.
     """
     chosen = str(campaign.get("senderEmailId") or "").strip()
-    if not chosen or chosen.lower() not in SES_ALLOWED_SENDERS:
+    if not chosen:
+        return SES_SENDER_EMAIL
+    if chosen.lower() not in SES_ALLOWED_SENDERS and not ses_verified(chosen):
         return SES_SENDER_EMAIL
     name = str(campaign.get("senderName") or "").strip()
     return formataddr((name, chosen)) if name else chosen
