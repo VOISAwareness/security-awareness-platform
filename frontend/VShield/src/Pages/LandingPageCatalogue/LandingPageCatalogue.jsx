@@ -456,7 +456,7 @@ const LandingPageCatalogue = () => {
           {/* Isolated Solid Black Title Box */}
           <div className="w-full md:w-[155px] p-3 rounded-xl bg-black text-white flex flex-col justify-between flex-shrink-0 shadow-xs">
             <div>
-              <h3 className="text-[12.5px] font-voda-exb leading-tight tracking-tight uppercase">
+              <h3 className="text-[14px] font-voda font-bold leading-tight tracking-normal">
                 Required<br />Details
               </h3>
             </div>
@@ -469,7 +469,7 @@ const LandingPageCatalogue = () => {
           <div className="w-full md:w-[380px] flex flex-col justify-center gap-2.5 flex-shrink-0">
             {/* Landing Page ID */}
             <div className="flex items-center gap-2">
-              <label className="text-[11.5px] font-voda-exb text-slate-800 dark:text-slate-100 w-24 flex-shrink-0 leading-tight">
+              <label className="text-[11.5px] font-voda font-bold text-slate-800 dark:text-slate-100 w-24 flex-shrink-0 leading-tight">
                 Landing<br />Page ID
               </label>
               <div
@@ -483,7 +483,7 @@ const LandingPageCatalogue = () => {
 
             {/* Landing Page Name */}
             <div className="flex items-center gap-2">
-              <label className="text-[11.5px] font-voda-exb text-slate-800 dark:text-slate-100 w-24 flex-shrink-0 leading-tight">
+              <label className="text-[11.5px] font-voda font-bold text-slate-800 dark:text-slate-100 w-24 flex-shrink-0 leading-tight">
                 Landing<br />Page Name
               </label>
               <div
@@ -504,7 +504,7 @@ const LandingPageCatalogue = () => {
 
           {/* Right Input: Description */}
           <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
-            <label className="text-[11.5px] font-voda-exb text-slate-800 dark:text-slate-100">
+            <label className="text-[11.5px] font-voda font-bold text-slate-800 dark:text-slate-100">
               Description
             </label>
             <div
@@ -848,7 +848,7 @@ const LandingPageCatalogue = () => {
           <button
             type="button"
             onClick={handleToggleExpand}
-            className="px-6 py-1.5 rounded-md bg-slate-700 hover:bg-slate-800 text-white font-voda-exb text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+            className="px-6 py-1.5 rounded-md bg-slate-700 hover:bg-slate-800 text-white font-voda font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="w-3.5 h-3.5 stroke-[2.5]" />
             Back
@@ -858,7 +858,7 @@ const LandingPageCatalogue = () => {
         <button
           type="button"
           onClick={handleInitiateSave}
-          className="px-10 py-1.5 rounded-md bg-[#84cc16] hover:bg-[#65a30d] text-white font-voda-exb text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
+          className="px-10 py-1.5 rounded-md bg-[#84cc16] hover:bg-[#65a30d] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
         >
           SAVE
         </button>
@@ -893,7 +893,7 @@ const LandingPageCatalogue = () => {
                 <ArrowLeft className="w-4 h-4 stroke-[2.5] rounded-md text-white dark:text-black" />
               </button>
             )}
-            <h1 className="text-[13.5px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               LANDING PAGE CATALOGUE
             </h1>
           </div>
@@ -1009,7 +1009,7 @@ const LandingPageCatalogue = () => {
                     {/* Top Floating Overlays */}
                     <div className="relative z-10 p-2.5 flex items-center justify-between pointer-events-auto">
                       <span
-                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-voda-exb tracking-wide shadow-sm border ${
+                        className={`px-2.5 py-1 rounded-lg text-[10.5px] font-voda font-bold tracking-wide shadow-sm border ${
                           isDark ? 'bg-[#202127]/80 text-white border-white/15' : 'bg-[#ffffff]/85 text-slate-900 border-slate-300/80'
                         }`}
                       >
@@ -1055,7 +1055,7 @@ const LandingPageCatalogue = () => {
                     >
                       <div className="flex flex-col min-w-0 flex-1">
                         <span
-                          className={`text-[12px] font-voda-exb truncate leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}
+                          className={`text-[12px] font-voda font-bold truncate leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}
                           title={getItemName(item)}
                         >
                           {getItemName(item)}
@@ -1069,7 +1069,7 @@ const LandingPageCatalogue = () => {
                       <button
                         type="button"
                         onClick={() => setPreviewModalItem(item)}
-                        className="px-3 py-1 rounded-lg bg-black text-white dark:bg-white dark:text-black font-voda-exb text-[10px] uppercase tracking-wider shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0 flex items-center gap-1.5"
+                        className="px-3 py-1 rounded-lg bg-black text-white dark:bg-white dark:text-black font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer flex-shrink-0 flex items-center gap-1.5"
                       >
                         <Eye className="w-3 h-3" />
                         Preview
@@ -1160,7 +1160,7 @@ const LandingPageCatalogue = () => {
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono-tech font-bold bg-black text-white dark:bg-white dark:text-black">
                     {getItemId(previewModalItem)}
                   </span>
-                  <h3 className="text-xs font-voda-exb text-slate-900 dark:text-white uppercase truncate">
+                  <h3 className="text-xs font-voda font-bold text-slate-900 dark:text-white uppercase truncate">
                     {getItemName(previewModalItem)}
                   </h3>
                 </div>
@@ -1188,7 +1188,7 @@ const LandingPageCatalogue = () => {
                 <button
                   type="button"
                   onClick={() => setPreviewModalItem(null)}
-                  className="px-4 py-1.5 rounded-lg bg-black text-white dark:bg-white dark:text-black font-voda-exb text-xs uppercase cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg bg-black text-white dark:bg-white dark:text-black font-voda font-bold text-xs uppercase cursor-pointer"
                 >
                   Close Preview
                 </button>
