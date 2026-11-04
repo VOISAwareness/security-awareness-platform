@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
+import { copyForNewDraft,
   START_FRESH_ID,
   WIZARD_STEPS,
   routeForStep,
@@ -352,4 +352,22 @@ test('latestSavedFirst: the draft saved most recently first, by update then crea
   // The Campaigns screen's shape (LastModified / CreationDate) too.
   assert.equal(lastSaved({ LastModified: '2026-10-02T00:00:00Z', CreationDate: '2026-10-01T00:00:00Z' }), '2026-10-02T00:00:00Z');
   assert.equal(lastSaved(null), '');
+});
+
+test('a copy of a rejected campaign keeps its content, not its identity, history or schedule', () => {
+  const stored = {
+    campaignId: 'CMP-1', status: 'REJECTED', createdAt: 'a', updatedAt: 'b', createdBy: 'old@x.com',
+    campaignTitle: 'Payroll update', campaignDescription: 'D', emailSubject: 'S', emailBody: '<p>x</p>',
+    senderEmailId: 'it@x.com', selectedListId: 'UL-1', landingPageId: 'LP-1', trainingId: 'TP-1',
+    startTime: '2026-11-05T14:30', endTime: '2026-11-06T14:30', startAt: 'z', endAt: 'z', timeZone: 'Asia/Kolkata',
+    submittedBy: 'c', submittedAt: 'c', submissionComments: 'c', approvedBy: 'm', rejectedBy: 'm', rejectedAt: 'm',
+    rejectionComments: 'No', changesRequested: false, withdrawnBy: 'c', sentCount: 3, wizardStep: 5,
+    senderName: 'IT Desk', sendingStartedAt: 's', sendStatus: 's', failedCount: 1, failureReason: 'f', recipientCount: 9, sesMessageId: 'm',
+  };
+  const copy = copyForNewDraft(stored, 'new@x.com');
+  assert.deepEqual(copy, {
+    campaignTitle: 'Payroll update (copy)', campaignTitleSetByUser: true, campaignDescription: 'D', emailSubject: 'S',
+    emailBody: '<p>x</p>', senderEmailId: 'it@x.com', senderName: 'IT Desk', selectedListId: 'UL-1', landingPageId: 'LP-1', trainingId: 'TP-1',
+    createdBy: 'new@x.com', wizardStep: 2,
+  });
 });
