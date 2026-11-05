@@ -236,7 +236,6 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
               leading-tight
               opacity-75
               mt-1
-              ${isDark ? "text-slate-300" : "text-slate-600"}
             `}
           >
             Set the sender and
