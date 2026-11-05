@@ -9,7 +9,7 @@ import gamificationCardLogo from '../../../../assets/GamificationCardLogoStartNe
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
 // =========================================================================
-const VarStartCampaignScale = 0.93 ;
+const VarStartCampaignScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -205,13 +205,13 @@ const AnnouncementsDetailsAndSettings = () => {
       {/* Screen Shell */}
       <div
         style={{ zoom: VarStartCampaignScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(109.5vh-0px)] overflow-hidden"
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP HEADER BAR: "Start New Campaign"                                */}
         {/* ========================================================================= */}
         <div
-        className={`w-full h-[38px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+        className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
           isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
         }`}
       >
@@ -291,7 +291,7 @@ const AnnouncementsDetailsAndSettings = () => {
           </div>
 
           {/* ── 3. MAIN WORKSPACE WITH 2 L-SHAPED BENTO COLUMNS ── */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 flex flex-col justify-between gap-4">
+          <div className="flex-1 min-h-0 overflow-hidden p-4 sm:p-5 flex flex-col justify-between gap-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
               
               {/* ═══════════════════════════════════════════════════════════════ */}

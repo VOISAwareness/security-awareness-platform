@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { useUserType } from '../../../../UserTypeContext/UserTypeContext';
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import {
   Check,
   Calendar,
@@ -9,12 +9,12 @@ import {
   Send,
   X,
   Users,
-  CheckCircle2
-} from 'lucide-react';
-import announcamentScenariosJsonData from '../../../Announcement/AnnouncementData.json';
-import userDLsJson from '../../../UserDLs/UserDLsData.json';
-import initialLandingCatalogues from '../../../LandingPageCatalogue/LandingPageCatalogues.json';
-import gamificationCardLogo from '../../../../assets/GamificationCardLogoStartNewCamapignScreen.png';
+  CheckCircle2,
+} from "lucide-react";
+import announcamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
+import userDLsJson from "../../../UserDLs/UserDLsData.json";
+import initialLandingCatalogues from "../../../LandingPageCatalogue/LandingPageCatalogues.json";
+import gamificationCardLogo from "../../../../assets/GamificationCardLogoStartNewCamapignScreen.png";
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -66,9 +66,27 @@ const VODAFONE_FONT_STYLE = `
 `;
 
 const CAMPAIGN_STEPS = [
-  { id: 'details', step: 1, titleLine1: 'Details &', titleLine2: 'Settings', path: '/announcements/details' },
-  { id: 'email', step: 2, titleLine1: 'Announcement Email', titleLine2: 'Campaign', path: '/announcements/email' },
-  { id: 'review', step: 3, titleLine1: 'Review &', titleLine2: 'Publish', path: '/announcements/review' }
+  {
+    id: "details",
+    step: 1,
+    titleLine1: "Details &",
+    titleLine2: "Settings",
+    path: "/announcements/details",
+  },
+  {
+    id: "email",
+    step: 2,
+    titleLine1: "Announcement Email",
+    titleLine2: "Campaign",
+    path: "/announcements/email",
+  },
+  {
+    id: "review",
+    step: 3,
+    titleLine1: "Review &",
+    titleLine2: "Publish",
+    path: "/announcements/review",
+  },
 ];
 
 const CURRENT_STEP_NUMBER = 3; // Step 3: Review & Publish
@@ -76,42 +94,48 @@ const CURRENT_STEP_NUMBER = 3; // Step 3: Review & Publish
 const AnnouncementsReviewPublish = () => {
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
-  const userRole = userContext?.user?.role || '';
-  const canPublish =
-  userRole === 'Admin' ||
-  userRole === 'Campaign Manager';
-  
+  const userRole = userContext?.user?.role || "";
+  const canPublish = userRole === "Admin" || userRole === "Campaign Manager";
+
   const containerRef = useRef(null);
 
   // Theme check
   const [isDark, setIsDark] = useState(() => {
-    if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || !!userContext.isDark;
+    if (typeof document !== "undefined") {
+      return (
+        document.documentElement.classList.contains("dark") ||
+        !!userContext.isDark
+      );
     }
     return !!userContext.isDark;
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === 'boolean') {
+    if (typeof userContext.isDark === "boolean") {
       setIsDark(userContext.isDark);
     }
   }, [userContext.isDark]);
 
   useEffect(() => {
     const checkDark = () => {
-      const hasDarkClass = document.documentElement.classList.contains('dark');
+      const hasDarkClass = document.documentElement.classList.contains("dark");
       setIsDark(hasDarkClass || !!userContext.isDark);
     };
     checkDark();
     const observer = new MutationObserver(checkDark);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
   // Read saved draft from previous steps
   const [draft] = useState(() => {
     try {
-      const stored = localStorage.getItem('voisshield_active_announcement_draft');
+      const stored = localStorage.getItem(
+        "voisshield_active_announcement_draft",
+      );
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -119,34 +143,50 @@ const AnnouncementsReviewPublish = () => {
   });
 
   // Base background for L-shapes
-  const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
+  const lCardBg = isDark ? "#1C1E24" : "#F1F5F7";
 
   // Scenario fallback data
-  const matchedScenario = (announcamentScenariosJsonData?.announcement || []).find(
-    (s) => s.announcementScenarioId === draft.announcementScenarioId
-  ) || announcamentScenariosJsonData?.announcement?.[0] || {};
-
-  
+  const matchedScenario =
+    (announcamentScenariosJsonData?.announcement || []).find(
+      (s) => s.announcementScenarioId === draft.announcementScenarioId,
+    ) ||
+    announcamentScenariosJsonData?.announcement?.[0] ||
+    {};
 
   // Selected values
 
-  const scenarioId = draft.announcementScenarioId || matchedScenario?.announcementScenarioId || 'ANC-001';
-  const scenarioName = draft.announcementScenarioName || matchedScenario?.announcementScenarioName || 'Immediate Password Verification Required';
-  const campaignTitle = draft.announcementCampaignTitle || scenarioName || 'Major Campaign August 26';
-  const campaignDescription = draft.announcementCampaignDescription || matchedScenario?.announcementCampaignDescription || 'HR Pulse engagement check impersonating the internal VOIS Spirit Team inviting staff to participate in quarterly workplace sentiment evaluations.';
-  const acknowledgedPoints = draft?.announcementAcknowledged ?? matchedScenario?.announcementAcknowledged ?? 50;
+  const scenarioId =
+    draft.announcementScenarioId ||
+    matchedScenario?.announcementScenarioId ||
+    "ANC-001";
+  const scenarioName =
+    draft.announcementScenarioName ||
+    matchedScenario?.announcementScenarioName ||
+    "Immediate Password Verification Required";
+  const campaignTitle =
+    draft.announcementCampaignTitle ||
+    scenarioName ||
+    "Major Campaign August 26";
+  const campaignDescription =
+    draft.announcementCampaignDescription ||
+    matchedScenario?.announcementCampaignDescription ||
+    "HR Pulse engagement check impersonating the internal VOIS Spirit Team inviting staff to participate in quarterly workplace sentiment evaluations.";
+  const acknowledgedPoints =
+    draft?.announcementAcknowledged ??
+    matchedScenario?.announcementAcknowledged ??
+    50;
   // Date Settings
   const formatDateTime = (dtStr, fallback) => {
     if (!dtStr) return fallback;
     try {
       const d = new Date(dtStr);
       if (isNaN(d.getTime())) return dtStr;
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
       const yyyy = d.getFullYear();
       let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const minutes = String(d.getMinutes()).padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
       hours = hours % 12 || 12;
       return `${mm}/${dd}/${yyyy} ${hours}:${minutes} ${ampm}`;
     } catch {
@@ -154,57 +194,85 @@ const AnnouncementsReviewPublish = () => {
     }
   };
 
-  const startTimeDisplay = formatDateTime(draft.announcementStartTime, '09/08/2026 2:00 PM');
-  const endTimeDisplay = formatDateTime(draft.announcementEndTime, '09/15/2026 2:00 PM');
+  const startTimeDisplay = formatDateTime(
+    draft.announcementStartTime,
+    "09/08/2026 2:00 PM",
+  );
+  const endTimeDisplay = formatDateTime(
+    draft.announcementEndTime,
+    "09/15/2026 2:00 PM",
+  );
   const autoEndPostSending = draft.autoEndPostSending ?? true;
 
   // Sender & Email
-  const senderName = draft.announcementSenderName || matchedScenario?.announcementSenderName || 'Vodafone Password Notification';
-  const senderEmailId = draft.announcementSenderEmailId || matchedScenario?.announcementSenderEmailId || 'no-reply.vodafonepasswordnotification.com';
-  const emailSubject = draft.announcementEmailSubject || matchedScenario?.announcementEmailSubject || '@UserName, your Vodafone account password has expired';
-  const emailBody = draft.announcementEmailBody || matchedScenario?.announcementEmailBody || '<p>Dear Employee, please verify your credentials immediately to prevent mailbox disruption.</p>';
+  const senderName =
+    draft.announcementSenderName ||
+    matchedScenario?.announcementSenderName ||
+    "Vodafone Password Notification";
+  const senderEmailId =
+    draft.announcementSenderEmailId ||
+    matchedScenario?.announcementSenderEmailId ||
+    "no-reply.vodafonepasswordnotification.com";
+  const emailSubject =
+    draft.announcementEmailSubject ||
+    matchedScenario?.announcementEmailSubject ||
+    "@UserName, your Vodafone account password has expired";
+  const emailBody =
+    draft.announcementEmailBody ||
+    matchedScenario?.announcementEmailBody ||
+    "<p>Dear Employee, please verify your credentials immediately to prevent mailbox disruption.</p>";
 
   // Recipient List
   const allAvailableLists = [
     ...(userDLsJson?.savedUserLists || []).map((l) => ({
       id: l.id,
       name: l.name,
-      subText: l.dlId || l.description || '',
-      type: l.type || 'Bulk Upload',
-      totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.users ? l.users.length : 0),
-      hookRate: l.aggregatedHookRate || '0%',
-      reportRate: l.aggregatedReportRate || '0%',
-      users: l.users || []
+      subText: l.dlId || l.description || "",
+      type: l.type || "Bulk Upload",
+      totalUsers:
+        l.totalUsers !== undefined
+          ? l.totalUsers
+          : l.users
+            ? l.users.length
+            : 0,
+      hookRate: l.aggregatedHookRate || "0%",
+      reportRate: l.aggregatedReportRate || "0%",
+      users: l.users || [],
     })),
     ...(userDLsJson?.syncedDistributionLists || []).map((l) => ({
       id: l.dlId,
       name: l.dlName,
-      subText: l.dlId || l.description || '',
-      type: 'Distribution List',
-      totalUsers: l.totalUsers !== undefined ? l.totalUsers : (l.members ? l.members.length : 0),
-      hookRate: l.aggregatedHookRate || '0%',
-      reportRate: l.aggregatedReportRate || '0%',
-      users: l.members || []
-    }))
+      subText: l.dlId || l.description || "",
+      type: "Distribution List",
+      totalUsers:
+        l.totalUsers !== undefined
+          ? l.totalUsers
+          : l.members
+            ? l.members.length
+            : 0,
+      hookRate: l.aggregatedHookRate || "0%",
+      reportRate: l.aggregatedReportRate || "0%",
+      users: l.members || [],
+    })),
   ];
 
   const activeUserList = draft.loadedData ||
     allAvailableLists.find((l) => l.id === draft.selectedListId) ||
     allAvailableLists[0] || {
-      id: 'ul-001',
-      name: 'VOIS Egypt & India Core Delivery DL',
-      subText: 'dl-phishingcampaignvoisshield@vodafone.com',
-      type: 'Distribution List',
+      id: "ul-001",
+      name: "VOIS Egypt & India Core Delivery DL",
+      subText: "dl-phishingcampaignvoisshield@vodafone.com",
+      type: "Distribution List",
       totalUsers: 1420,
-      hookRate: '12%',
-      reportRate: '68%',
-      users: []
+      hookRate: "12%",
+      reportRate: "68%",
+      users: [],
     };
 
   // Landing Page
   const landingCatalogues = (() => {
     try {
-      const stored = localStorage.getItem('voisshield_landing_pages');
+      const stored = localStorage.getItem("voisshield_landing_pages");
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -215,11 +283,15 @@ const AnnouncementsReviewPublish = () => {
     }
   })();
 
-  const landingPageId = draft.landingPageId || matchedScenario?.landingPageId || 'LP-001';
-  const matchedLanding = landingCatalogues.find(
-    (c) => (c.LandingPageID || c.landingPageId || c.id) === landingPageId
-  ) || landingCatalogues[0] || {};
-  
+  const landingPageId =
+    draft.landingPageId || matchedScenario?.landingPageId || "LP-001";
+  const matchedLanding =
+    landingCatalogues.find(
+      (c) => (c.LandingPageID || c.landingPageId || c.id) === landingPageId,
+    ) ||
+    landingCatalogues[0] ||
+    {};
+
   // Modals
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showUserListModal, setShowUserListModal] = useState(false);
@@ -229,35 +301,77 @@ const AnnouncementsReviewPublish = () => {
 
   // Stepper list
   const stepsList = CAMPAIGN_STEPS || [
-    { id: 'details', step: 1, titleLine1: 'Details &', titleLine2: 'Settings' },
-    { id: 'email', step: 2, titleLine1: 'Campaign', titleLine2: 'Email' },
-    { id: 'review', step: 3, titleLine1: 'Review &', titleLine2: 'Publish' }
+    { id: "details", step: 1, titleLine1: "Details &", titleLine2: "Settings" },
+    { id: "email", step: 2, titleLine1: "Campaign", titleLine2: "Email" },
+    { id: "review", step: 3, titleLine1: "Review &", titleLine2: "Publish" },
   ];
 
- // Publish Announcement
-const handlePublishCampaign = () => {
-  if (isPublishing) return;
+  // Publish Announcement
+  const handlePublishCampaign = () => {
+    if (isPublishing) return;
 
-  setIsPublishing(true);
+    setIsPublishing(true);
 
-  setTimeout(() => {
+    setTimeout(() => {
+      try {
+        const storedCampaigns = localStorage.getItem(
+          "voisshield_published_campaigns",
+        );
+
+        const existingCampaigns = storedCampaigns
+          ? JSON.parse(storedCampaigns)
+          : [];
+
+        const newCampaign = {
+          ...draft,
+          campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
+          publishedAt: new Date().toISOString(),
+          status: "Active",
+          approvalStatus: "Approved",
+          stats: {
+            sent: activeUserList.totalUsers || 100,
+            opened: 0,
+            clicked: 0,
+            compromised: 0,
+            reported: 0,
+          },
+        };
+
+        existingCampaigns.unshift(newCampaign);
+
+        localStorage.setItem(
+          "voisshield_published_campaigns",
+          JSON.stringify(existingCampaigns),
+        );
+
+        setPublishSuccessModal(true);
+      } catch (error) {
+        console.error("Failed to publish announcement:", error);
+      } finally {
+        setIsPublishing(false);
+      }
+    }, 600);
+  };
+
+  // Send Announcement for Approval
+  const handleSaveCampaign = () => {
     try {
       const storedCampaigns = localStorage.getItem(
-        'voisshield_published_campaigns'
+        "voisshield_published_campaigns",
       );
 
       const existingCampaigns = storedCampaigns
         ? JSON.parse(storedCampaigns)
         : [];
 
-      const newCampaign = {
+      const pendingCampaign = {
         ...draft,
         campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
-        publishedAt: new Date().toISOString(),
-        status: 'Active',
-        approvalStatus: 'Approved',
+        submittedForApprovalAt: new Date().toISOString(),
+        status: "Pending",
+        approvalStatus: "Pending",
         stats: {
-          sent: activeUserList.totalUsers || 100,
+          sent: 0,
           opened: 0,
           clicked: 0,
           compromised: 0,
@@ -265,60 +379,18 @@ const handlePublishCampaign = () => {
         },
       };
 
-      existingCampaigns.unshift(newCampaign);
+      existingCampaigns.unshift(pendingCampaign);
 
       localStorage.setItem(
-        'voisshield_published_campaigns',
-        JSON.stringify(existingCampaigns)
+        "voisshield_published_campaigns",
+        JSON.stringify(existingCampaigns),
       );
 
-      setPublishSuccessModal(true);
+      setSaveSuccessModal(true);
     } catch (error) {
-      console.error('Failed to publish announcement:', error);
-    } finally {
-      setIsPublishing(false);
+      console.error("Failed to submit announcement for approval:", error);
     }
-  }, 600);
-};
-
-// Send Announcement for Approval
-const handleSaveCampaign = () => {
-  try {
-    const storedCampaigns = localStorage.getItem(
-      'voisshield_published_campaigns'
-    );
-
-    const existingCampaigns = storedCampaigns
-      ? JSON.parse(storedCampaigns)
-      : [];
-
-    const pendingCampaign = {
-      ...draft,
-      campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
-      submittedForApprovalAt: new Date().toISOString(),
-      status: 'Pending',
-      approvalStatus: 'Pending',
-      stats: {
-        sent: 0,
-        opened: 0,
-        clicked: 0,
-        compromised: 0,
-        reported: 0,
-      },
-    };
-
-    existingCampaigns.unshift(pendingCampaign);
-
-    localStorage.setItem(
-      'voisshield_published_campaigns',
-      JSON.stringify(existingCampaigns)
-    );
-
-    setSaveSuccessModal(true);
-  } catch (error) {
-    console.error('Failed to submit announcement for approval:', error);
-  }
-};
+  };
 
   return (
     <>
@@ -334,18 +406,18 @@ const handleSaveCampaign = () => {
         {/* ── 1. TOP HEADER BAR: "Start New Campaign" (MATCHED EXACTLY)              */}
         {/* ========================================================================= */}
         <div
-        className={`w-full h-[38px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
-          isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
-        }`}
-      >
+          className={`w-full h-[38px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
+          }`}
+        >
           <div className="flex items-center gap-3">
             <h1 className="text-[14px] font-voda font-bold tracking-tight text-white dark:text-black uppercase">
               ROLLOUT NEW ANNOUNCEMENT
             </h1>
           </div>
-          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85">
-            
-          </div>
+          <div className="text-[13px] font-voda font-bold text-white/85 dark:text-black/85"></div>
         </div>
 
         {/* ========================================================================= */}
@@ -353,13 +425,17 @@ const handleSaveCampaign = () => {
         {/* ========================================================================= */}
         <div
           className={`w-full flex-1 min-h-0 rounded-2xl border flex flex-col justify-between overflow-hidden shadow-xs relative ${
-            isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'
+            isDark
+              ? "bg-[#0F1015] border-white/10"
+              : "bg-white border-slate-200"
           }`}
         >
           {/* ── DOCKED CONTINUOUS STEPPER STRIP ── */}
           <div
             className={`w-full h-12 flex items-stretch flex-shrink-0 select-none pointer-events-none cursor-default ${
-              isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
+              isDark
+                ? "border-white/10 bg-[#12141A]"
+                : "border-slate-200/90 bg-white"
             }`}
           >
             {stepsList.map((step) => {
@@ -371,7 +447,9 @@ const handleSaveCampaign = () => {
                 <div
                   key={step.id}
                   className={`flex-1 flex items-center justify-center gap-2.5 px-4 h-full transition-colors duration-200 select-none ${
-                    isFilled ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-transparent'
+                    isFilled
+                      ? "bg-black dark:bg-white text-white dark:text-black"
+                      : "bg-transparent"
                   }`}
                 >
                   {/* Step Icon */}
@@ -386,7 +464,7 @@ const handleSaveCampaign = () => {
                   ) : (
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
-                        isDark ? 'bg-white text-black' : 'bg-black text-white'
+                        isDark ? "bg-white text-black" : "bg-black text-white"
                       }`}
                     >
                       {step.step}
@@ -397,12 +475,12 @@ const handleSaveCampaign = () => {
                   <div
                     className={`flex flex-col text-left leading-tight text-[11.5px] font-bold ${
                       isCompleted
-                        ? 'text-[#8ED973] dark:text-[#74D054]'
+                        ? "text-[#8ED973] dark:text-[#74D054]"
                         : isCurrent
-                        ? 'text-white dark:text-black'
-                        : isDark
-                        ? 'text-white opacity-85'
-                        : 'text-slate-900 opacity-85'
+                          ? "text-white dark:text-black"
+                          : isDark
+                            ? "text-white opacity-85"
+                            : "text-slate-900 opacity-85"
                     }`}
                   >
                     <span>{step.titleLine1}</span>
@@ -418,7 +496,6 @@ const handleSaveCampaign = () => {
           {/* ========================================================================= */}
           <div className="flex-1 min-h-0 overflow-y-auto custom-light-scrollbar p-3.5 sm:p-4 flex flex-col">
             <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 pb-2">
-              
               {/* ═══════════════════════════════════════════════════════════════ */}
               {/* 🌟 ROW 1, COL 1: SCENARIO & CAMPAIGN DETAILS                   */}
               {/* ═══════════════════════════════════════════════════════════════ */}
@@ -426,23 +503,33 @@ const handleSaveCampaign = () => {
                 {/* 1. Isolated Soft Purple Capsule (#ECE8FF) */}
                 <div
                   className={`absolute top-0 left-0 w-[164px] h-[122px] p-3 rounded-2xl flex flex-col justify-between shadow-xs z-20 ${
-                    isDark ? 'bg-[#251C3D] text-purple-100' : 'bg-[#ECE8FF] text-slate-900'
+                    isDark
+                      ? "bg-[#251C3D] text-purple-100"
+                      : "bg-[#ECE8FF] text-slate-900"
                   }`}
                 >
                   <div>
                     <h3 className="text-[14px] -mt-1 font-voda font-bold tracking-normal leading-tight">
-                      Announcement &amp;<br />Template<br />Details
+                      Announcement &amp;
+                      <br />
+                      Template
+                      <br />
+                      Details
                     </h3>
                   </div>
                   <p className="text-[8.5px] font-medium leading-snug opacity-80 mt-1">
-                    Chosen announcement and template details filled are displayed here
+                    Chosen announcement and template details filled are
+                    displayed here
                   </p>
                 </div>
 
                 {/* 2. Inner Arc Fillet */}
                 <div className="absolute top-[114px] left-[154px] w-4 h-4 pointer-events-none z-20 overflow-hidden">
                   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                    <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={lCardBg} />
+                    <path
+                      d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
+                      fill={lCardBg}
+                    />
                   </svg>
                 </div>
 
@@ -459,7 +546,9 @@ const handleSaveCampaign = () => {
                   </span>
                   <div
                     className={`w-full h-7 px-2.5 rounded-xl flex items-center shadow-2xs text-[10.5px] font-mono-tech font-bold ${
-                      isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                      isDark
+                        ? "bg-[#15161A] text-white"
+                        : "bg-white text-slate-900"
                     }`}
                   >
                     {scenarioId}
@@ -478,7 +567,9 @@ const handleSaveCampaign = () => {
                     </label>
                     <div
                       className={`w-full min-h-[34px] px-3 py-1.5 rounded-xl flex items-center shadow-2xs text-[10.5px] font-medium leading-snug ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       {scenarioName}
@@ -495,7 +586,9 @@ const handleSaveCampaign = () => {
                     </label>
                     <div
                       className={`w-full min-h-[32px] px-3 py-1.5 rounded-xl flex items-center shadow-2xs text-[10.5px] font-medium ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       {campaignTitle}
@@ -509,7 +602,9 @@ const handleSaveCampaign = () => {
                     </label>
                     <div
                       className={`w-full flex-1 min-h-[85px] p-2.5 rounded-xl shadow-2xs text-[10px] font-medium leading-relaxed overflow-y-auto custom-light-scrollbar ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       {campaignDescription}
@@ -525,23 +620,33 @@ const handleSaveCampaign = () => {
                 {/* 1. Isolated Soft Pink/Lilac Capsule */}
                 <div
                   className={`absolute top-0 left-0 w-[164px] h-[122px] p-3 rounded-2xl flex flex-col justify-between shadow-xs z-20 ${
-                    isDark ? 'bg-[#3D1E3A] text-pink-100' : 'bg-[#F4D6F4] text-slate-900'
+                    isDark
+                      ? "bg-[#3D1E3A] text-pink-100"
+                      : "bg-[#F4D6F4] text-slate-900"
                   }`}
                 >
                   <div>
                     <h3 className="text-[14px] -mt-1 font-voda font-bold tracking-normal leading-tight">
-                      Date &amp;<br />Acknowledged<br />Points
+                      Date &amp;
+                      <br />
+                      Acknowledged
+                      <br />
+                      Points
                     </h3>
                   </div>
                   <p className="text-[8.5px] font-medium leading-snug opacity-80 mt-1">
-                    Campaign's start and end date along with Gamification points has been displayed here
+                    Campaign's start and end date along with Gamification points
+                    has been displayed here
                   </p>
                 </div>
 
                 {/* 2. Inner Arc Fillet */}
                 <div className="absolute top-[114px] left-[154px] w-4 h-4 pointer-events-none z-20 overflow-hidden">
                   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                    <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={lCardBg} />
+                    <path
+                      d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
+                      fill={lCardBg}
+                    />
                   </svg>
                 </div>
 
@@ -558,7 +663,9 @@ const handleSaveCampaign = () => {
                   </span>
                   <div
                     className={`w-full h-7 px-3 rounded-xl flex items-center justify-between shadow-2xs text-[10.5px] font-medium ${
-                      isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                      isDark
+                        ? "bg-[#15161A] text-white"
+                        : "bg-white text-slate-900"
                     }`}
                   >
                     <span className="truncate pr-1">{startTimeDisplay}</span>
@@ -578,7 +685,9 @@ const handleSaveCampaign = () => {
                     </span>
                     <div
                       className={`w-full h-7 px-3 rounded-xl flex items-center justify-between shadow-2xs text-[10.5px] font-medium ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       <span className="truncate pr-1">{endTimeDisplay}</span>
@@ -588,7 +697,9 @@ const handleSaveCampaign = () => {
                     {/* Auto End Checkbox Display */}
                     <div className="flex items-center justify-end gap-1.5 pt-1">
                       <div className="w-3.5 h-3.5 rounded bg-slate-300 dark:bg-white/20 flex items-center justify-center flex-shrink-0">
-                        {autoEndPostSending && <Check className="w-2.5 h-2.5 text-black dark:text-white stroke-[3]" />}
+                        {autoEndPostSending && (
+                          <Check className="w-2.5 h-2.5 text-black dark:text-white stroke-[3]" />
+                        )}
                       </div>
                       <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">
                         Auto End post sending out all emails
@@ -600,30 +711,36 @@ const handleSaveCampaign = () => {
                   <div
                     className="relative w-full rounded-2xl p-3.5 text-white overflow-hidden shadow-xs select-none min-h-[195px] flex-1"
                     style={{
-                      background: 'linear-gradient(135deg, #7E87C8 0%, #A294D8 50%, #C9A9E8 100%)'
+                      background:
+                        "linear-gradient(135deg, #7E87C8 0%, #A294D8 50%, #C9A9E8 100%)",
                     }}
                   >
                     <div>
                       <h4 className="text-[13.5px] font-voda font-bold tracking-tight leading-tight">
-                        Acknowledged<br />Points
+                        Acknowledged
+                        <br />
+                        Points
                       </h4>
                     </div>
 
                     {/* Points Pills 2x3 Grid */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="px-4 py-1 rounded-full bg-white/20 backdrop-blur-xs text-white text-[12px] font-bold shadow-2xs">
+                      <span className="px-4 py-1 rounded-full bg-white/20 backdrop-blur-xs text-white text-[12px] font-bold shadow-2xs">
                         Acknowledged: {acknowledgedPoints}
-                        </span>
+                      </span>
                     </div>
 
                     {/* 3D Asset pinned in bottom right */}
                     <div className="absolute -right-[3%] -bottom-[4%] w-[125px] h-[120px] pointer-events-none select-none flex items-center justify-center z-0">
                       <img
-                        src={gamificationCardLogo || '/assets/GamificationCardLogoStartNewCamapignScreen.png'}
+                        src={
+                          gamificationCardLogo ||
+                          "/assets/GamificationCardLogoStartNewCamapignScreen.png"
+                        }
                         alt="Gamification Controller"
                         className="w-full h-full object-contain filter drop-shadow-md"
                         onError={(e) => {
-                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.style.display = "none";
                         }}
                       />
                     </div>
@@ -638,23 +755,31 @@ const handleSaveCampaign = () => {
                 {/* 1. Isolated Black Capsule */}
                 <div
                   className={`absolute top-0 left-0 w-[164px] h-[122px] p-3 rounded-2xl flex flex-col justify-between shadow-xs z-20 ${
-                    isDark ? 'bg-white text-black' : 'bg-black text-white'
+                    isDark ? "bg-white text-black" : "bg-black text-white"
                   }`}
                 >
                   <div>
                     <h3 className="text-[14px] -mt-1 font-voda font-bold tracking-normal leading-tight">
-                      Email ID &amp;<br />Recipient<br />List
+                      Email ID &amp;
+                      <br />
+                      Recipient
+                      <br />
+                      List
                     </h3>
                   </div>
                   <p className="text-[8.5px] font-medium leading-snug opacity-80 mt-1">
-                    Phishing Email ID details and Recipient List has been displayed here
+                    Phishing Email ID details and Recipient List has been
+                    displayed here
                   </p>
                 </div>
 
                 {/* 2. Inner Arc Fillet */}
                 <div className="absolute top-[114px] left-[154px] w-4 h-4 pointer-events-none z-20 overflow-hidden">
                   <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                    <path d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z" fill={lCardBg} />
+                    <path
+                      d="M 0 16 A 16 16 0 0 0 16 0 V 16 H 0 Z"
+                      fill={lCardBg}
+                    />
                   </svg>
                 </div>
 
@@ -671,7 +796,9 @@ const handleSaveCampaign = () => {
                   </span>
                   <div
                     className={`w-full h-7 px-3 rounded-xl flex items-center shadow-2xs text-[10.5px] font-medium truncate ${
-                      isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                      isDark
+                        ? "bg-[#15161A] text-white"
+                        : "bg-white text-slate-900"
                     }`}
                   >
                     {senderName}
@@ -690,7 +817,9 @@ const handleSaveCampaign = () => {
                     </label>
                     <div
                       className={`w-full h-7 px-3 rounded-xl flex items-center shadow-2xs text-[10.5px] font-mono-tech truncate ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       {senderEmailId}
@@ -704,7 +833,9 @@ const handleSaveCampaign = () => {
                     </label>
                     <div
                       className={`w-full min-h-[46px] px-3 py-2 rounded-xl flex items-start shadow-2xs text-[10.5px] font-medium leading-snug line-clamp-2 ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       {emailSubject}
@@ -719,7 +850,9 @@ const handleSaveCampaign = () => {
                   >
                     <div className="flex flex-col text-left leading-tight">
                       <span className="text-[10px] font-bold">Email Body</span>
-                      <span className="text-[8px] text-white/70">Click here to view full email body</span>
+                      <span className="text-[8px] text-white/70">
+                        Click here to view full email body
+                      </span>
                     </div>
                     <Eye className="w-3.5 h-3.5 text-white/80" />
                   </div>
@@ -742,7 +875,9 @@ const handleSaveCampaign = () => {
 
                     <div
                       className={`w-full p-2.5 rounded-xl shadow-2xs flex flex-col justify-between gap-1.5 ${
-                        isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                        isDark
+                          ? "bg-[#15161A] text-white"
+                          : "bg-white text-slate-900"
                       }`}
                     >
                       <div>
@@ -769,9 +904,6 @@ const handleSaveCampaign = () => {
                   </div>
                 </div>
               </div>
-
-              
-
             </div>
           </div>
 
@@ -780,12 +912,14 @@ const handleSaveCampaign = () => {
           {/* ========================================================================= */}
           <div
             className={`w-full px-5 py-2.5 border-t flex items-center justify-end gap-2.5 flex-shrink-0 z-30 transition-colors shadow-xs ${
-              isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-100'
+              isDark
+                ? "bg-[#0F1015] border-white/10"
+                : "bg-white border-slate-100"
             }`}
           >
             <button
               type="button"
-              onClick={() => navigate('/announcements/email')}
+              onClick={() => navigate("/announcements/email")}
               className="w-[90px] h-[24px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center tracking-wider"
             >
               BACK
@@ -793,20 +927,16 @@ const handleSaveCampaign = () => {
             <button
               type="button"
               disabled={isPublishing}
-              onClick={
-                canPublish
-                ? handlePublishCampaign
-                : handleSaveCampaign
-                }
+              onClick={canPublish ? handlePublishCampaign : handleSaveCampaign}
               className="px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <Send className="w-3 h-3 stroke-[2.5]" />
               <span>
                 {isPublishing
-                  ? 'PROCESSING...'
+                  ? "PROCESSING..."
                   : canPublish
-                    ? 'PUBLISH ANNOUNCEMENT'
-                    : 'SEND FOR APPROVAL'}
+                    ? "PUBLISH ANNOUNCEMENT"
+                    : "SEND FOR APPROVAL"}
               </span>
             </button>
           </div>
@@ -816,7 +946,7 @@ const handleSaveCampaign = () => {
         {/* ── 🌟 MODAL 1: SIMULATED EMAIL BODY PREVIEW                               */}
         {/* ========================================================================= */}
         {showEmailModal &&
-          typeof document !== 'undefined' &&
+          typeof document !== "undefined" &&
           createPortal(
             <div className="fixed inset-0 z-[2147483646] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
               <div className="w-full max-w-2xl bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col">
@@ -836,24 +966,24 @@ const handleSaveCampaign = () => {
                   <div
                     className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 text-slate-900"
                     dangerouslySetInnerHTML={{
-                      __html: (emailBody || '')
-                        .replace(/{{userName}}/g, 'Abhay H S')
-                        .replace(/{{userEmailID}}/g, 'abhay.hs1@vodafone.com')
-                        .replace(/{{department}}/g, 'AI & Data Analytics')
-                        .replace(/{{phishLink}}/g, '#training')
+                      __html: (emailBody || "")
+                        .replace(/{{userName}}/g, "Abhay H S")
+                        .replace(/{{userEmailID}}/g, "abhay.hs1@vodafone.com")
+                        .replace(/{{department}}/g, "AI & Data Analytics")
+                        .replace(/{{phishLink}}/g, "#training"),
                     }}
                   />
                 </div>
               </div>
             </div>,
-            document.body
+            document.body,
           )}
 
         {/* ========================================================================= */}
         {/* ── 🌟 MODAL 3: RECIPIENT LIST AUDIENCE DETAILS MODAL                      */}
         {/* ========================================================================= */}
         {showUserListModal &&
-          typeof document !== 'undefined' &&
+          typeof document !== "undefined" &&
           createPortal(
             <div className="fixed inset-0 z-[2147483646] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
               <div className="w-full max-w-2xl bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-white/15 flex flex-col">
@@ -876,34 +1006,50 @@ const handleSaveCampaign = () => {
                 <div className="p-5 flex flex-col gap-4 text-left">
                   <div className="grid grid-cols-3 gap-2.5">
                     <div className="py-2.5 px-2 rounded-xl bg-[#FFD6DE] dark:bg-[#2E181D] text-slate-900 dark:text-rose-100 flex flex-col items-center justify-center text-center">
-                      <span className="text-[9px] font-semibold opacity-85">Total Recipients</span>
-                      <span className="text-[20px] font-voda font-bold mt-0.5">{activeUserList.totalUsers}</span>
+                      <span className="text-[9px] font-semibold opacity-85">
+                        Total Recipients
+                      </span>
+                      <span className="text-[20px] font-voda font-bold mt-0.5">
+                        {activeUserList.totalUsers}
+                      </span>
                     </div>
                     <div className="py-2.5 px-2 rounded-xl bg-[#FFD6DE] dark:bg-[#2E181D] text-slate-900 dark:text-rose-100 flex flex-col items-center justify-center text-center">
-                      <span className="text-[9px] font-semibold opacity-85">Aggregated Hook Rate</span>
-                      <span className="text-[20px] font-voda font-bold mt-0.5">{activeUserList.hookRate}</span>
+                      <span className="text-[9px] font-semibold opacity-85">
+                        Aggregated Hook Rate
+                      </span>
+                      <span className="text-[20px] font-voda font-bold mt-0.5">
+                        {activeUserList.hookRate}
+                      </span>
                     </div>
                     <div className="py-2.5 px-2 rounded-xl bg-[#FFD6DE] dark:bg-[#2E181D] text-slate-900 dark:text-rose-100 flex flex-col items-center justify-center text-center">
-                      <span className="text-[9px] font-semibold opacity-85">Aggregated Report Rate</span>
-                      <span className="text-[20px] font-voda font-bold mt-0.5">{activeUserList.reportRate}</span>
+                      <span className="text-[9px] font-semibold opacity-85">
+                        Aggregated Report Rate
+                      </span>
+                      <span className="text-[20px] font-voda font-bold mt-0.5">
+                        {activeUserList.reportRate}
+                      </span>
                     </div>
                   </div>
 
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col gap-1">
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Distribution Identifier</span>
-                    <span className="text-[11px] font-mono-tech font-bold text-slate-900 dark:text-white">{activeUserList.subText || activeUserList.id}</span>
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                      Distribution Identifier
+                    </span>
+                    <span className="text-[11px] font-mono-tech font-bold text-slate-900 dark:text-white">
+                      {activeUserList.subText || activeUserList.id}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>,
-            document.body
+            document.body,
           )}
 
         {/* ========================================================================= */}
         {/* ── 🌟 MODAL 4: PUBLISH SUCCESS CONFIRMATION                               */}
         {/* ========================================================================= */}
         {publishSuccessModal &&
-          typeof document !== 'undefined' &&
+          typeof document !== "undefined" &&
           createPortal(
             <div className="fixed inset-0 z-[2147483647] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
               <div className="w-full max-w-md bg-white dark:bg-[#181A20] rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl border border-white/20 animate-in zoom-in-95 duration-200">
@@ -915,14 +1061,18 @@ const handleSaveCampaign = () => {
                     Announcement Campaign Launched!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    Your phishing simulation campaign <strong>"{campaignTitle}"</strong> has been successfully scheduled and published.
+                    Your phishing simulation campaign{" "}
+                    <strong>"{campaignTitle}"</strong> has been successfully
+                    scheduled and published.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    localStorage.removeItem('voisshield_active_announcement_draft');
-                    navigate('/announcements');
+                    localStorage.removeItem(
+                      "voisshield_active_announcement_draft",
+                    );
+                    navigate("/announcements");
                   }}
                   className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                 >
@@ -930,14 +1080,14 @@ const handleSaveCampaign = () => {
                 </button>
               </div>
             </div>,
-            document.body
+            document.body,
           )}
 
-          {/* ========================================================================= */}
+        {/* ========================================================================= */}
         {/* ── 🌟 MODAL 4: PUBLISH SUCCESS CONFIRMATION                               */}
         {/* ========================================================================= */}
         {saveSuccessModal &&
-          typeof document !== 'undefined' &&
+          typeof document !== "undefined" &&
           createPortal(
             <div className="fixed inset-0 z-[2147483647] bg-black/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
               <div className="w-full max-w-md bg-white dark:bg-[#181A20] rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl border border-white/20 animate-in zoom-in-95 duration-200">
@@ -949,14 +1099,18 @@ const handleSaveCampaign = () => {
                     Announcement Campaign Saved!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    Your phishing simulation campaign <strong>"{campaignTitle}"</strong> has been successfully save and pending for Approval.
+                    Your phishing simulation campaign{" "}
+                    <strong>"{campaignTitle}"</strong> has been successfully
+                    save and pending for Approval.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    localStorage.removeItem('voisshield_active_announcement_draft');
-                    navigate('/campaigns');
+                    localStorage.removeItem(
+                      "voisshield_active_announcement_draft",
+                    );
+                    navigate("/campaigns");
                   }}
                   className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                 >
@@ -964,7 +1118,7 @@ const handleSaveCampaign = () => {
                 </button>
               </div>
             </div>,
-            document.body
+            document.body,
           )}
       </div>
     </>

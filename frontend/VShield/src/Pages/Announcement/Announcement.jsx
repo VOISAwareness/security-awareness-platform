@@ -55,15 +55,19 @@ const INTENSITY_COLORS = {
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarMySpaceScale = 0.975;
+const VarMySpaceScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
   
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
+  }
+
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
   }
 
   .rounded-3xl { border-radius: ${Math.round(28 * VarOverallRoundednessScale)}px !important; }
@@ -676,13 +680,13 @@ const Announcement = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
       <div
         style={{ zoom: VarMySpaceScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
         {/* ================================================= */}
         {/* PAGE HEADER */}
         {/* ================================================= */}
         <div
-          className={`w-full h-[38px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
               ? "bg-white text-black border-white/10"
               : "bg-[#000000] text-white border-black/10"
@@ -702,10 +706,10 @@ const Announcement = () => {
             grid's <main> carried its own separate background) */}
         {/* ================================================= */}
         <div
-          className={`w-full flex-1 min-h-0 rounded-xl border transition-colors duration-300 overflow-hidden p-4 sm:p-5 flex flex-col gap-3 ${
+          className={`w-full flex-1 min-h-0 rounded-2xl border transition-colors duration-300 overflow-hidden p-4 sm:p-5 flex flex-col gap-3 ${
             isDark
-              ? "bg-[#15161a] border-white/10 shadow-xl"
-              : "bg-white border-slate-200 shadow-sm"
+              ? "bg-[#0F1015] border-white/10"
+              : "bg-white border-slate-200"
           }`}
         >
           {/* ================================================= */}
@@ -961,8 +965,6 @@ const Announcement = () => {
       max-w-[320px]
       h-[270px]
       shadow-2xs
-      hover:shadow-md
-      hover:-translate-y-0.5
       p-4
     "
                         >

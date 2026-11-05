@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import AnnouncementReviewPublishDashboard from "../AnnouncementReviewPublishDashboard/AnnouncementReviewPublishDashboard";
 import announcamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
@@ -11,33 +11,27 @@ import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
 // ============================================================
 // SCALE / DESIGN VARIABLES
 // ============================================================
-const VarScenarioScale = 0.975;
+const VarScenarioScale = 0.94;
 
-const VarOverallScenarioRoundednessScale = 0.75;
+const VarOverallScenarioRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
 
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
   }
 
-  .rounded-2xl {
-    border-radius: ${Math.round(16 * VarOverallScenarioRoundednessScale)}px !important;
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
   }
 
-  .rounded-xl {
-    border-radius: ${Math.round(12 * VarOverallScenarioRoundednessScale)}px !important;
-  }
-
-  .rounded-lg {
-    border-radius: ${Math.round(8 * VarOverallScenarioRoundednessScale)}px !important;
-  }
-
-  .rounded-md {
-    border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important;
-  }
+  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-md  { border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important; }
 `;
 // ============================================================
 // REUSABLE INPUT (dark bg updated for contrast against tinted L-shape)
@@ -55,7 +49,7 @@ const FormInput = ({
         {label}{" "}
         <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
       </label>
-      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900">
+      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900 dark:bg-[#15161A] dark:border-white/10 dark:text-white dark:focus:border-[#F8B2C0]">
         <input
           type="text"
           value={value}
@@ -87,7 +81,7 @@ const FormSelect = ({ label, value, onChange, options = [] }) => {
           onChange={onChange}
           className="
           w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900
-          dark:bg-[#202127]
+          dark:bg-[#15161A]
           dark:border-white/10
           dark:text-white
           dark:focus:border-[#F8B2C0]
@@ -143,14 +137,10 @@ const FormTextarea = ({
           outline-none
           resize-none
           transition-all
-          focus:border-[#990099]
-          focus:ring-2
-          focus:ring-[#990099]/10
-          dark:bg-[#202127]
+          dark:bg-[#15161A]
           dark:border-white/10
           dark:text-white
           dark:placeholder:text-slate-500
-          dark:focus:border-[#F8B2C0]
           h-[180px]
         "
       />
@@ -223,7 +213,7 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
                     cursor-not-allowed
                     ${
                       isCompleted
-                        ? "bg-[#06080D] text-[#8ED973] dark:text-[#74D054]"
+                        ? "bg-black dark:bg-white text-[#8ED973] dark:text-[#74D054]"
                         : ""
                     }
                   `
@@ -247,7 +237,7 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
                   isCurrent
                     ? "bg-white dark:bg-black text-black dark:text-white"
                     : isCompleted
-                      ? "bg-[#22c55e] text-white"
+                      ? "bg-[#8ED973] dark:bg-[#74D054] text-white"
                       : "bg-slate-900 text-white dark:bg-white dark:text-black"
                 }
               `}
@@ -259,7 +249,7 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
               )}
             </div>
 
-            <div className="flex flex-col text-left leading-tight text-[11px] font-voda font-bold tracking-tight">
+            <div className="flex flex-col text-left leading-tight text-[11.5px] font-bold tracking-tight">
               <span>{step.titleLine1}</span>
               <span>{step.titleLine2}</span>
             </div>
@@ -278,14 +268,6 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
 // ============================================================
 const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
   const { isDark } = useUserType?.() || { isDark: false };
-  const subjectFxRef = useRef(null);
-  const editorFxRef = useRef(null);
-  const userListDropdownRef = useRef(null);
-  const singleUserDropdownRef = useRef(null);
-
-  const [setShowSubjectFxMenu] = useState(false);
-  const [setShowEditorFxMenu] = useState(false);
-
   const [draft] = useState(() => {
     try {
       const stored = localStorage.getItem(
@@ -346,14 +328,7 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
           </div>
 
           <p
-            className={`
-              text-[9.5px]
-              font-medium
-              leading-tight
-              opacity-75
-              mt-1
-              ${isDark ? "text-slate-300" : "text-slate-600"}
-            `}
+            className={`text-[9.5px] font-medium leading-tight opacity-75 mt-1`}
           >
             Fill in the required
             <br />
@@ -904,19 +879,7 @@ const AnnouncementTemplateDetails = () => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="
-          w-full
-          max-w-[1780px]
-          mx-auto
-          p-3
-          sm:p-3
-          -mt-3
-          select-none
-          font-sans
-          flex
-          flex-col
-          gap-3
-        "
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden        "
       >
         {/* ====================================================
             PAGE HEADER
@@ -950,6 +913,8 @@ const AnnouncementTemplateDetails = () => {
             border
             overflow-hidden
             shadow-xs
+            flex-1 
+            min-h-0
 
             ${
               isDark
@@ -963,7 +928,7 @@ const AnnouncementTemplateDetails = () => {
           <div
             className="
               w-full
-              min-h-[400px]
+              min-h-[420px]
               flex
               flex-col
               p-4

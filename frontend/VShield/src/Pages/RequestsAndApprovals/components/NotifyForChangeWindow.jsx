@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Calendar } from 'lucide-react';
-import NotifyIllustration from '../../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User } from "lucide-react";
+import NotifyIllustration from "../../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png";
 
 const NotifyForChangeWindow = ({
   isOpen,
   campaign,
   busy = false,
-  error = '',
+  error = "",
   onClose,
-  onSubmit
+  onSubmit,
 }) => {
-  const [note, setNote] = useState(campaign?.NotificationMessage || '');
+  const [note, setNote] = useState(campaign?.NotificationMessage || "");
 
   if (!isOpen || !campaign) return null;
 
@@ -23,16 +23,16 @@ const NotifyForChangeWindow = ({
 
   // Format short date (e.g. 2-Jan-26 or extracted from CreationDate)
   const formatShortDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
+    if (!dateStr) return "N/A";
     try {
       const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(' ')[0];
+      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
       const day = d.getDate();
-      const month = d.toLocaleString('en-US', { month: 'short' });
+      const month = d.toLocaleString("en-US", { month: "short" });
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
     } catch {
-      return dateStr.split(' ')[0] || 'N/A';
+      return dateStr.split(" ")[0] || "N/A";
     }
   };
 
@@ -62,7 +62,9 @@ const NotifyForChangeWindow = ({
               src={NotifyIllustration}
               alt="Notify Announcement"
               className="w-full h-full object-contain drop-shadow-lg"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
             />
           </div>
 
@@ -86,16 +88,26 @@ const NotifyForChangeWindow = ({
             </h3>
 
             <p className="text-[11.5px] font-medium text-slate-700 leading-snug">
-              <strong className="text-slate-900 font-bold">Description: </strong>
+              <strong className="text-slate-900 font-bold">
+                Description:{" "}
+              </strong>
               {campaign.CampaignDescription}
             </p>
 
             {/* Creator & Creation Date */}
             <div className="flex items-center gap-6 text-[11px] font-bold text-slate-800 pt-1">
-              <span>Created on: <span className="font-semibold text-slate-700">{formatShortDate(campaign.CreationDate)}</span></span>
+              <span>
+                Created on:{" "}
+                <span className="font-semibold text-slate-700">
+                  {formatShortDate(campaign.CreationDate)}
+                </span>
+              </span>
               <span className="flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-slate-700" />
-                Created By: <span className="font-semibold text-slate-700">{campaign.CreatedBy}</span>
+                Created By:{" "}
+                <span className="font-semibold text-slate-700">
+                  {campaign.CreatedBy}
+                </span>
               </span>
             </div>
           </div>
@@ -116,7 +128,9 @@ const NotifyForChangeWindow = ({
           {/* Footer Action Buttons */}
           <div className="relative z-20 flex items-center justify-end gap-3 pt-5">
             {error && (
-              <p className="mr-auto text-[11px] font-bold text-rose-700">{error}</p>
+              <p className="mr-auto text-[11px] font-bold text-rose-700">
+                {error}
+              </p>
             )}
             <button
               type="button"
@@ -131,7 +145,7 @@ const NotifyForChangeWindow = ({
               disabled={!note.trim() || busy}
               className="px-7 py-2 rounded-xl bg-[#84D984] hover:bg-[#72C872] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[11px] font-black tracking-wider uppercase transition-all shadow-xs cursor-pointer active:scale-95"
             >
-              {busy ? 'Sending…' : 'Send'}
+              {busy ? "Sending…" : "Send"}
             </button>
           </div>
         </motion.div>

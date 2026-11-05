@@ -1,15 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { useUserType } from '../../../UserTypeContext/UserTypeContext';
-import { 
-  Search, 
-  ChevronDown,
-  ExternalLink, 
-  User, 
-  CheckCircle2, 
-  X,
-  Check
-} from 'lucide-react';
-import MyApprovedImg from '../../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
+import { useState, useMemo } from "react";
+import { useUserType } from "../../../UserTypeContext/UserTypeContext";
+import { Search, ChevronDown, ExternalLink, User, Check } from "lucide-react";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS (MATCHING OTHER GALLERIES)
@@ -44,24 +35,23 @@ const VODAFONE_FONT_STYLE = `
 `;
 
 // Pure white in light mode, dark tone in dark mode
-const getLCardBg = (isDark) => (isDark ? '#1C1E24' : '#FFFFFF');
+const getLCardBg = (isDark) => (isDark ? "#1C1E24" : "#FFFFFF");
 
-const CAPSULE_THEME_COLOR = '#D9F2D0';
-const CAPSULE_COUNTER_COLOR = '#16A34A';
+const CAPSULE_THEME_COLOR = "#D9F2D0";
+const CAPSULE_COUNTER_COLOR = "#16A34A";
 
 const ApprovedCampaignsGallery = ({
   isOpen = true,
-  onClose,
   campaigns = [],
   currentUserEmail,
   onViewDetails,
-  isDark: propIsDark
+  isDark: propIsDark,
 }) => {
   const { user, isDark: contextIsDark } = useUserType?.() || {};
   const isDark = propIsDark !== undefined ? propIsDark : contextIsDark;
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('Latest Approved Date');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("Latest Approved Date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [detailModalItem, setDetailModalItem] = useState(null);
 
@@ -69,14 +59,14 @@ const ApprovedCampaignsGallery = ({
 
   // Standardized Date Formatter: mm/dd/yyyy and optional full time stamp
   const formatDisplayDate = (dateStr, includeTime = false) => {
-    if (!dateStr) return 'N/A';
+    if (!dateStr) return "N/A";
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) {
         return dateStr;
       }
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
       const year = d.getFullYear();
 
       if (!includeTime) {
@@ -84,11 +74,11 @@ const ApprovedCampaignsGallery = ({
       }
 
       let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const seconds = String(d.getSeconds()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const minutes = String(d.getMinutes()).padStart(2, "0");
+      const seconds = String(d.getSeconds()).padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
       hours = hours % 12 || 12;
-      const formattedHours = String(hours).padStart(2, '0');
+      const formattedHours = String(hours).padStart(2, "0");
 
       return `${month}/${day}/${year} ${formattedHours}:${minutes}:${seconds} ${ampm}`;
     } catch {
@@ -106,11 +96,13 @@ const ApprovedCampaignsGallery = ({
       user?.UserEmailD_CamapignManager ||
       user?.UserEmailD_CamapignCreator ||
       user?.UserEMailID ||
-      ''
-    ).trim().toLowerCase();
+      ""
+    )
+      .trim()
+      .toLowerCase();
   }, [currentUserEmail, user]);
 
-  const isCreator = user?.role === 'Campaign Creator';
+  const isCreator = user?.role === "Campaign Creator";
 
   const resolvedCampaigns = useMemo(() => {
     return Array.isArray(campaigns) ? campaigns : [];
@@ -119,27 +111,30 @@ const ApprovedCampaignsGallery = ({
   // Filter only 'Published' campaigns matching role-based ownership
   const approvedCampaigns = useMemo(() => {
     let list = resolvedCampaigns.filter((c) => {
-      const isApproved = c.CampaignStatus === 'Published' || c.campaignStatus === 'Published';
+      const isApproved =
+        c.CampaignStatus === "Published" || c.campaignStatus === "Published";
       if (!isApproved) return false;
 
-      const createdByEmail = (c.CreatedBy || '').trim().toLowerCase();
+      const createdByEmail = (c.CreatedBy || "").trim().toLowerCase();
       const approvedByEmail = (
-        c['Approved/RejectedBy'] ||
+        c["Approved/RejectedBy"] ||
         c.ApprovedBy ||
         c.ApprovedRejectedBy ||
-        ''
-      ).trim().toLowerCase();
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
       // Role-based visibility logic:
       // Campaign Creator: Only view campaigns created by them that got approved
       // Admin / Campaign Manager: View campaigns they approved OR created
       const isMine = isCreator
         ? createdByEmail === activeEmail
-        : (approvedByEmail === activeEmail || createdByEmail === activeEmail);
+        : approvedByEmail === activeEmail || createdByEmail === activeEmail;
 
       const q = searchTerm.trim().toLowerCase();
       const matchesSearch =
-        q === '' ||
+        q === "" ||
         (c.campaignId && c.campaignId.toLowerCase().includes(q)) ||
         (c.CampaignTitle && c.CampaignTitle.toLowerCase().includes(q)) ||
         (c.campaignTitle && c.campaignTitle.toLowerCase().includes(q)) ||
@@ -149,9 +144,13 @@ const ApprovedCampaignsGallery = ({
     });
 
     list.sort((a, b) => {
-      const dateA = new Date(a.LastModified || a.StartTime || a.CreationDate || 0).getTime();
-      const dateB = new Date(b.LastModified || b.StartTime || b.CreationDate || 0).getTime();
-      if (sortBy === 'Oldest Approved Date') return dateA - dateB;
+      const dateA = new Date(
+        a.LastModified || a.StartTime || a.CreationDate || 0,
+      ).getTime();
+      const dateB = new Date(
+        b.LastModified || b.StartTime || b.CreationDate || 0,
+      ).getTime();
+      if (sortBy === "Oldest Approved Date") return dateA - dateB;
       return dateB - dateA;
     });
 
@@ -166,27 +165,28 @@ const ApprovedCampaignsGallery = ({
 
       {/* 🌟 ROOT INLINE L-SHAPE CONTAINER */}
       <div className="relative flex flex-col w-full select-none font-sans overflow-x-hidden">
-        
         {/* ========================================================================= */}
         {/* 🌟 1. TRULY ISOLATED CAPSULE HEADER (TOP-LEFT)                            */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: CAPSULE_THEME_COLOR,
-            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="absolute top-0 left-0 w-[176px] h-[126px] p-3 flex flex-col justify-between shadow-xs z-20 text-slate-900 select-none overflow-hidden flex-shrink-0"
         >
           <div className="flex justify-between items-start relative z-10">
             <h3 className="text-[14.5px] font-voda font-bold tracking-tight leading-tight">
-              My Approved<br />Campaigns
+              My Approved
+              <br />
+              Campaigns
             </h3>
           </div>
 
           <p className="text-[9px] font-bold text-slate-700 leading-tight relative z-10 max-w-[105px] mb-1">
             {isCreator
-              ? 'These are the campaigns that you created and got approved'
-              : 'These are the campaigns that you reviewed, cleared and published'}
+              ? "These are the campaigns that you created and got approved"
+              : "These are the campaigns that you reviewed, cleared and published"}
           </p>
 
           {/* 5% cropped corner artwork 
@@ -211,10 +211,10 @@ const ApprovedCampaignsGallery = ({
         {/* 🌟 3. TOP-RIGHT ARM OF L-SHAPE CONTAINER                                 */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
@@ -222,7 +222,7 @@ const ApprovedCampaignsGallery = ({
           <div className="flex flex-col -mt-8 gap-2 max-w-[340px] w-full">
             {/* Search by Campaign ID or Name */}
             <div className="relative flex items-center">
-              <input 
+              <input
                 type="text"
                 placeholder="Search by Campaign ID or Name"
                 value={searchTerm}
@@ -245,23 +245,25 @@ const ApprovedCampaignsGallery = ({
 
               {showSortDropdown && (
                 <div className="absolute top-7 left-0 w-48 bg-white dark:bg-[#161820] rounded-md shadow-2xl border border-black/10 dark:border-white/10 py-1 z-[100] flex flex-col">
-                  {['Latest Approved Date', 'Oldest Approved Date'].map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setSortBy(option);
-                        setShowSortDropdown(false);
-                      }}
-                      className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
-                        sortBy === option 
-                          ? 'bg-[#D9F2D0] text-[#16A34A] dark:bg-emerald-950 dark:text-emerald-300' 
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
+                  {["Latest Approved Date", "Oldest Approved Date"].map(
+                    (option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          setSortBy(option);
+                          setShowSortDropdown(false);
+                        }}
+                        className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
+                          sortBy === option
+                            ? "bg-[#D9F2D0] text-[#16A34A] dark:bg-emerald-950 dark:text-emerald-300"
+                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ),
+                  )}
                 </div>
               )}
             </div>
@@ -269,14 +271,16 @@ const ApprovedCampaignsGallery = ({
 
           {/* Dynamic Big Counter */}
           <div className="flex flex-col items-end justify-center text-right pr-2">
-            <span 
+            <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
-              className="text-5xl font-black leading-none tracking-tight font-voda-exb"
+              className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
             >
-              {String(approvedCampaigns.length).padStart(2, '0')}
+              {String(approvedCampaigns.length).padStart(2, "0")}
             </span>
             <span className="text-[13.5px] font-voda font-bold text-slate-900 dark:text-white mt-1 leading-tight tracking-tight">
-              Total Approved<br />Campaigns
+              Total Approved
+              <br />
+              Campaigns
             </span>
           </div>
         </div>
@@ -285,27 +289,29 @@ const ApprovedCampaignsGallery = ({
         {/* 🌟 4. CONTINUOUS LOWER L-BASE                                            */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             height: `${VarGalleryLowerBaseHeightAdjuster}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-full p-3 pb-5 flex flex-col gap-2.5 overflow-y-auto z-10 border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
         >
           {approvedCampaigns.length === 0 ? (
             <div className="w-full h-full min-h-[220px] flex flex-col items-center justify-center text-center">
-              <p className="text-xs font-bold text-slate-400">No approved campaigns found matching criteria.</p>
+              <p className="text-xs font-bold text-slate-400">
+                No approved campaigns found matching criteria.
+              </p>
             </div>
           ) : (
             approvedCampaigns.map((camp) => (
               <div
                 key={camp.campaignId}
-                style={{ 
+                style={{
                   borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
                   transform: `scale(${VarGallaryCardsScaleAdjuster})`,
-                  width: `${100 * VarGallaryCardLenghtAdjuster}%`
+                  width: `${100 * VarGallaryCardLenghtAdjuster}%`,
                 }}
                 className="mx-auto px-3.5 py-2.5 bg-[#EEF2F6] dark:bg-[#15171E] text-slate-900 dark:text-white shadow-2xs flex flex-col gap-1.5 relative overflow-hidden transition-all hover:shadow-xs border border-black/5 dark:border-white/5 origin-top flex-shrink-0"
               >
@@ -326,7 +332,9 @@ const ApprovedCampaignsGallery = ({
                   {camp.CampaignTitle}
                 </h4>
                 <p className="text-[9px] font-medium text-slate-700 dark:text-slate-300 leading-snug line-clamp-1">
-                  <span className="font-bold text-slate-900 dark:text-white">Description: </span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    Description:{" "}
+                  </span>
                   {camp.CampaignDescription}
                 </p>
 
@@ -335,12 +343,20 @@ const ApprovedCampaignsGallery = ({
                   <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300 font-medium">
                     <span className="font-bold flex items-center gap-1">
                       <User className="w-2.5 h-2.5 text-slate-500" />
-                      Created By: <strong className="text-slate-800 dark:text-slate-200">{camp.CreatedBy?.split('@')[0] || 'User'}</strong>
+                      Created By:{" "}
+                      <strong className="text-slate-800 dark:text-slate-200">
+                        {camp.CreatedBy?.split("@")[0] || "User"}
+                      </strong>
                     </span>
                     <span>&bull;</span>
                     <span className="font-bold flex items-center gap-1 text-[#16A34A] dark:text-emerald-300">
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      Approved By: <strong>{camp['Approved/RejectedBy']?.split('@')[0] || camp.ApprovedBy?.split('@')[0] || 'Unknown'}</strong>
+                      Approved By:{" "}
+                      <strong>
+                        {camp["Approved/RejectedBy"]?.split("@")[0] ||
+                          camp.ApprovedBy?.split("@")[0] ||
+                          "Unknown"}
+                      </strong>
                     </span>
                   </div>
 
@@ -377,9 +393,9 @@ const ApprovedCampaignsGallery = ({
         {detailModalItem && (
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
-              style={{ 
+              style={{
                 backgroundColor: CAPSULE_THEME_COLOR,
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
+                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
               className="w-full max-w-3xl border border-black/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 transition-colors"
             >
@@ -404,13 +420,17 @@ const ApprovedCampaignsGallery = ({
                 </h3>
                 <p className="text-[12px] font-medium text-slate-700 mb-2 leading-relaxed">
                   <strong>Description: </strong>
-                  {detailModalItem.CampaignDescription || 'No description provided.'}
+                  {detailModalItem.CampaignDescription ||
+                    "No description provided."}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {formatDisplayDate(detailModalItem.CreationDate, true)} &bull; Created By: {detailModalItem.CreatedBy}
-                  {detailModalItem['Approved/RejectedBy'] && (
+                  Created on:{" "}
+                  {formatDisplayDate(detailModalItem.CreationDate, true)} &bull;
+                  Created By: {detailModalItem.CreatedBy}
+                  {detailModalItem["Approved/RejectedBy"] && (
                     <span className="ml-2 font-bold text-[#16A34A]">
-                      &bull; Approved By: {detailModalItem['Approved/RejectedBy']}
+                      &bull; Approved By:{" "}
+                      {detailModalItem["Approved/RejectedBy"]}
                     </span>
                   )}
                 </div>
@@ -421,19 +441,31 @@ const ApprovedCampaignsGallery = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800">
                 <div>
                   <strong>Start Type: </strong>
-                  <span>{detailModalItem.CampaignStartType || detailModalItem.startType || 'Scenario'}</span>
+                  <span>
+                    {detailModalItem.CampaignStartType ||
+                      detailModalItem.startType ||
+                      "Scenario"}
+                  </span>
                 </div>
                 <div>
                   <strong>Target Audience: </strong>
-                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'No recipients selected'}</span>
+                  <span>
+                    {detailModalItem.UserList ||
+                      detailModalItem.TargetUsers ||
+                      "No recipients selected"}
+                  </span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{formatDisplayDate(detailModalItem.StartTime, true)}</span>
+                  <span className="font-semibold">
+                    {formatDisplayDate(detailModalItem.StartTime, true)}
+                  </span>
                 </div>
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{formatDisplayDate(detailModalItem.EndTime, true)}</span>
+                  <span className="font-semibold">
+                    {formatDisplayDate(detailModalItem.EndTime, true)}
+                  </span>
                 </div>
               </div>
             </div>

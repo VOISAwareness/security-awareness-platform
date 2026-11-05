@@ -1,17 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { formatDateTime } from '../../../services/campaignStatus';
-import { 
-  Search, 
-  ChevronDown, 
-  ExternalLink, 
-  RotateCcw, 
-  X, 
-  Eye, 
+import { useState, useMemo } from "react";
+import { formatDateTime } from "../../../services/campaignStatus";
+import {
+  Search,
+  ChevronDown,
+  ExternalLink,
+  RotateCcw,
+  X,
   Calendar,
   AlertTriangle,
-  ArrowRight
-} from 'lucide-react';
-import ExpiredIconImg from '../../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
+  ArrowRight,
+} from "lucide-react";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -41,67 +39,66 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
 `;
 
-const getLCardBg = (isDark) => (isDark ? '#1C1E24' : '#FFFFFF');
+const getLCardBg = (isDark) => (isDark ? "#1C1E24" : "#FFFFFF");
 
-const CAPSULE_THEME_COLOR = '#FDE2D2';
-const CAPSULE_COUNTER_COLOR = '#E57A44';
+const CAPSULE_THEME_COLOR = "#FDE2D2";
+const CAPSULE_COUNTER_COLOR = "#E57A44";
 
-const ExpiredCampaignsGallery = ({ 
-  campaigns = [], 
-  currentUserEmail = '',
-  onExtendAndInvoke, 
-  onViewDetails,
-  isDark = false 
+const ExpiredCampaignsGallery = ({
+  campaigns = [],
+  currentUserEmail = "",
+  onExtendAndInvoke,
+  isDark = false,
 }) => {
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('Latest Date');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("Latest Date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Modals
   const [detailModalItem, setDetailModalItem] = useState(null);
-  const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
 
   // Extend Modal states
   const [extendModalItem, setExtendModalItem] = useState(null);
-  const [newStartTime, setNewStartTime] = useState('');
-  const [toastMessage, setToastMessage] = useState('');
+  const [newStartTime, setNewStartTime] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
   const [isExtending, setIsExtending] = useState(false);
 
   // Only the creator may reschedule (and so edit) their own request;
   // approvers see expired requests read-only.
   const isOwner = (camp) =>
     Boolean(currentUserEmail) &&
-    String(camp.CreatedBy || '').trim().toLowerCase() === currentUserEmail.trim().toLowerCase();
+    String(camp.CreatedBy || "")
+      .trim()
+      .toLowerCase() === currentUserEmail.trim().toLowerCase();
 
   const lCardBg = getLCardBg(isDark);
 
   const formatShortDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return "—";
     try {
       const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(' ')[0];
+      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
       const day = d.getDate();
-      const month = d.toLocaleString('en-US', { month: 'short' });
+      const month = d.toLocaleString("en-US", { month: "short" });
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
     } catch {
-      return dateStr.split(' ')[0] || '—';
+      return dateStr.split(" ")[0] || "—";
     }
   };
 
   const formatReadableDateTime = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return "—";
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
+      return d.toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
       });
     } catch {
       return dateStr;
@@ -109,13 +106,13 @@ const ExpiredCampaignsGallery = ({
   };
 
   const getElapsedString = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return "—";
     try {
       const diffMs = new Date() - new Date(dateStr);
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? `${diffDays} days Ago` : 'Today';
+      return diffDays > 0 ? `${diffDays} days Ago` : "Today";
     } catch {
-      return '—';
+      return "—";
     }
   };
 
@@ -125,9 +122,11 @@ const ExpiredCampaignsGallery = ({
 
   const filteredExpiredCampaigns = useMemo(() => {
     let list = resolvedCampaigns.filter((c) => {
-      const isExpired = c.CampaignStatus === 'Expired' || c.campaignStatus === 'Expired';
+      const isExpired =
+        c.CampaignStatus === "Expired" || c.campaignStatus === "Expired";
       const q = searchTerm.trim().toLowerCase();
-      const matchesSearch = !q || 
+      const matchesSearch =
+        !q ||
         (c.campaignId && c.campaignId.toLowerCase().includes(q)) ||
         (c.CampaignTitle && c.CampaignTitle.toLowerCase().includes(q)) ||
         (c.campaignTitle && c.campaignTitle.toLowerCase().includes(q));
@@ -137,7 +136,7 @@ const ExpiredCampaignsGallery = ({
     list.sort((a, b) => {
       const dateA = new Date(a.CreationDate || a.StartTime || 0).getTime();
       const dateB = new Date(b.CreationDate || b.StartTime || 0).getTime();
-      if (sortBy === 'Oldest Date') return dateA - dateB;
+      if (sortBy === "Oldest Date") return dateA - dateB;
       return dateB - dateA;
     });
 
@@ -154,15 +153,17 @@ const ExpiredCampaignsGallery = ({
   const handleNewStartTimeChange = (value) => {
     setNewStartTime(value);
     if (!value) {
-      setToastMessage('');
+      setToastMessage("");
       return;
     }
     const selectedDate = new Date(value).getTime();
     const thresholdDate = Date.now() + 30 * 60 * 1000;
     if (selectedDate < thresholdDate) {
-      setToastMessage('Start time must be extended by at least 30 minutes from current date and time.');
+      setToastMessage(
+        "Start time must be extended by at least 30 minutes from current date and time.",
+      );
     } else {
-      setToastMessage('');
+      setToastMessage("");
     }
   };
 
@@ -171,12 +172,16 @@ const ExpiredCampaignsGallery = ({
   const handleProceedEditFurther = async () => {
     if (!isExtensionValid || !extendModalItem || isExtending) return;
     setIsExtending(true);
-    const done = onExtendAndInvoke ? await onExtendAndInvoke(extendModalItem, newStartTime) : false;
+    const done = onExtendAndInvoke
+      ? await onExtendAndInvoke(extendModalItem, newStartTime)
+      : false;
     setIsExtending(false);
     if (done) {
       setExtendModalItem(null);
     } else {
-      setToastMessage('Could not reschedule this campaign. Check the message above the list and try again.');
+      setToastMessage(
+        "Could not reschedule this campaign. Check the message above the list and try again.",
+      );
     }
   };
 
@@ -193,9 +198,9 @@ const ExpiredCampaignsGallery = ({
           <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight flex-1">
             {toastMessage}
           </p>
-          <button 
-            type="button" 
-            onClick={() => setToastMessage('')} 
+          <button
+            type="button"
+            onClick={() => setToastMessage("")}
             className="text-slate-400 hover:text-black dark:hover:text-white p-0.5"
           >
             <X className="w-3.5 h-3.5" />
@@ -205,18 +210,19 @@ const ExpiredCampaignsGallery = ({
 
       {/* 🌟 ROOT L-SHAPE CONTAINER */}
       <div className="relative flex flex-col w-full select-none font-sans overflow-x-hidden">
-        
         {/* 🌟 1. TRULY ISOLATED CAPSULE HEADER (TOP-LEFT) */}
         <div
-          style={{ 
+          style={{
             backgroundColor: CAPSULE_THEME_COLOR,
-            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="absolute top-0 left-0 w-[176px] h-[126px] p-3 flex flex-col justify-between shadow-xs z-20 text-slate-900 select-none overflow-hidden flex-shrink-0"
         >
           <div className="flex justify-between items-start relative z-10">
             <h3 className="text-[14.5px] font-voda font-bold tracking-tight leading-tight">
-              Expired<br />Campaigns
+              Expired
+              <br />
+              Campaigns
             </h3>
           </div>
 
@@ -224,7 +230,7 @@ const ExpiredCampaignsGallery = ({
             No one approved or checked these campaigns before expiration
           </p>
 
-         {/* <div className="absolute -bottom-[5%] -right-[5%] w-[68px] h-[68px] pointer-events-none select-none z-0">
+          {/* <div className="absolute -bottom-[5%] -right-[5%] w-[68px] h-[68px] pointer-events-none select-none z-0">
             <img 
               src={ExpiredIconImg} 
               alt="Expired Campaigns" 
@@ -243,16 +249,16 @@ const ExpiredCampaignsGallery = ({
 
         {/* 🌟 3. Top-Right Arm of L-Shape Container */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
           <div className="flex flex-col -mt-8 gap-2 max-w-[340px] w-full">
             <div className="relative flex items-center">
-              <input 
+              <input
                 type="text"
                 placeholder="Search by Campaign ID or Name"
                 value={searchTerm}
@@ -274,7 +280,7 @@ const ExpiredCampaignsGallery = ({
 
               {showSortDropdown && (
                 <div className="absolute top-7 left-0 w-44 bg-white dark:bg-[#161820] rounded-md shadow-2xl border border-black/10 dark:border-white/10 py-1 z-[100] flex flex-col">
-                  {['Latest Date', 'Oldest Date'].map((option) => (
+                  {["Latest Date", "Oldest Date"].map((option) => (
                     <button
                       key={option}
                       type="button"
@@ -283,9 +289,9 @@ const ExpiredCampaignsGallery = ({
                         setShowSortDropdown(false);
                       }}
                       className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
-                        sortBy === option 
-                          ? 'bg-[#FDE2D2] text-[#C2410C] dark:bg-amber-950 dark:text-amber-300' 
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        sortBy === option
+                          ? "bg-[#FDE2D2] text-[#C2410C] dark:bg-amber-950 dark:text-amber-300"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                       }`}
                     >
                       {option}
@@ -297,40 +303,44 @@ const ExpiredCampaignsGallery = ({
           </div>
 
           <div className="flex flex-col items-end justify-center text-right pr-2">
-            <span 
+            <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
-              className="text-5xl font-black leading-none tracking-tight font-voda-exb"
+              className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
             >
-              {String(filteredExpiredCampaigns.length).padStart(2, '0')}
+              {String(filteredExpiredCampaigns.length).padStart(2, "0")}
             </span>
             <span className="text-[13px] font-voda font-bold text-slate-900 dark:text-white mt-1 leading-tight tracking-tight text-right">
-              Total Expired Campaign<br />Before Approval
+              Total Expired Campaign
+              <br />
+              Before Approval
             </span>
           </div>
         </div>
 
         {/* 🌟 4. Continuous Lower L-Base */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             height: `${VarGalleryLowerBaseHeightAdjuster}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-full p-3 pb-5 flex flex-col gap-2.5 overflow-y-auto z-10 border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
         >
           {filteredExpiredCampaigns.length === 0 ? (
             <div className="w-full h-full min-h-[160px] flex items-center justify-center text-center">
-              <p className="text-xs font-bold text-slate-400">No expired campaigns found.</p>
+              <p className="text-xs font-bold text-slate-400">
+                No expired campaigns found.
+              </p>
             </div>
           ) : (
             filteredExpiredCampaigns.map((camp) => (
               <div
                 key={camp.campaignId}
-                style={{ 
+                style={{
                   borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
-                  transform: `scale(${VarGallaryCardsScaleAdjuster})`
+                  transform: `scale(${VarGallaryCardsScaleAdjuster})`,
                 }}
                 className="w-full box-border bg-[#EEF2F6] dark:bg-[#15171E] px-3.5 py-2 flex items-center justify-between text-slate-900 dark:text-slate-100 shadow-2xs border border-black/5 dark:border-white/5 hover:border-black/10 transition-colors flex-shrink-0"
               >
@@ -346,18 +356,18 @@ const ExpiredCampaignsGallery = ({
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <div className="flex items-center gap-1.5 flex-nowrap">
                     {isOwner(camp) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExtendModalItem(camp);
-                        setNewStartTime('');
-                        setToastMessage('');
-                      }}
-                      className="h-5 px-3 rounded-md bg-[#64748B] hover:bg-[#475569] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider shadow-2xs transition-all active:scale-95 cursor-pointer whitespace-nowrap flex items-center gap-1"
-                    >
-                      <RotateCcw className="w-2.5 h-2.5 stroke-[2.5]" />
-                      <span>Extend Start Date & Invoke</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExtendModalItem(camp);
+                          setNewStartTime("");
+                          setToastMessage("");
+                        }}
+                        className="h-5 px-3 rounded-md bg-[#64748B] hover:bg-[#475569] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider shadow-2xs transition-all active:scale-95 cursor-pointer whitespace-nowrap flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-2.5 h-2.5 stroke-[2.5]" />
+                        <span>Extend Start Date & Invoke</span>
+                      </button>
                     )}
 
                     <span className="h-5 px-2.5 rounded-md bg-[#E57A44] text-white text-[8.5px] font-voda font-bold uppercase whitespace-nowrap flex items-center shadow-2xs">
@@ -390,7 +400,7 @@ const ExpiredCampaignsGallery = ({
           <div className="fixed inset-0 z-[160] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
               style={{
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
+                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
               className="w-full max-w-[620px] bg-white dark:bg-[#12141A] border border-black/10 dark:border-white/10 p-7 relative overflow-hidden shadow-2xl flex flex-col gap-4 text-slate-900 dark:text-white"
             >
@@ -416,11 +426,19 @@ const ExpiredCampaignsGallery = ({
               <div className="flex flex-col gap-1 text-[11.5px] font-voda text-left pt-1">
                 <p className="text-slate-800 dark:text-slate-200">
                   <strong className="font-bold">Previous Start Time: </strong>
-                  <span>{formatReadableDateTime(extendModalItem.StartTime)}</span>
+                  <span>
+                    {formatReadableDateTime(extendModalItem.StartTime)}
+                  </span>
                 </p>
                 <p className="text-slate-800 dark:text-slate-200">
                   <strong className="font-bold">New Start Time: </strong>
-                  <span className={newStartTime ? 'text-[#16A34A] font-bold' : 'text-slate-500'}>
+                  <span
+                    className={
+                      newStartTime
+                        ? "text-[#16A34A] font-bold"
+                        : "text-slate-500"
+                    }
+                  >
                     {formatReadableDateTime(newStartTime)}
                   </span>
                 </p>
@@ -428,7 +446,9 @@ const ExpiredCampaignsGallery = ({
 
               <div className="flex flex-col items-end gap-2.5 pt-4">
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 text-right leading-tight max-w-[280px]">
-                  Post &ldquo;Edit Further&rdquo; will take you to the &ldquo;Start New Campaign&rdquo; section to edit this campaign if needed
+                  Post &ldquo;Edit Further&rdquo; will take you to the
+                  &ldquo;Start New Campaign&rdquo; section to edit this campaign
+                  if needed
                 </span>
 
                 <div className="flex items-center gap-2">
@@ -436,7 +456,7 @@ const ExpiredCampaignsGallery = ({
                     type="button"
                     onClick={() => {
                       setExtendModalItem(null);
-                      setToastMessage('');
+                      setToastMessage("");
                     }}
                     className="h-8 px-5 rounded-lg bg-[#555A64] hover:bg-[#434850] text-white text-[10.5px] font-voda font-bold tracking-wide transition-all cursor-pointer active:scale-95"
                   >
@@ -449,11 +469,13 @@ const ExpiredCampaignsGallery = ({
                     onClick={handleProceedEditFurther}
                     className={`h-8 px-5 rounded-lg text-[10.5px] font-voda font-bold tracking-wide transition-all flex items-center gap-1.5 shadow-xs ${
                       isExtensionValid
-                        ? 'bg-[#8ED973] hover:bg-[#7bc761] text-white cursor-pointer active:scale-95'
-                        : 'bg-slate-300 dark:bg-white/10 text-slate-500 dark:text-slate-500 cursor-not-allowed opacity-75'
+                        ? "bg-[#8ED973] hover:bg-[#7bc761] text-white cursor-pointer active:scale-95"
+                        : "bg-slate-300 dark:bg-white/10 text-slate-500 dark:text-slate-500 cursor-not-allowed opacity-75"
                     }`}
                   >
-                    <span>{isExtending ? 'Rescheduling…' : 'Edit Further'}</span>
+                    <span>
+                      {isExtending ? "Rescheduling…" : "Edit Further"}
+                    </span>
                     <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                   </button>
                 </div>
@@ -468,9 +490,9 @@ const ExpiredCampaignsGallery = ({
         {detailModalItem && (
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
-              style={{ 
+              style={{
                 backgroundColor: CAPSULE_THEME_COLOR,
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
+                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
               className="w-full max-w-3xl border border-black/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 transition-colors"
             >
@@ -495,10 +517,12 @@ const ExpiredCampaignsGallery = ({
                 </h3>
                 <p className="text-[12px] font-medium text-slate-700 mb-2 leading-relaxed">
                   <strong>Description: </strong>
-                  {detailModalItem.CampaignDescription || 'No description provided.'}
+                  {detailModalItem.CampaignDescription ||
+                    "No description provided."}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy || 'N/A'}
+                  Created on: {formatDateTime(detailModalItem.CreationDate)}{" "}
+                  &bull; Created By: {detailModalItem.CreatedBy || "N/A"}
                 </div>
               </div>
 
@@ -507,19 +531,31 @@ const ExpiredCampaignsGallery = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800">
                 <div>
                   <strong>Start Type: </strong>
-                  <span>{detailModalItem.CampaignStartType || detailModalItem.startType || 'Scenario'}</span>
+                  <span>
+                    {detailModalItem.CampaignStartType ||
+                      detailModalItem.startType ||
+                      "Scenario"}
+                  </span>
                 </div>
                 <div>
                   <strong>Target Audience: </strong>
-                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'No recipients selected'}</span>
+                  <span>
+                    {detailModalItem.UserList ||
+                      detailModalItem.TargetUsers ||
+                      "No recipients selected"}
+                  </span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
+                  <span className="font-semibold">
+                    {formatDateTime(detailModalItem.StartTime)}
+                  </span>
                 </div>
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
+                  <span className="font-semibold">
+                    {formatDateTime(detailModalItem.EndTime)}
+                  </span>
                 </div>
               </div>
             </div>
