@@ -1,24 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { formatDateTime } from '../../../services/campaignStatus';
-import { 
-  Search, 
-  ChevronDown, 
-  ExternalLink, 
-  User, 
-  Megaphone, 
-  Check, 
-  AlertCircle, 
-  XCircle, 
-  Eye, 
+import { useState, useMemo } from "react";
+import { formatDateTime } from "../../../services/campaignStatus";
+import {
+  Search,
+  ChevronDown,
+  ExternalLink,
+  User,
+  Check,
+  AlertCircle,
+  XCircle,
+  Eye,
   X,
-  Clock,
-  Layers,
-  Sparkles,
-  Users,
-  Info
-} from 'lucide-react';
-import ApprovalQueueImg from '../../../assets/RequestAndApprovalsAssets/ApprovalQueueImage.png';
-import { DEMO_USER } from '../../../appConfig';
+} from "lucide-react";
+import { DEMO_USER } from "../../../appConfig";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -29,7 +22,7 @@ export const VarGallaryCardsScaleAdjuster = 0.99;
 // Height adjuster for Lower L-Base (in px or custom calculation)
 export const VarGalleryLowerBaseHeightAdjuster = 460;
 // Alignment for all four action buttons: 'Right' | 'Left' | 'Center' | 'Between'
-export const VarAllFourButtonsAlign = 'Right';
+export const VarAllFourButtonsAlign = "Right";
 
 // =========================================================================
 // 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
@@ -56,7 +49,7 @@ const VODAFONE_FONT_STYLE = `
 `;
 
 // Pure white in light mode, dark tone in dark mode
-const getLCardBg = (isDark) => (isDark ? '#1C1E24' : '#FFFFFF');
+const getLCardBg = (isDark) => (isDark ? "#1C1E24" : "#FFFFFF");
 
 // Global modulo-3 color series rule:
 // Series 1, 4, 7, 10, 13... -> #CEFBEA
@@ -64,25 +57,23 @@ const getLCardBg = (isDark) => (isDark ? '#1C1E24' : '#FFFFFF');
 // Series 3, 6, 9, 12...     -> #FFEFCE
 const getCardBgColor = (index) => {
   const remainder = index % 3;
-  if (remainder === 0) return '#CEFBEA';
-  if (remainder === 1) return '#ECE8FF';
-  return '#FFEFCE';
+  if (remainder === 0) return "#CEFBEA";
+  if (remainder === 1) return "#ECE8FF";
+  return "#FFEFCE";
 };
 
-const CAPSULE_THEME_COLOR = '#D8F3DC';
-const CAPSULE_COUNTER_COLOR = '#8ED973';
+const CAPSULE_THEME_COLOR = "#D8F3DC";
+const CAPSULE_COUNTER_COLOR = "#8ED973";
 
-const ApprovalQueueGallery = ({ 
-  campaigns = [], 
-  currentUserEmail,
-  onApprove, 
-  onNotify, 
-  onReject, 
-  onOpenNotifiedModal, 
-  isDark 
+const ApprovalQueueGallery = ({
+  campaigns = [],
+  onApprove,
+  onNotify,
+  onReject,
+  isDark,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('Shortest Expiring Date');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("Shortest Expiring Date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
@@ -96,35 +87,46 @@ const ApprovalQueueGallery = ({
       const start = new Date(startTimeStr);
       const diffMs = start - new Date();
       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? `${diffDays} days left` : 'Starting soon';
+      return diffDays > 0 ? `${diffDays} days left` : "Starting soon";
     } catch {
       return null;
     }
   };
 
   const formatShortDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
+    if (!dateStr) return "N/A";
     try {
       const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(' ')[0];
+      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
       const day = d.getDate();
-      const month = d.toLocaleString('en-US', { month: 'short' });
+      const month = d.toLocaleString("en-US", { month: "short" });
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
     } catch {
-      return dateStr.split(' ')[0] || 'N/A';
+      return dateStr.split(" ")[0] || "N/A";
     }
   };
 
   // Filter by Campaign ID, Pending Status, & Sort (All requested campaigns by any user)
   const processedCampaigns = useMemo(() => {
-    let list = campaigns.filter(c => {
-      const isPending = c.CampaignStatus === 'Pending' || c.campaignStatus === 'Pending';
+    let list = campaigns.filter((c) => {
+      const isPending =
+        c.CampaignStatus === "Pending" || c.campaignStatus === "Pending";
 
-      const matchesSearch = searchTerm.trim() === '' || 
-        (c.campaignId && c.campaignId.toLowerCase().includes(searchTerm.trim().toLowerCase())) ||
-        (c.CampaignTitle && c.CampaignTitle.toLowerCase().includes(searchTerm.trim().toLowerCase())) ||
-        (c.campaignTitle && c.campaignTitle.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+      const matchesSearch =
+        searchTerm.trim() === "" ||
+        (c.campaignId &&
+          c.campaignId
+            .toLowerCase()
+            .includes(searchTerm.trim().toLowerCase())) ||
+        (c.CampaignTitle &&
+          c.CampaignTitle.toLowerCase().includes(
+            searchTerm.trim().toLowerCase(),
+          )) ||
+        (c.campaignTitle &&
+          c.campaignTitle
+            .toLowerCase()
+            .includes(searchTerm.trim().toLowerCase()));
 
       return isPending && matchesSearch;
     });
@@ -136,9 +138,9 @@ const ApprovalQueueGallery = ({
       const createdA = new Date(a.CreationDate || 0).getTime();
       const createdB = new Date(b.CreationDate || 0).getTime();
 
-      if (sortBy === 'Shortest Expiring Date') return dateA - dateB;
-      if (sortBy === 'Latest Request date') return createdB - createdA;
-      if (sortBy === 'Oldest Request Date') return createdA - createdB;
+      if (sortBy === "Shortest Expiring Date") return dateA - dateB;
+      if (sortBy === "Latest Request date") return createdB - createdA;
+      if (sortBy === "Oldest Request Date") return createdA - createdB;
       return 0;
     });
 
@@ -147,13 +149,14 @@ const ApprovalQueueGallery = ({
 
   // Robust HTML formatter for Email Body preview
   const formatEmailPayload = (rawBody) => {
-    if (!rawBody) return '<p class="text-slate-400 italic">No email payload defined.</p>';
+    if (!rawBody)
+      return '<p class="text-slate-400 italic">No email payload defined.</p>';
 
     let processed = String(rawBody)
       .replace(/{{userName}}/g, DEMO_USER.name)
       .replace(/{{email}}/g, DEMO_USER.email)
-      .replace(/{{department}}/g, 'AI & Data Analytics')
-      .replace(/{{phishLink}}/g, '#simulated-phish-link');
+      .replace(/{{department}}/g, "AI & Data Analytics")
+      .replace(/{{phishLink}}/g, "#simulated-phish-link");
 
     // If already contains HTML markup, return with safe substitutions
     const hasHtmlTags = /<[a-z][\s\S]*>/i.test(processed);
@@ -162,38 +165,45 @@ const ApprovalQueueGallery = ({
     }
 
     // Convert raw plain text to formatted email template HTML
-    const lines = processed.split('\n').map(l => l.trim()).filter(Boolean);
-    return lines.map((line, idx) => {
-      if (idx === 0 && lines.length > 1) {
-        return `<h3 class="text-base font-bold text-slate-900 mb-2">${line}</h3>`;
-      }
-      if (
-        line.toLowerCase().includes('authenticate') || 
-        line.toLowerCase().includes('click here') || 
-        line.toLowerCase().includes('verify') || 
-        line.toLowerCase().includes('login')
-      ) {
-        return `<div class="my-4"><a href="#phish" class="inline-block px-5 py-2.5 bg-[#E60000] text-white font-bold text-xs rounded-md shadow-sm no-underline hover:bg-[#cc0000] transition-colors">${line}</a></div>`;
-      }
-      return `<p class="text-sm text-slate-700 leading-relaxed mb-2.5">${line}</p>`;
-    }).join('');
+    const lines = processed
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    return lines
+      .map((line, idx) => {
+        if (idx === 0 && lines.length > 1) {
+          return `<h3 class="text-base font-bold text-slate-900 mb-2">${line}</h3>`;
+        }
+        if (
+          line.toLowerCase().includes("authenticate") ||
+          line.toLowerCase().includes("click here") ||
+          line.toLowerCase().includes("verify") ||
+          line.toLowerCase().includes("login")
+        ) {
+          return `<div class="my-4"><a href="#phish" class="inline-block px-5 py-2.5 bg-[#E60000] text-white font-bold text-xs rounded-md shadow-sm no-underline hover:bg-[#cc0000] transition-colors">${line}</a></div>`;
+        }
+        return `<p class="text-sm text-slate-700 leading-relaxed mb-2.5">${line}</p>`;
+      })
+      .join("");
   };
 
   // Compute active background color for the expanded modal card matching unexpanded card rules
   const modalBgColor = useMemo(() => {
-    if (!detailModalItem) return '#CEFBEA';
+    if (!detailModalItem) return "#CEFBEA";
     if (detailModalItem._cardBgColor) return detailModalItem._cardBgColor;
-    const itemIndex = processedCampaigns.findIndex(c => c.campaignId === detailModalItem.campaignId);
+    const itemIndex = processedCampaigns.findIndex(
+      (c) => c.campaignId === detailModalItem.campaignId,
+    );
     return getCardBgColor(itemIndex >= 0 ? itemIndex : 0);
   }, [detailModalItem, processedCampaigns]);
 
   // Helper to dynamically resolve buttons row horizontal justification
   const getButtonsRowJustifyClass = () => {
-    const align = (VarAllFourButtonsAlign || 'Right').toLowerCase();
-    if (align === 'left' || align === 'start') return 'justify-start';
-    if (align === 'center') return 'justify-center';
-    if (align === 'between') return 'justify-between';
-    return 'justify-end';
+    const align = (VarAllFourButtonsAlign || "Right").toLowerCase();
+    if (align === "left" || align === "start") return "justify-start";
+    if (align === "center") return "justify-center";
+    if (align === "between") return "justify-between";
+    return "justify-end";
   };
 
   return (
@@ -202,20 +212,21 @@ const ApprovalQueueGallery = ({
 
       {/* 🌟 ROOT CONTAINER: Locked strictly to screen viewport without stretching */}
       <div className="relative flex flex-col w-full select-none font-sans">
-        
         {/* ========================================================================= */}
         {/* 🌟 1. TRULY ISOLATED CAPSULE HEADER (TOP-LEFT)                            */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: CAPSULE_THEME_COLOR,
-            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="absolute top-0 left-0 w-[176px] h-[126px] p-3 flex flex-col justify-between shadow-xs z-20 text-slate-900 select-none overflow-hidden flex-shrink-0"
         >
           <div className="flex justify-between items-start relative z-10">
             <h3 className="text-[15.5px] font-voda font-bold tracking-tight leading-tight">
-              Approval<br />Queue
+              Approval
+              <br />
+              Queue
             </h3>
           </div>
 
@@ -245,10 +256,10 @@ const ApprovalQueueGallery = ({
         {/* 🌟 3. TOP-RIGHT ARM OF L-SHAPE CONTAINER (ELEVATED Z-INDEX)               */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
@@ -256,7 +267,7 @@ const ApprovalQueueGallery = ({
           <div className="flex flex-col -mt-8 gap-2 max-w-[340px] w-full">
             {/* Search by Campaign ID */}
             <div className="relative flex items-center">
-              <input 
+              <input
                 type="text"
                 placeholder="Search by Campaign ID"
                 value={searchTerm}
@@ -279,7 +290,11 @@ const ApprovalQueueGallery = ({
 
               {showSortDropdown && (
                 <div className="absolute top-7 left-0 w-full bg-white dark:bg-[#161820] rounded-md shadow-2xl border border-black/10 dark:border-white/10 py-1 z-[100] flex flex-col">
-                  {['Shortest Expiring Date', 'Latest Request date', 'Oldest Request Date'].map(option => (
+                  {[
+                    "Shortest Expiring Date",
+                    "Latest Request date",
+                    "Oldest Request Date",
+                  ].map((option) => (
                     <button
                       key={option}
                       type="button"
@@ -288,9 +303,9 @@ const ApprovalQueueGallery = ({
                         setShowSortDropdown(false);
                       }}
                       className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
-                        sortBy === option 
-                          ? 'bg-[#D8F3DC] text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300' 
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        sortBy === option
+                          ? "bg-[#D8F3DC] text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                       }`}
                     >
                       {option}
@@ -313,14 +328,16 @@ const ApprovalQueueGallery = ({
 
           {/* Dynamic Big Counter */}
           <div className="flex flex-col items-end justify-center text-right pr-2">
-            <span 
+            <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
               className="text-5xl font-black leading-none tracking-tight font-voda-exb"
             >
-              {String(processedCampaigns.length).padStart(2, '0')}
+              {String(processedCampaigns.length).padStart(2, "0")}
             </span>
             <span className="text-[13.5px] font-voda font-bold text-slate-900 dark:text-white mt-1 leading-tight tracking-tight">
-              Total Approval<br />Pending
+              Total Approval
+              <br />
+              Pending
             </span>
           </div>
         </div>
@@ -329,18 +346,23 @@ const ApprovalQueueGallery = ({
         {/* 🌟 4. CONTINUOUS LOWER L-BASE (CONTROLLED BY VarGalleryLowerBaseHeightAdjuster) */}
         {/* ========================================================================= */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
-            height: typeof VarGalleryLowerBaseHeightAdjuster === 'number' ? `${VarGalleryLowerBaseHeightAdjuster}px` : VarGalleryLowerBaseHeightAdjuster,
+            height:
+              typeof VarGalleryLowerBaseHeightAdjuster === "number"
+                ? `${VarGalleryLowerBaseHeightAdjuster}px`
+                : VarGalleryLowerBaseHeightAdjuster,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-full p-3 flex flex-col gap-2.5 overflow-y-auto z-10 border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
         >
           {processedCampaigns.length === 0 ? (
             <div className="w-full h-full min-h-[220px] flex flex-col items-center justify-center text-center">
-              <p className="text-xs font-bold text-slate-400">No campaigns currently waiting in Approval Queue.</p>
+              <p className="text-xs font-bold text-slate-400">
+                No campaigns currently waiting in Approval Queue.
+              </p>
             </div>
           ) : (
             processedCampaigns.map((camp, idx) => {
@@ -348,13 +370,13 @@ const ApprovalQueueGallery = ({
               const cardBgColor = getCardBgColor(idx);
 
               return (
-                <div 
+                <div
                   key={camp.campaignId}
-                  style={{ 
-                    backgroundColor: cardBgColor,
+                  style={{
+                    backgroundColor: isDark ? "#15171E" : cardBgColor,
                     borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
                     transform: `scale(${VarGallaryCardsScaleAdjuster})`,
-                    width: `${100 * VarGallaryCardLenghtAdjuster}%`
+                    width: `${100 * VarGallaryCardLenghtAdjuster}%`,
                   }}
                   className="mx-auto px-3 py-2 text-slate-900 shadow-2xs flex flex-col gap-1 relative overflow-hidden transition-all hover:shadow-xs border border-black/5 origin-top flex-shrink-0"
                 >
@@ -365,12 +387,19 @@ const ApprovalQueueGallery = ({
                       {camp.campaignId}
                     </span>
 
-                    <div className="flex items-center gap-1.5 text-[8.5px] font-bold text-slate-600">
-                      <span>Created on: {formatShortDate(camp.CreationDate)}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => setDetailModalItem({ ...camp, _cardBgColor: cardBgColor })}
-                        className="text-slate-700 hover:text-black cursor-pointer ml-1"
+                    <div className="flex items-center gap-1.5 text-[8.5px] font-bold text-slate-700 dark:text-slate-300">
+                      <span>
+                        Created on: {formatShortDate(camp.CreationDate)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDetailModalItem({
+                            ...camp,
+                            _cardBgColor: cardBgColor,
+                          })
+                        }
+                        className="text-slate-700 hover:text-black cursor-pointer ml-1 text-slate-700 dark:text-slate-300"
                         title="View Full Specifications & Email Preview"
                       >
                         <ExternalLink className="w-3 h-3 stroke-[2.2]" />
@@ -379,28 +408,38 @@ const ApprovalQueueGallery = ({
                   </div>
 
                   {/* Title & Description */}
-                  <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900">
+                  <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900 dark:text-slate-300">
                     {camp.CampaignTitle}
                   </h4>
-                  <p className="text-[9px] mb-2 font-medium text-slate-700 leading-snug line-clamp-1">
-                    <span className="font-bold text-slate-900">Description: </span>
+                  <p className="text-[9px] mb-2 font-medium text-slate-700 leading-snug line-clamp-1 dark:text-slate-300">
+                    <span className="font-bold text-slate-900 dark:text-slate-300">
+                      Description:{" "}
+                    </span>
                     {camp.CampaignDescription}
                   </p>
 
                   {/* Created By + Scheduled for inline */}
-                  <div className="flex items-center text-[9px] text-slate-800 flex-wrap gap-x-2 pt-0.5">
+                  <div className="flex items-center text-[9px] text-slate-800 flex-wrap gap-x-2 pt-0.5 dark:text-slate-300">
                     <span className="font-bold flex items-center gap-1">
-                      <User className="w-2.5 h-2.5 text-slate-600" />
-                      Created By: <span className="font-semibold text-slate-700">{camp.CreatedBy || 'Unknown'}</span>
+                      <User className="w-2.5 h-2.5 text-slate-600 dark:text-slate-300" />
+                      Created By:{" "}
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        {camp.CreatedBy || "Unknown"}
+                      </span>
                     </span>
 
                     {camp.StartTime && (
                       <>
                         <span className="text-slate-400 font-bold">&bull;</span>
-                        <span className="font-bold text-slate-700">
-                          Scheduled for: <span className="font-semibold">{formatDateTime(camp.StartTime)}</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          Scheduled for:{" "}
+                          <span className="font-semibold">
+                            {formatDateTime(camp.StartTime)}
+                          </span>
                           {daysLeft && (
-                            <span className="ml-1 text-[#15803D] font-black">({daysLeft})</span>
+                            <span className="ml-1 text-[#15803D] font-black">
+                              ({daysLeft})
+                            </span>
                           )}
                         </span>
                       </>
@@ -408,7 +447,9 @@ const ApprovalQueueGallery = ({
                   </div>
 
                   {/* Sleek Action Buttons Row (Controlled by VarAllFourButtonsAlign) */}
-                  <div className={`flex items-center gap-1.5 pt-1.5 mt-0.5 ${getButtonsRowJustifyClass()}`}>
+                  <div
+                    className={`flex items-center gap-1.5 pt-1.5 mt-0.5 ${getButtonsRowJustifyClass()}`}
+                  >
                     <button
                       type="button"
                       onClick={() => onApprove && onApprove(camp)}
@@ -417,7 +458,7 @@ const ApprovalQueueGallery = ({
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                       Approve
                     </button>
-                    
+
                     <button
                       type="button"
                       onClick={() => onNotify && onNotify(camp)}
@@ -426,7 +467,6 @@ const ApprovalQueueGallery = ({
                       <AlertCircle className="w-2.5 h-2.5" />
                       Notify For Changes
                     </button>
-
 
                     <button
                       type="button"
@@ -449,9 +489,9 @@ const ApprovalQueueGallery = ({
         {detailModalItem && (
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
-              style={{ 
+              style={{
                 backgroundColor: modalBgColor,
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
+                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
               className="w-full max-w-3xl border border-black/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 transition-colors"
             >
@@ -481,7 +521,8 @@ const ApprovalQueueGallery = ({
                   {detailModalItem.CampaignDescription}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy}
+                  Created on: {formatDateTime(detailModalItem.CreationDate)}{" "}
+                  &bull; Created By: {detailModalItem.CreatedBy}
                 </div>
               </div>
 
@@ -491,7 +532,11 @@ const ApprovalQueueGallery = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800">
                 <div>
                   <strong>Start Type: </strong>
-                  <span>{detailModalItem.CampaignStartType || detailModalItem.startType || 'Scenario'}</span>
+                  <span>
+                    {detailModalItem.CampaignStartType ||
+                      detailModalItem.startType ||
+                      "Scenario"}
+                  </span>
                 </div>
 
                 {/* Target User List with Tooltip */}
@@ -504,25 +549,35 @@ const ApprovalQueueGallery = ({
                       className="font-mono-tech text-[#E60000] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       <span>
-                        {detailModalItem.UserList || detailModalItem.TargetUsers || detailModalItem.userList || detailModalItem.targetUsers || detailModalItem.UserDL || 'No recipients selected'}
+                        {detailModalItem.UserList ||
+                          detailModalItem.TargetUsers ||
+                          detailModalItem.userList ||
+                          detailModalItem.targetUsers ||
+                          detailModalItem.UserDL ||
+                          "No recipients selected"}
                       </span>
                       <ExternalLink className="w-2.5 h-2.5 stroke-[2.5]" />
                     </button>
                     {/* Hover Tooltip */}
                     <div className="pointer-events-none absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded bg-slate-900 text-white text-[9.5px] font-medium shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
-                      Post development of User List / DLs screen this recipient list will be available
+                      Post development of User List / DLs screen this recipient
+                      list will be available
                     </div>
                   </div>
                 </div>
 
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
+                  <span className="font-semibold">
+                    {formatDateTime(detailModalItem.StartTime)}
+                  </span>
                 </div>
 
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
+                  <span className="font-semibold">
+                    {formatDateTime(detailModalItem.EndTime)}
+                  </span>
                 </div>
               </div>
 
@@ -531,19 +586,26 @@ const ApprovalQueueGallery = ({
                 <h4 className="text-[12.5px] font-voda font-bold uppercase text-slate-900">
                   Email Dispatch Details & Payloads
                 </h4>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-6 text-[11.5px] text-slate-700 font-medium">
                   <div>
                     <strong>Sender Name: </strong>
-                    <span>{detailModalItem.SenderName || 'Security Gateway'}</span>
+                    <span>
+                      {detailModalItem.SenderName || "Security Gateway"}
+                    </span>
                   </div>
                   <div>
                     <strong>Sender Email: </strong>
-                    <span className="font-mono-tech">{detailModalItem.SenderEmailID || 'Not set'}</span>
+                    <span className="font-mono-tech">
+                      {detailModalItem.SenderEmailID || "Not set"}
+                    </span>
                   </div>
                   <div className="sm:col-span-2">
                     <strong>Email Subject: </strong>
-                    <span>{detailModalItem.EmailSubject || 'Gateway TLS Certificate Refresh'}</span>
+                    <span>
+                      {detailModalItem.EmailSubject ||
+                        "Gateway TLS Certificate Refresh"}
+                    </span>
                   </div>
 
                   {/* Landing Page ID with Tooltip */}
@@ -555,12 +617,17 @@ const ApprovalQueueGallery = ({
                         onClick={(e) => e.preventDefault()}
                         className="font-mono-tech text-[#E60000] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                       >
-                        <span>{detailModalItem.LandingPageID || detailModalItem.landingPageId || 'LP-VOD-001'}</span>
+                        <span>
+                          {detailModalItem.LandingPageID ||
+                            detailModalItem.landingPageId ||
+                            "LP-VOD-001"}
+                        </span>
                         <ExternalLink className="w-2.5 h-2.5 stroke-[2.5]" />
                       </button>
                       {/* Hover Tooltip */}
                       <div className="pointer-events-none absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded bg-slate-900 text-white text-[9.5px] font-medium shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
-                        Post development of Landing Page Catalogue this preview will be available
+                        Post development of Landing Page Catalogue this preview
+                        will be available
                       </div>
                     </div>
                   </div>
@@ -574,28 +641,38 @@ const ApprovalQueueGallery = ({
                         onClick={(e) => e.preventDefault()}
                         className="font-mono-tech text-[#E60000] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
                       >
-                        <span>{detailModalItem.TrainingPathID || detailModalItem.trainingPathId || 'TP-DEF-001'}</span>
+                        <span>
+                          {detailModalItem.TrainingPathID ||
+                            detailModalItem.trainingPathId ||
+                            "TP-DEF-001"}
+                        </span>
                         <ExternalLink className="w-2.5 h-2.5 stroke-[2.5]" />
                       </button>
                       {/* Hover Tooltip */}
                       <div className="pointer-events-none absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded bg-slate-900 text-white text-[9.5px] font-medium shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50">
-                        Post development of Training (LMS) screen this will be available as modal
+                        Post development of Training (LMS) screen this will be
+                        available as modal
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Preview Email Body Button */}
-                {(detailModalItem.EmailBody || detailModalItem.emailBody || detailModalItem.ScenarioEmailBody || detailModalItem.EmailContent) && (
+                {(detailModalItem.EmailBody ||
+                  detailModalItem.emailBody ||
+                  detailModalItem.ScenarioEmailBody ||
+                  detailModalItem.EmailContent) && (
                   <div className="pt-1.5">
                     <button
                       type="button"
-                      onClick={() => setPreviewEmailHtml(
-                        detailModalItem.EmailBody || 
-                        detailModalItem.emailBody || 
-                        detailModalItem.ScenarioEmailBody || 
-                        detailModalItem.EmailContent
-                      )}
+                      onClick={() =>
+                        setPreviewEmailHtml(
+                          detailModalItem.EmailBody ||
+                            detailModalItem.emailBody ||
+                            detailModalItem.ScenarioEmailBody ||
+                            detailModalItem.EmailContent,
+                        )
+                      }
                       className="px-3 py-1 rounded-lg bg-white text-slate-800 border border-slate-300 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-slate-50 shadow-2xs cursor-pointer w-fit transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5 text-[#E60000]" />
@@ -606,7 +683,9 @@ const ApprovalQueueGallery = ({
               </div>
 
               {/* Bottom: approver actions — approve, notify for changes, reject. Approvers never edit. */}
-              <div className={`flex items-center gap-2 pt-2 border-t border-black/10 ${getButtonsRowJustifyClass()}`}>
+              <div
+                className={`flex items-center gap-2 pt-2 border-t border-black/10 ${getButtonsRowJustifyClass()}`}
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -618,7 +697,7 @@ const ApprovalQueueGallery = ({
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
                   Approve
                 </button>
-                
+
                 <button
                   type="button"
                   onClick={() => {
@@ -630,7 +709,6 @@ const ApprovalQueueGallery = ({
                   <AlertCircle className="w-3.5 h-3.5" />
                   Notify For Changes
                 </button>
-
 
                 <button
                   type="button"
@@ -654,7 +732,6 @@ const ApprovalQueueGallery = ({
         {previewEmailHtml && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
             <div className="w-full max-w-2xl bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col">
-              
               {/* Modal Window Header */}
               <div className="px-5 py-3 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-100 dark:bg-[#121418]">
                 <span className="text-xs font-voda font-bold text-slate-900 dark:text-white uppercase tracking-wide">
@@ -673,21 +750,32 @@ const ApprovalQueueGallery = ({
               {detailModalItem && (
                 <div className="px-5 py-2.5 bg-slate-50 dark:bg-[#15171C] border-b border-slate-200 dark:border-white/5 flex flex-col gap-1 text-[11px] text-slate-600 dark:text-slate-300">
                   <div>
-                    <strong className="text-slate-900 dark:text-white">Subject: </strong>
+                    <strong className="text-slate-900 dark:text-white">
+                      Subject:{" "}
+                    </strong>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {detailModalItem.EmailSubject || 'Gateway TLS Certificate Refresh'}
+                      {detailModalItem.EmailSubject ||
+                        "Gateway TLS Certificate Refresh"}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4">
                     <div>
-                      <strong className="text-slate-900 dark:text-white">From: </strong>
-                      <span>{detailModalItem.SenderName || 'Not set'}</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{detailModalItem.SenderEmailID || 'Not set'}&gt;</span>
+                      <strong className="text-slate-900 dark:text-white">
+                        From:{" "}
+                      </strong>
+                      <span>{detailModalItem.SenderName || "Not set"}</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">
+                        &lt;{detailModalItem.SenderEmailID || "Not set"}&gt;
+                      </span>
                     </div>
                     <div>
-                      <strong className="text-slate-900 dark:text-white">To: </strong>
+                      <strong className="text-slate-900 dark:text-white">
+                        To:{" "}
+                      </strong>
                       <span>{DEMO_USER.name}</span>
-                      <span className="text-slate-400 font-mono text-[10px] ml-1">&lt;{DEMO_USER.email}&gt;</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-1">
+                        &lt;{DEMO_USER.email}&gt;
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -696,9 +784,9 @@ const ApprovalQueueGallery = ({
               {/* Rendered Email Body with Preserved Headings & Button Styles */}
               <div className="p-5 overflow-y-auto max-h-[60vh] bg-slate-100/70 dark:bg-black/50">
                 <div className="bg-white text-slate-900 p-6 rounded-xl shadow-xs border border-slate-200/80 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:mb-2 [&_p]:mb-2.5 [&_p]:leading-relaxed [&_a]:text-[#E60000] [&_a]:underline [&_a]:font-semibold [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4">
-                  <div 
+                  <div
                     dangerouslySetInnerHTML={{
-                      __html: formatEmailPayload(previewEmailHtml)
+                      __html: formatEmailPayload(previewEmailHtml),
                     }}
                   />
                 </div>
