@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  X,
   Check,
   CheckCircle2,
   Plus,
@@ -10,6 +9,8 @@ import {
 } from "lucide-react";
 
 import { useIsDarkMode } from "../../components/modals/helpers";
+
+import ExcelJS from 'exceljs';
 
 export const CreateNewQuiz = ({
   onSave,
@@ -48,6 +49,53 @@ export const CreateNewQuiz = ({
       }
     ];
   });
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async (evt) => {
+      const buffer = evt.target.result;
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        console.log("No worksheet found");
+        return;
+      }
+
+      const parsedQuestions = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        const values = row.values.slice(1); // remove ExcelJS's 1-based index gap
+
+        if (rowNumber === 1) {
+          console.log("header:", values);
+          return;
+        }
+
+        console.log("row:", values);
+
+        parsedQuestions.push({
+          question: values[0],
+          optionA: values[1],
+          optionB: values[2],
+          optionC: values[3],
+          optionD: values[4],
+          answer: values[5],
+        });
+      });
+
+      setQuestions(parsedQuestions);
+      setStep(2);
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
 
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(startQIdx);
   const [isEditingQuestion, setIsEditingQuestion] = useState(startIsEditing);
@@ -290,6 +338,8 @@ export const CreateNewQuiz = ({
                   placeholder="Assess employee mastery on threat signals and reporting procedures..."
                 />
               </div>
+
+              <input type="file" accept=".xlsx" onChange={handleFileUpload} />
 
               <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-2 text-left">
