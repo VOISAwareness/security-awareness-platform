@@ -95,6 +95,24 @@ export const TrainingProvider = ({ children }) => {
   const [certificates, setCertificates] = useState(() => trainingCertificateJson);
   const [packages, setPackages] = useState([SAMPLE_PACKAGE]);
 
+  // The packages stored in S3 (everyone's), loaded on their own as soon as
+  // the page opens: they used to be loaded only after this browser's
+  // IndexedDB migration below, so a failed or slow migration hid them.
+  useEffect(() => {
+    let active = true;
+    api.trainingPackages
+      .list()
+      .then((rows) => {
+        if (!active) return;
+        const serverPkgs = (Array.isArray(rows) ? rows : []).map(fromServer);
+        setPackages((prev) => mergePackages(serverPkgs, prev.filter((p) => !p.isSample), [SAMPLE_PACKAGE]));
+      })
+      .catch((err) => console.error("Could not load training packages from the server", err));
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Load dynamic uploads and assets metadata on mount
   useEffect(() => {
     async function loadData() {
@@ -202,16 +220,9 @@ export const TrainingProvider = ({ children }) => {
           }
           return pkg;
         }));
-        // The packages stored in S3 first (everyone's), then any kept in this
-        // browser only, then the sample. Without the API, the browser's alone.
-        let serverPkgs = [];
-        try {
-          const rows = await api.trainingPackages.list();
-          serverPkgs = (Array.isArray(rows) ? rows : []).map(fromServer);
-        } catch (err) {
-          console.error("Could not load training packages from the server", err);
-        }
-        setPackages((prev) => mergePackages(serverPkgs, prev.filter((p) => !p.isSample), extractedDbPkgs, [SAMPLE_PACKAGE]));
+        // Any kept in this browser only join the list (the S3 ones are loaded
+        // on their own, below), the sample last.
+        setPackages((prev) => mergePackages(prev.filter((p) => !p.isSample), extractedDbPkgs, [SAMPLE_PACKAGE]));
       } catch (err) {
         console.error("Failed to run progressive JSON-to-IDB migration flow:", err);
       }
