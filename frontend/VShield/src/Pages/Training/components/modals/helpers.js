@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { zipReader } from "../../../../services/zipReader";
 
 export const useIsDarkMode = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -21,25 +22,9 @@ export const useIsDarkMode = () => {
   return isDark;
 };
 
-export const loadJSZip = () => {
-  return new Promise((resolve, reject) => {
-    if ((window ).JSZip) {
-      resolve((window ).JSZip);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-    script.onload = () => {
-      if ((window ).JSZip) {
-        resolve((window ).JSZip);
-      } else {
-        reject(new Error("JSZip failed to load"));
-      }
-    };
-    script.onerror = () => reject(new Error("Failed to load JSZip from CDN"));
-    document.head.appendChild(script);
-  });
-};
+// The zip reader, bundled (fflate) rather than JSZip from a CDN, so reading
+// a package never depends on reaching cdnjs. Same API as before.
+export const loadJSZip = async () => zipReader;
 
 export const getMimeType = (filename) => {
   const ext = filename?.split(".").pop()?.toLowerCase();
