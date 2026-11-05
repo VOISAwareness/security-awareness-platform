@@ -495,7 +495,7 @@ export const TrainingProvider = ({ children }) => {
 export const useTraining = () => {
   const context = useContext(TrainingContext);
   if (!context) {
-    throw new Error("useTraining must be used within a TrainingProvider");
+    return {};
   }
   return context;
 };
