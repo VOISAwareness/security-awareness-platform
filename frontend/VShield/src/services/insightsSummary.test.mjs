@@ -3,9 +3,9 @@ import test from 'node:test';
 
 import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
 import { campaignReport } from './sampleReports.js';
-import { insights, peopleInsights } from './insights.js';
+import { insights, peopleInsights, periodSteps, summary } from './insights.js';
 import { organisation } from './sampleOrganisation.js';
-import { trends } from './insightsSummary.js';
+import { scoreAt, trends } from './insightsSummary.js';
 
 const items = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) }));
 const at = (days) => {
@@ -24,24 +24,58 @@ test('the year: twelve steps of thirty days, oldest first, the newest ending wit
   assert.deepEqual(m.year.slice(-6).map((s) => s.campaigns), m.months.map((s) => s.campaigns));
 });
 
-test('trends: the Risk Score over twelve steps, from the people trend', () => {
-  const { m, p } = at(30);
-  const t = trends(m, p);
-  assert.equal(t.risk.length, 12);
-  assert.equal(t.risk.at(-1).score, p.trend.at(-1).score);
+const DAY = 86400000;
+
+test('the period in steps: four of about a week for 30 days, calendar months for 60 and 90', () => {
+  const end = Date.UTC(2026, 9, 6); // 6 Oct
+  const w = periodSteps(end - 30 * DAY, end, 30);
+  assert.equal(w.length, 4);
+  assert.equal(w[0].from, end - 30 * DAY);
+  assert.equal(w.at(-1).to, end);
+  assert.equal(w[0].axis, '7–13 Sept');
+  const m = periodSteps(end - 90 * DAY, end, 90);
+  assert.deepEqual(m.map((s) => s.axis), ['Jul', 'Aug', 'Sept', 'Oct']);
+  assert.equal(m[1].range, 'August 2026'); // a whole month
+  assert.equal(m[0].range, '9–31 Jul'); // cut to the period
+  assert.equal(m.at(-1).range, '1–6 Oct');
+  // the steps follow on, and cover the period exactly
+  m.forEach((s, i) => assert.equal(s.from, i === 0 ? end - 90 * DAY : m[i - 1].to));
+  assert.equal(m.at(-1).to, end);
 });
 
-test('trends: the campaign months start at the first with a campaign, each from its step', () => {
-  const { m, p } = at(30);
+test('every campaign in the period is in exactly one step', () => {
+  for (const days of [30, 60, 90]) {
+    const { m } = at(days);
+    assert.equal(m.period.reduce((a, s) => a + s.campaigns, 0), m.now.campaigns, `${days} days`);
+  }
+});
+
+test('the average time to report is after the first report and counts every report', () => {
+  const { m } = at(30);
+  assert.ok(m.now.avgReport > m.now.firstReport);
+  const one = summary([items[0].report]);
+  assert.ok(one.avgReport > items[0].report.timing.firstReport);
+});
+
+test('trends: the Risk Score at the end of each step, between the snapshots', () => {
+  const { m, p } = at(90);
   const t = trends(m, p);
-  assert.ok(t.months.length > 0 && t.months.length <= 12);
-  assert.ok(t.months[0].campaigns > 0, 'no empty months before the first campaign');
-  const last = t.months.at(-1);
-  assert.equal(last.to, m.basis.end);
-  assert.equal(last.hooked, m.now.hooked);
-  assert.equal(last.reportRate, m.now.reportRate);
-  assert.equal(last.gave, m.now.compromised / m.now.delivered);
-  assert.equal(last.firstReport, m.now.firstReport);
+  assert.equal(t.risk.length, m.period.length);
+  assert.equal(t.risk.at(-1).score, p.trend.at(-1).score);
+  const [a, b] = p.trend.slice(-2);
+  assert.equal(scoreAt(p.trend, (a.to + b.to) / 2), (a.score + b.score) / 2);
+  assert.equal(scoreAt([], 0), null);
+});
+
+test('trends: the campaign steps carry their measures and their dates in words', () => {
+  const { m, p } = at(60);
+  const t = trends(m, p);
+  assert.equal(t.months.length, m.period.length);
+  t.months.forEach((s, i) => {
+    assert.equal(s.hooked, m.period[i].hooked);
+    assert.equal(s.avgReport, m.period[i].avgReport);
+    assert.ok(s.axis && s.range);
+  });
 });
 
 test('trends: training is the click rate of each group, and the trained click less in the sample', () => {
@@ -50,10 +84,4 @@ test('trends: training is the click rate of each group, and the trained click le
   assert.equal(training.untrained, p.now.cohorts.untrainedRate);
   assert.equal(training.trained, p.now.cohorts.trainedRate);
   assert.ok(training.trained < training.untrained);
-});
-
-test('trends: with no campaigns at all, no months, not empty ones', () => {
-  const { m, p } = at(30);
-  const none = { ...m, year: m.year.map((s) => ({ ...s, campaigns: 0 })) };
-  assert.deepEqual(trends(none, p).months, []);
 });

@@ -21,6 +21,7 @@ import { alpha, day, mins, num, pc, pc1, small, TYPE } from './insightsUi';
 // coloured but the risk levels. They report; they never advise.
 
 const minutes = (v) => `${Math.round(v)}m`;
+// a department's own charts: thirty days at a time
 const head = (s) => `30 days to ${day(s.to)}`;
 const steps = (hi, by) => Array.from({ length: Math.floor(hi / by) + 1 }, (_, k) => k * by);
 const within = (v, T) => (T.better === 'down' ? v <= T.target : v >= T.target);
@@ -30,78 +31,85 @@ const card = { background: 'var(--base)', borderRadius: 16, padding: '12px 16px 
 const tip = (text) => ({ 'data-tip': text });
 const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }, style: { cursor: 'pointer' } });
 
-// Who is trained and who is not, each a bar as long as its number of
-// people, its red part those who clicked a phishing email, counted under it.
-function TrainingSplit({ cohorts, ink }) {
-  if (!cohorts) return null;
-  const all = cohorts.trained + cohorts.untrained;
-  const biggest = Math.max(cohorts.trained, cohorts.untrained) || 1;
-  const groups = [
-    { key: 'untrained', label: 'Not trained', people: cohorts.untrained, clicks: cohorts.untrainedClicks, rate: cohorts.untrainedRate },
-    { key: 'trained', label: 'Trained', people: cohorts.trained, clicks: cohorts.trainedClicks, rate: cohorts.trainedRate },
-  ];
-  const swatch = (bg) => <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: bg }} />;
+// Click rates side by side, as columns on a 0% scale: one per group of
+// people (trained, not trained; or by kind of training). The taller the
+// column, the more that group clicked. Each column: its rate on top, its
+// name and its people under it.
+export function ClickRateColumns({ groups, ink, note, label }) {
+  const shown = groups.filter((g) => Number.isFinite(g.rate));
+  if (!shown.length) return <span style={small}>No figures yet.</span>;
+  const most = Math.max(...shown.map((g) => g.rate));
+  const top = Math.max(0.05, Math.ceil((most * 1.15) / 0.05) * 0.05);
+  const ticks = steps(top, top > 0.2 ? 0.1 : 0.05);
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
-        {groups.map((g) => {
-          const clicked = g.clicks ?? Math.round(g.people * (g.rate || 0));
-          return (
-            <div key={g.key} data-ins-cohort={g.key}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  <span style={{ fontSize: TYPE.body, fontWeight: 800 }}>{g.label}</span>
-                  <span style={small}> · {num(g.people)} people ({pc(all ? g.people / all : null)})</span>
-                </span>
-              </div>
-              <div role="img" aria-label={`${g.label}: ${num(clicked)} of ${num(g.people)} people clicked`} style={{ display: 'flex', gap: 2, height: 18, marginTop: 4, width: `${(g.people / biggest) * 100}%`, minWidth: 24 }}>
-                <span style={{ width: `${(g.rate || 0) * 100}%`, minWidth: 4, background: ink.bad, borderRadius: '5px 0 0 5px' }} />
-                <span style={{ flex: 1, background: 'var(--track)', borderRadius: '0 5px 5px 0' }} />
-              </div>
-              <span style={{ display: 'block', ...small, marginTop: 3 }}>{num(clicked)} clicked</span>
+    <div role="img" aria-label={label ?? shown.map((g) => `${g.name}: ${pc1(g.rate)} clicked`).join('; ')} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '34px minmax(0,1fr)', gridTemplateRows: 'minmax(0,1fr) auto auto', columnGap: 6 }}>
+      <div aria-hidden style={{ position: 'relative' }}>
+        {ticks.map((t) => <span key={t} style={{ position: 'absolute', right: 0, bottom: `${(t / top) * 100}%`, transform: 'translateY(50%)', ...small, fontSize: TYPE.label }}>{pc(t)}</span>)}
+      </div>
+      <div style={{ position: 'relative', borderLeft: '1px solid var(--hair-strong)', borderBottom: '1px solid var(--hair-strong)' }}>
+        {ticks.filter((t) => t > 0).map((t) => <span key={t} aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: `${(t / top) * 100}%`, borderTop: '1px dashed var(--hair)' }} />)}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', padding: '0 4%' }}>
+          {shown.map((g, k) => (
+            <div key={g.name} data-ins-click-col={g.key} style={{ width: `${Math.min(28, 70 / shown.length)}%`, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 3 }}>
+              <span style={{ fontSize: TYPE.strong, fontWeight: 800, color: 'var(--text)' }}>{pc1(g.rate)}</span>
+              <span className="ins-rise" style={{ '--d': `${k * 0.06}s`, width: '100%', height: `${(g.rate / top) * 100}%`, minHeight: 3, background: g.color, borderRadius: '6px 6px 0 0' }} />
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
-      <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', gap: 14, paddingTop: 6, borderTop: '1px solid var(--hair)', ...small, fontWeight: 700 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{swatch(ink.bad)}Clicked</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{swatch('var(--track)')}Didn&apos;t click</span>
+      <span />
+      <div style={{ display: 'flex', justifyContent: 'space-around', padding: '5px 4% 0' }}>
+        {shown.map((g) => (
+          <span key={g.name} style={{ width: `${Math.min(34, 90 / shown.length)}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', lineHeight: 1.2 }}>
+            <span style={{ fontSize: TYPE.body, fontWeight: 700, color: 'var(--text)' }}>{g.name}</span>
+            {Number.isFinite(g.people) && <span style={{ ...small, fontSize: TYPE.label }}>{num(g.people)} people</span>}
+          </span>
+        ))}
       </div>
+      {note && <span style={{ gridColumn: '1 / -1', paddingTop: 6, fontSize: TYPE.body, fontWeight: 700, color: ink.good }}>{note}</span>}
     </div>
   );
 }
+
+// how many times more often one group clicks than another, in words
+const timesMore = (more, less) => (Number.isFinite(more) && Number.isFinite(less) && less > 0 ? more / less : null);
 
 // --------------------------------------------------------------- Summary
 
 export function SummaryPage({ ctx }) {
   const { m, p, ink, reduce, targets: T } = ctx;
   const t = trends(m, p);
+  const by = m.basis.days <= 30 ? 'by week' : 'by month';
   const R = T.riskScore; const H = T.hookRate; const P = T.reportRate; const G = T.gaveDetails; const F = T.firstReport;
-  const lo = Math.floor(Math.min(...t.risk.map((s) => s.score), R.target) / 2) * 2 - 2;
-  const hi = Math.ceil(Math.max(...t.risk.map((s) => s.score), R.target) / 2) * 2 + 2;
+  const scores = t.risk.map((s) => s.score).filter(Number.isFinite);
+  const lo = Math.max(0, Math.floor(Math.min(...scores, R.target) / 2) * 2 - 4);
+  const hi = Math.ceil(Math.max(...scores, R.target) / 2) * 2 + 2;
   const gaveHi = Math.max(G.target * 3, ...t.months.map((s) => s.gave || 0)) * 1.2;
-  const firstHi = Math.max(F.target + 5, ...t.months.map((s) => s.firstReport || 0)) * 1.15;
+  const avgHi = Math.max(F.target + 10, ...t.months.map((s) => s.avgReport || 0)) * 1.15;
+  const last = t.months.at(-1);
+  const c = p.now.cohorts;
+  const x = timesMore(c?.untrainedRate, c?.trainedRate);
   return (
     <div data-ins-summary style={grid('repeat(6, minmax(0,1fr))', 'minmax(0,1.1fr) minmax(0,1fr)')}>
-      <Card i={0} reduce={reduce} title="Risk score" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
+      <Card i={0} reduce={reduce} title={`Risk score, ${by}`} style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
         <Trend
           points={t.risk}
-          label={`Risk Score, 30 days at a time: ${t.risk.at(-1)?.score.toFixed(1)} now; the target is ${targetText(R)}`}
+          label={`Risk Score ${by}: ${t.risk.map((s) => `${s.range} ${Number.isFinite(s.score) ? s.score.toFixed(1) : 'no figure'}`).join(', ')}; the target is ${targetText(R)}`}
           lo={lo}
           hi={hi}
           ticks={steps(hi, 2).filter((v) => v >= lo)}
           tickText={(v) => v}
-          zones={[{ from: lo, to: R.target, color: ink.good }, { from: R.target, to: hi, color: ink.bad }]}
-          lines={[{ key: 'score', dots: true, split: { at: R.target, below: ink.good, above: ink.bad } }]}
-          tag={{ key: 'score', text: (v) => v.toFixed(1) }}
-          right={44}
-          tip={(s) => ({ head: head(s), rows: [{ label: 'Risk Score', value: s.score.toFixed(1), color: s.score <= R.target ? ink.good : ink.bad }] })}
+          zones={[{ from: lo, to: R.target, color: ink.good }]}
+          targets={[{ v: R.target, color: ink.good, label: `Target ${targetText(R)}`, below: true }]}
+          columns={{ key: 'score', split: { at: R.target, below: ink.good, above: ink.bad }, text: (v) => v.toFixed(1) }}
+          right={10}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Risk Score', value: s.score.toFixed(1), color: s.score <= R.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={1} reduce={reduce} title="Clicked vs reported" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
+      <Card i={1} reduce={reduce} title={`Clicked vs reported, ${by}`} style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
         <Trend
           points={t.months}
-          label={`Reported ${pc1(t.months.at(-1)?.reportRate)} and clicked ${pc1(t.months.at(-1)?.hooked)} of emails delivered in the latest 30 days`}
+          label={`Reported ${pc1(last?.reportRate)} and clicked ${pc1(last?.hooked)} of emails delivered in ${last?.range}`}
           lo={-0.05}
           hi={0.62}
           ticks={[0, 0.2, 0.4, 0.6]}
@@ -110,13 +118,13 @@ export function SummaryPage({ ctx }) {
           targets={[{ v: P.target, color: ink.good, label: `Report target ${targetText(P, '%')}`, below: true }, { v: H.target, color: ink.bad, label: `Click target ${targetText(H, '%')}`, below: true }]}
           lines={[{ key: 'reportRate', color: ink.good, end: true, name: 'Reported', text: pc1 }, { key: 'hooked', color: ink.bad, end: true, name: 'Clicked', text: pc1, dy: 6 }]}
           right={52}
-          tip={(s) => ({ head: head(s), rows: [{ label: 'Reported', value: pc1(s.reportRate), color: ink.good }, { label: 'Clicked', value: pc1(s.hooked), color: ink.bad }] })}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Reported', value: pc1(s.reportRate), color: ink.good }, { label: 'Clicked', value: pc1(s.hooked), color: ink.bad }] })}
         />
       </Card>
-      <Card i={2} reduce={reduce} title="Compromise rate" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
+      <Card i={2} reduce={reduce} title={`Compromise rate, ${by}`} style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
         <Trend
           points={t.months}
-          label={`Compromise rate: ${pc1(t.months.at(-1)?.gave)} in the latest 30 days; the target is ${targetText(G, '%')}`}
+          label={`Compromise rate: ${pc1(last?.gave)} in ${last?.range}; the target is ${targetText(G, '%')}`}
           lo={0}
           hi={gaveHi}
           ticks={steps(gaveHi, gaveHi > 0.08 ? 0.05 : 0.02)}
@@ -124,24 +132,31 @@ export function SummaryPage({ ctx }) {
           zones={[{ from: 0, to: G.target, color: ink.good }]}
           columns={{ key: 'gave', split: { at: G.target, below: ink.good, above: ink.bad }, text: pc1 }}
           right={10}
-          tip={(s) => ({ head: head(s), rows: [{ label: 'Compromise rate', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Compromise rate', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={3} reduce={reduce} title="Time to first report" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="first">
+      <Card i={3} reduce={reduce} title={`Avg time for reporting, ${by}`} style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="report-time">
         <Trend
           points={t.months}
-          label={`Median minutes to the first report: ${mins(t.months.at(-1)?.firstReport)} in the latest 30 days; the target is ${targetText(F, 'min')}`}
+          label={`Average minutes from sending to a report: ${mins(last?.avgReport)} in ${last?.range}; the target is ${targetText(F, 'min')}`}
           lo={0}
-          hi={firstHi}
-          ticks={steps(firstHi, 10)}
+          hi={avgHi}
+          ticks={steps(avgHi, avgHi > 120 ? 30 : 15)}
           tickText={minutes}
-          columns={{ key: 'firstReport', colorOf: (v) => (v <= F.target ? ink.good : ink.bad), text: minutes }}
+          columns={{ key: 'avgReport', colorOf: (v) => (v <= F.target ? ink.good : ink.bad), text: minutes }}
           right={10}
-          tip={(s) => ({ head: head(s), rows: [{ label: 'First report', value: mins(s.firstReport), color: s.firstReport <= F.target ? ink.good : ink.bad }] })}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Avg time for reporting', value: mins(s.avgReport), color: s.avgReport <= F.target ? ink.good : ink.bad }] })}
         />
       </Card>
       <Card i={4} reduce={reduce} title="Training effectiveness" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">
-        <TrainingSplit cohorts={p.now.cohorts} ink={ink} />
+        <ClickRateColumns
+          ink={ink}
+          groups={[
+            { key: 'trained', name: 'Completed training', people: c?.trained, rate: c?.trainedRate, color: ink.good },
+            { key: 'untrained', name: 'No training', people: c?.untrained, rate: c?.untrainedRate, color: ink.bad },
+          ]}
+          note={x ? `Trained people click ${x.toFixed(1)}× less` : null}
+        />
       </Card>
     </div>
   );
@@ -150,36 +165,59 @@ export function SummaryPage({ ctx }) {
 // ----------------------------------------------------------- Departments
 
 // lower is better first (risk score, high risk, hook rate, compromise
-// rate), then higher is better (report rate, trained rate)
+// rate), then higher is better (report rate, trained rate); Open rate,
+// neither, has no target
 const DEPT_COLS = [
   { key: 'riskScore', name: 'Risk score', text: (v) => v.toFixed(1), unit: '' },
   { key: 'highRiskShare', name: 'High risk', text: pc1, unit: '%' },
+  { key: 'openRate', name: 'Open rate', text: pc1, unit: '%', noTarget: true },
   { key: 'hookRate', name: 'Hook rate', text: pc1, unit: '%' },
   { key: 'gaveDetails', name: 'Compromise rate', text: pc1, unit: '%' },
   { key: 'reportRate', name: 'Report rate', text: pc1, unit: '%' },
   { key: 'trainingCompletion', name: 'Trained rate', text: pc, unit: '%' },
 ];
-const DEPT_GRID = 'minmax(0,1.6fr) repeat(6, minmax(0,1fr)) 64px 14px';
+const DEPT_GRID = 'minmax(0,1.6fr) repeat(7, minmax(0,1fr)) 64px 14px';
+const ARROW_GREY = '#64748B';
 
-// up or down on the period before: green when it moved towards the target
-function Trendlet({ now, before, T, ink }) {
-  if (!Number.isFinite(now) || !Number.isFinite(before) || now === before) return <span style={{ width: 10 }} />;
+// against the period before: ▲ or ▼, green when it moved towards the target
+// and red when away (grey for a measure with no target), or "–" when it did
+// not change as shown; nothing when there is no figure to compare with
+function Trendlet({ now, before, T, ink, text }) {
+  const box = { display: 'inline-block', width: 12, marginLeft: 4, textAlign: 'center', fontSize: TYPE.label };
+  if (!Number.isFinite(now) || !Number.isFinite(before)) return <span style={box} />;
+  if (text(now) === text(before)) return <span data-ins-move="same" title="No change" style={{ ...box, fontSize: TYPE.strong, fontWeight: 800, color: ARROW_GREY }}>–</span>;
   const up = now > before;
-  const better = T.better === 'down' ? !up : up;
-  return <span aria-hidden style={{ fontSize: TYPE.label, marginLeft: 5, color: better ? ink.good : ink.bad }}>{up ? '▲' : '▼'}</span>;
+  const better = T ? (T.better === 'down' ? !up : up) : null;
+  return <span data-ins-move={better === null ? 'moved' : better ? 'better' : 'worse'} title={`${up ? 'Up' : 'Down'} on the period before${better === null ? '' : better ? ', better' : ', worse'}`} style={{ ...box, color: better === null ? ARROW_GREY : better ? ink.good : ink.bad }}>{up ? '▲' : '▼'}</span>;
+}
+
+// what the arrows compare with, over the table
+function MoveLegend({ m, ink }) {
+  const DAY = 86400000;
+  const day1 = (t) => day(t + DAY);
+  const before = `${day1(m.basis.from - m.basis.days * DAY)} – ${day(m.basis.from)}`;
+  const item = (glyph, color, words) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}><span aria-hidden style={{ fontWeight: 800, color }}>{glyph}</span>{words}</span>;
+  return (
+    <span data-ins-move-legend style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: '4px 12px', ...small, fontWeight: 600 }}>
+      <span style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)' }}>▲ ▼</strong> compared with the previous {m.basis.days} days ({before})</span>
+      {item('▲▼', ink.good, 'better')}
+      {item('▲▼', ink.bad, 'worse')}
+      {item('–', ARROW_GREY, 'no change')}
+    </span>
+  );
 }
 
 export function DepartmentsPage({ ctx }) {
-  const { depts, ink, reduce, targets: T, openDept } = ctx;
+  const { m, depts, ink, reduce, targets: T, openDept } = ctx;
   return (
-    <Card i={0} reduce={reduce} title="Departments against targets" style={{ ...card, flex: 1 }} data-ins-depts>
+    <Card i={0} reduce={reduce} title="Departments against targets" action={<MoveLegend m={m} ink={ink} />} style={{ ...card, flex: 1 }} data-ins-depts>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
         <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: DEPT_GRID, columnGap: 8, alignItems: 'end', padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
           <span style={{ fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>Department</span>
           {DEPT_COLS.map((c) => (
             <span key={c.key} style={{ textAlign: 'center', lineHeight: 1.3 }}>
               <span style={{ display: 'block', fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-              <span style={{ fontSize: TYPE.small, fontWeight: 700, color: 'var(--text)' }}>{targetText(T[c.key], c.unit)}</span>
+              <span style={{ fontSize: TYPE.small, fontWeight: 700, color: c.noTarget ? 'var(--muted)' : 'var(--text)' }}>{c.noTarget ? 'No target' : targetText(T[c.key], c.unit)}</span>
             </span>
           ))}
           <span style={{ textAlign: 'right', fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>People</span>
@@ -194,11 +232,11 @@ export function DepartmentsPage({ ctx }) {
               <span style={{ fontSize: TYPE.strong, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
               {DEPT_COLS.map((c) => {
                 const v = d.now[c.key];
-                const ok = Number.isFinite(v) && within(v, T[c.key]);
+                const ok = Number.isFinite(v) && !c.noTarget && within(v, T[c.key]);
                 return (
-                  <span key={c.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TYPE.strong, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: !Number.isFinite(v) ? 'var(--muted)' : ok ? ink.good : ink.bad }}>
+                  <span key={c.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TYPE.strong, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: !Number.isFinite(v) || c.noTarget ? 'var(--text)' : ok ? ink.good : ink.bad }}>
                     {Number.isFinite(v) ? c.text(v) : '—'}
-                    <Trendlet now={v} before={d.before?.[c.key]} T={T[c.key]} ink={ink} />
+                    <Trendlet now={v} before={d.before?.[c.key]} T={c.noTarget ? null : T[c.key]} ink={ink} text={c.text} />
                   </span>
                 );
               })}

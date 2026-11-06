@@ -38,7 +38,7 @@ test('the target as it reads', () => {
   assert.equal(targetText(TARGETS.riskScore), '≤ 20');
   assert.equal(targetText(TARGETS.reportRate, '%'), '≥ 50%');
   assert.equal(targetText(TARGETS.highRiskShare, '%'), '≤ 10%');
-  assert.equal(targetText(TARGETS.firstReport, 'min'), '≤ 15 min');
+  assert.equal(targetText(TARGETS.firstReport, 'min'), '≤ 60 min'); // the average time to report
 });
 
 test('every target has a unit', () => {

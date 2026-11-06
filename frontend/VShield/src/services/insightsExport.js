@@ -21,6 +21,7 @@ const MEASURES = [
   [GLOSSARY.gaveDetails.name, 'compromiseRate', 'pct', GLOSSARY.gaveDetails.how],
   [GLOSSARY.perClick.name, 'perClick', 'dec', GLOSSARY.perClick.how],
   ['Of those who clicked, gave details away', 'gaveOfClicks', 'pct', 'Of those who clicked, how many went on to enter details on the practice page (not the share of emails delivered)'],
+  ['Avg time for reporting (minutes)', 'avgReport', 'dec', 'Average minutes from sending to a report, every report counted'],
   ['First report (minutes)', 'firstReport', 'dec', 'Minutes from the send to the first report, in the middle campaign'],
   ['Half the reports in (minutes)', 'halfReported', 'dec', 'Minutes until half the reports were in, in the middle campaign'],
   ['Reported before a click', 'beatClick', 'int', 'Campaigns whose first report came before anyone clicked'],
