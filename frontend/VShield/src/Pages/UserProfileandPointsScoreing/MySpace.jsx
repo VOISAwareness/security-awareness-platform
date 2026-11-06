@@ -72,6 +72,8 @@ const VODAFONE_FONT_STYLE = `
   .rounded-xl  { border-radius: ${Math.round(14 * VarOverallMySpaceRoundednessScale)}px !important; }
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallMySpaceRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallMySpaceRoundednessScale)}px !important; }
+  .voda-rounded-2xl { border-radius: ${Math.round(20 * VarOverallMySpaceRoundednessScale)}px !important; }
+  
 `;
 
 // =========================================================================
@@ -1191,13 +1193,13 @@ const MySpace = () => {
 
       <div
         style={{ zoom: VarMySpaceScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5"
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ========================================================================= */}
         {/* ── TOP FULL-WIDTH SECTION BAR: "MY SPACE" ─────────────────────────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 voda-rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
               ? "bg-white text-black border-white/10"
               : "bg-[#000000] text-white border-black/10"
