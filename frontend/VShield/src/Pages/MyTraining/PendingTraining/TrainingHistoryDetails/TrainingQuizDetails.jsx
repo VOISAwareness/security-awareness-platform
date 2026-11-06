@@ -647,7 +647,7 @@ function QuizSession({
                 </span>
               </div>
 
-              <h2 className="mb-2 text-xs font-bold font-voda leading-snug sm:text-sm">
+              <h2 className="mb-2 text-xs font-bold leading-snug sm:text-sm">
                 <span style={{ color: "#E60000" }}>
                   Question {String(currentIndex + 1).padStart(2, "0")}:
                 </span>{" "}
@@ -689,7 +689,7 @@ function QuizSession({
                       >
                         {String.fromCharCode(65 + index)}
                       </span>
-                      <span className="min-w-0 flex-1 break-words whitespace-normal text-xs font-voda leading-tight sm:text-sm">
+                      <span className="min-w-0 flex-1 break-words whitespace-normal text-xs font-bold leading-tight sm:text-sm">
                         {option}
                       </span>
                       <span
@@ -737,7 +737,7 @@ function QuizSession({
                   >
                     <Info style={{ backgroundColor: "#fff" }} />
                   </span>
-                  <span className="pl-2 flex items-center justify-center text-[11px] font-voda">
+                  <span className="pl-2 flex items-center justify-center text-[11px] font-bold">
                     {" "}
                     Answer all questions and score a minimum of 80% final score
                     to successfully complete the training.

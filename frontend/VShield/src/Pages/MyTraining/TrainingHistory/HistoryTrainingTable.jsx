@@ -1,4 +1,3 @@
-
 import { useMemo, useState, useEffect } from "react";
 import trainingData from "../TrainingAllocationData.json";
 import trainingPathData from "../TrainingPath";
