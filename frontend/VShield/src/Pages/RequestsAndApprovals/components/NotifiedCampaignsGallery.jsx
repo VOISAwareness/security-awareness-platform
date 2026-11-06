@@ -9,7 +9,7 @@ import { Search, ChevronDown, User, Bell, Edit3, X } from "lucide-react";
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardLenghtAdjuster = 1.0;
 export const VarGallaryCardsScaleAdjuster = 1.0;
-export const VarGalleryLowerBaseHeightAdjuster = 460; // Height of Lower L-Base (in px)
+export const VarGalleryLowerBaseHeightAdjuster = 430; // Height of Lower L-Base (in px)
 
 // =========================================================================
 // 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES

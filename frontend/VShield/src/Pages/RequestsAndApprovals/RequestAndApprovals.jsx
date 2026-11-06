@@ -34,12 +34,12 @@ import PageLoading from "../../GlobalComponents/PageLoading";
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
 // =========================================================================
-export const VarRequestsScale = 0.9;
+export const VarRequestsScale = 0.94;
 export const VarOverallCornerRoundednessAdjuster = 0.5;
 export const VarLeftSectionWidth = "22%";
 export const VarRightSectionWidth = "77%";
 export const VarSectionGap = 12; // in px
-export const VarNavButtonsHeightAdjuster = 80; // Height in px for each of the 5 nav buttons
+export const VarNavButtonsHeightAdjuster = 75; // Height in px for each of the 5 nav buttons
 export const VarButtonsPopAnimationAdjuster = 1; // Hover pop scale multiplier (e.g. 1.02 = 102%, 1.04 = 104%)
 export const VarAppToCreRatioVisualHeight = 142; // Height in px for the ratio visual card
 export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the ratio bar
@@ -317,7 +317,7 @@ const RequestAndApprovals = () => {
       {/* 🌟 ROOT CONTAINER */}
       <div
         style={{ zoom: VarRequestsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ── TOP HEADER STRIP ── */}
         <div
