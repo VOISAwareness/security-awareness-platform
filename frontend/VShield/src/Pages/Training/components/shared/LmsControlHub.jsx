@@ -114,36 +114,6 @@ const FilterRow = ({
 };
 
 // LMS Control Hub component properties and setup
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const LmsControlHub = ({
   activeTab,
   stats,

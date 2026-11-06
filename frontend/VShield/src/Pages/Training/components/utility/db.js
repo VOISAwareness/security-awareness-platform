@@ -48,23 +48,6 @@ export function initDB() {
   });
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Pathways / Courses DB Methods
 export async function savePath(path) {
   const db = await initDB();
@@ -143,7 +126,7 @@ export async function deleteQuiz(id) {
   });
 }
 
-// Videos DB Methods 
+// Videos DB Methods
 export async function saveVideo(video) {
   const db = await initDB();
   return new Promise((resolve, reject) => {
