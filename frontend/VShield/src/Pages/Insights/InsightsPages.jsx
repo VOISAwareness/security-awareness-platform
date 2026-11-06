@@ -113,10 +113,10 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: head(s), rows: [{ label: 'Reported', value: pc1(s.reportRate), color: ink.good }, { label: 'Clicked', value: pc1(s.hooked), color: ink.bad }] })}
         />
       </Card>
-      <Card i={2} reduce={reduce} title="Gave details away" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
+      <Card i={2} reduce={reduce} title="Compromise rate" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
         <Trend
           points={t.months}
-          label={`Gave details away: ${pc1(t.months.at(-1)?.gave)} in the latest 30 days; the target is ${targetText(G, '%')}`}
+          label={`Compromise rate: ${pc1(t.months.at(-1)?.gave)} in the latest 30 days; the target is ${targetText(G, '%')}`}
           lo={0}
           hi={gaveHi}
           ticks={steps(gaveHi, gaveHi > 0.08 ? 0.05 : 0.02)}
@@ -124,7 +124,7 @@ export function SummaryPage({ ctx }) {
           zones={[{ from: 0, to: G.target, color: ink.good }]}
           columns={{ key: 'gave', split: { at: G.target, below: ink.good, above: ink.bad }, text: pc1 }}
           right={10}
-          tip={(s) => ({ head: head(s), rows: [{ label: 'Gave details away', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
+          tip={(s) => ({ head: head(s), rows: [{ label: 'Compromise rate', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
         />
       </Card>
       <Card i={3} reduce={reduce} title="Time to first report" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="first">
@@ -149,15 +149,15 @@ export function SummaryPage({ ctx }) {
 
 // ----------------------------------------------------------- Departments
 
-// lower is better first (risk score, high risk, hook rate, gave details),
-// then higher is better (report rate, completed)
+// lower is better first (risk score, high risk, hook rate, compromise
+// rate), then higher is better (report rate, trained rate)
 const DEPT_COLS = [
   { key: 'riskScore', name: 'Risk score', text: (v) => v.toFixed(1), unit: '' },
   { key: 'highRiskShare', name: 'High risk', text: pc1, unit: '%' },
   { key: 'hookRate', name: 'Hook rate', text: pc1, unit: '%' },
-  { key: 'gaveDetails', name: 'Gave details', text: pc1, unit: '%' },
+  { key: 'gaveDetails', name: 'Compromise rate', text: pc1, unit: '%' },
   { key: 'reportRate', name: 'Report rate', text: pc1, unit: '%' },
-  { key: 'trainingCompletion', name: 'Completed', text: pc, unit: '%' },
+  { key: 'trainingCompletion', name: 'Trained rate', text: pc, unit: '%' },
 ];
 const DEPT_GRID = 'minmax(0,1.6fr) repeat(6, minmax(0,1fr)) 64px 14px';
 
@@ -395,7 +395,7 @@ export function CampaignsPage({ ctx }) {
       <Card i={1} reduce={reduce} title="Campaigns" action={seg} style={card} data-ins-campaigns>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
           <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: CAMP_GRID, columnGap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
-            <span style={head}>Campaign</span><span style={head}>Started</span><span style={{ ...head, textAlign: 'right' }}>Emails</span><span style={{ ...head, textAlign: 'right' }}>Hook rate</span><span style={{ ...head, textAlign: 'right' }}>Report rate</span><span style={{ ...head, textAlign: 'right' }}>Gave details</span>
+            <span style={head}>Campaign</span><span style={head}>Started</span><span style={{ ...head, textAlign: 'right' }}>Emails</span><span style={{ ...head, textAlign: 'right' }}>Hook rate</span><span style={{ ...head, textAlign: 'right' }}>Report rate</span><span style={{ ...head, textAlign: 'right' }}>Compromise rate</span>
           </div>
           <FitList
             key={sort}
@@ -476,7 +476,7 @@ function TrainRows({ items, cols, what, ink, onRow }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
       <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
-        <span style={head}>{cols[0]}</span><span style={head}>Completed</span><span /><span style={{ ...head, textAlign: 'right', whiteSpace: 'nowrap' }}>{cols[1]}</span>
+        <span style={head}>{cols[0]}</span><span style={head}>Trained rate</span><span /><span style={{ ...head, textAlign: 'right', whiteSpace: 'nowrap' }}>{cols[1]}</span>
       </div>
       <FitList
         items={items}

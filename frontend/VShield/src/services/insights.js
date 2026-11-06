@@ -64,6 +64,7 @@ export function summary(reports) {
     openRate: rate(s.opened, s.delivered),
     complaintRate: rate(s.complained, s.delivered),
     hooked: rate(s.clicked, s.delivered), // the Hook Rate
+    compromiseRate: rate(s.compromised, s.delivered), // the Compromise Rate: gave details away
     reportRate: rate(s.reported, s.delivered),
     perClick: rate(s.reported, s.clicked), // reports for every click
     gaveOfClicks: rate(s.compromised, s.clicked), // of those hooked, gave details away
@@ -94,8 +95,8 @@ const campaignRow = ({ campaign, report }) => ({
 function deptsOf(list) {
   const byDept = {};
   list.forEach((x) => (x.report.departments || []).forEach((d) => {
-    const row = (byDept[d.name] ||= { name: d.name, recipients: 0, clicked: 0, reported: 0, compromised: 0 });
-    row.recipients += d.recipients; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
+    const row = (byDept[d.name] ||= { name: d.name, recipients: 0, opened: 0, clicked: 0, reported: 0, compromised: 0 });
+    row.recipients += d.recipients; row.opened += d.opened || 0; row.clicked += d.clicked; row.reported += d.reported; row.compromised += d.compromised;
   }));
   return Object.values(byDept)
     .map((d) => ({ ...d, clickRate: rate(d.clicked, d.recipients), reportRate: rate(d.reported, d.recipients) }))
