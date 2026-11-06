@@ -15,12 +15,12 @@ import HistoryTrainingTableData from './TrainingHistory/HistoryTrainingTable';
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
 // =========================================================================
-export const VarTrainingScale = 0.90;
-export const VarOverallCornerRoundednessAdjuster = 0.7;
+export const VarTrainingScale = 0.94;
+export const VarOverallCornerRoundednessAdjuster = 0.5;
 export const VarLeftSectionWidth = '22%';
-export const VarRightSectionWidth = '78%';
+export const VarRightSectionWidth = '77.3%';
 export const VarSectionGap = 10; // in px
-export const VarRightGalleryBaseHeight = 490; // in px
+export const VarRightGalleryBaseHeight = 465; // in px
 export const VarThreeButtonsHeightAdjuster = 80; // Height of the top three category capsules in px
 
 // =========================================================================
@@ -124,15 +124,15 @@ const MyTraining = ({ isDark: propIsDark }) => {
       {/* 🌟 ROOT CONTAINER */}
       <div
         style={{ zoom: VarTrainingScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ── TOP HEADER BAR: "My Training" ── */}
         <div
-          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
             }`}
         >
           <div className="flex items-center gap-3">
-            <h1 className="text-[14px] font-bold tracking-tight uppercase">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               My Training
             </h1>
           </div>
@@ -232,7 +232,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
               <div className="flex items-center gap-4">
                 <span
                   style={{ color: activeTabConfig.counterColor }}
-                  className="text-5xl font-black leading-none tracking-tight font-voda-exb"
+                  className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
                 >
                   {trainingCount}
                 </span>

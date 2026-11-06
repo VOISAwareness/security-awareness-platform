@@ -12,33 +12,26 @@ import { useParams } from "react-router-dom";
 // ============================================================
 // SCALE / DESIGN VARIABLES
 // ============================================================
-const VarScenarioScale = 0.975;
+const VarScenarioScale = 0.94;
 
-const VarOverallScenarioRoundednessScale = 0.75;
+const VarOverallScenarioRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
 
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
   }
-
-  .rounded-2xl {
-    border-radius: ${Math.round(16 * VarOverallScenarioRoundednessScale)}px !important;
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
   }
 
-  .rounded-xl {
-    border-radius: ${Math.round(12 * VarOverallScenarioRoundednessScale)}px !important;
-  }
-
-  .rounded-lg {
-    border-radius: ${Math.round(8 * VarOverallScenarioRoundednessScale)}px !important;
-  }
-
-  .rounded-md {
-    border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important;
-  }
+ .rounded-3xl { border-radius: ${Math.round(28 * VarOverallScenarioRoundednessScale)}px !important; }
+   .rounded-2xl { border-radius: ${Math.round(20 * VarOverallScenarioRoundednessScale)}px !important; }
+   .rounded-xl  { border-radius: ${Math.round(14 * VarOverallScenarioRoundednessScale)}px !important; }
+   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallScenarioRoundednessScale)}px !important; }
+   .rounded-md  { border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important; }
 `;
 
 // ============================================================
@@ -106,7 +99,7 @@ const TrainingTabs = ({ activeTab, onTabChange }) => {
                     cursor-not-allowed
                     ${
                       isCompleted
-                        ? "bg-[#06080D] text-[#8ED973] dark:text-[#74D054]"
+                        ? "bg-black dark:bg-white text-[#8ED973] dark:text-[#74D054]"
                         : ""
                     }
                   `
@@ -126,13 +119,13 @@ const TrainingTabs = ({ activeTab, onTabChange }) => {
                 flex-shrink-0
                 transition-colors
 
-                ${
-                  isCurrent
-                    ? "bg-white dark:bg-black text-black dark:text-white"
-                    : isCompleted
-                      ? "bg-[#22c55e] text-white"
-                      : "bg-slate-900 text-white dark:bg-white dark:text-black"
-                }
+                 ${
+                   isCurrent
+                     ? "bg-white dark:bg-black text-black dark:text-white"
+                     : isCompleted
+                       ? "bg-[#8ED973] dark:bg-[#74D054] text-white"
+                       : "bg-slate-900 text-white dark:bg-white dark:text-black"
+                 }
               `}
             >
               {isCompleted && !isCurrent ? (
@@ -230,19 +223,7 @@ const StartNewTraining = () => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="
-          w-full
-          max-w-[1780px]
-          mx-auto
-          p-3
-          sm:p-3
-          -mt-3
-          select-none
-          font-sans
-          flex
-          flex-col
-          gap-3
-        "
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ====================================================
             PAGE HEADER
@@ -250,23 +231,11 @@ const StartNewTraining = () => {
 
         {/* PAGE HEADER */}
         <div
-          className={`
-    w-full
-    h-[38px]
-    px-5
-    rounded-xl
-    border
-    flex
-    items-center
-    transition-colors
-    duration-300
-    shadow-sm
-    ${
-      isDark
-        ? "bg-white text-[#0B1121] border-slate-200"
-        : "bg-[#06080D] text-white border-black/10"
-    }
-  `}
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
+          }`}
         >
           <button
             type="button"
