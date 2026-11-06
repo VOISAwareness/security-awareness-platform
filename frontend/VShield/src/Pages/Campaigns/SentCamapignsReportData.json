@@ -1,0 +1,317 @@
+[
+  {
+    "CamapignID": "CAMP-001",
+    "Details": [
+      {
+        "ReportedEmailIDs": "abhay.hs1@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "trevor.sile@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "mitin.rinis@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "emma.taylor@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "giovanni.ricci@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "salma.soliman@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "kavita.rao@vodafone.com",
+        "Opened": "No",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "florian.hartmann@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "irene.benitez@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-002",
+    "Details": [
+      {
+        "ReportedEmailIDs": "abhay.hs1@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "trevor.sile@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "mitin.rinis@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "sarah.jenkins@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "emma.taylor@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "giovanni.ricci@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "salma.soliman@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "kavita.rao@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "florian.hartmann@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-004",
+    "Details": [
+      {
+        "ReportedEmailIDs": "karim.mostafa@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "yasmine.hassan@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "deepika.patel@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "alice.wright@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "lea.richter@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "martina.deluca@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "diego.molina@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "andrea.gatti@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "samuel.king@vodafone.com",
+        "Opened": "No",
+        "Reported": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-005",
+    "Details": [
+      {
+        "ReportedEmailIDs": "karim.mostafa@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "yasmine.hassan@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "omar.farouk@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "tarek.zaki@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "salma.soliman@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "mostafa.khalil@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "amr.gamal@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "dina.fawzy@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "hossam.hassan@vodafone.com",
+        "Opened": "No",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "nadine.samir@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-006",
+    "Details": [
+      {
+        "ReportedEmailIDs": "karim.mostafa@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "yasmine.hassan@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "omar.farouk@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "tarek.zaki@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "salma.soliman@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "mostafa.khalil@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "amr.gamal@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "dina.fawzy@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "hossam.hassan@vodafone.com",
+        "Opened": "No",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "nadine.samir@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      }
+    ]
+  },
+  {
+    "CamapignID": "CAMP-008",
+    "Details": [
+      {
+        "ReportedEmailIDs": "karim.mostafa@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "yasmine.hassan@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "deepika.patel@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "alice.wright@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "lea.richter@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "maximilian.becker@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "martina.deluca@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "diego.molina@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "andrea.gatti@vodafone.com",
+        "Opened": "Yes",
+        "Reported": "Yes"
+      },
+      {
+        "ReportedEmailIDs": "samuel.king@vodafone.com",
+        "Opened": "No",
+        "Reported": "Yes"
+      }
+    ]
+  }
+]
