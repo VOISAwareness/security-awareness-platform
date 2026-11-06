@@ -108,5 +108,5 @@ test('the Excel file has one sheet with the people', () => {
   const files = unzipSync(peopleBook(rows.slice(0, 3), { title: 'At high risk' }));
   const sheet = strFromU8(files['xl/worksheets/sheet1.xml']);
   assert.ok(sheet.includes(rows[0].name.split(' ')[0]));
-  assert.ok(sheet.includes('Gave details') && sheet.includes('Risk level'));
+  assert.ok(sheet.includes('Compromised') && sheet.includes('Risk level'));
 });

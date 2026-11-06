@@ -15,8 +15,10 @@ const head = (title, note) => [{ title }, { note }, { gap: true }];
 const MEASURES = [
   ['Campaigns', 'campaigns', 'int', 'Campaigns started in the period'],
   ['Emails delivered', 'delivered', 'int', 'Emails that reached an inbox'],
+  [GLOSSARY.openRate.name, 'openRate', 'pct', GLOSSARY.openRate.how],
   [GLOSSARY.hookRate.name, 'hooked', 'pct', GLOSSARY.hookRate.how],
   [GLOSSARY.reportRate.name, 'reportRate', 'pct', GLOSSARY.reportRate.how],
+  [GLOSSARY.gaveDetails.name, 'compromiseRate', 'pct', GLOSSARY.gaveDetails.how],
   [GLOSSARY.perClick.name, 'perClick', 'dec', GLOSSARY.perClick.how],
   ['Of those who clicked, gave details away', 'gaveOfClicks', 'pct', 'Of those who clicked, how many went on to enter details on the practice page (not the share of emails delivered)'],
   ['First report (minutes)', 'firstReport', 'dec', 'Minutes from the send to the first report, in the middle campaign'],
@@ -171,7 +173,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
           { label: GLOSSARY.highRisk.name, value: (d) => d.highRisk, kind: 'int', width: 14 },
           { label: 'Hook Rate', value: (d) => cell(m.departments.find((x) => x.name === d.name), 'clickRate', 'pct'), width: 11 },
           { label: 'Report Rate', value: (d) => cell(m.departments.find((x) => x.name === d.name), 'reportRate', 'pct'), width: 11 },
-          { label: 'Training completed', value: (d) => cell(d.training, 'completion', 'pct'), width: 14 },
+          { label: GLOSSARY.trainingCompletion.name, value: (d) => cell(d.training, 'completion', 'pct'), width: 14 },
           { label: 'Quiz score', value: (d) => cell(d.training, 'quizScore', 'dec'), width: 11 },
           { label: 'Badges', value: (d) => d.training.badges, kind: 'int', width: 10 },
           { label: 'Points', value: (d) => d.training.points, kind: 'int', width: 11 },
@@ -193,7 +195,7 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
       { table: {
         columns: [
           { label: 'Programme', value: (x) => x.program, width: 34 },
-          { label: 'Completion', value: (x) => x.completion / 100, kind: 'pct', width: 12 },
+          { label: GLOSSARY.trainingCompletion.name, value: (x) => x.completion / 100, kind: 'pct', width: 12 },
           { label: 'Pass rate', value: (x) => x.pass / 100, kind: 'pct', width: 11 },
           { label: 'Average score', value: (x) => x.score, kind: 'int', width: 12 },
           { label: 'Status', value: (x) => x.status, width: 12 },

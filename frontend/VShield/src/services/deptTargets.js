@@ -34,6 +34,8 @@ export function deptTargets(m, p, targets = TARGETS) {
     const now = {
       riskScore: d.score,
       highRiskShare: rate(d.highRisk, d.people),
+      // shown, not held to a target: opening is neither good nor bad on its own
+      openRate: rate(c?.opened, c?.recipients),
       hookRate: rate(c?.clicked, c?.recipients),
       reportRate: rate(c?.reported, c?.recipients),
       gaveDetails: rate(c?.compromised, c?.recipients),
@@ -42,6 +44,7 @@ export function deptTargets(m, p, targets = TARGETS) {
     const before = {
       riskScore: Number.isFinite(d.scoreBefore) ? d.scoreBefore : null,
       highRiskShare: d.tiersBefore ? rate(d.tiersBefore.high + d.tiersBefore.critical, d.people) : null,
+      openRate: rate(b?.opened, b?.recipients),
       hookRate: rate(b?.clicked, b?.recipients),
       reportRate: rate(b?.reported, b?.recipients),
       gaveDetails: rate(b?.compromised, b?.recipients),
