@@ -1,15 +1,86 @@
-import { useState, useEffect } from "react";
+/* eslint-disable no-unused-vars */
+import { useState, useEffect, useRef } from "react";
 import {
-  X,
   Check,
   CheckCircle2,
   Plus,
   Trash2,
   Edit3,
-  Eye
+  Eye,
+  FileSpreadsheet,
+  UploadCloud,
+  Download,
+  AlertCircle,
+  X
 } from "lucide-react";
 
 import { useIsDarkMode } from "../../components/modals/helpers";
+import { useTraining } from "../../TrainingContext";
+import ExcelJS from "exceljs";
+import quizTemplateUrl from "@/assets/Training(LMS)/samples/Quiz Template - Awareness App.xlsx?url";
+
+// Helper to safely extract clean text string from various ExcelJS cell value formats
+const extractCellText = (cellVal) => {
+  if (cellVal == null) return "";
+  if (typeof cellVal === "string") return cellVal.trim();
+  if (typeof cellVal === "number" || typeof cellVal === "boolean") return String(cellVal).trim();
+  if (typeof cellVal === "object") {
+    if (Array.isArray(cellVal.richText)) {
+      return cellVal.richText.map((rt) => rt.text || "").join("").trim();
+    }
+    if (cellVal.result != null) return String(cellVal.result).trim();
+    if (cellVal.text != null) return String(cellVal.text).trim();
+  }
+  return String(cellVal).trim();
+};
+
+// Robust normalizer for correct answer column to handle all edge cases:
+// e.g. "optionA", "optiona", "OPTION A", "Option A", "option-a", "A", "a", "(A)", "1",
+// or when user puts the actual text of the correct option in the answer column.
+const normalizeAnswer = (rawAnswer, optA = "", optB = "", optC = "", optD = "") => {
+  const rawText = extractCellText(rawAnswer).trim();
+  if (!rawText) return "optionA";
+
+  const cleanRaw = rawText.toLowerCase();
+
+  // 1. Direct text match against the option content itself
+  const textA = extractCellText(optA).trim().toLowerCase();
+  const textB = extractCellText(optB).trim().toLowerCase();
+  const textC = extractCellText(optC).trim().toLowerCase();
+  const textD = extractCellText(optD).trim().toLowerCase();
+
+  if (textA && cleanRaw === textA) return "optionA";
+  if (textB && cleanRaw === textB) return "optionB";
+  if (textC && cleanRaw === textC) return "optionC";
+  if (textD && cleanRaw === textD) return "optionD";
+
+  // 2. Alphanumeric token normalization
+  const alphanumeric = cleanRaw.replace(/[^a-z0-9]/g, "");
+
+  if (/^(option|opt|choice|ans|answer)?a$/.test(alphanumeric)) return "optionA";
+  if (/^(option|opt|choice|ans|answer)?b$/.test(alphanumeric)) return "optionB";
+  if (/^(option|opt|choice|ans|answer)?c$/.test(alphanumeric)) return "optionC";
+  if (/^(option|opt|choice|ans|answer)?d$/.test(alphanumeric)) return "optionD";
+
+  // Numeric index representations: 1 -> A, 2 -> B, 3 -> C, 4 -> D
+  if (alphanumeric === "1") return "optionA";
+  if (alphanumeric === "2") return "optionB";
+  if (alphanumeric === "3") return "optionC";
+  if (alphanumeric === "4") return "optionD";
+
+  // 3. Fallback regex checks for phrases like "Option A: ...", "Choice A", "Ans: A"
+  if (/\b(option|opt|choice)\s*a\b/i.test(rawText) || /^(\(|\[)?\s*a\s*(\)|\]|\.|,|:|-)?$/i.test(rawText)) return "optionA";
+  if (/\b(option|opt|choice)\s*b\b/i.test(rawText) || /^(\(|\[)?\s*b\s*(\)|\]|\.|,|:|-)?$/i.test(rawText)) return "optionB";
+  if (/\b(option|opt|choice)\s*c\b/i.test(rawText) || /^(\(|\[)?\s*c\s*(\)|\]|\.|,|:|-)?$/i.test(rawText)) return "optionC";
+  if (/\b(option|opt|choice)\s*d\b/i.test(rawText) || /^(\(|\[)?\s*d\s*(\)|\]|\.|,|:|-)?$/i.test(rawText)) return "optionD";
+
+  if (/^(answer|ans|correct)[:\s-]*a\b/i.test(rawText)) return "optionA";
+  if (/^(answer|ans|correct)[:\s-]*b\b/i.test(rawText)) return "optionB";
+  if (/^(answer|ans|correct)[:\s-]*c\b/i.test(rawText)) return "optionC";
+  if (/^(answer|ans|correct)[:\s-]*d\b/i.test(rawText)) return "optionD";
+
+  return "optionA";
+};
 
 export const CreateNewQuiz = ({
   onSave,
@@ -22,6 +93,15 @@ export const CreateNewQuiz = ({
   initialStep = 1
 }) => {
   const isDark = useIsDarkMode();
+  const { showToast } = useTraining?.() || {};
+
+  const fileInputRef = useRef(null);
+  const step2FileInputRef = useRef(null);
+
+  const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [localToast, setLocalToast] = useState(null);
 
   const startQIdx = editingQuiz?._startQuestionIdx ?? initialQuestionIdx ?? 0;
   const startIsEditing = editingQuiz?._startIsEditing ?? initialIsEditing ?? true;
@@ -49,6 +129,162 @@ export const CreateNewQuiz = ({
     ];
   });
 
+  // Centralized toast dispatcher using the training module toast system
+  const notify = (title, message, isError = false) => {
+    if (showToast) {
+      showToast({
+        title,
+        message,
+        type: isError ? "error" : "success"
+      });
+    } else {
+      setLocalToast({ title, message, isError });
+      setTimeout(() => setLocalToast(null), 4000);
+    }
+  };
+
+  // Process Excel spreadsheet upload
+  const processFile = async (file) => {
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      notify("Invalid File", "Please upload a valid .xlsx Excel workbook.", true);
+      return;
+    }
+
+    setIsParsing(true);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        notify("Empty Workbook", "No worksheet was found in this Excel file.", true);
+        setIsParsing(false);
+        return;
+      }
+
+      // Check header row and dynamically detect column mappings
+      const firstRow = worksheet.getRow(1);
+      let colQuestion = 1;
+      let colOptionA = 2;
+      let colOptionB = 3;
+      let colOptionC = 4;
+      let colOptionD = 5;
+      let colAnswer = 6;
+      let hasHeaders = false;
+
+      firstRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        const text = extractCellText(cell.value).toLowerCase();
+        if (text.includes("question")) {
+          colQuestion = colNumber;
+          hasHeaders = true;
+        } else if (text.includes("option a") || text.includes("option 1") || text.includes("choice a") || text === "a") {
+          colOptionA = colNumber;
+          hasHeaders = true;
+        } else if (text.includes("option b") || text.includes("option 2") || text.includes("choice b") || text === "b") {
+          colOptionB = colNumber;
+          hasHeaders = true;
+        } else if (text.includes("option c") || text.includes("option 3") || text.includes("choice c") || text === "c") {
+          colOptionC = colNumber;
+          hasHeaders = true;
+        } else if (text.includes("option d") || text.includes("option 4") || text.includes("choice d") || text === "d") {
+          colOptionD = colNumber;
+          hasHeaders = true;
+        } else if (text.includes("answer") || text.includes("correct") || text.includes("key")) {
+          colAnswer = colNumber;
+          hasHeaders = true;
+        }
+      });
+
+      const parsedQuestions = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (hasHeaders && rowNumber === 1) return;
+
+        const qText = extractCellText(row.getCell(colQuestion).value);
+        const optA = extractCellText(row.getCell(colOptionA).value);
+        const optB = extractCellText(row.getCell(colOptionB).value);
+        const optC = extractCellText(row.getCell(colOptionC).value);
+        const optD = extractCellText(row.getCell(colOptionD).value);
+        const rawAns = row.getCell(colAnswer).value;
+
+        // Skip blank rows where question text is missing
+        if (!qText.trim()) return;
+
+        const normalizedAns = normalizeAnswer(rawAns, optA, optB, optC, optD);
+
+        parsedQuestions.push({
+          question: qText.trim(),
+          optionA: optA.trim() || "Option A",
+          optionB: optB.trim() || "Option B",
+          optionC: optC.trim() || "Option C",
+          optionD: optD.trim() || "Option D",
+          Answer: normalizedAns,
+          answer: normalizedAns
+        });
+      });
+
+      if (parsedQuestions.length === 0) {
+        notify("Import Error", "No valid questions found. Ensure columns include Question, Option A-D, and Answer.", true);
+        setIsParsing(false);
+        return;
+      }
+
+      setQuestions(parsedQuestions);
+      setActiveQuestionIdx(0);
+      setPreviewIdx(0);
+      setIsEditingQuestion(true);
+      setUploadedFileInfo({
+        name: file.name,
+        count: parsedQuestions.length
+      });
+
+      // Auto-populate quiz title if empty
+      if (!name.trim()) {
+        const generatedTitle = file.name
+          .replace(/\.xlsx$/i, "")
+          .replace(/[-_]+/g, " ")
+          .trim();
+        if (generatedTitle) setName(generatedTitle);
+      }
+
+      notify(
+        "Questions Added",
+        `${parsedQuestions.length} ${parsedQuestions.length === 1 ? "question" : "questions"} added successfully from ${file.name}.`
+      );
+    } catch (err) {
+      console.error("Failed to parse Excel file:", err);
+      notify("Import Failed", "Unable to read Excel file. Please ensure it is a valid .xlsx spreadsheet.", true);
+    } finally {
+      setIsParsing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (step2FileInputRef.current) step2FileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDownloadTemplate = () => {
+    try {
+      const link = document.createElement("a");
+      link.href = quizTemplateUrl;
+      link.download = "Quiz Template - Awareness App.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      notify("Template Downloaded", "Downloaded 'Quiz Template - Awareness App.xlsx' successfully.");
+    } catch (err) {
+      console.error("Error downloading template:", err);
+      notify("Download Error", "Could not download template file.", true);
+    }
+  };
+
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(startQIdx);
   const [isEditingQuestion, setIsEditingQuestion] = useState(startIsEditing);
   const [editingFromPreview, setEditingFromPreview] = useState(false);
@@ -56,6 +292,7 @@ export const CreateNewQuiz = ({
 
   // Sync state if editingQuiz changes dynamically
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (editingQuiz) {
       setName(editingQuiz.TrainingQuizName || "");
       setDescription(editingQuiz.Description || "");
@@ -252,12 +489,13 @@ export const CreateNewQuiz = ({
             );
           })}
         </div>
+
       </div>
 
       {/* ── STEP 1: QUIZ DETAILS ── */}
       {step === 1 && (
         <>
-          <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 flex flex-col gap-5 custom-light-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-6 py-3  flex flex-col gap-5 custom-light-scrollbar">
             <div className={`p-5 rounded-2xl border flex flex-col gap-5 ${
               isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
             }`}>
@@ -289,6 +527,162 @@ export const CreateNewQuiz = ({
                   }`}
                   placeholder="Assess employee mastery on threat signals and reporting procedures..."
                 />
+              </div>
+
+              {/* ── EXCEL BULK QUESTIONS IMPORT CONTAINER ── */}
+              <div
+                className={`rounded-xl border p-4 sm:p-5 flex flex-col gap-3.5 transition-all duration-200 ${
+                  isDark
+                    ? "bg-[#0B1121]/70 border-white/10"
+                    : "bg-white border-slate-200/90 shadow-2xs"
+                }`}
+              >
+                {/* Header: Title on left, 'Download Excel Template' button on right */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isDark ? "bg-[#0D9B77]/15 text-[#8ED973]" : "bg-[#ECFDF5] text-[#0D9B77]"
+                      }`}
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </div>
+                    <h4 className="text-xs font-bold tracking-tight text-slate-900 dark:text-white">
+                      Import Questions
+                    </h4>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className={`h-7 px-3.5 rounded-full border text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                      isDark
+                        ? "bg-white/5 border-white/15 text-white hover:bg-white/10 hover:border-white/30"
+                        : "bg-white border-slate-300 text-slate-800 hover:bg-slate-50 hover:border-slate-400"
+                    }`}
+                    title="Download Excel Template (Quiz Template - Awareness App.xlsx)"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#0D9B77]" />
+                    <span>Download Excel Template</span>
+                  </button>
+                </div>
+
+                {/* Hidden native input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                {/* 2-Column: Upload on Left, Instructions on Right */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+                  {/* Left: Dropzone Upload Area */}
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const droppedFile = e.dataTransfer.files?.[0];
+                      if (droppedFile) processFile(droppedFile);
+                    }}
+                    className={`h-full min-h-[140px] border-2 border-dashed rounded-xl p-4 sm:p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
+                      isDragging
+                        ? "border-[#0D9B77] bg-[#0D9B77]/10 scale-[1.005]"
+                        : uploadedFileInfo
+                        ? isDark
+                          ? "border-[#0D9B77]/50 bg-[#18372F]/20 hover:bg-[#18372F]/30"
+                          : "border-[#0D9B77]/40 bg-[#ECFDF5]/50 hover:bg-[#ECFDF5]/80"
+                        : isDark
+                        ? "border-white/15 bg-white/[0.015] hover:bg-white/[0.035] hover:border-white/30"
+                        : "border-slate-300 bg-slate-50/60 hover:bg-slate-100/60 hover:border-slate-400"
+                    }`}
+                  >
+                    {isParsing ? (
+                      <div className="flex flex-col items-center gap-2 py-2">
+                        <div className="w-6 h-6 border-2 border-[#0D9B77] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Parsing spreadsheet questions...
+                        </span>
+                      </div>
+                    ) : uploadedFileInfo ? (
+                      <div className="w-full flex items-center justify-between gap-3 px-1 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-[#0D9B77]/20 text-[#0D9B77] dark:text-[#8ED973] flex items-center justify-center flex-shrink-0">
+                            <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                          </div>
+                          <div className="flex flex-col text-left min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                                {uploadedFileInfo.name}
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#0D9B77] text-white">
+                                {uploadedFileInfo.count} {uploadedFileInfo.count === 1 ? "Question" : "Questions"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              Questions and answers loaded into quiz. Click or drag to replace.
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              fileInputRef.current?.click();
+                            }}
+                            className="h-6 px-3 rounded-full bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 text-[10px] font-bold uppercase tracking-wider transition-colors"
+                          >
+                            Replace
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 py-1">
+                        <UploadCloud className="w-7 h-7 text-slate-400 mb-0.5" />
+                        <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                          <span className="text-[#0D9B77] font-semibold underline underline-offset-2">Click to browse</span> or drag & drop your Excel sheet
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Instructions Block */}
+                  <div
+                    className={`h-full p-4 rounded-xl border text-left flex flex-col justify-center gap-2 ${
+                      isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      Instructions:
+                    </span>
+                    <ol className="text-xs text-slate-600 dark:text-slate-400 space-y-1.5 font-medium leading-relaxed">
+                      <li className="flex items-start gap-1.5">
+                        <span className="font-bold text-[#0D9B77] flex-shrink-0">1)</span>
+                        <span>Download the excel template using 'Download Excel Template' button.</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="font-bold text-[#0D9B77] flex-shrink-0">2)</span>
+                        <span>Add quiz question and answer in the format provided in the excel without any error.</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="font-bold text-[#0D9B77] flex-shrink-0">3)</span>
+                        <span>Upload that excel in the below section.</span>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col">
@@ -385,8 +779,29 @@ export const CreateNewQuiz = ({
                     </span>
                   </div>
 
-                  {/* Action buttons: Dynamic [Done / Preview] + Prominent [Add Question] button */}
+                  {/* Action buttons: Import Excel + Dynamic [Done / Preview] + Prominent [Add Question] button */}
                   <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      ref={step2FileInputRef}
+                      accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => step2FileInputRef.current?.click()}
+                      className={`h-7 px-2.5 rounded-lg border text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors ${
+                        isDark
+                          ? "border-white/10 text-slate-300 hover:bg-white/5 hover:text-white"
+                          : "border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                      title="Upload Excel to replace or load questions"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      <span>Import Excel</span>
+                    </button>
+
                     {questions.length > 1 && (
                       <button
                         type="button"
@@ -879,8 +1294,53 @@ export const CreateNewQuiz = ({
     </div>
   );
 
+  const toastElement = localToast && (
+    <div
+      role="status"
+      className={`fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border ${
+        localToast.isError ? "border-red-500/30" : "border-emerald-500/30"
+      } shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm`}
+    >
+      <div
+        className={`w-8 h-8 rounded-full ${
+          localToast.isError ? "bg-red-100 text-[#E60000]" : "bg-emerald-100 text-[#16A34A]"
+        } flex items-center justify-center flex-shrink-0`}
+      >
+        {localToast.isError ? (
+          <AlertCircle className="w-4 h-4 stroke-[2.5]" />
+        ) : (
+          <Check className="w-4 h-4 stroke-[2.5]" />
+        )}
+      </div>
+      <div className="flex flex-col text-left leading-tight flex-1">
+        <span
+          className={`text-[10px] font-voda font-bold ${
+            localToast.isError ? "text-[#E60000]" : "text-[#16A34A]"
+          } uppercase tracking-wider`}
+        >
+          {localToast.title}
+        </span>
+        <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
+          {localToast.message}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => setLocalToast(null)}
+        className="p-1 rounded text-slate-400 hover:text-black cursor-pointer flex-shrink-0"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+
   if (isInline) {
-    return creatorContent;
+    return (
+      <>
+        {creatorContent}
+        {toastElement}
+      </>
+    );
   }
 
   return (
@@ -888,6 +1348,7 @@ export const CreateNewQuiz = ({
       isDark ? "bg-slate-950/45" : "bg-slate-500/15"
     }`}>
       {creatorContent}
+      {toastElement}
     </div>
   );
 };

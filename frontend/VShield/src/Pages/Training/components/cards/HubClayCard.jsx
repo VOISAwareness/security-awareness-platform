@@ -1,3 +1,4 @@
+// Training (LMS) Hub landing page clay card.
 import { useTraining } from "../../TrainingContext";
 
 // Constants matching UserDLsLandingPage L-shaped bento cards

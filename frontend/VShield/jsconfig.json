@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "target": "ESNext", // bumped ES6 to ESNext to prevent modern js features flagging, vite handles those natively.
     "module": "ESNext",
-    "moduleResolution": "Node",
-    "baseUrl": ".",
+    // issue: baseUrl is deprecated, removed baseUrl as path config at build is going to be handled by vite.config.js.
+    "moduleResolution": "Bundler", // issue: node10 is deprecated, changed to Bundler which works same way as how vite resolves imports (import x from 'y')
     "paths": {
       "@/*": ["./src/*"]
     },
-    "jsx": "preserve"
+    "jsx": "react-jsx" // jsx -> react-jsx, modern standard for React(17+).
   },
   "include": ["src/**/*"]
 }
