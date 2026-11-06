@@ -223,7 +223,7 @@ export function peopleBook(rows, { title }) {
               { label: 'Emails', value: (x) => x.emails, width: 10 },
               { label: 'Clicked', value: (x) => x.clicked, width: 10 },
               { label: 'Reported', value: (x) => x.reported, width: 10 },
-              { label: 'Gave details', value: (x) => x.gave, width: 13 },
+              { label: 'Compromised', value: (x) => x.gave, width: 13 },
               { label: 'Risk level', value: (x) => x.level, width: 12 },
               { label: 'Training', value: (x) => x.step, width: 14 },
             ],

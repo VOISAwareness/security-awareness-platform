@@ -32,9 +32,9 @@ import { TargetBar, TargetsButton, TargetsEditor } from './InsightsTargets';
 // Insights: how the organisation stands against its targets, for its leaders.
 //
 // On the left, four tab cards (Summary, Departments, Campaigns, Training) in
-// the Requests & Approvals style, and under them the Scope: the period, a
-// department, and what the period holds. On the right, the sheet in its L:
-// the corner tile says what the tab shows; along the arm, six measures, each
+// the Requests & Approvals style, and under them what the period holds. The
+// period (30, 60 or 90 days, in the top bar) is the whole page's. On the right, the sheet in its L:
+// the corner tile says what the tab shows; along the arm, seven measures, each
 // against its target (Set targets in the top bar); below, the tab
 // (InsightsPages.jsx). There are three levels at most: the tab, a
 // department's own charts, and the people behind any bar, row or figure
@@ -130,13 +130,13 @@ function lPath(w, h, capH) {
 // each tab's card on the left, its colour (its title when picked, its icon)
 // and what the corner tile says of it; `measures` are the ones it is about
 const TABS = [
-  { id: 'summary', label: 'Summary', sub: 'The company against its targets', says: 'The whole company against its targets', art: TabSummaryIcon, color: '#8B5CF6', measures: ['risk', 'highRisk', 'hooked', 'reported', 'gave', 'completion'] },
-  { id: 'departments', label: 'Departments', sub: 'Every department, every target', says: 'Each department against every target', art: TabDepartmentsIcon, color: '#3B82F6', measures: ['risk', 'highRisk', 'hooked', 'reported', 'gave', 'completion'] },
-  { id: 'campaigns', label: 'Campaigns', sub: 'Phishing campaigns and types', says: 'Every phishing campaign and type', art: TabCampaignsIcon, color: '#F97316', measures: ['hooked', 'reported', 'gave'] },
+  { id: 'summary', label: 'Summary', sub: 'The company against its targets', says: 'The whole company against its targets', art: TabSummaryIcon, color: '#8B5CF6', measures: ['risk', 'highRisk', 'opened', 'hooked', 'reported', 'gave', 'completion'] },
+  { id: 'departments', label: 'Departments', sub: 'Every department, every target', says: 'Each department against every target', art: TabDepartmentsIcon, color: '#3B82F6', measures: ['risk', 'highRisk', 'opened', 'hooked', 'reported', 'gave', 'completion'] },
+  { id: 'campaigns', label: 'Campaigns', sub: 'Phishing campaigns and types', says: 'Every phishing campaign and type', art: TabCampaignsIcon, color: '#F97316', measures: ['opened', 'hooked', 'reported', 'gave'] },
   { id: 'training', label: 'Training', sub: 'Training and what it changes', says: 'Assigned training by department and programme', art: TabTrainingIcon, color: '#94A3B8', measures: ['completion'] },
 ];
 // where each measure is shown
-const HOME = { risk: 'departments', highRisk: 'departments', hooked: 'campaigns', reported: 'campaigns', gave: 'campaigns', completion: 'training' };
+const HOME = { risk: 'departments', highRisk: 'departments', opened: 'campaigns', hooked: 'campaigns', reported: 'campaigns', gave: 'campaigns', completion: 'training' };
 const PERIODS = [
   { id: 30, label: '30 days', title: 'The last 30 days' },
   { id: 60, label: '60 days', title: 'The last 60 days' },
@@ -167,18 +167,33 @@ function TabCard({ t, on, onPick, isDark }) {
   );
 }
 
-// The period, and what it holds in six boxes, on a light card like the tabs.
-function ScopeCard({ shownDays, onDays, totals, reduce }) {
+// "7 Oct – 5 Nov": the period's first and last day
+const dayText = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const rangeText = (from, end) => `${dayText(from + 86400000)} – ${dayText(end)}`;
+
+// The period for the whole page, in the top bar: every tile, chart, table
+// and total below is over it, and each change is against the period before.
+function PeriodSwitch({ shownDays, onDays, range, isDark, reduce }) {
+  const track = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)';
   return (
-    <section data-ins-scope aria-label="Scope" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
-      <span style={eyebrow}>Scope</span>
-      <div role="radiogroup" aria-label="Period" className="ins-glass" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 3, borderRadius: 12 }}>
+    <span data-ins-period-switch style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: TYPE.small, fontWeight: 600, opacity: 0.8 }}>Showing</span>
+      <span role="radiogroup" aria-label="Period for the whole page" style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 9, background: track }}>
         {PERIODS.map((x) => {
           const on = shownDays === x.id;
-          return <button key={x.id} type="button" role="radio" aria-checked={on} title={x.title} data-ins-period={x.id} className="ins-period" onClick={() => onDays(x.id)} style={{ height: 28, borderRadius: 9, border: '1px solid transparent', background: 'transparent', color: on ? 'var(--text)' : 'var(--muted)', fontSize: TYPE.body, fontWeight: on ? 700 : 500, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, box-shadow .2s ease, color .2s ease' }}>{x.label}</button>;
+          return <button key={x.id} type="button" role="radio" aria-checked={on} title={x.title} data-ins-period={x.id} className={on ? undefined : 'ins-bar-btn'} onClick={() => onDays(x.id)} style={{ height: 26, padding: '0 10px', borderRadius: 7, border: 'none', background: on ? '#FFFFFF' : 'transparent', color: on ? '#0F172A' : 'inherit', fontSize: TYPE.small, fontWeight: on ? 700 : 500, cursor: 'pointer', transition: reduce ? 'none' : 'background .2s ease, color .2s ease' }}>{x.label}</button>;
         })}
-      </div>
-      <span style={eyebrow}>In this period</span>
+      </span>
+      <span data-ins-range style={{ fontSize: TYPE.small, fontWeight: 600, opacity: 0.8, whiteSpace: 'nowrap' }}>{range}</span>
+    </span>
+  );
+}
+
+// What the period holds, in six boxes, on a light card like the tabs.
+function ScopeCard({ totals, range }) {
+  return (
+    <section data-ins-scope aria-label="In this period" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
+      <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span style={eyebrow}>In this period</span><span style={{ ...small, fontWeight: 700 }}>{range}</span></span>
       <div data-ins-totals style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'minmax(0,1fr)', gap: 6 }}>
         {totals.map(([label, v]) => (
           <div key={label} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, background: 'var(--plate)' }}>
@@ -216,7 +231,7 @@ function CornerTile({ tab, dept, people, onBack, reduce }) {
   );
 }
 
-// Along the arm: six measures, the company's or, with a department open,
+// Along the arm: seven measures (Open rate has no target), the company's or, with a department open,
 // the department's, on tiles of one size, each on the same rows, centred:
 // its name, its figure, its change against the period before, its bar
 // against its target, and the target in words. The company's open where
@@ -237,19 +252,30 @@ function ChangeNote({ k, ink, days }) {
 }
 const changeWords = (k, days) => (!k.delta ? '' : k.delta.dir === 'flat' ? `; no change on the ${days} days before` : `; ${k.delta.dir === 'up' ? 'up' : 'down'} ${k.delta.shown} on the ${days} days before`);
 
+// a measure with no target (Open rate): its share on a plain bar
+function PlainBar({ value }) {
+  const w = Number.isFinite(value) ? Math.max(0, Math.min(100, value * 100)) : 0;
+  return (
+    <span aria-hidden style={{ position: 'relative', display: 'block', width: '100%', height: 10, borderRadius: 999, overflow: 'hidden', background: 'var(--tick)' }}>
+      <span className="ins-grow-x" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${w}%`, background: 'var(--muted)', borderRadius: '0 999px 999px 0', transformOrigin: 'left' }} />
+    </span>
+  );
+}
+
 function TargetKpi({ k, ink, reduce, days, dim }) {
-  const at = standing(k.scaleValue, k.target);
+  const at = k.target ? standing(k.scaleValue, k.target) : null;
   const opens = Boolean(k.onOpen);
   const press = opens ? { role: 'button', tabIndex: 0, onClick: k.onOpen, onKeyDown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); k.onOpen(); } } } : { role: 'group' };
   return (
-    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} aria-label={`${k.label}: ${k.format(k.value)}, ${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={false} animate={{ opacity: dim ? 0.4 : 1 }} transition={{ duration: reduce ? 0 : 0.2, ease: EASE }} style={tileStyle(opens)}>
-      <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}>
-        <span style={{ ...eyebrow, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</span>
+    <motion.div {...press} className={opens ? 'ins-kpi' : undefined} data-ins-kpi={k.id} data-ins-standing={at || 'none'} aria-label={`${k.label}: ${k.format(k.value)}, ${k.target ? `${STANDING_WORD[at] || 'no figure'}, target ${k.targetText}` : 'no target'}${changeWords(k, days)}${opens ? '. Open it' : ''}`} initial={false} animate={{ opacity: dim ? 0.4 : 1 }} transition={{ duration: reduce ? 0 : 0.2, ease: EASE }} style={tileStyle(opens)}>
+      <span data-ins-row="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}>
+        {/* on a narrow window the name takes two lines rather than being cut short */}
+        <span style={{ ...eyebrow, letterSpacing: '0.02em', lineHeight: 1.15, textAlign: 'center', overflowWrap: 'normal' }}>{k.label}</span>
         <Explain label={`What ${k.label} means, and its change`}><Definition term={k.define}><ChangeNote k={k} ink={ink} days={days} /></Definition></Explain>
       </span>
       <span data-ins-row="value" style={{ fontSize: TYPE.number, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>{k.format(k.value)}</span>
-      <span data-ins-row="scale" style={{ width: '100%' }}><TargetBar value={k.scaleValue} target={k.target} ink={ink} /></span>
-      <span data-ins-row="target" style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>Target {k.targetText}</span>
+      <span data-ins-row="scale" style={{ width: '100%' }}>{k.target ? <TargetBar value={k.scaleValue} target={k.target} ink={ink} /> : <PlainBar value={k.scaleValue} />}</span>
+      <span data-ins-row="target" style={{ ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>{k.target ? `Target ${k.targetText}` : 'No target'}</span>
     </motion.div>
   );
 }
@@ -307,11 +333,12 @@ const Insights = () => {
   const T = useMemo(() => targetsWith(saved.targets), [saved.targets]);
   const saveTargets = async (targets) => setSaved(savedOf(await api.insightsTargets.save({ targets, version: saved.version, role: user?.role, actor: actorFor(user) })));
 
-  // the period shows at once; what it changes renders in the background
-  // The page reads the last 30 days; the Scope card's own period (30, 60 or
-  // 90 days) changes only the totals in that card.
-  const days = PAGE_DAYS;
-  const [scopeDays, setScopeDays] = useState(restore?.scopeDays || PAGE_DAYS);
+  // The period (30, 60 or 90 days) is the whole page's: the tiles, charts,
+  // tables and totals are over it, each change against the period before.
+  // The switch shows at once; what it changes renders in the background.
+  const [scopeDays, setScopeDaysNow] = useState(restore?.scopeDays || PAGE_DAYS);
+  const [days, setDays] = useState(restore?.scopeDays || PAGE_DAYS);
+  const setScopeDays = (d) => { setScopeDaysNow(d); startTransition(() => setDays(d)); };
   const [tab, setTab] = useState(restore?.tab || 'summary');
   const [dept, setDept] = useState(restore?.dept || null); // a department's own charts, the second level
   const [who, setWho] = useState(null); // the people behind what was clicked, the third
@@ -324,8 +351,6 @@ const Insights = () => {
   // The sample organisation, thirty days at a time, until the people and risk APIs report it.
   const org = useMemo(() => organisation({ end: m.basis.end, steps: 24 }), [m.basis.end]);
   const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
-  // the Scope card's totals, over its own period
-  const scope = useMemo(() => (scopeDays === days ? { m, p } : { m: insights(items, { days: scopeDays }), p: peopleInsights(org, { days: scopeDays }) }), [scopeDays, days, m, p, items, org]);
   const list = useMemo(() => standsOut(m, p), [m, p]);
   const depts = useMemo(() => deptTargets(m, p, T), [m, p, T]);
   // The people behind every figure: a sample, one row per person, until
@@ -378,22 +403,25 @@ const Insights = () => {
   const company = [
     { id: 'risk', define: 'riskScore', label: 'Risk score', value: p.now.score, before: p.before?.score, format: (v) => (Number.isFinite(v) ? v.toFixed(1) : '—'), scaleValue: p.now.score, target: T.riskScore, targetText: targetText(T.riskScore), delta: change(p.now.score, p.before?.score, { kind: 'pts', better: 'down' }) },
     { id: 'highRisk', define: 'highRisk', label: 'High risk', value: hundred(p.now.highRisk / p.now.people), before: hundred(p.before ? p.before.highRisk / p.before.people : null), format: pctText, scaleValue: p.now.highRisk / p.now.people, target: T.highRiskShare, targetText: targetText(T.highRiskShare, '%'), delta: change(p.now.highRisk / p.now.people, p.before ? p.before.highRisk / p.before.people : null, { kind: 'pct', better: 'down' }) },
+    { id: 'opened', define: 'openRate', label: 'Open rate', value: hundred(n.openRate), before: hundred(b?.openRate), format: pctText, scaleValue: n.openRate, target: null, targetText: '', delta: change(n.openRate, b?.openRate, { kind: 'pct', better: null }) },
     { id: 'hooked', define: 'hookRate', label: 'Hook rate', value: hundred(n.hooked), before: hundred(b?.hooked), format: pctText, scaleValue: n.hooked, target: T.hookRate, targetText: targetText(T.hookRate, '%'), delta: change(n.hooked, b?.hooked, { kind: 'pct', better: 'down' }) },
     { id: 'reported', define: 'reportRate', label: 'Report rate', value: hundred(n.reportRate), before: hundred(b?.reportRate), format: pctText, scaleValue: n.reportRate, target: T.reportRate, targetText: targetText(T.reportRate, '%'), delta: change(n.reportRate, b?.reportRate, { kind: 'pct', better: 'up' }) },
-    { id: 'gave', define: 'gaveDetails', label: 'Gave details', value: hundred(gave), before: hundred(b ? share(b.compromised, b.delivered) : null), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }) },
-    { id: 'completion', define: 'trainingCompletion', label: 'Completed', value: hundred(done), before: hundred(p.before?.training?.completion ?? null), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }) },
+    { id: 'gave', define: 'gaveDetails', label: 'Compromise rate', value: hundred(gave), before: hundred(b ? share(b.compromised, b.delivered) : null), format: pctText, scaleValue: gave, target: T.gaveDetails, targetText: targetText(T.gaveDetails, '%'), delta: change(gave, b ? share(b.compromised, b.delivered) : null, { kind: 'pct', better: 'down' }) },
+    { id: 'completion', define: 'trainingCompletion', label: 'Trained rate', value: hundred(done), before: hundred(p.before?.training?.completion ?? null), format: pct0Text, scaleValue: done, target: T.trainingCompletion, targetText: targetText(T.trainingCompletion, '%'), delta: change(done, p.before?.training?.completion ?? null, { kind: 'pct', better: 'up' }) },
   ];
-  // a department's six, the same measures as its row on the Departments tab
+  // a department's seven, the same measures as its row on the Departments tab
   const ofDept = (d) => [
     ['risk', 'riskScore', 'riskScore', 'Risk score'],
     ['highRisk', 'highRiskShare', 'highRisk', 'High risk'],
+    ['opened', 'openRate', 'openRate', 'Open rate'],
     ['hooked', 'hookRate', 'hookRate', 'Hook rate'],
     ['reported', 'reportRate', 'reportRate', 'Report rate'],
-    ['gave', 'gaveDetails', 'gaveDetails', 'Gave details'],
-    ['completion', 'trainingCompletion', 'trainingCompletion', 'Completed'],
+    ['gave', 'gaveDetails', 'gaveDetails', 'Compromise rate'],
+    ['completion', 'trainingCompletion', 'trainingCompletion', 'Trained rate'],
   ].map(([id, key, define, label]) => {
     const score = key === 'riskScore';
-    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), before: score ? d.before[key] : hundred(d.before[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: T[key], targetText: targetText(T[key], score ? '' : '%'), delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: T[key].better }) };
+    const t = T[key] || null; // Open rate has no target
+    return { id, define, label, value: score ? d.now[key] : hundred(d.now[key]), before: score ? d.before[key] : hundred(d.before[key]), format: score ? (v) => (Number.isFinite(v) ? v.toFixed(1) : '—') : key === 'trainingCompletion' ? pct0Text : pctText, scaleValue: d.now[key], target: t, targetText: t ? targetText(t, score ? '' : '%') : '', delta: change(d.now[key], d.before[key], { kind: score ? 'pts' : 'pct', better: t ? t.better : null }) };
   });
   const deptRow = dept ? depts.find((d) => d.name === dept) : null;
   const kpis = (deptRow ? ofDept(deptRow) : company).map((k) => ({ ...k, onOpen: deptRow ? undefined : toHome(k.id) }));
@@ -405,13 +433,14 @@ const Insights = () => {
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
   const totals = [
-    ['Campaigns', scope.m.basis.campaigns],
-    ['Emails delivered', scope.m.now.delivered],
-    ['People', scope.p.now.people],
-    ['Departments', scope.p.departments.length],
-    ['Emails reported', scope.m.now.reported],
-    ['Trainings assigned', scope.p.now.training?.assigned],
+    ['Campaigns', m.basis.campaigns],
+    ['Emails delivered', m.now.delivered],
+    ['People', p.now.people],
+    ['Departments', p.departments.length],
+    ['Emails reported', m.now.reported],
+    ['Trainings assigned', p.now.training?.assigned],
   ];
+  const range = rangeText(m.basis.from, m.basis.end);
 
   // the page's colours (insightsUi.js)
   const vars = themeVars(isDark);
@@ -433,7 +462,8 @@ const Insights = () => {
           {/* top bar: black on the light theme, glass on the dark */}
           <div style={{ background: isDark ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' : '#000000', border: isDark ? '1px solid var(--card-edge)' : 'none', boxSizing: 'border-box', color: isDark ? 'var(--text)' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px 0 18px', flexShrink: 0 }}>
             <h1 className="text-[14.5px] font-bold tracking-tight uppercase" style={{ margin: 0 }}>Insights</h1>
-            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <PeriodSwitch shownDays={scopeDays} onDays={setScopeDays} range={range} isDark={isDark} reduce={reduce} />
               {canSetTargets && <TargetsButton onClick={() => setEditing(true)} isDark={isDark} />}
               <ExportMenu items={exportItems} />
             </span>
@@ -445,12 +475,7 @@ const Insights = () => {
               <div role="tablist" aria-orientation="vertical" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {TABS.map((t) => <TabCard key={t.id} t={t} on={tab === t.id} onPick={() => pick(t.id)} isDark={isDark} />)}
               </div>
-              <ScopeCard
-                shownDays={scopeDays}
-                onDays={setScopeDays}
-                totals={totals}
-                reduce={reduce}
-              />
+              <ScopeCard totals={totals} range={range} />
             </nav>
 
             {/* the sheet, in its L */}
@@ -463,8 +488,8 @@ const Insights = () => {
               )}
               <CornerTile tab={tab} dept={deptRow ? dept : null} people={deptRow?.people} onBack={() => setDept(null)} reduce={reduce} />
 
-              {/* the arm: six measures, each against its target */}
-              <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 6, padding: `10px 10px ${L_GAP + 3}px 12px`, position: 'relative' }}>
+              {/* the arm: the measures, each against its target (Open rate has none) */}
+              <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, minmax(0,1fr))`, gap: 6, padding: `10px 10px ${L_GAP + 3}px 12px`, position: 'relative' }}>
                 {kpis.map((k) => <TargetKpi key={k.id} k={k} ink={ink} reduce={reduce} days={m.basis.days} dim={focus && !focus.includes(k.id)} />)}
               </div>
 

@@ -64,7 +64,7 @@ export const GLOSSARY = Object.freeze({
     how: 'Emails reported divided by emails clicked: 2.3× means 23 reports for every 10 clicks.',
   },
   gaveDetails: {
-    name: 'Gave details away',
+    name: 'Compromise Rate',
     what: 'How many of the emails delivered led someone to enter details on the practice page. Lower is better.',
     how: 'The share of emails delivered whose person clicked, then entered details on the practice page: the same base as the Hook Rate and Report Rate. Only the fact is counted, never what was typed.',
   },
@@ -79,7 +79,7 @@ export const GLOSSARY = Object.freeze({
     how: 'The Hook Rate of people who have not finished their training divided by that of people who have. 2.5× means the untrained click 2.5 times as often.',
   },
   trainingCompletion: {
-    name: 'Training completed',
+    name: 'Trained Rate',
     what: 'How much of the training assigned in the period was completed. Higher is better.',
     how: 'Trainings completed divided by trainings assigned, over the period.',
   },

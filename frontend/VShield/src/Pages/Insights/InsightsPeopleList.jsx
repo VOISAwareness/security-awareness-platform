@@ -156,7 +156,7 @@ export function PeopleList({ title, where, rows, picked: start = {}, fixed = {},
           <div role="table" aria-label={`People · ${title}`} style={{ marginTop: 12 }}>
             <div role="row" style={{ display: 'grid', gridTemplateColumns: COLS, padding: '0 16px 6px', fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>
               <span role="columnheader">Person</span>
-              {['Emails', 'Clicked', 'Reported', 'Gave details'].map((h) => <span key={h} role="columnheader" style={{ textAlign: 'center' }}>{h}</span>)}
+              {['Emails', 'Clicked', 'Reported', 'Compromised'].map((h) => <span key={h} role="columnheader" style={{ textAlign: 'center' }}>{h}</span>)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minHeight: PER_PAGE * (ROW_H + 6) - 6 }}>
               {shown.map((x) => (
