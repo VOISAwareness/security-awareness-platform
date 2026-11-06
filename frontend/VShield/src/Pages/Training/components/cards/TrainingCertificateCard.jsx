@@ -29,7 +29,7 @@ export const TrainingCertificateCard = ({
       }
     } catch { /* ignore */ }
     return "Abhay H S";
-     
+
   }, [userContext.user]);
 
   const lightBg = CARD_THEME_COLORS.certificate.parentBg;

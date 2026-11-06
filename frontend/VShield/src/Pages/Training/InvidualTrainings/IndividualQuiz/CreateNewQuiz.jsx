@@ -489,12 +489,13 @@ export const CreateNewQuiz = ({
             );
           })}
         </div>
+
       </div>
 
       {/* ── STEP 1: QUIZ DETAILS ── */}
       {step === 1 && (
         <>
-          <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 flex flex-col gap-5 custom-light-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-6 py-3  flex flex-col gap-5 custom-light-scrollbar">
             <div className={`p-5 rounded-2xl border flex flex-col gap-5 ${
               isDark ? "bg-[#15161A] border-white/10" : "bg-[#F8FAFC] border-slate-200"
             }`}>
