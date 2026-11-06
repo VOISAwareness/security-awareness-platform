@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { api } from '../../services/api';
-import { actorFor } from '../../services/identity';
-import { eventName } from '../../services/gamificationPoints';
-import { useGamificationRules } from '../../services/useGamificationRules';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import { api } from "../../services/api";
+import { actorFor } from "../../services/identity";
+import { eventName } from "../../services/gamificationPoints";
+import { useGamificationRules } from "../../services/useGamificationRules";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
   Mail,
@@ -14,19 +14,19 @@ import {
   ShieldCheck,
   GraduationCap,
   Award,
-  ArrowLeft
-} from 'lucide-react';
-import gamificationJsonData from './GamificationData.json';
+  ArrowLeft,
+} from "lucide-react";
+import gamificationJsonData from "./GamificationData.json";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
 // =========================================================================
-const VarGamificationScale = 0.98;
+const VarGamificationScale = 0.94;
 
 // 🌟 DEDICATED SCALE CONTROL FOR THE 6 GALLERY ITEMS (0.85 = 85%, 0.88 = 88%, etc.)
 const VarGamificationGalleryItemsScale = 1.15;
 
-const VarOverallRoundednessScale = 0.85;
+const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
@@ -45,12 +45,24 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
 
-
 // Helper to format today's date matching "01-Aug-2026" / "1-Aug-26" pattern
 const getFormattedTodayDate = () => {
   const d = new Date();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const day = String(d.getDate()).padStart(2, '0');
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const day = String(d.getDate()).padStart(2, "0");
   const month = months[d.getMonth()];
   const year = d.getFullYear();
   return `${day}-${month}-${year}`;
@@ -59,59 +71,59 @@ const getFormattedTodayDate = () => {
 // Base UI Configuration merged with dynamic columns from GamificationData.json
 const BASE_RULES_CONFIG = [
   {
-    id: 'opened',
-    title: 'OPENED',
+    id: "opened",
+    title: "OPENED",
     description: `Triggered when a recipient \nopens the simulated \nphishing email`,
     currentPoints: 0,
-    tagBg: '#f9e9bc', // Soft Amber/Yellow
+    tagBg: "#f9e9bc", // Soft Amber/Yellow
     icon: Mail,
-    lastModified: '01-Aug-2026'
+    lastModified: "01-Aug-2026",
   },
   {
-    id: 'clicked',
-    title: 'CLICKED',
+    id: "clicked",
+    title: "CLICKED",
     description: `Triggered when a recipient \nclicks a suspicious link \nin the email`,
     currentPoints: -30,
-    tagBg: '#fbbfbf', // Soft Coral/Salmon
+    tagBg: "#fbbfbf", // Soft Coral/Salmon
     icon: MousePointer,
-    lastModified: '01-Aug-2026'
+    lastModified: "01-Aug-2026",
   },
   {
-    id: 'compromised',
-    title: 'COMPROMISED',
+    id: "compromised",
+    title: "COMPROMISED",
     description: `Triggered when a recipient \nsubmits credentials or downloads \nattachments`,
     currentPoints: -50,
-    tagBg: '#fc8888', // Soft Crimson/Red
+    tagBg: "#fc8888", // Soft Crimson/Red
     icon: AlertTriangle,
-    lastModified: '01-Aug-2026'
+    lastModified: "01-Aug-2026",
   },
   {
-    id: 'reported',
-    title: 'REPORTED',
+    id: "reported",
+    title: "REPORTED",
     description: `Triggered when a recipient \nreports the simulated \nphishing email`,
     currentPoints: 80,
-    tagBg: '#f3e7fd', // Soft Lavender/Purple
+    tagBg: "#f3e7fd", // Soft Lavender/Purple
     icon: ShieldCheck,
-    lastModified: '01-Aug-2026'
+    lastModified: "01-Aug-2026",
   },
   {
-    id: 'trained',
-    title: 'TRAINED',
+    id: "trained",
+    title: "TRAINED",
     description: `Triggered when a recipient \ncompletes assigned mandatory \ntraining`,
     currentPoints: 30,
-    tagBg: '#d0fbdf', // Soft Mint/Green
+    tagBg: "#d0fbdf", // Soft Mint/Green
     icon: GraduationCap,
-    lastModified: '01-Aug-2026'
+    lastModified: "01-Aug-2026",
   },
   {
-    id: 'evaluated',
-    title: 'EVALUATED',
+    id: "evaluated",
+    title: "EVALUATED",
     description: `Triggered when a recipient \npasses the post-training \nevaluation assessment`,
     currentPoints: 30,
-    tagBg: '#defcf3', // Soft Cyan/Teal
+    tagBg: "#defcf3", // Soft Cyan/Teal
     icon: Award,
-    lastModified: '01-Aug-2026'
-  }
+    lastModified: "01-Aug-2026",
+  },
 ];
 
 // Merge rule rows (PointsAssigned, LastModifiedOn, ModifiedBy) into the cards.
@@ -120,14 +132,21 @@ const BASE_RULES_CONFIG = [
 const buildElements = (rows) =>
   BASE_RULES_CONFIG.map((item) => {
     const jsonRow = (rows || []).find(
-      (row) => row?.EventOperation?.trim().toLowerCase() === item.id.toLowerCase()
+      (row) =>
+        row?.EventOperation?.trim().toLowerCase() === item.id.toLowerCase(),
     );
 
     return {
       ...item,
-      currentPoints: jsonRow && jsonRow.PointsAssigned !== undefined ? Number(jsonRow.PointsAssigned) : item.currentPoints,
-      lastModified: jsonRow && jsonRow.LastModifiedOn ? jsonRow.LastModifiedOn : item.lastModified,
-      modifiedBy: jsonRow ? jsonRow.ModifiedBy : ''
+      currentPoints:
+        jsonRow && jsonRow.PointsAssigned !== undefined
+          ? Number(jsonRow.PointsAssigned)
+          : item.currentPoints,
+      lastModified:
+        jsonRow && jsonRow.LastModifiedOn
+          ? jsonRow.LastModifiedOn
+          : item.lastModified,
+      modifiedBy: jsonRow ? jsonRow.ModifiedBy : "",
     };
   });
 
@@ -144,17 +163,19 @@ const AnimatedLogoBadge = ({ icon: Icon, tagBg, isDark, animTriggerKey }) => {
       animate={{
         rotate: [0, -14, 12, -8, 6, -2, 0],
         scale: [1, 1.15, 0.97, 1.09, 0.99, 1],
-        y: [0, -3.5, 2, -1.5, 1, 0]
+        y: [0, -3.5, 2, -1.5, 1, 0],
       }}
       transition={{
         duration: 2,
         ease: [0.22, 1, 0.36, 1],
-        times: [0, 0.18, 0.38, 0.58, 0.76, 0.9, 1]
+        times: [0, 0.18, 0.38, 0.58, 0.76, 0.9, 1],
       }}
       className="relative flex items-center justify-center w-8 h-8 rounded-lg shadow-xs flex-shrink-0"
       style={{
-        backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-        border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.07)'
+        backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#FFFFFF",
+        border: isDark
+          ? "1px solid rgba(255,255,255,0.12)"
+          : "1px solid rgba(0,0,0,0.07)",
       }}
     >
       {/* Ambient background glow matching card theme */}
@@ -164,7 +185,7 @@ const AnimatedLogoBadge = ({ icon: Icon, tagBg, isDark, animTriggerKey }) => {
       />
       <Icon
         className="w-4 h-4 relative z-10"
-        style={{ color: isDark ? '#FFFFFF' : '#1E2026' }}
+        style={{ color: isDark ? "#FFFFFF" : "#1E2026" }}
         strokeWidth={2.3}
       />
     </motion.div>
@@ -183,21 +204,27 @@ const GamificationEngine = () => {
 
   // Per-card hover animation trigger counters (Initial value 0 triggers 2-second animation on mount)
   const [hoverKeys, setHoverKeys] = useState(() =>
-    INITIAL_GAMIFICATION_DATA.reduce((acc, item) => ({ ...acc, [item.id]: 0 }), {})
+    INITIAL_GAMIFICATION_DATA.reduce(
+      (acc, item) => ({ ...acc, [item.id]: 0 }),
+      {},
+    ),
   );
 
   // Editable draft values for input steppers
   const [draftInputs, setDraftInputs] = useState(() =>
-    INITIAL_GAMIFICATION_DATA.reduce((acc, item) => ({ ...acc, [item.id]: item.currentPoints }), {})
+    INITIAL_GAMIFICATION_DATA.reduce(
+      (acc, item) => ({ ...acc, [item.id]: item.currentPoints }),
+      {},
+    ),
   );
 
-  const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState("");
   const [toastIsError, setToastIsError] = useState(false);
 
   const showToast = (message, isError = false) => {
     setToastIsError(isError);
     setToastMessage(message);
-    setTimeout(() => setToastMessage(''), isError ? 4000 : 2500);
+    setTimeout(() => setToastMessage(""), isError ? 4000 : 2500);
   };
 
   // Replace the bundled defaults with the saved rules once they load. Runs
@@ -207,14 +234,19 @@ const GamificationEngine = () => {
     const next = buildElements(savedRules);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from the API response
     setElements(next);
-    setDraftInputs(next.reduce((acc, item) => ({ ...acc, [item.id]: item.currentPoints }), {}));
+    setDraftInputs(
+      next.reduce(
+        (acc, item) => ({ ...acc, [item.id]: item.currentPoints }),
+        {},
+      ),
+    );
   }, [savedRules]);
 
   // Trigger animation once per hover
   const handleCardMouseEnter = (id) => {
     setHoverKeys((prev) => ({
       ...prev,
-      [id]: (prev[id] || 0) + 1
+      [id]: (prev[id] || 0) + 1,
     }));
   };
 
@@ -222,7 +254,7 @@ const GamificationEngine = () => {
   const handleStep = (id, delta) => {
     setDraftInputs((prev) => ({
       ...prev,
-      [id]: (Number(prev[id]) || 0) + delta
+      [id]: (Number(prev[id]) || 0) + delta,
     }));
   };
 
@@ -230,7 +262,7 @@ const GamificationEngine = () => {
   const handleInputChange = (id, val) => {
     setDraftInputs((prev) => ({
       ...prev,
-      [id]: val
+      [id]: val,
     }));
   };
 
@@ -239,14 +271,18 @@ const GamificationEngine = () => {
   const handleUpdate = async (id) => {
     const target = elements.find((e) => e.id === id);
     const val = Number(draftInputs[id]);
-    if (draftInputs[id] === '' || !Number.isInteger(val)) {
+    if (draftInputs[id] === "" || !Number.isInteger(val)) {
       showToast(`Enter a whole number of points for ${target?.title}`, true);
       return;
     }
 
     setSavingId(id);
     try {
-      const saved = await api.gamificationRules.update(eventName(id), val, actorFor(user));
+      const saved = await api.gamificationRules.update(
+        eventName(id),
+        val,
+        actorFor(user),
+      );
       const points = Number(saved?.PointsAssigned ?? val);
       setElements((prev) =>
         prev.map((item) =>
@@ -255,12 +291,14 @@ const GamificationEngine = () => {
                 ...item,
                 currentPoints: points,
                 lastModified: saved?.LastModifiedOn || getFormattedTodayDate(),
-                modifiedBy: saved?.ModifiedBy || item.modifiedBy
+                modifiedBy: saved?.ModifiedBy || item.modifiedBy,
               }
-            : item
-        )
+            : item,
+        ),
       );
-      showToast(`Updated ${target?.title} to ${points > 0 ? `+${points}` : points} points`);
+      showToast(
+        `Updated ${target?.title} to ${points > 0 ? `+${points}` : points} points`,
+      );
     } catch (e) {
       showToast(e?.message || `Could not update ${target?.title}`, true);
     } finally {
@@ -269,7 +307,7 @@ const GamificationEngine = () => {
   };
 
   // Inner L-Container background color matching theme
-  const containerBg = isDark ? '#202127' : '#EEF2F6';
+  const containerBg = isDark ? "#202127" : "#EEF2F6";
 
   return (
     <>
@@ -277,27 +315,31 @@ const GamificationEngine = () => {
 
       <div
         style={{ zoom: VarGamificationScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "GAMIFICATION ENGINE" ───────────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] px-5 rounded-xl border flex items-center justify-between transition-colors duration-300 shadow-sm select-none ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
-              ? 'bg-white text-[#0B1121] border-slate-200'
-              : 'bg-[#06080D] text-white border-black/10'
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
           }`}
         >
-          <span className="text-xs sm:text-[12.5px] font-voda font-bold tracking-wider uppercase">
-            GAMIFICATION ENGINE
-          </span>
+          <div className="flex items-center gap-3">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
+              GAMIFICATION ENGINE
+            </h1>
+          </div>
           {returnTo && (
             <button
               type="button"
               onClick={() => navigate(returnTo)}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors ${
-                isDark ? 'bg-[#0B1121] text-white hover:bg-black' : 'bg-white text-[#06080D] hover:bg-slate-100'
+                isDark
+                  ? "bg-[#0B1121] text-white hover:bg-black"
+                  : "bg-white text-[#06080D] hover:bg-slate-100"
               }`}
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -308,7 +350,8 @@ const GamificationEngine = () => {
 
         {loadError && (
           <div className="w-full px-4 py-2 rounded-xl text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-400/20">
-            Could not load the saved scores ({loadError.message}). Showing the default scores; updates may not save.
+            Could not load the saved scores ({loadError.message}). Showing the
+            default scores; updates may not save.
           </div>
         )}
 
@@ -318,8 +361,8 @@ const GamificationEngine = () => {
         <div
           className={`w-full p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${
             isDark
-              ? 'bg-[#15161A] border-white/10 text-white shadow-xl'
-              : 'bg-white border-slate-200 text-slate-900 shadow-sm'
+              ? "bg-[#15161A] border-white/10 text-white shadow-xl"
+              : "bg-white border-slate-200 text-slate-900 shadow-sm"
           }`}
         >
           {/* ── 6 SEAMLESS L-SHAPED BENTO ITEMS (Controlled via VarGamificationGalleryItemsScale) ── */}
@@ -328,7 +371,10 @@ const GamificationEngine = () => {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full"
           >
             {elements.map((item) => {
-              const currentPointsDisplay = item.currentPoints > 0 ? `+${item.currentPoints}` : item.currentPoints;
+              const currentPointsDisplay =
+                item.currentPoints > 0
+                  ? `+${item.currentPoints}`
+                  : item.currentPoints;
 
               return (
                 <div
@@ -338,14 +384,13 @@ const GamificationEngine = () => {
                 >
                   {/* ── TOP TIER: [Left Floating Pill] + [Right L-Head] ── */}
                   <div className="flex items-stretch w-full">
-                    
                     {/* 1. Left Colored Tag Pill */}
                     <div
                       className="w-[48%] rounded-lg h-[100px] p-2 sm:p-2.5 mb-2 flex flex-col justify-between flex-shrink-0 mr-2.5 shadow-2xs"
                       style={{ backgroundColor: item.tagBg }}
                     >
                       <div>
-                        <h3 className="text-[15px] font-voda-exb uppercase tracking-tight text-black leading-tight">
+                        <h3 className="text-[15px] font-bold font-voda uppercase tracking-tight text-black leading-tight">
                           {item.title}
                         </h3>
                         <p className="text-[8.5px] font-normal text-black/85 leading-snug mt-2 whitespace-pre-line">
@@ -357,17 +402,19 @@ const GamificationEngine = () => {
                     {/* 2. Right L-Head (Continuous with Bottom Shelf) */}
                     <div
                       className={`flex-1 rounded-t-lg rounded-tr-lg p-3 flex flex-col justify-between relative ${
-                        isDark ? 'text-white' : 'text-slate-900'
+                        isDark ? "text-white" : "text-slate-900"
                       }`}
                       style={{ backgroundColor: containerBg }}
                     >
                       {/* Top Header Row with Title + Toddle Animated Logo */}
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="text-[12.5px] -mt-1 font-voda-exb uppercase tracking-tight leading-tight">
-                            CURRENT<br />POINTS
+                          <h4 className="text-[12.5px] -mt-1 font-bold font-voda uppercase tracking-tight leading-tight">
+                            CURRENT
+                            <br />
+                            POINTS
                           </h4>
-                          <div className="text-[18px] mt-1 sm:text-[24px] font-voda-exb leading-none my-1">
+                          <div className="text-[18px] mt-1 sm:text-[24px] font-bold font-voda leading-none my-1">
                             {currentPointsDisplay}
                           </div>
                         </div>
@@ -381,7 +428,9 @@ const GamificationEngine = () => {
                         />
                       </div>
 
-                      <p className={`text-[8px] font-normal leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <p
+                        className={`text-[8px] font-normal leading-tight ${isDark ? "text-slate-400" : "text-slate-500"}`}
+                      >
                         Last Modified on: {item.lastModified}
                       </p>
 
@@ -397,7 +446,6 @@ const GamificationEngine = () => {
                         />
                       </svg>
                     </div>
-
                   </div>
 
                   {/* ── BOTTOM TIER: Continuous L-Shelf Underneath ── */}
@@ -406,21 +454,31 @@ const GamificationEngine = () => {
                     style={{ backgroundColor: containerBg }}
                   >
                     {/* Compact Input Pill with Steppers [- | +] */}
-                    <div className={`w-full max-w-[220px] mt-2 px-2.5 py-1 rounded-lg border flex items-center justify-between shadow-2xs ${
-                      isDark ? 'bg-[#292B35] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    }`}>
+                    <div
+                      className={`w-full max-w-[220px] mt-2 px-2.5 py-1 rounded-lg border flex items-center justify-between shadow-2xs ${
+                        isDark
+                          ? "bg-[#292B35] border-white/10 text-white"
+                          : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    >
                       {/* Numeric Value Input */}
                       <input
                         type="number"
-                        value={draftInputs[item.id] ?? ''}
-                        onChange={(e) => handleInputChange(item.id, e.target.value)}
+                        value={draftInputs[item.id] ?? ""}
+                        onChange={(e) =>
+                          handleInputChange(item.id, e.target.value)
+                        }
                         className="bg-transparent font-bold text-[13px] text-center w-20 -ml-5 outline-none"
                       />
 
                       {/* Right Stepper [- | +] */}
-                      <div className={`px-2 py-0.5 rounded-md flex items-center gap-2 font-bold text-[11px] select-none ${
-                        isDark ? 'bg-white/10 text-slate-200' : 'bg-[#EEF2F6] text-slate-700'
-                      }`}>
+                      <div
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-2 font-bold text-[11px] select-none ${
+                          isDark
+                            ? "bg-white/10 text-slate-200"
+                            : "bg-[#EEF2F6] text-slate-700"
+                        }`}
+                      >
                         <button
                           type="button"
                           onClick={() => handleStep(item.id, -5)}
@@ -448,14 +506,13 @@ const GamificationEngine = () => {
                       disabled={savingId === item.id}
                       className={`w-full max-w-[120px] h-8 sm:h-10 md:h-6 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-98 flex items-center justify-center disabled:opacity-60 disabled:cursor-wait ${
                         isDark
-                          ? 'bg-[#32353E] hover:bg-[#3D404A] text-white border border-white/10'
-                          : 'bg-[#373A40] hover:bg-[#25272B] text-white'
+                          ? "bg-[#32353E] hover:bg-[#3D404A] text-white border border-white/10"
+                          : "bg-[#373A40] hover:bg-[#25272B] text-white"
                       }`}
                     >
-                      {savingId === item.id ? 'SAVING…' : 'UPDATE'}
+                      {savingId === item.id ? "SAVING…" : "UPDATE"}
                     </button>
                   </div>
-
                 </div>
               );
             })}
@@ -471,11 +528,15 @@ const GamificationEngine = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className={`fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl text-white text-xs font-voda-exb shadow-xl flex items-center gap-2 ${
-                toastIsError ? 'bg-[#E11D48]' : 'bg-[#22C55E]'
+              className={`fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl text-white text-xs font-bold font-voda shadow-xl flex items-center gap-2 ${
+                toastIsError ? "bg-[#E11D48]" : "bg-[#22C55E]"
               }`}
             >
-              {toastIsError ? <AlertTriangle className="w-4 h-4" /> : <Check className="w-4 h-4 stroke-[3]" />}
+              {toastIsError ? (
+                <AlertTriangle className="w-4 h-4" />
+              ) : (
+                <Check className="w-4 h-4 stroke-[3]" />
+              )}
               {toastMessage}
             </motion.div>
           )}
