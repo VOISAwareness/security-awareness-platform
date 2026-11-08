@@ -1,4 +1,4 @@
-import React, { useState, useEffect, } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { GlassmorphicBackdrop } from "../shared/GlassmorphicBackdrop";
 import {
   X,
@@ -16,7 +16,10 @@ export const CertificateViewerModal = ({
 }) => {
   const isDark = useIsDarkMode();
   const userContext = useUserType?.() || {};
-  const loggedInName = React.useMemo(() => {
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  const loggedInName = useMemo(() => {
     if (userContext.user?.UserName) return userContext.user.UserName;
     try {
       const activeUser = localStorage.getItem("voisshield_active_user");
@@ -33,14 +36,45 @@ export const CertificateViewerModal = ({
     return "Abhay H S";
   }, [userContext.user]);
 
-  const [userName, setUserName] = useState(loggedInName);
+  const userName = loggedInName;
 
+  const [completionDate] = useState(() => {
+    return new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).replace(/ /g, "-");
+  });
+
+  // Calculate dynamic scale to ensure the full certificate is visible in viewport height
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUserName(loggedInName);
-  }, [loggedInName]);
+    if (!containerRef.current) return;
 
-  const [completionDate, setCompletionDate] = useState("05-Oct-2026");
+    const updateScale = () => {
+      if (containerRef.current) {
+        const availableW = containerRef.current.clientWidth - 32;
+        const availableH = containerRef.current.clientHeight - 32;
+        if (availableW > 0 && availableH > 0) {
+          const scaleW = availableW / 820;
+          const scaleH = availableH / 560;
+          const fitScale = Math.min(scaleW, scaleH);
+          setScale(Math.max(0.35, Math.min(1.05, fitScale)));
+        }
+      }
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(() => {
+      window.requestAnimationFrame(updateScale);
+    });
+    observer.observe(containerRef.current);
+
+    const timer = setTimeout(updateScale, 100);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
 
   // Replace placeholders inside certificate HTML
   const rawHtml = certificate["Certificate(html)"] || "";
@@ -49,6 +83,29 @@ export const CertificateViewerModal = ({
     .replace(/{{trainingPathName}}/g, trainingPathName || "Anti-Phishing & Social Engineering Remediation")
     .replace(/{{completionDate}}/g, completionDate)
     .replace(/{{certificateId}}/g, certificate.TrainingCertificateID);
+
+  // Ensure iframe content is centered without being cut off by margins
+  const styledHtml = renderedHtml.includes("</head>")
+    ? renderedHtml.replace(
+        "</head>",
+        `<style>
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          .cert-card {
+            margin: auto !important;
+            max-height: 540px !important;
+          }
+        </style></head>`
+      )
+    : renderedHtml;
 
   const content = (
     <div className={`w-full overflow-hidden flex flex-col select-none font-sans text-left ${
@@ -78,49 +135,34 @@ export const CertificateViewerModal = ({
         </button>
       </div>
 
-      {/* ── CONFIGURATION SUB-BAR ── */}
-      <div className={`px-6 py-2 border-b grid grid-cols-1 sm:grid-cols-2 gap-3 text-left flex-shrink-0 ${
-        isDark ? "bg-[#0e1220] border-white/10" : "bg-slate-100 border-slate-200"
-      }`}>
-        <div>
-          <label className={`text-[9px] font-bold uppercase block mb-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Recipient Name (Dynamic Preview)
-          </label>
-          <input
-            type="text"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            className={`w-full h-7 px-2.5 rounded-lg border text-[11px] font-semibold focus:outline-none focus:border-[#16A34A] ${
-              isDark ? "border-white/10 bg-black/30 text-white" : "border-slate-300 bg-white text-slate-900"
-            }`}
-            placeholder="Enter User Name"
-          />
-        </div>
-        <div>
-          <label className={`text-[9px] font-bold uppercase block mb-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            Issue Date
-          </label>
-          <input
-            type="text"
-            value={completionDate}
-            onChange={(e) => setCompletionDate(e.target.value)}
-            className={`w-full h-7 px-2.5 rounded-lg border text-[11px] font-semibold focus:outline-none focus:border-[#16A34A] ${
-              isDark ? "border-white/10 bg-black/30 text-white" : "border-slate-300 bg-white text-slate-900"
-            }`}
-            placeholder="e.g., 05-Oct-2026"
-          />
-        </div>
-      </div>
-
-      {/* ── SCROLLABLE PREVIEW CANVAS ── */}
-      <div className="flex-1 bg-slate-950 p-4 flex items-center justify-center overflow-auto custom-light-scrollbar">
-        <div className="w-[820px] h-[520px] bg-white rounded-lg shadow-inner scale-80 md:scale-90 transition-transform flex-shrink-0">
-          <iframe
-            title="Certificate Frame"
-            srcDoc={renderedHtml}
-            className="w-full h-full border-none rounded-lg"
-            sandbox="allow-same-origin"
-          />
+      {/* ── SCROLLABLE PREVIEW CANVAS (RESPONSIVE VIEWPORT FIT + SAFE SCROLLING) ── */}
+      <div
+        ref={containerRef}
+        className="flex-1 bg-slate-950 p-4 overflow-auto custom-light-scrollbar flex flex-col items-center justify-start min-h-0"
+      >
+        <div
+          className="my-auto transition-transform flex-shrink-0 flex items-center justify-center"
+          style={{
+            width: `${Math.round(820 * scale)}px`,
+            height: `${Math.round(560 * scale)}px`,
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl overflow-hidden flex-shrink-0"
+            style={{
+              width: "820px",
+              height: "560px",
+              transform: `scale(${scale})`,
+              transformOrigin: "center center",
+            }}
+          >
+            <iframe
+              title="Certificate Frame"
+              srcDoc={styledHtml}
+              className="w-full h-full border-none rounded-xl"
+              sandbox="allow-same-origin"
+            />
+          </div>
         </div>
       </div>
 
@@ -149,3 +191,5 @@ export const CertificateViewerModal = ({
     </GlassmorphicBackdrop>
   );
 };
+
+export default CertificateViewerModal;
