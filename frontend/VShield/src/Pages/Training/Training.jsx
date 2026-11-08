@@ -115,7 +115,7 @@ function TrainingDashboardInner() {
         <div
           className={`w-full flex-1 min-h-0 overflow-hidden flex flex-col ${
             (currentView === "hub" && !activeVideo && !activeQuiz && !activeCert && !activeInteractivePath && !launchStandalonePkg)
-              ? (isDark ? "bg-[#0B1121] border border-white/10 shadow-xl p-4 sm:p-5 gap-4 rounded-xl" : "bg-white border border-slate-200 shadow-sm p-4 sm:p-5 gap-4 rounded-xl")
+              ? (isDark ? "bg-[#0F1015] border border-white/10 shadow-xl p-4 sm:p-5 gap-4 rounded-xl" : "bg-white border border-slate-200 shadow-sm p-4 sm:p-5 gap-4 rounded-xl")
               : "bg-transparent border-none shadow-none p-0 gap-0"
           }`}
         >
