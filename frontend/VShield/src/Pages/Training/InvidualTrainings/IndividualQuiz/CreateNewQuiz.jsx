@@ -15,8 +15,7 @@ import {
 } from "lucide-react";
 
 import { useIsDarkMode } from "../../components/modals/helpers";
-import { useTraining } from "../../TrainingContext";
-import ExcelJS from "exceljs";
+import { useOptionalTraining } from "../../TrainingContext";
 import quizTemplateUrl from "@/assets/Training(LMS)/samples/Quiz Template - Awareness App.xlsx?url";
 
 // Helper to safely extract clean text string from various ExcelJS cell value formats
@@ -37,9 +36,10 @@ const extractCellText = (cellVal) => {
 // Robust normalizer for correct answer column to handle all edge cases:
 // e.g. "optionA", "optiona", "OPTION A", "Option A", "option-a", "A", "a", "(A)", "1",
 // or when user puts the actual text of the correct option in the answer column.
+// Returns normalized key ("optionA" | "optionB" | "optionC" | "optionD") or null if unrecognized.
 const normalizeAnswer = (rawAnswer, optA = "", optB = "", optC = "", optD = "") => {
   const rawText = extractCellText(rawAnswer).trim();
-  if (!rawText) return "optionA";
+  if (!rawText) return null;
 
   const cleanRaw = rawText.toLowerCase();
 
@@ -79,7 +79,7 @@ const normalizeAnswer = (rawAnswer, optA = "", optB = "", optC = "", optD = "") 
   if (/^(answer|ans|correct)[:\s-]*c\b/i.test(rawText)) return "optionC";
   if (/^(answer|ans|correct)[:\s-]*d\b/i.test(rawText)) return "optionD";
 
-  return "optionA";
+  return null;
 };
 
 export const CreateNewQuiz = ({
@@ -93,10 +93,10 @@ export const CreateNewQuiz = ({
   initialStep = 1
 }) => {
   const isDark = useIsDarkMode();
-  const { showToast } = useTraining?.() || {};
+  const trainingCtx = useOptionalTraining();
+  const showToast = trainingCtx?.showToast;
 
   const fileInputRef = useRef(null);
-  const step2FileInputRef = useRef(null);
 
   const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -110,7 +110,9 @@ export const CreateNewQuiz = ({
   const [step, setStep] = useState(startStep);
   const [name, setName] = useState(editingQuiz ? editingQuiz.TrainingQuizName : "");
   const [description, setDescription] = useState(editingQuiz ? editingQuiz.Description : "");
-  const [threshold, setThreshold] = useState(editingQuiz ? editingQuiz.TrainingCompletionThreshold : 80);
+  const [threshold, setThreshold] = useState(
+    editingQuiz?.TrainingCompletionThreshold != null ? editingQuiz.TrainingCompletionThreshold : 0
+  );
 
   const [questions, setQuestions] = useState(() => {
     if (editingQuiz && editingQuiz.QuizData) {
@@ -139,9 +141,12 @@ export const CreateNewQuiz = ({
       });
     } else {
       setLocalToast({ title, message, isError });
-      setTimeout(() => setLocalToast(null), 4000);
+      setTimeout(() => setLocalToast(null), isError ? 6000 : 4000);
     }
   };
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
+  const MAX_QUESTIONS = 20;
 
   // Process Excel spreadsheet upload
   const processFile = async (file) => {
@@ -152,9 +157,17 @@ export const CreateNewQuiz = ({
       return;
     }
 
+    if (file.size > MAX_FILE_SIZE) {
+      notify("File Too Large", "File size exceeds 5MB limit. Please upload a smaller Excel spreadsheet.", true);
+      return;
+    }
+
     setIsParsing(true);
 
     try {
+      const ExcelJSModule = await import("exceljs");
+      const ExcelJS = ExcelJSModule.default || ExcelJSModule;
+
       const buffer = await file.arrayBuffer();
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(buffer);
@@ -168,12 +181,12 @@ export const CreateNewQuiz = ({
 
       // Check header row and dynamically detect column mappings
       const firstRow = worksheet.getRow(1);
-      let colQuestion = 1;
-      let colOptionA = 2;
-      let colOptionB = 3;
-      let colOptionC = 4;
-      let colOptionD = 5;
-      let colAnswer = 6;
+      let colQuestion = -1;
+      let colOptionA = -1;
+      let colOptionB = -1;
+      let colOptionC = -1;
+      let colOptionD = -1;
+      let colAnswer = -1;
       let hasHeaders = false;
 
       firstRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
@@ -189,57 +202,114 @@ export const CreateNewQuiz = ({
           hasHeaders = true;
         } else if (text.includes("option c") || text.includes("option 3") || text.includes("choice c") || text === "c") {
           colOptionC = colNumber;
-          hasHeaders = true;
         } else if (text.includes("option d") || text.includes("option 4") || text.includes("choice d") || text === "d") {
           colOptionD = colNumber;
-          hasHeaders = true;
         } else if (text.includes("answer") || text.includes("correct") || text.includes("key")) {
           colAnswer = colNumber;
           hasHeaders = true;
         }
       });
 
+      // Require identifiable headers
+      if (!hasHeaders || colQuestion === -1 || colOptionA === -1 || colOptionB === -1 || colAnswer === -1) {
+        notify(
+          "Invalid Headers",
+          "Could not recognize the headers. Please use the template.",
+          true
+        );
+        setIsParsing(false);
+        return;
+      }
+
       const parsedQuestions = [];
+      let skippedInvalidRows = 0;
 
       worksheet.eachRow((row, rowNumber) => {
-        if (hasHeaders && rowNumber === 1) return;
+        if (rowNumber === 1) return; // Skip header row
 
         const qText = extractCellText(row.getCell(colQuestion).value);
         const optA = extractCellText(row.getCell(colOptionA).value);
         const optB = extractCellText(row.getCell(colOptionB).value);
-        const optC = extractCellText(row.getCell(colOptionC).value);
-        const optD = extractCellText(row.getCell(colOptionD).value);
+        const optC = colOptionC !== -1 ? extractCellText(row.getCell(colOptionC).value) : "";
+        const optD = colOptionD !== -1 ? extractCellText(row.getCell(colOptionD).value) : "";
         const rawAns = row.getCell(colAnswer).value;
 
         // Skip blank rows where question text is missing
         if (!qText.trim()) return;
 
+        const nonEmptyOptions = [optA.trim(), optB.trim(), optC.trim(), optD.trim()].filter(Boolean);
+        if (nonEmptyOptions.length < 2) {
+          skippedInvalidRows++;
+          return;
+        }
+
         const normalizedAns = normalizeAnswer(rawAns, optA, optB, optC, optD);
 
         parsedQuestions.push({
           question: qText.trim(),
-          optionA: optA.trim() || "Option A",
-          optionB: optB.trim() || "Option B",
-          optionC: optC.trim() || "Option C",
-          optionD: optD.trim() || "Option D",
-          Answer: normalizedAns,
-          answer: normalizedAns
+          optionA: optA.trim(),
+          optionB: optB.trim(),
+          optionC: optC.trim(),
+          optionD: optD.trim(),
+          Answer: normalizedAns || "",
+          answer: normalizedAns || ""
         });
       });
 
       if (parsedQuestions.length === 0) {
-        notify("Import Error", "No valid questions found. Ensure columns include Question, Option A-D, and Answer.", true);
+        notify(
+          "Import Error",
+          skippedInvalidRows > 0
+            ? "No valid questions found. Each question must have question text and at least 2 options."
+            : "No valid questions found in the spreadsheet.",
+          true
+        );
         setIsParsing(false);
         return;
       }
 
-      setQuestions(parsedQuestions);
-      setActiveQuestionIdx(0);
-      setPreviewIdx(0);
+      // Check existing questions:
+      // If user is on a new quiz with the single initial untouched placeholder question, replace it.
+      // Otherwise append to existing questions!
+      const isInitialDefault =
+        !editingQuiz &&
+        questions.length === 1 &&
+        questions[0].question === "Which of the following describes a key phishing indicator?" &&
+        questions[0].optionA === "Expected invoice statement from a known contact";
+
+      const baseQuestions = isInitialDefault ? [] : [...questions];
+
+      if (baseQuestions.length >= MAX_QUESTIONS) {
+        notify("Limit Reached", "Quiz already contains the maximum limit of 20 questions.", true);
+        setIsParsing(false);
+        return;
+      }
+
+      const availableSlots = MAX_QUESTIONS - baseQuestions.length;
+      let questionsToAdd = parsedQuestions;
+      let trimmedCount = 0;
+
+      if (questionsToAdd.length > availableSlots) {
+        trimmedCount = questionsToAdd.length - availableSlots;
+        questionsToAdd = questionsToAdd.slice(0, availableSlots);
+      }
+
+      // Track questions with unrecognized answers (1-based index in the final combined list)
+      const unrecognizedNumbers = [];
+      questionsToAdd.forEach((q, idx) => {
+        if (!q.Answer) {
+          const finalQNum = baseQuestions.length + idx + 1;
+          unrecognizedNumbers.push(finalQNum);
+        }
+      });
+
+      const finalQuestions = [...baseQuestions, ...questionsToAdd];
+      setQuestions(finalQuestions);
+      setActiveQuestionIdx(baseQuestions.length);
+      setPreviewIdx(baseQuestions.length);
       setIsEditingQuestion(true);
       setUploadedFileInfo({
-        name: file.name,
-        count: parsedQuestions.length
+        name: file.name
       });
 
       // Auto-populate quiz title if empty
@@ -251,17 +321,38 @@ export const CreateNewQuiz = ({
         if (generatedTitle) setName(generatedTitle);
       }
 
-      notify(
-        "Questions Added",
-        `${parsedQuestions.length} ${parsedQuestions.length === 1 ? "question" : "questions"} added successfully from ${file.name}.`
-      );
+      // Dispatch toast considering toast container size & duration
+      if (unrecognizedNumbers.length > 0) {
+        const qList =
+          unrecognizedNumbers.length <= 4
+            ? `question(s) ${unrecognizedNumbers.join(", ")}`
+            : `${unrecognizedNumbers.length} questions`;
+
+        const limitNotice = trimmedCount > 0 ? " (max limit of 20 questions reached)" : "";
+        notify(
+          "Answers Not Recognised",
+          `File imported${limitNotice}, but answers for ${qList} could not be recognised.`,
+          true
+        );
+      } else if (trimmedCount > 0) {
+        notify(
+          "Questions Added",
+          `${questionsToAdd.length} questions added successfully. Max limit of 20 questions reached.`,
+          false
+        );
+      } else {
+        notify(
+          "Questions Added",
+          `${questionsToAdd.length} ${questionsToAdd.length === 1 ? "question" : "questions"} added successfully from ${file.name}.`,
+          false
+        );
+      }
     } catch (err) {
       console.error("Failed to parse Excel file:", err);
       notify("Import Failed", "Unable to read Excel file. Please ensure it is a valid .xlsx spreadsheet.", true);
     } finally {
       setIsParsing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      if (step2FileInputRef.current) step2FileInputRef.current.value = "";
     }
   };
 
@@ -296,7 +387,7 @@ export const CreateNewQuiz = ({
     if (editingQuiz) {
       setName(editingQuiz.TrainingQuizName || "");
       setDescription(editingQuiz.Description || "");
-      setThreshold(editingQuiz.TrainingCompletionThreshold ?? 80);
+      setThreshold(editingQuiz.TrainingCompletionThreshold ?? 0);
       if (editingQuiz.QuizData) {
         const sortedKeys = Object.keys(editingQuiz.QuizData).sort();
         setQuestions(sortedKeys.map((key) => ({ ...editingQuiz.QuizData[key] })));
@@ -314,8 +405,12 @@ export const CreateNewQuiz = ({
     }
   }, [editingQuiz]);
 
-  // Questions addition helper
+  // Questions addition helper (capped at 20 max)
   const addQuestion = () => {
+    if (questions.length >= 20) {
+      notify("Limit Reached", "Quiz already contains the maximum limit of 20 questions.", true);
+      return;
+    }
     const newQ = {
       question: "",
       optionA: "",
@@ -361,31 +456,44 @@ export const CreateNewQuiz = ({
   };
 
   const removeQuestion = (index) => {
-    if (questions.length <= 1) return;
-    setQuestions((prev) => prev.filter((_, idx) => idx !== index));
-    if (activeQuestionIdx >= questions.length - 1) {
-      setActiveQuestionIdx(Math.max(0, questions.length - 2));
-    } else if (activeQuestionIdx === index) {
-      setActiveQuestionIdx(Math.max(0, index - 1));
-    }
-    if (previewIdx >= questions.length - 1) {
-      setPreviewIdx(Math.max(0, questions.length - 2));
-    }
+    setQuestions((prev) => {
+      const updated = prev.filter((_, idx) => idx !== index);
+      if (updated.length === 0) {
+        setUploadedFileInfo(null);
+      }
+      return updated;
+    });
+    setActiveQuestionIdx((prev) => Math.max(0, Math.min(prev, questions.length - 2)));
+    setPreviewIdx((prev) => Math.max(0, Math.min(prev, questions.length - 2)));
   };
 
+  const isQuestionValid = (q) => {
+    if (!q) return false;
+    // Question text and at least 2 options must be filled
+    if (!q.question || !q.question.trim()) return false;
+    if (!q.optionA || !q.optionA.trim()) return false;
+    if (!q.optionB || !q.optionB.trim()) return false;
+    // Selected correct answer must be one of the non-empty options
+    if (!q.Answer || !q[q.Answer] || !q[q.Answer].trim()) return false;
+    return true;
+  };
+
+  const isAllQuestionsValid =
+    questions.length > 0 && questions.every(isQuestionValid);
+
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || threshold < 5 || !isAllQuestionsValid) return;
 
     // Map questions list into standard object structure QuizData
     const quizDataObj = {};
     questions.forEach((q, idx) => {
       const qKey = `Question${String(idx + 1).padStart(2, "0")}`;
       quizDataObj[qKey] = {
-        question: q.question,
-        optionA: q.optionA,
-        optionB: q.optionB,
-        optionC: q.optionC,
-        optionD: q.optionD,
+        question: q.question.trim(),
+        optionA: q.optionA.trim(),
+        optionB: q.optionB.trim(),
+        optionC: q.optionC ? q.optionC.trim() : "",
+        optionD: q.optionD ? q.optionD.trim() : "",
         Answer: q.Answer
       };
     });
@@ -427,7 +535,10 @@ export const CreateNewQuiz = ({
             const isCompleted = s.step < step;
             const isCurrent = s.step === step;
             const isFilled = s.step <= step;
-            const isAllowed = s.step === 1 || (s.step === 2 && name.trim()) || (s.step === 3 && name.trim() && questions.length > 0);
+            const isAllowed =
+              s.step === 1 ||
+              (s.step === 2 && name.trim() && threshold >= 5) ||
+              (s.step === 3 && name.trim() && threshold >= 5 && isAllQuestionsValid);
 
             return (
               <button
@@ -437,9 +548,9 @@ export const CreateNewQuiz = ({
                   if (s.step === 1) {
                     setEditingFromPreview(false);
                     setStep(1);
-                  } else if (s.step === 2 && name.trim()) {
+                  } else if (s.step === 2 && name.trim() && threshold >= 5) {
                     setStep(2);
-                  } else if (s.step === 3 && name.trim() && questions.length > 0) {
+                  } else if (s.step === 3 && name.trim() && threshold >= 5 && isAllQuestionsValid) {
                     setEditingFromPreview(false);
                     setPreviewIdx(activeQuestionIdx);
                     setStep(3);
@@ -597,7 +708,7 @@ export const CreateNewQuiz = ({
                     className={`h-full min-h-[140px] border-2 border-dashed rounded-xl p-4 sm:p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${
                       isDragging
                         ? "border-[#0D9B77] bg-[#0D9B77]/10 scale-[1.005]"
-                        : uploadedFileInfo
+                        : uploadedFileInfo && questions.length > 0
                         ? isDark
                           ? "border-[#0D9B77]/50 bg-[#18372F]/20 hover:bg-[#18372F]/30"
                           : "border-[#0D9B77]/40 bg-[#ECFDF5]/50 hover:bg-[#ECFDF5]/80"
@@ -613,7 +724,7 @@ export const CreateNewQuiz = ({
                           Parsing spreadsheet questions...
                         </span>
                       </div>
-                    ) : uploadedFileInfo ? (
+                    ) : uploadedFileInfo && questions.length > 0 ? (
                       <div className="w-full flex items-center justify-between gap-3 px-1 flex-wrap sm:flex-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-[#0D9B77]/20 text-[#0D9B77] dark:text-[#8ED973] flex items-center justify-center flex-shrink-0">
@@ -625,7 +736,7 @@ export const CreateNewQuiz = ({
                                 {uploadedFileInfo.name}
                               </span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#0D9B77] text-white">
-                                {uploadedFileInfo.count} {uploadedFileInfo.count === 1 ? "Question" : "Questions"}
+                                {questions.length} {questions.length === 1 ? "Question" : "Questions"}
                               </span>
                             </div>
                             <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -687,19 +798,35 @@ export const CreateNewQuiz = ({
               <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-2 text-left">
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Passing Score Threshold: <span className="text-[#0D9B77] font-extrabold">{threshold}%</span>
+                    Passing Score Threshold <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>:{" "}
+                    {threshold >= 5 ? (
+                      <span className="text-[#0D9B77] font-extrabold">{threshold}%</span>
+                    ) : (
+                      <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold text-[11px]">
+                        Not set (Please slide between 5% – 100%)
+                      </span>
+                    )}
                   </label>
                 </div>
                 <input
                   type="range"
-                  min="50"
+                  min="0"
                   max="100"
                   step="5"
                   value={threshold}
-                  onChange={(e) => setThreshold(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val === 0) {
+                      setThreshold(0);
+                    } else {
+                      setThreshold(Math.max(5, val));
+                    }
+                  }}
                   className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#0D9B77]"
                 />
                 <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
+                  <span>5%</span>
+                  <span>25%</span>
                   <span>50%</span>
                   <span>75%</span>
                   <span>100%</span>
@@ -740,9 +867,9 @@ export const CreateNewQuiz = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (name.trim()) setStep(2);
+                  if (name.trim() && threshold >= 5) setStep(2);
                 }}
-                disabled={!name.trim()}
+                disabled={!name.trim() || threshold < 5}
                 className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
                 NEXT
@@ -773,35 +900,16 @@ export const CreateNewQuiz = ({
                     >
                       Total Questions: {totalQuestions}
                     </span>
-                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      Question {String(activeQuestionIdx + 1).padStart(2, "0")} of {totalQuestions}
-                    </span>
+                    {totalQuestions > 0 && (
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        Question {String(activeQuestionIdx + 1).padStart(2, "0")} of {totalQuestions}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Action buttons: Import Excel + Dynamic [Done / Preview] + Prominent [Add Question] button */}
+                  {/* Action buttons: Delete + Add Question + Preview / Done on the right end */}
                   <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      ref={step2FileInputRef}
-                      accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => step2FileInputRef.current?.click()}
-                      className={`h-7 px-2.5 rounded-lg border text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors ${
-                        isDark
-                          ? "border-white/10 text-slate-300 hover:bg-white/5 hover:text-white"
-                          : "border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                      title="Upload Excel to replace or load questions"
-                    >
-                      <FileSpreadsheet className="w-3.5 h-3.5" />
-                      <span>Import Excel</span>
-                    </button>
-
-                    {questions.length > 1 && (
+                    {questions.length > 0 && (
                       <button
                         type="button"
                         onClick={() => removeQuestion(activeQuestionIdx)}
@@ -813,7 +921,19 @@ export const CreateNewQuiz = ({
                       </button>
                     )}
 
-                    {/* Dynamic Button: If user came from Step 3, displays "Done" and returns directly to Step 3. Otherwise displays "Preview" */}
+                    {/* Prominent Goto "Add Question" button */}
+                    <button
+                      type="button"
+                      onClick={addQuestion}
+                      disabled={questions.length >= 20}
+                      className="h-7 px-3.5 rounded-lg bg-[#0D9B77] hover:bg-[#0b8465] text-white text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={questions.length >= 20 ? "Maximum limit of 20 questions reached" : "Add a new question"}
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Add Question</span>
+                    </button>
+
+                    {/* Dynamic Button: If user came from Step 3, displays "Done" and returns directly to Step 3. Otherwise displays "Preview" on the right end */}
                     {editingFromPreview ? (
                       <button
                         type="button"
@@ -822,8 +942,9 @@ export const CreateNewQuiz = ({
                           setPreviewIdx(activeQuestionIdx);
                           setStep(3);
                         }}
-                        className="h-7 px-3 rounded-lg bg-[#0D9B77] hover:bg-[#0b8465] text-white text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                        title="Done editing, return to preview"
+                        disabled={!isAllQuestionsValid}
+                        className="h-7 px-3 rounded-lg bg-[#0D9B77] hover:bg-[#0b8465] text-white text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={isAllQuestionsValid ? "Done editing, return to preview" : "Please complete question and options to proceed"}
                       >
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
                         <span>Done</span>
@@ -835,123 +956,139 @@ export const CreateNewQuiz = ({
                           setPreviewIdx(activeQuestionIdx);
                           setStep(3);
                         }}
-                        className="h-7 px-3 rounded-lg border text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors border-[#0D9B77] text-[#0D9B77] hover:bg-[#0D9B77]/10"
-                        title="Preview quiz assessment"
+                        disabled={!isAllQuestionsValid}
+                        className="h-7 px-3 rounded-lg border text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors border-[#0D9B77] text-[#0D9B77] hover:bg-[#0D9B77]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={isAllQuestionsValid ? "Preview quiz assessment" : "Please complete question and options to preview"}
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Preview</span>
                       </button>
                     )}
-
-                    {/* Prominent Goto "Add Question" button */}
-                    <button
-                      type="button"
-                      onClick={addQuestion}
-                      className="h-7 px-3.5 rounded-lg bg-[#0D9B77] hover:bg-[#0b8465] text-white text-[10px] font-voda font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                      title="Add a new question"
-                    >
-                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>Add Question</span>
-                    </button>
                   </div>
                 </div>
 
-                {/* Question title (Editing inputs by default) */}
-                <div className="mb-3 flex items-start gap-2">
-                  <span
-                    className="text-xs sm:text-sm font-bold font-voda leading-snug pt-2 flex-shrink-0"
-                    style={{ color: "#E60000" }}
-                  >
-                    Question {String(activeQuestionIdx + 1).padStart(2, "0")}:
-                  </span>
-                  <textarea
-                    rows={2}
-                    value={currentQ?.question || ""}
-                    onChange={(e) => updateQuestionText(activeQuestionIdx, e.target.value)}
-                    className={`flex-1 p-2 rounded-lg border text-xs sm:text-sm font-bold font-voda leading-snug resize-none focus:outline-none focus:border-[#0D9B77] focus:ring-1 focus:ring-[#0D9B77] transition-all ${
-                      isDark
-                        ? "bg-[#20232B] border-[#0D9B77]/80 text-white placeholder-slate-500"
-                        : "bg-white border-[#0D9B77] text-slate-900 placeholder-slate-400"
-                    }`}
-                    placeholder={
-                      activeQuestionIdx === 0
-                        ? "e.g., Which of the following describes a key phishing indicator?"
-                        : "Enter question..."
-                    }
-                  />
-                </div>
-
-                {/* Options List (In-place Inputs by default) */}
-                <div className="mt-1 flex min-h-0 flex-col gap-2">
-                  {(["optionA", "optionB", "optionC", "optionD"]).map((optKey, index) => {
-                    const text = currentQ?.[optKey] ?? "";
-                    const isCorrect = currentQ?.Answer === optKey;
-
-                    return (
-                      <div
-                        key={optKey}
-                        className={`flex w-full min-w-0 items-center gap-2.5 rounded-lg border px-3 py-1.5 text-left transition-colors ${
-                          isCorrect
-                            ? isDark
-                              ? "bg-[#18372F]/80 border-[#0D9B77] text-white shadow-xs"
-                              : "bg-[#ECFDF5] border-[#0D9B77] text-[#1E293B] shadow-xs"
-                            : isDark
-                            ? "bg-[#20232B] border-[#383C47] text-slate-200"
-                            : "bg-white border-[#E2E8F0] text-slate-800"
-                        }`}
+                {questions.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 gap-3 my-auto">
+                    <div className="w-12 h-12 rounded-2xl bg-[#0D9B77]/10 text-[#0D9B77] flex items-center justify-center">
+                      <Plus className="w-6 h-6 stroke-[2]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                        No questions in this quiz
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
+                        Add questions manually using the button below or import them via Excel in Step 1.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addQuestion}
+                      className="h-8 px-4 rounded-xl bg-[#0D9B77] hover:bg-[#0b8465] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm transition-all mt-1"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                      <span>Add Question</span>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Question title (Editing inputs by default) */}
+                    <div className="mb-3 flex items-start gap-2">
+                      <span
+                        className="text-xs sm:text-sm font-bold font-voda leading-snug pt-2 flex-shrink-0"
+                        style={{ color: "#E60000" }}
                       >
-                        <span
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold font-voda ${
-                            isCorrect
-                              ? "bg-[#0D9B77] text-white"
-                              : isDark
-                              ? "bg-[#15161A] text-slate-400"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {String.fromCharCode(65 + index)}
-                        </span>
+                        Question {String(activeQuestionIdx + 1).padStart(2, "0")}:
+                      </span>
+                      <textarea
+                        rows={2}
+                        value={currentQ?.question || ""}
+                        onChange={(e) => updateQuestionText(activeQuestionIdx, e.target.value)}
+                        className={`flex-1 p-2 rounded-lg border text-xs sm:text-sm font-bold font-voda leading-snug resize-none focus:outline-none focus:border-[#0D9B77] focus:ring-1 focus:ring-[#0D9B77] transition-all ${
+                          isDark
+                            ? "bg-[#20232B] border-[#0D9B77]/80 text-white placeholder-slate-500"
+                            : "bg-white border-[#0D9B77] text-slate-900 placeholder-slate-400"
+                        }`}
+                        placeholder={
+                          activeQuestionIdx === 0
+                            ? "e.g., Which of the following describes a key phishing indicator?"
+                            : "Enter question..."
+                        }
+                      />
+                    </div>
 
-                        <input
-                          type="text"
-                          value={text}
-                          onChange={(e) => updateQuestionOption(activeQuestionIdx, optKey, e.target.value)}
-                          className={`flex-1 h-8 px-2.5 rounded-md border text-xs sm:text-sm font-voda focus:outline-none focus:border-[#0D9B77] focus:ring-1 focus:ring-[#0D9B77] transition-all ${
-                            isDark
-                              ? "bg-[#15161A] border-white/10 text-white placeholder-slate-500"
-                              : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
-                          }`}
-                          placeholder={
-                            activeQuestionIdx === 0
-                              ? (
-                                  optKey === "optionA" ? "e.g., Expected invoice statement from a known contact" :
-                                  optKey === "optionB" ? "e.g., Urgent call-to-action requesting credentials with mismatched domain" :
-                                  optKey === "optionC" ? "e.g., A generic newsletter subscription confirmation" :
-                                  "e.g., An encryption notice on a company repository"
-                                )
-                              : `Enter option ${String.fromCharCode(65 + index)}...`
-                          }
-                        />
+                    {/* Options List (In-place Inputs by default) */}
+                    <div className="mt-1 flex min-h-0 flex-col gap-2">
+                      {(["optionA", "optionB", "optionC", "optionD"]).map((optKey, index) => {
+                        const text = currentQ?.[optKey] ?? "";
+                        const isCorrect = currentQ?.Answer === optKey;
 
-                        <button
-                          type="button"
-                          onClick={() => updateQuestionAnswer(activeQuestionIdx, optKey)}
-                          className={`h-7 px-2.5 rounded-md flex items-center gap-1.5 text-[10px] font-bold font-voda uppercase tracking-wider transition-all cursor-pointer flex-shrink-0 ${
-                            isCorrect
-                              ? "bg-[#0D9B77] text-white shadow-xs"
-                              : isDark
-                              ? "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/10"
-                              : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 border border-slate-200"
-                          }`}
-                          title={isCorrect ? "Correct answer" : "Click to mark as correct answer"}
-                        >
-                          <Check className={`w-3.5 h-3.5 ${isCorrect ? "stroke-[3]" : "opacity-40"}`} />
-                          <span>{isCorrect ? "Correct Answer" : "Mark Correct"}</span>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                        return (
+                          <div
+                            key={optKey}
+                            className={`flex w-full min-w-0 items-center gap-2.5 rounded-lg border px-3 py-1.5 text-left transition-colors ${
+                              isCorrect
+                                ? isDark
+                                  ? "bg-[#18372F]/80 border-[#0D9B77] text-white shadow-xs"
+                                  : "bg-[#ECFDF5] border-[#0D9B77] text-[#1E293B] shadow-xs"
+                                : isDark
+                                ? "bg-[#20232B] border-[#383C47] text-slate-200"
+                                : "bg-white border-[#E2E8F0] text-slate-800"
+                            }`}
+                          >
+                            <span
+                              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold font-voda ${
+                                isCorrect
+                                  ? "bg-[#0D9B77] text-white"
+                                  : isDark
+                                  ? "bg-[#15161A] text-slate-400"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {String.fromCharCode(65 + index)}
+                            </span>
+
+                            <input
+                              type="text"
+                              value={text}
+                              onChange={(e) => updateQuestionOption(activeQuestionIdx, optKey, e.target.value)}
+                              className={`flex-1 h-8 px-2.5 rounded-md border text-xs sm:text-sm font-voda focus:outline-none focus:border-[#0D9B77] focus:ring-1 focus:ring-[#0D9B77] transition-all ${
+                                isDark
+                                  ? "bg-[#15161A] border-white/10 text-white placeholder-slate-500"
+                                  : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                              }`}
+                              placeholder={
+                                activeQuestionIdx === 0
+                                  ? (
+                                      optKey === "optionA" ? "e.g., Expected invoice statement from a known contact" :
+                                      optKey === "optionB" ? "e.g., Urgent call-to-action requesting credentials with mismatched domain" :
+                                      optKey === "optionC" ? "e.g., A generic newsletter subscription confirmation" :
+                                      "e.g., An encryption notice on a company repository"
+                                    )
+                                  : `Enter option ${String.fromCharCode(65 + index)}...`
+                              }
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => updateQuestionAnswer(activeQuestionIdx, optKey)}
+                              className={`h-7 px-2.5 rounded-md flex items-center gap-1.5 text-[10px] font-bold font-voda uppercase tracking-wider transition-all cursor-pointer flex-shrink-0 ${
+                                isCorrect
+                                  ? "bg-[#0D9B77] text-white shadow-xs"
+                                  : isDark
+                                  ? "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/10"
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 border border-slate-200"
+                              }`}
+                              title={isCorrect ? "Correct answer" : "Click to mark as correct answer"}
+                            >
+                              <Check className={`w-3.5 h-3.5 ${isCorrect ? "stroke-[3]" : "opacity-40"}`} />
+                              <span>{isCorrect ? "Correct Answer" : "Mark Correct"}</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Center Column Bottom Navigation */}
@@ -969,7 +1106,7 @@ export const CreateNewQuiz = ({
                         setActiveQuestionIdx(activeQuestionIdx - 1);
                       }
                     }}
-                    disabled={activeQuestionIdx === 0}
+                    disabled={activeQuestionIdx === 0 || totalQuestions === 0}
                     className="px-3 h-[24px] rounded-3xl border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 font-voda font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     PREVIOUS
@@ -981,7 +1118,7 @@ export const CreateNewQuiz = ({
                         setActiveQuestionIdx(activeQuestionIdx + 1);
                       }
                     }}
-                    disabled={activeQuestionIdx === totalQuestions - 1}
+                    disabled={activeQuestionIdx >= totalQuestions - 1 || totalQuestions === 0}
                     className="px-3 h-[24px] rounded-3xl bg-[#0D9B77] hover:bg-[#0b8465] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     NEXT
@@ -1008,8 +1145,9 @@ export const CreateNewQuiz = ({
                 <button
                   type="button"
                   onClick={addQuestion}
-                  className="h-6 px-2.5 rounded-full bg-[#0D9B77]/15 hover:bg-[#0D9B77]/25 border border-[#0D9B77]/30 text-[9px] font-bold text-[#0D9B77] flex items-center gap-1 cursor-pointer transition-colors font-voda uppercase"
-                  title="Add new question"
+                  disabled={questions.length >= 20}
+                  className="h-6 px-2.5 rounded-full bg-[#0D9B77]/15 hover:bg-[#0D9B77]/25 border border-[#0D9B77]/30 text-[9px] font-bold text-[#0D9B77] flex items-center gap-1 cursor-pointer transition-colors font-voda uppercase disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={questions.length >= 20 ? "Maximum limit of 20 questions reached" : "Add new question"}
                 >
                   <Plus className="w-3 h-3 stroke-[2.5]" />
                   <span>Add</span>
@@ -1017,31 +1155,35 @@ export const CreateNewQuiz = ({
               </div>
 
               <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1 custom-light-scrollbar">
-                {questions.map((_, index) => {
-                  const isActive = index === activeQuestionIdx;
+                {questions.length === 0 ? (
+                  <li className="p-4 text-center text-xs text-slate-400 font-medium">
+                    No questions added
+                  </li>
+                ) : (
+                  questions.map((_, index) => {
+                    const isActive = index === activeQuestionIdx;
 
-                  return (
-                    <li key={index} className="flex items-center gap-1 group">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveQuestionIdx(index);
-                          setIsEditingQuestion(true);
-                        }}
-                        className={`flex min-h-[36px] flex-1 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs font-bold font-voda transition-colors cursor-pointer ${
-                          isActive
-                            ? isDark
-                              ? "bg-[#18372F] border-[#0D9B77] text-white"
-                              : "bg-[#ECFDF5] border-[#0D9B77] text-[#1E293B]"
-                            : isDark
-                            ? "bg-transparent border-white/5 text-slate-300 hover:bg-white/5"
-                            : "bg-transparent border-slate-200 text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        <span>Question {String(index + 1).padStart(2, "0")}</span>
-                        <CheckCircle2 className="w-4 h-4 text-[#0D9B77]" />
-                      </button>
-                      {questions.length > 1 && (
+                    return (
+                      <li key={index} className="flex items-center gap-1 group">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveQuestionIdx(index);
+                            setIsEditingQuestion(true);
+                          }}
+                          className={`flex min-h-[36px] flex-1 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs font-bold font-voda transition-colors cursor-pointer ${
+                            isActive
+                              ? isDark
+                                ? "bg-[#18372F] border-[#0D9B77] text-white"
+                                : "bg-[#ECFDF5] border-[#0D9B77] text-[#1E293B]"
+                              : isDark
+                              ? "bg-transparent border-white/5 text-slate-300 hover:bg-white/5"
+                              : "bg-transparent border-slate-200 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span>Question {String(index + 1).padStart(2, "0")}</span>
+                          <CheckCircle2 className="w-4 h-4 text-[#0D9B77]" />
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1053,10 +1195,10 @@ export const CreateNewQuiz = ({
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                    </li>
-                  );
-                })}
+                      </li>
+                    );
+                  })
+                )}
               </ul>
             </aside>
           </div>
@@ -1086,7 +1228,7 @@ export const CreateNewQuiz = ({
                   setPreviewIdx(activeQuestionIdx);
                   setStep(3);
                 }}
-                disabled={questions.length === 0}
+                disabled={!isAllQuestionsValid}
                 className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
                 NEXT
@@ -1282,7 +1424,8 @@ export const CreateNewQuiz = ({
               <button
                 type="button"
                 onClick={handleSave}
-                className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center"
+                disabled={!name.trim() || threshold < 5 || !isAllQuestionsValid}
+                className="min-w-[90px] px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
               >
                 {editingQuiz ? "SAVE CHANGES" : "CREATE QUIZ"}
               </button>

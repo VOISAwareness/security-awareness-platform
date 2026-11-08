@@ -495,7 +495,12 @@ export const TrainingProvider = ({ children }) => {
 export const useTraining = () => {
   const context = useContext(TrainingContext);
   if (!context) {
-    return {};
+    throw new Error("useTraining must be used within a TrainingProvider");
   }
   return context;
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useOptionalTraining = () => {
+  return useContext(TrainingContext) || null;
 };
