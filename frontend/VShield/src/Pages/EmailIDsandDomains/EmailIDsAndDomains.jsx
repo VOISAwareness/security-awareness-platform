@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Trash2,
@@ -10,17 +10,22 @@ import {
   ChevronDown,
   RefreshCw,
   Send,
-  AlertCircle
-} from 'lucide-react';
+  AlertCircle,
+} from "lucide-react";
 
 // Default initial dataset
-import defaultEmailData from './EmailIDsAndDomains.json';
-import { api } from '../../services/api';
-import { canSendVerification, isVerifiableEmail, verificationMessage, verificationOf } from '../../services/senderVerification';
+import defaultEmailData from "./EmailIDsAndDomains.json";
+import { api } from "../../services/api";
+import {
+  canSendVerification,
+  isVerifiableEmail,
+  verificationMessage,
+  verificationOf,
+} from "../../services/senderVerification";
 
 //Import Assets
-import EmailIDsDarkIcon from '../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsDarkModeIcon.png';
-import EmailIDsLightIcon from '../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsLightModeIcon.png';
+import EmailIDsDarkIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsDarkModeIcon.png";
+import EmailIDsLightIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsLightModeIcon.png";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -45,18 +50,14 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
 
-const PRESET_DOMAINS = [
-  '@vodafone.com',
-  '@internal.secure',
-  '@notify.hub'
-];
+const PRESET_DOMAINS = ["@vodafone.com", "@internal.secure", "@notify.hub"];
 
 // Badge colours for each SES verification state
 const TONE_CLASS = {
-  good: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
-  warn: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
-  bad: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
-  muted: 'bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300',
+  good: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  warn: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
+  bad: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  muted: "bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300",
 };
 
 const EmailIDsAndDomains = () => {
@@ -66,23 +67,25 @@ const EmailIDsAndDomains = () => {
   const [emailsList, setEmailsList] = useState([]);
 
   // Form Inputs
-  const [localPart, setLocalPart] = useState('');
-  const [domainPart, setDomainPart] = useState('');
-  const [description, setDescription] = useState('');
+  const [localPart, setLocalPart] = useState("");
+  const [domainPart, setDomainPart] = useState("");
+  const [description, setDescription] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Search & Edit States
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingItem, setEditingItem] = useState(null);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastTone, setToastTone] = useState('good');
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastTone, setToastTone] = useState("good");
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sendingId, setSendingId] = useState(null);
 
   // Load sender identities (with their live SES verification state).
   const loadEmails = () =>
-    api.senderIdentities.list().then((items) => (Array.isArray(items) ? items : []));
+    api.senderIdentities
+      .list()
+      .then((items) => (Array.isArray(items) ? items : []));
 
   useEffect(() => {
     let active = true;
@@ -91,7 +94,7 @@ const EmailIDsAndDomains = () => {
         if (active) setEmailsList(items);
       })
       .catch((err) => {
-        console.error('Failed to load sender identities', err);
+        console.error("Failed to load sender identities", err);
         if (active) setEmailsList(defaultEmailData || []);
       });
     return () => {
@@ -99,10 +102,10 @@ const EmailIDsAndDomains = () => {
     };
   }, []);
 
-  const showToast = (msg, tone = 'good', ms = 2500) => {
+  const showToast = (msg, tone = "good", ms = 2500) => {
     setToastMessage(msg);
     setToastTone(tone);
-    setTimeout(() => setToastMessage(''), ms);
+    setTimeout(() => setToastMessage(""), ms);
   };
 
   // Re-read every address's state from SES (after someone clicks a link).
@@ -111,9 +114,11 @@ const EmailIDsAndDomains = () => {
     loadEmails()
       .then((items) => {
         setEmailsList(items);
-        showToast('Verification status updated from SES');
+        showToast("Verification status updated from SES");
       })
-      .catch(() => showToast('Could not reach the server. Please try again.', 'bad'))
+      .catch(() =>
+        showToast("Could not reach the server. Please try again.", "bad"),
+      )
       .finally(() => setIsRefreshing(false));
   };
 
@@ -123,11 +128,19 @@ const EmailIDsAndDomains = () => {
     api.senderIdentities
       .sendVerification(item.id)
       .then((saved) => {
-        setEmailsList((prev) => prev.map((x) => (x.id === item.id ? { ...x, ...saved } : x)));
+        setEmailsList((prev) =>
+          prev.map((x) => (x.id === item.id ? { ...x, ...saved } : x)),
+        );
         const m = verificationMessage(saved);
         showToast(m.text, m.tone, 6000);
       })
-      .catch((err) => showToast(err?.message || 'Could not send the verification email.', 'bad', 6000))
+      .catch((err) =>
+        showToast(
+          err?.message || "Could not send the verification email.",
+          "bad",
+          6000,
+        ),
+      )
       .finally(() => setSendingId(null));
   };
 
@@ -135,15 +148,19 @@ const EmailIDsAndDomains = () => {
   const getFormattedDate = () => {
     const today = new Date();
     const day = today.getDate();
-    const month = today.toLocaleString('default', { month: 'long' });
+    const month = today.toLocaleString("default", { month: "long" });
     const year = today.getFullYear();
     const nth = (d) => {
-      if (d > 3 && d < 21) return 'th';
+      if (d > 3 && d < 21) return "th";
       switch (d % 10) {
-        case 1:  return "st";
-        case 2:  return "nd";
-        case 3:  return "rd";
-        default: return "th";
+        case 1:
+          return "st";
+        case 2:
+          return "nd";
+        case 3:
+          return "rd";
+        default:
+          return "th";
       }
     };
     return `${month} ${day}${nth(day)}, ${year}`;
@@ -155,22 +172,24 @@ const EmailIDsAndDomains = () => {
     const cleanDomain = domainPart.trim();
 
     if (!cleanLocal && !cleanDomain) {
-      return '';
+      return "";
     }
 
     const formattedDomain = cleanDomain
-      ? (cleanDomain.startsWith('@') ? cleanDomain : `@${cleanDomain}`)
-      : '@domain';
+      ? cleanDomain.startsWith("@")
+        ? cleanDomain
+        : `@${cleanDomain}`
+      : "@domain";
 
-    return `${cleanLocal || 'username'}${formattedDomain}`;
+    return `${cleanLocal || "username"}${formattedDomain}`;
   };
 
   // Unique Domains Count
   const uniqueDomainsCount = new Set(
     emailsList.map((item) => {
-      const parts = item.email.split('@');
-      return parts.length > 1 ? parts[1].toLowerCase() : 'domain';
-    })
+      const parts = item.email.split("@");
+      return parts.length > 1 ? parts[1].toLowerCase() : "domain";
+    }),
   ).size;
 
   // Handle Submit Form
@@ -178,35 +197,45 @@ const EmailIDsAndDomains = () => {
     e.preventDefault();
     const cleanLocal = localPart.trim();
     if (!cleanLocal) {
-      showToast('Please enter the local part of the Email ID');
+      showToast("Please enter the local part of the Email ID");
       return;
     }
 
     const cleanDomain = domainPart.trim();
     if (!cleanDomain) {
-      showToast('Please enter the domain part of the Email ID', 'bad');
+      showToast("Please enter the domain part of the Email ID", "bad");
       return;
     }
-    const finalDomain = cleanDomain.startsWith('@') ? cleanDomain : `@${cleanDomain}`;
+    const finalDomain = cleanDomain.startsWith("@")
+      ? cleanDomain
+      : `@${cleanDomain}`;
 
     const fullEmail = `${cleanLocal}${finalDomain}`;
     if (!isVerifiableEmail(fullEmail)) {
-      showToast(`${fullEmail} is not a full email address SES can verify, like name@vodafone.com`, 'bad', 5000);
+      showToast(
+        `${fullEmail} is not a full email address SES can verify, like name@vodafone.com`,
+        "bad",
+        5000,
+      );
       return;
     }
 
     // Duplicate Check
-    if (emailsList.some((item) => item.email.toLowerCase() === fullEmail.toLowerCase())) {
-      showToast('This Email ID already exists in repository!');
+    if (
+      emailsList.some(
+        (item) => item.email.toLowerCase() === fullEmail.toLowerCase(),
+      )
+    ) {
+      showToast("This Email ID already exists in repository!");
       return;
     }
 
     const newItem = {
       email: fullEmail,
-      description: description.trim() || 'No description',
+      description: description.trim() || "No description",
       createdDate: getFormattedDate(),
-      status: 'Active',
-      usageCount: 0
+      status: "Active",
+      usageCount: 0,
     };
 
     setIsSaving(true);
@@ -214,15 +243,19 @@ const EmailIDsAndDomains = () => {
       .create(newItem)
       .then((saved) => {
         setEmailsList((prev) => [saved, ...prev]);
-        setLocalPart('');
-        setDomainPart('');
-        setDescription('');
+        setLocalPart("");
+        setDomainPart("");
+        setDescription("");
         const m = verificationMessage(saved);
         showToast(`Saved. ${m.text}`, m.tone, 7000);
       })
       .catch((err) => {
         console.error(err);
-        showToast(err?.message || 'Could not save Email ID. Please try again.', 'bad', 5000);
+        showToast(
+          err?.message || "Could not save Email ID. Please try again.",
+          "bad",
+          5000,
+        );
       })
       .finally(() => setIsSaving(false));
   };
@@ -234,11 +267,11 @@ const EmailIDsAndDomains = () => {
       .remove(id)
       .then(() => {
         setEmailsList((prev) => prev.filter((item) => item.id !== id));
-        showToast(`Deleted ${target?.email || 'Email ID'}`);
+        showToast(`Deleted ${target?.email || "Email ID"}`);
       })
       .catch((err) => {
         console.error(err);
-        showToast('Could not delete Email ID. Please try again.');
+        showToast("Could not delete Email ID. Please try again.");
       });
   };
 
@@ -249,18 +282,24 @@ const EmailIDsAndDomains = () => {
     api.senderIdentities
       .update(id, patch)
       .then((updated) => {
-        setEmailsList((prev) => prev.map((item) => (item.id === id ? updated : item)));
+        setEmailsList((prev) =>
+          prev.map((item) => (item.id === id ? updated : item)),
+        );
         setEditingItem(null);
         if (updated?.verificationEmailSent || updated?.verificationError) {
           const m = verificationMessage(updated);
           showToast(`Updated. ${m.text}`, m.tone, 7000);
         } else {
-          showToast('Updated Email record');
+          showToast("Updated Email record");
         }
       })
       .catch((err) => {
         console.error(err);
-        showToast(err?.message || 'Could not update Email record. Please try again.', 'bad', 5000);
+        showToast(
+          err?.message || "Could not update Email record. Please try again.",
+          "bad",
+          5000,
+        );
       });
   };
 
@@ -268,13 +307,13 @@ const EmailIDsAndDomains = () => {
   const filteredEmails = emailsList.filter(
     (item) =>
       item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase())
+      item.description.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Background Theme Tokens
-  const cardBg = isDark ? '#202127' : '#F1F4F9';
-  const inputBg = isDark ? '#15161A' : '#FFFFFF';
-  const textColor = isDark ? 'text-white' : 'text-slate-900';
+  const cardBg = isDark ? "#202127" : "#F1F4F9";
+  const inputBg = isDark ? "#15161A" : "#FFFFFF";
+  const textColor = isDark ? "text-white" : "text-slate-900";
 
   return (
     <>
@@ -282,59 +321,67 @@ const EmailIDsAndDomains = () => {
 
       <div
         style={{ zoom: VarEmailIDsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-2.5"
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "ADD NEW EMAIL ID & DOMAIN" ─────────── */}
         {/* ========================================================================= */}
         <div
-        className={`w-full h-[40px] py-2.5 px-6 -mt-1 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
-          isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <h1 className="text-[13.5px] font-bold tracking-tight">
-            EMAIL IDs & DOMAINS
-          </h1>
-        </div>
+          className={`w-full h-[40px] py-2.5 px-6 -mt-1 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <h1 className="text-[13.5px] font-bold tracking-tight">
+              EMAIL IDs & DOMAINS
+            </h1>
+          </div>
         </div>
 
         <div
-  className={`w-full h-auto min-h-[36px] px-4 py-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors duration-300 select-none ${
-    isDark
-      ? 'bg-black/40 text-slate-200 border-white/15'
-      : 'bg-white/40 text-slate-700 border-black/10'
-  }`}
->
-  {/* Left Section: Action Title */}
-  <span className={`text-[11px] uppercase tracking-wider font-voda font-bold shrink-0 ${
-    isDark ? 'text-white' : 'text-black'
-  }`}>
-    Add New Email IDs & Domains
-  </span>
+          className={`w-full h-auto min-h-[36px] px-4 py-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors duration-300 select-none ${
+            isDark
+              ? "bg-black/40 text-slate-200 border-white/15"
+              : "bg-white/40 text-slate-700 border-black/10"
+          }`}
+        >
+          {/* Left Section: Action Title */}
+          <span
+            className={`text-[11px] uppercase tracking-wider font-voda font-bold shrink-0 ${
+              isDark ? "text-white" : "text-black"
+            }`}
+          >
+            Add New Email IDs & Domains
+          </span>
 
-  {/* Right Section: Informational Text with Circle-I Icon at the start */}
-  <div className="flex items-start gap-1.5 max-w-2xl sm:justify-end">
-    <span className={`text-[9.5px] font-bold leading-normal ${
-      isDark ? 'text-slate-400' : 'text-slate-500'
-    }`}>
-      Add an Email ID here and SES emails it a verification link. Once the link is clicked the ID is verified, and campaigns can send from it.
-    </span>
-  </div>
-</div>
-
+          {/* Right Section: Informational Text with Circle-I Icon at the start */}
+          <div className="flex items-start gap-1.5 max-w-2xl sm:justify-end">
+            <span
+              className={`text-[9.5px] font-bold leading-normal ${
+                isDark ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
+              Add an Email ID here and SES emails it a verification link. Once
+              the link is clicked the ID is verified, and campaigns can send
+              from it.
+            </span>
+          </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* ── 2. MAIN 2-COLUMN DASHBOARD (STANDALONE & UNCUT) ────────────────────── */}
         {/* ========================================================================= */}
         <div className="flex flex-col lg:flex-row gap-3 w-full items-start">
-          
           {/* ========================================================================= */}
           {/* ── COLUMN 1 (LEFT 65%): FORM CONTAINER WRAPPER ────────────────────────── */}
           {/* ========================================================================= */}
           <div
             className={`w-full lg:w-[70%] p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between gap-2.5 shadow-sm transition-all duration-300 ${
-              isDark ? 'bg-[#15161A] border-white/10' : 'bg-white border-slate-200'
+              isDark
+                ? "bg-[#15161A] border-white/10"
+                : "bg-white border-slate-200"
             }`}
           >
             {/* ROW 1: [Local Part] + [Domain Part] */}
@@ -345,15 +392,22 @@ const EmailIDsAndDomains = () => {
                 style={{ backgroundColor: cardBg }}
               >
                 <div>
-                  <h3 className={`text-[15px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}>
+                  <h3
+                    className={`text-[15px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}
+                  >
                     Local Part
                   </h3>
-                  <p className={`text-[9.5px] font-medium mt-0.5 mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p
+                    className={`text-[9.5px] font-medium mt-0.5 mb-2 ${isDark ? "text-slate-400" : "text-slate-500"}`}
+                  >
                     Enter the local part of the Email ID
                   </p>
                 </div>
 
-                <div className="w-full px-3.5 py-2 rounded-md flex shadow-2xs mt-2" style={{ backgroundColor: inputBg }}>
+                <div
+                  className="w-full px-3.5 py-2 rounded-md flex shadow-2xs mt-2"
+                  style={{ backgroundColor: inputBg }}
+                >
                   <textarea
                     value={localPart}
                     onChange={(e) => setLocalPart(e.target.value)}
@@ -370,15 +424,22 @@ const EmailIDsAndDomains = () => {
                 style={{ backgroundColor: cardBg }}
               >
                 <div>
-                  <h3 className={`text-[15px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}>
+                  <h3
+                    className={`text-[15px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}
+                  >
                     Domain Part
                   </h3>
-                  <p className={`text-[9.5px] font-medium mt-0.5 mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <p
+                    className={`text-[9.5px] font-medium mt-0.5 mb-2 ${isDark ? "text-slate-400" : "text-slate-500"}`}
+                  >
                     Enter or selected the Domain part of the Email ID
                   </p>
                 </div>
 
-                <div className="w-full px-3.5 py-2 rounded-md flex shadow-2xs mt-2 relative" style={{ backgroundColor: inputBg }}>
+                <div
+                  className="w-full px-3.5 py-2 rounded-md flex shadow-2xs mt-2 relative"
+                  style={{ backgroundColor: inputBg }}
+                >
                   <textarea
                     value={domainPart}
                     onChange={(e) => setDomainPart(e.target.value)}
@@ -393,7 +454,9 @@ const EmailIDsAndDomains = () => {
                       type="button"
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       className={`w-[135px] px-2.5 py-1.5 rounded-lg text-[8.5px] font-voda font-bold flex justify-between items-center gap-1 transition-colors cursor-pointer ${
-                        isDark ? 'bg-[#2E313D] hover:bg-[#393C49] text-slate-200' : 'bg-[#EAEFF5] hover:bg-[#DCE3EC] text-slate-800'
+                        isDark
+                          ? "bg-[#2E313D] hover:bg-[#393C49] text-slate-200"
+                          : "bg-[#EAEFF5] hover:bg-[#DCE3EC] text-slate-800"
                       }`}
                     >
                       <span>Select from existing</span>
@@ -408,7 +471,9 @@ const EmailIDsAndDomains = () => {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 5 }}
                           className={`absolute right-0 bottom-full mb-1 w-48 rounded-xl border shadow-xl z-30 py-1 overflow-hidden ${
-                            isDark ? 'bg-[#202127] border-white/10 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                            isDark
+                              ? "bg-[#202127] border-white/10 text-slate-200"
+                              : "bg-white border-slate-200 text-slate-800"
                           }`}
                         >
                           {PRESET_DOMAINS.map((domain) => (
@@ -420,7 +485,9 @@ const EmailIDsAndDomains = () => {
                                 setIsDropdownOpen(false);
                               }}
                               className={`w-full px-3 py-1.5 text-left text-[10px] font-mono-tech hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer block truncate ${
-                                domainPart === domain ? 'text-[#E60000] font-bold' : ''
+                                domainPart === domain
+                                  ? "text-[#E60000] font-bold"
+                                  : ""
                               }`}
                             >
                               {domain}
@@ -443,11 +510,16 @@ const EmailIDsAndDomains = () => {
                   className="w-full p-3.5 rounded-t-2xl rounded-br-2xl transition-colors"
                   style={{ backgroundColor: cardBg }}
                 >
-                  <h3 className={`text-[14px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}>
+                  <h3
+                    className={`text-[14px] -mt-1 font-voda font-bold tracking-tight ${textColor}`}
+                  >
                     Description
                   </h3>
 
-                  <div className="w-full px-3.5 py-2 rounded-lg mt-2.5 flex shadow-2xs" style={{ backgroundColor: inputBg }}>
+                  <div
+                    className="w-full px-3.5 py-2 rounded-lg mt-2.5 flex shadow-2xs"
+                    style={{ backgroundColor: inputBg }}
+                  >
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
@@ -465,7 +537,9 @@ const EmailIDsAndDomains = () => {
                     className="flex-1 p-3.5 rounded-b-2xl rounded-tr-none transition-colors relative"
                     style={{ backgroundColor: cardBg }}
                   >
-                    <h3 className={`text-[14px] font-voda font-bold tracking ${textColor}`}>
+                    <h3
+                      className={`text-[14px] font-voda font-bold tracking ${textColor}`}
+                    >
                       Review and Submit
                     </h3>
 
@@ -476,11 +550,12 @@ const EmailIDsAndDomains = () => {
                       <span
                         className={`text-[10.5px] sm:text-[11px] truncate ${
                           calculatedPreview()
-                            ? 'font-bold text-inherit'
-                            : 'font-bold text-slate-400 dark:text-slate-500'
+                            ? "font-bold text-inherit"
+                            : "font-bold text-slate-400 dark:text-slate-500"
                         }`}
                       >
-                        {calculatedPreview() || 'Above entered Email ID will be displayed here'}
+                        {calculatedPreview() ||
+                          "Above entered Email ID will be displayed here"}
                       </span>
                     </div>
                   </div>
@@ -493,10 +568,7 @@ const EmailIDsAndDomains = () => {
                       viewBox="0 0 14 14"
                       fill="none"
                     >
-                      <path
-                        d="M 0,0 H 14 A 14,14 0 0 0 0,14 Z"
-                        fill={cardBg}
-                      />
+                      <path d="M 0,0 H 14 A 14,14 0 0 0 0,14 Z" fill={cardBg} />
                     </svg>
 
                     {/* Isolated Square-like Save & Submit Button */}
@@ -508,7 +580,18 @@ const EmailIDsAndDomains = () => {
                       className="w-full h-[120px] disabled:opacity-60 disabled:cursor-wait -ml-2 mt-2 rounded-2xl bg-[#15171C] dark:bg-[#f1f4f9] hover:bg-[#595959] text-white dark:text-black flex flex-col items-start justify-top text-center shadow-xs cursor-pointer transition-transform active:scale-98"
                     >
                       <span className="text-[14px] mt-2 ml-2 font-voda font-bold leading-tight drop-shadow-xs">
-                        {isSaving ? <>Sending<br />to SES…</> : <>Save &<br />Submit</>}
+                        {isSaving ? (
+                          <>
+                            Sending
+                            <br />
+                            to SES…
+                          </>
+                        ) : (
+                          <>
+                            Save &<br />
+                            Submit
+                          </>
+                        )}
                       </span>
                     </button>
                   </div>
@@ -522,7 +605,9 @@ const EmailIDsAndDomains = () => {
           {/* ========================================================================= */}
           <div
             className={`w-full lg:w-[30%] p-3.5 sm:p-4 rounded-2xl border flex flex-col gap-2.5 shadow-sm transition-all duration-300 ${
-              isDark ? 'bg-[#15161A] border-white/10' : 'bg-white border-slate-200'
+              isDark
+                ? "bg-[#15161A] border-white/10"
+                : "bg-white border-slate-200"
             }`}
           >
             {/* Top Row: Standalone Black Card + Upper Part of L-Container ("Total Email IDs") */}
@@ -534,7 +619,8 @@ const EmailIDsAndDomains = () => {
                     Email IDs &<br /> Domains
                   </h4>
                   <p className="text-[8.5px] w-[55%] font-medium leading-relaxed text-white dark:text-black mt-2">
-                    Access all the Email IDs along with Domains which are been added to VOISShield
+                    Access all the Email IDs along with Domains which are been
+                    added to VOISShield
                   </p>
                 </div>
 
@@ -544,26 +630,33 @@ const EmailIDsAndDomains = () => {
                     src={isDark ? EmailIDsDarkIcon : EmailIDsLightIcon}
                     alt="Email IDs & Domains"
                     className="w-full h-full object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
                   />
                 </div>
               </div>
 
               {/* 🌟 1. Upper Arm of L-Container: Total Email IDs Counter */}
-              <div
-                className="flex-1 p-3.5 rounded-t-xl rounded-tr-xl rounded-bl-none flex flex-col justify-between min-h-[120px] relative transition-colors bg-white/0"
-              >
+              <div className="flex-1 p-3.5 rounded-t-xl rounded-tr-xl rounded-bl-none flex flex-col justify-between min-h-[120px] relative transition-colors bg-white/0">
                 <div>
-                  <span className={`text-[15.5px] w-[70%] -mt-1.5 font-voda font-bold leading-tight block ${textColor}`}>
+                  <span
+                    className={`text-[15.5px] w-[70%] -mt-1.5 font-voda font-bold leading-tight block ${textColor}`}
+                  >
                     Total Existing Email IDs
                   </span>
-                  <div className={`text-4xl font-voda-exb leading-none my-2.5 ${textColor}`}>
-                    {emailsList.length.toString().padStart(2, '0')}
+                  <div
+                    className={`text-4xl font-voda font-bold leading-none my-2.5 ${textColor}`}
+                  >
+                    {emailsList.length.toString().padStart(2, "0")}
                   </div>
                 </div>
 
-                <span className={`text-[11.5px] font-medium leading-tight block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Total Unique Domains: {uniqueDomainsCount.toString().padStart(2, '0')}
+                <span
+                  className={`text-[11.5px] font-medium leading-tight block ${isDark ? "text-slate-400" : "text-slate-600"}`}
+                >
+                  Total Unique Domains:{" "}
+                  {uniqueDomainsCount.toString().padStart(2, "0")}
                 </span>
               </div>
             </div>
@@ -590,8 +683,16 @@ const EmailIDsAndDomains = () => {
 
               {/* Verification summary + refresh from SES */}
               <div className="flex items-center justify-between gap-2 -mt-1">
-                <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Verified in SES: {emailsList.filter((x) => x.verificationStatus === 'Verified').length} of {emailsList.length}
+                <span
+                  className={`text-[10px] font-semibold ${isDark ? "text-slate-400" : "text-slate-600"}`}
+                >
+                  Verified in SES:{" "}
+                  {
+                    emailsList.filter(
+                      (x) => x.verificationStatus === "Verified",
+                    ).length
+                  }{" "}
+                  of {emailsList.length}
                 </span>
                 <button
                   type="button"
@@ -600,10 +701,14 @@ const EmailIDsAndDomains = () => {
                   data-sender-refresh
                   title="Check every Email ID's verification status in SES again"
                   className={`px-2.5 py-1 rounded-lg text-[9.5px] font-bold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-60 ${
-                    isDark ? 'bg-[#202127] text-slate-200 hover:bg-[#2E313D]' : 'bg-white text-slate-700 hover:bg-slate-100'
+                    isDark
+                      ? "bg-[#202127] text-slate-200 hover:bg-[#2E313D]"
+                      : "bg-white text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
                   Refresh status
                 </button>
               </div>
@@ -611,9 +716,13 @@ const EmailIDsAndDomains = () => {
               {/* 🌟 SCROLLABLE RECORDS LIST CONTAINER */}
               <div className="max-h-[300px] overflow-y-auto flex flex-col gap-2.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredEmails.length === 0 ? (
-                  <div className={`p-4 text-center rounded-xl border text-xs font-semibold ${
-                    isDark ? 'border-white/5 text-slate-400' : 'border-slate-200 text-slate-500'
-                  }`}>
+                  <div
+                    className={`p-4 text-center rounded-xl border text-xs font-semibold ${
+                      isDark
+                        ? "border-white/5 text-slate-400"
+                        : "border-slate-200 text-slate-500"
+                    }`}
+                  >
                     No Email IDs found.
                   </div>
                 ) : (
@@ -629,7 +738,9 @@ const EmailIDsAndDomains = () => {
                     >
                       {/* Top Row: Email + Action Icons */}
                       <div className="flex items-center justify-between gap-1.5">
-                        <span className={`text-[12px] font-voda font-bold truncate flex-1 ${textColor}`}>
+                        <span
+                          className={`text-[12px] font-voda font-bold truncate flex-1 ${textColor}`}
+                        >
                           {item.email}
                         </span>
 
@@ -639,7 +750,9 @@ const EmailIDsAndDomains = () => {
                             type="button"
                             onClick={() => setEditingItem(item)}
                             className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                              isDark ? 'bg-[#202127] text-slate-300 hover:text-white' : 'bg-[#F1F4F9] text-slate-700 hover:text-black'
+                              isDark
+                                ? "bg-[#202127] text-slate-300 hover:text-white"
+                                : "bg-[#F1F4F9] text-slate-700 hover:text-black"
                             }`}
                             title="Edit"
                           >
@@ -651,7 +764,9 @@ const EmailIDsAndDomains = () => {
                             type="button"
                             onClick={() => handleDelete(item.id)}
                             className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                              isDark ? 'bg-[#202127] text-slate-300 hover:text-red-500' : 'bg-[#F1F4F9] text-slate-700 hover:text-red-500'
+                              isDark
+                                ? "bg-[#202127] text-slate-300 hover:text-red-500"
+                                : "bg-[#F1F4F9] text-slate-700 hover:text-red-500"
                             }`}
                             title="Delete"
                           >
@@ -662,14 +777,19 @@ const EmailIDsAndDomains = () => {
 
                       {/* Middle: Description */}
                       <p className="text-[9.5px] font-normal leading-relaxed text-slate-700 dark:text-slate-300">
-                        <strong className="font-bold text-slate-900 dark:text-white">Description:</strong> {item.description}
+                        <strong className="font-bold text-slate-900 dark:text-white">
+                          Description:
+                        </strong>{" "}
+                        {item.description}
                       </p>
 
                       {/* Bottom: SES verification state + Created Date */}
                       <div className="w-full flex items-center justify-between gap-2 mt-0.5">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span
-                            data-sender-status={item.verificationStatus || 'Not verified'}
+                            data-sender-status={
+                              item.verificationStatus || "Not verified"
+                            }
                             title={verificationOf(item).hint}
                             className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${TONE_CLASS[verificationOf(item).tone]}`}
                           >
@@ -684,16 +804,25 @@ const EmailIDsAndDomains = () => {
                               className="text-[9px] font-bold text-[#E60000] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-60 whitespace-nowrap"
                             >
                               <Send className="w-2.5 h-2.5" />
-                              {sendingId === item.id ? 'Sending…' : item.verificationStatus === 'Pending' ? 'Resend' : 'Send verification'}
+                              {sendingId === item.id
+                                ? "Sending…"
+                                : item.verificationStatus === "Pending"
+                                  ? "Resend"
+                                  : "Send verification"}
                             </button>
                           )}
                           {!isVerifiableEmail(item.email) && (
-                            <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate" title="SES can only verify a full address with a real domain">
+                            <span
+                              className="text-[9px] font-medium text-slate-500 dark:text-slate-400 truncate"
+                              title="SES can only verify a full address with a real domain"
+                            >
                               Placeholder address
                             </span>
                           )}
                         </div>
-                        <span className={`text-[9px] font-medium whitespace-nowrap ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span
+                          className={`text-[9px] font-medium whitespace-nowrap ${isDark ? "text-slate-400" : "text-slate-500"}`}
+                        >
                           Created On: {item.createdDate}
                         </span>
                       </div>
@@ -716,7 +845,9 @@ const EmailIDsAndDomains = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className={`w-full max-w-md p-5 rounded-2xl border shadow-2xl ${
-                  isDark ? 'bg-[#15161A] border-white/15 text-white' : 'bg-white border-slate-300 text-slate-900'
+                  isDark
+                    ? "bg-[#15161A] border-white/15 text-white"
+                    : "bg-white border-slate-300 text-slate-900"
                 }`}
               >
                 <div className="flex items-center justify-between pb-2.5 border-b border-black/5 dark:border-white/5">
@@ -724,7 +855,10 @@ const EmailIDsAndDomains = () => {
                     <span className="w-1.5 h-3.5 rounded-full bg-[#E60000]" />
                     Edit Email Record
                   </h3>
-                  <button onClick={() => setEditingItem(null)} className="opacity-60 hover:opacity-100 cursor-pointer">
+                  <button
+                    onClick={() => setEditingItem(null)}
+                    className="opacity-60 hover:opacity-100 cursor-pointer"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -737,9 +871,16 @@ const EmailIDsAndDomains = () => {
                     <input
                       type="text"
                       value={editingItem.email}
-                      onChange={(e) => setEditingItem({ ...editingItem, email: e.target.value })}
+                      onChange={(e) =>
+                        setEditingItem({
+                          ...editingItem,
+                          email: e.target.value,
+                        })
+                      }
                       className={`w-full px-3 py-2 rounded-xl border text-[12px] font-medium outline-none ${
-                        isDark ? 'bg-[#202127] border-white/15 text-white' : 'bg-[#F1F3F7] border-slate-300 text-slate-900'
+                        isDark
+                          ? "bg-[#202127] border-white/15 text-white"
+                          : "bg-[#F1F3F7] border-slate-300 text-slate-900"
                       }`}
                     />
                   </div>
@@ -751,9 +892,16 @@ const EmailIDsAndDomains = () => {
                     <textarea
                       rows={3}
                       value={editingItem.description}
-                      onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                      onChange={(e) =>
+                        setEditingItem({
+                          ...editingItem,
+                          description: e.target.value,
+                        })
+                      }
                       className={`w-full px-3 py-2 rounded-xl border text-[11px] font-medium outline-none resize-none ${
-                        isDark ? 'bg-[#202127] border-white/15 text-white' : 'bg-[#F1F3F7] border-slate-300 text-slate-900'
+                        isDark
+                          ? "bg-[#202127] border-white/15 text-white"
+                          : "bg-[#F1F3F7] border-slate-300 text-slate-900"
                       }`}
                     />
                   </div>
@@ -790,10 +938,14 @@ const EmailIDsAndDomains = () => {
               role="status"
               data-sender-toast={toastTone}
               className={`fixed bottom-6 right-6 z-50 max-w-md px-4 py-2 rounded-xl text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2 ${
-                toastTone === 'bad' ? 'bg-[#E60000]' : 'bg-[#22C55E]'
+                toastTone === "bad" ? "bg-[#E60000]" : "bg-[#22C55E]"
               }`}
             >
-              {toastTone === 'bad' ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 stroke-[3] flex-shrink-0" />}
+              {toastTone === "bad" ? (
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              ) : (
+                <Check className="w-4 h-4 stroke-[3] flex-shrink-0" />
+              )}
               {toastMessage}
             </motion.div>
           )}
