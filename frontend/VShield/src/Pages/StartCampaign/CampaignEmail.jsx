@@ -38,7 +38,7 @@ import { noVerifiedSender, senderChoices } from '../../services/campaignSenders'
 import DraftDialog from '../../GlobalComponents/DraftDialog';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
-import masterUsersData from '../../MasterUserData.json';
+import { usePeople } from '../../services/people';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
@@ -139,6 +139,8 @@ const asInEditor = (html) => {
 const isSameBody = (a, b) => sameBody(asInEditor(a), asInEditor(b));
 
 const CampaignEmail = () => {
+ // The people directory, from the backend (services/people.js).
+ const { people: masterUsersData } = usePeople();
  const navigate = useNavigate();
  const userContext = useUserType?.() || {};
 

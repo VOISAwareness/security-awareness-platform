@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import userDLsJson from "../../../UserDLs/UserDLsData.json";
 import AnnouncamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
-import masterUsersData from "../../../../MasterUserData.json";
+import { usePeople } from "../../../../services/people";
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -150,6 +150,8 @@ const FX_PARAMETERS = [
 ];
 
 const AnnouncementsCampaignEmail = () => {
+  // The people directory, from the backend (services/people.js).
+  const { people: masterUsersData } = usePeople();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 

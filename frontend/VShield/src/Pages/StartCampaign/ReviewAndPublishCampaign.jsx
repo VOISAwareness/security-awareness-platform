@@ -23,7 +23,6 @@ import { actorFor } from '../../services/identity';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import userDLsJson from '../UserDLs/UserDLsData.json';
-import masterUsersData from '../../MasterUserData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import trainingPathsJson from '../Training/TrainingPath.json';
 import trainingVideosJson from '../Training/TrainingVideos.json';
