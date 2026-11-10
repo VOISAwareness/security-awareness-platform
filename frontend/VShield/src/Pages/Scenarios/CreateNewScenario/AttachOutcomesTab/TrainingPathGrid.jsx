@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTrainingCatalog } from "../../../../services/trainingCatalog";
 import {
   Check,
   ExternalLink,
@@ -11,10 +12,6 @@ import {
 import { createPortal } from "react-dom";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 
-import trainingPathsJson from "../../../Training/TrainingPath.json";
-import trainingVideosJson from "../../../Training/TrainingVideos.json";
-import trainingQuizJson from "../../../Training/TrainingQuiz.json";
-import trainingCertificateJson from "../../../Training/TrainingCertificate.json";
 
 import videoBottomAsset from "../../../../assets/VideoImageStartACampaign.png";
 import quizBottomAsset from "../../../../assets/QuizImageStartANewCampaign.png";
@@ -22,6 +19,8 @@ import certBottomAsset from "../../../../assets/CertificateImageStartANewCampaig
 import { DEMO_USER } from "../../../../appConfig";
 
 const TrainingPathGrid = ({ onSelect }) => {
+  // The training catalogue, from the backend (services/trainingCatalog.js).
+  const { paths: trainingPathsJson, videos: trainingVideosJson, quizzes: trainingQuizJson, certificates: trainingCertificateJson } = useTrainingCatalog();
   const userContext = useUserType?.() || {};
   const [isDark, setIsDark] = useState(
     typeof document !== "undefined"

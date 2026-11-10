@@ -86,6 +86,7 @@ resource "aws_iam_role_policy" "reference_api_s3" {
           "${aws_s3_bucket.assets.arn}/uploads/recipients/*",
           "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*",
           "${aws_s3_bucket.assets.arn}/uploads/training-packages/*",
+          "${aws_s3_bucket.assets.arn}/uploads/training-media/*",
         ]
       },
       {
@@ -99,6 +100,7 @@ resource "aws_iam_role_policy" "reference_api_s3" {
         Resource = [
           "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*",
           "${aws_s3_bucket.assets.arn}/uploads/training-packages/*",
+          "${aws_s3_bucket.assets.arn}/uploads/training-media/*",
         ]
       },
       {
@@ -112,6 +114,7 @@ resource "aws_iam_role_policy" "reference_api_s3" {
               "uploads/recipients/*",
               "uploads/scenario-covers/*",
               "uploads/training-packages/*",
+              "uploads/training-media/*",
             ]
           }
         }
@@ -194,6 +197,17 @@ locals {
     "GET /training/videos",
     "GET /training/quizzes",
     "GET /training/certificates",
+    # The Training screen saves its paths, videos, quizzes and certificates;
+    # videos and certificate images go to S3 (uploads/training-media/).
+    "PUT /training/paths/{id}",
+    "DELETE /training/paths/{id}",
+    "PUT /training/videos/{id}",
+    "DELETE /training/videos/{id}",
+    "PUT /training/quizzes/{id}",
+    "DELETE /training/quizzes/{id}",
+    "PUT /training/certificates/{id}",
+    "DELETE /training/certificates/{id}",
+    "POST /training/media/upload",
     # Training packages: zips in S3, a row each (tables.tf: training_packages).
     # The upload path is static, so it never collides with POST /training/packages.
     "GET /training/packages",

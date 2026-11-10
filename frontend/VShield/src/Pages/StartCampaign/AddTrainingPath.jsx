@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTrainingCatalog } from '../../services/trainingCatalog';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -16,10 +17,6 @@ import {
 } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
-import trainingPathsJson from '../Training/TrainingPath.json';
-import trainingVideosJson from '../Training/TrainingVideos.json';
-import trainingQuizJson from '../Training/TrainingQuiz.json';
-import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import videoBottomAsset from '../../assets/VideoImageStartACampaign.png';
 import quizBottomAsset from '../../assets/QuizImageStartANewCampaign.png';
 import certBottomAsset from '../../assets/CertificateImageStartANewCampaign.png';
@@ -101,6 +98,8 @@ const VODAFONE_FONT_STYLE = `
 const CURRENT_STEP_NUMBER = 5; // Step 5: Add Training Path
 
 const AddTrainingPath = () => {
+  // The training catalogue, from the backend (services/trainingCatalog.js).
+  const { paths: trainingPathsJson, videos: trainingVideosJson, quizzes: trainingQuizJson, certificates: trainingCertificateJson } = useTrainingCatalog();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 

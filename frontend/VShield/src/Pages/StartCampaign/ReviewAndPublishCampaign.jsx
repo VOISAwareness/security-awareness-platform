@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTrainingCatalog } from '../../services/trainingCatalog';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -24,10 +25,6 @@ import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import userDLsJson from '../UserDLs/UserDLsData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
-import trainingPathsJson from '../Training/TrainingPath.json';
-import trainingVideosJson from '../Training/TrainingVideos.json';
-import trainingQuizJson from '../Training/TrainingQuiz.json';
-import trainingCertificateJson from '../Training/TrainingCertificate.json';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { GAMIFICATION_EVENTS, formatPoints } from '../../services/gamificationPoints';
@@ -96,6 +93,8 @@ const EMPTY_DRAFT = {};
 const MAX_VISIBLE_PROBLEMS = 5;
 
 const ReviewAndPublishCampaign = () => {
+  // The training catalogue, from the backend (services/trainingCatalog.js).
+  const { paths: trainingPathsJson, videos: trainingVideosJson, quizzes: trainingQuizJson, certificates: trainingCertificateJson } = useTrainingCatalog();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
   const containerRef = useRef(null);

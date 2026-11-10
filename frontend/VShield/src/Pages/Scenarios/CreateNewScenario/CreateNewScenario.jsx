@@ -44,8 +44,7 @@ import DraftDialog from "../../../GlobalComponents/DraftDialog";
 import SaveDraftButton from "../../../GlobalComponents/SaveDraftButton";
 import PageLoading from "../../../GlobalComponents/PageLoading";
 import initialLandingCatalogues from "../../LandingPageCatalogue/LandingPageCatalogues.json";
-import trainingPathsJson from "../../Training/TrainingPath.json";
-import trainingQuizzesJson from "../../Training/TrainingQuiz.json";
+import { trainingSnapshot, useTrainingCatalog } from "../../../services/trainingCatalog";
 import {
   DEFAULT_EMAIL_BODY,
   SCENARIO_DRAFT_DEFAULTS,
@@ -217,8 +216,8 @@ const editPrefill = (row) =>
   toEditFormData(row, {
     coverImages: imageCatalogue,
     landingPages: initialLandingCatalogues?.landingPages || [],
-    trainingPaths: trainingPathsJson,
-    trainingQuizzes: trainingQuizzesJson,
+    trainingPaths: trainingSnapshot().paths,
+    trainingQuizzes: trainingSnapshot().quizzes,
   });
 
 // The form an edit opens with. Editing a template (or someone else's shared
@@ -1666,6 +1665,9 @@ const CreateNewScenario = () => {
     defaults: SCENARIO_DRAFT_DEFAULTS,
   }));
   const [actor] = useState(() => currentActor());
+  // Editing picks the scenario's training path from the catalogue, so the
+  // editor opens once the catalogue is read (or failed to load).
+  const { loading: trainingLoading } = useTrainingCatalog();
   const [opening, setOpening] = useState(() =>
     openingNeedsServer(request, actor)
       ? null
@@ -1683,7 +1685,7 @@ const CreateNewScenario = () => {
     };
   }, [opening, request, actor]);
 
-  if (!opening)
+  if (!opening || trainingLoading)
     return <OpeningLoading isDark={isDark} editing={Boolean(request.editId)} />;
   return <ScenarioEditor opening={opening} />;
 };

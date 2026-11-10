@@ -15,6 +15,7 @@ import time
 import uuid
 import zlib
 from datetime import UTC, datetime
+from html import escape as html_escape
 from urllib.parse import unquote, urlsplit
 
 import boto3
@@ -1618,6 +1619,204 @@ def sender_identities(route, event, params, context):
     return respond(201 if existing is None else 200, {"data": out})
 
 
+# --- training content (the Training screen's paths, videos, quizzes, certificates)
+#
+# Each kind is its own table, keyed by the screen's own IDs (TP-00001, ...),
+# which the screen assigns. Writes are upserts of the whole row:
+#   PUT    /training/{kind}/{id}  {row}  -> the row as stored
+#   DELETE /training/{kind}/{id}         -> the row (and its uploaded file)
+#   POST   /training/media/upload {fileName, contentType} -> {mediaKey, uploadUrl}
+# An uploaded video or certificate image goes straight to S3 through a
+# presigned PUT under uploads/training-media/<uploadId>/<file>; its row keeps
+# the key (TrainingVideoKey, CertificateImageKey) and every list hands back a
+# fresh presigned GET in TrainingVideo / Certificate(html).
+TRAINING_KINDS = {
+    "paths": ("training-paths", "TrainingPathID", "TrainingPathName"),
+    "videos": ("training-videos", "TrainingVideoID", "TrainingVideoName"),
+    "quizzes": ("training-quizzes", "TrainingQuizID", "TrainingQuizName"),
+    "certificates": ("training-certificates", "TrainingCertificateID", "TrainingCertificateName"),
+}
+TRAINING_WRITE_ROUTES = frozenset(
+    {f"PUT /training/{k}/{{id}}" for k in TRAINING_KINDS}
+    | {f"DELETE /training/{k}/{{id}}" for k in TRAINING_KINDS}
+    | {"POST /training/media/upload"}
+)
+TRAINING_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+MEDIA_PREFIX = "uploads/training-media/"
+MEDIA_KEY_RE = re.compile(r"uploads/training-media/[0-9a-f]{32}/[A-Za-z0-9._-]{1,200}")
+# What may be uploaded, and how large it may be once it is there. No SVG: it
+# can carry script.
+MEDIA_TYPES = {
+    "video/mp4": 500 * 1024 * 1024,
+    "video/webm": 500 * 1024 * 1024,
+    "video/quicktime": 500 * 1024 * 1024,
+    "image/png": 10 * 1024 * 1024,
+    "image/jpeg": 10 * 1024 * 1024,
+    "image/webp": 10 * 1024 * 1024,
+}
+MEDIA_FIELDS = {"videos": "TrainingVideoKey", "certificates": "CertificateImageKey"}
+MAX_TRAINING_NAME = 200
+MAX_TRAINING_ITEM_BYTES = 380 * 1024
+CERT_IMAGE_PAGE = (
+    "<!DOCTYPE html><html><head><style>body{margin:0;display:flex;justify-content:center;"
+    "align-items:center;height:100vh;background:#0f172a;}img{max-width:100%;max-height:100vh;"
+    "object-fit:contain;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);}</style></head>"
+    '<body><img src="{url}" alt="Certificate" /></body></html>'
+)
+
+
+def to_dynamo(row):
+    """DynamoDB takes Decimal, not float, at any depth."""
+    return json.loads(json.dumps(row, cls=DecimalEncoder), parse_float=decimal.Decimal)
+
+
+def is_media_key(value):
+    return isinstance(value, str) and MEDIA_KEY_RE.fullmatch(value) is not None
+
+
+def media_folder(key):
+    return key.rsplit("/", 1)[0] + "/"
+
+
+def sign_media(kind, item):
+    """A video's TrainingVideo, or a certificate's page, pointing at a fresh
+    presigned GET of its uploaded file (an hour). Rows without one are as stored."""
+    field = MEDIA_FIELDS.get(kind)
+    key = (item or {}).get(field) if field else None
+    if not UPLOAD_BUCKET or not is_media_key(key):
+        return item
+    url = s3_client.generate_presigned_url("get_object", Params={"Bucket": UPLOAD_BUCKET, "Key": key}, ExpiresIn=3600)
+    signed = dict(item)
+    if kind == "videos":
+        signed["TrainingVideo"] = url
+    else:
+        signed["Certificate(html)"] = CERT_IMAGE_PAGE.replace("{url}", html_escape(url))
+    return signed
+
+
+def clean_training_row(kind, row_id, body):
+    """(row, None) or (None, why). The row as stored: the body, its ID from
+    the path, a name, no browser-only blob: URLs, within DynamoDB's size."""
+    _, id_attr, name_attr = TRAINING_KINDS[kind]
+    if not TRAINING_ID_RE.fullmatch(row_id or ""):
+        return None, "The id may only use letters, digits, - and _ (at most 64)"
+    if not isinstance(body, dict):
+        return None, "The body must be a JSON object"
+    if body.get(id_attr) not in (None, "", row_id):
+        return None, f"{id_attr} must match the id in the path"
+    name = body.get(name_attr)
+    if not isinstance(name, str) or not name.strip():
+        return None, f"{name_attr} is required"
+    if len(name.strip()) > MAX_TRAINING_NAME:
+        return None, f"{name_attr} must be at most {MAX_TRAINING_NAME} characters"
+    row = {k: v for k, v in body.items() if not (isinstance(v, str) and v.startswith("blob:"))}
+    row.update({id_attr: row_id, name_attr: name.strip(), "ModifiedAt": datetime.now(UTC).isoformat()})
+    media_field = MEDIA_FIELDS.get(kind)
+    for field in MEDIA_FIELDS.values():
+        if field != media_field:
+            row.pop(field, None)
+    if media_field and row.get(media_field) not in (None, "") and not is_media_key(row[media_field]):
+        return None, f"{media_field} must be the key POST /training/media/upload returned"
+    if kind == "videos" and is_media_key(row.get("TrainingVideoKey")):
+        row.pop("TrainingVideo", None)  # a presigned URL expires; the key is what is kept
+    if kind == "certificates" and is_media_key(row.get("CertificateImageKey")):
+        row.pop("Certificate(html)", None)
+    if len(json.dumps(row, cls=DecimalEncoder).encode("utf-8")) > MAX_TRAINING_ITEM_BYTES:
+        return None, "This is too large to save. Link to images instead of pasting them in."
+    return row, None
+
+
+def media_problem(key, kind):
+    """Why an uploaded file can't be used (missing, wrong type, too large), or None."""
+    try:
+        head = s3_client.head_object(Bucket=UPLOAD_BUCKET, Key=key)
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+            return 400, "The file has not been uploaded yet"
+        raise
+    content_type = head.get("ContentType", "")
+    wanted = "video/" if kind == "videos" else "image/"
+    if content_type not in MEDIA_TYPES or not content_type.startswith(wanted):
+        return 400, f"The uploaded file must be {'a video' if kind == 'videos' else 'an image'}"
+    if head["ContentLength"] > MEDIA_TYPES[content_type]:
+        delete_s3_prefix(UPLOAD_BUCKET, media_folder(key))
+        return 413, f"The file is too large; the limit is {MEDIA_TYPES[content_type] // (1024 * 1024)} MB"
+    return None
+
+
+def training_content(route, event, params, context):
+    method, path = route.split(" ", 1)
+    try:
+        if route == "POST /training/media/upload":
+            if not UPLOAD_BUCKET:
+                return err(500, "Upload bucket is not configured")
+            try:
+                body = parse_body(event)
+            except ValueError:
+                body = None
+            body = body if isinstance(body, dict) else {}
+            content_type = body.get("contentType")
+            file_name = body.get("fileName")
+            if content_type not in MEDIA_TYPES:
+                return err(400, "contentType must be one of: " + ", ".join(sorted(MEDIA_TYPES)))
+            if not isinstance(file_name, str) or not file_name.strip():
+                return err(400, "fileName is required")
+            key = f"{MEDIA_PREFIX}{uuid.uuid4().hex}/{safe_name(file_name.strip())[-200:]}"
+            upload_url = s3_client.generate_presigned_url(
+                "put_object",
+                Params={"Bucket": UPLOAD_BUCKET, "Key": key, "ContentType": content_type},
+                ExpiresIn=900,
+            )
+            return respond(201, {"data": {"mediaKey": key, "uploadUrl": upload_url}})
+
+        kind = path.split("/")[2]
+        name, id_attr, _ = TRAINING_KINDS[kind]
+        row_id = params.get("id", "")
+        tbl = table(name)
+
+        if method == "PUT":
+            try:
+                body = parse_body(event)
+            except ValueError:
+                body = None
+            row, problem = clean_training_row(kind, row_id, body)
+            if problem:
+                return err(400, problem)
+            media_field = MEDIA_FIELDS.get(kind)
+            old = tbl.get_item(Key={id_attr: row_id}).get("Item") or {}
+            new_key = row.get(media_field) if media_field else None
+            if new_key and new_key != old.get(media_field):
+                if not UPLOAD_BUCKET:
+                    return err(500, "Upload bucket is not configured")
+                problem = media_problem(new_key, kind)
+                if problem:
+                    return err(*problem)
+            if old and "CreatedOn" in old and "CreatedOn" not in row:
+                row["CreatedOn"] = old["CreatedOn"]
+            tbl.put_item(Item=to_dynamo(row))
+            old_key = old.get(media_field) if media_field else None
+            if is_media_key(old_key) and old_key != new_key and UPLOAD_BUCKET:
+                delete_s3_prefix(UPLOAD_BUCKET, media_folder(old_key))
+            log(context, "training content saved", kind=kind, id=row_id)
+            return ok(sign_media(kind, row))
+
+        # DELETE
+        old = tbl.get_item(Key={id_attr: row_id}).get("Item")
+        if old:
+            tbl.delete_item(Key={id_attr: row_id})
+            key = old.get(MEDIA_FIELDS.get(kind, ""))
+            if is_media_key(key) and UPLOAD_BUCKET:
+                delete_s3_prefix(UPLOAD_BUCKET, media_folder(key))
+            log(context, "training content deleted", kind=kind, id=row_id)
+        return respond(204, {"data": None})
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code not in THROTTLED_CODES:
+            raise
+        log(context, "training content throttled", code=code)
+        return err(503, "Training is busy right now; try again shortly", code="BUSY")
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /users": "users",
@@ -1657,6 +1856,9 @@ def lambda_handler(event, context):
         if route in PACKAGE_ROUTES:
             return training_packages(route, event, params, context)
 
+        if route in TRAINING_WRITE_ROUTES:
+            return training_content(route, event, params, context)
+
         if route == "GET /scenarios":
             items = scan_all("scenarios")
             # Without a viewer every row comes back as before (older clients),
@@ -1673,6 +1875,8 @@ def lambda_handler(event, context):
 
         if route in LIST_ROUTES:
             items = scan_all(LIST_ROUTES[route])
+            if route in ("GET /training/videos", "GET /training/certificates"):
+                items = [sign_media(route.rsplit("/", 1)[1], i) for i in items]
             return ok(items, count=len(items))
 
         if route in GET_BY_ID:

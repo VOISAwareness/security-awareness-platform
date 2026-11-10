@@ -6,8 +6,7 @@ import TrainingPathLandingPage from "../TrainingPath/TrainingPathLandingPage";
 import InvidualTrainingsLandingPage from "../InvidualTrainings/InvidualTrainingsLandingPage";
 
 import {
-  saveUploadedVideo,
-  saveUploadedCertificate,
+  uploadTrainingMedia,
   savePath,
   deletePath,
   saveQuiz,
@@ -74,7 +73,8 @@ export const LmsMainContent = () => {
     handleLaunchStandalone,
     handleLaunchPathway,
     filteredPaths,
-    showToast
+    showToast,
+    trainingLoad
   } = useTraining();
 
   // A new package goes to S3 through the API, so everyone sees it. If the
@@ -131,6 +131,13 @@ export const LmsMainContent = () => {
     } ${
       isDark ? "bg-[#0F1015] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
     }`}>
+      {(trainingLoad?.loading || trainingLoad?.error) && !isFormActive && (
+        <p role="status" className={`text-[11px] font-bold mb-2 ${trainingLoad.error ? "text-[#B91C1C]" : "text-slate-500"}`}>
+          {trainingLoad.error
+            ? "Couldn't load training from the server. Refresh the page to try again."
+            : "Loading training…"}
+        </p>
+      )}
       {currentView === "paths" ? (
         <TrainingPathLandingPage
           paths={paths}
@@ -175,6 +182,8 @@ export const LmsMainContent = () => {
               await savePath(pathWithMeta);
             } catch (err) {
               console.error("Failed to save pathway", err);
+              showToast(`Couldn't save the path to the server: ${err?.message || "error"}`);
+              return;
             }
             if (editingPath) {
               setPaths((prev) =>
@@ -202,6 +211,8 @@ export const LmsMainContent = () => {
               await deletePath(id);
             } catch (err) {
               console.error("Failed to delete pathway", err);
+              showToast(`Couldn't delete the path on the server: ${err?.message || "error"}`);
+              return;
             }
             setPaths((prev) => prev.filter((p) => p.TrainingPathID !== id));
             if (setShowPathCreator) setShowPathCreator(false);
@@ -223,12 +234,12 @@ export const LmsMainContent = () => {
           }}
           onAddVideo={async (v, file) => {
             try {
-              if (file) {
-                await saveUploadedVideo(v.TrainingVideoID, v.TrainingVideoName, v.Description || "", file);
-              }
-              await saveVideo(v);
+              const key = file ? await uploadTrainingMedia(file) : null;
+              await saveVideo(key ? { ...v, TrainingVideoKey: key } : v);
             } catch (err) {
               console.error("Failed to save video", err);
+              showToast(`Couldn't save the video to the server: ${err?.message || "error"}`);
+              return;
             }
             setVideos((prev) => [v, ...prev]);
           }}
@@ -237,23 +248,19 @@ export const LmsMainContent = () => {
               await saveQuiz(q);
             } catch (err) {
               console.error("Failed to save quiz", err);
+              showToast(`Couldn't save the quiz to the server: ${err?.message || "error"}`);
+              return;
             }
             setQuizzes((prev) => [q, ...prev]);
           }}
           onAddCertificate={async (c, file) => {
             try {
-              if (file) {
-                await saveUploadedCertificate(
-                  c.TrainingCertificateID,
-                  c.TrainingCertificateName,
-                  c.Description || "",
-                  c["Certificate(html)"],
-                  file
-                );
-              }
-              await saveCertificateItem(c);
+              const key = file ? await uploadTrainingMedia(file) : null;
+              await saveCertificateItem(key ? { ...c, CertificateImageKey: key } : c);
             } catch (err) {
               console.error("Failed to save certificate", err);
+              showToast(`Couldn't save the certificate to the server: ${err?.message || "error"}`);
+              return;
             }
             setCertificates((prev) => [c, ...prev]);
           }}
@@ -301,12 +308,12 @@ export const LmsMainContent = () => {
           handleLaunchStandalone={handleLaunchStandalone}
           onAddVideo={async (newVideo, file) => {
             try {
-              if (file) {
-                await saveUploadedVideo(newVideo.TrainingVideoID, newVideo.TrainingVideoName, newVideo.Description || "", file);
-              }
-              await saveVideo(newVideo);
+              const key = file ? await uploadTrainingMedia(file) : null;
+              await saveVideo(key ? { ...newVideo, TrainingVideoKey: key } : newVideo);
             } catch (err) {
               console.error(err);
+              showToast(`Couldn't save the video to the server: ${err?.message || "error"}`);
+              return;
             }
             if (editingVideo) {
               setVideos((prev) =>
@@ -323,6 +330,8 @@ export const LmsMainContent = () => {
               await saveQuiz(newQuiz);
             } catch (err) {
               console.error(err);
+              showToast(`Couldn't save the quiz to the server: ${err?.message || "error"}`);
+              return;
             }
             if (editingQuiz) {
               setQuizzes((prev) =>
@@ -336,18 +345,12 @@ export const LmsMainContent = () => {
           }}
           onAddCertificate={async (savedCert, file) => {
             try {
-              if (file) {
-                await saveUploadedCertificate(
-                  savedCert.TrainingCertificateID,
-                  savedCert.TrainingCertificateName,
-                  savedCert.Description || "",
-                  savedCert["Certificate(html)"],
-                  file
-                );
-              }
-              await saveCertificateItem(savedCert);
+              const key = file ? await uploadTrainingMedia(file) : null;
+              await saveCertificateItem(key ? { ...savedCert, CertificateImageKey: key } : savedCert);
             } catch (err) {
               console.error(err);
+              showToast(`Couldn't save the certificate to the server: ${err?.message || "error"}`);
+              return;
             }
             if (editingCert) {
               setCertificates((prev) =>
@@ -369,6 +372,8 @@ export const LmsMainContent = () => {
               await deleteVideo(id);
             } catch (err) {
               console.error(err);
+              showToast(`Couldn't delete the video on the server: ${err?.message || "error"}`);
+              return;
             }
             setVideos((prev) => prev.filter((v) => v.TrainingVideoID !== id));
             setEditingVideo(null);
@@ -378,6 +383,8 @@ export const LmsMainContent = () => {
               await deleteQuiz(id);
             } catch (err) {
               console.error(err);
+              showToast(`Couldn't delete the quiz on the server: ${err?.message || "error"}`);
+              return;
             }
             setQuizzes((prev) => prev.filter((q) => q.TrainingQuizID !== id));
             setEditingQuiz(null);
@@ -387,6 +394,8 @@ export const LmsMainContent = () => {
               await deleteCertificateItem(id);
             } catch (err) {
               console.error(err);
+              showToast(`Couldn't delete the certificate on the server: ${err?.message || "error"}`);
+              return;
             }
             setCertificates((prev) => prev.filter((c) => c.TrainingCertificateID !== id));
             setEditingCert(null);
