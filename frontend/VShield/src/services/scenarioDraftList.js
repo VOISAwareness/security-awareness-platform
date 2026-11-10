@@ -37,9 +37,15 @@ const LEGACY_DRAFT_ID = 'SD-saved-before';
 const MAX_SAVES = 4;
 const MAX_SYNC_ENTRIES = 50;
 
-/** A new draft's id, e.g. "SD-mg8x2k1a7f3q". Ids only need to be unique per person. */
+// Counts the ids made in this tab, so two made in the same millisecond can
+// never be the same (four random characters alone collide now and then).
+let draftSeq = 0;
+
+/** A new draft's id, e.g. "SD-mg8x2k1a7f3q0b". Ids only need to be unique per person. */
 export function newDraftId(now = Date.now()) {
-  return `SD-${Number(now).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  draftSeq = (draftSeq + 1) % 1296;
+  const seq = draftSeq.toString(36).padStart(2, '0');
+  return `SD-${Number(now).toString(36)}${Math.random().toString(36).slice(2, 6)}${seq}`;
 }
 
 const listKey = (actor) => scopedKey(SCENARIO_DRAFTS_KEY, actor);
