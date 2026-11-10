@@ -245,18 +245,19 @@ def people_by_email(emails):
 
 
 def completed_trainings(rows):
-    """The (owner, assignmentId) pairs among the rows' trainings that were completed."""
+    """The (owner, assignmentId) pairs among the rows' trainings that were
+    completed with the quiz passed (a failed quiz is not trained)."""
     keys = sorted({(str(r["recipientEmail"]).strip().lower(), r["trainingAssignmentId"]) for r in rows
                    if r.get("trainingAssignmentId") and r.get("recipientEmail")})
     done = set()
     for i in range(0, len(keys), 100):
         batch = [{"owner": o, "assignmentId": a} for o, a in keys[i:i + 100]]
-        request = {assignments_table.name: {"Keys": batch, "ProjectionExpression": "#o, assignmentId, #s",
+        request = {assignments_table.name: {"Keys": batch, "ProjectionExpression": "#o, assignmentId, #s, quizPassed",
                                             "ExpressionAttributeNames": {"#o": "owner", "#s": "status"}}}
         while request:
             resp = dynamodb.batch_get_item(RequestItems=request)
             for item in resp.get("Responses", {}).get(assignments_table.name, []):
-                if item.get("status") == "COMPLETED":
+                if item.get("status") == "COMPLETED" and item.get("quizPassed") is True:
                     done.add((item["owner"], item["assignmentId"]))
             request = resp.get("UnprocessedKeys") or None
     return done

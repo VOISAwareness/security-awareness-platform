@@ -101,7 +101,9 @@ def call(mod, route, campaign_id=None, body=None):
 def test_results_list_outcomes_without_tokens(mod, env):
     env.campaigns.put_item(Item={"campaignId": "C1", "status": "SENT"})
     env.users.put_item(Item={"UserID": "U2", "UserEMailID": "ben@x.example", "Department": "CARE", "Country": "India"})
-    env.assignments.put_item(Item={"owner": "ana@x.example", "assignmentId": "A#1", "status": "COMPLETED"})
+    env.assignments.put_item(Item={"owner": "ana@x.example", "assignmentId": "A#1", "status": "COMPLETED", "quizPassed": True})
+    # finished, but the quiz failed: not trained
+    env.assignments.put_item(Item={"owner": "ben@x.example", "assignmentId": "A#2", "status": "COMPLETED", "quizPassed": False})
     env.recipients.put_item(Item={
         "campaignId": "C1", "recipientId": "R1", "recipientEmail": "Ana@x.example", "department": "AIDA",
         "country": "Spain", "sendStatus": "SENT", "openedAt": "t1", "clickedAt": "t2", "compromisedAt": "t3",
@@ -110,7 +112,7 @@ def test_results_list_outcomes_without_tokens(mod, env):
     })
     env.recipients.put_item(Item={  # sent before rows carried a department
         "campaignId": "C1", "recipientId": "R2", "recipientEmail": "ben@x.example", "sendStatus": "SENT",
-        "reportedAt": "t4", "trackingToken": "other-secret",
+        "reportedAt": "t4", "trackingToken": "other-secret", "trainingAssignmentId": "A#2",
     })
     env.recipients.put_item(Item={"campaignId": "C1", "recipientId": "R3", "recipientEmail": "cy@x.example",
                                   "sendStatus": "FAILED"})
@@ -122,6 +124,7 @@ def test_results_list_outcomes_without_tokens(mod, env):
     assert ana["recipientEmail"] == "ana@x.example" and ana["department"] == "AIDA"
     assert (ana["opened"], ana["clicked"], ana["compromised"], ana["reported"], ana["trained"]) == (True, True, True, False, True)
     assert (ben["department"], ben["country"], ben["opened"], ben["reported"]) == ("CARE", "India", True, True)
+    assert ben["trained"] is False
     assert (cy["department"], cy["opened"]) == ("Unknown", False)
     assert body["summary"] == {"recipients": 3, "delivered": 2, "opened": 2, "clicked": 1,
                                "compromised": 1, "reported": 1, "trained": 1}
