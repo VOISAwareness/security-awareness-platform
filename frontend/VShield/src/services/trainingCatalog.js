@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from './api.js';
+import { currentRole } from './identity.js';
 
 export const CATALOG_TTL_MS = 60 * 1000;
 export const KINDS = Object.freeze({
@@ -44,10 +45,11 @@ function publish(catalog) {
 }
 
 /** All four lists, read at most once per CATALOG_TTL_MS; callers at the same moment share one read. */
-export function loadTraining({ force = false, client = api.training, now = Date.now() } = {}) {
+export function loadTraining({ force = false, client = api.training, now = Date.now(), role = currentRole() } = {}) {
   if (!force && cache.catalog && now - cache.at < CATALOG_TTL_MS) return Promise.resolve(cache.catalog);
   if (!pending) {
-    pending = Promise.all(Object.keys(KINDS).map((kind) => client[kind]()))
+    // Quizzes carry their answers only for roles that edit them.
+    pending = Promise.all(Object.keys(KINDS).map((kind) => client[kind](role)))
       .then((lists) =>
         publish(
           Object.fromEntries(

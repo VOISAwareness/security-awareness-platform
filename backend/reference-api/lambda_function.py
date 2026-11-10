@@ -1815,7 +1815,312 @@ def training_content(route, event, params, context):
             raise
         log(context, "training content throttled", code=code)
         return err(503, "Training is busy right now; try again shortly", code="BUSY")
+# --- my training (training-assignments) -----------------------------------
+#
+# One row per person per training path (PK owner = their email, SK
+# assignmentId "A#<assignedAt>#<TrainingPathID>"). A click in a campaign
+# assigns the campaign's path (source ASSIGNED, by the tracking Lambda);
+# anyone can also take a path themselves (VOLUNTARY). `viewer` is
+# client-asserted, as elsewhere, until sign-in exists.
+#   GET  /my-training?viewer=           -> the viewer's assignments, newest first
+#   POST /my-training/enrol    {viewer, TrainingPathID}
+#   POST /my-training/progress {viewer, TrainingPathID, videoId}
+#   POST /my-training/check    {viewer, TrainingPathID, questionId, option}
+#   POST /my-training/quiz     {viewer, TrainingPathID}
+#   GET  /training/assignments?path=    -> everyone's (the Training report)
+# The quiz's answers never reach a learner (GET /training/quizzes leaves them
+# out unless an editor role asks). Each answer is checked here, and the first
+# one given for a question in an attempt is kept (attemptAnswers), so trying
+# options to find the right one doesn't work; the quiz is scored from those.
+# It opens once every video of the path is watched. Only a pass completes the
+# training (COMPLETED); a fail leaves it IN_PROGRESS to try again. A pass of
+# training a campaign assigned records TRAINED and EVALUATED in the events
+# table, once each, so the points engine scores it.
+MY_TRAINING_ROUTES = frozenset({
+    "GET /my-training",
+    "POST /my-training/enrol",
+    "POST /my-training/progress",
+    "POST /my-training/check",
+    "POST /my-training/quiz",
+    "GET /training/assignments",
+})
+# Roles that edit quizzes, and so see their answers (client-asserted, as
+# elsewhere, until sign-in exists).
+QUIZ_EDITOR_ROLES = frozenset({"Admin", "Campaign Creator", "Campaign Manager"})
+DUE_DAYS = 14
+DEFAULT_PASS_MARK = 80
 
+
+def iso_now():
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def owner_assignments(owner):
+    rows, kwargs = [], {"KeyConditionExpression": Key("owner").eq(owner)}
+    tbl = table("training-assignments")
+    while True:
+        resp = tbl.query(**kwargs)
+        rows.extend(resp.get("Items", []))
+        if not resp.get("LastEvaluatedKey"):
+            return rows
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+
+def latest_for_path(rows, path_id):
+    """The newest assignment of that path among the rows, or None."""
+    mine = [r for r in rows if r.get("TrainingPathID") == path_id]
+    return max(mine, key=lambda r: str(r.get("assignedAt", ""))) if mine else None
+
+
+def path_quiz(path):
+    """The quiz attached to a path, or None."""
+    quiz_id = ((path or {}).get("TrainingQuizAttached") or [None])[0]
+    return get_one("training-quizzes", {"TrainingQuizID": quiz_id}) if quiz_id else None
+
+
+def without_answers(quiz):
+    """A quiz as a learner gets it: every question without its Answer."""
+    data = quiz.get("QuizData")
+    if not isinstance(data, dict):
+        return quiz
+    return {**quiz, "QuizData": {
+        qid: ({k: v for k, v in q.items() if k != "Answer"} if isinstance(q, dict) else q)
+        for qid, q in data.items()
+    }}
+
+
+def videos_left(path, row):
+    """The path's videos this assignment hasn't watched yet."""
+    watched = set(row.get("videosWatched") or [])
+    return [v for v in (path.get("TrainingVideoAttached") or []) if v not in watched]
+
+
+def score_quiz(quiz, answers):
+    """(score 0-100, correct, total) from the quiz's own answers."""
+    questions = (quiz or {}).get("QuizData") or {}
+    total = len(questions)
+    answers = answers if isinstance(answers, dict) else {}
+    correct = sum(
+        1 for qid, q in questions.items()
+        if isinstance(q, dict) and q.get("Answer") and answers.get(qid) == q.get("Answer")
+    )
+    return (round(correct * 100 / total) if total else 0), correct, total
+
+
+def enrich_assignments(rows):
+    """Each row with its path's name and quiz, and its campaign's title."""
+    paths = {p.get("TrainingPathID"): p for p in scan_all("training-paths")}
+    titles = {}
+    out = []
+    for r in rows:
+        path = paths.get(r.get("TrainingPathID")) or {}
+        cid = r.get("campaignId")
+        if cid and cid not in titles:
+            c = get_one("campaigns", {"campaignId": cid}) or {}
+            titles[cid] = c.get("campaignTitle") or c.get("campaignName") or ""
+        out.append({
+            **r,
+            "TrainingPathName": path.get("TrainingPathName", ""),
+            "TrainingVideoAttached": path.get("TrainingVideoAttached") or [],
+            "TrainingQuizID": ((path.get("TrainingQuizAttached") or [None])[0]),
+            "TrainingCertificateID": ((path.get("TrainingCertificateAttached") or [None])[0]),
+            "campaignTitle": titles.get(cid, "") if cid else "",
+        })
+    return out
+
+
+def person_of(email):
+    """(department, country) from the users table, or ('', '')."""
+    rows = table("users").query(
+        IndexName="email-index", KeyConditionExpression=Key("UserEMailID").eq(email), Limit=1
+    ).get("Items", [])
+    return (rows[0].get("Department", ""), rows[0].get("Country", "")) if rows else ("", "")
+
+
+def record_training_event(row, event_type, at):
+    """TRAINED / EVALUATED for campaign-assigned training, once each."""
+    if not (row.get("campaignId") and row.get("recipientId")):
+        return
+    try:
+        table("events").put_item(
+            Item={
+                "campaignId": row["campaignId"],
+                "eventId": f"EVT-{event_type}-{row['recipientId']}",
+                "recipientId": row["recipientId"],
+                "eventType": event_type,
+                "eventTimestamp": at,
+                "eventSource": "TRAINING",
+            },
+            ConditionExpression="attribute_not_exists(eventId)",
+        )
+    except ClientError as e:
+        if not conditional_failed(e):
+            raise
+
+
+def my_training(route, event, context):
+    query = event.get("queryStringParameters") or {}
+    if route == "GET /training/assignments":
+        path_id = query.get("path")
+        if path_id:
+            rows, kwargs = [], {"IndexName": "path-assignedAt-index",
+                                "KeyConditionExpression": Key("TrainingPathID").eq(path_id),
+                                "ScanIndexForward": False}
+            tbl = table("training-assignments")
+            while True:
+                resp = tbl.query(**kwargs)
+                rows.extend(resp.get("Items", []))
+                if not resp.get("LastEvaluatedKey"):
+                    break
+                kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+        else:
+            rows = scan_all("training-assignments")
+        people = people_by_email()
+        rows = [{**r, "UserName": people.get(r.get("owner"), ("", ""))[0]} for r in enrich_assignments(rows)]
+        rows.sort(key=lambda r: str(r.get("assignedAt", "")), reverse=True)
+        return ok(rows, count=len(rows))
+
+    if route == "GET /my-training":
+        viewer = parse_identity(query.get("viewer"))
+        if not viewer:
+            return err(400, "viewer is required")
+        rows = enrich_assignments(owner_assignments(viewer))
+        rows.sort(key=lambda r: str(r.get("assignedAt", "")), reverse=True)
+        return ok(rows, count=len(rows))
+
+    try:
+        body = parse_body(event)
+    except ValueError:
+        body = None
+    body = body if isinstance(body, dict) else {}
+    viewer = parse_identity(body.get("viewer"))
+    path_id = body.get("TrainingPathID")
+    if not viewer:
+        return err(400, "viewer is required")
+    if not isinstance(path_id, str) or not path_id:
+        return err(400, "TrainingPathID is required")
+    path = get_one("training-paths", {"TrainingPathID": path_id})
+    if not path:
+        return err(404, "No training path with that id")
+    tbl = table("training-assignments")
+    current = latest_for_path(owner_assignments(viewer), path_id)
+    now = iso_now()
+
+    if route == "POST /my-training/enrol":
+        if current and not (current.get("status") == "COMPLETED" and current.get("quizPassed")):
+            return ok(enrich_assignments([current])[0])
+        dept, country = person_of(viewer)
+        due = datetime.now(UTC).timestamp() + DUE_DAYS * 86400
+        row = {
+            "owner": viewer, "assignmentId": f"A#{now}#{path_id}", "TrainingPathID": path_id,
+            "source": "VOLUNTARY", "department": dept, "country": country, "assignedAt": now,
+            "dueAt": datetime.fromtimestamp(due, UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "status": "ASSIGNED", "videosWatched": [], "attemptCount": 0,
+        }
+        tbl.put_item(Item=row, ConditionExpression="attribute_not_exists(assignmentId)")
+        log(context, "training enrolled", path=path_id)
+        return respond(201, {"data": enrich_assignments([row])[0]})
+
+    if not current:
+        return err(404, "This training is not assigned to you; enrol first")
+    key = {"owner": viewer, "assignmentId": current["assignmentId"]}
+
+    if route == "POST /my-training/progress":
+        video_id = body.get("videoId")
+        if not isinstance(video_id, str) or video_id not in (path.get("TrainingVideoAttached") or []):
+            return err(400, "videoId must be one of the path's videos")
+        watched = list(dict.fromkeys([*(current.get("videosWatched") or []), video_id]))
+        status = "IN_PROGRESS" if current.get("status") == "ASSIGNED" else current.get("status")
+        updated = tbl.update_item(
+            Key=key,
+            UpdateExpression="SET videosWatched = :w, #s = :s, startedAt = if_not_exists(startedAt, :now)",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":w": watched, ":s": status, ":now": now},
+            ReturnValues="ALL_NEW",
+        )["Attributes"]
+        return ok(enrich_assignments([updated])[0])
+
+    # POST /my-training/check and /quiz
+    quiz = path_quiz(path)
+    if not quiz:
+        return err(409, "This path has no quiz")
+    if videos_left(path, current):
+        return err(409, "Watch every video of this training before the quiz")
+    questions = quiz.get("QuizData") or {}
+
+    if route == "POST /my-training/check":
+        qid, option = body.get("questionId"), body.get("option")
+        question = questions.get(qid) if isinstance(qid, str) else None
+        if not isinstance(question, dict):
+            return err(400, "questionId must be one of the quiz's questions")
+        if not isinstance(option, str) or not option.startswith("option") or option not in question:
+            return err(400, "option must be one of the question's options")
+        kept = (current.get("attemptAnswers") or {}).get(qid)
+        if kept is None:
+            try:
+                if "attemptAnswers" in current:
+                    tbl.update_item(
+                        Key=key, UpdateExpression="SET attemptAnswers.#q = :o",
+                        ConditionExpression="attribute_not_exists(attemptAnswers.#q)",
+                        ExpressionAttributeNames={"#q": qid}, ExpressionAttributeValues={":o": option},
+                    )
+                else:
+                    tbl.update_item(
+                        Key=key, UpdateExpression="SET attemptAnswers = :m",
+                        ConditionExpression="attribute_not_exists(attemptAnswers)",
+                        ExpressionAttributeValues={":m": {qid: option}},
+                    )
+                kept = option
+            except ClientError as e:
+                if not conditional_failed(e):
+                    raise
+                fresh = tbl.get_item(Key=key, ConsistentRead=True).get("Item") or {}
+                kept = (fresh.get("attemptAnswers") or {}).get(qid)
+                if kept is None:  # the map was made at the same moment; ask again
+                    return err(409, "Try that answer again", code="STALE")
+        answer = question.get("Answer")
+        return ok({"questionId": qid, "option": kept, "correct": kept == answer, "correctOption": answer})
+
+    # POST /my-training/quiz: scored from the answers checked in this attempt
+    fresh = tbl.get_item(Key=key, ConsistentRead=True).get("Item") or current
+    answers = dict(fresh.get("attemptAnswers") or {})
+    score, correct, total = score_quiz(quiz, answers)
+    try:
+        pass_mark = int(quiz.get("TrainingCompletionThreshold") or DEFAULT_PASS_MARK)
+    except (TypeError, ValueError):
+        pass_mark = DEFAULT_PASS_MARK
+    passed = score >= pass_mark
+    was_passed = bool(current.get("quizPassed"))
+    names = {}
+    values = {":one": 1, ":now": now}
+    sets = ["startedAt = if_not_exists(startedAt, :now)", "lastAttemptAt = :now"]
+    if not was_passed:
+        names["#s"] = "status"
+        sets += ["quizScore = :score", "quizPassed = :passed", "#s = :status"]
+        values.update({":score": score, ":passed": passed, ":status": "COMPLETED" if passed else "IN_PROGRESS"})
+        if passed:
+            sets.append("completedAt = :now")
+            cert = (path.get("TrainingCertificateAttached") or [None])[0]
+            if cert:
+                sets += ["certificateId = :cert", "certificateIssuedAt = :now"]
+                values[":cert"] = cert
+    updated = tbl.update_item(
+        Key=key,
+        UpdateExpression="SET " + ", ".join(sets) + " REMOVE attemptAnswers ADD attemptCount :one",
+        **({"ExpressionAttributeNames": names} if names else {}),
+        ExpressionAttributeValues=values,
+        ReturnValues="ALL_NEW",
+    )["Attributes"]
+    if passed:
+        record_training_event(updated, "TRAINED", now)
+        record_training_event(updated, "EVALUATED", now)
+    log(context, "quiz scored", path=path_id, score=score, passed=passed)
+    return ok(enrich_assignments([updated])[0], result={
+        "score": score, "correct": correct, "total": total, "passMark": pass_mark, "passed": passed,
+        "alreadyPassed": was_passed,
+        "answers": {qid: {"option": opt, "correct": opt == (questions.get(qid) or {}).get("Answer"),
+                          "correctOption": (questions.get(qid) or {}).get("Answer")} for qid, opt in answers.items()},
+    })
 
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
@@ -1859,6 +2164,9 @@ def lambda_handler(event, context):
         if route in TRAINING_WRITE_ROUTES:
             return training_content(route, event, params, context)
 
+        if route in MY_TRAINING_ROUTES:
+            return my_training(route, event, context)
+
         if route == "GET /scenarios":
             items = scan_all("scenarios")
             # Without a viewer every row comes back as before (older clients),
@@ -1877,6 +2185,10 @@ def lambda_handler(event, context):
             items = scan_all(LIST_ROUTES[route])
             if route in ("GET /training/videos", "GET /training/certificates"):
                 items = [sign_media(route.rsplit("/", 1)[1], i) for i in items]
+            if route == "GET /training/quizzes":
+                role = (event.get("queryStringParameters") or {}).get("role")
+                if role not in QUIZ_EDITOR_ROLES:
+                    items = [without_answers(i) for i in items]
             return ok(items, count=len(items))
 
         if route in GET_BY_ID:

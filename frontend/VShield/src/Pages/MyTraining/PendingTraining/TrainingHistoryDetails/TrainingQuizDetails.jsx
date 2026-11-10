@@ -17,11 +17,13 @@ import {
 
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 
-import trainingAllocationData from "../../TrainingAllocationData.json";
+import { catalogLive, checkAnswer, myTrainingLive } from "../../../../services/myTraining";
 
-import trainingQuizData from "../../TrainingQuiz.json";
-
-import trainingPathData from "../../TrainingPath.json";
+// The signed-in person's trainings and the training catalogue, from the
+// backend (services/myTraining.js, updated in place once loaded).
+const trainingAllocationData = myTrainingLive;
+const trainingQuizData = catalogLive.quizzes;
+const trainingPathData = catalogLive.paths;
 
 /* -------------------------------------------------------------------------- */
 
@@ -138,11 +140,13 @@ const normalizeQuestion = (questionKey, raw) => {
 
   if (optionKeys.length < 2) return null;
 
+  // Learners get questions without their Answer: each answer is checked by
+  // the server (checkAnswer). An Answer that names no option is a broken question.
   const answerKey = cleanText(raw.Answer).toLowerCase();
 
-  const correctAnswer = optionKeys.findIndex(
-    (key) => key.toLowerCase() === answerKey,
-  );
+  const correctAnswer = answerKey
+    ? optionKeys.findIndex((key) => key.toLowerCase() === answerKey)
+    : null;
 
   if (correctAnswer === -1) return null;
 
@@ -466,6 +470,13 @@ function QuizSession({
 
   const [submitted, setSubmitted] = useState({});
 
+  // The server's verdict on each submitted answer: { correct, correctIndex }.
+  const [checked, setChecked] = useState({});
+
+  const [checking, setChecking] = useState(false);
+
+  const [checkError, setCheckError] = useState("");
+
   const [skipped, setSkipped] = useState([]);
 
   const [finished, setFinished] = useState(false);
@@ -489,8 +500,7 @@ function QuizSession({
   const unansweredCount = questions.length - answeredCount - skippedCount;
 
   const correctCount = questions.filter(
-    (question) =>
-      submitted[question.id] && answers[question.id] === question.correctAnswer,
+    (question) => submitted[question.id] && checked[question.id]?.correct,
   ).length;
 
   const score = questions.length
@@ -517,12 +527,56 @@ function QuizSession({
     setCurrentIndex((previous) => Math.min(previous + 1, questions.length - 1));
   };
 
-  const submitAnswer = () => {
-    if (currentAnswer === undefined || currentSubmitted) return;
+  const submitAnswer = async () => {
+    if (currentAnswer === undefined || currentSubmitted || checking) return;
 
-    const nextSubmitted = { ...submitted, [currentQuestion.id]: true };
+    const question = currentQuestion;
 
-    const nextSkipped = skipped.filter((id) => id !== currentQuestion.id);
+    setChecking(true);
+
+    setCheckError("");
+
+    let verdict;
+
+    try {
+      // The server keeps the first answer given to a question and says
+      // whether it was right.
+      verdict = await checkAnswer(
+        trainingId,
+        question.id,
+        question.optionKeys[currentAnswer],
+      );
+    } catch (err) {
+      setCheckError(
+        `Your answer couldn't be checked: ${err?.message || "error"}. Try again.`,
+      );
+
+      return;
+    } finally {
+      setChecking(false);
+    }
+
+    const keptIndex = question.optionKeys.indexOf(verdict?.option);
+
+    if (keptIndex !== -1 && keptIndex !== currentAnswer) {
+      setAnswers((previous) => ({ ...previous, [question.id]: keptIndex }));
+    }
+
+    const nextChecked = {
+      ...checked,
+
+      [question.id]: {
+        correct: Boolean(verdict?.correct),
+
+        correctIndex: question.optionKeys.indexOf(verdict?.correctOption),
+      },
+    };
+
+    const nextSubmitted = { ...submitted, [question.id]: true };
+
+    const nextSkipped = skipped.filter((id) => id !== question.id);
+
+    setChecked(nextChecked);
 
     setSubmitted(nextSubmitted);
 
@@ -530,8 +584,8 @@ function QuizSession({
 
     // Every question is answered -> finish and open the Completion tab.
 
-    if (questions.every((question) => nextSubmitted[question.id])) {
-      finishQuiz(nextSubmitted, nextSkipped);
+    if (questions.every((item) => nextSubmitted[item.id])) {
+      finishQuiz(nextSubmitted, nextSkipped, nextChecked);
 
       return;
     }
@@ -539,13 +593,15 @@ function QuizSession({
     if (!isLast) goNext();
   };
 
-  const finishQuiz = (submittedMap = submitted, skippedList = skipped) => {
+  const finishQuiz = (
+    submittedMap = submitted,
+    skippedList = skipped,
+    checkedMap = checked,
+  ) => {
     setShowConfirmation(false);
 
     const finalCorrectCount = questions.filter(
-      (question) =>
-        submittedMap[question.id] &&
-        answers[question.id] === question.correctAnswer,
+      (question) => submittedMap[question.id] && checkedMap[question.id]?.correct,
     ).length;
 
     const finalAnsweredCount = questions.filter(
@@ -582,9 +638,10 @@ function QuizSession({
           selectedAnswer: selected ?? null,
           selectedOption:
             selected !== undefined ? question.optionKeys[selected] : null,
-          correctOption: question.optionKeys[question.correctAnswer],
+          correctOption:
+            question.optionKeys[checkedMap[question.id]?.correctIndex] ?? null,
           isSubmitted,
-          isCorrect: isSubmitted && selected === question.correctAnswer,
+          isCorrect: isSubmitted && Boolean(checkedMap[question.id]?.correct),
         };
       }),
     };
@@ -595,9 +652,7 @@ function QuizSession({
 
   const getListState = (question) => {
     if (submitted[question.id]) {
-      return answers[question.id] === question.correctAnswer
-        ? "correct"
-        : "incorrect";
+      return checked[question.id]?.correct ? "correct" : "incorrect";
     }
 
     if (skipped.includes(question.id)) return "skipped";
@@ -746,13 +801,20 @@ function QuizSession({
               </div>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {!currentSubmitted ? (
-                  <Button
-                    primary
-                    onClick={submitAnswer}
-                    disabled={currentAnswer === undefined}
-                  >
-                    Submit answer <Send size={14} />
-                  </Button>
+                  <>
+                    {checkError && (
+                      <span role="alert" className="text-xs font-bold text-[#B91C1C]">
+                        {checkError}
+                      </span>
+                    )}
+                    <Button
+                      primary
+                      onClick={submitAnswer}
+                      disabled={currentAnswer === undefined || checking}
+                    >
+                      {checking ? "Checking…" : "Submit answer"} <Send size={14} />
+                    </Button>
+                  </>
                 ) : !isLast ? (
                   <Button primary onClick={goNext}>
                     Next question <ArrowRight size={14} />

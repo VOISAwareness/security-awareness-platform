@@ -94,6 +94,15 @@ TYPES = {
     "Reward scam": ("", 1.20, 0.22, "TP-00005"),
     "Travel scam": ("", 0.85, 0.20, "TP-00002"),
 }
+# The videos each path holds (as in the training-paths table), all watched
+# before the quiz.
+PATH_VIDEOS = {
+    "TP-00001": ["TV-00001", "TV-00002"],
+    "TP-00002": ["TV-00002", "TV-00003"],
+    "TP-00003": ["TV-00001", "TV-00003", "TV-00004", "TV-00005"],
+    "TP-00004": ["TV-00003"],
+    "TP-00005": ["TV-00004", "TV-00005"],
+}
 PATHS = {  # TrainingPathID -> (name, quiz pass mark)
     "TP-00001": ("Anti-Phishing & Social Engineering Remediation Path", 80),
     "TP-00002": ("Executive Wire Fraud & BEC Defense Track", 80),
@@ -237,21 +246,26 @@ def build(today, people_count=800, seed=2026):
             if rng.random() < min(0.97, 0.88 * p["keen"]) and done < now:
                 score = int(max(40, min(100, rng.gauss(80 + 5 * p["keen"], 9))))
                 passed = score >= pass_mark
-                row.update(status="COMPLETED", completedAt=iso(done), quizScore=score, quizPassed=passed,
-                           attemptCount=1 if passed else rng.randint(1, 3), videosWatched=["TV-00001"])
-                if passed:
-                    row.update(certificateId="TC-00001", certificateIssuedAt=iso(done))
-                p["trainedAt"] = min(p["trainedAt"] or done, done)
-                tag = campaign_id or path
-                ledger[p["email"]].append((iso(done), f"E#{tag}#Trained", "Trained", RULES["Trained"], campaign_id, name))
-                if passed:
-                    ledger[p["email"]].append((iso(done), f"E#{tag}#Evaluated", "Evaluated", RULES["Evaluated"], campaign_id, name))
+                videos = PATH_VIDEOS.get(path, [])
+                # Only a pass completes the training; a fail stays open to try again.
+                row.update(quizScore=score, quizPassed=passed, attemptCount=1 if passed else rng.randint(1, 3),
+                           videosWatched=videos, lastAttemptAt=iso(done))
                 for s in scopes(p):
                     c = stats[(s, day)]
-                    c["trainingCompleted"] += 1
-                    c["trainingPassed"] += passed
+                    c["quizTaken"] += 1
                     c["quizScoreSum"] += score
-                    c["completeDaysSum"] += round((done - assigned).total_seconds() / 86400 * 10)  # tenths of a day
+                if passed:
+                    row.update(status="COMPLETED", completedAt=iso(done),
+                               certificateId="TC-00001", certificateIssuedAt=iso(done))
+                    p["trainedAt"] = min(p["trainedAt"] or done, done)
+                    tag = campaign_id or path
+                    ledger[p["email"]].append((iso(done), f"E#{tag}#Trained", "Trained", RULES["Trained"], campaign_id, name))
+                    ledger[p["email"]].append((iso(done), f"E#{tag}#Evaluated", "Evaluated", RULES["Evaluated"], campaign_id, name))
+                    for s in scopes(p):
+                        c = stats[(s, day)]
+                        c["trainingCompleted"] += 1
+                        c["trainingPassed"] += 1
+                        c["completeDaysSum"] += round((done - assigned).total_seconds() / 86400 * 10)  # tenths of a day
         assignments.append(row)
         return row["assignmentId"]
 
@@ -449,7 +463,7 @@ def summary(tables, today):
         "report rate": pct(sum("reportedAt" in x for x in r), delivered),
         "risk score today": risk_score(latest),
         "trained rate": pct(sum(x["status"] == "COMPLETED" for x in a), len(a)),
-        "pass rate": pct(sum(bool(x.get("quizPassed")) for x in a), sum(x["status"] == "COMPLETED" for x in a)),
+        "pass rate": pct(sum(bool(x.get("quizPassed")) for x in a), sum("quizScore" in x for x in a)),
     }
 
 

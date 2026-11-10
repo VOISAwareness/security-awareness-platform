@@ -16,6 +16,15 @@ export function actorFor(user) {
   return String(user?.role || 'wizard-user').trim();
 }
 
+/** The signed-in person's role ('' when none), for code outside React. */
+export function currentRole() {
+  try {
+    return String(JSON.parse(localStorage.getItem(ACTIVE_USER_KEY) || 'null')?.role || '');
+  } catch {
+    return '';
+  }
+}
+
 /** The logged-in actor, for code that runs outside React (the draft hook). */
 export function currentActor() {
   try {

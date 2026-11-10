@@ -1,22 +1,14 @@
 import { useMemo, useState, useEffect } from "react";
-import trainingData from "../TrainingAllocationData.json";
-import trainingPathData from "../TrainingPath";
+import { catalogLive, useMyTraining } from "../../../services/myTraining";
 import "../TrainingTable.css";
 import { FilePlay, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const ITEMS_PER_PAGE = 6;
-const CURRENT_USER_ID = "VSLD-000001";
-
-const TRAINING_PATH_MAP = (
-  Array.isArray(trainingPathData) ? trainingPathData : []
-).reduce((acc, item) => {
-  acc[String(item.TrainingPathID)] = item.TrainingPathName;
-  return acc;
-}, {});
-
+// The path's name from the training catalogue (services/myTraining.js).
 const getTrainingPathName = (id) =>
-  TRAINING_PATH_MAP[String(id)] || `Training ${id || ""}`;
+  catalogLive.paths.find((p) => String(p.TrainingPathID) === String(id))?.TrainingPathName ||
+  `Training ${id || ""}`;
 
 const getTrainingStatusLabel = (status) => {
   switch (String(status ?? "").toLowerCase()) {
@@ -39,6 +31,8 @@ export default function MyTrainingTableData({
   searchTerm = "",
   onCountChange,
 }) {
+  // The signed-in person's trainings, from the backend (services/myTraining.js).
+  const { trainings: myTrainings } = useMyTraining();
   const [sortConfig, setSortConfig] = useState({
     key: "assignedDate",
     direction: "desc",
@@ -48,19 +42,7 @@ export default function MyTrainingTableData({
 
   // Support JSON shaped as either { trainings: [] },
   // { campaigns: [] }, or a direct array.
-  const sourceTrainings = useMemo(() => {
-    if (Array.isArray(trainingData)) return trainingData;
-
-    if (Array.isArray(trainingData?.trainings)) {
-      return trainingData.trainings;
-    }
-
-    if (Array.isArray(trainingData?.campaigns)) {
-      return trainingData.campaigns;
-    }
-
-    return [];
-  }, []);
+  const sourceTrainings = myTrainings;
 
   const filteredTrainings = useMemo(() => {
     const search = String(searchTerm ?? "")
@@ -81,7 +63,8 @@ export default function MyTrainingTableData({
             "",
         ).toLowerCase();
 
-        const matchesUser = userId === CURRENT_USER_ID;
+        // Rows are already the signed-in person's own.
+        const matchesUser = Boolean(userId);
         const matchesStatus = ["pending", "ongoing"].includes(status);
 
         return matchesUser && matchesStatus;

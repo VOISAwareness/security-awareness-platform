@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Clock,
   AlertTriangle,
@@ -8,20 +8,46 @@ import {
   UserCheck
 } from 'lucide-react';
 
-import myTrainingData from '../MyTrainingData.json';
+import { api } from '../../../services/api';
+import { dayText, legacyAllocation } from '../../../services/myTraining';
 
-const fallbackUsers = {
-  "abhay.hs1@vodafone.com": { name: "Abhay H S", dept: "Tech (AIDA, Analytics Tower)" },
-  "priya.nair@vodafone.com": { name: "Priya Nair", dept: "HR (Talent Acquisition & Ops)" },
-  "ananya.roy@vodafone.com": { name: "Ananya Roy", dept: "Finance (Procurement Services)" }
+// Everyone's training assignments, from the backend (GET /training/assignments),
+// in the shape the report reads, with each person's name and department.
+const useAllAssignments = () => {
+  const [state, setState] = useState({ trainings: [], loading: true, error: null });
+  useEffect(() => {
+    let active = true;
+    api.myTraining
+      .assignments()
+      .then((rows) => {
+        if (!active) return;
+        const trainings = (Array.isArray(rows) ? rows : []).map((a) => ({
+          ...legacyAllocation(a),
+          fullName: a.UserName || '',
+          department: a.department || '',
+          completedOn: dayText(a.completedAt),
+        }));
+        setState({ trainings, loading: false, error: null });
+      })
+      .catch((error) => {
+        console.error('Could not load training assignments', error);
+        if (active) setState({ trainings: [], loading: false, error });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  return state;
 };
 
 const LearningProgress = ({ isDark }) => {
+  const { trainings: assignmentRows, loading: assignmentsLoading, error: assignmentsError } = useAllAssignments();
+  const myTrainingData = useMemo(() => ({ trainings: assignmentRows }), [assignmentRows]);
   const [searchTerm, setSearchTerm] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  // calculate KPIs and directory records using MyTrainingData.json
+  // KPIs and the directory, from everyone's training assignments
   const stats = useMemo(() => {
     let completed = 0;
     let ongoing = 0;
@@ -52,7 +78,7 @@ const LearningProgress = ({ isDark }) => {
       notStarted,
       overdue
     };
-  }, []);
+  }, [myTrainingData]);
 
   const kpis = [
     {
@@ -95,30 +121,37 @@ const LearningProgress = ({ isDark }) => {
   const rawRecords = useMemo(() => {
     if (myTrainingData && myTrainingData.trainings) {
       return myTrainingData.trainings.map((t) => {
-        const email = t.userEmailId.toLowerCase().trim();
-        const meta = fallbackUsers[email] || {
-          name: email.split('@')[0].split('.').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          dept: "VOIS Department"
-        };
-
-        const pct = t.currentScore ? parseInt(t.currentScore) : 0;
-        const isCompleted = t.evalutionStatus === "passed" || t.trainingStatus === "evaluted" || t.trainingStatus === "evalutad";
+        const email = String(t.userEmailId || '').toLowerCase().trim();
+        const name = t.fullName || email.split('@')[0].split('.').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const isCompleted = t.evalutionStatus === "passed";
+        // Progress through the path: passed 100; failed, the quiz score;
+        // started, half way; not started, 0.
+        const pct = isCompleted
+          ? 100
+          : t.evalutionStatus === "failed"
+            ? Math.min(99, parseInt(t.currentScore) || 0)
+            : t.evalutionStatus === "in_progress"
+              ? 50
+              : 0;
 
         return {
-          fullName: meta.name,
-          department: meta.dept,
+          fullName: name,
+          department: t.department || "—",
           startDate: t.assignedDate,
-          completionDate: isCompleted ? "18-Sep-2026" : "—",
+          completionDate: isCompleted ? (t.completedOn || "—") : "—",
           completionPercentage: pct,
           enrollments: t.attemptCount || 1
         };
       });
     }
     return [];
-  }, []);
+  }, [myTrainingData]);
 
-  // Departments list for filtering
-  const departments = ['All', 'Tech', 'Finance', 'HR', 'Cybersecurity', 'Operations', 'Legal', 'Customer Care'];
+  // Departments list for filtering: the departments in the data
+  const departments = useMemo(
+    () => ['All', ...[...new Set(rawRecords.map((r) => r.department).filter((d) => d && d !== "—"))].sort()],
+    [rawRecords]
+  );
 
   // Filter records
   const filteredRecords = useMemo(() => {
@@ -256,7 +289,11 @@ const LearningProgress = ({ isDark }) => {
               {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-slate-400 font-bold">
-                    No learning records matching the active filters found.
+                    {assignmentsLoading
+                      ? "Loading training records…"
+                      : assignmentsError
+                        ? "Couldn't load training records from the server."
+                        : "No learning records matching the active filters found."}
                   </td>
                 </tr>
               ) : (
