@@ -1,6 +1,6 @@
 # Database schema: every screen on backend data
 
-Status: **proposal for review**. Nothing here is built until it is agreed.
+Status: **agreed** (10 Nov 2026). Built in the order of section 8.
 
 Goal: no data lives in the frontend. Every screen reads and writes through
 the API, and the database holds a fake company of 800 people that behaves
@@ -238,13 +238,13 @@ Each goes in the PR that connects its screen. The unused
 7. `stats-engine`, then Insights, Big Picture and Home (includes the rest of the Insights team feedback).
 8. Flow check as each role, then the security review.
 
-## 9. Open points
+## 9. Decided points
 
 1. **Open tracking.** `OPEN` needs a tiny image in each email. Mail clients
-   that block images will under-count opens. Fine for now?
+   that block images will under-count opens. **Accepted for now.**
 2. **Compromise.** Landing pages cannot submit forms today (by design). To
    record a compromise, the page's submit button would call a link that
-   records the event and sends nothing typed. Agree?
+   records the event and sends nothing typed. **Agreed.**
 3. **Risk score.** The seed and the monthly job need one formula. Proposed:
    keep the one the sample data uses today, and write it down in this file
-   when step 7 starts.
+   when step 7 starts. **Agreed.**
