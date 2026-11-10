@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import {
   ChevronDown,
   ChevronUp,
@@ -10,28 +10,28 @@ import {
   RefreshCw,
   User as UserIcon,
   Trash2,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 
-import ExchangeIcon from '../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png';
-import defaultData from './UserDLsData.json';
-import masterUsersData from '../../MasterUserData.json';
-import { DEMO_USER } from '../../appConfig';
+import ExchangeIcon from "../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png";
+import defaultData from "./UserDLsData.json";
+import masterUsersData from "../../MasterUserData.json";
+import { DEMO_USER } from "../../appConfig";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
 // =========================================================================
 export const VarUserDLsScale = 0.94;
-export const VarOverallRoundednessScale = 0.6;
-export const VarBiggerWhiteDivHeight = '100%';
+export const VarOverallRoundednessScale = 0.5;
+export const VarBiggerWhiteDivHeight = "100%";
 
 // Restructured Section Dimensions
-export const varDLDetailsInputSectionHeight = '60%';
-export const varDLDetailsInputSectionWidth = '70%';
-export const varDLAllUsersTableViewSectionHeight = '40%';
-export const varDLAllUsersTableViewSectionWidth = '60%';
-export const VarListTelemetrySectionHeight = '100%';
-export const VarListTelemetrySectionWidth = '30%';
+export const varDLDetailsInputSectionHeight = "60%";
+export const varDLDetailsInputSectionWidth = "70%";
+export const varDLAllUsersTableViewSectionHeight = "40%";
+export const varDLAllUsersTableViewSectionWidth = "60%";
+export const VarListTelemetrySectionHeight = "100%";
+export const VarListTelemetrySectionWidth = "30%";
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
@@ -53,44 +53,53 @@ const VODAFONE_FONT_STYLE = `
 const UserListUploadViaDL = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('edit');
+  const editId = searchParams.get("edit");
   const userContext = useUserType?.() || {};
 
   // Theme check: Reactive pipeline with MutationObserver
   const [isDark, setIsDark] = useState(() => {
-    if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || !!userContext.isDark;
+    if (typeof document !== "undefined") {
+      return (
+        document.documentElement.classList.contains("dark") ||
+        !!userContext.isDark
+      );
     }
     return !!userContext.isDark;
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === 'boolean') {
+    if (typeof userContext.isDark === "boolean") {
       setIsDark(userContext.isDark);
     }
   }, [userContext.isDark]);
 
   useEffect(() => {
     const checkDark = () => {
-      const hasDarkClass = document.documentElement.classList.contains('dark');
+      const hasDarkClass = document.documentElement.classList.contains("dark");
       setIsDark(hasDarkClass || !!userContext.isDark);
     };
     checkDark();
     const observer = new MutationObserver(checkDark);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
     return () => observer.disconnect();
   }, [userContext.isDark]);
 
   // Background color for upper bento containers matching design
-  const lCardBg = isDark ? '#1C1F27' : '#EEF2F6';
+  const lCardBg = isDark ? "#1C1F27" : "#EEF2F6";
 
   const syncedDLs = defaultData.syncedDistributionLists;
 
   // Each distribution list's members: the sample synced DLs, until the
   // Exchange directory is connected.
   const exchangeDLsData = useMemo(
-    () => Object.fromEntries((syncedDLs || []).map((dl) => [dl.dlId, dl.members || []])),
-    [syncedDLs]
+    () =>
+      Object.fromEntries(
+        (syncedDLs || []).map((dl) => [dl.dlId, dl.members || []]),
+      ),
+    [syncedDLs],
   );
 
   const availableDLOptions = useMemo(() => {
@@ -98,13 +107,13 @@ const UserListUploadViaDL = () => {
   }, [exchangeDLsData]);
 
   // Form States
-  const [selectedDLId, setSelectedDLId] = useState('');
-  const [dlSearchQuery, setDlSearchQuery] = useState('');
+  const [selectedDLId, setSelectedDLId] = useState("");
+  const [dlSearchQuery, setDlSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  const [cohortName, setCohortName] = useState('');
-  const [description, setDescription] = useState('');
+  const [cohortName, setCohortName] = useState("");
+  const [description, setDescription] = useState("");
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -113,8 +122,8 @@ const UserListUploadViaDL = () => {
         setIsDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Filtered DL list based on combobox search query
@@ -128,38 +137,59 @@ const UserListUploadViaDL = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadedMembers, setLoadedMembers] = useState([]);
   const [loadedDeptBreakdown, setLoadedDeptBreakdown] = useState([]);
-  const [loadedHookRate, setLoadedHookRate] = useState('0.0%');
-  const [loadedReportRate, setLoadedReportRate] = useState('0.0%');
+  const [loadedHookRate, setLoadedHookRate] = useState("0.0%");
+  const [loadedReportRate, setLoadedReportRate] = useState("0.0%");
 
   // Table Controls & Expand State
-  const [tableSearch, setTableSearch] = useState('');
+  const [tableSearch, setTableSearch] = useState("");
   const [isTableMaximized, setIsTableMaximized] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState("");
 
   // Delete Action Toaster State
-  const [deletedSuccessMsg, setDeletedSuccessMsg] = useState('');
+  const [deletedSuccessMsg, setDeletedSuccessMsg] = useState("");
 
   // Average of the members' rates, leaving out members without one
   const averageRate = (members, key) => {
-    const rates = members.map((u) => parseFloat(u[key])).filter((n) => !isNaN(n));
-    return rates.length ? (rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(1) : '0.0';
+    const rates = members
+      .map((u) => parseFloat(u[key]))
+      .filter((n) => !isNaN(n));
+    return rates.length
+      ? (rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(1)
+      : "0.0";
   };
 
   // Helper to cross-reference raw email IDs with MasterUserData.json
   const resolveMembersFromEmails = (emailList = []) => {
     return emailList.map((item, idx) => {
-      const email = typeof item === 'string' ? item : (item.email || item.UserEMailID || '');
+      const email =
+        typeof item === "string" ? item : item.email || item.UserEMailID || "";
       const matched = (masterUsersData || []).find(
-        (m) => m.UserEMailID?.toLowerCase() === email?.toLowerCase()
+        (m) => m.UserEMailID?.toLowerCase() === email?.toLowerCase(),
       );
       return {
         srNo: idx + 1,
-        userName: matched?.UserName || (typeof item === 'object' ? item.userName : email.split('@')[0]),
+        userName:
+          matched?.UserName ||
+          (typeof item === "object" ? item.userName : email.split("@")[0]),
         email,
-        department: matched?.Department || (typeof item === 'object' ? item.department : 'Unregistered'),
-        location: (matched?.Country || (typeof item === 'object' ? item.location : 'N/A')).toUpperCase(),
-        hookRate: matched?.['HookRate%'] !== undefined ? `${matched['HookRate%']}%` : (typeof item === 'object' ? item.hookRate : '—'),
-        reportRate: matched?.['ReportRate%'] !== undefined ? `${matched['ReportRate%']}%` : (typeof item === 'object' ? item.reportRate : '—')
+        department:
+          matched?.Department ||
+          (typeof item === "object" ? item.department : "Unregistered"),
+        location: (
+          matched?.Country || (typeof item === "object" ? item.location : "N/A")
+        ).toUpperCase(),
+        hookRate:
+          matched?.["HookRate%"] !== undefined
+            ? `${matched["HookRate%"]}%`
+            : typeof item === "object"
+              ? item.hookRate
+              : "—",
+        reportRate:
+          matched?.["ReportRate%"] !== undefined
+            ? `${matched["ReportRate%"]}%`
+            : typeof item === "object"
+              ? item.reportRate
+              : "—",
       };
     });
   };
@@ -168,17 +198,25 @@ const UserListUploadViaDL = () => {
   useEffect(() => {
     if (editId) {
       try {
-        const stored = localStorage.getItem('voisshield_user_dls_data');
-        const all = stored ? JSON.parse(stored) : (Array.isArray(defaultData) ? defaultData : defaultData.savedUserLists || []);
+        const stored = localStorage.getItem("voisshield_user_dls_data");
+        const all = stored
+          ? JSON.parse(stored)
+          : Array.isArray(defaultData)
+            ? defaultData
+            : defaultData.savedUserLists || [];
         const target = all.find((l) => (l.UserListsID || l.id) === editId);
         if (target) {
-          const rawEmails = Array.isArray(target.EMailIDs) ? target.EMailIDs : (target.users || []);
+          const rawEmails = Array.isArray(target.EMailIDs)
+            ? target.EMailIDs
+            : target.users || [];
           const resolved = resolveMembersFromEmails(rawEmails);
 
-          setCohortName(target.UserListName || target.name || '');
-          setSelectedDLId(target.dlId || '');
-          setDlSearchQuery(target.dlId || '');
-          setDescription(target.UserListsDescription || target.description || '');
+          setCohortName(target.UserListName || target.name || "");
+          setSelectedDLId(target.dlId || "");
+          setDlSearchQuery(target.dlId || "");
+          setDescription(
+            target.UserListsDescription || target.description || "",
+          );
           setLoadedMembers(resolved);
 
           // Department breakdown calculation
@@ -186,11 +224,16 @@ const UserListUploadViaDL = () => {
           resolved.forEach((u) => {
             deptCounts[u.department] = (deptCounts[u.department] || 0) + 1;
           });
-          setLoadedDeptBreakdown(Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })));
+          setLoadedDeptBreakdown(
+            Object.entries(deptCounts).map(([dept, count]) => ({
+              dept,
+              count,
+            })),
+          );
 
           // Rate averages
-          const avgHook = averageRate(resolved, 'hookRate');
-          const avgReport = averageRate(resolved, 'reportRate');
+          const avgHook = averageRate(resolved, "hookRate");
+          const avgReport = averageRate(resolved, "reportRate");
           setLoadedHookRate(`${avgHook}%`);
           setLoadedReportRate(`${avgReport}%`);
           setIsLoaded(true);
@@ -203,7 +246,7 @@ const UserListUploadViaDL = () => {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 2500);
+    setTimeout(() => setToastMessage(""), 2500);
   };
 
   // DL Selection change handler
@@ -214,14 +257,14 @@ const UserListUploadViaDL = () => {
     setIsDropdownOpen(false);
 
     if (!cohortName) {
-      setCohortName(dlEmail.split('@')[0].replace(/[-_]/g, ' '));
+      setCohortName(dlEmail.split("@")[0].replace(/[-_]/g, " "));
     }
   };
 
   // Load Action
   const handleLoad = () => {
     if (!selectedDLId) {
-      showToast('Please select a Distribution List first!');
+      showToast("Please select a Distribution List first!");
       return;
     }
 
@@ -235,27 +278,31 @@ const UserListUploadViaDL = () => {
       resolved.forEach((u) => {
         deptCounts[u.department] = (deptCounts[u.department] || 0) + 1;
       });
-      setLoadedDeptBreakdown(Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })));
+      setLoadedDeptBreakdown(
+        Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })),
+      );
 
       // Calculated telemetry metrics
-      const avgHook = averageRate(resolved, 'hookRate');
-      const avgReport = averageRate(resolved, 'reportRate');
+      const avgHook = averageRate(resolved, "hookRate");
+      const avgReport = averageRate(resolved, "reportRate");
       setLoadedHookRate(`${avgHook}%`);
       setLoadedReportRate(`${avgReport}%`);
 
       setIsLoaded(true);
       showToast(`Loaded ${resolved.length} users from Active Directory`);
     } else {
-      showToast('No user records found in this Distribution List');
+      showToast("No user records found in this Distribution List");
     }
   };
 
   // Handle single user deletion from the loaded cohort
   const handleDeleteMember = (emailToDelete, userName) => {
-    const updated = loadedMembers.filter((m) => m.email !== emailToDelete).map((m, idx) => ({
-      ...m,
-      srNo: idx + 1
-    }));
+    const updated = loadedMembers
+      .filter((m) => m.email !== emailToDelete)
+      .map((m, idx) => ({
+        ...m,
+        srNo: idx + 1,
+      }));
     setLoadedMembers(updated);
 
     // Recalculate Department Breakdown
@@ -263,36 +310,67 @@ const UserListUploadViaDL = () => {
     updated.forEach((u) => {
       deptCounts[u.department] = (deptCounts[u.department] || 0) + 1;
     });
-    setLoadedDeptBreakdown(Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })));
+    setLoadedDeptBreakdown(
+      Object.entries(deptCounts).map(([dept, count]) => ({ dept, count })),
+    );
 
     // Recalculate Rate averages
-    const avgHook = averageRate(updated, 'hookRate');
-    const avgReport = averageRate(updated, 'reportRate');
+    const avgHook = averageRate(updated, "hookRate");
+    const avgReport = averageRate(updated, "reportRate");
     setLoadedHookRate(`${avgHook}%`);
     setLoadedReportRate(`${avgReport}%`);
 
     // Trigger floating success toaster
-    setDeletedSuccessMsg(`User ${userName || emailToDelete} removed successfully`);
-    setTimeout(() => setDeletedSuccessMsg(''), 3000);
+    setDeletedSuccessMsg(
+      `User ${userName || emailToDelete} removed successfully`,
+    );
+    setTimeout(() => setDeletedSuccessMsg(""), 3000);
   };
 
   // Save Action
   const handleSave = () => {
     if (!cohortName.trim()) {
-      showToast('Please enter a Cohort Name');
+      showToast("Please enter a Cohort Name");
       return;
     }
     if (!isLoaded || loadedMembers.length === 0) {
-      showToast('No user records staged. Click LOAD first!');
+      showToast("No user records staged. Click LOAD first!");
       return;
     }
 
     try {
-      const stored = localStorage.getItem('voisshield_user_dls_data');
-      const allLists = stored ? JSON.parse(stored) : (Array.isArray(defaultData) ? defaultData : defaultData.savedUserLists || []);
+      const stored = localStorage.getItem("voisshield_user_dls_data");
+      const allLists = stored
+        ? JSON.parse(stored)
+        : Array.isArray(defaultData)
+          ? defaultData
+          : defaultData.savedUserLists || [];
 
-      const formattedNow = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      const formattedTimestamp = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      const formattedNow =
+        new Date().toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+        }) +
+        " " +
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+      const formattedTimestamp =
+        new Date().toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+        }) +
+        " " +
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
 
       if (editId) {
         const updated = allLists.map((item) =>
@@ -301,40 +379,51 @@ const UserListUploadViaDL = () => {
                 ...item,
                 UserListName: cohortName.trim(),
                 dlId: selectedDLId,
-                UserListsDescription: description.trim() || item.UserListsDescription || item.description,
+                UserListsDescription:
+                  description.trim() ||
+                  item.UserListsDescription ||
+                  item.description,
                 TotalEmailIDsCount: loadedMembers.length,
                 LastModified: formattedTimestamp,
                 LastModifiedBy: userContext.userEmail || DEMO_USER.email,
-                EMailIDs: loadedMembers.map((u) => u.email)
+                EMailIDs: loadedMembers.map((u) => u.email),
               }
-            : item
+            : item,
         );
-        localStorage.setItem('voisshield_user_dls_data', JSON.stringify(updated));
+        localStorage.setItem(
+          "voisshield_user_dls_data",
+          JSON.stringify(updated),
+        );
       } else {
         const newList = {
           UserListsID: `UL-${Date.now().toString().slice(-5)}`,
           UserListName: cohortName.trim(),
-          UploadType: 'Distribution List',
+          UploadType: "Distribution List",
           dlId: selectedDLId,
-          UserListsDescription: description.trim() || 'Pre-configured Exchange Active Directory target group.',
+          UserListsDescription:
+            description.trim() ||
+            "Pre-configured Exchange Active Directory target group.",
           TotalEmailIDsCount: loadedMembers.length,
           CreationDate: formattedNow,
           CreatedBy: userContext.userEmail || DEMO_USER.email,
           LastModified: formattedTimestamp,
           LastModifiedBy: userContext.userEmail || DEMO_USER.email,
           NumberofTimesUsed: 0,
-          EMailIDs: loadedMembers.map((u) => u.email)
+          EMailIDs: loadedMembers.map((u) => u.email),
         };
-        localStorage.setItem('voisshield_user_dls_data', JSON.stringify([newList, ...allLists]));
+        localStorage.setItem(
+          "voisshield_user_dls_data",
+          JSON.stringify([newList, ...allLists]),
+        );
       }
 
       showToast(`Saved User List '${cohortName.trim()}' successfully!`);
       setTimeout(() => {
-        navigate('/user-dls');
+        navigate("/user-dls");
       }, 700);
     } catch (e) {
       console.error(e);
-      showToast('Error saving user list');
+      showToast("Error saving user list");
     }
   };
 
@@ -345,7 +434,7 @@ const UserListUploadViaDL = () => {
         u.userName.toLowerCase().includes(tableSearch.toLowerCase()) ||
         u.email.toLowerCase().includes(tableSearch.toLowerCase()) ||
         u.department.toLowerCase().includes(tableSearch.toLowerCase()) ||
-        u.location.toLowerCase().includes(tableSearch.toLowerCase())
+        u.location.toLowerCase().includes(tableSearch.toLowerCase()),
     );
   }, [loadedMembers, tableSearch]);
 
@@ -366,12 +455,14 @@ const UserListUploadViaDL = () => {
       >
         {/* Top Header Bar */}
         <div
-          className={`w-full h-[40px] -mt-3 py-2.5 px-6 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
-            isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
           }`}
         >
           <div className="flex items-center gap-3">
-            <h1 className="text-[13.5px] font-voda font-bold tracking-tight uppercase">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               Recipients Lists
             </h1>
           </div>
@@ -382,10 +473,15 @@ const UserListUploadViaDL = () => {
         {/* ========================================================================= */}
         <div
           style={{
-            height: typeof VarBiggerWhiteDivHeight === 'number' ? `${VarBiggerWhiteDivHeight}px` : VarBiggerWhiteDivHeight
+            height:
+              typeof VarBiggerWhiteDivHeight === "number"
+                ? `${VarBiggerWhiteDivHeight}px`
+                : VarBiggerWhiteDivHeight,
           }}
           className={`w-full flex-1 min-h-0 rounded-2xl border p-3.5 flex gap-3 overflow-hidden shadow-xs transition-colors ${
-            isDark ? 'bg-[#12141A] border-white/10' : 'bg-white border-slate-200'
+            isDark
+              ? "bg-[#12141A] border-white/10"
+              : "bg-white border-slate-200"
           }`}
         >
           {/* ========================================================================= */}
@@ -394,7 +490,7 @@ const UserListUploadViaDL = () => {
           <div
             style={{
               width: varDLDetailsInputSectionWidth,
-              flex: `0 0 ${varDLDetailsInputSectionWidth}`
+              flex: `0 0 ${varDLDetailsInputSectionWidth}`,
             }}
             className="h-full flex flex-col gap-3 min-w-0 overflow-hidden"
           >
@@ -404,7 +500,7 @@ const UserListUploadViaDL = () => {
                 style={{
                   height: `calc(${varDLDetailsInputSectionHeight} - 6px)`,
                   backgroundColor: lCardBg,
-                  borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                  borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
                 }}
                 className="p-5 border border-black/0 dark:border-white/0 flex flex-col justify-between shadow-2xs transition-all overflow-visible flex-shrink-0 relative"
               >
@@ -414,7 +510,9 @@ const UserListUploadViaDL = () => {
                     src={ExchangeIcon}
                     alt="Exchange Logo"
                     className="w-5 h-5 -mt-1 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
                   />
                   <h3 className="text-[13px] font-voda font-bold text-slate-950 dark:text-white leading-tight -mt-1 ">
                     Fill Details and Select Microsoft Distribution List
@@ -422,7 +520,10 @@ const UserListUploadViaDL = () => {
                 </div>
 
                 {/* Field 1: Select the DL with right-aligned Load button */}
-                <div ref={dropdownRef} className="flex flex-col gap-1.5 flex-shrink-0 relative">
+                <div
+                  ref={dropdownRef}
+                  className="flex flex-col gap-1.5 flex-shrink-0 relative"
+                >
                   <div className="flex items-center justify-between">
                     <label className="text-[12px] font-voda mt-3 font-bold text-slate-900 dark:text-white">
                       Select the Distribution List
@@ -461,11 +562,11 @@ const UserListUploadViaDL = () => {
                   {isDropdownOpen && (
                     <div
                       style={{
-                        position: 'absolute',
-                        top: '100%',
+                        position: "absolute",
+                        top: "100%",
                         left: 0,
                         right: 0,
-                        zIndex: 9999
+                        zIndex: 9999,
                       }}
                       className="mt-1.5 p-2 rounded-2xl bg-white dark:bg-[#15171F] border border-black/10 dark:border-white/15 shadow-2xl flex flex-col gap-1.5"
                     >
@@ -482,12 +583,14 @@ const UserListUploadViaDL = () => {
                               onClick={() => handleSelectDL(dlEmail)}
                               className={`w-full p-2.5 px-3.5 rounded-xl cursor-pointer transition-all flex items-center justify-between text-[11px] font-voda font-bold ${
                                 isSelected
-                                  ? 'bg-[#DDE3EA] dark:bg-[#282C37] text-slate-950 dark:text-white shadow-2xs'
-                                  : 'bg-[#EEF2F6] dark:bg-[#1C1F28] hover:bg-[#E2E7EE] dark:hover:bg-[#222632] text-slate-900 dark:text-slate-100'
+                                  ? "bg-[#DDE3EA] dark:bg-[#282C37] text-slate-950 dark:text-white shadow-2xs"
+                                  : "bg-[#EEF2F6] dark:bg-[#1C1F28] hover:bg-[#E2E7EE] dark:hover:bg-[#222632] text-slate-900 dark:text-slate-100"
                               }`}
                             >
                               <span className="truncate">{dlEmail}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
+                              {isSelected && (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                              )}
                             </div>
                           );
                         })
@@ -527,7 +630,7 @@ const UserListUploadViaDL = () => {
                 <div className="flex items-center justify-end gap-2.5 pt-2 flex-shrink-0">
                   <button
                     type="button"
-                    onClick={() => navigate('/user-dls')}
+                    onClick={() => navigate("/user-dls")}
                     className="h-6 px-6 -mb-1 mt-1 rounded-2xl bg-[#3D3F45] hover:bg-[#2C2E34] text-white text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer active:scale-95"
                   >
                     Go Back
@@ -539,8 +642,8 @@ const UserListUploadViaDL = () => {
                     disabled={!isLoaded}
                     className={`h-6 px-6 -mb-1 mt-1 rounded-2xl text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer active:scale-95 ${
                       isLoaded
-                        ? 'bg-[#8ED973] hover:bg-[#7DC862] text-white'
-                        : 'bg-[#8ED973]/50 text-white/70 cursor-not-allowed opacity-60'
+                        ? "bg-[#8ED973] hover:bg-[#7DC862] text-white"
+                        : "bg-[#8ED973]/50 text-white/70 cursor-not-allowed opacity-60"
                     }`}
                   >
                     Save & Submit
@@ -552,8 +655,10 @@ const UserListUploadViaDL = () => {
             {/* ── 2. DL ALL USERS TABLE VIEW SECTION (HEIGHT: 40% OR 100% WHEN EXPANDED) ── */}
             <div
               style={{
-                height: isTableMaximized ? '100%' : `calc(${varDLAllUsersTableViewSectionHeight} - 6px)`,
-                borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+                height: isTableMaximized
+                  ? "100%"
+                  : `calc(${varDLAllUsersTableViewSectionHeight} - 6px)`,
+                borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
               }}
               className="w-full p-3.5 bg-black flex flex-col gap-2 overflow-hidden border border-black/5 dark:border-white/15 transition-all shadow-md"
             >
@@ -584,9 +689,17 @@ const UserListUploadViaDL = () => {
                     type="button"
                     onClick={() => setIsTableMaximized(!isTableMaximized)}
                     className="p-1 rounded text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
-                    title={isTableMaximized ? 'Collapse back to 40%' : 'Expand table upward'}
+                    title={
+                      isTableMaximized
+                        ? "Collapse back to 40%"
+                        : "Expand table upward"
+                    }
                   >
-                    {isTableMaximized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    {isTableMaximized ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -595,7 +708,8 @@ const UserListUploadViaDL = () => {
               <div className="flex-1 min-h-0 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredMembers.length === 0 ? (
                   <div className="h-full flex items-center justify-center p-6 text-center text-slate-400 text-xs italic">
-                    No user records loaded. Select a Distribution List above and click LOAD.
+                    No user records loaded. Select a Distribution List above and
+                    click LOAD.
                   </div>
                 ) : (
                   <table className="w-full text-left text-[10.5px]">
@@ -607,7 +721,9 @@ const UserListUploadViaDL = () => {
                         <th className="py-1.5 px-3">DEPARTMENT</th>
                         <th className="py-1.5 px-3">LOCATION</th>
                         <th className="py-1.5 px-3 text-center">HOOK RATE %</th>
-                        <th className="py-1.5 px-3 text-center">REPORT RATE %</th>
+                        <th className="py-1.5 px-3 text-center">
+                          REPORT RATE %
+                        </th>
                         <th className="py-1.5 px-3 text-center">DELETE</th>
                       </tr>
                     </thead>
@@ -617,24 +733,36 @@ const UserListUploadViaDL = () => {
                           key={user.email}
                           className="border-b border-white/5 hover:bg-white/[0.04] transition-colors"
                         >
-                          <td className="py-1.5 px-3 text-slate-400 font-bold">{user.srNo}</td>
+                          <td className="py-1.5 px-3 text-slate-400 font-bold">
+                            {user.srNo}
+                          </td>
                           <td className="py-1.5 px-3 font-bold flex items-center gap-1.5 text-white">
                             <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-xs">
                               <UserIcon className="w-3 h-3 text-slate-300" />
                             </div>
                             {user.userName}
                           </td>
-                          <td className="py-1.5 px-3 text-slate-300 font-bold">{user.email}</td>
-                          <td className="py-1.5 px-3 text-slate-300 font-bold">{user.department}</td>
-                          <td className="py-1.5 px-3 font-bold text-slate-200">{user.location}</td>
-                          <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">{user.hookRate}</td>
+                          <td className="py-1.5 px-3 text-slate-300 font-bold">
+                            {user.email}
+                          </td>
+                          <td className="py-1.5 px-3 text-slate-300 font-bold">
+                            {user.department}
+                          </td>
+                          <td className="py-1.5 px-3 font-bold text-slate-200">
+                            {user.location}
+                          </td>
+                          <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">
+                            {user.hookRate}
+                          </td>
                           <td className="py-1.5 px-3 text-center font-bold text-[#4ADE80]">
                             {user.reportRate}
                           </td>
                           <td className="py-1.5 px-3 text-center">
                             <button
                               type="button"
-                              onClick={() => handleDeleteMember(user.email, user.userName)}
+                              onClick={() =>
+                                handleDeleteMember(user.email, user.userName)
+                              }
                               className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-white/10 transition-colors cursor-pointer"
                               title={`Delete ${user.userName || user.email}`}
                             >
@@ -659,7 +787,7 @@ const UserListUploadViaDL = () => {
               flex: `0 0 ${VarListTelemetrySectionWidth}`,
               height: VarListTelemetrySectionHeight,
               backgroundColor: lCardBg,
-              borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`
+              borderRadius: `${Math.round(20 * VarOverallRoundednessScale)}px`,
             }}
             className="p-4 border border-black/0 dark:border-white/0 flex flex-col justify-between gap-3 shadow-2xs transition-colors overflow-hidden"
           >
@@ -676,13 +804,21 @@ const UserListUploadViaDL = () => {
             {/* Risk Indicators Cards */}
             <div className="grid grid-cols-2 gap-2.5 flex-shrink-0">
               <div className="p-3 rounded-xl bg-[#FF4D4D]/10 border border-[#FF4D4D]/25 text-[#FF4D4D] flex flex-col items-center justify-center">
-                <span className="text-[9px] font-voda font-bold uppercase">Aggregated Hook Rate</span>
-                <span className="text-[18px] font-voda font-bold mt-0.5">{isLoaded ? loadedHookRate : '--'}</span>
+                <span className="text-[9px] font-voda font-bold uppercase">
+                  Aggregated Hook Rate
+                </span>
+                <span className="text-[18px] font-voda font-bold mt-0.5">
+                  {isLoaded ? loadedHookRate : "--"}
+                </span>
               </div>
 
               <div className="p-3 rounded-xl bg-[#2E7D32]/10 border border-[#2E7D32]/25 text-[#2E7D32] dark:text-[#4ADE80] flex flex-col items-center justify-center">
-                <span className="text-[9px] font-voda font-bold uppercase">Aggregated Report Rate</span>
-                <span className="text-[18px] font-voda font-bold mt-0.5">{isLoaded ? loadedReportRate : '--'}</span>
+                <span className="text-[9px] font-voda font-bold uppercase">
+                  Aggregated Report Rate
+                </span>
+                <span className="text-[18px] font-voda font-bold mt-0.5">
+                  {isLoaded ? loadedReportRate : "--"}
+                </span>
               </div>
             </div>
 
@@ -695,16 +831,26 @@ const UserListUploadViaDL = () => {
               <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 flex flex-col gap-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {loadedDeptBreakdown.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-center text-slate-400 text-xs italic">
-                    No telemetry loaded yet. Select a Distribution List and click LOAD.
+                    No telemetry loaded yet. Select a Distribution List and
+                    click LOAD.
                   </div>
                 ) : (
                   loadedDeptBreakdown.map((dept, idx) => {
-                    const percentage = Math.round((dept.count / maxDeptCount) * 100);
+                    const percentage = Math.round(
+                      (dept.count / maxDeptCount) * 100,
+                    );
                     return (
-                      <div key={idx} className="flex flex-col gap-1 w-full bg-white dark:bg-[#12141A] p-2.5 rounded-xl border border-black/5 dark:border-white/10 shadow-2xs">
+                      <div
+                        key={idx}
+                        className="flex flex-col gap-1 w-full bg-white dark:bg-[#12141A] p-2.5 rounded-xl border border-black/5 dark:border-white/10 shadow-2xs"
+                      >
                         <div className="flex items-center justify-between text-[10px] font-bold">
-                          <span className="text-slate-900 dark:text-slate-100 truncate">{dept.dept}</span>
-                          <span className="text-[#E60000] font-voda font-bold flex-shrink-0">{dept.count} users</span>
+                          <span className="text-slate-900 dark:text-slate-100 truncate">
+                            {dept.dept}
+                          </span>
+                          <span className="text-[#E60000] font-voda font-bold flex-shrink-0">
+                            {dept.count} users
+                          </span>
                         </div>
                         {/* Rounded Edged Horizontal Bar */}
                         <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
@@ -732,7 +878,7 @@ const UserListUploadViaDL = () => {
 
         {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL) ── */}
         {deletedSuccessMsg &&
-          typeof document !== 'undefined' &&
+          typeof document !== "undefined" &&
           createPortal(
             <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-emerald-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
               <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#16A34A] flex items-center justify-center flex-shrink-0">
@@ -748,13 +894,13 @@ const UserListUploadViaDL = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setDeletedSuccessMsg('')}
+                onClick={() => setDeletedSuccessMsg("")}
                 className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>,
-            document.body
+            document.body,
           )}
       </div>
     </>
