@@ -208,6 +208,13 @@ locals {
     "PUT /training/certificates/{id}",
     "DELETE /training/certificates/{id}",
     "POST /training/media/upload",
+    # My Training and the Training report (tables.tf / schema_tables.tf:
+    # training_assignments).
+    "GET /my-training",
+    "POST /my-training/enrol",
+    "POST /my-training/progress",
+    "POST /my-training/quiz",
+    "GET /training/assignments",
     # Training packages: zips in S3, a row each (tables.tf: training_packages).
     # The upload path is static, so it never collides with POST /training/packages.
     "GET /training/packages",

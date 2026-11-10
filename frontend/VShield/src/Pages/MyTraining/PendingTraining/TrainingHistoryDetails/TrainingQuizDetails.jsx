@@ -17,11 +17,13 @@ import {
 
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 
-import trainingAllocationData from "../../TrainingAllocationData.json";
+import { catalogLive, myTrainingLive } from "../../../../services/myTraining";
 
-import trainingQuizData from "../../TrainingQuiz.json";
-
-import trainingPathData from "../../TrainingPath.json";
+// The signed-in person's trainings and the training catalogue, from the
+// backend (services/myTraining.js, updated in place once loaded).
+const trainingAllocationData = myTrainingLive;
+const trainingQuizData = catalogLive.quizzes;
+const trainingPathData = catalogLive.paths;
 
 /* -------------------------------------------------------------------------- */
 

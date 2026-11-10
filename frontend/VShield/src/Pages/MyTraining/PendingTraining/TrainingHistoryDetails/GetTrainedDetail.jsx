@@ -21,13 +21,13 @@ import {
 
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 
-import trainingVideoData from "../../TrainingVideos.json";
+import { catalogLive, myTrainingLive, recordVideoWatched } from "../../../../services/myTraining";
 
-import trainingData from "../../TrainingAllocationData.json";
-
-import trainingPathData from "../../TrainingPath.json";
-
-import campaignsData from "../../../Campaigns/CampaignsData.json";
+// The signed-in person's trainings and the training catalogue, from the
+// backend (services/myTraining.js, updated in place once loaded).
+const trainingVideoData = catalogLive.videos;
+const trainingData = myTrainingLive;
+const trainingPathData = catalogLive.paths;
 
 const TARGET_SCORE = 80;
 
@@ -531,6 +531,12 @@ const GetTrainedDetailContent = ({ onVideoCompleted, trainingPathID }) => {
     setCurrentTime(videoElement.duration || videoDuration);
     setVideoCompleted(true);
     setIsPlaying(false);
+    // Recorded on the server; the training still goes on if this fails.
+    if (video?.TrainingVideoID) {
+      recordVideoWatched(trainingPathID, video.TrainingVideoID).catch((err) =>
+        console.error("Could not record the watched video", err),
+      );
+    }
     onVideoCompleted?.();
   };
 
@@ -594,12 +600,10 @@ const GetTrainedDetailContent = ({ onVideoCompleted, trainingPathID }) => {
   // Get the Campaign ID from the training allocation
   const campaignId = currentTrainingAllocation?.campaignId;
 
-  // Find the matching campaign and get its title
-  const currentCampaign = campaignsData.campaigns.find(
-    (campaign) => campaign.campaignId === campaignId,
-  );
-
-  const campaignTitle = currentCampaign?.CampaignTitle || "Campaign not found";
+  // The campaign that assigned it (training taken by choice has none)
+  const campaignTitle =
+    currentTrainingAllocation?.campaignTitle ||
+    (campaignId ? "Campaign not found" : "Taken by choice");
 
   const { allocation, path, video } = useMemo(() => {
     if (!trainingPathID) {
@@ -1092,8 +1096,8 @@ const GetTrainedDetailContent = ({ onVideoCompleted, trainingPathID }) => {
                   </p>
                   <p className="text-slate-400 text-xs mt-2 max-w-xs">
                     {!video
-                      ? `No video record was found for ${allocation.TrainingVideoID || "this training"}. Check TrainingVideos.json.`
-                      : "Add a valid video URL to TrainingVideos.json to display the video."}
+                      ? `No video record was found for ${allocation.TrainingVideoID || "this training"}.`
+                      : "This training has no playable video yet."}
                   </p>
                 </div>
               )}

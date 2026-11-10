@@ -10,7 +10,10 @@ import {
   Target,
 } from "lucide-react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
-import trainingAllocationData from "../../TrainingAllocationData.json";
+import { myTrainingLive } from "../../../../services/myTraining";
+
+// The signed-in person's trainings, from the backend (services/myTraining.js).
+const trainingAllocationData = myTrainingLive;
 
 const LEADERBOARD_ROUTE = "/leaderboard";
 const RING_DURATION = 1400;
@@ -779,7 +782,7 @@ export default function TrainingCompletionDetails({
   const handleCertificate = () => {
     if (!certificateUrl) {
       setCertificateMessage(
-        "Your certificate is not available in TrainingAllocationData.json yet.",
+        "Your certificate is not available yet.",
       );
       return;
     }

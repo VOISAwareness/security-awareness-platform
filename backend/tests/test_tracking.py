@@ -111,3 +111,63 @@ def test_a_bad_token_is_404_and_reads_no_page(mod, monkeypatch):
     resp = mod.lambda_handler({"pathParameters": {"trackingToken": "nope"}}, SimpleNamespace(aws_request_id="t"))
     assert resp["statusCode"] == 404
     json.dumps(resp)  # serialisable
+
+
+# --- a click assigns the campaign's training path ---------------------------
+
+class _Assignments:
+    def __init__(self, rows=None, fail=None):
+        self.rows, self.fail, self.puts = list(rows or []), fail, []
+
+    def query(self, **kw):
+        if self.fail:
+            raise ClientError({"Error": {"Code": self.fail, "Message": "no"}}, "Query")
+        return {"Items": self.rows}
+
+    def put_item(self, Item, ConditionExpression=None):
+        self.puts.append(Item)
+
+
+class _Users:
+    def query(self, **kw):
+        return {"Items": [{"UserEMailID": "ana@x.example", "Department": "AIDA", "Country": "Spain"}]}
+
+
+def _assign(mod, monkeypatch, campaign, mine=(), fail=None, recipient=None):
+    recipients = _Table()
+    assignments = _Assignments(mine, fail)
+    monkeypatch.setattr(mod, "recipients_table", recipients)
+    monkeypatch.setattr(mod, "campaigns_table", _Table({"CMP-1": campaign}, "campaignId"))
+    monkeypatch.setattr(mod, "assignments_table", assignments)
+    monkeypatch.setattr(mod, "users_table", _Users())
+    who = recipient or {"campaignId": "CMP-1", "recipientId": "R-1", "recipientEmail": "Ana@X.example"}
+    out = mod.assign_training("CMP-1", who, "2026-11-10T09:00:00Z")
+    return out, assignments, recipients
+
+
+def test_a_click_assigns_the_campaigns_path_once(mod, monkeypatch):
+    out, assignments, recipients = _assign(mod, monkeypatch, {"trainingId": "TP-00001"})
+    assert out == "A#2026-11-10T09:00:00Z#TP-00001"
+    (row,) = assignments.puts
+    assert (row["owner"], row["source"], row["campaignId"], row["recipientId"]) == ("ana@x.example", "ASSIGNED", "CMP-1", "R-1")
+    assert (row["department"], row["country"], row["status"]) == ("AIDA", "Spain", "ASSIGNED")
+    assert row["dueAt"] == "2026-11-24T09:00:00Z"
+    assert recipients.updates[0]["ExpressionAttributeValues"] == {":a": out}
+
+
+def test_no_assignment_when_there_is_nothing_to_assign(mod, monkeypatch):
+    # no path, a test campaign, the path already open, or the click already led to training
+    assert _assign(mod, monkeypatch, {})[0] is None
+    assert _assign(mod, monkeypatch, {"trainingId": "TP-1", "isTestCampaign": True})[0] is None
+    out, assignments, _ = _assign(mod, monkeypatch, {"trainingId": "TP-1"}, mine=[{"TrainingPathID": "TP-1"}])
+    assert out is None and assignments.puts == []
+    already = {"campaignId": "CMP-1", "recipientId": "R-1", "recipientEmail": "a@x", "trainingAssignmentId": "A#1"}
+    assert _assign(mod, monkeypatch, {"trainingId": "TP-1"}, recipient=already)[0] is None
+    # a path passed before is assigned again
+    assert _assign(mod, monkeypatch, {"trainingId": "TP-1"}, mine=[{"TrainingPathID": "TP-1", "quizPassed": True}])[0]
+
+
+def test_an_assignment_failure_never_loses_the_click(mod, monkeypatch, capsys):
+    out, _, _ = _assign(mod, monkeypatch, {"trainingId": "TP-1"}, fail="AccessDeniedException")
+    assert out is None
+    assert "Training not assigned" in capsys.readouterr().out

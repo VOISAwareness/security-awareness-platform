@@ -8,6 +8,7 @@ import { Check, ArrowLeft } from "lucide-react";
 import GetTrainedDetails from "./TrainingHistoryDetails/GetTrainedDetail";
 import TrainingQuizDetails from "./TrainingHistoryDetails/TrainingQuizDetails";
 import { useParams } from "react-router-dom";
+import { submitQuiz, useMyTraining } from "../../../services/myTraining";
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -184,10 +185,30 @@ const StartNewTraining = () => {
     userContext.userEmail ??
     null;
 
+  // The signed-in person's trainings and the catalogue, from the backend;
+  // the steps below read them once loaded.
+  const { loading: trainingLoading, error: trainingError, reload } = useMyTraining();
+
   const handleQuizComplete = (result) => {
     setQuizResult(result);
     setQuizSubmitted(true);
     setShowAssessmentPopup(true);
+    // The server scores the answers against the quiz; its score is the one
+    // recorded, so it replaces the one worked out here.
+    submitQuiz(trainingPathID, result)
+      .then((scored) => {
+        if (!scored) return;
+        setQuizResult((prev) => ({
+          ...prev,
+          score: scored.score,
+          passingScore: scored.passMark,
+          status: scored.passed ? "passed" : "failed",
+        }));
+      })
+      .catch((err) => {
+        console.error("Could not save the quiz result", err);
+        setErrorMsg(`Your answers couldn't be saved: ${err?.message || "error"}. Try the quiz again.`);
+      });
   };
 
   const handleViewResults = () => {
@@ -214,6 +235,23 @@ const StartNewTraining = () => {
 
     return () => clearTimeout(timer);
   }, [errorMsg]);
+
+  if (trainingLoading || trainingError) {
+    return (
+      <div role="status" className="w-full p-10 flex flex-col items-center gap-3 text-sm font-bold text-slate-500">
+        {trainingError ? (
+          <>
+            <span>Couldn't load your training from the server.</span>
+            <button type="button" onClick={reload} className="px-3 py-1 rounded-lg bg-black text-white">
+              Try again
+            </button>
+          </>
+        ) : (
+          "Loading your training…"
+        )}
+      </div>
+    );
+  }
 
   return (
     <>

@@ -56,6 +56,22 @@ async function request(path, { method = 'GET', body, keepalive = false } = {}) {
   return payload?.data ?? payload;
 }
 
+// Like request(), but keeps the envelope's `result` beside `data`.
+async function fetchWithResult(path, body) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    const error = new Error(payload?.error?.message || payload?.message || `Request failed (${res.status})`);
+    error.status = res.status;
+    throw error;
+  }
+  return { data: payload?.data ?? null, result: payload?.result ?? null };
+}
+
 export const api = {
   senderIdentities: {
     list: () => request('/sender-identities'),
@@ -233,6 +249,21 @@ export const api = {
       });
     },
     remove: (id) => request(`/training/packages/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+  // My Training: the viewer's assignments, taking a path, a watched video and
+  // a quiz (scored by the server). `viewer` is client-asserted, as elsewhere.
+  myTraining: {
+    list: (viewer) => request(`/my-training?viewer=${encodeURIComponent(viewer || '')}`),
+    enrol: (viewer, TrainingPathID) =>
+      request('/my-training/enrol', { method: 'POST', body: { viewer, TrainingPathID } }),
+    progress: (viewer, TrainingPathID, videoId) =>
+      request('/my-training/progress', { method: 'POST', body: { viewer, TrainingPathID, videoId } }),
+    // `answers`: { Question01: 'optionB', ... }; the answer carries `result`.
+    quiz: (viewer, TrainingPathID, answers) =>
+      fetchWithResult('/my-training/quiz', { viewer, TrainingPathID, answers }),
+    // Everyone's (the Training report); `path` narrows to one programme.
+    assignments: (path) =>
+      request(`/training/assignments${path ? `?path=${encodeURIComponent(path)}` : ''}`),
   },
   campaignsCatalog: { list: () => request('/campaigns-catalog') },
 

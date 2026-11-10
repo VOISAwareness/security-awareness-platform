@@ -21,6 +21,10 @@ def _sibling_table(name):
 # The clicked campaign and the landing page chosen for it in the wizard.
 CAMPAIGNS_TABLE = os.environ.get("CAMPAIGNS_TABLE") or _sibling_table("campaigns")
 LANDING_PAGES_TABLE = os.environ.get("LANDING_PAGES_TABLE") or _sibling_table("landing-pages")
+# A click assigns the campaign's training path to the person who clicked.
+ASSIGNMENTS_TABLE = os.environ.get("ASSIGNMENTS_TABLE") or _sibling_table("training-assignments")
+USERS_TABLE = os.environ.get("USERS_TABLE") or _sibling_table("users")
+TRAINING_DUE_DAYS = 14
 MAX_LANDING_BYTES = 350 * 1024
 
 dynamodb = boto3.resource("dynamodb")
@@ -29,6 +33,8 @@ recipients_table = dynamodb.Table(RECIPIENTS_TABLE)
 events_table = dynamodb.Table(EVENTS_TABLE)
 campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
 landing_pages_table = dynamodb.Table(LANDING_PAGES_TABLE)
+assignments_table = dynamodb.Table(ASSIGNMENTS_TABLE)
+users_table = dynamodb.Table(USERS_TABLE)
 
 
 def utc_timestamp():
@@ -417,6 +423,63 @@ def build_landing_page(content):
     )
 
 
+def assign_training(campaign_id, recipient, clicked_at):
+    """
+    Give the person who clicked the campaign's training path (source
+    ASSIGNED), once: not if they already have that path and haven't passed
+    it. Best effort: a failure is logged and the click still counts.
+    Returns the assignment id, or None.
+    """
+    email = str(recipient.get("recipientEmail") or recipient.get("email") or "").strip().lower()
+    if not email or recipient.get("trainingAssignmentId"):
+        return None
+    try:
+        campaign = campaigns_table.get_item(Key={"campaignId": campaign_id}).get("Item") or {}
+        path_id = campaign.get("trainingId")
+        if not path_id or campaign.get("isTestCampaign") is True:
+            return None
+        mine = assignments_table.query(KeyConditionExpression=Key("owner").eq(email)).get("Items", [])
+        if any(a.get("TrainingPathID") == path_id and not a.get("quizPassed") for a in mine):
+            return None
+        people = users_table.query(
+            IndexName="email-index", KeyConditionExpression=Key("UserEMailID").eq(email), Limit=1
+        ).get("Items", [])
+        person = people[0] if people else {}
+        due = datetime.fromisoformat(clicked_at.replace("Z", "+00:00")).timestamp() + TRAINING_DUE_DAYS * 86400
+        assignment_id = f"A#{clicked_at}#{path_id}"
+        assignments_table.put_item(
+            Item={
+                "owner": email,
+                "assignmentId": assignment_id,
+                "TrainingPathID": path_id,
+                "source": "ASSIGNED",
+                "campaignId": campaign_id,
+                "recipientId": recipient["recipientId"],
+                "department": person.get("Department", ""),
+                "country": person.get("Country", ""),
+                "assignedAt": clicked_at,
+                "dueAt": datetime.fromtimestamp(due, UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "status": "ASSIGNED",
+                "videosWatched": [],
+                "attemptCount": 0,
+            },
+            ConditionExpression="attribute_not_exists(assignmentId)",
+        )
+        recipients_table.update_item(
+            Key={"campaignId": campaign_id, "recipientId": recipient["recipientId"]},
+            UpdateExpression="SET trainingAssignmentId = :a",
+            ExpressionAttributeValues={":a": assignment_id},
+        )
+        return assignment_id
+    except ClientError as error:
+        print(json.dumps({
+            "message": "Training not assigned; the click is recorded",
+            "campaignId": campaign_id,
+            "errorCode": error.response.get("Error", {}).get("Code", ""),
+        }))
+        return None
+
+
 def lambda_handler(event, context):
     """Record a recipient click event and return the awareness page."""
     tracking_token = get_tracking_token(event)
@@ -503,6 +566,8 @@ def lambda_handler(event, context):
                 }
             )
         )
+
+        assign_training(campaign_id, recipient, event_timestamp)
 
         # The click is recorded; now the page the campaign chose for people
         # who click, or the standard awareness page.
