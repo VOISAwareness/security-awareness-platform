@@ -934,39 +934,22 @@ export const CreateNewCertificates = ({
             <div className="w-full flex-1 flex flex-col overflow-hidden">
               {workspaceContent}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 font-voda uppercase tracking-wider flex-shrink-0">
-                  Certificate Name:
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Cyber Security Honors"
-                  className="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-white/10 bg-slate-50 dark:bg-[#15161A] text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:border-[#16A34A] w-56 sm:w-72"
-                />
-                <span className="text-[10px] text-slate-400 hidden md:inline ml-1">
-                  (Press <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 font-mono text-[9px] text-slate-700 dark:text-slate-300">Esc</kbd> to exit fullscreen)
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={handleToggleExpand}
-                  className="w-[100px] h-[26px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center tracking-wider"
-                >
-                  Done Editing
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={!name.trim()}
-                  className="min-w-[90px] px-5 h-[26px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                >
-                  {editingCert ? "SAVE CHANGES" : "SAVE TEMPLATE"}
-                </button>
-              </div>
+            <div className="flex justify-end items-center gap-2.5 pt-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleToggleExpand}
+                className="w-[100px] h-[26px] rounded-3xl bg-[#000000] dark:bg-[#ffffff] hover:bg-black/80 dark:hover:bg-white/80 text-white dark:text-black font-voda font-bold text-[10px] uppercase transition-all cursor-pointer shadow-xs flex items-center justify-center tracking-wider"
+              >
+                Done Editing
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!name.trim()}
+                className="min-w-[90px] px-5 h-[26px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+              >
+                {editingCert ? "SAVE CHANGES" : "SAVE TEMPLATE"}
+              </button>
             </div>
           </div>,
           document.body
