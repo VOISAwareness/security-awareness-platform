@@ -1,4 +1,4 @@
-import { ExternalLink, User, BarChart2 } from 'lucide-react';
+import { ExternalLink, User, BarChart2 } from "lucide-react";
 
 // One campaign on the On Going, Scheduled and Historical tabs: title and
 // description beside its start-to-end timeline, then who created, approved
@@ -7,54 +7,71 @@ import { ExternalLink, User, BarChart2 } from 'lucide-react';
 // "2-Jan-26"
 const formatShortDate = (value) => {
   const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return 'N/A';
-  return `${d.getDate()}-${d.toLocaleString('en-US', { month: 'short' })}-${String(d.getFullYear()).slice(-2)}`;
+  if (!value || isNaN(d.getTime())) return "N/A";
+  return `${d.getDate()}-${d.toLocaleString("en-US", { month: "short" })}-${String(d.getFullYear()).slice(-2)}`;
 };
 
 // "Oct-02-2026 2:00PM"
 const formatScheduleTimestamp = (value) => {
   const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return 'N/A';
+  if (!value || isNaN(d.getTime())) return "N/A";
   const hours = d.getHours() % 12 || 12;
-  return `${d.toLocaleString('en-US', { month: 'short' })}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()} ${hours}:${String(d.getMinutes()).padStart(2, '0')}${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+  return `${d.toLocaleString("en-US", { month: "short" })}-${String(d.getDate()).padStart(2, "0")}-${d.getFullYear()} ${hours}:${String(d.getMinutes()).padStart(2, "0")}${d.getHours() >= 12 ? "PM" : "AM"}`;
 };
 
 // "09/28/2026 04:20:00 PM"
 const formatPublishedTimestamp = (value) => {
   const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return 'N/A';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(d.getHours() % 12 || 12)}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+  if (!value || isNaN(d.getTime())) return "N/A";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(d.getHours() % 12 || 12)}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${d.getHours() >= 12 ? "PM" : "AM"}`;
 };
 
 const DAY = 1000 * 60 * 60 * 24;
 const daysAgo = (value) => {
   const days = Math.floor((Date.now() - new Date(value)) / DAY);
   if (!value || isNaN(days)) return null;
-  return days > 0 ? `(${days} Days Ago)` : '(Today)';
+  return days > 0 ? `(${days} Days Ago)` : "(Today)";
 };
 const daysUntil = (value) => {
   const days = Math.ceil((new Date(value) - Date.now()) / DAY);
   if (!value || isNaN(days)) return null;
   if (days > 0) return `(In ${days} Days)`;
   // Approved but not sent yet, though its start time has passed
-  return days === 0 ? '(Starting today)' : '(Start time passed)';
+  return days === 0 ? "(Starting today)" : "(Start time passed)";
 };
 const daysLeft = (value) => {
   const days = Math.ceil((new Date(value) - Date.now()) / DAY);
   if (!value || isNaN(days)) return null;
-  return days > 0 ? `(${days} days left)` : '(Ending today)';
+  return days > 0 ? `(${days} days left)` : "(Ending today)";
 };
 
-const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, onAnalytics, actions = null }) => {
-  const startNote = tab === 'ongoing' ? daysAgo(camp.StartTime) : tab === 'scheduled' ? daysUntil(camp.StartTime) : null;
-  const endNote = tab === 'ongoing' ? daysLeft(camp.EndTime) : null;
-  const approvedBy = camp.ApprovedBy || 'NA';
-  const pill = 'h-6 px-3 rounded-full text-[9px] font-voda font-bold tracking-tight shadow-2xs flex items-center gap-1.5';
+const CampaignGalleryCard = ({
+  camp,
+  tab,
+  background,
+  roundness = 1,
+  onDetails,
+  onAnalytics,
+  actions = null,
+}) => {
+  const startNote =
+    tab === "ongoing"
+      ? daysAgo(camp.StartTime)
+      : tab === "scheduled"
+        ? daysUntil(camp.StartTime)
+        : null;
+  const endNote = tab === "ongoing" ? daysLeft(camp.EndTime) : null;
+  const approvedBy = camp.ApprovedBy || "NA";
+  const pill =
+    "h-6 px-3 rounded-full text-[9px] font-voda font-bold tracking-tight shadow-2xs flex items-center gap-1.5";
 
   return (
     <div
-      style={{ backgroundColor: background, borderRadius: `${Math.round(18 * roundness)}px` }}
+      style={{
+        backgroundColor: background,
+        borderRadius: `${Math.round(18 * roundness)}px`,
+      }}
       className="p-4 px-5 text-slate-900 dark:text-white shadow-2xs flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-xs border border-black/5 dark:border-white/5 flex-shrink-0"
     >
       {/* Top Row: ID Badge + Created On + Status/Actions + External Link */}
@@ -69,11 +86,15 @@ const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, 
             Created on: {formatShortDate(camp.CreationDate)}
           </span>
 
-          {tab === 'historical' && (
-            <span className={`${pill} bg-[#F43F5E] text-white`}>Campaign Ended</span>
+          {tab === "historical" && (
+            <span className={`${pill} bg-[#F43F5E] text-white`}>
+              Campaign Ended
+            </span>
           )}
-          {tab === 'cancelled' && (
-            <span className={`${pill} bg-[#EF4444] text-white`}>Campaign Cancelled</span>
+          {tab === "cancelled" && (
+            <span className={`${pill} bg-[#EF4444] text-white`}>
+              Campaign Cancelled
+            </span>
           )}
 
           {actions}
@@ -106,24 +127,38 @@ const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, 
           <h4 className="text-[13px] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-tight">
             {camp.CampaignTitle}
           </h4>
-          {tab === 'cancelled' ? (
+          {tab === "cancelled" ? (
             <p className="text-[10px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-1 max-w-xl line-clamp-2">
-              <strong className="font-bold text-slate-900 dark:text-white">Reason for cancelling: </strong>
-              {camp.ReasonForCancel || 'No reason given'}
+              <strong className="font-bold text-slate-900 dark:text-white">
+                Reason for cancelling:{" "}
+              </strong>
+              {camp.ReasonForCancel || "No reason given"}
             </p>
-          ) : camp.CampaignDescription && (
-            <p className="text-[10px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-1 max-w-xl line-clamp-2">
-              <strong className="font-bold text-slate-900 dark:text-white">Description: </strong>
-              {camp.CampaignDescription}
-            </p>
+          ) : (
+            camp.CampaignDescription && (
+              <p className="text-[10px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-1 max-w-xl line-clamp-2">
+                <strong className="font-bold text-slate-900 dark:text-white">
+                  Description:{" "}
+                </strong>
+                {camp.CampaignDescription}
+              </p>
+            )
           )}
         </div>
 
         <div className="lg:col-span-5 flex items-center justify-end gap-2.5 text-right flex-shrink-0">
           <div className="flex flex-col items-end leading-tight">
-            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">Scheduled Start Time:</span>
-            <span className="text-[9.5px] font-medium text-slate-600 dark:text-slate-300">{formatScheduleTimestamp(camp.StartTime)}</span>
-            {startNote && <span className="text-[9.5px] font-bold text-[#16A34A] dark:text-[#4ADE80]">{startNote}</span>}
+            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">
+              Scheduled Start Time:
+            </span>
+            <span className="text-[9.5px] font-medium text-slate-600 dark:text-slate-300">
+              {formatScheduleTimestamp(camp.StartTime)}
+            </span>
+            {startNote && (
+              <span className="text-[9.5px] font-bold text-[#16A34A] dark:text-[#4ADE80]">
+                {startNote}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center w-24 sm:w-28 mx-1 relative">
@@ -133,44 +168,76 @@ const CampaignGalleryCard = ({ camp, tab, background, roundness = 1, onDetails, 
           </div>
 
           <div className="flex flex-col items-start text-left leading-tight">
-            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">Scheduled End Time:</span>
-            <span className="text-[9.5px] font-medium text-slate-600 dark:text-slate-300">{formatScheduleTimestamp(camp.EndTime)}</span>
-            {endNote && <span className="text-[9.5px] font-bold text-[#16A34A] dark:text-[#4ADE80]">{endNote}</span>}
+            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">
+              Scheduled End Time:
+            </span>
+            <span className="text-[9.5px] font-medium text-slate-600 dark:text-slate-300">
+              {formatScheduleTimestamp(camp.EndTime)}
+            </span>
+            {endNote && (
+              <span className="text-[9.5px] font-bold text-[#16A34A] dark:text-[#4ADE80]">
+                {endNote}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Bottom Meta Line: Created By + Approved By + Published On, or for a
           cancelled campaign, who cancelled it and when */}
-      {tab === 'cancelled' ? (
+      {tab === "cancelled" ? (
         <div className="w-full pt-1.5 -mb-1 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3 flex-wrap text-[10px] font-voda font-bold text-slate-800 dark:text-slate-200">
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-            <span>Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy || 'User'}</strong></span>
+            <span>
+              Created By:{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">
+                {camp.CreatedBy || "User"}
+              </strong>
+            </span>
           </div>
           <div className="flex items-center gap-1.5 text-[#DC2626] dark:text-[#F87171]">
             <User className="w-3.5 h-3.5" />
-            <span>Cancelled By: <strong>{camp.CancelledBy || 'N/A'}</strong></span>
+            <span>
+              Cancelled By: <strong>{camp.CancelledBy || "N/A"}</strong>
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span>Cancelled On: <strong className="font-semibold text-slate-700 dark:text-slate-300">{formatPublishedTimestamp(camp.CancelledDate)}</strong></span>
+            <span>
+              Cancelled On:{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">
+                {formatPublishedTimestamp(camp.CancelledDate)}
+              </strong>
+            </span>
           </div>
         </div>
       ) : (
         <div className="w-full pt-1.5 -mb-1 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3 flex-wrap text-[10px] font-voda font-bold text-slate-800 dark:text-slate-200">
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-            <span>Created By: <strong className="font-semibold text-slate-700 dark:text-slate-300">{camp.CreatedBy || 'User'}</strong></span>
+            <span>
+              Created By:{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">
+                {camp.CreatedBy || "User"}
+              </strong>
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5 text-[#9333EA] dark:text-[#C084FC]">
             <User className="w-3.5 h-3.5" />
-            <span>Approved By: <strong>{approvedBy}</strong></span>
+            <span>
+              Approved By: <strong>{approvedBy}</strong>
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
-            <span>Published On: <strong className="font-semibold text-slate-700 dark:text-slate-300">{formatPublishedTimestamp(camp.approvedAt || camp.sentAt)}</strong></span>
+            <span>
+              Published On:{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">
+                {formatPublishedTimestamp(camp.approvedAt || camp.sentAt)}
+              </strong>
+            </span>
           </div>
         </div>
       )}
