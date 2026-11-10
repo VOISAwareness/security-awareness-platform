@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import { typeOptions } from "../../../../services/campaignTypes";
 
@@ -152,12 +151,6 @@ const ScenarioDetailsTab = ({
   idLockedHint = "",
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
-
-  const subjectFxRef = useRef(null);
-  const editorFxRef = useRef(null);
-  const userListDropdownRef = useRef(null);
-  const singleUserDropdownRef = useRef(null);
-
   // =========================================================
   // UPDATE FORM FIELD
   // =========================================================
@@ -212,7 +205,6 @@ const ScenarioDetailsTab = ({
               leading-tight
               opacity-75
               mt-1
-              ${isDark ? "text-slate-300" : "text-slate-600"}
             `}
           >
             Fill in the required

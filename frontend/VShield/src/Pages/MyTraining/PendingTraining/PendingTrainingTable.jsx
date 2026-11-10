@@ -1,4 +1,3 @@
-
 import { useMemo, useState, useEffect } from "react";
 import trainingData from "../TrainingAllocationData.json";
 import trainingPathData from "../TrainingPath";
@@ -9,9 +8,8 @@ import { Link } from "react-router-dom";
 const ITEMS_PER_PAGE = 6;
 const CURRENT_USER_ID = "VSLD-000001";
 
-const TRAINING_PATH_MAP = (Array.isArray(trainingPathData)
-  ? trainingPathData
-  : []
+const TRAINING_PATH_MAP = (
+  Array.isArray(trainingPathData) ? trainingPathData : []
 ).reduce((acc, item) => {
   acc[String(item.TrainingPathID)] = item.TrainingPathName;
   return acc;
@@ -65,23 +63,22 @@ export default function MyTrainingTableData({
   }, []);
 
   const filteredTrainings = useMemo(() => {
-    const search = String(searchTerm ?? "").trim().toLowerCase();
+    const search = String(searchTerm ?? "")
+      .trim()
+      .toLowerCase();
 
     return sourceTrainings
       .filter((training) => {
         // Keep the current-user restriction.
         const userId = String(
-          training.userId ??
-          training.UserID ??
-          training.userID ??
-          ""
+          training.userId ?? training.UserID ?? training.userID ?? "",
         );
 
         const status = String(
           training.trainingStatus ??
-          training.TrainingStatus ??
-          training.status ??
-          ""
+            training.TrainingStatus ??
+            training.status ??
+            "",
         ).toLowerCase();
 
         const matchesUser = userId === CURRENT_USER_ID;
@@ -120,7 +117,9 @@ export default function MyTrainingTableData({
         ];
 
         return searchableFields.some((value) =>
-          String(value ?? "").toLowerCase().includes(search)
+          String(value ?? "")
+            .toLowerCase()
+            .includes(search),
         );
       })
       .sort((a, b) => {
@@ -160,7 +159,7 @@ export default function MyTrainingTableData({
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredTrainings.length / ITEMS_PER_PAGE)
+    Math.ceil(filteredTrainings.length / ITEMS_PER_PAGE),
   );
 
   // Reset pagination when the search changes.
@@ -170,27 +169,20 @@ export default function MyTrainingTableData({
 
   // Keep the selected page valid if the result count decreases.
   useEffect(() => {
-    setCurrentPage((previousPage) =>
-      Math.min(previousPage, totalPages)
-    );
+    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
   }, [totalPages]);
 
   const displayedTrainings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
 
-    return filteredTrainings.slice(
-      startIndex,
-      startIndex + ITEMS_PER_PAGE
-    );
+    return filteredTrainings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredTrainings, currentPage]);
 
   const handleSort = (key) => {
     setSortConfig((previous) => ({
       key,
       direction:
-        previous.key === key && previous.direction === "asc"
-          ? "desc"
-          : "asc",
+        previous.key === key && previous.direction === "asc" ? "desc" : "asc",
     }));
   };
 
@@ -245,19 +237,13 @@ export default function MyTrainingTableData({
                 </th>
 
                 <th>
-                  <button
-                    type="button"
-                    onClick={() => handleSort("dueDate")}
-                  >
+                  <button type="button" onClick={() => handleSort("dueDate")}>
                     Due Date {getSortIcon("dueDate")}
                   </button>
                 </th>
 
                 <th>
-                  <button
-                    type="button"
-                    onClick={() => handleSort("dueInDays")}
-                  >
+                  <button type="button" onClick={() => handleSort("dueInDays")}>
                     Due in Days {getSortIcon("dueInDays")}
                   </button>
                 </th>
@@ -300,7 +286,7 @@ export default function MyTrainingTableData({
                     <td>
                       <strong>
                         {formatDate(
-                          training.assignedDate ?? training.AssignedDate
+                          training.assignedDate ?? training.AssignedDate,
                         )}
                       </strong>
                     </td>
@@ -322,15 +308,15 @@ export default function MyTrainingTableData({
                         to={`/my-training/details/${encodeURIComponent(
                           String(
                             training.TrainingID ??
-                            training.trainingId ??
-                            training.trainingID ??
-                            training.assignmentId ??
-                            training.AssignmentID ??
-                            training.TrainingPathID
-                          )
+                              training.trainingId ??
+                              training.trainingID ??
+                              training.assignmentId ??
+                              training.AssignmentID ??
+                              training.TrainingPathID,
+                          ),
                         )}`}
                         className={`training-status-badge ${String(
-                          training.trainingStatus
+                          training.trainingStatus,
                         ).toLowerCase()}`}
                         style={{
                           textDecoration: "none",
@@ -343,7 +329,6 @@ export default function MyTrainingTableData({
                         {getTrainingStatusLabel(training.trainingStatus)}
                       </Link>
                     </td>
-
                   </tr>
                 ))
               ) : (
@@ -356,16 +341,13 @@ export default function MyTrainingTableData({
             </tbody>
           </table>
         </div>
-
       </div>
 
       <div className="training-pagination">
         <button
           type="button"
           className="pagination-arrow"
-          onClick={() =>
-            setCurrentPage((page) => Math.max(1, page - 1))
-          }
+          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
           disabled={currentPage <= 1}
           aria-label="Previous page"
         >
@@ -379,14 +361,15 @@ export default function MyTrainingTableData({
                 key={page}
                 type="button"
                 onClick={() => setCurrentPage(page)}
-                className={`pagination-page ${currentPage === page ? "active" : ""
-                  }`}
+                className={`pagination-page ${
+                  currentPage === page ? "active" : ""
+                }`}
                 aria-label={`Page ${page}`}
                 aria-current={currentPage === page ? "page" : undefined}
               >
                 {page}
               </button>
-            )
+            ),
           )}
         </div>
 

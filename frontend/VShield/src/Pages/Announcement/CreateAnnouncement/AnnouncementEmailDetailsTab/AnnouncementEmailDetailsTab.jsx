@@ -56,7 +56,7 @@ const FormInput = ({ label, value, onChange, placeholder = "Type here" }) => {
         <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
       </label>
 
-      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900">
+      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900 dark:bg-[#15161A] dark:border-white/10 dark:text-white dark:focus:border-[#F8B2C0]">
         <input
           type="text"
           value={value || ""}
@@ -286,7 +286,6 @@ const AnnouncementEmailDetailsTab = ({
               leading-tight
               opacity-75
               mt-1
-              ${isDark ? "text-slate-300" : "text-slate-600"}
             `}
           >
             Set the sender and
@@ -399,6 +398,7 @@ const AnnouncementEmailDetailsTab = ({
                     relative
                     bg-white
                     text-slate-900
+                    dark:bg-[#15161A] dark:border-white/10 dark:text-white dark:focus:border-[#F8B2C0]
                   "
                 >
                   <select
@@ -413,18 +413,29 @@ const AnnouncementEmailDetailsTab = ({
                       cursor-pointer
                       pr-4
                       appearance-none
+                      
                     "
                   >
-                    <option value="">Select Email</option>
+                    <option
+                      value=""
+                      className={
+                        isDark
+                          ? "bg-[#15161A] text-slate-400"
+                          : "bg-white text-slate-400"
+                      }
+                    >
+                      Select Email
+                    </option>
 
                     {availableSenderEmails.map((email) => (
                       <option
                         key={email}
                         value={email || ""}
-                        className="
-                            bg-white
-                            text-slate-900
-                          "
+                        className={
+                          isDark
+                            ? "bg-[#15161A] text-white"
+                            : "bg-white text-slate-900"
+                        }
                       >
                         {email}
                       </option>
@@ -507,6 +518,7 @@ const AnnouncementEmailDetailsTab = ({
                     relative
                     bg-white
                     text-slate-900
+                    dark:bg-[#15161A] dark:border-white/10 dark:text-white dark:focus:border-[#F8B2C0]
                   "
                 >
                   <input

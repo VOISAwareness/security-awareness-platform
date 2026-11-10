@@ -1,42 +1,45 @@
-import React, { useState, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { useCampaigns } from '../../services/useCampaigns';
-import { openCampaignDraft } from '../../services/useCampaignDraft';
-import { IN_WIZARD, copyForNewDraft, routeForStep } from '../../services/campaignWizard';
-import { api } from '../../services/api';
-import { toDesignCampaign } from '../../services/campaignDesign';
-import { actorFor } from '../../services/identity';
+import { useState, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import { useCampaigns } from "../../services/useCampaigns";
+import { openCampaignDraft } from "../../services/useCampaignDraft";
+import {
+  IN_WIZARD,
+  copyForNewDraft,
+  routeForStep,
+} from "../../services/campaignWizard";
+import { api } from "../../services/api";
+import { toDesignCampaign } from "../../services/campaignDesign";
+import { actorFor } from "../../services/identity";
 
 // Gallery Components
-import ApprovalQueueGallery from './components/ApprovalQueueGallery';
-import RequestedQueueGallery from './components/RequestedQueueGallery';
-import RejectedCampaignsGallery from './components/RejectedCampaignsGallery';
-import NotifiedCampaignsGallery from './components/NotifiedCampaignsGallery';
-import ExpiredCampaignsGallery from './components/ExpiredCampaignsGallery';
-import ApprovedCampaignsGallery from './components/ApprovedCampaignsGallery';
-import NotifyForChangeWindow from './components/NotifyForChangeWindow';
+import ApprovalQueueGallery from "./components/ApprovalQueueGallery";
+import RequestedQueueGallery from "./components/RequestedQueueGallery";
+import RejectedCampaignsGallery from "./components/RejectedCampaignsGallery";
+import NotifiedCampaignsGallery from "./components/NotifiedCampaignsGallery";
+import ExpiredCampaignsGallery from "./components/ExpiredCampaignsGallery";
+import ApprovedCampaignsGallery from "./components/ApprovedCampaignsGallery";
+import NotifyForChangeWindow from "./components/NotifyForChangeWindow";
 
 // Assets
-import ApprovalQueueImg from '../../assets/RequestAndApprovalsAssets/ApprovalQueueImage.png';
-import RequestQueueImg from '../../assets/RequestAndApprovalsAssets/RequestQueueImage.png';
-import RejectedImg from '../../assets/RequestAndApprovalsAssets/RejectedCampaignsImage.png';
-import MegaphoneImg from '../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png';
-import ExpiredImg from '../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png';
-import MyApprovedImg from '../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png';
-import PageLoading from '../../GlobalComponents/PageLoading';
-
+import ApprovalQueueImg from "../../assets/RequestAndApprovalsAssets/ApprovalQueueImage.png";
+import RequestQueueImg from "../../assets/RequestAndApprovalsAssets/RequestQueueImage.png";
+import RejectedImg from "../../assets/RequestAndApprovalsAssets/RejectedCampaignsImage.png";
+import MegaphoneImg from "../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png";
+import ExpiredImg from "../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png";
+import MyApprovedImg from "../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png";
+import PageLoading from "../../GlobalComponents/PageLoading";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
 // =========================================================================
-export const VarRequestsScale = 0.90;
-export const VarOverallCornerRoundednessAdjuster = 0.7;
-export const VarLeftSectionWidth = '22%';
-export const VarRightSectionWidth = '77%';
+export const VarRequestsScale = 0.94;
+export const VarOverallCornerRoundednessAdjuster = 0.5;
+export const VarLeftSectionWidth = "22%";
+export const VarRightSectionWidth = "77%";
 export const VarSectionGap = 12; // in px
-export const VarNavButtonsHeightAdjuster = 80; // Height in px for each of the 5 nav buttons
+export const VarNavButtonsHeightAdjuster = 75; // Height in px for each of the 5 nav buttons
 export const VarButtonsPopAnimationAdjuster = 1; // Hover pop scale multiplier (e.g. 1.02 = 102%, 1.04 = 104%)
 export const VarAppToCreRatioVisualHeight = 142; // Height in px for the ratio visual card
 export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the ratio bar
@@ -47,14 +50,11 @@ export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
   
-  .font-voda {
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 800;
-  }
   .font-voda-exb {
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 800;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
+    font-weight: 900;
   }
+
   .font-mono-tech {
     font-family: 'JetBrains Mono', monospace;
   }
@@ -63,6 +63,9 @@ const VODAFONE_FONT_STYLE = `
   .rounded-xl  { border-radius: ${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px !important; }
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallCornerRoundednessAdjuster)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
+  .voda-rounded-2xl {
+    border-radius: ${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px !important;
+  }
 
   .nav-capsule-btn {
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
@@ -84,14 +87,16 @@ const RequestAndApprovals = () => {
   // used for "created by me" / "approved by me".
   const activeUserEmail = actorFor(user);
 
-  const isCampaignCreator = user?.role === 'Campaign Creator';
+  const isCampaignCreator = user?.role === "Campaign Creator";
 
   // Active view tab state: 'queue' | 'rejected' | 'notified' | 'expired' | 'approved'
   // A notification can open this page on a given tab (e.g. Rejected), also
   // when this page is already open.
-  const TABS = ['queue', 'rejected', 'notified', 'expired', 'approved'];
-  const stateTab = TABS.includes(location.state?.tab) ? location.state.tab : null;
-  const [activeTab, setActiveTab] = useState(stateTab || 'queue');
+  const TABS = ["queue", "rejected", "notified", "expired", "approved"];
+  const stateTab = TABS.includes(location.state?.tab)
+    ? location.state.tab
+    : null;
+  const [activeTab, setActiveTab] = useState(stateTab || "queue");
   const [tabFromKey, setTabFromKey] = useState(location.key);
   if (location.key !== tabFromKey) {
     setTabFromKey(location.key);
@@ -102,8 +107,8 @@ const RequestAndApprovals = () => {
   const [notifyingCampaign, setNotifyingCampaign] = useState(null);
   const [rejectingCampaign, setRejectingCampaign] = useState(null);
   // A plain reject is final, so it always says why; the creator sees it.
-  const [rejectReason, setRejectReason] = useState('');
-  const [actionError, setActionError] = useState('');
+  const [rejectReason, setRejectReason] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const {
     campaigns: liveCampaigns,
@@ -119,13 +124,16 @@ const RequestAndApprovals = () => {
   } = useCampaigns({ actor: activeUserEmail });
 
   // Live campaigns, in the field names the galleries were drawn with.
-  const campaigns = useMemo(() => liveCampaigns.map((c) => toDesignCampaign(c)), [liveCampaigns]);
+  const campaigns = useMemo(
+    () => liveCampaigns.map((c) => toDesignCampaign(c)),
+    [liveCampaigns],
+  );
 
   // Every action reports failure the same way and leaves the list refreshed.
   const runAction = async (fn, fallbackMessage) => {
     // One transition at a time: a double click must not send it twice.
     if (pendingAction) return false;
-    setActionError('');
+    setActionError("");
     try {
       await fn();
       return true;
@@ -137,46 +145,54 @@ const RequestAndApprovals = () => {
 
   // Approvers approve, reject, or reject with a notification. They never edit.
   const handleApprove = (camp) =>
-    runAction(() => approve(camp.campaignId), 'Could not approve that campaign.');
+    runAction(
+      () => approve(camp.campaignId),
+      "Could not approve that campaign.",
+    );
 
   const handleNotifySubmit = async (camp, message) => {
     const done = await runAction(
       () => notify(camp.campaignId, message),
-      'Could not send that notification.'
+      "Could not send that notification.",
     );
     if (done) setNotifyingCampaign(null);
   };
 
   const handleReject = (camp) => {
-    setRejectReason('');
+    setRejectReason("");
     setRejectingCampaign(camp);
   };
 
   const confirmReject = async () => {
     const camp = rejectingCampaign;
     if (!rejectReason.trim()) {
-      setActionError('Give a reason: the creator sees it.');
+      setActionError("Give a reason: the creator sees it.");
       return;
     }
-    const done = await runAction(() => reject(camp.campaignId, rejectReason), 'Could not reject that campaign.');
+    const done = await runAction(
+      () => reject(camp.campaignId, rejectReason),
+      "Could not reject that campaign.",
+    );
     if (done) {
       setRejectingCampaign(null);
-      setRejectReason('');
+      setRejectReason("");
     }
   };
 
   // Creator only, on a rejected (closed) campaign: delete it, or start a new
   // draft from its content and open it in the wizard on Details.
   const handleDeleteRejected = (camp) =>
-    runAction(() => remove(camp.campaignId), 'Could not delete that campaign.');
+    runAction(() => remove(camp.campaignId), "Could not delete that campaign.");
 
   const handleCopyRejected = (camp) =>
     runAction(async () => {
       const stored = await api.campaigns.get(camp.campaignId);
-      const created = await api.campaigns.create(copyForNewDraft(stored, activeUserEmail));
+      const created = await api.campaigns.create(
+        copyForNewDraft(stored, activeUserEmail),
+      );
       openCampaignDraft(created.campaignId);
       navigate(routeForStep(2, 2), IN_WIZARD);
-    }, 'Could not copy that campaign.');
+    }, "Could not copy that campaign.");
 
   // Creator only: open a campaign that came back with a notification in the
   // wizard, on the step it was last saved on (Details for older campaigns).
@@ -190,7 +206,7 @@ const RequestAndApprovals = () => {
   const handleExtendAndInvoke = async (camp, newStartTime) => {
     const done = await runAction(
       () => reschedule(camp.campaignId, newStartTime),
-      'Could not reschedule that campaign.'
+      "Could not reschedule that campaign.",
     );
     if (done) handleEditCampaign(camp);
     return done;
@@ -199,44 +215,44 @@ const RequestAndApprovals = () => {
   // Switcher navigation items configuration
   const navTabs = [
     {
-      id: 'queue',
-      title: isCampaignCreator ? 'Request Queue' : 'Approval Queue',
+      id: "queue",
+      title: isCampaignCreator ? "Request Queue" : "Approval Queue",
       subtitle: isCampaignCreator
-        ? 'Campaigns submitted and awaiting approver review'
+        ? "Campaigns submitted and awaiting approver review"
         : "Campaigns submitted that haven't been reviewed yet",
-      activeTitleColor:  isCampaignCreator ? 'text-[#A8B7E6]' : 'text-[#8ED973]',
-      img: isCampaignCreator ? RequestQueueImg : ApprovalQueueImg
+      activeTitleColor: isCampaignCreator ? "text-[#A8B7E6]" : "text-[#8ED973]",
+      img: isCampaignCreator ? RequestQueueImg : ApprovalQueueImg,
     },
     {
-      id: 'rejected',
-      title: 'Rejected Campaigns',
-      subtitle: 'Campaigns that were reviewed and rejected after review',
-      activeTitleColor: 'text-[#F43F5E]',
-      img: RejectedImg
+      id: "rejected",
+      title: "Rejected Campaigns",
+      subtitle: "Campaigns that were reviewed and rejected after review",
+      activeTitleColor: "text-[#F43F5E]",
+      img: RejectedImg,
     },
     {
-      id: 'notified',
-      title: 'Notified Campaigns',
-      subtitle: 'Campaigns flagged with change requests from approvers',
-      activeTitleColor: 'text-[#A09ECE]',
-      img: MegaphoneImg
+      id: "notified",
+      title: "Notified Campaigns",
+      subtitle: "Campaigns flagged with change requests from approvers",
+      activeTitleColor: "text-[#A09ECE]",
+      img: MegaphoneImg,
     },
     {
-      id: 'expired',
-      title: 'Expired Campaigns',
-      subtitle: 'Campaigns that expired before receiving approval',
-      activeTitleColor: 'text-[#E57A44]',
-      img: ExpiredImg
+      id: "expired",
+      title: "Expired Campaigns",
+      subtitle: "Campaigns that expired before receiving approval",
+      activeTitleColor: "text-[#E57A44]",
+      img: ExpiredImg,
     },
     {
-      id: 'approved',
-      title: 'My Approved Campaigns',
+      id: "approved",
+      title: "My Approved Campaigns",
       subtitle: isCampaignCreator
-        ? 'Campaigns you created that have been approved and published'
-        : 'Campaigns you reviewed, approved, and cleared for launch',
-      activeTitleColor: 'text-[#8ED973]',
-      img: MyApprovedImg
-    }
+        ? "Campaigns you created that have been approved and published"
+        : "Campaigns you reviewed, approved, and cleared for launch",
+      activeTitleColor: "text-[#8ED973]",
+      img: MyApprovedImg,
+    },
   ];
 
   // Helper for 5-button styling
@@ -244,49 +260,50 @@ const RequestAndApprovals = () => {
     const isSelected = activeTab === tabId;
     if (isSelected) {
       return isDark
-        ? 'bg-white text-black shadow-md border-transparent'
-        : 'bg-black text-white shadow-md border-transparent';
+        ? "bg-white text-black shadow-md border-transparent"
+        : "bg-black text-white shadow-md border-transparent";
     }
     return isDark
-      ? 'bg-[#1C1E24] text-white hover:bg-[#252830] border-white/10 shadow-xs hover:shadow-md'
-      : 'bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs hover:shadow-md';
+      ? "bg-[#1C1E24] text-white hover:bg-[#252830] border-white/10 shadow-xs hover:shadow-md"
+      : "bg-white text-slate-900 hover:bg-slate-50 border-black/10 shadow-xs hover:shadow-md";
   };
 
   // =========================================================================
   // 📊 RATIO OF APPROVERS TO CREATORS CALCULATION
   // =========================================================================
-  const { creatorsCount, approversCount, creatorsPct, approversPct } = useMemo(() => {
-    const creatorsSet = new Set();
-    const approversSet = new Set();
+  const { creatorsCount, approversCount, creatorsPct, approversPct } =
+    useMemo(() => {
+      const creatorsSet = new Set();
+      const approversSet = new Set();
 
-    campaigns.forEach(c => {
-      if (c.CreatedBy) {
-        creatorsSet.add(c.CreatedBy.trim().toLowerCase());
-      }
-      if (c.Approver) {
-        c.Approver.split(',').forEach(email => {
-          if (email.trim()) approversSet.add(email.trim().toLowerCase());
-        });
-      }
-      if (c['Approved/RejectedBy']) {
-        approversSet.add(c['Approved/RejectedBy'].trim().toLowerCase());
-      }
-      if (c.ApprovedBy) {
-        approversSet.add(c.ApprovedBy.trim().toLowerCase());
-      }
-    });
+      campaigns.forEach((c) => {
+        if (c.CreatedBy) {
+          creatorsSet.add(c.CreatedBy.trim().toLowerCase());
+        }
+        if (c.Approver) {
+          c.Approver.split(",").forEach((email) => {
+            if (email.trim()) approversSet.add(email.trim().toLowerCase());
+          });
+        }
+        if (c["Approved/RejectedBy"]) {
+          approversSet.add(c["Approved/RejectedBy"].trim().toLowerCase());
+        }
+        if (c.ApprovedBy) {
+          approversSet.add(c.ApprovedBy.trim().toLowerCase());
+        }
+      });
 
-    const cCount = creatorsSet.size;
-    const aCount = approversSet.size;
-    const total = cCount + aCount;
+      const cCount = creatorsSet.size;
+      const aCount = approversSet.size;
+      const total = cCount + aCount;
 
-    return {
-      creatorsCount: cCount,
-      approversCount: aCount,
-      creatorsPct: total > 0 ? (cCount / total) * 100 : 0,
-      approversPct: total > 0 ? (aCount / total) * 100 : 0
-    };
-  }, [campaigns]);
+      return {
+        creatorsCount: cCount,
+        approversCount: aCount,
+        creatorsPct: total > 0 ? (cCount / total) * 100 : 0,
+        approversPct: total > 0 ? (aCount / total) * 100 : 0,
+      };
+    }, [campaigns]);
 
   // The page is covered only for its first load, while there is nothing to
   // show yet. A refetch (Retry) keeps the page and its error banner visible;
@@ -298,18 +315,20 @@ const RequestAndApprovals = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       {/* 🌟 ROOT CONTAINER */}
-      <div 
+      <div
         style={{ zoom: VarRequestsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
+        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ── TOP HEADER STRIP ── */}
         <div
-          className={`w-full h-[42px] py-2.5 px-6 -mt-2 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
-            isDark ? 'bg-white text-black border-white/10' : 'bg-[#000000] text-white border-black/10'
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 voda-rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
           }`}
         >
           <div className="flex items-center gap-3">
-            <h1 className="text-[14.5px] font-bold tracking-tight uppercase font-voda">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
               Requests & Approvals
             </h1>
           </div>
@@ -318,9 +337,9 @@ const RequestAndApprovals = () => {
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
         {/* Grows to the foot of the page so the loading state is centred in
             it, and is hidden while loading (it has no card behind it). */}
-        <div 
+        <div
           style={{ gap: `${VarSectionGap}px` }}
-          className={`relative grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? 'invisible' : ''}`}
+          className={`relative min-h-0 grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? "invisible" : ""}`}
         >
           {/* The campaigns are on their way from the server. */}
           <PageLoading show={coverLoading} isDark={isDark} surface="page" />
@@ -328,8 +347,11 @@ const RequestAndApprovals = () => {
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 5 SWITCHER CAPSULES WITH HOVER POP ANIMATION              */}
           {/* ========================================================================= */}
-          <div 
-            style={{ width: VarLeftSectionWidth, flex: `0 0 ${VarLeftSectionWidth}` }}
+          <div
+            style={{
+              width: VarLeftSectionWidth,
+              flex: `0 0 ${VarLeftSectionWidth}`,
+            }}
             className="flex flex-col gap-2.5 min-w-[270px]"
           >
             {navTabs.map((tab) => {
@@ -340,30 +362,40 @@ const RequestAndApprovals = () => {
                   onClick={() => setActiveTab(tab.id)}
                   style={{
                     height: `${VarNavButtonsHeightAdjuster}px`,
-                    borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
+                    borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
                   }}
                   className={`nav-capsule-btn relative p-3 flex flex-col justify-between cursor-pointer overflow-hidden border ${getTabButtonClasses(tab.id)}`}
                 >
                   <div className="flex justify-between items-start relative z-10">
-                    <h3 className={`text-[15.5px] font-voda font-bold tracking-tight leading-tight ${isSelected ? (isDark ? 'text-black' : tab.activeTitleColor) : ''}`}>
+                    <h3
+                      className={`text-[15.5px] font-voda font-bold tracking-tight leading-tight ${isSelected ? (isDark ? "text-black" : tab.activeTitleColor) : ""}`}
+                    >
                       {tab.title}
                     </h3>
                   </div>
 
-                  <p className={`text-[9px] font-medium leading-tight relative z-10 max-w-[170px] ${
-                    isSelected
-                      ? (isDark ? 'text-slate-700' : 'text-slate-300')
-                      : (isDark ? 'text-slate-400' : 'text-slate-500')
-                  }`}>
+                  <p
+                    className={`text-[9px] font-medium leading-tight relative z-10 max-w-[170px] ${
+                      isSelected
+                        ? isDark
+                          ? "text-slate-700"
+                          : "text-slate-300"
+                        : isDark
+                          ? "text-slate-400"
+                          : "text-slate-500"
+                    }`}
+                  >
                     {tab.subtitle}
                   </p>
 
                   <div className="absolute -bottom-2 -right-2 w-14 h-14 pointer-events-none select-none z-0">
-                    <img 
-                      src={tab.img} 
-                      alt={tab.title} 
+                    <img
+                      src={tab.img}
+                      alt={tab.title}
                       className="w-full h-full object-contain"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </div>
                 </div>
@@ -376,7 +408,7 @@ const RequestAndApprovals = () => {
             <div
               style={{
                 height: `${VarAppToCreRatioVisualHeight}px`,
-                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
+                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
               className="w-full p-4 flex flex-col justify-between bg-black text-white dark:bg-white dark:text-black border border-black/10 dark:border-white/10 shadow-xs select-none transition-colors duration-200"
             >
@@ -392,12 +424,14 @@ const RequestAndApprovals = () => {
               </div>
 
               {/* Segmented Bar */}
-              <div 
-                style={{ transform: `scale(${VarAppToCreRatioVisualBarScale})` }}
+              <div
+                style={{
+                  transform: `scale(${VarAppToCreRatioVisualBarScale})`,
+                }}
                 className="w-full h-7 mb-5 rounded-full p-[0px] bg-black dark:bg-white flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
               >
                 {/* Creators Segment (Left) */}
-                <div 
+                <div
                   style={{ width: `${creatorsPct}%` }}
                   className="h-full rounded-l-full bg-[#93A5EC] border-r-2 border-white flex items-center justify-center text-white text-[11px] font-black font-voda tracking-wide transition-all"
                 >
@@ -405,7 +439,7 @@ const RequestAndApprovals = () => {
                 </div>
 
                 {/* Approvers Segment (Right) */}
-                <div 
+                <div
                   style={{ width: `${approversPct}%` }}
                   className="h-full rounded-r-full bg-[#A7DB98] flex items-center justify-center text-white text-[11px] font-black font-voda tracking-wide transition-all"
                 >
@@ -413,14 +447,16 @@ const RequestAndApprovals = () => {
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* ========================================================================= */}
           {/* 👉 RIGHT COLUMN: DYNAMIC GALLERY VIEW                                     */}
           {/* ========================================================================= */}
-          <div 
-            style={{ width: VarRightSectionWidth, flex: `0 0 ${VarRightSectionWidth}` }}
+          <div
+            style={{
+              width: VarRightSectionWidth,
+              flex: `0 0 ${VarRightSectionWidth}`,
+            }}
             className="flex flex-col min-w-0 h-full"
           >
             {(error || actionError) && (
@@ -432,25 +468,30 @@ const RequestAndApprovals = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setActionError('');
+                    setActionError("");
                     refresh();
                   }}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
                 >
-                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Retry
+                  <RefreshCw
+                    className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
+                  />{" "}
+                  Retry
                 </button>
               </div>
             )}
 
             {loading && liveCampaigns.length === 0 && !error && (
-              <p className="mb-2 text-[10.5px] font-bold text-slate-400">Loading campaigns…</p>
+              <p className="mb-2 text-[10.5px] font-bold text-slate-400">
+                Loading campaigns…
+              </p>
             )}
 
-            {activeTab === 'queue' && (
-              isCampaignCreator ? (
+            {activeTab === "queue" &&
+              (isCampaignCreator ? (
                 <RequestedQueueGallery
                   campaigns={campaigns}
-                  onOpenNotifiedModal={() => setActiveTab('notified')}
+                  onOpenNotifiedModal={() => setActiveTab("notified")}
                   isDark={isDark}
                 />
               ) : (
@@ -460,13 +501,12 @@ const RequestAndApprovals = () => {
                   onApprove={handleApprove}
                   onNotify={(camp) => setNotifyingCampaign(camp)}
                   onReject={handleReject}
-                  onOpenNotifiedModal={() => setActiveTab('notified')}
+                  onOpenNotifiedModal={() => setActiveTab("notified")}
                   isDark={isDark}
                 />
-              )
-            )}
+              ))}
 
-            {activeTab === 'rejected' && (
+            {activeTab === "rejected" && (
               <RejectedCampaignsGallery
                 campaigns={campaigns}
                 isDark={isDark}
@@ -477,7 +517,7 @@ const RequestAndApprovals = () => {
               />
             )}
 
-            {activeTab === 'notified' && (
+            {activeTab === "notified" && (
               <NotifiedCampaignsGallery
                 isOpen={true}
                 isInlineView={true}
@@ -488,7 +528,7 @@ const RequestAndApprovals = () => {
               />
             )}
 
-            {activeTab === 'expired' && (
+            {activeTab === "expired" && (
               <ExpiredCampaignsGallery
                 campaigns={campaigns}
                 currentUserEmail={activeUserEmail}
@@ -497,7 +537,7 @@ const RequestAndApprovals = () => {
               />
             )}
 
-            {activeTab === 'approved' && (
+            {activeTab === "approved" && (
               <ApprovedCampaignsGallery
                 isOpen={true}
                 isInlineView={true}
@@ -512,13 +552,16 @@ const RequestAndApprovals = () => {
         {/* 🌟 Notify For Change Feedback Modal Window 🌟 */}
         {/* Keyed per campaign so a note typed for one never carries over to the next. */}
         <NotifyForChangeWindow
-          key={notifyingCampaign?.campaignId || 'closed'}
+          key={notifyingCampaign?.campaignId || "closed"}
           isOpen={Boolean(notifyingCampaign)}
           campaign={notifyingCampaign}
-          busy={Boolean(notifyingCampaign) && pendingAction === notifyingCampaign.campaignId}
-          error={notifyingCampaign ? actionError : ''}
+          busy={
+            Boolean(notifyingCampaign) &&
+            pendingAction === notifyingCampaign.campaignId
+          }
+          error={notifyingCampaign ? actionError : ""}
           onClose={() => {
-            setActionError('');
+            setActionError("");
             setNotifyingCampaign(null);
           }}
           onSubmit={handleNotifySubmit}
@@ -528,11 +571,16 @@ const RequestAndApprovals = () => {
         {rejectingCampaign && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
             <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white p-6 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col gap-3">
-              <h2 className="text-[16px] font-voda font-black tracking-tight">Reject this campaign?</h2>
+              <h2 className="text-[16px] font-voda font-black tracking-tight">
+                Reject this campaign?
+              </h2>
               <p className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug">
-                <span className="font-bold text-slate-900 dark:text-white">{rejectingCampaign.CampaignTitle}</span>{' '}
-                ({rejectingCampaign.campaignId}) will move to Rejected Campaigns and be closed. To ask
-                the creator for changes instead, use Notify For Changes.
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {rejectingCampaign.CampaignTitle}
+                </span>{" "}
+                ({rejectingCampaign.campaignId}) will move to Rejected Campaigns
+                and be closed. To ask the creator for changes instead, use
+                Notify For Changes.
               </p>
               <label className="flex flex-col gap-1">
                 <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
@@ -540,7 +588,10 @@ const RequestAndApprovals = () => {
                 </span>
                 <textarea
                   value={rejectReason}
-                  onChange={(e) => { setRejectReason(e.target.value); setActionError(''); }}
+                  onChange={(e) => {
+                    setRejectReason(e.target.value);
+                    setActionError("");
+                  }}
                   rows={3}
                   maxLength={500}
                   placeholder="The creator sees this on the Rejected tab"
@@ -548,13 +599,15 @@ const RequestAndApprovals = () => {
                 />
               </label>
               {actionError && (
-                <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-300">{actionError}</p>
+                <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-300">
+                  {actionError}
+                </p>
               )}
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => {
-                    setActionError('');
+                    setActionError("");
                     setRejectingCampaign(null);
                   }}
                   className="px-5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
@@ -566,9 +619,10 @@ const RequestAndApprovals = () => {
                   onClick={confirmReject}
                   disabled={pendingAction === rejectingCampaign.campaignId}
                   className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
-
                 >
-                  {pendingAction === rejectingCampaign.campaignId ? 'Rejecting…' : 'Reject'}
+                  {pendingAction === rejectingCampaign.campaignId
+                    ? "Rejecting…"
+                    : "Reject"}
                 </button>
               </div>
             </div>

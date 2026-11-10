@@ -1,19 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { formatDateTime } from '../../../services/campaignStatus';
-import { 
-  Search, 
-  ChevronDown, 
-  ExternalLink, 
-  UserX
-} from 'lucide-react';
-import RejectedIconImg from '../../../assets/RequestAndApprovalsAssets/RejectedCampaignsImage.png';
+import { useState, useMemo } from "react";
+import { formatDateTime } from "../../../services/campaignStatus";
+import { Search, ChevronDown, ExternalLink, UserX } from "lucide-react";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
 // =========================================================================
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardsScaleAdjuster = 1.0;
-export const VarGalleryLowerBaseHeightAdjuster = 460;
+export const VarGalleryLowerBaseHeightAdjuster = 430;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
@@ -36,53 +30,61 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
 `;
 
-const getLCardBg = (isDark) => (isDark ? '#1C1E24' : '#FFFFFF');
+const getLCardBg = (isDark) => (isDark ? "#1C1E24" : "#FFFFFF");
 
-const CAPSULE_THEME_COLOR = '#FCD5CE';
-const CAPSULE_COUNTER_COLOR = '#F43F5E';
+const CAPSULE_THEME_COLOR = "#FCD5CE";
+const CAPSULE_COUNTER_COLOR = "#F43F5E";
 
-const RejectedCampaignsGallery = ({ 
-  campaigns = [], 
+const RejectedCampaignsGallery = ({
+  campaigns = [],
   isDark = false,
   // A rejected campaign is closed: its creator may delete it, or copy its
   // content to a new draft and start again.
-  currentUserEmail = '',
+  currentUserEmail = "",
   pendingAction = null,
   onDelete,
   onCopy,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('Latest Date');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("Latest Date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [detailModalItem, setDetailModalItem] = useState(null);
 
   const lCardBg = getLCardBg(isDark);
-  const me = String(currentUserEmail || '').trim().toLowerCase();
-  const isCreator = (camp) => Boolean(me) && String(camp.CreatedBy || '').trim().toLowerCase() === me;
+  const me = String(currentUserEmail || "")
+    .trim()
+    .toLowerCase();
+  const isCreator = (camp) =>
+    Boolean(me) &&
+    String(camp.CreatedBy || "")
+      .trim()
+      .toLowerCase() === me;
   const busy = (camp) => pendingAction === camp.campaignId;
 
   const formatShortDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return "—";
     try {
       const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(' ')[0];
+      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
       const day = d.getDate();
-      const month = d.toLocaleString('en-US', { month: 'short' });
+      const month = d.toLocaleString("en-US", { month: "short" });
       const year = String(d.getFullYear()).slice(-2);
       return `${day}-${month}-${year}`;
     } catch {
-      return dateStr.split(' ')[0] || '—';
+      return dateStr.split(" ")[0] || "—";
     }
   };
 
   const getCleanUserName = (emailStr) => {
-    if (!emailStr) return 'Unknown';
-    const prefix = emailStr.split('@')[0] || '';
-    return prefix
-      .split('.')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ') || emailStr;
+    if (!emailStr) return "Unknown";
+    const prefix = emailStr.split("@")[0] || "";
+    return (
+      prefix
+        .split(".")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ") || emailStr
+    );
   };
 
   const resolvedCampaigns = useMemo(() => {
@@ -91,20 +93,23 @@ const RejectedCampaignsGallery = ({
 
   const filteredRejectedCampaigns = useMemo(() => {
     let list = resolvedCampaigns.filter((c) => {
-      const isRejected = c.CampaignStatus === 'Rejected' || c.campaignStatus === 'Rejected';
+      const isRejected =
+        c.CampaignStatus === "Rejected" || c.campaignStatus === "Rejected";
       const q = searchTerm.trim().toLowerCase();
-      const matchesSearch = !q || 
+      const matchesSearch =
+        !q ||
         (c.campaignId && c.campaignId.toLowerCase().includes(q)) ||
         (c.CampaignTitle && c.CampaignTitle.toLowerCase().includes(q)) ||
         (c.campaignTitle && c.campaignTitle.toLowerCase().includes(q)) ||
-        (c['Approved/RejectedBy'] && c['Approved/RejectedBy'].toLowerCase().includes(q));
+        (c["Approved/RejectedBy"] &&
+          c["Approved/RejectedBy"].toLowerCase().includes(q));
       return isRejected && matchesSearch;
     });
 
     list.sort((a, b) => {
       const dateA = new Date(a.CreationDate || a.StartTime || 0).getTime();
       const dateB = new Date(b.CreationDate || b.StartTime || 0).getTime();
-      if (sortBy === 'Oldest Date') return dateA - dateB;
+      if (sortBy === "Oldest Date") return dateA - dateB;
       return dateB - dateA;
     });
 
@@ -117,18 +122,19 @@ const RejectedCampaignsGallery = ({
 
       {/* 🌟 ROOT L-SHAPE CONTAINER */}
       <div className="relative flex flex-col w-full select-none font-sans overflow-x-hidden">
-        
         {/* 🌟 1. TRULY ISOLATED CAPSULE HEADER (TOP-LEFT) */}
         <div
-          style={{ 
+          style={{
             backgroundColor: CAPSULE_THEME_COLOR,
-            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="absolute top-0 left-0 w-[176px] h-[126px] p-3 flex flex-col justify-between shadow-xs z-20 text-slate-900 select-none overflow-hidden flex-shrink-0"
         >
           <div className="flex justify-between items-start relative z-10">
             <h3 className="text-[14.5px] font-voda font-bold tracking-tight leading-tight">
-              Rejected<br />Campaigns
+              Rejected
+              <br />
+              Campaigns
             </h3>
           </div>
 
@@ -146,16 +152,16 @@ const RejectedCampaignsGallery = ({
 
         {/* 🌟 3. Top-Right Arm of L-Shape Container */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
           <div className="flex flex-col gap-2 -mt-8 max-w-[340px] w-full">
             <div className="relative flex items-center">
-              <input 
+              <input
                 type="text"
                 placeholder="Search by Campaign ID or Name"
                 value={searchTerm}
@@ -177,7 +183,7 @@ const RejectedCampaignsGallery = ({
 
               {showSortDropdown && (
                 <div className="absolute top-7 left-0 w-44 bg-white dark:bg-[#161820] rounded-md shadow-2xl border border-black/10 dark:border-white/10 py-1 z-[100] flex flex-col">
-                  {['Latest Date', 'Oldest Date'].map((option) => (
+                  {["Latest Date", "Oldest Date"].map((option) => (
                     <button
                       key={option}
                       type="button"
@@ -186,9 +192,9 @@ const RejectedCampaignsGallery = ({
                         setShowSortDropdown(false);
                       }}
                       className={`px-3 py-1 text-left text-[9.5px] font-bold cursor-pointer transition-colors ${
-                        sortBy === option 
-                          ? 'bg-[#FCD5CE] text-[#BE123C] dark:bg-rose-950 dark:text-rose-300' 
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        sortBy === option
+                          ? "bg-[#FCD5CE] text-[#BE123C] dark:bg-rose-950 dark:text-rose-300"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                       }`}
                     >
                       {option}
@@ -200,11 +206,11 @@ const RejectedCampaignsGallery = ({
           </div>
 
           <div className="flex flex-col items-end justify-center text-right pr-2">
-            <span 
+            <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
-              className="text-5xl font-black leading-none tracking-tight font-voda-exb"
+              className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
             >
-              {String(filteredRejectedCampaigns.length).padStart(2, '0')}
+              {String(filteredRejectedCampaigns.length).padStart(2, "0")}
             </span>
             <span className="text-[13.5px] font-voda font-bold text-slate-900 dark:text-white mt-1 leading-tight tracking-tight text-right">
               Total Rejected Campaigns
@@ -214,30 +220,36 @@ const RejectedCampaignsGallery = ({
 
         {/* 🌟 4. Continuous Lower L-Base */}
         <div
-          style={{ 
+          style={{
             backgroundColor: lCardBg,
             height: `${VarGalleryLowerBaseHeightAdjuster}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
-            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`
+            borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
           className="w-full p-3 pb-5 flex flex-col gap-2.5 overflow-y-auto z-10 border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
         >
           {filteredRejectedCampaigns.length === 0 ? (
             <div className="w-full h-full min-h-[160px] flex items-center justify-center text-center">
-              <p className="text-xs font-bold text-slate-400">No rejected campaigns found in log.</p>
+              <p className="text-xs font-bold text-slate-400">
+                No rejected campaigns found in log.
+              </p>
             </div>
           ) : (
             filteredRejectedCampaigns.map((camp) => {
-              const rejectedByEmail = camp['Approved/RejectedBy'] || camp.ApprovedBy || camp.RejectedBy || 'Unknown';
+              const rejectedByEmail =
+                camp["Approved/RejectedBy"] ||
+                camp.ApprovedBy ||
+                camp.RejectedBy ||
+                "Unknown";
               const rejectedByName = getCleanUserName(rejectedByEmail);
 
               return (
                 <div
                   key={camp.campaignId}
-                  style={{ 
+                  style={{
                     borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
-                    transform: `scale(${VarGallaryCardsScaleAdjuster})`
+                    transform: `scale(${VarGallaryCardsScaleAdjuster})`,
                   }}
                   className="w-full box-border bg-[#EEF2F6] dark:bg-[#15171E] px-3.5 py-2 flex items-center justify-between text-slate-900 dark:text-slate-100 shadow-2xs border border-black/5 dark:border-white/5 hover:border-black/10 transition-colors flex-shrink-0"
                 >
@@ -248,9 +260,14 @@ const RejectedCampaignsGallery = ({
                     <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900 dark:text-white truncate mt-0.5">
                       {camp.CampaignTitle}
                     </h4>
-                    <p className="text-[9.5px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-0.5 line-clamp-2" data-reject-reason>
-                      <strong className="font-bold text-[#BE123C] dark:text-rose-300">Reason: </strong>
-                      {camp.NotificationMessage || 'No reason given'}
+                    <p
+                      className="text-[9.5px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-0.5 line-clamp-2"
+                      data-reject-reason
+                    >
+                      <strong className="font-bold text-[#BE123C] dark:text-rose-300">
+                        Reason:{" "}
+                      </strong>
+                      {camp.NotificationMessage || "No reason given"}
                     </p>
                     {isCreator(camp) && (
                       <div className="flex items-center gap-1.5 mt-1.5">
@@ -269,7 +286,10 @@ const RejectedCampaignsGallery = ({
                               type="button"
                               data-reject-delete-confirm
                               disabled={busy(camp)}
-                              onClick={() => { setConfirmDeleteId(null); onDelete && onDelete(camp); }}
+                              onClick={() => {
+                                setConfirmDeleteId(null);
+                                onDelete && onDelete(camp);
+                              }}
                               className="h-6 px-2.5 rounded-md bg-[#EF4444] hover:bg-[#DC2626] text-white text-[9px] font-voda font-bold disabled:opacity-50 cursor-pointer"
                             >
                               Delete for good
@@ -299,16 +319,24 @@ const RejectedCampaignsGallery = ({
 
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <div className="flex items-center gap-1.5 flex-nowrap">
-                      <span 
+                      <span
                         title={`Rejected by ${rejectedByEmail}`}
                         className="h-5 px-2 rounded-md bg-[#FEE2E2] dark:bg-rose-950/60 text-[#BE123C] dark:text-rose-300 text-[8px] font-voda font-bold whitespace-nowrap flex items-center gap-1 border border-[#FCA5A5]/40 shadow-2xs"
                       >
                         <UserX className="w-2.5 h-2.5 stroke-[2.5]" />
-                        <span>Rejected by: <strong className="font-extrabold">{rejectedByName}</strong></span>
+                        <span>
+                          Rejected by:{" "}
+                          <strong className="font-bold font-voda">
+                            {rejectedByName}
+                          </strong>
+                        </span>
                       </span>
 
                       <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 hidden sm:inline whitespace-nowrap">
-                        Created By: <span className="font-semibold text-slate-500">{camp.CreatedBy?.split('@')[0] || 'User'}</span>
+                        Created By:{" "}
+                        <span className="font-semibold text-slate-500">
+                          {camp.CreatedBy?.split("@")[0] || "User"}
+                        </span>
                       </span>
 
                       <button
@@ -337,9 +365,9 @@ const RejectedCampaignsGallery = ({
         {detailModalItem && (
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
-              style={{ 
+              style={{
                 backgroundColor: CAPSULE_THEME_COLOR,
-                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`
+                borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
               className="w-full max-w-3xl border border-black/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 transition-colors"
             >
@@ -364,13 +392,16 @@ const RejectedCampaignsGallery = ({
                 </h3>
                 <p className="text-[12px] font-medium text-slate-700 mb-2 leading-relaxed">
                   <strong>Description: </strong>
-                  {detailModalItem.CampaignDescription || 'No description provided.'}
+                  {detailModalItem.CampaignDescription ||
+                    "No description provided."}
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
-                  Created on: {formatDateTime(detailModalItem.CreationDate)} &bull; Created By: {detailModalItem.CreatedBy || 'N/A'}
-                  {detailModalItem['Approved/RejectedBy'] && (
+                  Created on: {formatDateTime(detailModalItem.CreationDate)}{" "}
+                  &bull; Created By: {detailModalItem.CreatedBy || "N/A"}
+                  {detailModalItem["Approved/RejectedBy"] && (
                     <span className="ml-2 font-bold text-[#BE123C]">
-                      &bull; Rejected by: {detailModalItem['Approved/RejectedBy']}
+                      &bull; Rejected by:{" "}
+                      {detailModalItem["Approved/RejectedBy"]}
                     </span>
                   )}
                 </div>
@@ -392,19 +423,31 @@ const RejectedCampaignsGallery = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800">
                 <div>
                   <strong>Start Type: </strong>
-                  <span>{detailModalItem.CampaignStartType || detailModalItem.startType || 'Scenario'}</span>
+                  <span>
+                    {detailModalItem.CampaignStartType ||
+                      detailModalItem.startType ||
+                      "Scenario"}
+                  </span>
                 </div>
                 <div>
                   <strong>Target Audience: </strong>
-                  <span>{detailModalItem.UserList || detailModalItem.TargetUsers || 'No recipients selected'}</span>
+                  <span>
+                    {detailModalItem.UserList ||
+                      detailModalItem.TargetUsers ||
+                      "No recipients selected"}
+                  </span>
                 </div>
                 <div>
                   <strong>Scheduled Start: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.StartTime)}</span>
+                  <span className="font-semibold">
+                    {formatDateTime(detailModalItem.StartTime)}
+                  </span>
                 </div>
                 <div>
                   <strong>Scheduled End: </strong>
-                  <span className="font-semibold">{formatDateTime(detailModalItem.EndTime)}</span>
+                  <span className="font-semibold">
+                    {formatDateTime(detailModalItem.EndTime)}
+                  </span>
                 </div>
               </div>
             </div>

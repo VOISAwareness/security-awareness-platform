@@ -757,7 +757,7 @@ const TrainingPathGrid = ({ onSelect }) => {
                     text-[17px]
                     sm:text-[19px]
                     font-voda
-                    font-extrabold
+                    font-bold
                     text-white
                     tracking-tight
                     leading-tight
@@ -986,7 +986,7 @@ const TrainingPathGrid = ({ onSelect }) => {
                                 "
                               >
                                 <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
-                                  <span className="font-voda font-extrabold text-[12px] tracking-wider text-black">
+                                  <span className="font-voda font-bold text-[12px] tracking-wider text-black">
                                     VOIShield.
                                   </span>
                                 </div>
@@ -1143,7 +1143,7 @@ const TrainingPathGrid = ({ onSelect }) => {
 
                             <div className="flex flex-row items-start gap-4 flex-shrink-0">
                               <div className="flex items-center gap-1.5 self-center mr-6">
-                                <span className="text-[29px] font-voda font-extrabold text-black leading-none">
+                                <span className="text-[29px] font-voda font-bold text-black leading-none">
                                   {questionCount}
                                 </span>
 

@@ -279,9 +279,7 @@ const usePrefersReducedMotion = () => {
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
 
-    const media = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    );
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const update = () => setReduced(media.matches);
 
@@ -294,10 +292,9 @@ const usePrefersReducedMotion = () => {
   return reduced;
 };
 
-
 const useCountUp = (
   target,
-  { duration = 1400, delayMs = 0, disabled = false } = {}
+  { duration = 1400, delayMs = 0, disabled = false } = {},
 ) => {
   const [value, setValue] = useState(0);
 
@@ -343,7 +340,6 @@ const useCountUp = (
   return disabled ? target : value;
 };
 
-
 const toArray = (data, nestedKey) => {
   if (Array.isArray(data)) return data;
   if (nestedKey && Array.isArray(data?.[nestedKey])) {
@@ -353,8 +349,12 @@ const toArray = (data, nestedKey) => {
 };
 
 const sameId = (a, b) =>
-  String(a ?? "").trim().toLowerCase() ===
-  String(b ?? "").trim().toLowerCase();
+  String(a ?? "")
+    .trim()
+    .toLowerCase() ===
+  String(b ?? "")
+    .trim()
+    .toLowerCase();
 
 const normalize = (value) =>
   String(value ?? "")
@@ -375,9 +375,7 @@ const pickFirst = (obj, keys) => {
 const toScore = (value) => {
   if (value === "" || value == null) return null;
 
-  const parsed = Number.parseFloat(
-    String(value).replace("%", "").trim()
-  );
+  const parsed = Number.parseFloat(String(value).replace("%", "").trim());
 
   return Number.isFinite(parsed)
     ? Math.min(100, Math.max(0, Math.round(parsed)))
@@ -393,7 +391,7 @@ const getPointsEarned = (allocation, passed) => {
   if (!passed || !allocation) return 0;
 
   const total = toNumber(
-    allocation.trainingTotalPoints ?? allocation.TrainingTotalPoints
+    allocation.trainingTotalPoints ?? allocation.TrainingTotalPoints,
   );
 
   if (total > 0) return total;
@@ -404,11 +402,7 @@ const getPointsEarned = (allocation, passed) => {
   );
 };
 
-const buildSummary = (
-  result,
-  allocation,
-  defaultPassingScore = 80
-) => {
+const buildSummary = (result, allocation, defaultPassingScore = 80) => {
   if (result && typeof result === "object") {
     const score = toScore(
       pickFirst(result, [
@@ -417,17 +411,13 @@ const buildSummary = (
         "CurrentScore",
         "percentage",
         "percent",
-      ])
+      ]),
     );
 
     if (score !== null) {
       const passingScore =
         toScore(
-          pickFirst(result, [
-            "passingScore",
-            "passMark",
-            "targetScore",
-          ])
+          pickFirst(result, ["passingScore", "passMark", "targetScore"]),
         ) ?? defaultPassingScore;
 
       const rawStatus = normalize(
@@ -436,22 +426,12 @@ const buildSummary = (
           "evaluationStatus",
           "evalutionStatus",
           "result",
-        ])
+        ]),
       );
 
-      const passedStatuses = [
-        "passed",
-        "pass",
-        "successful",
-        "completed",
-      ];
+      const passedStatuses = ["passed", "pass", "successful", "completed"];
 
-      const failedStatuses = [
-        "failed",
-        "fail",
-        "failure",
-        "not passed",
-      ];
+      const failedStatuses = ["failed", "fail", "failure", "not passed"];
 
       // Prefer an explicit evaluation status.
       // If no status is supplied, determine pass/fail from the score.
@@ -494,11 +474,7 @@ const buildSummary = (
         correct: correct === "" ? null : toNumber(correct),
         incorrect: incorrect === "" ? null : toNumber(incorrect),
         notAnswered: toNumber(skippedValue),
-        title: pickFirst(result, [
-          "trainingName",
-          "title",
-          "TrainingPathName",
-        ]),
+        title: pickFirst(result, ["trainingName", "title", "TrainingPathName"]),
       };
     }
   }
@@ -511,24 +487,15 @@ const buildSummary = (
       "evaluationStatus",
       "EvaluationStatus",
       "result",
-    ])
+    ]),
   );
 
   const score = toScore(
-    pickFirst(allocation, [
-      "currentScore",
-      "CurrentScore",
-      "score",
-    ])
+    pickFirst(allocation, ["currentScore", "CurrentScore", "score"]),
   );
 
   const passed = ["passed", "pass", "successful"].includes(status);
-  const failed = [
-    "failed",
-    "fail",
-    "failure",
-    "not passed",
-  ].includes(status);
+  const failed = ["failed", "fail", "failure", "not passed"].includes(status);
 
   if ((!passed && !failed) || score === null) return null;
 
@@ -541,11 +508,7 @@ const buildSummary = (
     correct: null,
     incorrect: null,
     notAnswered: null,
-    title: pickFirst(allocation, [
-      "TrainingPathName",
-      "trainingName",
-      "title",
-    ]),
+    title: pickFirst(allocation, ["TrainingPathName", "trainingName", "title"]),
   };
 };
 
@@ -580,8 +543,7 @@ const seeded = (n) => {
 };
 
 const CONFETTI_PIECES = Array.from({ length: 30 }, (_, index) => {
-  const angle =
-    (index / 30) * Math.PI * 2 + seeded(index) * 0.5;
+  const angle = (index / 30) * Math.PI * 2 + seeded(index) * 0.5;
 
   const distance = 100 + seeded(index + 40) * 100;
 
@@ -590,9 +552,7 @@ const CONFETTI_PIECES = Array.from({ length: 30 }, (_, index) => {
     color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
     tx: Math.cos(angle) * distance,
     ty: Math.sin(angle) * distance - 30,
-    rot:
-      (seeded(index + 80) > 0.5 ? 1 : -1) *
-      (240 + seeded(index + 20) * 360),
+    rot: (seeded(index + 80) > 0.5 ? 1 : -1) * (240 + seeded(index + 20) * 360),
     delay: 650 + Math.round(seeded(index + 60) * 250),
     wide: index % 3 === 0,
   };
@@ -621,14 +581,7 @@ const Confetti = () => (
   </div>
 );
 
-const ScoreRing = ({
-  value,
-  display,
-  color,
-  track,
-  reduced,
-  passed,
-}) => {
+const ScoreRing = ({ value, display, color, track, reduced, passed }) => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -638,8 +591,7 @@ const ScoreRing = ({
 
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
-  const offset =
-    circumference * (1 - (ready ? value : 0) / 100);
+  const offset = circumference * (1 - (ready ? value : 0) / 100);
 
   return (
     <div
@@ -676,10 +628,7 @@ const ScoreRing = ({
             y2="100%"
           >
             <stop offset="0%" stopColor={color} />
-            <stop
-              offset="100%"
-              stopColor={passed ? PASS_TEAL : AMBER}
-            />
+            <stop offset="100%" stopColor={passed ? PASS_TEAL : AMBER} />
           </linearGradient>
         </defs>
 
@@ -710,25 +659,15 @@ const ScoreRing = ({
           }}
         />
 
-        <circle
-          cx="50"
-          cy="50"
-          r="33"
-          fill={color}
-          opacity="0.045"
-        />
+        <circle cx="50" cy="50" r="33" fill={color} opacity="0.045" />
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        
-
         <span className="text-[38px] font-bold leading-none tabular-nums">
           {display}%
         </span>
 
-        <span className="mt-2 text-xs font-semibold">
-          Final Score
-        </span>
+        <span className="mt-2 text-xs font-semibold">Final Score</span>
       </div>
     </div>
   );
@@ -794,13 +733,13 @@ export default function TrainingCompletionDetails({
     if (!trainingPathID) return null;
 
     const matches = records.filter((item) =>
-      sameId(item.TrainingPathID, trainingPathID)
+      sameId(item.TrainingPathID, trainingPathID),
     );
 
     if (currentUserId) {
       return (
         matches.find((item) =>
-          sameId(item.userId ?? item.UserID, currentUserId)
+          sameId(item.userId ?? item.UserID, currentUserId),
         ) ?? null
       );
     }
@@ -810,7 +749,7 @@ export default function TrainingCompletionDetails({
 
   const summary = useMemo(
     () => buildSummary(result, allocation, passingScore),
-    [result, allocation, passingScore]
+    [result, allocation, passingScore],
   );
 
   const [certificateMessage, setCertificateMessage] = useState("");
@@ -834,13 +773,13 @@ export default function TrainingCompletionDetails({
   });
 
   const certificateUrl = String(
-    pickFirst(allocation, CERTIFICATE_FIELDS) || ""
+    pickFirst(allocation, CERTIFICATE_FIELDS) || "",
   ).trim();
 
   const handleCertificate = () => {
     if (!certificateUrl) {
       setCertificateMessage(
-        "Your certificate is not available in TrainingAllocationData.json yet."
+        "Your certificate is not available in TrainingAllocationData.json yet.",
       );
       return;
     }
@@ -849,7 +788,7 @@ export default function TrainingCompletionDetails({
 
     downloadCertificate(
       certificateUrl,
-      `${allocation?.TrainingPathID || "training"}-certificate`
+      `${allocation?.TrainingPathID || "training"}-certificate`,
     );
   };
 
@@ -873,10 +812,7 @@ export default function TrainingCompletionDetails({
             <ClipboardList size={42} aria-hidden="true" />
           </span>
 
-          <h2
-            className="tqc-rise text-xl font-bold"
-            style={delay(100)}
-          >
+          <h2 className="tqc-rise text-xl font-bold" style={delay(100)}>
             No completed result found
           </h2>
 
@@ -909,8 +845,7 @@ export default function TrainingCompletionDetails({
   }
 
   const accent = passed ? PASS_GREEN : FAIL_RED;
-  const celebrate =
-    passed && summary.source === "quiz" && !reduced;
+  const celebrate = passed && summary.source === "quiz" && !reduced;
 
   const total = summary.total;
   const correct = summary.correct;
@@ -924,9 +859,7 @@ export default function TrainingCompletionDetails({
 
   const skipped = summary.notAnswered;
 
-  const showStats =
-    total !== null &&
-    correct !== null;
+  const showStats = total !== null && correct !== null;
 
   return (
     <>
@@ -948,10 +881,7 @@ export default function TrainingCompletionDetails({
         aria-live="polite"
       >
         {/* Heading */}
-        <div
-          className="tqc-rise mb-3 flex items-center gap-3"
-          style={delay(0)}
-        >
+        <div className="tqc-rise mb-3 flex items-center gap-3" style={delay(0)}>
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl"
             style={{
@@ -970,30 +900,20 @@ export default function TrainingCompletionDetails({
           </span>
 
           <div className="min-w-0 flex-1">
-            
-
             <h2 className=" text-xl font-bold font-voda tracking-tight sm:text-2xl">
               {passed ? "Celebration Time!" : "Assessment Result"}
             </h2>
-
-           
           </div>
 
           <span
             className="hidden shrink-0 items-center gap-1.5 rounded-full border px-3  text-xs font-bold sm:inline-flex"
             style={{
               color: passed ? PASS_GREEN : FAIL_RED,
-              borderColor: passed
-                ? t.successBorder
-                : t.failBorder,
+              borderColor: passed ? t.successBorder : t.failBorder,
               backgroundColor: passed ? t.successBg : t.failBg,
             }}
           >
-            {passed ? (
-              <CheckCircle2 size={14} />
-            ) : (
-              <Flag size={14} />
-            )}
+            {passed ? <CheckCircle2 size={14} /> : <Flag size={14} />}
             {passed ? "PASSED" : "FAILED"}
           </span>
         </div>
@@ -1016,10 +936,7 @@ export default function TrainingCompletionDetails({
             className="tqc-score-column relative z-10 flex w-full shrink-0 flex-col items-center justify-center gap-4 border-b pb-5 text-center lg:w-[34%] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6"
             style={{ borderColor: t.borderColor }}
           >
-            <div
-              className="tqc-rise relative"
-              style={delay(150)}
-            >
+            <div className="tqc-rise relative" style={delay(150)}>
               <ScoreRing
                 value={score}
                 display={animatedScore}
@@ -1030,10 +947,7 @@ export default function TrainingCompletionDetails({
               />
             </div>
 
-            <div
-              className="tqc-rise max-w-[260px]"
-              style={delay(450)}
-            >
+            <div className="tqc-rise max-w-[260px]" style={delay(450)}>
               <p
                 className="text-sm font-bold"
                 style={{
@@ -1044,32 +958,20 @@ export default function TrainingCompletionDetails({
                   ? "Great effort! Keep up the momentum."
                   : "Every attempt is a chance to improve."}
               </p>
-
-              
             </div>
 
             <div
               className="tqc-rise flex items-center gap-2 rounded-full border px-3 py-2"
               style={{
-                borderColor: passed
-                  ? t.successBorder
-                  : t.failBorder,
+                borderColor: passed ? t.successBorder : t.failBorder,
                 backgroundColor: passed ? t.successBg : t.failBg,
                 ...delay(550),
               }}
             >
               {passed ? (
-                <CheckCircle2
-                  size={15}
-                  color={PASS_GREEN}
-                  aria-hidden="true"
-                />
+                <CheckCircle2 size={15} color={PASS_GREEN} aria-hidden="true" />
               ) : (
-                <Flag
-                  size={15}
-                  color={FAIL_RED}
-                  aria-hidden="true"
-                />
+                <Flag size={15} color={FAIL_RED} aria-hidden="true" />
               )}
 
               <span
@@ -1083,10 +985,7 @@ export default function TrainingCompletionDetails({
 
           {/* Right detail column */}
           <div className="tqc-detail-column relative z-10 flex min-w-0 flex-1 flex-col justify-center gap-3">
-            <div
-              className="tqc-rise flex items-start gap-3"
-              style={delay(200)}
-            >
+            <div className="tqc-rise flex items-start gap-3" style={delay(200)}>
               <span
                 className={passed ? "tqc-pop" : "tqc-shake"}
                 style={{
@@ -1103,11 +1002,7 @@ export default function TrainingCompletionDetails({
                     aria-hidden="true"
                   />
                 ) : (
-                  <Flag
-                    size={32}
-                    color={FAIL_RED}
-                    aria-hidden="true"
-                  />
+                  <Flag size={32} color={FAIL_RED} aria-hidden="true" />
                 )}
               </span>
 
@@ -1172,9 +1067,7 @@ export default function TrainingCompletionDetails({
                 <StatCard
                   label="Attempts"
                   value={
-                    allocation?.attemptCount ??
-                    allocation?.AttemptCount ??
-                    "—"
+                    allocation?.attemptCount ?? allocation?.AttemptCount ?? "—"
                   }
                   color={AMBER}
                   t={t}
@@ -1191,9 +1084,7 @@ export default function TrainingCompletionDetails({
                   background: isDark
                     ? "linear-gradient(100deg, rgba(34,197,94,.13), rgba(20,184,166,.07))"
                     : "linear-gradient(100deg, #DCFCE7, #CCFBF1)",
-                  borderColor: isDark
-                    ? "rgba(34,197,94,.35)"
-                    : "#BBF7D0",
+                  borderColor: isDark ? "rgba(34,197,94,.35)" : "#BBF7D0",
                   ...delay(600),
                 }}
               >
@@ -1206,11 +1097,7 @@ export default function TrainingCompletionDetails({
                     color: AMBER,
                   }}
                 >
-                  <Trophy
-                    size={25}
-                    fill={AMBER}
-                    aria-hidden="true"
-                  />
+                  <Trophy size={25} fill={AMBER} aria-hidden="true" />
                 </span>
 
                 <div className="min-w-0 flex-1">
@@ -1229,11 +1116,7 @@ export default function TrainingCompletionDetails({
                   </p>
                 </div>
 
-                <CheckCircle2
-                  size={21}
-                  color={PASS_GREEN}
-                  aria-hidden="true"
-                />
+                <CheckCircle2 size={21} color={PASS_GREEN} aria-hidden="true" />
               </section>
             ) : (
               <section
@@ -1245,16 +1128,9 @@ export default function TrainingCompletionDetails({
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <Target
-                    size={20}
-                    color={FAIL_RED}
-                    aria-hidden="true"
-                  />
+                  <Target size={20} color={FAIL_RED} aria-hidden="true" />
 
-                  <p
-                    className="text-sm font-bold"
-                    style={{ color: FAIL_RED }}
-                  >
+                  <p className="text-sm font-bold" style={{ color: FAIL_RED }}>
                     Your next goal: {actualPassingScore}% or higher
                   </p>
                 </div>
@@ -1263,8 +1139,8 @@ export default function TrainingCompletionDetails({
                   className="mt-2 text-xs leading-relaxed"
                   style={{ color: t.secondaryText }}
                 >
-                  Review the training material, focus on the questions
-                  you missed, and retake the assessment when you're ready.
+                  Review the training material, focus on the questions you
+                  missed, and retake the assessment when you're ready.
                 </p>
               </section>
             )}
@@ -1306,11 +1182,7 @@ export default function TrainingCompletionDetails({
                       "--tw-ring-offset-color": t.shellBg,
                     }}
                   >
-                    <Trophy
-                      size={17}
-                      className="tqc-lift"
-                      aria-hidden="true"
-                    />
+                    <Trophy size={17} className="tqc-lift" aria-hidden="true" />
                     Go to Leaderboard
                   </button>
                 </>
@@ -1350,8 +1222,6 @@ export default function TrainingCompletionDetails({
                 {certificateMessage}
               </p>
             )}
-
-            
           </div>
         </div>
 
@@ -1362,25 +1232,15 @@ export default function TrainingCompletionDetails({
         >
           {passed ? (
             <>
-              <CheckCircle2
-                size={15}
-                color={PASS_GREEN}
-                aria-hidden="true"
-              />
-              <span>
-                Congratulations on completing your training!
-              </span>
+              <CheckCircle2 size={15} color={PASS_GREEN} aria-hidden="true" />
+              <span>Congratulations on completing your training!</span>
             </>
           ) : (
             <>
-              <RotateCcw
-                size={15}
-                color={AMBER}
-                aria-hidden="true"
-              />
+              <RotateCcw size={15} color={AMBER} aria-hidden="true" />
               <span>
-                Keep practicing. You can retake the assessment to improve
-                your result.
+                Keep practicing. You can retake the assessment to improve your
+                result.
               </span>
             </>
           )}
