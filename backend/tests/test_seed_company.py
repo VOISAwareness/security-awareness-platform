@@ -101,7 +101,7 @@ def test_the_company_daily_totals_add_up_to_the_recipients(tables):
     assert sum(s.get("trainingCompleted", 0) for s in company) == sum(a["status"] == "COMPLETED" for a in assignments)
 
 
-def test_training_after_a_click_points_back_at_it(tables):
+def test_training_after_a_click_points_back_at_it(mod, tables):
     assignments = {(a["owner"], a["assignmentId"]): a for a in tables["training-assignments"]}
     linked = [r for r in tables["recipients"] if "trainingAssignmentId" in r]
     assert linked
@@ -111,9 +111,13 @@ def test_training_after_a_click_points_back_at_it(tables):
     sources = Counter(a["source"] for a in assignments.values())
     assert sources["ASSIGNED"] and sources["VOLUNTARY"]
     for a in assignments.values():
+        if "quizScore" in a:
+            assert a["quizPassed"] == (a["quizScore"] >= 80) == (a["status"] == "COMPLETED") == ("certificateId" in a)
+            assert a["videosWatched"] == mod.PATH_VIDEOS[a["TrainingPathID"]]  # the quiz follows every video
         if a["status"] == "COMPLETED":
             assert a["assignedAt"] <= a["startedAt"] <= a["completedAt"]
-            assert a["quizPassed"] == (a["quizScore"] >= 80) == ("certificateId" in a)
+        else:
+            assert "completedAt" not in a  # a failed quiz leaves the training open
 
 
 def test_ledger_totals_follow_the_rules_and_keep_the_latest_entries(mod, tables):

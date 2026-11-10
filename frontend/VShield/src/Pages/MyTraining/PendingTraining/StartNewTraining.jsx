@@ -195,7 +195,7 @@ const StartNewTraining = () => {
     setShowAssessmentPopup(true);
     // The server scores the answers against the quiz; its score is the one
     // recorded, so it replaces the one worked out here.
-    submitQuiz(trainingPathID, result)
+    submitQuiz(trainingPathID)
       .then((scored) => {
         if (!scored) return;
         setQuizResult((prev) => ({

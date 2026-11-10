@@ -36,6 +36,8 @@ export function legacyStatus(a) {
   if (a?.status === 'COMPLETED') {
     return a.quizPassed ? { trainingStatus: 'evaluted', evalutionStatus: 'passed' } : { trainingStatus: 'failed', evalutionStatus: 'failed' };
   }
+  // A failed quiz leaves the training open (still in Pending, to try again).
+  if (a?.status === 'IN_PROGRESS' && a.quizPassed === false) return { trainingStatus: 'ongoing', evalutionStatus: 'failed' };
   if (a?.status === 'IN_PROGRESS') return { trainingStatus: 'ongoing', evalutionStatus: 'in_progress' };
   return { trainingStatus: 'pending', evalutionStatus: 'not_started' };
 }
@@ -71,15 +73,6 @@ export function legacyAllocation(a, now = Date.now()) {
   };
 }
 
-/** The quiz screen's result as the API takes it: { Question01: 'optionB', ... }. */
-export function answersFor(result) {
-  return Object.fromEntries(
-    (result?.answers || [])
-      .filter((a) => a && a.questionId && a.isSubmitted !== false && a.selectedOption)
-      .map((a) => [a.questionId, a.selectedOption]),
-  );
-}
-
 function put(target, rows) {
   target.splice(0, target.length, ...rows);
 }
@@ -108,9 +101,17 @@ export async function recordVideoWatched(pathId, videoId, { viewer = currentActo
   return replaceRow(await client.myTraining.progress(viewer, pathId, videoId));
 }
 
-/** Send the quiz's answers; the server's score is the one that counts. */
-export async function submitQuiz(pathId, result, { viewer = currentActor(), client = api } = {}) {
-  const { data, result: scored } = await client.myTraining.quiz(viewer, pathId, answersFor(result));
+/**
+ * Check one answer. The server keeps the first answer given to a question in
+ * an attempt and says whether it was right: { option, correct, correctOption }.
+ */
+export async function checkAnswer(pathId, questionId, option, { viewer = currentActor(), client = api } = {}) {
+  return client.myTraining.check(viewer, pathId, questionId, option);
+}
+
+/** Score the attempt from the answers checked; the server's score is the one that counts. */
+export async function submitQuiz(pathId, { viewer = currentActor(), client = api } = {}) {
+  const { data, result: scored } = await client.myTraining.quiz(viewer, pathId);
   replaceRow(data);
   return scored;
 }

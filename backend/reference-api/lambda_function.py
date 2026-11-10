@@ -1825,18 +1825,28 @@ def training_content(route, event, params, context):
 #   GET  /my-training?viewer=           -> the viewer's assignments, newest first
 #   POST /my-training/enrol    {viewer, TrainingPathID}
 #   POST /my-training/progress {viewer, TrainingPathID, videoId}
-#   POST /my-training/quiz     {viewer, TrainingPathID, answers: {Question01: "optionB", ...}}
+#   POST /my-training/check    {viewer, TrainingPathID, questionId, option}
+#   POST /my-training/quiz     {viewer, TrainingPathID}
 #   GET  /training/assignments?path=    -> everyone's (the Training report)
-# The quiz is scored here, from the quiz's own answers. Completing training
-# that a campaign assigned also records TRAINED (and on a pass EVALUATED) in
-# the events table, so the points engine scores it.
+# The quiz's answers never reach a learner (GET /training/quizzes leaves them
+# out unless an editor role asks). Each answer is checked here, and the first
+# one given for a question in an attempt is kept (attemptAnswers), so trying
+# options to find the right one doesn't work; the quiz is scored from those.
+# It opens once every video of the path is watched. Only a pass completes the
+# training (COMPLETED); a fail leaves it IN_PROGRESS to try again. A pass of
+# training a campaign assigned records TRAINED and EVALUATED in the events
+# table, once each, so the points engine scores it.
 MY_TRAINING_ROUTES = frozenset({
     "GET /my-training",
     "POST /my-training/enrol",
     "POST /my-training/progress",
+    "POST /my-training/check",
     "POST /my-training/quiz",
     "GET /training/assignments",
 })
+# Roles that edit quizzes, and so see their answers (client-asserted, as
+# elsewhere, until sign-in exists).
+QUIZ_EDITOR_ROLES = frozenset({"Admin", "Campaign Creator", "Campaign Manager"})
 DUE_DAYS = 14
 DEFAULT_PASS_MARK = 80
 
@@ -1866,6 +1876,23 @@ def path_quiz(path):
     """The quiz attached to a path, or None."""
     quiz_id = ((path or {}).get("TrainingQuizAttached") or [None])[0]
     return get_one("training-quizzes", {"TrainingQuizID": quiz_id}) if quiz_id else None
+
+
+def without_answers(quiz):
+    """A quiz as a learner gets it: every question without its Answer."""
+    data = quiz.get("QuizData")
+    if not isinstance(data, dict):
+        return quiz
+    return {**quiz, "QuizData": {
+        qid: ({k: v for k, v in q.items() if k != "Answer"} if isinstance(q, dict) else q)
+        for qid, q in data.items()
+    }}
+
+
+def videos_left(path, row):
+    """The path's videos this assignment hasn't watched yet."""
+    watched = set(row.get("videosWatched") or [])
+    return [v for v in (path.get("TrainingVideoAttached") or []) if v not in watched]
 
 
 def score_quiz(quiz, answers):
@@ -2013,45 +2040,87 @@ def my_training(route, event, context):
         )["Attributes"]
         return ok(enrich_assignments([updated])[0])
 
-    # POST /my-training/quiz
+    # POST /my-training/check and /quiz
     quiz = path_quiz(path)
     if not quiz:
         return err(409, "This path has no quiz")
-    score, correct, total = score_quiz(quiz, body.get("answers"))
+    if videos_left(path, current):
+        return err(409, "Watch every video of this training before the quiz")
+    questions = quiz.get("QuizData") or {}
+
+    if route == "POST /my-training/check":
+        qid, option = body.get("questionId"), body.get("option")
+        question = questions.get(qid) if isinstance(qid, str) else None
+        if not isinstance(question, dict):
+            return err(400, "questionId must be one of the quiz's questions")
+        if not isinstance(option, str) or not option.startswith("option") or option not in question:
+            return err(400, "option must be one of the question's options")
+        kept = (current.get("attemptAnswers") or {}).get(qid)
+        if kept is None:
+            try:
+                if "attemptAnswers" in current:
+                    tbl.update_item(
+                        Key=key, UpdateExpression="SET attemptAnswers.#q = :o",
+                        ConditionExpression="attribute_not_exists(attemptAnswers.#q)",
+                        ExpressionAttributeNames={"#q": qid}, ExpressionAttributeValues={":o": option},
+                    )
+                else:
+                    tbl.update_item(
+                        Key=key, UpdateExpression="SET attemptAnswers = :m",
+                        ConditionExpression="attribute_not_exists(attemptAnswers)",
+                        ExpressionAttributeValues={":m": {qid: option}},
+                    )
+                kept = option
+            except ClientError as e:
+                if not conditional_failed(e):
+                    raise
+                fresh = tbl.get_item(Key=key, ConsistentRead=True).get("Item") or {}
+                kept = (fresh.get("attemptAnswers") or {}).get(qid)
+                if kept is None:  # the map was made at the same moment; ask again
+                    return err(409, "Try that answer again", code="STALE")
+        answer = question.get("Answer")
+        return ok({"questionId": qid, "option": kept, "correct": kept == answer, "correctOption": answer})
+
+    # POST /my-training/quiz: scored from the answers checked in this attempt
+    fresh = tbl.get_item(Key=key, ConsistentRead=True).get("Item") or current
+    answers = dict(fresh.get("attemptAnswers") or {})
+    score, correct, total = score_quiz(quiz, answers)
     try:
         pass_mark = int(quiz.get("TrainingCompletionThreshold") or DEFAULT_PASS_MARK)
     except (TypeError, ValueError):
         pass_mark = DEFAULT_PASS_MARK
     passed = score >= pass_mark
     was_passed = bool(current.get("quizPassed"))
-    names = {"#s": "status"}
-    values = {":one": 1, ":now": now, ":done": "COMPLETED"}
-    sets = ["#s = :done", "completedAt = if_not_exists(completedAt, :now)",
-            "startedAt = if_not_exists(startedAt, :now)", "lastAttemptAt = :now"]
+    names = {}
+    values = {":one": 1, ":now": now}
+    sets = ["startedAt = if_not_exists(startedAt, :now)", "lastAttemptAt = :now"]
     if not was_passed:
-        sets += ["quizScore = :score", "quizPassed = :passed"]
-        values.update({":score": score, ":passed": passed})
+        names["#s"] = "status"
+        sets += ["quizScore = :score", "quizPassed = :passed", "#s = :status"]
+        values.update({":score": score, ":passed": passed, ":status": "COMPLETED" if passed else "IN_PROGRESS"})
         if passed:
+            sets.append("completedAt = :now")
             cert = (path.get("TrainingCertificateAttached") or [None])[0]
             if cert:
                 sets += ["certificateId = :cert", "certificateIssuedAt = :now"]
                 values[":cert"] = cert
     updated = tbl.update_item(
         Key=key,
-        UpdateExpression="SET " + ", ".join(sets) + " ADD attemptCount :one",
-        ExpressionAttributeNames=names,
+        UpdateExpression="SET " + ", ".join(sets) + " REMOVE attemptAnswers ADD attemptCount :one",
+        **({"ExpressionAttributeNames": names} if names else {}),
         ExpressionAttributeValues=values,
         ReturnValues="ALL_NEW",
     )["Attributes"]
-    record_training_event(updated, "TRAINED", now)
     if passed:
+        record_training_event(updated, "TRAINED", now)
         record_training_event(updated, "EVALUATED", now)
     log(context, "quiz scored", path=path_id, score=score, passed=passed)
     return ok(enrich_assignments([updated])[0], result={
         "score": score, "correct": correct, "total": total, "passMark": pass_mark, "passed": passed,
         "alreadyPassed": was_passed,
+        "answers": {qid: {"option": opt, "correct": opt == (questions.get(qid) or {}).get("Answer"),
+                          "correctOption": (questions.get(qid) or {}).get("Answer")} for qid, opt in answers.items()},
     })
-
 
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
@@ -2116,6 +2185,10 @@ def lambda_handler(event, context):
             items = scan_all(LIST_ROUTES[route])
             if route in ("GET /training/videos", "GET /training/certificates"):
                 items = [sign_media(route.rsplit("/", 1)[1], i) for i in items]
+            if route == "GET /training/quizzes":
+                role = (event.get("queryStringParameters") or {}).get("role")
+                if role not in QUIZ_EDITOR_ROLES:
+                    items = [without_answers(i) for i in items]
             return ok(items, count=len(items))
 
         if route in GET_BY_ID:

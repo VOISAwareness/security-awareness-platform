@@ -206,7 +206,9 @@ export const api = {
   training: {
     paths: () => request('/training/paths'),
     videos: () => request('/training/videos'),
-    quizzes: () => request('/training/quizzes'),
+    // Quiz answers come back only for the roles that edit quizzes (`role` is
+    // client-asserted until sign-in exists); learners get the questions.
+    quizzes: (role) => request(`/training/quizzes${role ? `?role=${encodeURIComponent(role)}` : ''}`),
     certificates: () => request('/training/certificates'),
     save: (kind, id, row) =>
       request(`/training/${kind}/${encodeURIComponent(id)}`, { method: 'PUT', body: row }),
@@ -258,9 +260,12 @@ export const api = {
       request('/my-training/enrol', { method: 'POST', body: { viewer, TrainingPathID } }),
     progress: (viewer, TrainingPathID, videoId) =>
       request('/my-training/progress', { method: 'POST', body: { viewer, TrainingPathID, videoId } }),
-    // `answers`: { Question01: 'optionB', ... }; the answer carries `result`.
-    quiz: (viewer, TrainingPathID, answers) =>
-      fetchWithResult('/my-training/quiz', { viewer, TrainingPathID, answers }),
+    // One answer: the server keeps the first one given for each question in
+    // an attempt and says whether it was right.
+    check: (viewer, TrainingPathID, questionId, option) =>
+      request('/my-training/check', { method: 'POST', body: { viewer, TrainingPathID, questionId, option } }),
+    // Score the attempt from the checked answers; the answer carries `result`.
+    quiz: (viewer, TrainingPathID) => fetchWithResult('/my-training/quiz', { viewer, TrainingPathID }),
     // Everyone's (the Training report); `path` narrows to one programme.
     assignments: (path) =>
       request(`/training/assignments${path ? `?path=${encodeURIComponent(path)}` : ''}`),

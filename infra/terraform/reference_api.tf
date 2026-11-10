@@ -213,6 +213,7 @@ locals {
     "GET /my-training",
     "POST /my-training/enrol",
     "POST /my-training/progress",
+    "POST /my-training/check",
     "POST /my-training/quiz",
     "GET /training/assignments",
     # Training packages: zips in S3, a row each (tables.tf: training_packages).

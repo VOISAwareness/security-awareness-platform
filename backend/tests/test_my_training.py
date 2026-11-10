@@ -15,7 +15,7 @@ REGION = "ap-south-1"
 ANA = "ana@x.example"
 QUIZ = {
     "TrainingQuizID": "TQ-1", "TrainingQuizName": "Q", "TrainingCompletionThreshold": 80,
-    "QuizData": {f"Question0{i}": {"question": f"q{i}", "Answer": "optionB"} for i in range(1, 6)},
+    "QuizData": {f"Question0{i}": {"question": f"q{i}", "optionA": "a", "optionB": "b", "Answer": "optionB"} for i in range(1, 6)},
 }
 
 
@@ -81,6 +81,19 @@ def answers(right):
     return {f"Question0{i}": ("optionB" if i <= right else "optionA") for i in range(1, 6)}
 
 
+def watch_all(mod, who=ANA):
+    for video in ("TV-1", "TV-2"):
+        call(mod, "POST /my-training/progress", {"viewer": who, "TrainingPathID": "TP-1", "videoId": video})
+
+
+def take_quiz(mod, right, who=ANA):
+    """Answer every question through /check, then submit."""
+    for qid, option in answers(right).items():
+        status, _ = call(mod, "POST /my-training/check", {"viewer": who, "TrainingPathID": "TP-1", "questionId": qid, "option": option})
+        assert status == 200
+    return call(mod, "POST /my-training/quiz", {"viewer": who, "TrainingPathID": "TP-1"})
+
+
 def test_enrol_watch_fail_then_pass(mod, env):
     status, body = call(mod, "POST /my-training/enrol", {"viewer": "Ana@X.example", "TrainingPathID": "TP-1"})
     assert status == 201
@@ -95,17 +108,29 @@ def test_enrol_watch_fail_then_pass(mod, env):
         status, body = call(mod, "POST /my-training/progress", {"viewer": ANA, "TrainingPathID": "TP-1", "videoId": "TV-1"})
     assert status == 200 and body["data"]["status"] == "IN_PROGRESS" and body["data"]["videosWatched"] == ["TV-1"]
 
-    status, body = call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": answers(3)})
-    assert status == 200
-    assert body["result"] == {"score": 60, "correct": 3, "total": 5, "passMark": 80, "passed": False, "alreadyPassed": False}
-    assert body["data"]["status"] == "COMPLETED" and body["data"]["quizPassed"] is False and "certificateId" not in body["data"]
+    # the quiz opens only once every video is watched
+    status, body = call(mod, "POST /my-training/check", {"viewer": ANA, "TrainingPathID": "TP-1", "questionId": "Question01", "option": "optionB"})
+    assert status == 409 and "every video" in body["error"]["message"]
+    assert call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1"})[0] == 409
+    watch_all(mod)
 
-    status, body = call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": answers(4)})
-    assert body["result"]["passed"] is True and body["data"]["quizScore"] == 80
-    assert body["data"]["attemptCount"] == 2 and body["data"]["certificateId"] == "TC-1"
+    # a fail is not completed: the training stays open to try again
+    status, body = take_quiz(mod, 3)
+    assert status == 200
+    result = body["result"]
+    assert {k: result[k] for k in ("score", "correct", "total", "passMark", "passed", "alreadyPassed")} == {
+        "score": 60, "correct": 3, "total": 5, "passMark": 80, "passed": False, "alreadyPassed": False}
+    assert result["answers"]["Question05"] == {"option": "optionA", "correct": False, "correctOption": "optionB"}
+    data = body["data"]
+    assert data["status"] == "IN_PROGRESS" and data["quizPassed"] is False and data["quizScore"] == 60
+    assert "completedAt" not in data and "certificateId" not in data and "attemptAnswers" not in data
+
+    status, body = take_quiz(mod, 4)
+    assert body["result"]["passed"] is True and body["data"]["quizScore"] == 80 and body["data"]["status"] == "COMPLETED"
+    assert body["data"]["attemptCount"] == 2 and body["data"]["certificateId"] == "TC-1" and "completedAt" in body["data"]
 
     # a later, worse attempt does not undo the pass
-    body = call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": answers(0)})[1]
+    body = take_quiz(mod, 0)[1]
     assert body["result"]["alreadyPassed"] is True and body["data"]["quizScore"] == 80 and body["data"]["quizPassed"] is True
 
     status, body = call(mod, "GET /my-training", query={"viewer": ANA})
@@ -113,12 +138,39 @@ def test_enrol_watch_fail_then_pass(mod, env):
     assert env.events.scan()["Count"] == 0  # voluntary training is not a campaign's
 
 
-def test_campaign_training_records_trained_and_evaluated_once(mod, env):
+def test_the_first_answer_to_a_question_is_kept(mod, env):
+    call(mod, "POST /my-training/enrol", {"viewer": ANA, "TrainingPathID": "TP-1"})
+    watch_all(mod)
+    first = {"viewer": ANA, "TrainingPathID": "TP-1", "questionId": "Question01", "option": "optionA"}
+    status, body = call(mod, "POST /my-training/check", first)
+    assert status == 200 and body["data"] == {"questionId": "Question01", "option": "optionA", "correct": False, "correctOption": "optionB"}
+    # trying the right option afterwards does not change the kept answer
+    body = call(mod, "POST /my-training/check", {**first, "option": "optionB"})[1]
+    assert body["data"]["option"] == "optionA" and body["data"]["correct"] is False
+    # answers sent with the submission are ignored: only checked ones count
+    body = call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": answers(5)})[1]
+    assert body["result"]["correct"] == 0
+    assert call(mod, "POST /my-training/check", {**first, "questionId": "Question99"})[0] == 400
+    assert call(mod, "POST /my-training/check", {**first, "option": "optionZ"})[0] == 400
+
+
+def test_learners_never_get_the_answers(mod, env):
+    plain = call(mod, "GET /training/quizzes", query=None)[1]["data"][0]["QuizData"]
+    assert all("Answer" not in q for q in plain.values())
+    assert all("Answer" not in q for q in call(mod, "GET /training/quizzes", query={"role": "Regular User"})[1]["data"][0]["QuizData"].values())
+    editor = call(mod, "GET /training/quizzes", query={"role": "Admin"})[1]["data"][0]["QuizData"]
+    assert all(q["Answer"] == "optionB" for q in editor.values())
+
+
+def test_campaign_training_records_trained_and_evaluated_once_on_a_pass(mod, env):
     env.assignments.put_item(Item={"owner": ANA, "assignmentId": "A#2026-11-01T09:00:00Z#TP-1", "TrainingPathID": "TP-1",
                                    "source": "ASSIGNED", "campaignId": "CMP-1", "recipientId": "R-1",
                                    "assignedAt": "2026-11-01T09:00:00Z", "status": "ASSIGNED"})
-    call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": answers(5)})
-    call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": answers(5)})
+    watch_all(mod)
+    take_quiz(mod, 2)  # a fail scores nothing
+    assert env.events.scan()["Count"] == 0
+    take_quiz(mod, 5)
+    take_quiz(mod, 5)
     kinds = sorted(e["eventType"] for e in env.events.scan()["Items"])
     assert kinds == ["EVALUATED", "TRAINED"]
     row = call(mod, "GET /my-training", query={"viewer": ANA})[1]["data"][0]
@@ -130,7 +182,7 @@ def test_what_is_refused(mod, env):
     assert call(mod, "POST /my-training/enrol", {"TrainingPathID": "TP-1"})[0] == 400
     assert call(mod, "POST /my-training/enrol", {"viewer": ANA})[0] == 400
     assert call(mod, "POST /my-training/enrol", {"viewer": ANA, "TrainingPathID": "TP-9"})[0] == 404
-    assert call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1", "answers": {}})[0] == 404  # not enrolled
+    assert call(mod, "POST /my-training/quiz", {"viewer": ANA, "TrainingPathID": "TP-1"})[0] == 404  # not enrolled
 
 
 def test_the_report_lists_everyone_with_names(mod, env):
