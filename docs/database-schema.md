@@ -221,7 +221,7 @@ anything.
 `MasterUserData.json`, `CampaignsData.json`, `ScenariosData.json`,
 `UserDLsData.json`, `LandingPageCatalogues.json`, `AnnouncementData.json`,
 `EmailIDsAndDomains.json`, `GamificationData.json`, `dashboardData.json`,
-the eight training JSON files, and the sample services
+the nine training JSON files, and the sample services
 (`sampleCampaigns`, `sampleCampaignResults`, `sampleReports`,
 `sampleOrganisation`, `sampleLeaderboard`, `sampleStanding`, `sampleStory`).
 Each goes in the PR that connects its screen. The unused
