@@ -156,6 +156,13 @@ def test_what_never_scores(engine):
     assert rows(engine) == {}
 
 
+def test_seeded_events_are_never_scored(engine):
+    seeded = record("CLICK")
+    seeded["dynamodb"]["NewImage"]["seed"] = _ser.serialize(True)
+    assert run(engine, seeded) == {"batchItemFailures": []}
+    assert rows(engine) == {}
+
+
 def test_a_campaign_row_gone_still_scores_the_click(engine):
     engine.campaigns.delete_item(Key={"campaignId": "CMP-2"})
     run(engine, record("CLICK", campaign="CMP-2"))

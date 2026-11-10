@@ -157,6 +157,9 @@ def score(image, context, campaigns):
     rule = EVENT_RULES.get(str(image.get("eventType", "")).upper())
     if not rule:
         raise Skip("not a scored action")
+    if image.get("seed"):
+        # The seed company (seed-data/seed_company.py) writes its own ledger.
+        raise Skip("seed data")
     campaign_id, recipient_id = image.get("campaignId"), image.get("recipientId")
     if not campaign_id or not recipient_id:
         raise Skip("event without campaign or recipient")
