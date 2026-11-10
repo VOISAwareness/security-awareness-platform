@@ -8,6 +8,7 @@ import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { BACK_TO_STEP_1, IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
 import { isAfter } from '../../services/calendarDates';
+import { TYPE_NAMES } from '../../services/campaignTypes';
 import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
@@ -107,6 +108,8 @@ const DetailsAndSettings = () => {
   const [isTestCampaign, setIsTestCampaign] = useState(false);
   // Defaults to true when the draft carries no value — same rule as before.
   const [autoEndPostSending, setAutoEndPostSending] = useState(true);
+  // Start fresh only: the campaign's type (a scenario brings its own).
+  const [campaignType, setCampaignType] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   // Seed the form from the draft once it lands. `seededRef` keeps it to a single
@@ -147,6 +150,7 @@ const DetailsAndSettings = () => {
         detailsFieldValue(draft.campaignDescription, draft.campaignDescriptionSetByUser, allScenarioDescs)
       );
     }
+    if (!touched.campaignType) setCampaignType(TYPE_NAMES.includes(draft.campaignType) ? draft.campaignType : '');
     if (!touched.startTime) setStartTime(draft.startTime || '');
     if (!touched.endTime) setEndTime(draft.endTime || '');
     if (!touched.isTestCampaign) setIsTestCampaign(Boolean(draft.isTestCampaign));
@@ -207,6 +211,10 @@ const DetailsAndSettings = () => {
     }
     if (!campaignDescription.trim()) {
       setErrorMsg('Please enter a Campaign Description');
+      return;
+    }
+    if (draft?.isStartFresh && !TYPE_NAMES.includes(campaignType)) {
+      setErrorMsg('Please choose a Campaign Type');
       return;
     }
     if (!startTime.trim()) {
@@ -437,6 +445,35 @@ const DetailsAndSettings = () => {
                         className="w-full h-full bg-transparent text-[11.5px] font-medium outline-none resize-none leading-relaxed placeholder-slate-400"
                       />
                     </div>
+                    {draft?.isStartFresh && (
+                      <div className="flex items-center gap-3 mt-1">
+                        <label htmlFor="campaign-type" className="text-[12.5px] font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                          Campaign Type <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+                        </label>
+                        <select
+                          id="campaign-type"
+                          value={campaignType}
+                          onChange={(e) => {
+                            markTouched('campaignType');
+                            setCampaignType(e.target.value);
+                            setErrorMsg('');
+                            persistChanges({ campaignType: e.target.value });
+                          }}
+                          className={`flex-1 h-9 px-3 rounded-xl shadow-2xs text-[11.5px] font-medium outline-none cursor-pointer ${
+                            isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                          }`}
+                        >
+                          <option value="" disabled>
+                            Choose what the email asks people to do
+                          </option>
+                          {TYPE_NAMES.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   {/* Bottom-Right: Test Campaign Checkbox */}

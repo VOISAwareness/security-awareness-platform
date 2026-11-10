@@ -159,6 +159,16 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
     [actor, runAction]
   );
 
+  const cancel = useCallback(
+    (campaignId, reason) => runAction(campaignId, () => api.campaigns.cancel(campaignId, actor, reason)),
+    [actor, runAction]
+  );
+
+  const reinvoke = useCallback(
+    (campaignId) => runAction(campaignId, () => api.campaigns.reinvoke(campaignId, actor)),
+    [actor, runAction]
+  );
+
   return {
     campaigns,
     loading,
@@ -171,5 +181,7 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
     reschedule,
     remove,
     send,
+    cancel,
+    reinvoke,
   };
 }

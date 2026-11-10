@@ -27,9 +27,8 @@ export const DESIGN_STATUS = {
   NOTIFIED: 'Notified',
   REJECTED: 'Rejected',
   FAILED: 'Failed',
-  // Cancelled after it was scheduled. The backend has no CANCELLED status
-  // yet; once it writes one (with cancelledBy, cancelledAt and
-  // cancellationReason), the Campaigns page's Cancelled tab lists it.
+  // Cancelled before it ran (campaigns-api POST /campaigns/{id}/cancel writes
+  // cancelledBy, cancelledAt and cancellationReason).
   CANCELLED: 'Cancelled',
 };
 

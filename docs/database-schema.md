@@ -81,7 +81,7 @@ fields).
 
 | New field | Notes |
 |---|---|
-| `status` gains `CANCELLED` | with `cancelledBy`, `cancelledAt`, `cancelReason` |
+| `status` gains `CANCELLED` | with `cancelledBy`, `cancelledAt`, `cancellationReason` |
 | `campaignType` | one of the six types; chosen in "Start fresh", copied from the scenario otherwise |
 | `counts` | `{ sent, delivered, opened, clicked, compromised, reported }`, kept current by the stats function, so lists don't count rows |
 
