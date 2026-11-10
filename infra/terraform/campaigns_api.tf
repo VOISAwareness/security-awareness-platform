@@ -46,6 +46,19 @@ resource "aws_iam_role_policy" "campaigns_api" {
         aws_dynamodb_table.campaigns.arn,
         "${aws_dynamodb_table.campaigns.arn}/index/*",
       ]
+      },
+      # GET /campaigns/{id}/results: the campaign's recipients, the people
+      # directory for rows sent before they carried a department, and whether
+      # the training each click led to was completed. Reads only.
+      {
+        Effect = "Allow"
+        Action = ["dynamodb:Query", "dynamodb:BatchGetItem"]
+        Resource = [
+          aws_dynamodb_table.recipients.arn,
+          aws_dynamodb_table.users.arn,
+          "${aws_dynamodb_table.users.arn}/index/email-index",
+          aws_dynamodb_table.training_assignments.arn,
+        ]
     }]
   })
 }
@@ -88,6 +101,9 @@ locals {
     "POST /campaigns",
     "PUT /campaigns/{campaignId}",
     "DELETE /campaigns/{campaignId}",
+    "GET /campaigns/{campaignId}/results",
+    "POST /campaigns/{campaignId}/cancel",
+    "POST /campaigns/{campaignId}/reinvoke",
   ]
 }
 

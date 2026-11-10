@@ -32,8 +32,8 @@ export const STATUS = {
   SENDING: 'SENDING',
   SENT: 'SENT',
   FAILED: 'FAILED',
-  // Not written by the backend yet: once campaigns-api can cancel a scheduled
-  // campaign, it shows on the Campaigns page's Cancelled tab.
+  // Cancelled while waiting for approval or its start (campaigns-api cancel);
+  // reinvoking it puts it back to DRAFT.
   CANCELLED: 'CANCELLED',
 };
 
