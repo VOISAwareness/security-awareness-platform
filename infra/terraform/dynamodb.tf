@@ -52,10 +52,30 @@ resource "aws_dynamodb_table" "recipients" {
     type = "S"
   }
 
+  attribute {
+    name = "recipientEmail"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+
   global_secondary_index {
     name            = "trackingToken-index"
     hash_key        = "trackingToken"
     projection_type = "ALL"
+  }
+
+  # The campaigns one person was in, newest first (My Space, the people
+  # pop-up). Keys and outcome times only, never the tracking token.
+  global_secondary_index {
+    name               = "recipientEmail-index"
+    hash_key           = "recipientEmail"
+    range_key          = "createdAt"
+    projection_type    = "INCLUDE"
+    non_key_attributes = ["sendStatus", "department", "sentAt", "openedAt", "clickedAt", "compromisedAt", "reportedAt", "trainingAssignmentId"]
   }
 }
 
