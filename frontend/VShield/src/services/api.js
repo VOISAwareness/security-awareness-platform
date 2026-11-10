@@ -321,6 +321,21 @@ export const api = {
         method: 'POST',
         body: { actor },
       }),
+    // One row per recipient: who opened, clicked, gave details, reported and
+    // was trained (campaigns-api; no tracking tokens).
+    results: (id) => request(`/campaigns/${encodeURIComponent(id)}/results`),
+    // A campaign waiting for approval or for its start -> CANCELLED; a reason
+    // is required. Reinvoke puts a cancelled one back to DRAFT.
+    cancel: (id, actor, reason) =>
+      request(`/campaigns/${encodeURIComponent(id)}/cancel`, {
+        method: 'POST',
+        body: { actor, reason },
+      }),
+    reinvoke: (id, actor) =>
+      request(`/campaigns/${encodeURIComponent(id)}/reinvoke`, {
+        method: 'POST',
+        body: { actor },
+      }),
   },
 };
 

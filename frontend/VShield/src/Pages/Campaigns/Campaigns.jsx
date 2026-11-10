@@ -106,7 +106,7 @@ const TAB_CONFIG = {
 const Campaigns = ({ isDark: propIsDark }) => {
   const userContext = useUserType?.() || {};
   const actor = actorFor(userContext.user);
-  const { campaigns, loading, error, pendingAction, refresh, send } =
+  const { campaigns, loading, error, pendingAction, refresh, send, cancel, reinvoke } =
     useCampaigns({ actor });
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
@@ -166,6 +166,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // Send-test flow: which card is awaiting confirmation, and the success note.
   const [confirmSendId, setConfirmSendId] = useState(null);
   const [sendNotice, setSendNotice] = useState("");
+  // Cancelling a scheduled campaign asks for a reason first.
+  const [cancelForId, setCancelForId] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   // Live campaigns from the API, in the field names this screen was drawn with.
   const campaignsList = useMemo(
@@ -240,6 +243,102 @@ const Campaigns = ({ isDark: propIsDark }) => {
       setConfirmSendId(null);
     }
   };
+
+  const handleCancel = async (camp) => {
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setActionError("Give a reason for cancelling the campaign.");
+      return;
+    }
+    setActionError("");
+    setSendNotice("");
+    try {
+      await cancel(camp.campaignId, reason);
+      setSendNotice(`${camp.campaignId} was cancelled. It is listed under Cancelled Campaigns.`);
+      setCancelForId(null);
+      setCancelReason("");
+    } catch (e) {
+      setActionError(e?.message || "Could not cancel that campaign.");
+    }
+  };
+
+  const handleReinvoke = async (camp) => {
+    setActionError("");
+    setSendNotice("");
+    try {
+      await reinvoke(camp.campaignId);
+      setSendNotice(
+        `${camp.campaignId} is a draft again: open it from Start New Campaign -> Drafts, check its dates and submit it.`,
+      );
+    } catch (e) {
+      setActionError(e?.message || "Could not reinvoke that campaign.");
+    }
+  };
+
+  // Cancel control for a scheduled card: a button, then a reason and a confirm.
+  const renderCancelAction = (camp) => {
+    const busy = pendingAction === camp.campaignId;
+    if (cancelForId !== camp.campaignId) {
+      return (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setCancelForId(camp.campaignId);
+            setCancelReason("");
+          }}
+          className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-300 dark:border-rose-400/40 text-[#B91C1C] dark:text-rose-300 font-bold cursor-pointer disabled:opacity-50"
+          title="Cancel this campaign before it starts"
+        >
+          <X className="w-3 h-3" /> Cancel
+        </button>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1.5 font-bold">
+        <label className="sr-only" htmlFor={`cancel-reason-${camp.campaignId}`}>
+          Reason for cancelling
+        </label>
+        <input
+          id={`cancel-reason-${camp.campaignId}`}
+          autoFocus
+          value={cancelReason}
+          maxLength={500}
+          onChange={(e) => setCancelReason(e.target.value)}
+          placeholder="Reason for cancelling"
+          className="w-44 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/15 dark:border-white/20 text-slate-900 dark:text-white font-medium"
+        />
+        <button
+          type="button"
+          disabled={busy || !cancelReason.trim()}
+          onClick={() => handleCancel(camp)}
+          className="px-2 py-0.5 rounded-md bg-[#E60000] text-white cursor-pointer disabled:opacity-50"
+        >
+          {busy ? "Cancelling…" : "Cancel campaign"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setCancelForId(null)}
+          className="px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 cursor-pointer"
+        >
+          Keep it
+        </button>
+      </span>
+    );
+  };
+
+  const renderReinvokeAction = (camp) => (
+    <button
+      type="button"
+      disabled={pendingAction === camp.campaignId}
+      onClick={() => handleReinvoke(camp)}
+      className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black font-bold cursor-pointer disabled:opacity-50"
+      title="Put this campaign back to a draft, to edit and submit again"
+    >
+      <RefreshCw className="w-3 h-3" />
+      {pendingAction === camp.campaignId ? "Reinvoking…" : "Reinvoke"}
+    </button>
+  );
 
   // Active Category List Filtered by Search & Sort
   const currentCategoryList = useMemo(() => {
@@ -705,9 +804,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
                           : () => setAnalyticsItem({ camp, idx })
                       }
                       actions={
-                        camp.status === "APPROVED" ? (
-                          <span className="text-[9px]">
-                            {renderSendAction(camp)}
+                        activeTab === "cancelled" ? (
+                          <span className="text-[9px]">{renderReinvokeAction(camp)}</span>
+                        ) : camp.status === "APPROVED" ? (
+                          <span className="text-[9px] flex items-center gap-1.5">
+                            {cancelForId !== camp.campaignId && renderSendAction(camp)}
+                            {activeTab === "scheduled" && renderCancelAction(camp)}
                           </span>
                         ) : null
                       }

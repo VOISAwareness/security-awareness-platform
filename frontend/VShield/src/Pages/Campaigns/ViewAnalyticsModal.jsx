@@ -2,10 +2,8 @@ import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
-// Data sources: sample results drawn from the people directory, until the
-// API serves tracking results per campaign.
-import masterUsersData from '../../MasterUserData.json';
-import { sampleCampaignResults } from '../../services/sampleCampaignResults';
+// Data source: the campaign's results from the backend (one row per recipient).
+import { useCampaignResults } from '../../services/campaignResults';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & ADJUSTER CONSTANTS
@@ -194,8 +192,8 @@ const ViewAnalyticsModal = ({
   const locationBarHeight = ended ? 22 : VarTargetLocationsChartEachBarHeight;
   const departmentBarHeight = ended ? 22 : VarTargetDepartmentsChartEachBarHeight;
 
-  // One row per recipient (sample figures, see sampleCampaignResults)
-  const recipients = useMemo(() => sampleCampaignResults(campaignId, masterUsersData), [campaignId]);
+  // One row per recipient, from GET /campaigns/{id}/results
+  const { rows: recipients, loading: resultsLoading, error: resultsError } = useCampaignResults(campaignId);
 
   // Compute 100% dynamic analytics strictly derived from data
   const analytics = useMemo(() => {
@@ -311,8 +309,12 @@ const ViewAnalyticsModal = ({
 
           {/* Right: Data Source + Live/Ended Pill + Go Back Button */}
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-voda font-bold text-slate-700 dark:text-slate-300">
-              Sample figures: per-campaign results are not served by the API yet
+            <span role="status" className="text-[11px] font-voda font-bold text-slate-700 dark:text-slate-300">
+              {resultsLoading
+                ? 'Loading results…'
+                : resultsError
+                  ? "Couldn't load this campaign's results"
+                  : `${recipients.length} ${recipients.length === 1 ? 'recipient' : 'recipients'}`}
             </span>
 
             {ended ? (
