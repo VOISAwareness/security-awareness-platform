@@ -29,7 +29,7 @@ const NAMES = {
   hookRate: GLOSSARY.hookRate.name,
   reportRate: GLOSSARY.reportRate.name,
   gaveDetails: GLOSSARY.gaveDetails.name,
-  firstReport: 'Time to first report',
+  firstReport: 'Avg time for reporting',
   trainingCompletion: GLOSSARY.trainingCompletion.name,
 };
 const COUNTS = {
@@ -38,11 +38,11 @@ const COUNTS = {
   hookRate: 'Clicked the link',
   reportRate: 'Reported the email',
   gaveDetails: 'Entered details on the practice page',
-  firstReport: 'Median minutes from sending to the first report',
+  firstReport: 'Average minutes from sending to a report, every report counted',
   trainingCompletion: 'Trainings completed, of those assigned',
 };
 // what − and + move a target by, in the box's units
-const STEP = { riskScore: 1, highRiskShare: 1, hookRate: 1, reportRate: 5, gaveDetails: 0.5, firstReport: 5, trainingCompletion: 5 };
+const STEP = { riskScore: 1, highRiskShare: 1, hookRate: 1, reportRate: 5, gaveDetails: 0.5, firstReport: 10, trainingCompletion: 5 };
 const UNIT_TEXT = { '': 'of 100', '%': '%', min: 'min' };
 
 // a stored value as its box shows it (a rate in %), and back

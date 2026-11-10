@@ -160,7 +160,7 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
               {s.sub && <text x={L + iw + (columns ? 8 : 12)} y={Y(s.v) + 14} style={{ ...tick }}>{s.sub}</text>}
             </g>
           ))}
-          {points.map((p, i) => <text key={p.to} x={X(i)} y={h - 3} textAnchor="middle" style={{ ...tick, fill: i === n - 1 ? 'var(--text)' : 'var(--muted)', fontWeight: i === n - 1 ? 700 : 500 }}>{month(p.to)}</text>)}
+          {points.map((p, i) => <text key={p.to} x={X(i)} y={h - 3} textAnchor="middle" style={{ ...tick, fill: i === n - 1 ? 'var(--text)' : 'var(--muted)', fontWeight: i === n - 1 ? 700 : 500 }}>{p.axis ?? month(p.to)}</text>)}
           {/* each month's hover strip, inside the plot */}
           {points.map((p, i) => {
             const half = columns ? iw / n / 2 : n > 1 ? iw / (n - 1) / 2 : iw / 2;

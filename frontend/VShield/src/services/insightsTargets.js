@@ -14,7 +14,9 @@ export const TARGETS = Object.freeze({
   hookRate: { better: 'down', target: 0.05, atRisk: 0.1, max: 0.2 },
   reportRate: { better: 'up', target: 0.5, atRisk: 0.3, max: 0.8 },
   gaveDetails: { better: 'down', target: 0.01, atRisk: 0.03, max: 0.1 },
-  firstReport: { better: 'down', target: 15, atRisk: 30, max: 40 },
+  // the average minutes from sending to a report (the key keeps its old name,
+  // which the API stores)
+  firstReport: { better: 'down', target: 60, atRisk: 120, max: 180 },
   trainingCompletion: { better: 'up', target: 0.9, atRisk: 0.8, max: 1 },
 });
 
