@@ -1,33 +1,14 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useUserType } from "@/UserTypeContext/UserTypeContext";
 
-import {
-  getUploadedVideos,
-  getUploadedCertificates,
-  savePath,
-  getPaths,
-  saveQuiz,
-  getQuizzes,
-  saveVideo,
-  getVideos,
-  saveCertificateItem,
-  getCertificateItems,
-  getPackages
-} from "./components/utility/db";
-
-// JSON Data Imports
-import trainingPathsJson from "./TrainingPath.json";
-import trainingVideosJson from "./TrainingVideos.json";
-import trainingQuizJson from "./TrainingQuiz.json";
-import trainingCertificateJson from "./TrainingCertificate.json";
+import { getPackages } from "./components/utility/db";
+import { loadTraining } from "@/services/trainingCatalog";
 
 // Asset URL & Image Imports
 // A small built-in SCORM 1.2 sample (3 KB), so the Packages screen shows how a
 // package plays before anyone uploads one. Real packages are uploaded through
 // Add ZIP Package and stored in S3 (GET/POST /training/packages).
 import sampleScormUrl from "@/assets/Training(LMS)/samples/sample-scorm12-spot-the-phish.zip?url";
-import videosMetadataUrl from "@/assets/Training(LMS)/uploads/videos/metadata.json?url";
-import certsMetadataUrl from "@/assets/Training(LMS)/uploads/certificates/metadata.json?url";
 
 import { extractZipHtml } from "./components/utility/zipHelpers";
 import { api } from "@/services/api";
@@ -84,15 +65,18 @@ export const TrainingProvider = ({ children }) => {
   }, []);
 
   // Global In-Memory States
-  const [paths, setPaths] = useState(() => trainingPathsJson);
+  // Paths, videos, quizzes and certificates come from the backend
+  // (services/trainingCatalog.js); empty until it answers.
+  const [paths, setPaths] = useState([]);
   const [editingPath, setEditingPath] = useState(null);
   const [pathsSubTab, setPathsSubTab] = useState("all");
   const [editingVideo, setEditingVideo] = useState(null);
   const [editingQuiz, setEditingQuiz] = useState(null);
   const [editingCert, setEditingCert] = useState(null);
-  const [videos, setVideos] = useState(() => trainingVideosJson);
-  const [quizzes, setQuizzes] = useState(() => trainingQuizJson);
-  const [certificates, setCertificates] = useState(() => trainingCertificateJson);
+  const [videos, setVideos] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [trainingLoad, setTrainingLoad] = useState({ loading: true, error: null });
   const [packages, setPackages] = useState([SAMPLE_PACKAGE]);
 
   // The packages stored in S3 (everyone's), loaded on their own as soon as
@@ -113,198 +97,49 @@ export const TrainingProvider = ({ children }) => {
     };
   }, []);
 
-  // Load dynamic uploads and assets metadata on mount
+  // The training catalogue from the backend, and any packages this browser
+  // kept before packages moved to S3.
   useEffect(() => {
-    async function loadData() {
-      let finalPaths;
-      let finalQuizzes;
-      let finalVideos;
-      let finalCerts;
+    let active = true;
+    loadTraining({ force: true })
+      .then((catalog) => {
+        if (!active) return;
+        setPaths(catalog.paths);
+        setVideos(catalog.videos);
+        setQuizzes(catalog.quizzes);
+        setCertificates(catalog.certificates);
+        setTrainingLoad({ loading: false, error: null });
+      })
+      .catch((err) => {
+        console.error("Could not load training from the server", err);
+        if (active) setTrainingLoad({ loading: false, error: err });
+      });
 
-      try {
-        const dbPaths = await getPaths();
-        if (dbPaths.length === 0) {
-          for (const staticPath of trainingPathsJson) {
-            await savePath(staticPath);
-          }
-          finalPaths = [...trainingPathsJson];
-        } else {
-          const pathsMap = new Map(dbPaths.map((p) => [p.TrainingPathID, p]));
-          finalPaths = [...dbPaths];
-          for (const staticPath of trainingPathsJson) {
-            if (!pathsMap.has(staticPath.TrainingPathID)) {
-              await savePath(staticPath);
-              finalPaths.push(staticPath);
-            }
-          }
-        }
-        setPaths(finalPaths);
-
-        const dbQuizzes = await getQuizzes();
-        if (dbQuizzes.length === 0) {
-          for (const staticQuiz of trainingQuizJson) {
-            await saveQuiz(staticQuiz);
-          }
-          finalQuizzes = [...trainingQuizJson];
-        } else {
-          const quizzesMap = new Map(dbQuizzes.map((q) => [q.TrainingQuizID, q]));
-          finalQuizzes = [...dbQuizzes];
-          for (const staticQuiz of trainingQuizJson) {
-            if (!quizzesMap.has(staticQuiz.TrainingQuizID)) {
-              await saveQuiz(staticQuiz);
-              finalQuizzes.push(staticQuiz);
-            }
-          }
-        }
-        setQuizzes(finalQuizzes);
-
-        const dbVideosList = await getVideos();
-        const savedVidsList = await getUploadedVideos();
-        const uploadedFilesMap = new Map(savedVidsList.map((v) => [v.id, v.file]));
-
-        if (dbVideosList.length === 0) {
-          for (const staticVid of trainingVideosJson) {
-            await saveVideo(staticVid);
-          }
-          finalVideos = [...trainingVideosJson];
-        } else {
-          dbVideosList.forEach((v) => {
-            if (uploadedFilesMap.has(v.TrainingVideoID)) {
-              const file = uploadedFilesMap.get(v.TrainingVideoID);
-              if (file && (file instanceof Blob)) {
-                try {
-                  v.TrainingVideo = URL.createObjectURL(file);
-                } catch (err) {
-                  console.error("Failed to repair video blob URL", err);
-                }
+    getPackages()
+      .then((dbPkgs) =>
+        Promise.all(
+          dbPkgs.map(async (pkg) => {
+            if (pkg.fileBlob) {
+              try {
+                pkg.compiledHtmlUrl = await extractZipHtml(pkg.fileBlob);
+              } catch (err) {
+                console.error("Failed to extract saved standalone package on load", err);
               }
             }
-          });
-          const videosMap = new Map(dbVideosList.map((v) => [v.TrainingVideoID, v]));
-          finalVideos = [...dbVideosList];
-          for (const staticVid of trainingVideosJson) {
-            if (!videosMap.has(staticVid.TrainingVideoID)) {
-              await saveVideo(staticVid);
-              finalVideos.push(staticVid);
-            }
-          }
+            return pkg;
+          })
+        )
+      )
+      .then((extractedDbPkgs) => {
+        if (active && extractedDbPkgs.length) {
+          setPackages((prev) => mergePackages(prev.filter((p) => !p.isSample), extractedDbPkgs, [SAMPLE_PACKAGE]));
         }
-        setVideos(finalVideos);
-
-        const dbCertsList = await getCertificateItems();
-        if (dbCertsList.length === 0) {
-          for (const staticCert of trainingCertificateJson) {
-            await saveCertificateItem(staticCert);
-          }
-          finalCerts = [...trainingCertificateJson];
-        } else {
-          const certsMap = new Map(dbCertsList.map((c) => [c.TrainingCertificateID, c]));
-          finalCerts = [...dbCertsList];
-          for (const staticCert of trainingCertificateJson) {
-            if (!certsMap.has(staticCert.TrainingCertificateID)) {
-              await saveCertificateItem(staticCert);
-              finalCerts.push(staticCert);
-            }
-          }
-        }
-        setCertificates(finalCerts);
-
-        const dbPkgs = await getPackages();
-        const extractedDbPkgs = await Promise.all(dbPkgs.map(async (pkg) => {
-          if (pkg.fileBlob) {
-            try {
-              pkg.compiledHtmlUrl = await extractZipHtml(pkg.fileBlob);
-            } catch (err) {
-              console.error("Failed to extract saved standalone package on load", err);
-            }
-          }
-          return pkg;
-        }));
-        // Any kept in this browser only join the list (the S3 ones are loaded
-        // on their own, below), the sample last.
-        setPackages((prev) => mergePackages(prev.filter((p) => !p.isSample), extractedDbPkgs, [SAMPLE_PACKAGE]));
-      } catch (err) {
-        console.error("Failed to run progressive JSON-to-IDB migration flow:", err);
-      }
-
-      // Local metadata assets loaded dynamically
-      let publicVideos = [];
-      try {
-        const res = await fetch(videosMetadataUrl);
-        if (res.ok) publicVideos = await res.json();
-      } catch { /* ignore */ }
-
-      let publicCerts = [];
-      try {
-        const res = await fetch(certsMetadataUrl);
-        if (res.ok) publicCerts = await res.json();
-      } catch { /* ignore */ }
-
-      let dbVideos = [];
-      let dbCerts = [];
-      try {
-        const savedVids = await getUploadedVideos();
-        dbVideos = savedVids.map((vid) => {
-          let videoUrl = "";
-          if (vid.file && (vid.file instanceof Blob)) {
-            try {
-              videoUrl = URL.createObjectURL(vid.file);
-            } catch (err) {
-              console.error("Failed to create object URL for saved video", err);
-            }
-          }
-          return {
-            TrainingVideoID: vid.id,
-            TrainingVideoName: vid.name,
-            "Thumbnail(CoverImage)": "",
-            TrainingVideo: videoUrl,
-            CreatedOn: vid.createdOn,
-            Description: vid.description
-          };
-        });
-
-        const savedCerts = await getUploadedCertificates();
-        dbCerts = savedCerts.map((cert) => {
-          let certHtml = cert.htmlContent;
-          if (cert.imageFile && (cert.imageFile instanceof Blob)) {
-            try {
-              const imgUrl = URL.createObjectURL(cert.imageFile);
-              certHtml = `<!DOCTYPE html><html><head><style>body{margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;}img{max-width:100%;max-height:100vh;object-fit:contain;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);}</style></head><body><img src="${imgUrl}" /></body></html>`;
-            } catch (err) {
-              console.error("Failed to create object URL for cert image", err);
-            }
-          }
-          return {
-            TrainingCertificateID: cert.id,
-            TrainingCertificateName: cert.name,
-            "Thumbnail(CoverImage)": "",
-            CreatedOn: cert.createdOn,
-            Description: cert.description,
-            "Certificate(html)": certHtml
-          };
-        });
-      } catch (err) {
-        console.error(err);
-      }
-
-      if (publicVideos.length > 0 || dbVideos.length > 0) {
-        setVideos((prev) => {
-          const existingIds = new Set(prev.map((v) => v.TrainingVideoID));
-          const toAdd = [...publicVideos, ...dbVideos].filter((v) => !existingIds.has(v.TrainingVideoID));
-          return [...prev, ...toAdd];
-        });
-      }
-
-      if (publicCerts.length > 0 || dbCerts.length > 0) {
-        setCertificates((prev) => {
-          const existingIds = new Set(prev.map((c) => c.TrainingCertificateID));
-          const toAdd = [...publicCerts, ...dbCerts].filter((c) => !existingIds.has(c.TrainingCertificateID));
-          return [...prev, ...toAdd];
-        });
-      }
-    }
-    loadData();
-  }, [userContext.isDark]);
+      })
+      .catch((err) => console.error("Could not read packages kept in this browser", err));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState("paths");
   const [currentView, setCurrentView] = useState("hub");
@@ -481,7 +316,8 @@ export const TrainingProvider = ({ children }) => {
     setShowCertCreator,
     showPathCreator,
     setShowPathCreator,
-    filteredPaths
+    filteredPaths,
+    trainingLoad
   };
 
   return (

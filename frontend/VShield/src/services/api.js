@@ -184,11 +184,33 @@ export const api = {
         `/leaderboard?viewer=${encodeURIComponent(viewer || '')}${role ? `&role=${encodeURIComponent(role)}` : ''}`,
       ),
   },
+  // The Training screen's content. `kind` is paths | videos | quizzes |
+  // certificates; save() upserts the whole row under its ID, as the screen
+  // numbers them (TP-00001, ...).
   training: {
     paths: () => request('/training/paths'),
     videos: () => request('/training/videos'),
     quizzes: () => request('/training/quizzes'),
     certificates: () => request('/training/certificates'),
+    save: (kind, id, row) =>
+      request(`/training/${kind}/${encodeURIComponent(id)}`, { method: 'PUT', body: row }),
+    remove: (kind, id) =>
+      request(`/training/${kind}/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    // A video or certificate image: presign, PUT it straight to S3, and
+    // return the key to save on the row (TrainingVideoKey / CertificateImageKey).
+    async uploadMedia(file) {
+      const presign = await request('/training/media/upload', {
+        method: 'POST',
+        body: { fileName: file.name, contentType: file.type },
+      });
+      const put = await fetch(uploadTarget(presign.uploadUrl), {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Upload to storage failed (${put.status})`);
+      return presign.mediaKey;
+    },
   },
   // SCORM / HTML5 packages: the zip goes straight to S3 through a presigned
   // PUT, then the row is saved; listing gives each a presigned GET (PackageURL).
