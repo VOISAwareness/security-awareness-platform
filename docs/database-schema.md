@@ -158,6 +158,10 @@ Small running totals, so no screen ever scans the events table.
 | `reportMinutes`, `reportCount` | for "Avg time for reporting" |
 | `trainingAssigned`, `trainingCompleted`, `trainingPassed`, `quizScoreSum`, `completeDaysSum` | for the Training tab |
 
+`day` is the day the email was sent (for training, the day it was assigned),
+so a period's rates are always "of the emails sent in it". `completeDaysSum`
+is in tenths of a day.
+
 A new `stats-engine` function reads the events stream and adds to these rows,
 the same way `points-engine` keeps the points ledger. A 90-day view is a
 read of 90 small rows per scope. If analytics later moves to the data lake in
@@ -173,6 +177,11 @@ the HLD, the API keeps the same shape and only its source changes.
 | `points`, `levelId` | from the points ledger |
 | `clicks`, `reports`, `campaigns` | running totals to that day |
 | `trainedState` | `ASSIGNED`, `VOLUNTARY` or `NONE`, for the training lift chart |
+
+A person's tier looks at their last 90 days: critical gave details away,
+high clicked more than once, moderate clicked once or never reported, low
+reported and never clicked. The Risk Score is everyone's tier on 0 to 100
+(0, 33, 67, 100), averaged. These are the rules Insights uses today.
 
 Written by a monthly job (and by the seed for past months). It gives the
 risk score over time, who moved between levels, and high-risk people.
