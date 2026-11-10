@@ -47,6 +47,14 @@ beforeEach(() => {
 test('ids are distinct', () => {
   const ids = new Set(Array.from({ length: 50 }, () => newDraftId()));
   assert.equal(ids.size, 50);
+  // even in the same millisecond with the same random part
+  const random = Math.random;
+  Math.random = () => 0.5;
+  try {
+    assert.equal(new Set(Array.from({ length: 1000 }, () => newDraftId(1))).size, 1000);
+  } finally {
+    Math.random = random;
+  }
   assert.match(newDraftId(), /^SD-[0-9a-z]+$/);
 });
 
