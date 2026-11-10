@@ -16,7 +16,7 @@ import {
 // =========================================================================
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardsScaleAdjuster = 1.0;
-export const VarGalleryLowerBaseHeightAdjuster = 460;
+export const VarGalleryLowerBaseHeightAdjuster = 430;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');

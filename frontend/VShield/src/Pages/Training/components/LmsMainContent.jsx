@@ -129,7 +129,7 @@ export const LmsMainContent = () => {
     <div className={`flex-1 min-w-0 rounded-[8px] border flex flex-col h-full overflow-hidden ${
       isFormActive ? "" : "p-3 pb-1"
     } ${
-      isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
+      isDark ? "bg-[#0F1015] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
     }`}>
       {currentView === "paths" ? (
         <TrainingPathLandingPage

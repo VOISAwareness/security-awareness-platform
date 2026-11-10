@@ -20,7 +20,7 @@ export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardLenghtAdjuster = 1.0;
 export const VarGallaryCardsScaleAdjuster = 0.99;
 // Height adjuster for Lower L-Base (in px or custom calculation)
-export const VarGalleryLowerBaseHeightAdjuster = 460;
+export const VarGalleryLowerBaseHeightAdjuster = 430;
 // Alignment for all four action buttons: 'Right' | 'Left' | 'Center' | 'Between'
 export const VarAllFourButtonsAlign = "Right";
 
@@ -330,7 +330,7 @@ const ApprovalQueueGallery = ({
           <div className="flex flex-col items-end justify-center text-right pr-2">
             <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
-              className="text-5xl font-black leading-none tracking-tight font-voda-exb"
+              className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
             >
               {String(processedCampaigns.length).padStart(2, "0")}
             </span>
