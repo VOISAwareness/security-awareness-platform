@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useUserType,
@@ -20,167 +20,15 @@ import {
 
 import HeroImage from "../../LandingPageImage.png";
 import AnimatedShackleGif from "../../assets/v-shield-animated-shackle.gif";
-import masterUsersData from "../../MasterUserData.json";
+import { peopleByRole, usePeople } from "../../services/people";
 // IMPORT PART 2 SECTION
 import LandingPagePart2 from "./LandingPagePart2";
-import { SUPPORT_EMAIL, DEMO_USER } from "../../appConfig";
+import { SUPPORT_EMAIL } from "../../appConfig";
 
 // =========================================================================
 // 🎛️ HERO & KNOW MORE SCALE CONTROL VARIABLE (0.9 = 90%, 1.0 = 100%, etc.)
 // =========================================================================
 export const VarLandingPageScale = 1.0;
-
-// Role-Based User Data derived strictly from MasterUserData
-const ROLE_USERS = {
-  Admin: [
-    {
-      UserID: "VSLD-000006",
-      UserName: "Aarav Sharma",
-      UserEMailID: "aarav.sharma@vodafone.com",
-      Department: "Cyber Security",
-      Country: "India",
-    },
-    {
-      UserID: "VSLD-000053",
-      UserName: "Jack Roberts",
-      UserEMailID: "jack.roberts@vodafone.com",
-      Department: "Cyber Security",
-      Country: "UK",
-    },
-  ],
-  "Campaign Manager": [
-    {
-      UserID: "VSLD-000001",
-      UserName: DEMO_USER.name,
-      UserEMailID: DEMO_USER.email,
-      Department: "AIDA",
-      Country: "India",
-    },
-    {
-      UserID: "VSLD-000002",
-      UserName: "Trevor Sile",
-      UserEMailID: "trevor.sile@vodafone.com",
-      Department: "CARE",
-      Country: "UK",
-    },
-    {
-      UserID: "VSLD-000003",
-      UserName: "Mitin Rinis",
-      UserEMailID: "mitin.rinis@vodafone.com",
-      Department: "Finance Operations",
-      Country: "UK",
-    },
-  ],
-  "Campaign Creator": [
-    {
-      UserID: "VSLD-000004",
-      UserName: "Sarah Jenkins",
-      UserEMailID: "sarah.jenkins@vodafone.com",
-      Department: "Finance Operations",
-      Country: "Germany",
-    },
-    {
-      UserID: "VSLD-000005",
-      UserName: "Karim Mostafa",
-      UserEMailID: "karim.mostafa@vodafone.com",
-      Department: "Supply Chain Management",
-      Country: "Egypt",
-    },
-    {
-      UserID: "VSLD-000007",
-      UserName: "Priya Nair",
-      UserEMailID: "priya.nair@vodafone.com",
-      Department: "AIDA",
-      Country: "India",
-    },
-    {
-      UserID: "VSLD-000008",
-      UserName: "Oliver Hughes",
-      UserEMailID: "oliver.hughes@vodafone.com",
-      Department: "Network Engineering",
-      Country: "UK",
-    },
-  ],
-  "Gamification Engine Manager": [
-    {
-      UserID: "VSLD-000023",
-      UserName: "Luca Conti",
-      UserEMailID: "luca.conti@vodafone.com",
-      Department: "Digital Products",
-      Country: "Italy",
-    },
-    {
-      UserID: "VSLD-000039",
-      UserName: "Vikram Sethi",
-      UserEMailID: "vikram.sethi@vodafone.com",
-      Department: "Digital Products",
-      Country: "India",
-    },
-  ],
-  GMT: [
-    {
-      UserID: "VSLD-000103",
-      UserName: "Hanah Brooks",
-      UserEMailID: "hanah.brooks@vodafone.com",
-      Department: "Executive Board",
-      Country: "India",
-    },
-    {
-      UserID: "VSLD-000104",
-      UserName: "Alexander Wright",
-      UserEMailID: "alex.wright@vodafone.com",
-      Department: "IT Security",
-      Country: "UK",
-    },
-    {
-      UserID: "VSLD-000030",
-      UserName: "Charlotte Evans",
-      UserEMailID: "charlotte.evans@vodafone.com",
-      Department: "Legal & Compliance",
-      Country: "UK",
-    },
-    {
-      UserID: "VSLD-000101",
-      UserName: "David Miller",
-      UserEMailID: "david.miller@vodafone.com",
-      Department: "Supply Chain Management",
-      Country: "UK",
-    },
-    {
-      UserID: "VSLD-000102",
-      UserName: "Elena Rossi",
-      UserEMailID: "elena.rossi@vodafone.com",
-      Department: "CARE",
-      Country: "Albania",
-    },
-  ],
-  "Regular User":
-    typeof masterUsersData !== "undefined" && Array.isArray(masterUsersData)
-      ? masterUsersData
-      : [
-          {
-            UserID: "VSLD-000001",
-            UserName: DEMO_USER.name,
-            UserEMailID: DEMO_USER.email,
-            Department: "AIDA",
-            Country: "India",
-          },
-          {
-            UserID: "VSLD-000002",
-            UserName: "Trevor Sile",
-            UserEMailID: "trevor.sile@vodafone.com",
-            Department: "CARE",
-            Country: "UK",
-          },
-          {
-            UserID: "VSLD-000003",
-            UserName: "Mitin Rinis",
-            UserEMailID: "mitin.rinis@vodafone.com",
-            Department: "Finance Operations",
-            Country: "UK",
-          },
-        ],
-};
 
 const LandingPage = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -194,6 +42,10 @@ const LandingPage = () => {
   const [selectedUserId, setSelectedUserId] = useState("");
 
   const { login, isDark, setIsDark } = useUserType();
+
+  // Who can sign in with each role: the people directory, from the backend.
+  const { people, loading: peopleLoading, error: peopleError, reload: reloadPeople } = usePeople();
+  const ROLE_USERS = useMemo(() => peopleByRole(people), [people]);
   const navigate = useNavigate();
   const { scrollYProgress, scrollY } = useScroll();
 
@@ -240,7 +92,7 @@ const LandingPage = () => {
     } else {
       setSelectedUserId("");
     }
-  }, [role]);
+  }, [role, ROLE_USERS]);
 
   // Step 1: Initialize Session and reveal User Profile dropdown
   const handleInitializeSession = (e) => {
@@ -723,6 +575,24 @@ const LandingPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* The directory is still loading, failed, or has no one in this role */}
+                  {!activeUserObj && (
+                    <p role="status" className="text-xs text-slate-600 dark:text-slate-300 text-left">
+                      {peopleLoading ? (
+                        "Loading people…"
+                      ) : peopleError ? (
+                        <>
+                          Couldn't load people from the server.{" "}
+                          <button type="button" onClick={reloadPeople} className="font-bold text-[#E60000] underline">
+                            Try again
+                          </button>
+                        </>
+                      ) : (
+                        "No one has this role yet."
+                      )}
+                    </p>
+                  )}
 
                   {/* Profile Summary Card Preview */}
                   {activeUserObj && (

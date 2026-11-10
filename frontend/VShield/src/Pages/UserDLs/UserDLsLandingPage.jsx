@@ -11,7 +11,7 @@ import ExcelIcon from "../../assets/UserListScreenAssets/ExcelIconUserListsScree
 import ExchangeIcon from "../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png";
 
 // Fallback data & master user lookup
-import masterUsersData from "../../MasterUserData.json";
+import { usePeople } from "../../services/people";
 import { api } from "../../services/api";
 import { listUsageCounts, timesUsed } from "../../services/listUsage";
 import PageLoading from "../../GlobalComponents/PageLoading";
@@ -72,6 +72,8 @@ const getGalleryCardBg = (index, isDark) => {
 };
 
 const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
+  // The people directory, from the backend (services/people.js).
+  const { people: masterUsersData } = usePeople();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 
@@ -275,7 +277,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
             : "—",
       };
     });
-  }, [listMembers]);
+  }, [listMembers, masterUsersData]);
 
   return (
     <>

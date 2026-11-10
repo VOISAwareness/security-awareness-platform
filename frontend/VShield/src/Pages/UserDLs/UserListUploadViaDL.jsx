@@ -15,7 +15,7 @@ import {
 
 import ExchangeIcon from "../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png";
 import defaultData from "./UserDLsData.json";
-import masterUsersData from "../../MasterUserData.json";
+import { usePeople } from "../../services/people";
 import { DEMO_USER } from "../../appConfig";
 
 // =========================================================================
@@ -51,6 +51,8 @@ const VODAFONE_FONT_STYLE = `
 `;
 
 const UserListUploadViaDL = () => {
+  // The people directory, from the backend (services/people.js).
+  const { people: masterUsersData, loading: peopleLoading } = usePeople();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
@@ -196,7 +198,7 @@ const UserListUploadViaDL = () => {
 
   // Pre-load editing cohort if editId exists
   useEffect(() => {
-    if (editId) {
+    if (editId && !peopleLoading) {
       try {
         const stored = localStorage.getItem("voisshield_user_dls_data");
         const all = stored
@@ -242,7 +244,7 @@ const UserListUploadViaDL = () => {
         console.error(e);
       }
     }
-  }, [editId]);
+  }, [editId, peopleLoading]);
 
   const showToast = (msg) => {
     setToastMessage(msg);

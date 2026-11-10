@@ -19,7 +19,7 @@ import ExcelIcon from "../../assets/UserListScreenAssets/ExcelIconUserListsScree
 import CSVIcon from "../../assets/UserListScreenAssets/CSVIconUserListsScreen.png";
 import { api } from "../../services/api";
 import { DEMO_USER } from "../../appConfig";
-import masterUsersData from "../../MasterUserData.json";
+import { usePeople } from "../../services/people";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -54,6 +54,8 @@ const VODAFONE_FONT_STYLE = `
 `;
 
 const UserListViaBulkUpload = () => {
+  // The people directory, from the backend (services/people.js).
+  const { people: masterUsersData, loading: peopleLoading } = usePeople();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
@@ -176,8 +178,9 @@ const UserListViaBulkUpload = () => {
   };
 
   // Pre-load the list being edited from the backend.
+  // Waits for the people directory, which completes each member's row.
   useEffect(() => {
-    if (!editId) return;
+    if (!editId || peopleLoading) return;
     let active = true;
     Promise.all([api.userLists.list(), api.userLists.members(editId)])
       .then(([rows, members]) => {
@@ -205,7 +208,7 @@ const UserListViaBulkUpload = () => {
     return () => {
       active = false;
     };
-  }, [editId]);
+  }, [editId, peopleLoading]);
 
   // Download Sample Template
   const handleDownloadTemplate = () => {
