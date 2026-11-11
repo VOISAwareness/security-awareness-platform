@@ -24,8 +24,12 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
-import userDLsJson from "../../../UserDLs/UserDLsData.json";
-import AnnouncamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
+import { api } from "../../../../services/api";
+import { announcementTemplatesLive, useAnnouncementData, userListsLive } from "../../../../services/announcements";
+// Templates and user lists from the backend (services/announcements.js),
+// kept in objects shaped like the sample files they replace.
+const userDLsJson = userListsLive;
+const AnnouncamentScenariosJsonData = announcementTemplatesLive;
 import { usePeople } from "../../../../services/people";
 
 // =========================================================================
@@ -150,6 +154,8 @@ const FX_PARAMETERS = [
 ];
 
 const AnnouncementsCampaignEmail = () => {
+  // Templates and user lists from the backend (services/announcements.js).
+  useAnnouncementData();
   // The people directory, from the backend (services/people.js).
   const { people: masterUsersData } = usePeople();
   const navigate = useNavigate();
@@ -226,7 +232,7 @@ const AnnouncementsCampaignEmail = () => {
 
   console.log("availableSenderEmails", availableSenderEmails);
 
-  // Dynamic User Lists directly from UserDLsData.json
+  // User lists from the backend
   const availableLists = [
     ...(userDLsJson?.savedUserLists || []).map((l) => ({
       id: l.id,
@@ -574,18 +580,29 @@ const AnnouncementsCampaignEmail = () => {
     });
   };
 
-  // Clicking Load loads the active selection from UserDLsData.json
-  const handleLoadList = () => {
+  // Clicking Load loads the chosen list and its members from the backend.
+  // The draft kept in this browser holds only the list's summary, never its
+  // members' addresses.
+  const handleLoadList = async () => {
     if (!currentSelectedList) return;
     setIsListLoaded(true);
-    setLoadedData(currentSelectedList);
     setErrorMsg("");
     persistChanges({
       isListLoaded: true,
       selectedListId: currentSelectedList?.id,
       selectedListName: currentSelectedList?.name,
-      loadedData: currentSelectedList,
+      loadedData: { ...currentSelectedList, users: [] },
     });
+    try {
+      const members = await api.userLists.members(currentSelectedList.id);
+      setLoadedData({
+        ...currentSelectedList,
+        users: Array.isArray(members) ? members : currentSelectedList.users || [],
+      });
+    } catch {
+      // Members unavailable: keep the summary the list row already gives.
+      setLoadedData(currentSelectedList);
+    }
   };
 
   // Toggle expand mode safely keeping track of edits
@@ -653,7 +670,7 @@ const AnnouncementsCampaignEmail = () => {
     { id: "review", step: 3, titleLine1: "Review &", titleLine2: "Publish" },
   ];
 
-  // 1. Department Breakdown (Raw Count based from UserDLsData.json)
+  // 1. Department Breakdown (from the loaded list's members)
   const activeData = loadedData || currentSelectedList;
   const deptList = (() => {
     if (
@@ -677,7 +694,7 @@ const AnnouncementsCampaignEmail = () => {
     return [];
   })();
 
-  // 2. Location Breakdown (Raw Count based from UserDLsData.json users)
+  // 2. Location Breakdown (from the loaded list's members)
   const locationList = (() => {
     if (
       activeData?.locationBreakdown &&

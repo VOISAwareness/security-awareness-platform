@@ -3,7 +3,10 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../../../UserTypeContext/UserTypeContext';
 import { Check, AlertTriangle, X, Edit2 } from 'lucide-react';
-import AnnouncamentScenariosJsonData from '../../../Announcement/AnnouncementData.json';
+import { announcementTemplatesLive, useAnnouncementData } from '../../../../services/announcements';
+// Templates and user lists from the backend (services/announcements.js),
+// kept in objects shaped like the sample files they replace.
+const AnnouncamentScenariosJsonData = announcementTemplatesLive;
 import gamificationCardLogo from '../../../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 
 // =========================================================================
@@ -56,6 +59,8 @@ const CAMPAIGN_STEPS = [
 const CURRENT_STEP_NUMBER = 1; // Step 1: Details & Settings
 
 const AnnouncementsDetailsAndSettings = () => {
+  // Templates and user lists from the backend (services/announcements.js).
+  useAnnouncementData();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
   const [acknowledgedPoints, setAcknowledgedPoints] = useState(50);

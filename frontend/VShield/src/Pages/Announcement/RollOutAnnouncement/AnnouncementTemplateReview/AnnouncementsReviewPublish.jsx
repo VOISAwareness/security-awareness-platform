@@ -11,8 +11,11 @@ import {
   Users,
   CheckCircle2,
 } from "lucide-react";
-import announcamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
-import userDLsJson from "../../../UserDLs/UserDLsData.json";
+import { announcementTemplatesLive, saveRollout, useAnnouncementData, userListsLive } from "../../../../services/announcements";
+// Templates and user lists from the backend (services/announcements.js),
+// kept in objects shaped like the sample files they replace.
+const announcamentScenariosJsonData = announcementTemplatesLive;
+const userDLsJson = userListsLive;
 import initialLandingCatalogues from "../../../LandingPageCatalogue/LandingPageCatalogues.json";
 import gamificationCardLogo from "../../../../assets/GamificationCardLogoStartNewCamapignScreen.png";
 
@@ -92,6 +95,8 @@ const CAMPAIGN_STEPS = [
 const CURRENT_STEP_NUMBER = 3; // Step 3: Review & Publish
 
 const AnnouncementsReviewPublish = () => {
+  // Templates and user lists from the backend (services/announcements.js).
+  useAnnouncementData();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
   const userRole = userContext?.user?.role || "";
@@ -306,95 +311,39 @@ const AnnouncementsReviewPublish = () => {
     { id: "review", step: 3, titleLine1: "Review &", titleLine2: "Publish" },
   ];
 
-  // Publish Announcement
-  const handlePublishCampaign = () => {
+  // Publish the roll-out, or send it for approval: saved to the backend.
+  const [publishError, setPublishError] = useState("");
+
+  const submitRollout = async (submit) => {
     if (isPublishing) return;
-
     setIsPublishing(true);
-
-    setTimeout(() => {
-      try {
-        const storedCampaigns = localStorage.getItem(
-          "voisshield_published_campaigns",
-        );
-
-        const existingCampaigns = storedCampaigns
-          ? JSON.parse(storedCampaigns)
-          : [];
-
-        const newCampaign = {
-          ...draft,
-          campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
-          publishedAt: new Date().toISOString(),
-          status: "Active",
-          approvalStatus: "Approved",
-          stats: {
-            sent: activeUserList.totalUsers || 100,
-            opened: 0,
-            clicked: 0,
-            compromised: 0,
-            reported: 0,
-          },
-        };
-
-        existingCampaigns.unshift(newCampaign);
-
-        localStorage.setItem(
-          "voisshield_published_campaigns",
-          JSON.stringify(existingCampaigns),
-        );
-
-        setPublishSuccessModal(true);
-      } catch (error) {
-        console.error("Failed to publish announcement:", error);
-      } finally {
-        setIsPublishing(false);
-      }
-    }, 600);
-  };
-
-  // Send Announcement for Approval
-  const handleSaveCampaign = () => {
+    setPublishError("");
     try {
-      const storedCampaigns = localStorage.getItem(
-        "voisshield_published_campaigns",
-      );
-
-      const existingCampaigns = storedCampaigns
-        ? JSON.parse(storedCampaigns)
-        : [];
-
-      const pendingCampaign = {
-        ...draft,
-        campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
-        submittedForApprovalAt: new Date().toISOString(),
-        status: "Pending",
-        approvalStatus: "Pending",
-        stats: {
-          sent: 0,
-          opened: 0,
-          clicked: 0,
-          compromised: 0,
-          reported: 0,
-        },
-      };
-
-      existingCampaigns.unshift(pendingCampaign);
-
-      localStorage.setItem(
-        "voisshield_published_campaigns",
-        JSON.stringify(existingCampaigns),
-      );
-
-      setSaveSuccessModal(true);
+      await saveRollout(draft, submit, activeUserList);
+      if (submit === "approve") setPublishSuccessModal(true);
+      else setSaveSuccessModal(true);
     } catch (error) {
-      console.error("Failed to submit announcement for approval:", error);
+      console.error("Failed to save the announcement:", error);
+      setPublishError(`Couldn't save the announcement: ${error?.message || "error"}`);
+    } finally {
+      setIsPublishing(false);
     }
   };
+
+  // Publish Announcement
+  const handlePublishCampaign = () => submitRollout("approve");
+
+  // Send Announcement for Approval
+  const handleSaveCampaign = () => submitRollout("request");
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: VODAFONE_FONT_STYLE }} />
+      {publishError && (
+        <div role="alert" className="fixed top-4 right-4 z-[300] px-4 py-2 rounded-lg bg-[#B91C1C] text-white text-xs font-bold shadow-lg">
+          {publishError}
+        </div>
+      )}
 
       {/* Screen Shell */}
       <div

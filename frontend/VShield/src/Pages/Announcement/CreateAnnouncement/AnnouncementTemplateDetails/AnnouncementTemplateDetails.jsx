@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import AnnouncementReviewPublishDashboard from "../AnnouncementReviewPublishDashboard/AnnouncementReviewPublishDashboard";
-import announcamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
+import { announcementTemplatesLive, publishTemplate, useAnnouncementData } from "../../../../services/announcements";
+// Templates and user lists from the backend (services/announcements.js),
+// kept in objects shaped like the sample files they replace.
+const announcamentScenariosJsonData = announcementTemplatesLive;
 import AnnouncementEmailDetailsTab from "../AnnouncementEmailDetailsTab/AnnouncementEmailDetailsTab";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -522,6 +525,8 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
 // MAIN COMPONENT
 // ============================================================
 const AnnouncementTemplateDetails = () => {
+  // Templates and user lists from the backend (services/announcements.js).
+  useAnnouncementData();
   const { isDark } = useUserType?.() || {
     isDark: false,
   };
@@ -664,48 +669,19 @@ const AnnouncementTemplateDetails = () => {
   // PUBLISH SCENARIO
   // Same functionality as ReviewAndPublishCampaign
   // ==========================================================
-  const handlePublishCampaign = () => {
+  const handlePublishCampaign = async () => {
+    if (isPublishing) return;
     setIsPublishing(true);
-
-    setTimeout(() => {
-      try {
-        const publishedCampaigns = JSON.parse(
-          localStorage.getItem("voisshield_published_campaigns") || "[]",
-        );
-
-        const newCampaign = {
-          ...formData,
-
-          campaignId: `CAMP-${Date.now().toString().slice(-5)}`,
-
-          publishedAt: new Date().toISOString(),
-
-          status: "Active",
-
-          stats: {
-            sent: formData.totalUsers || 100,
-            opened: 0,
-            clicked: 0,
-            compromised: 0,
-            reported: 0,
-          },
-        };
-
-        publishedCampaigns.unshift(newCampaign);
-
-        localStorage.setItem(
-          "voisshield_published_campaigns",
-          JSON.stringify(publishedCampaigns),
-        );
-
-        console.log("Published Campaign:", newCampaign);
-      } catch (error) {
-        console.error("Failed to publish campaign:", error);
-      }
-
-      setIsPublishing(false);
+    try {
+      // Saved to the backend; it joins the Announcement gallery.
+      await publishTemplate(formData);
       setPublishSuccessModal(true);
-    }, 600);
+    } catch (error) {
+      console.error("Failed to save the announcement template:", error);
+      setErrorMsg(`Couldn't save the template: ${error?.message || "error"}`);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   return (

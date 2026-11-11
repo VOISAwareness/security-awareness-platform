@@ -2122,6 +2122,167 @@ def my_training(route, event, context):
                           "correctOption": (questions.get(qid) or {}).get("Answer")} for qid, opt in answers.items()},
     })
 
+# --- announcements (the Announcement screens) -------------------------------
+#
+# One table (announcements, PK announcementId, status-index) holds both kinds:
+#   TEMPLATE  a reusable announcement (the gallery); id ANC-00N
+#   ROLLOUT   one sending of a template to a user list; id ANR-00N
+# Field names are the screens' own (announcementScenarioName, ...); a
+# template's announcementScenarioId is its id. `actor` and `role` are
+# client-asserted, as elsewhere, until sign-in exists.
+#   GET    /announcements?kind=TEMPLATE|ROLLOUT
+#   POST   /announcements {kind, actor, submit?: "approve"|"request", ...fields}
+#   PUT    /announcements/{id} {actor, ...fields}
+#   DELETE /announcements/{id}?actor=
+#   POST   /announcements/{id}/decision {actor, decision: "approve"|"reject", comments}
+# A roll-out is APPROVED when its creator publishes it (submit "approve") or
+# PENDING_APPROVAL when sent for approval; nobody approves their own.
+ANNOUNCEMENT_ROUTES = frozenset({
+    "GET /announcements",
+    "POST /announcements",
+    "PUT /announcements/{id}",
+    "DELETE /announcements/{id}",
+    "POST /announcements/{id}/decision",
+})
+ANNOUNCEMENT_KINDS = {"TEMPLATE": "ANC", "ROLLOUT": "ANR"}
+ANNOUNCEMENT_SERVER_OWNED = frozenset({
+    "announcementId", "kind", "status", "createdAt", "createdBy", "updatedAt",
+    "approvedBy", "approvedAt", "rejectedBy", "rejectedAt", "decisionComments",
+    "actor", "submit", "role",
+})
+MAX_ANNOUNCEMENT_BYTES = 380 * 1024
+MAX_ANNOUNCEMENT_NAME = 200
+
+
+def announcement_fields(body):
+    """The row's own fields from a body: (fields, None) or (None, why)."""
+    if not isinstance(body, dict):
+        return None, "The body must be a JSON object"
+    fields = {k: v for k, v in body.items()
+              if k not in ANNOUNCEMENT_SERVER_OWNED and not (isinstance(v, str) and v.startswith("blob:"))}
+    name = fields.get("announcementScenarioName") or fields.get("announcementCampaignTitle")
+    if name is not None and (not isinstance(name, str) or len(name.strip()) > MAX_ANNOUNCEMENT_NAME):
+        return None, f"The name must be text of at most {MAX_ANNOUNCEMENT_NAME} characters"
+    if len(json.dumps(fields, cls=DecimalEncoder).encode("utf-8")) > MAX_ANNOUNCEMENT_BYTES:
+        return None, "This announcement is too large to save. Link to images instead of pasting them in."
+    return fields, None
+
+
+def announcements(route, event, params, context):
+    tbl = table("announcements")
+    query = event.get("queryStringParameters") or {}
+    now = iso_now()
+
+    if route == "GET /announcements":
+        kind = query.get("kind")
+        rows = scan_all("announcements")
+        if kind:
+            rows = [r for r in rows if r.get("kind") == kind]
+        rows.sort(key=lambda r: str(r.get("createdAt", "")), reverse=True)
+        return ok(rows, count=len(rows))
+
+    try:
+        body = parse_body(event)
+    except ValueError:
+        body = None
+    body = body if isinstance(body, dict) else {}
+    actor = parse_identity(body.get("actor") or query.get("actor"))
+    if not actor:
+        return err(400, "actor is required")
+
+    if route == "POST /announcements":
+        kind = body.get("kind")
+        if kind not in ANNOUNCEMENT_KINDS:
+            return err(400, "kind must be TEMPLATE or ROLLOUT")
+        fields, problem = announcement_fields(body)
+        if problem:
+            return err(400, problem)
+        if kind == "TEMPLATE" and not str(fields.get("announcementScenarioName") or "").strip():
+            return err(400, "announcementScenarioName is required")
+        if kind == "ROLLOUT":
+            if not str(fields.get("announcementCampaignTitle") or fields.get("announcementScenarioName") or "").strip():
+                return err(400, "announcementCampaignTitle is required")
+            if body.get("submit") not in ("approve", "request"):
+                return err(400, 'submit must be "approve" (publish) or "request" (send for approval)')
+        status = ("ACTIVE" if kind == "TEMPLATE"
+                  else "APPROVED" if body.get("submit") == "approve" else "PENDING_APPROVAL")
+        item = {**fields, "kind": kind, "status": status, "createdBy": actor, "createdAt": now, "updatedAt": now}
+        if status == "APPROVED":
+            item.update(approvedBy=actor, approvedAt=now)
+        prefix = ANNOUNCEMENT_KINDS[kind]
+        for _ in range(3):
+            taken = [r for r in scan_all("announcements") if str(r.get("announcementId", "")).startswith(prefix)]
+            item["announcementId"] = next_sequence_id(taken, "announcementId", prefix)
+            if kind == "TEMPLATE":
+                item["announcementScenarioId"] = item["announcementId"]
+            try:
+                tbl.put_item(Item=to_dynamo(item), ConditionExpression="attribute_not_exists(announcementId)")
+                break
+            except ClientError as e:
+                if not conditional_failed(e):
+                    raise
+        else:
+            return err(409, "Could not number the announcement; try again", code="STALE")
+        log(context, "announcement saved", id=item["announcementId"], kind=kind, status=status)
+        return respond(201, {"data": item})
+
+    row = tbl.get_item(Key={"announcementId": params["id"]}).get("Item")
+    if not row:
+        return err(404, "No announcement with that id")
+
+    if route == "PUT /announcements/{id}":
+        if row.get("kind") == "ROLLOUT" and row.get("status") not in ("PENDING_APPROVAL", "REJECTED"):
+            return err(409, "A roll-out can only be changed before it is approved")
+        if parse_identity(row.get("createdBy")) != actor:
+            return err(403, "Only the person who created it can change it")
+        fields, problem = announcement_fields(body)
+        if problem:
+            return err(400, problem)
+        merged = {**row, **fields, "updatedAt": now}
+        if row.get("kind") == "ROLLOUT" and row.get("status") == "REJECTED":
+            merged["status"] = "PENDING_APPROVAL"  # changed and sent again
+        tbl.put_item(Item=to_dynamo(merged))
+        return ok(merged)
+
+    if route == "DELETE /announcements/{id}":
+        if parse_identity(row.get("createdBy")) != actor:
+            return err(403, "Only the person who created it can delete it")
+        if row.get("kind") == "ROLLOUT" and row.get("status") in ("APPROVED", "SENDING", "SENT"):
+            return err(409, "An approved roll-out cannot be deleted")
+        tbl.delete_item(Key={"announcementId": params["id"]})
+        return respond(204, {"data": None})
+
+    # POST /announcements/{id}/decision
+    decision = body.get("decision")
+    comments = str(body.get("comments") or "").strip()[:1000]
+    if decision not in ("approve", "reject"):
+        return err(400, 'decision must be "approve" or "reject"')
+    if row.get("kind") != "ROLLOUT":
+        return err(409, "Only a roll-out is approved or rejected")
+    if decision == "reject" and not comments:
+        return err(400, "A reason is required to reject")
+    if parse_identity(row.get("createdBy")) == actor:
+        return err(403, "You cannot approve or reject your own roll-out")
+    new_status = "APPROVED" if decision == "approve" else "REJECTED"
+    who = "approved" if decision == "approve" else "rejected"
+    try:
+        updated = tbl.update_item(
+            Key={"announcementId": params["id"]},
+            UpdateExpression=f"SET #s = :new, {who}By = :actor, {who}At = :now, decisionComments = :c, updatedAt = :now",
+            ConditionExpression="#s = :pending",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":new": new_status, ":actor": actor, ":now": now, ":c": comments,
+                                       ":pending": "PENDING_APPROVAL"},
+            ReturnValues="ALL_NEW",
+        )["Attributes"]
+    except ClientError as e:
+        if conditional_failed(e):
+            return err(409, "Only a roll-out waiting for approval can be approved or rejected")
+        raise
+    log(context, "announcement decided", id=params["id"], status=new_status)
+    return ok(updated)
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /users": "users",
@@ -2166,6 +2327,9 @@ def lambda_handler(event, context):
 
         if route in MY_TRAINING_ROUTES:
             return my_training(route, event, context)
+
+        if route in ANNOUNCEMENT_ROUTES:
+            return announcements(route, event, params, context)
 
         if route == "GET /scenarios":
             items = scan_all("scenarios")

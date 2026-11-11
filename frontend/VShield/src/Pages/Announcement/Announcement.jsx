@@ -15,7 +15,10 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
-import AnnouncamentScenariosJsonData from "../Announcement/AnnouncementData.json";
+import { announcementTemplatesLive, useAnnouncementData } from "../../services/announcements";
+// Templates and user lists from the backend (services/announcements.js),
+// kept in objects shaped like the sample files they replace.
+const AnnouncamentScenariosJsonData = announcementTemplatesLive;
 
 const S3_BUCKET_BASE_URL =
   (typeof import.meta !== "undefined" &&
@@ -491,6 +494,8 @@ const CARD_BACKGROUND_THEMES = [
 // =====================================================
 
 const Announcement = () => {
+  // Templates and user lists from the backend (services/announcements.js).
+  useAnnouncementData();
   const [search, setSearch] = useState("");
   // Difficulty colors exact to canvas design
   const DIFFICULTY_THEMES = {

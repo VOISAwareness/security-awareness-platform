@@ -216,6 +216,12 @@ locals {
     "POST /my-training/check",
     "POST /my-training/quiz",
     "GET /training/assignments",
+    # Announcements: templates and roll-outs (schema_tables.tf: announcements).
+    "GET /announcements",
+    "POST /announcements",
+    "PUT /announcements/{id}",
+    "DELETE /announcements/{id}",
+    "POST /announcements/{id}/decision",
     # Training packages: zips in S3, a row each (tables.tf: training_packages).
     # The upload path is static, so it never collides with POST /training/packages.
     "GET /training/packages",
