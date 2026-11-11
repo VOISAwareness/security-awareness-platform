@@ -301,6 +301,38 @@ export function movement(start, end, churn = 0) {
   return { links: links.filter((l) => l.n > 0), joined, up: up.reduce((a, b) => a + b, 0), down: down.reduce((a, b) => a + b, 0) };
 }
 
+// The quiz over some steps' training: the average score and pass rate of
+// the quizzes taken, and the average days from assigned to passed. Sources
+// that count the quizzes taken (`quizTaken`, `quizScoreSum`, `daysSum`, as
+// GET /insights does) are read exactly; older ones weight each step's
+// average score by its completions.
+function quizOf(list) {
+  const total = (key) => list.reduce((a, t) => a + (t?.[key] || 0), 0);
+  const counted = list.some((t) => Number.isFinite(t?.quizTaken));
+  const completed = total('completed');
+  const taken = total('quizTaken');
+  return {
+    quizScore: counted ? (taken ? total('quizScoreSum') / taken : null)
+      : completed ? list.reduce((a, t) => a + (t.quizScore || 0) * (t.completed || 0), 0) / completed : null,
+    quizTaken: counted ? taken : null,
+    quizPassRate: counted ? rate(total('passed'), taken) : null,
+    avgDays: counted && completed ? total('daysSum') / completed : null,
+  };
+}
+
+// Each training programme over some steps, from the steps' per-programme
+// counts (GET /insights' `training.paths`), most completed first; [] when
+// the source has none.
+function programmesOf(steps) {
+  const names = [...new Set(steps.flatMap((s) => Object.keys(s.training?.paths || {})))];
+  return names.map((program) => {
+    const list = steps.map((s) => s.training.paths?.[program]).filter(Boolean);
+    const assigned = list.reduce((a, t) => a + t.assigned, 0);
+    const completed = list.reduce((a, t) => a + t.completed, 0);
+    return { program, assigned, completed, completion: rate(completed, assigned), ...quizOf(list) };
+  }).filter((x) => x.assigned > 0).sort((a, b) => (b.completion ?? 0) - (a.completion ?? 0) || a.program.localeCompare(b.program));
+}
+
 const cohortOf = (c) => c && ({
   trained: c.trained,
   untrained: c.untrained,
@@ -310,6 +342,12 @@ const cohortOf = (c) => c && ({
   trainedRate: rate(c.trainedClicks, c.trained), // of those who finished their training, clicked in the step's simulations
   untrainedRate: rate(c.untrainedClicks, c.untrained),
   times: c.trained && c.trainedClicks ? (c.untrainedClicks / c.untrained) / (c.trainedClicks / c.trained) : null, // how many times as likely to click untrained
+  // the trained split by how they came to it, where the source says (GET /insights)
+  groups: Number.isFinite(c.assigned) ? [
+    { key: 'Assigned', people: c.assigned, clicked: c.assignedClicks, rate: rate(c.assignedClicks, c.assigned) },
+    { key: 'Voluntary', people: c.voluntary, clicked: c.voluntaryClicks, rate: rate(c.voluntaryClicks, c.voluntary) },
+    { key: 'None', people: c.untrained, clicked: c.untrainedClicks, rate: rate(c.untrainedClicks, c.untrained) },
+  ] : null,
 });
 
 /**
@@ -336,10 +374,12 @@ export function peopleInsights(org, { days = 30 } = {}) {
       slipped: sum(steps, (s) => s.slipped),
       training: {
         assigned: tr('assigned'), started: tr('started'), completed, passed: tr('passed'), badges: tr('badges'), points: tr('points'),
-        quizScore: completed ? sum(steps, (s) => s.training.quizScore * s.training.completed) / completed : null,
         completion: rate(completed, tr('assigned')),
+        ...quizOf(steps.map((s) => s.training)),
+        // of those assigned, passed; quizPassRate is of those who took the quiz
         passRate: rate(tr('passed'), tr('assigned')),
       },
+      programmes: programmesOf(steps),
     };
   };
   const departments = last.departments.map((d) => {
@@ -359,7 +399,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
       training: {
         assigned: tr('assigned'), completed, badges: tr('badges'), points: tr('points'),
         completion: rate(completed, tr('assigned')),
-        quizScore: completed ? sum(shown, (s) => s.departments[d.index].training.quizScore * s.departments[d.index].training.completed) / completed : null,
+        ...quizOf(shown.map((s) => s.departments[d.index].training)),
       },
       completionBefore: earlier.length ? rate(tr('completed', earlier), tr('assigned', earlier)) : null,
     };

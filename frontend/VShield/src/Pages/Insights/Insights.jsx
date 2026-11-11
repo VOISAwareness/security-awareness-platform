@@ -4,15 +4,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Copy, FileText } from 'lucide-react';
 
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../../services/sampleCampaigns';
-import { campaignReport } from '../../services/sampleReports';
 import { insights, peopleInsights, standsOut } from '../../services/insights';
-import { organisation } from '../../services/sampleOrganisation';
+import { useInsightsData } from '../../services/insightsData';
 import { insightsBook, insightsSummary } from '../../services/insightsExport';
-import { DRIVERS, peopleTable } from '../../services/insightsPeople';
+import { DRIVERS } from '../../services/insightsPeople';
 import { downloadXlsx, xlsxName } from '../../services/xlsx';
 import { ExportMenu } from '../Leaderboard/BigPicture';
-import dashboardData from '../DashboardAndAnalytics/dashboardData.json';
 import TabSummaryIcon from '../../assets/InsightsAssets/TabSummaryIcon.png';
 import TabDepartmentsIcon from '../../assets/InsightsAssets/TabDepartmentsIcon.png';
 import TabCampaignsIcon from '../../assets/InsightsAssets/TabCampaignsIcon.png';
@@ -142,10 +139,6 @@ const PERIODS = [
   { id: 60, label: '60 days', title: 'The last 60 days' },
   { id: 90, label: '90 days', title: 'The last 90 days' },
 ];
-
-// The training programmes: the sample the old analytics page showed, until
-// the training API reports them.
-const TRAINING = { programmes: dashboardData.trainingPrograms };
 
 // Below this the page scrolls rather than squeeze; a laptop is well above it.
 const FLOOR = 560;
@@ -307,7 +300,30 @@ const savedOf = (r) => {
   return { targets: ok && r.targets && typeof r.targets === 'object' ? r.targets : {}, version: ok && Number.isInteger(r.version) ? r.version : 0, modifiedBy: ok ? r.modifiedBy ?? null : null, modifiedAt: ok ? r.modifiedAt ?? null : null, failed: false };
 };
 
+// What the page shows while GET /insights answers, or if it cannot.
+function Waiting({ status, error, retry, isDark }) {
+  const failed = status === 'failed';
+  return (
+    <div className="ins-page" data-ins-state={status} style={{ ...themeVars(isDark), width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
+      <div role={failed ? 'alert' : 'status'} style={{ display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center', maxWidth: 360, padding: 16 }}>
+        <strong style={{ fontSize: TYPE.figure, fontWeight: 800 }}>{failed ? 'Insights could not be loaded' : 'Working out Insights…'}</strong>
+        <span style={{ ...small, fontSize: TYPE.body }}>{failed ? (error?.status === 403 ? 'Insights is for admins, campaign creators and campaign managers.' : error?.message || 'Try again in a minute.') : 'From every campaign, recipient and training record.'}</span>
+        {failed && error?.status !== 403 && <button type="button" onClick={retry} style={{ height: 32, padding: '0 14px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}>Try again</button>}
+      </div>
+    </div>
+  );
+}
+
+// Insights: the real campaigns, people and training from GET /insights
+// (services/insightsData.js), worked out by the pure functions in services/.
 const Insights = () => {
+  const { isDark, user } = useUserType() || {};
+  const source = useInsightsData(user?.role);
+  if (source.status !== 'ready') return <Waiting {...source} isDark={isDark} />;
+  return <InsightsView data={source.data} />;
+};
+
+function InsightsView({ data }) {
   const { isDark, hasAccess, user } = useUserType() || {};
   const navigate = useNavigate();
   const location = useLocation();
@@ -345,20 +361,20 @@ const Insights = () => {
   const [lBox, { w: lW, h: lH }] = useSize();
   const hover = useHoverTip();
 
-  // Sample campaigns (and those that ended before them) until the reports API lists real ones.
-  const items = useMemo(() => [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) })), []);
-  const m = useMemo(() => insights(items, { days }), [items, days]);
-  // The sample organisation, thirty days at a time, until the people and risk APIs report it.
-  const org = useMemo(() => organisation({ end: m.basis.end, steps: 24 }), [m.basis.end]);
+  // the sent campaigns' reports, and the organisation thirty days at a time,
+  // each ending at the moment GET /insights worked them out
+  const { items, org, asOf } = data;
+  const m = useMemo(() => insights(items, { days, now: asOf }), [items, days, asOf]);
   const p = useMemo(() => peopleInsights(org, { days }), [org, days]);
   const list = useMemo(() => standsOut(m, p), [m, p]);
   const depts = useMemo(() => deptTargets(m, p, T), [m, p, T]);
-  // The people behind every figure: a sample, one row per person, until
-  // GET /people answers with the same rows (services/insightsPeople.js).
   const types = useMemo(() => Object.fromEntries(items.map((x) => [x.campaign.name, x.campaign.type || 'Other'])), [items]);
   // one row per person, which every people list filters and the department
   // charts count from (services/insightsPeople.js)
-  const table = useMemo(() => peopleTable({ org, campaigns: Object.entries(types).map(([name, type]) => ({ name, type })), programmes: TRAINING.programmes.map((x) => x.program) }), [org, types]);
+  const table = data.people;
+  // the training programmes over the period (or, from a source without
+  // them per step, over the year)
+  const TRAINING = { programmes: p.now.programmes?.length ? p.now.programmes : data.programmes.map((x) => ({ ...x, completion: x.completion / 100, quizScore: x.score, quizPassRate: x.pass == null ? null : x.pass / 100 })) };
 
   const pick = (id) => { setDept(null); startTransition(() => setTab(id)); };
   const openDept = (name) => startTransition(() => { setTab('departments'); setDept(name); });
@@ -429,7 +445,7 @@ const Insights = () => {
 
   const title = 'Insights';
   const exportItems = [
-    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(xlsxName('insights', `last ${days} days`), insightsBook(m, list, TRAINING, { title: `${title} · last ${days} days`, p })) },
+    { id: 'report', Icon: FileText, label: 'Full report', meta: 'Excel', run: () => downloadXlsx(xlsxName('insights', `last ${days} days`), insightsBook(m, list, TRAINING, { title: `${title} · last ${days} days`, p, source: 'VShield' })) },
     { id: 'copy', Icon: Copy, label: 'Copy a summary', doneLabel: 'Copied', apart: true, run: () => navigator.clipboard?.writeText(insightsSummary(m, list, title)).catch(() => {}) },
   ];
   const totals = [
@@ -524,6 +540,6 @@ const Insights = () => {
       {editing && <TargetsEditor saved={saved} now={{ riskScore: p.now.score, highRiskShare: p.now.highRisk / p.now.people, hookRate: n.hooked, reportRate: n.reportRate, gaveDetails: gave, firstReport: n.firstReport, trainingCompletion: done }} depts={depts} isDark={isDark} reduce={reduce} onSave={saveTargets} onClose={() => setEditing(false)} />}
     </>
   );
-};
+}
 
 export default Insights;

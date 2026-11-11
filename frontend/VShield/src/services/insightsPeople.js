@@ -157,6 +157,8 @@ const asList = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
  *   step, programme               training ('Not started' only those who did
  *                                 not start; any other, got at least that far)
  *   driver                        one of DRIVERS' keys
+ *   trained                       'Assigned' | 'Voluntary' | 'None': how they
+ *                                 came to the training they passed
  * Each row comes back with `level` at the month and emails, clicked,
  * reported and gave over the chosen campaigns. Most clicks first.
  */
@@ -173,6 +175,7 @@ export function peopleFor(rows, f = {}, { types = {} } = {}) {
     if (f.programme && x.programme !== f.programme) continue;
     if (f.step && !(f.step === 'Not started' ? x.step === 'Not started' : reached(x.step, f.step))) continue;
     if (f.driver && !x.drivers[f.driver]) continue;
+    if (f.trained && x.trained !== f.trained) continue;
     const recs = x.records.filter((r) => (!camps.length || camps.includes(r.campaign)) && (!f.campaignType || (types[r.campaign] ?? r.type) === f.campaignType));
     if ((camps.length || f.campaignType) && !recs.length) continue;
     const sum = (key) => recs.reduce((a, r) => a + r[key], 0);

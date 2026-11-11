@@ -84,6 +84,8 @@ function sampleHistory(key, n, from, to, pts) {
 
 /** "6 Oct" as a UTC time in `year`. */
 export function dateOf(started, year = 2026) {
+  // the API's dates are ISO ('2026-10-06'); the sample's read '6 Oct'
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(started))) return Date.parse(`${String(started).slice(0, 10)}T00:00:00Z`);
   const [d, m] = String(started).split(' ');
   return Date.UTC(year, MONTHS[m] ?? 0, Number(d) || 1);
 }
