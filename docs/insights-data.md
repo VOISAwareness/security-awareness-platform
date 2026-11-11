@@ -21,7 +21,7 @@ shapes the pure functions take, so the pages need no case of their own.
 | Training programmes | `programmes` | each training path over the year: `{ program, assigned, completion, score, pass, avgDays, status }` |
 | Targets | `GET /insights-targets` (`settings` table) | `{ targets, version, modifiedBy, modifiedAt }` |
 
-Only Admin, Campaign Creator and Campaign Manager (the roles with the
+Only Admin, Campaign Creator, Campaign Manager and GMT (the roles with the
 Analytics page) get an answer; the role is client-asserted until SSO. No
 email address, tracking token or anything typed on a landing page is in it.
 A warm Lambda keeps the answer for five minutes (`CACHE_SECONDS`).
@@ -47,6 +47,16 @@ How each figure is counted:
 - **People records** are `[campaign index, clicked, reported, gave]` over the
   six months the levels cover; `services/api.js` names them from
   `campaigns` into peopleTable's `{ campaign, type, clicked, reported, gave }`.
+
+The Leaderboard's My Campaigns boards and Big Picture read
+`GET /insights/board?role=&viewer=` from the same Lambda (and the same
+five-minute cache): `{ asOf, you, campaigns, people }`, where each campaign
+is `{ id, name, type, started, total, status, endsAt }` and each person
+`{ key, name, dept, points, events }`, `points` being their points-ledger
+total today and each event `[campaign index, when (epoch ms), clicked,
+reported, gave]`, one per email delivered. `you` is the viewer's own key.
+The roles with My Campaigns or the Big Picture get it (Admin, Campaign
+Creator, Campaign Manager, Gamification Engine Manager, GMT).
 
 ## 2. From sources to pages
 

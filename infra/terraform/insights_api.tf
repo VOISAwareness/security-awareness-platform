@@ -1,6 +1,8 @@
-# insights-api: GET /insights, what Insights reads, worked out from the
+# insights-api: GET /insights (what Insights reads) and GET /insights/board
+# (the Leaderboard's campaign boards and Big Picture), worked out from the
 # campaigns, recipients, training-assignments, training-paths and users
-# tables. Reads only; nothing typed on a landing page is ever in these rows.
+# tables and the points ledger's totals. Reads only; nothing typed on a
+# landing page is ever in these rows.
 
 data "archive_file" "insights_api" {
   type             = "zip"
@@ -41,6 +43,13 @@ resource "aws_iam_role_policy" "insights_api" {
         aws_dynamodb_table.training_paths.arn,
         aws_dynamodb_table.users.arn,
       ]
+      },
+      # GET /insights/board: everyone's points today, from the ledger's TOTAL
+      # rows only (the sparse board index), never a scan of the ledger.
+      {
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.points_ledger.arn}/index/board-points-index"]
     }]
   })
 }
@@ -81,7 +90,8 @@ resource "aws_apigatewayv2_integration" "insights_api" {
 }
 
 resource "aws_apigatewayv2_route" "insights" {
+  for_each  = toset(["GET /insights", "GET /insights/board"])
   api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /insights"
+  route_key = each.value
   target    = "integrations/${aws_apigatewayv2_integration.insights_api.id}"
 }

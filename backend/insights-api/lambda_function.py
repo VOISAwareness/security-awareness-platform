@@ -16,6 +16,12 @@ GET /insights?role=   one payload in the shapes the frontend's pure
               rate, average days to complete)
   asOf        when it was worked out (epoch ms); the period ends here
 
+GET /insights/board?role=&viewer=   the Leaderboard's My Campaigns boards
+                      and Big Picture: every sent campaign (with when it
+                      ends), and everyone's points today (the points ledger's
+                      totals) with what they did with each email. No email
+                      addresses; `you` names the viewer's own key.
+
 Rules (docs/database-schema.md, the sample data's):
 - A person's tier looks at their last 90 days: critical gave details away,
   high clicked more than once, moderate clicked once or never reported, low
@@ -41,6 +47,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 import boto3
+from boto3.dynamodb.conditions import Key
 
 TABLE_PREFIX = os.environ["TABLE_PREFIX"]
 dynamodb = boto3.resource("dynamodb")
@@ -49,11 +56,15 @@ recipients_table = dynamodb.Table(f"{TABLE_PREFIX}-recipients")
 users_table = dynamodb.Table(f"{TABLE_PREFIX}-users")
 assignments_table = dynamodb.Table(f"{TABLE_PREFIX}-training-assignments")
 paths_table = dynamodb.Table(f"{TABLE_PREFIX}-training-paths")
+ledger_table = dynamodb.Table(f"{TABLE_PREFIX}-points-ledger")
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
-INSIGHTS_ROLES = frozenset({"Admin", "Campaign Creator", "Campaign Manager"})
+# the roles with the Analytics page, and those with the Leaderboard's My
+# Campaigns and Big Picture views (frontend UserTypeContext.jsx)
+INSIGHTS_ROLES = frozenset({"Admin", "Campaign Creator", "Campaign Manager", "GMT"})
+BOARD_ROLES = INSIGHTS_ROLES | {"Gamification Engine Manager"}
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "300"))
 STEP_DAYS = 30
 STEPS = 24  # two years of 30-day steps: a period, the one before, and the trends
@@ -68,7 +79,7 @@ SENT_STATUSES = frozenset({"SENDING", "SENT"})
 COHORT_KEYS = ("trained", "untrained", "trainedClicks", "untrainedClicks",
                "assigned", "voluntary", "assignedClicks", "voluntaryClicks")
 
-_cache = {"at": 0.0, "body": None}
+_cache = {"at": 0.0, "body": None, "board": None}
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -464,7 +475,8 @@ def build_programmes(training, path_names, now):
     return out
 
 
-def build(now=None):
+def load(now=None):
+    """Every row Insights and the boards read, as outcomes and training views."""
     now = now or datetime.now(UTC)
     users = [u for u in scan_all(users_table) if u.get("active", True) is not False]
     people = {}
@@ -492,20 +504,90 @@ def build(now=None):
     items = [campaign_report(c, rows_by_campaign[c["campaignId"]], people)
              for c in sent if rows_by_campaign[c["campaignId"]]]
     items.sort(key=lambda x: (x["campaign"]["started"] or "", x["campaign"]["name"]), reverse=True)
-    names_by_id = {x["campaign"]["id"]: x["campaign"] for x in items}
 
     received = defaultdict(list)  # email -> outcomes, every campaign
     for part in rows_by_campaign.values():
         for x in part:
             received[x["email"]].append(x)
-    org = build_org(people, received, training, path_names, now) if people else []
+    return {"now": now, "people": people, "path_names": path_names, "training": training, "sent": sent,
+            "items": items, "received": received}
+
+
+def insights_of(ctx):
+    now, people, training, path_names = ctx["now"], ctx["people"], ctx["training"], ctx["path_names"]
+    names_by_id = {x["campaign"]["id"]: x["campaign"] for x in ctx["items"]}
+    org = build_org(people, ctx["received"], training, path_names, now) if people else []
     return {
         "asOf": ms(now),
-        "items": items,
+        "items": ctx["items"],
         "org": org,
-        "people": build_people(people, received, training, names_by_id, path_names, org, now) if org else {"rows": [], "months": [], "campaigns": []},
+        "people": (build_people(people, ctx["received"], training, names_by_id, path_names, org, now)
+                   if org else {"rows": [], "months": [], "campaigns": []}),
         "programmes": build_programmes(training, path_names, now),
     }
+
+
+def build(now=None):
+    return insights_of(load(now))
+
+
+# --- the Leaderboard's boards and Big Picture -----------------------------------
+
+def ledger_totals():
+    """email -> points, from the points ledger's TOTAL rows (board-points-index,
+    which lists only those, so this never scans the ledger)."""
+    totals, start = {}, None
+    while True:
+        page = ledger_table.query(IndexName="board-points-index", KeyConditionExpression=Key("board").eq("GLOBAL"),
+                                  **({"ExclusiveStartKey": start} if start else {}))
+        for r in page.get("Items", []):
+            totals[str(r.get("owner", "")).lower()] = int(r.get("points") or 0)
+        start = page.get("LastEvaluatedKey")
+        if not start:
+            return totals
+
+
+def board_of(ctx, totals):
+    """Every sent campaign, and everyone with their points today and what
+    they did with each email: [campaign index, when (epoch ms: when they
+    acted, else when it was sent), clicked, reported, gave]. No email
+    address; `key` is the person's display id."""
+    rows = {c["campaignId"]: c for c in ctx["sent"]}
+    campaigns = []
+    for x in ctx["items"]:
+        c, raw = x["campaign"], rows.get(x["campaign"]["id"], {})
+        ends = when(raw.get("endAt") or raw.get("endTime"))
+        campaigns.append({**c, "status": raw.get("status"), "endsAt": ms(ends) if ends else None})
+    index = {c["id"]: i for i, c in enumerate(campaigns)}
+    people = []
+    for email, p in sorted(ctx["people"].items(), key=lambda e: (e[1]["name"], e[0])):
+        events = []
+        for x in sorted(ctx["received"].get(email, ()), key=lambda x: x["sentAt"]):
+            if not x["delivered"] or x["campaignId"] not in index:
+                continue
+            acted = [t for t in (x["clickedAt"], x["reportedAt"], x["gaveAt"]) if t]
+            events.append([index[x["campaignId"]], ms(min(acted) if acted else x["sentAt"]),
+                           int(bool(x["clickedAt"])), int(bool(x["reportedAt"])), int(bool(x["gaveAt"]))])
+        people.append({"key": p["id"] or f"P{len(people) + 1}", "name": p["name"], "dept": p["department"],
+                       "points": totals.get(email, 0), "events": events, "email": email})
+    return {"asOf": ms(ctx["now"]), "campaigns": campaigns, "people": people}
+
+
+def board_for(board, viewer):
+    """The board as one viewer gets it: emails left out, their own key named."""
+    viewer = str(viewer or "").strip().lower()
+    you = next((p["key"] for p in board["people"] if p["email"] == viewer), None) if viewer else None
+    return {**board, "you": you, "people": [{k: v for k, v in p.items() if k != "email"} for p in board["people"]]}
+
+
+def fresh_ctx(context, force=False):
+    """The loaded rows, worked out again once CACHE_SECONDS have passed."""
+    if force or not _cache.get("ctx") or time.time() - _cache["at"] > CACHE_SECONDS:
+        started = time.time()
+        _cache.update(ctx=load(), at=time.time(), body=None, board=None)
+        log_step(context, "loaded", campaigns=len(_cache["ctx"]["items"]), people=len(_cache["ctx"]["people"]),
+                 ms=round((time.time() - started) * 1000))
+    return _cache["ctx"]
 
 
 def lambda_handler(event, context):
@@ -514,16 +596,20 @@ def lambda_handler(event, context):
     try:
         if route == "GET /insights":
             if qs.get("role") not in INSIGHTS_ROLES:
-                return err(403, "Insights is for admins, campaign creators and campaign managers.")
-            fresh = qs.get("fresh") == "1"
-            if fresh or not _cache["body"] or time.time() - _cache["at"] > CACHE_SECONDS:
-                started = time.time()
-                data = build()
+                return err(403, "Insights is for admins, campaign creators, campaign managers and GMT.")
+            ctx = fresh_ctx(context, force=qs.get("fresh") == "1" and qs.get("role") == "Admin")
+            if not _cache["body"]:
+                data = insights_of(ctx)
                 _cache["body"] = json.dumps({"data": data}, cls=DecimalEncoder, separators=(",", ":"))
-                _cache["at"] = time.time()
-                log_step(context, "built", campaigns=len(data["items"]), people=len(data["people"]["rows"]),
-                         ms=round((time.time() - started) * 1000), bytes=len(_cache["body"]))
+                log_step(context, "built", people=len(data["people"]["rows"]), bytes=len(_cache["body"]))
             return respond(200, _cache["body"])
+        if route == "GET /insights/board":
+            if qs.get("role") not in BOARD_ROLES:
+                return err(403, "The campaign boards and the Big Picture are not for this role.")
+            ctx = fresh_ctx(context, force=qs.get("fresh") == "1" and qs.get("role") == "Admin")
+            if not _cache["board"]:
+                _cache["board"] = board_of(ctx, ledger_totals())
+            return respond(200, {"data": board_for(_cache["board"], qs.get("viewer"))})
         return err(404, f"No route {route}")
     except Exception as e:  # noqa: BLE001 - one clear 500 with the request id
         log.exception(json.dumps({"step": "failed", "requestId": getattr(context, "aws_request_id", None),

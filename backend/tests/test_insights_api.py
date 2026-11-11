@@ -25,6 +25,10 @@ class FakeTable:
     def scan(self, **_):
         return {"Items": self.rows}
 
+    def query(self, **kwargs):
+        assert kwargs["IndexName"] == "board-points-index"
+        return {"Items": [r for r in self.rows if r.get("board") == "GLOBAL"]}
+
 
 @pytest.fixture(scope="module")
 def company():
@@ -45,6 +49,7 @@ def mod(company):
          "sendStatus": "SENT", "sentAt": "2026-11-09T09:00:00Z", "clickedAt": "2026-11-09T09:01:00Z"}])
     m.assignments_table = FakeTable(company["training-assignments"])
     m.paths_table = FakeTable([{"TrainingPathID": "TP-00001", "TrainingPathName": "Anti-Phishing Path"}])
+    m.ledger_table = FakeTable(company["points-ledger"])
     return m
 
 
@@ -143,6 +148,35 @@ def test_programmes(data):
     for p in data["programmes"]:
         assert 0 <= p["completion"] <= 100
         assert p["pass"] is None or 0 <= p["pass"] <= 100
+
+
+def board_call(mod, role="Campaign Manager", viewer=""):
+    return mod.lambda_handler({"routeKey": "GET /insights/board",
+                               "queryStringParameters": {"role": role, "viewer": viewer}}, None)
+
+
+def test_board(mod, company):
+    assert board_call(mod, role="Regular User")["statusCode"] == 403
+    viewer = company["users"][5]["UserEMailID"]
+    res = board_call(mod, viewer=viewer.upper())
+    assert res["statusCode"] == 200
+    board = json.loads(res["body"])["data"]
+    assert "@" not in res["body"]  # no email addresses
+    assert board["you"] == company["users"][5]["UserID"]
+    sent = [c for c in company["campaigns"] if c["status"] == "SENT"]
+    assert len(board["campaigns"]) == len(sent) and all(c["endsAt"] for c in board["campaigns"])
+    totals = {r["owner"]: r["points"] for r in company["points-ledger"] if r["entryId"] == "TOTAL"}
+    by_key = {u["UserID"]: u["UserEMailID"] for u in company["users"]}
+    for p in board["people"]:
+        assert p["points"] == totals.get(by_key[p["key"]], 0)
+    # every delivered email is one event; clicks match the reports
+    events = [e for p in board["people"] for e in p["events"]]
+    for i, c in enumerate(board["campaigns"]):
+        mine = [e for e in events if e[0] == i]
+        counts = next(x["counts"] for x in sent if x["campaignId"] == c["id"])
+        assert len(mine) == counts["delivered"]
+        assert sum(e[2] for e in mine) == counts.get("clicked", 0)
+        assert sum(e[3] for e in mine) == counts.get("reported", 0)
 
 
 def test_handler_caches(mod):
