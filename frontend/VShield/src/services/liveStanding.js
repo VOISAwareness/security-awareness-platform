@@ -1,16 +1,18 @@
 /**
- * The signed-in person's standing from the server (GET /standing), in the
- * same shape as the sample (sampleStanding.js), so the screens take either.
- *
- * Off until VITE_LIVE_LEVELS=true: until real campaigns have produced events,
- * everyone on the server is a New Joiner on 0 points, and the sample makes a
- * better demo. Pure functions, so `node --test` can cover them.
+ * The signed-in person's standing from the server (GET /standing, the points
+ * ledger), in the shape the screens take. Pure functions, so `node --test`
+ * can cover them.
  */
 import { LEVEL_BY_ID, higherLevel, levelFor, progressFor } from './levels.js';
-import { WHAT } from './sampleStanding.js';
 
-export const LIVE_LEVELS =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_LIVE_LEVELS === 'true';
+/** What each rule's change means, for the history list. */
+export const WHAT = {
+  Reported: 'Reported a phishing email',
+  Trained: 'Completed a training',
+  Evaluated: 'Passed an evaluation',
+  Clicked: 'Clicked a simulated link',
+  Compromised: 'Entered details on a fake page',
+};
 
 /**
  * GET /standing's data -> { email, name, department, points, rank, total,

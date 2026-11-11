@@ -185,6 +185,8 @@ export const api = {
   // reads it.
   insights: {
     get: (role) => request(`/insights?role=${encodeURIComponent(role || '')}`),
+    // The Leaderboard's campaign boards and Big Picture (services/leaderboardData.js).
+    board: (role, viewer) => request(`/insights/board?role=${encodeURIComponent(role || '')}&viewer=${encodeURIComponent(viewer || '')}`),
   },
   // Insights' targets as an admin set them (reference-api, settings table).
   // `version` is the one read, so a change made since is refused (409);

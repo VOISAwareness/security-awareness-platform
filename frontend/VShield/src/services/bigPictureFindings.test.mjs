@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { bigPicture } from './bigPicture.js';
 import { breakdown, count, findings, share, story, whereThey } from './bigPictureFindings.js';
-import { campaignReport } from './sampleReports.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber', 'CARE'];
 const TYPES = ['Credential theft', 'Business lure', 'IT lure'];

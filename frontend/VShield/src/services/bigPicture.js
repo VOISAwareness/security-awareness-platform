@@ -25,13 +25,16 @@
  *               (bigPictureTrend.js).
  *
  * For the organisation it reads the campaigns of the last `days` days over
- * everyone on the board; for one campaign, its recipients. Sample behaviour
- * for now, worked out from each campaign's results (sampleReports.js) so the
- * same inputs give the same picture; the reports API will feed the same
- * shapes. Pure functions, so `node --test` can cover them.
+ * everyone on the board; for one campaign, its recipients.
+ *
+ * With real data (GET /insights/board, services/leaderboardData.js) each
+ * person carries `events`, what they did with each email, and those are
+ * what it counts; the points history is their dated events. Without events
+ * (the tests' fixtures) it models what each person did from the campaign's
+ * rates and their level, so the same inputs give the same picture. Pure
+ * functions, so `node --test` can cover them.
  */
 import { LEVELS, levelFor, progressFor } from './levels.js';
-import { lean } from './sampleReports.js';
 import { forecast } from './bigPictureForecast.js';
 
 // Level groups, top first: `from` is the lowest level number in the group;
@@ -54,6 +57,13 @@ const HISTORY_DAYS = 182;
 
 const pct = (n, of) => (of > 0 ? n / of : null);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// A department's steady lean, the same every time (for the model only).
+function lean(key, spread) {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i += 1) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return 1 - spread / 2 + ((h >>> 0) % 1000) / 1000 * spread;
+}
 
 function hash01(key) {
   let h = 2166136261;
@@ -102,8 +112,10 @@ function toNextLevel(points) {
 }
 
 /**
- * The picture. `items` are { campaign, report } pairs (campaignReport output);
- * `people` are { key, name, email, dept, points } with today's points; `focus` a campaign
+ * The picture. `items` are { campaign, report } pairs (the report is read
+ * only by the model); `people` are { key, name, email, dept, points } with
+ * today's points, and with real data `events`: [{ campaign (its id), at,
+ * clicked, reported, gave }], one per email delivered; `focus` a campaign
  * id for one campaign (its recipients are `people` then); `rules` the live
  * points per event; `now` the end of the window (by default the newest
  * campaign's start).
@@ -113,10 +125,13 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
   const followed = focus ? items.find((x) => x.campaign.id === focus) || null : null;
   const end = now ?? Math.max(...items.map((x) => dateOf(x.campaign.started)));
   const window = followed ? [followed] : items.filter((x) => end - dateOf(x.campaign.started) <= days * DAY);
+  // real records: what each person did with each campaign's email
+  const real = people.some((p) => Array.isArray(p.events));
+  const records = real ? people.map((p) => new Map((p.events || []).map((e) => [e.campaign, e]))) : null;
   // Sample: everyone gets about three of the window's campaigns a month, as
   // a real programme sends a few emails a month, not all of them.
   const share = Math.min(1, (3 * days) / 30 / Math.max(1, window.length));
-  const takesPart = (p, c) => Boolean(followed) || hash01(`${p.key}|${c.id}|in`) < share;
+  const takesPart = (p, c, i) => (real ? records[i].has(c.id) : Boolean(followed) || hash01(`${p.key}|${c.id}|in`) < share);
 
   // Each person in each campaign: how likely they were to click or report
   // (by the level they were at), what they did, and what it did to their
@@ -128,33 +143,52 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     let earned = 0;
     let lost = 0;
     window.forEach(({ campaign: c, report }) => {
-      const gave = report.clicked ? report.compromised / report.clicked : 0;
+      const gave = !real && report?.clicked ? report.compromised / report.clicked : 0;
       people.forEach((p, i) => {
-        if (!takesPart(p, c)) return;
-        const g = groupOf(levelAt(i));
-        const click = clamp(report.rates.click * CLICK_BY_GROUP[g] * lean(p.dept, 0.9) * lean(`${p.dept}|${c.type}`, 0.7), 0, 0.85);
-        const rep = clamp(report.rates.report * REPORT_BY_GROUP[g] * (2 - lean(p.dept, 0.9)), 0, 0.95 - click);
-        const u = hash01(`${p.key}|${c.id}|e`);
+        if (!takesPart(p, c, i)) return;
         let d = 0;
         let did = null; // what they did with it: reported, clicked or gave (details away)
-        if (u < rep) {
-          d = pts.Reported;
-          did = 'reported';
-          seen[i].reported += 1;
-        } else if (u < rep + click) {
-          const gaveAway = hash01(`${p.key}|${c.id}|x`) < gave;
-          d = pts.Clicked + (gaveAway ? pts.Compromised : 0);
-          did = gaveAway ? 'gave' : 'clicked';
-          seen[i].clicked += 1;
-          if (gaveAway) seen[i].gave += 1;
-        }
-        if (d > 0) earned += d; else lost -= d;
-        if (d) {
+        let click;
+        let rep;
+        let at;
+        if (real) {
+          // what they did: a click (and details given) and a report can both happen
+          const e = records[i].get(c.id);
+          click = e.clicked ? 1 : 0;
+          rep = e.reported ? 1 : 0;
+          if (e.reported) { d += pts.Reported; seen[i].reported += 1; did = 'reported'; }
+          if (e.clicked) { d += pts.Clicked; seen[i].clicked += 1; did = 'clicked'; }
+          if (e.gave) { d += pts.Compromised; seen[i].gave += 1; did = 'gave'; }
+          at = Math.min(end, e.at);
+          if (rep) earned += pts.Reported;
+          lost -= (click ? pts.Clicked : 0) + (e.gave ? pts.Compromised : 0);
+        } else {
+          const g = groupOf(levelAt(i));
+          click = clamp(report.rates.click * CLICK_BY_GROUP[g] * lean(p.dept, 0.9) * lean(`${p.dept}|${c.type}`, 0.7), 0, 0.85);
+          rep = clamp(report.rates.report * REPORT_BY_GROUP[g] * (2 - lean(p.dept, 0.9)), 0, 0.95 - click);
+          const u = hash01(`${p.key}|${c.id}|e`);
+          if (u < rep) {
+            d = pts.Reported;
+            did = 'reported';
+            seen[i].reported += 1;
+          } else if (u < rep + click) {
+            const gaveAway = hash01(`${p.key}|${c.id}|x`) < gave;
+            d = pts.Clicked + (gaveAway ? pts.Compromised : 0);
+            did = gaveAway ? 'gave' : 'clicked';
+            seen[i].clicked += 1;
+            if (gaveAway) seen[i].gave += 1;
+          }
+          if (d > 0) earned += d; else lost -= d;
           // most people act on an email within a few days of it arriving
           const after = Math.min(10, Math.floor(-Math.log(1 - hash01(`${p.key}|${c.id}|t`)) * 2));
-          const at = Math.min(end, dateOf(c.started) + after * DAY);
+          at = Math.min(end, dateOf(c.started) + after * DAY);
+        }
+        if (d || real) {
           const day = book.get(at) || { earned: 0, lost: 0 };
-          if (d > 0) day.earned += d; else day.lost -= d;
+          if (real) {
+            day.earned += rep ? pts.Reported : 0;
+            day.lost -= (click ? pts.Clicked : 0) + (did === 'gave' ? pts.Compromised : 0);
+          } else if (d > 0) day.earned += d; else day.lost -= d;
           book.set(at, day);
         }
         seen[i].delta += d;
@@ -291,12 +325,26 @@ export function bigPicture(items, people, { focus = null, days = 30, rules = {},
     clickRate: pct(d.clicked, d.emails),
   })).sort((a, b) => a.perPerson - b.perPerson || a.name.localeCompare(b.name));
 
-  // The points ledger behind the trend: the simulated campaigns' changes,
-  // and sample history for the months before (for one campaign, its
-  // recipients' other emails).
-  const ledger = [...book].map(([at, d]) => ({ at, points: d.earned - d.lost, earned: d.earned, lost: d.lost }));
+  // The points ledger behind the trend over the last six months: with real
+  // data, every dated event of the people in scope (for one campaign, its
+  // recipients' other emails too); for the model, its campaigns' changes and
+  // a modelled history before them.
   const from = end - HISTORY_DAYS * DAY;
-  ledger.push(...sampleHistory(focus || 'org', people.length, from, followed ? end : end - days * DAY, pts));
+  let ledger;
+  if (real) {
+    const byDay = new Map();
+    people.forEach((p) => (p.events || []).forEach((e) => {
+      if (e.at < from || e.at > end) return;
+      const day = byDay.get(e.at) || { earned: 0, lost: 0 };
+      if (e.reported) day.earned += pts.Reported;
+      day.lost -= (e.clicked ? pts.Clicked : 0) + (e.gave ? pts.Compromised : 0);
+      byDay.set(e.at, day);
+    }));
+    ledger = [...byDay].filter(([, d]) => d.earned || d.lost).map(([at, d]) => ({ at, points: d.earned - d.lost, earned: d.earned, lost: d.lost }));
+  } else {
+    ledger = [...book].map(([at, d]) => ({ at, points: d.earned - d.lost, earned: d.earned, lost: d.lost }));
+    ledger.push(...sampleHistory(focus || 'org', people.length, from, followed ? end : end - days * DAY, pts));
+  }
   ledger.sort((a, b) => a.at - b.at);
 
   const took = seen.filter((s) => s.took).length;

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { unzipSync, strFromU8 } from 'fflate';
 
-import { organisation, riskScore } from './sampleOrganisation.js';
-import { DRIVERS, LEVELS, STEPS, countsBy, findPeople, levelsByMonth, peopleBook, peopleFor, peopleTable } from './insightsPeople.js';
+import { organisation, riskScore } from '../test-fixtures/sampleOrganisation.js';
+import { DRIVERS, LEVELS, STEPS, countsBy, findPeople, levelsByMonth, peopleBook, peopleFor } from './insightsPeople.js';
+import { peopleTable } from '../test-fixtures/samplePeople.js';
 
 const CAMPAIGNS = [
   { name: 'Payroll Update', type: 'Credential theft' },

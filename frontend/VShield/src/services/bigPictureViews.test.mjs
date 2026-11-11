@@ -4,7 +4,7 @@ import test from 'node:test';
 import { bigPicture } from './bigPicture.js';
 import { breakdown, findings } from './bigPictureFindings.js';
 import { departmentsShown, findingPeople, health, peopleFiltered, peopleShown, recordOf, verdict } from './bigPictureViews.js';
-import { campaignReport } from './sampleReports.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber', 'CARE'];
 const CAMPAIGNS = Array.from({ length: 6 }, (_, k) => ({ id: `C${k}`, name: `Campaign ${k}`, type: 'IT lure', started: `${20 - k * 3} Oct`, total: 600, seed: k + 1 }));

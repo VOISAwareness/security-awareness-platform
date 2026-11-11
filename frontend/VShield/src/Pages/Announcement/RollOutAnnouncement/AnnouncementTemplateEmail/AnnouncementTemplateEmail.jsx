@@ -378,7 +378,7 @@ const AnnouncementsCampaignEmail = () => {
   const [isListLoaded, setIsListLoaded] = useState(false);
   const [loadedData, setLoadedData] = useState(null);
 
-  // Single user dropdown state from MasterUserData.json
+  // Single user dropdown state, from the people directory (GET /users)
   const [selectedSingleUser, setSelectedSingleUser] = useState(null);
   const [isSingleUserDropdownOpen, setIsSingleUserDropdownOpen] =
     useState(false);

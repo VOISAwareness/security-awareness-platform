@@ -1,31 +1,21 @@
 /**
- * useGlobalBoard — the global leaderboard: everyone ranked by points.
- *
- * Sample data by default (the bundled user list, sampleLeaderboard.js), with
- * the viewer's rank from their sample standing. With VITE_LIVE_LEVELS=true it
- * reads GET /leaderboard (liveLeaderboard.js), falling back to the sample if
- * the server can't answer. `ready` is false only while that read is under way.
+ * useGlobalBoard — the global leaderboard: everyone ranked by points, from
+ * GET /leaderboard (the points ledger; liveLeaderboard.js). `ready` is false
+ * only while that read is under way; if it fails the board is empty and
+ * `failed` is true.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import masterUsers from '../MasterUserData.json';
 import { api } from './api';
-import { LIVE_LEVELS } from './liveStanding';
 import { boardFromApi } from './liveLeaderboard';
-import { globalBoard } from './sampleLeaderboard';
 
-const SAMPLE = globalBoard(masterUsers);
+const EMPTY = { podium: { first: null, second: null, third: null }, rows: [], total: 0, youRank: null };
 
-export function useGlobalBoard(viewer, role, sampleRank) {
-  const sample = useMemo(
-    () => ({ ...SAMPLE, youRank: sampleRank || SAMPLE.total, sample: true, ready: true }),
-    [sampleRank],
-  );
+export function useGlobalBoard(viewer, role) {
   const [live, setLive] = useState(null); // { key, board }
   const key = `${viewer}|${role || ''}`;
 
   useEffect(() => {
-    if (!LIVE_LEVELS) return undefined;
     let active = true;
     api.points
       .leaderboard(viewer, role)
@@ -33,7 +23,7 @@ export function useGlobalBoard(viewer, role, sampleRank) {
         if (active) setLive({ key, board: boardFromApi(data) });
       })
       .catch((e) => {
-        console.error('Could not load the leaderboard; showing sample data', e);
+        console.error('Could not load the leaderboard', e);
         if (active) setLive({ key, board: null });
       });
     return () => {
@@ -41,9 +31,6 @@ export function useGlobalBoard(viewer, role, sampleRank) {
     };
   }, [viewer, role, key]);
 
-  if (!LIVE_LEVELS) return sample;
-  if (!live || live.key !== key) {
-    return { podium: { first: null, second: null, third: null }, rows: [], total: 0, youRank: null, sample: false, ready: false };
-  }
-  return live.board ? { ...live.board, sample: false, ready: true } : sample;
+  if (!live || live.key !== key) return { ...EMPTY, sample: false, ready: false };
+  return live.board ? { ...live.board, sample: false, ready: true } : { ...EMPTY, sample: false, ready: true, failed: true };
 }

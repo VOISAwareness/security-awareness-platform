@@ -24,20 +24,19 @@
  *   arrival   - how fast the reports came in: the share of them in by each
  *               minute of the first two hours, now and the period before.
  *
- * peopleInsights() does the same for people (sampleOrganisation.js shapes,
- * which the people and risk APIs will return): risk tiers and the risk
+ * peopleInsights() does the same for people (GET /insights' `org` steps):
+ * risk tiers and the risk
  * score, who moved, what drives the risk, each department, and the
  * training, for the period and the one before.
  *
  * For the last `days` days (30, 60 or 90) of campaigns, by when they
- * started, up to the newest. Pure functions on campaign reports
- * (sampleReports.js shapes, which the reports API will return too), so
- * `node --test` can cover them.
+ * started, up to the newest. Pure functions on campaign reports (GET
+ * /insights' `items`), so `node --test` can cover them.
  */
 import { dateOf } from './bigPicture.js';
 import { health } from './bigPictureViews.js';
 import { GLOSSARY } from './glossary.js';
-import { STEP_DAYS, TIERS, riskScore } from './sampleOrganisation.js';
+import { STEP_DAYS, TIERS, riskScore } from './risk.js';
 
 const DAY = 86400000;
 const FORTNIGHT = 14 * DAY;
