@@ -4,10 +4,10 @@ import test from 'node:test';
 import { strFromU8, unzipSync } from 'fflate';
 
 import { insights, peopleInsights, standsOut } from './insights.js';
-import { organisation } from './sampleOrganisation.js';
+import { organisation } from '../test-fixtures/sampleOrganisation.js';
 import { insightsBook, insightsSummary } from './insightsExport.js';
-import { campaignReport } from './sampleReports.js';
-import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
+import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../test-fixtures/sampleCampaigns.js';
 
 const ITEMS = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((campaign) => ({ campaign, report: campaignReport(campaign, { depts: DEPTS, personAt: person }) }));
 const M = insights(ITEMS, { days: 30 });

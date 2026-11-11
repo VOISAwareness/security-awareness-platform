@@ -7,7 +7,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { DEPARTMENT_COLUMNS, PEOPLE_COLUMNS, departmentsBook, findingBook, peopleBook, reportBook } from './bigPictureExport.js';
 import { breakdown, findings } from './bigPictureFindings.js';
 import { standsOut } from './bigPictureViews.js';
-import { campaignReport } from './sampleReports.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
 
 const DEPTS = ['Finance', 'HR', 'Cyber'];
 const CAMPAIGNS = [0, 1, 2].map((k) => ({ id: `C${k}`, name: `Campaign ${k}`, type: 'IT lure', started: `${10 - k} Oct`, total: 500, seed: k + 1 }));

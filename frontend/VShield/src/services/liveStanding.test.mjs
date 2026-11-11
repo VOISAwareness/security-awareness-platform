@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { LIVE_LEVELS, standingFromApi } from './liveStanding.js';
+import { standingFromApi } from './liveStanding.js';
 
 const data = {
   email: 'Ana@Example.test',
@@ -18,10 +18,6 @@ const data = {
     { rule: 'Reported', delta: 80, campaignId: 'CMP-1', campaignName: 'Payroll Update Notice', at: '2026-10-01T09:00:00Z' },
   ],
 };
-
-test('off unless switched on', () => {
-  assert.equal(LIVE_LEVELS, false);
-});
 
 test('maps points, level, progress, best and history', () => {
   const s = standingFromApi(data, { name: 'Ana', department: 'Sales', rank: 7, total: 120 });

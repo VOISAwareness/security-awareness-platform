@@ -217,3 +217,14 @@ test('riskStatus: words and a tone for each risk category', () => {
   assert.deepEqual(riskStatus(LEVEL_BY_ID.LN2), { label: 'Severe risk', tone: 'high' });
   assert.deepEqual(riskStatus(LEVEL_BY_ID.L1G1), { label: 'Not rated yet', tone: 'unknown' });
 });
+
+test('visibleLevel hides a level below zero from everyone but its owner and admins', async () => {
+  const { visibleLevel } = await import('./levels.js');
+  assert.equal(visibleLevel('LN2', { viewerRole: 'Regular User' }), null);
+  assert.equal(visibleLevel('L0', { viewerRole: 'Campaign Manager' }), null);
+  assert.equal(visibleLevel('LN2', { viewerRole: 'Regular User', isSelf: true }).id, 'LN2');
+  assert.equal(visibleLevel('LN1', { viewerRole: 'Admin' }).id, 'LN1');
+  assert.equal(visibleLevel('L3G1', { viewerRole: 'Regular User' }).id, 'L3G1');
+  assert.equal(visibleLevel(null, { viewerRole: 'Admin' }), null);
+  assert.equal(visibleLevel('nope', { viewerRole: 'Admin' }), null);
+});

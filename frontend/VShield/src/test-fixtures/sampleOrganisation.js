@@ -1,6 +1,6 @@
 /**
- * A sample organisation, thirty days at a time, for Insights until the
- * people, risk and training APIs report it: who is in which risk tier in
+ * TEST FIXTURE (never imported by the app): a sample organisation, thirty
+ * days at a time, in GET /insights' `org` shape: who is in which risk tier in
  * each department, what drives the risk, who moved, and how far the
  * training got. Seeded, so the same step shows the same numbers every time;
  * pure, so `node --test` can cover it.
@@ -14,13 +14,11 @@
  * 67, critical 100), averaged: 0 if everyone is low, 100 if everyone is
  * critical.
  */
+import { STEP_DAYS, TIERS, TIER_WEIGHT, riskScore } from '../services/risk.js';
 import { DEPTS } from './sampleCampaigns.js';
 import { lean } from './sampleReports.js';
 import { exposure } from './sampleStory.js';
 
-export const TIERS = Object.freeze(['low', 'moderate', 'high', 'critical']);
-export const TIER_WEIGHT = Object.freeze({ low: 0, moderate: 1 / 3, high: 2 / 3, critical: 1 });
-export const STEP_DAYS = 30;
 const DAY = 86400000;
 
 // Small seeded generator (mulberry32), as in sampleReports.js.
@@ -33,12 +31,6 @@ function random(seed) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-/** Everyone's tier averaged on 0-100, from counts by tier. */
-export function riskScore(tiers) {
-  const n = TIERS.reduce((a, t) => a + (tiers[t] || 0), 0);
-  return n ? (TIERS.reduce((a, t) => a + (tiers[t] || 0) * TIER_WEIGHT[t], 0) / n) * 100 : null;
 }
 
 /**
@@ -126,3 +118,5 @@ export function organisation({ end, steps = 12, depts = DEPTS } = {}) {
     };
   });
 }
+
+export { STEP_DAYS, TIERS, TIER_WEIGHT, riskScore };

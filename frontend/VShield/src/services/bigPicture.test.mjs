@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { GROUPS, PEOPLE_FILTERS, bigPicture, dateOf } from './bigPicture.js';
-import { campaignReport } from './sampleReports.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
 
 const DEPTS = ['AIDA', 'CARE', 'Finance', 'Network', 'Supply', 'Cyber', 'Cloud', 'IT Ops', 'Procurement', 'HR'];
 const TYPES = ['Credential theft', 'Finance lure', 'IT lure', 'HR lure'];

@@ -260,3 +260,13 @@ export function canSeeBadge({ level, isSelf = false, viewerRole } = {}) {
 export function canSeeRisk({ isSelf = false, viewerRole } = {}) {
   return isSelf || isAdmin(viewerRole);
 }
+
+/**
+ * The badge a viewer may see on a row: the row's level, or null when it is
+ * hidden from them (a level below zero, unless it is their own row or they
+ * are an admin), or when the row has no level.
+ */
+export function visibleLevel(levelId, { isSelf = false, viewerRole } = {}) {
+  const level = (levelId && LEVEL_BY_ID[levelId]) || null;
+  return canSeeBadge({ level, isSelf, viewerRole }) ? level : null;
+}
