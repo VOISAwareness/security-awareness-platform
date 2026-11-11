@@ -188,3 +188,27 @@ def test_campaign_type_is_checked_on_create_and_edit(mod, env):
     assert call(mod, "PUT /campaigns/{campaignId}", cid, {"campaignType": "Ransomware"})[0] == 400
     assert call(mod, "PUT /campaigns/{campaignId}", cid, {"campaignType": "Custom"})[0] == 200
     assert call(mod, "PUT /campaigns/{campaignId}", cid, {"campaignTitle": "no type change"})[0] == 200
+
+
+def test_the_list_returns_every_campaign_across_pages(mod, env, monkeypatch):
+    for i in range(130):
+        env.campaigns.put_item(Item={"campaignId": f"C{i:03d}", "status": "SENT" if i % 2 else "DRAFT",
+                                     "createdAt": f"2026-10-{1 + i % 28:02d}T00:00:00Z"})
+    real_scan, real_query = env.campaigns.scan, env.campaigns.query
+
+    def small_pages(real):
+        return lambda **kw: real(**{**kw, "Limit": 25})
+
+    monkeypatch.setattr(env.campaigns, "scan", small_pages(real_scan))
+    monkeypatch.setattr(env.campaigns, "query", small_pages(real_query))
+    status, body = call(mod, "GET /campaigns")
+    assert status == 200 and body["count"] == 130 and body["truncated"] is False
+    assert body["data"][0]["createdAt"] >= body["data"][-1]["createdAt"]
+
+
+def test_a_list_too_large_for_one_response_is_cut_and_says_so(mod, env, monkeypatch):
+    for i in range(5):
+        env.campaigns.put_item(Item={"campaignId": f"C{i}", "status": "DRAFT", "emailBody": "x" * 1000})
+    monkeypatch.setattr(mod, "MAX_LIST_BYTES", 2500)
+    body = call(mod, "GET /campaigns")[1]
+    assert body["count"] == 2 and body["truncated"] is True
