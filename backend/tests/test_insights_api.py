@@ -102,7 +102,10 @@ def test_org_steps(data):
     assert org[-1]["to"] == data["asOf"]
     for s in org:
         assert sum(s["tiers"].values()) == s["people"] == 160
-        assert s["cohorts"]["trained"] + s["cohorts"]["untrained"] == s["people"]
+        c = s["cohorts"]
+        assert c["trained"] + c["untrained"] == s["people"]
+        assert c["assigned"] + c["voluntary"] == c["trained"]
+        assert c["assignedClicks"] + c["voluntaryClicks"] == c["trainedClicks"]
         assert [d["index"] for d in s["departments"]] == list(range(len(s["departments"])))
         assert sum(d["people"] for d in s["departments"]) == s["people"]
         t = s["training"]
@@ -123,6 +126,9 @@ def test_people_rows(data):
     assert set(row) >= {"id", "name", "initials", "department", "levels", "level", "records", "emails",
                         "clicked", "reported", "gave", "step", "programme", "overdue", "quizFails", "drivers"}
     assert row["step"] in ("Not started", "Started", "Completed", "Passed")
+    trained = newest["cohorts"]
+    assert sum(r["trained"] == "Assigned" for r in people["rows"]) == trained["assigned"]
+    assert sum(r["trained"] == "None" for r in people["rows"]) == trained["untrained"]
     names = {x["campaign"]["name"] for x in data["items"]}
     for r in people["rows"]:
         assert r["emails"] == len(r["records"])

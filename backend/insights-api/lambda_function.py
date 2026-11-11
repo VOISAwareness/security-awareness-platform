@@ -64,7 +64,9 @@ TIER_LEVEL = {"low": "Low", "moderate": "Moderate", "high": "High", "critical": 
 # Points a passed training earns (gamification's Trained + Evaluated).
 TRAINING_POINTS = 60
 SENT_STATUSES = frozenset({"SENDING", "SENT"})
-COUNTS = ("sent", "delivered", "opened", "clicked", "compromised", "reported", "trained", "complained")
+# trained / untrained, and the trained split by how they came to it
+COHORT_KEYS = ("trained", "untrained", "trainedClicks", "untrainedClicks",
+               "assigned", "voluntary", "assignedClicks", "voluntaryClicks")
 
 _cache = {"at": 0.0, "body": None}
 
@@ -233,6 +235,7 @@ def training_view(a):
     return {
         "owner": str(a.get("owner", "")).lower(),
         "path": a.get("TrainingPathID", ""),
+        "source": "ASSIGNED" if a.get("source") == "ASSIGNED" else "VOLUNTARY",
         "assignedAt": assigned,
         "startedAt": when(a.get("startedAt")) or (completed if passed else None),
         "completedAt": completed if passed else None,
@@ -281,10 +284,6 @@ def build_org(people, received, training, path_names, end):
     index = {d: i for i, d in enumerate(depts)}
     step = timedelta(days=STEP_DAYS)
     window = timedelta(days=RISK_WINDOW_DAYS)
-    trained_at = {}
-    for a in training:
-        if a["completedAt"] and (a["owner"] not in trained_at or a["completedAt"] < trained_at[a["owner"]]):
-            trained_at[a["owner"]] = a["completedAt"]
     by_owner = defaultdict(list)
     for a in training:
         by_owner[a["owner"]].append(a)
@@ -304,7 +303,7 @@ def build_org(people, received, training, path_names, end):
         to = first_end + k * step
         since = to - step
         rows = [{"name": d, "index": i, "people": 0, "tiers": dict.fromkeys(TIERS, 0),
-                 "cohorts": {"trained": 0, "untrained": 0, "trainedClicks": 0, "untrainedClicks": 0},
+                 "cohorts": dict.fromkeys(COHORT_KEYS, 0),
                  "training": new_training()} for i, d in enumerate(depts)]
         improved = slipped = 0
         drivers = {"repeatClickers": 0, "neverReported": 0, "overdueTraining": 0, "quizFailures": 0}
@@ -318,14 +317,18 @@ def build_org(people, received, training, path_names, end):
             improved += rank[tier] < rank[was]
             slipped += rank[tier] > rank[was]
             tiers_before[email] = tier
-            trained = email in trained_at and trained_at[email] <= to
+            mine = by_owner.get(email, ())
+            state = trained_state(mine, to)
             clicked_in_step = any(x["clickedAt"] and since < x["sentAt"] <= to for x in recs)
-            side = "trained" if trained else "untrained"
+            side = "untrained" if state == "NONE" else "trained"
             d["cohorts"][side] += 1
             d["cohorts"][f"{side}Clicks"] += clicked_in_step
+            if state != "NONE":  # the training lift's columns: assigned, voluntary, none
+                group = state.lower()
+                d["cohorts"][group] += 1
+                d["cohorts"][f"{group}Clicks"] += clicked_in_step
             drivers["repeatClickers"] += clicks >= 2
             drivers["neverReported"] += bool(recs) and not reports
-            mine = by_owner.get(email, ())
             drivers["overdueTraining"] += any(
                 a["assignedAt"] and a["assignedAt"] <= to and a["dueAt"] and a["dueAt"] < to
                 and not (a["completedAt"] and a["completedAt"] <= to) for a in mine)
@@ -346,8 +349,7 @@ def build_org(people, received, training, path_names, end):
             "to": ms(to),
             "people": sum(d["people"] for d in rows),
             "tiers": {t: sum(d["tiers"][t] for d in rows) for t in TIERS},
-            "cohorts": {key: sum(d["cohorts"][key] for d in rows)
-                        for key in ("trained", "untrained", "trainedClicks", "untrainedClicks")},
+            "cohorts": {key: sum(d["cohorts"][key] for d in rows) for key in COHORT_KEYS},
             "improved": improved,
             "slipped": slipped,
             "drivers": drivers,
@@ -355,6 +357,15 @@ def build_org(people, received, training, path_names, end):
             "departments": rows,
         })
     return steps
+
+
+def trained_state(mine, to):
+    """ASSIGNED if they passed a training given after a click by `to`,
+    VOLUNTARY if only ones they chose, else NONE (people-snapshots' rule)."""
+    done = [a for a in mine if a["completedAt"] and a["completedAt"] <= to]
+    if any(a["source"] == "ASSIGNED" for a in done):
+        return "ASSIGNED"
+    return "VOLUNTARY" if done else "NONE"
 
 
 def step_of(a):
@@ -415,6 +426,7 @@ def build_people(people, received, training, names_by_id, path_names, org, now):
             "programme": path_names.get(latest["path"], latest["path"]) if latest else None,
             "overdue": overdue,
             "quizFails": fails,
+            "trained": {"ASSIGNED": "Assigned", "VOLUNTARY": "Voluntary"}.get(trained_state(mine, now), "None"),
         }
         row["drivers"] = {
             "neverReported": row["emails"] > 0 and row["reported"] == 0,

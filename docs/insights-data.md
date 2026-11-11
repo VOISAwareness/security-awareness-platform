@@ -35,7 +35,11 @@ How each figure is counted:
   in 90 days is Moderate ("never reported"), as the sample data had it.
 - **Cohorts**: trained is anyone who has passed a training by the step's
   end; `trainedClicks` and `untrainedClicks` count the people on each side
-  who clicked an email sent during the step.
+  who clicked an email sent during the step. The trained side is split by
+  how they came to it, for the training lift chart: `assigned` (passed a
+  training a click led to) and `voluntary` (only ones they chose), each with
+  its `…Clicks`. Each person row carries the same as `trained`:
+  `'Assigned' | 'Voluntary' | 'None'`.
 - **Training** in a step counts the assignments given during it, as they
   stood at its end; `quizTaken`, `quizScoreSum` and `daysSum` (days from
   assigned to passed) let a period work out the average quiz score and the
