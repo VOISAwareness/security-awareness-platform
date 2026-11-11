@@ -300,7 +300,7 @@ function DriverTiles({ drivers, people: total, onOpen }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridTemplateRows: 'repeat(2, minmax(0,1fr))', gap: 10, marginTop: 6 }}>
       {drivers.map((dr) => (
-        <div key={dr.key} data-ins-driver={dr.key} {...pressable(() => onOpen(dr))} {...tip(dr.rule)} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '8px 14px', borderRadius: 12, background: DRIVER_COLOR[dr.key], color: '#FFFFFF', cursor: 'pointer' }}>
+        <div key={dr.key} data-ins-driver={dr.key} {...pressable(() => onOpen(dr))} {...tip(dr.rule)} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '8px 14px', borderRadius: 10, background: DRIVER_COLOR[dr.key], color: '#FFFFFF', cursor: 'pointer' }}>
           <strong style={{ fontSize: TYPE.heading, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{num(dr.count)}</strong>
           <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dr.label}</span>
           <span style={{ fontSize: TYPE.small, fontWeight: 500, opacity: 0.85 }}>{pc1(total ? dr.count / total : null)} of people</span>
