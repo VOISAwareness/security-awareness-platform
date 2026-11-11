@@ -486,7 +486,7 @@ function InsightsView({ data }) {
             <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--sheet)', border: '1px solid var(--sheet-edge)', borderRadius: SHEET_R, overflow: 'hidden' }}>
               
               {/* the measures, each against its target (Open rate has none) */}
-              <div style={{ height: KPI_H, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, minmax(0,1fr))`, gap: 6, padding: '12px 14px 0', marginTop: 8, position: 'relative' }}>
+              <div style={{ height: KPI_H, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, minmax(0,1fr))`, gap: 6, padding: '12px 14px 0', position: 'relative' }}>
                 {kpis.map((k) => <TargetKpi key={k.id} k={k} ink={ink} reduce={reduce} days={m.basis.days} dim={focus && !focus.includes(k.id)} />)}
               </div>
 
