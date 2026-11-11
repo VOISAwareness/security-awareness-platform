@@ -8,14 +8,55 @@ real data. Keep it current when a source, a shape or a rule changes.
 
 ## 1. Sources
 
-| Source | Today | Will come from | Shape |
-|---|---|---|---|
-| Campaign reports | `services/sampleReports.js` (`campaignReport`) | reports API, from the `events` table joined to `recipients` and `users` | one report per campaign (below) |
-| Campaigns | `services/sampleCampaigns.js` | `campaigns` table (`campaigns-api`) | `{ id, name, type, started, total, … }` |
-| People and risk | `services/sampleOrganisation.js` (`organisation`) | people and risk API, from the points ledger and users | thirty-day snapshots: tiers, departments, cohorts, training |
-| Targets | defaults in `services/insightsTargets.js` | `GET /insights-targets` (`settings` table) | `{ targets, version, modifiedBy, modifiedAt }` |
-| Training programmes | `DashboardAndAnalytics/dashboardData.json` | training API | `{ trainingPrograms }` |
-| The people behind a figure | `services/peopleBehind.js` (`sampleBehind`), from the department's figures | reports API, from `events` joined to `recipients` and `users` | one row per person per campaign (section 6) |
+All of it comes from one call, `GET /insights?role=` (`backend/insights-api`),
+worked out from the `campaigns`, `recipients`, `training-assignments`,
+`training-paths` and `users` tables. It returns the sources below in the
+shapes the pure functions take, so the pages need no case of their own.
+
+| Source | Field | Shape |
+|---|---|---|
+| Campaign reports | `items` | one `{ campaign, report }` per sent campaign, test campaigns left out (section 4) |
+| People and risk | `org` | 24 thirty-day steps, oldest first, the newest ending at `asOf`: tiers, departments, cohorts, who moved, drivers, training (per department and per programme) |
+| The people behind a figure | `people` | `{ rows, months, campaigns }`: one row per person (section 6) |
+| Training programmes | `programmes` | each training path over the year: `{ program, assigned, completion, score, pass, avgDays, status }` |
+| Targets | `GET /insights-targets` (`settings` table) | `{ targets, version, modifiedBy, modifiedAt }` |
+
+Only Admin, Campaign Creator, Campaign Manager and GMT (the roles with the
+Analytics page) get an answer; the role is client-asserted until SSO. No
+email address, tracking token or anything typed on a landing page is in it.
+A warm Lambda keeps the answer for five minutes (`CACHE_SECONDS`).
+
+How each figure is counted:
+- **Opened**: opened, clicked, gave details or reported (a mail client that
+  blocks the pixel still counts once they act).
+- **Trained** after a click: the training that click led to was passed.
+- **Tier**: a person's last 90 days at the step's end (section 4 of
+  `database-schema.md`). Everyone in `users` counts, so someone sent nothing
+  in 90 days is Moderate ("never reported"), as the sample data had it.
+- **Cohorts**: trained is anyone who has passed a training by the step's
+  end; `trainedClicks` and `untrainedClicks` count the people on each side
+  who clicked an email sent during the step. The trained side is split by
+  how they came to it, for the training lift chart: `assigned` (passed a
+  training a click led to) and `voluntary` (only ones they chose), each with
+  its `…Clicks`. Each person row carries the same as `trained`:
+  `'Assigned' | 'Voluntary' | 'None'`.
+- **Training** in a step counts the assignments given during it, as they
+  stood at its end; `quizTaken`, `quizScoreSum` and `daysSum` (days from
+  assigned to passed) let a period work out the average quiz score and the
+  average time to complete.
+- **People records** are `[campaign index, clicked, reported, gave]` over the
+  six months the levels cover; `services/api.js` names them from
+  `campaigns` into peopleTable's `{ campaign, type, clicked, reported, gave }`.
+
+The Leaderboard's My Campaigns boards and Big Picture read
+`GET /insights/board?role=&viewer=` from the same Lambda (and the same
+five-minute cache): `{ asOf, you, campaigns, people }`, where each campaign
+is `{ id, name, type, started, total, status, endsAt }` and each person
+`{ key, name, dept, points, events }`, `points` being their points-ledger
+total today and each event `[campaign index, when (epoch ms), clicked,
+reported, gave]`, one per email delivered. `you` is the viewer's own key.
+The roles with My Campaigns or the Big Picture get it (Admin, Campaign
+Creator, Campaign Manager, Gamification Engine Manager, GMT).
 
 ## 2. From sources to pages
 
