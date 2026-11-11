@@ -205,7 +205,12 @@ const RejectedPathsGallery = ({
             </div>
           ) : (
             filteredPaths.map((path) => {
-              const rejectedByEmail = path.approvedBy || 'Admin';
+              const rejectedByEmail =
+                path.approvedBy ||
+                path['Approved/RejectedBy'] ||
+                path.ApprovedBy ||
+                path.RejectedBy ||
+                'Admin';
               const rejectedByName = getCleanUserName(rejectedByEmail);
 
               return (
@@ -234,11 +239,15 @@ const RejectedPathsGallery = ({
                     <h4 className="text-[12px] font-voda font-bold tracking-tight leading-tight text-slate-900 dark:text-white truncate mt-1">
                       {path.TrainingPathName}
                     </h4>
-                    {path.rejectionMessage && (
-                      <p className="text-[10px] text-red-500 font-bold mt-1.5 leading-snug">
-                        Reason: {path.rejectionMessage}
-                      </p>
-                    )}
+                    <p
+                      className="text-[9.5px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-0.5 line-clamp-2"
+                      data-reject-reason
+                    >
+                      <strong className="font-bold text-[#BE123C] dark:text-rose-300">
+                        Reason:{" "}
+                      </strong>
+                      {path.rejectionMessage || path.NotificationMessage || "No reason given"}
+                    </p>
                   </div>
 
                   <div className="flex flex-col items-end gap-2.5 shrink-0">
@@ -248,7 +257,7 @@ const RejectedPathsGallery = ({
                         className="h-5 px-2 rounded-md bg-[#FEE2E2] dark:bg-rose-950/60 text-[#BE123C] dark:text-rose-300 text-[8px] font-voda font-bold whitespace-nowrap flex items-center gap-1 border border-[#FCA5A5]/40 shadow-2xs"
                       >
                         <UserX className="w-2.5 h-2.5 stroke-[2.5]" />
-                        <span>Rejected by: <strong className="font-extrabold">{rejectedByName}</strong></span>
+                        <span>Rejected by: <strong className="font-bold font-voda">{rejectedByName}</strong></span>
                       </span>
 
                       <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 hidden sm:inline whitespace-nowrap">
@@ -339,21 +348,21 @@ const RejectedPathsGallery = ({
                 </p>
                 <div className="text-[11px] font-bold text-slate-800 mt-0.5">
                   Created on: {detailModalItem.CreatedOn || 'N/A'} &bull; Created By: {detailModalItem.createdBy || 'Editor'}
-                  {detailModalItem.approvedBy && (
+                  {(detailModalItem.approvedBy || detailModalItem['Approved/RejectedBy']) && (
                     <span className="ml-2 font-bold text-[#BE123C]">
-                      &bull; Rejected by: {detailModalItem.approvedBy}
+                      &bull; Rejected by: {detailModalItem.approvedBy || detailModalItem['Approved/RejectedBy']}
                     </span>
                   )}
                 </div>
               </div>
 
-              {detailModalItem.rejectionMessage && (
+              {(detailModalItem.rejectionMessage || detailModalItem.NotificationMessage) && (
                 <div className="p-3.5 rounded-xl bg-red-100/90 border border-red-300 text-red-950 flex flex-col gap-1 shadow-2xs text-left">
                   <span className="text-[11px] font-voda font-bold uppercase tracking-wider text-red-700">
                     Rejection Feedback & Remarks:
                   </span>
                   <p className="text-[12px] font-medium leading-relaxed">
-                    {detailModalItem.rejectionMessage}
+                    {detailModalItem.rejectionMessage || detailModalItem.NotificationMessage}
                   </p>
                 </div>
               )}
