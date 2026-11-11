@@ -160,7 +160,7 @@ const UserListUploadViaDL = () => {
       : "0.0";
   };
 
-  // Helper to cross-reference raw email IDs with MasterUserData.json
+  // Helper to cross-reference raw email IDs with the people directory (GET /users)
   const resolveMembersFromEmails = (emailList = []) => {
     return emailList.map((item, idx) => {
       const email =

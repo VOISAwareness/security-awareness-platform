@@ -174,11 +174,9 @@ What the reports API must return for it, one row per person per campaign:
 }
 ```
 
-Until then `sampleBehind()` makes them up from the department's part of
-each campaign: the same counts, its first click and first report at the
-figures' minutes, half its reports in by their median, and its training
-after a click. "Gave details away" records that it happened, never what was
-typed (AGENTS.md rule 5).
+The rows come from GET /insights' `people` (one row per person, their
+records per campaign); "Gave details away" records that it happened, never
+what was typed (AGENTS.md rule 5).
 
 **Open in the Big Picture**, in the dialog, opens Leaderboard › The Big
 Picture on People, narrowed to that department and to those who clicked
@@ -201,11 +199,10 @@ Insights ──► /leaderboard  state: { view: 'reports',
 - Before leaving, Insights stores `restore` on its own history entry too,
   so the browser's Back works the same way.
 
-With sample data the two pages read different samples (Insights about
-15,000 people, the Big Picture the board's 104), so the dialog's people
-and the Big Picture's differ, and a narrow filter there can find no one;
-the list then says so and offers to widen it. With real data both read the
-same events and people.
+Both pages read the same people and events: Insights from `GET /insights`,
+the Big Picture from `GET /insights/board` (what each person did with each
+email, and their points today). A narrow filter there can still find no
+one; the list then says so and offers to widen it.
 
 ## 7. Adding a page or a measure
 
@@ -214,6 +211,6 @@ same events and people.
 - **A measure:** work it out in a `services/` function with a test, take
   its name from `services/glossary.js`, and give it a target in
   `insightsTargets.js` if it has one.
-- **A new field from an API:** add it to the sample source first, in the
-  same shape, so the pages and tests work before the API does. Then note
-  it in section 4.
+- **A new field from an API:** add it to `backend/insights-api` and to the
+  test fixtures in `src/test-fixtures/` (never imported by the app), in the
+  same shape, then note it in section 4.

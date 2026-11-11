@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { CAMPAIGN_TYPES, TYPE_LABELS, TYPE_NAMES, typeOptions, typeShort } from './campaignTypes.js';
-import { CAMPAIGNS, PAST_CAMPAIGNS } from './sampleCampaigns.js';
+import { CAMPAIGNS, PAST_CAMPAIGNS } from '../test-fixtures/sampleCampaigns.js';
 
 test('six types, each with a slug, a label and a short name', () => {
   assert.deepEqual(TYPE_NAMES, ['Data Entry', 'Click', 'Credential theft', 'Helpdesk impersonation', 'Reward scam', 'Travel scam']);

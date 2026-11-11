@@ -127,7 +127,7 @@ const UserListViaBulkUpload = () => {
     setTimeout(() => setToastMessage(""), 2500);
   };
 
-  // A recipient row, completed from the people directory (MasterUserData.json):
+  // A recipient row, completed from the people directory (GET /users):
   // blanks in the file take the directory's values, and people who are not in
   // the directory are flagged as unregistered.
   const resolveMember = (row, idx) => {
