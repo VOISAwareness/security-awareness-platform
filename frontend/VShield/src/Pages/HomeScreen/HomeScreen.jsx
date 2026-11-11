@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -11,6 +11,8 @@ import CardBgDark from '../../assets/HomeScreenCardDarkMode.png';
 import QuoteCardLight from '../../assets/HomeScreenQuoteCard2LightMode.png';
 import QuoteCardDark from '../../assets/HomeScreenQuoteCard2DarkMode.png';
 import { DEMO_USER } from '../../appConfig';
+import { useHomeDashboard } from '../../services/useHomeDashboard';
+import { longDate, PERIODS, showRate } from '../../services/homeDashboard';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -23,13 +25,24 @@ const VarFadedStepDiscScale = 0.85;
 
 const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
 
-// Target Coordinates for Map
-const targetMarkers = [
-  { name: "UK", coordinates: [-2.24, 54.5], rate: "6.1%" },
-  { name: "Egypt", coordinates: [30.8, 26.8], rate: "7.4%" },
-  { name: "India", coordinates: [78.96, 20.59], rate: "6.1%" },
-  { name: "Albania", coordinates: [20.16, 41.15], rate: "6.1%" }
-];
+// Where each country's marker goes on the map. A country that is not here is
+// still listed, just not drawn.
+const COUNTRY_COORDINATES = {
+  UK: [-2.24, 54.5],
+  'United Kingdom': [-2.24, 54.5],
+  Egypt: [30.8, 26.8],
+  India: [78.96, 20.59],
+  Albania: [20.16, 41.15],
+  Germany: [10.45, 51.16],
+  Ireland: [-8.24, 53.41],
+  Spain: [-3.75, 40.46],
+  Italy: [12.57, 41.87],
+  Portugal: [-8.22, 39.4],
+  Romania: [24.97, 45.94],
+  Greece: [21.82, 39.07],
+  Turkey: [35.24, 38.96],
+  'South Africa': [22.94, -30.56],
+};
 
 // Injected Web Font style for Vodafone ExB Fallback
 const VODAFONE_FONT_STYLE = `
@@ -226,7 +239,7 @@ const MiniDonutGauge = ({ label, percentage, color, isDark }) => {
   const stroke = 7;
   const normalizedRadius = radius - stroke / 2;
   const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const strokeDashoffset = circumference - ((percentage ?? 0) / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center justify-center gap-2 flex-1 min-w-0 mt-1.5">
@@ -258,7 +271,7 @@ const MiniDonutGauge = ({ label, percentage, color, isDark }) => {
           />
         </svg>
         <span className={`absolute text-[12px] font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          {percentage}%
+          {showRate(percentage)}
         </span>
       </div>
     </div>
@@ -268,16 +281,16 @@ const MiniDonutGauge = ({ label, percentage, color, isDark }) => {
 // ==========================================
 // 2. SEAMLESS MULTI-SEGMENT DONUT CHART
 // ==========================================
-const SecurityFitnessDonut = ({ isDark }) => {
+const SecurityFitnessDonut = ({ isDark, report = null, hook = null, none = null, periodLabel = 'Current Quarter' }) => {
   const size = 180;
   const center = size / 2;
   const radius = 48;
   const strokeWidth = 14;
   const circumference = 2 * Math.PI * radius;
 
-  const segReport = 50.2;
-  const segHook = 24.6;
-  const segNoInteract = 25.2;
+  const segReport = report ?? 0;
+  const segHook = hook ?? 0;
+  const segNoInteract = none ?? 0;
 
   const lenReport = (segReport / 100) * circumference;
   const lenHook = (segHook / 100) * circumference;
@@ -299,6 +312,7 @@ const SecurityFitnessDonut = ({ isDark }) => {
             stroke={isDark ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.06)"}
             strokeWidth={strokeWidth / 2}
           />
+          {segReport > 0 && (
           <circle
             cx={center}
             cy={center}
@@ -311,6 +325,8 @@ const SecurityFitnessDonut = ({ isDark }) => {
             strokeDashoffset={0}
             transform={`rotate(${rotReport} ${center} ${center})`}
           />
+          )}
+          {segHook > 0 && (
           <circle
             cx={center}
             cy={center}
@@ -323,6 +339,8 @@ const SecurityFitnessDonut = ({ isDark }) => {
             strokeDashoffset={0}
             transform={`rotate(${rotHook} ${center} ${center})`}
           />
+          )}
+          {segNoInteract > 0 && (
           <circle
             cx={center}
             cy={center}
@@ -335,6 +353,8 @@ const SecurityFitnessDonut = ({ isDark }) => {
             strokeDashoffset={0}
             transform={`rotate(${rotNoInteract} ${center} ${center})`}
           />
+          )}
+          {segReport > 0 && (
           <circle
             cx={center}
             cy={center}
@@ -347,6 +367,7 @@ const SecurityFitnessDonut = ({ isDark }) => {
             strokeDashoffset={0}
             transform={`rotate(${rotReport} ${center} ${center})`}
           />
+          )}
           <circle
             cx={center}
             cy={center}
@@ -360,7 +381,7 @@ const SecurityFitnessDonut = ({ isDark }) => {
         <g>
           <polyline points="204,70 226,60 246,60" fill="none" stroke="#45d8b8" strokeWidth="1.2" />
           <text x="250" y="56" fill="#45d8b8" fontSize="11" className="font-voda-exb">
-            50.2%
+            {report === null ? '—' : `${report.toFixed(1)}%`}
           </text>
           <text x="250" y="68" fill={isDark ? "#cbd5e1" : "#475569"} fontSize="9.5" fontWeight="600" fontFamily="sans-serif">
             Report Rate
@@ -369,7 +390,7 @@ const SecurityFitnessDonut = ({ isDark }) => {
         <g>
           <polyline points="126,50 110,32 85,32" fill="none" stroke="#818cf8" strokeWidth="1.2" />
           <text x="80" y="28" textAnchor="end" fill="#818cf8" fontSize="11" className="font-voda-exb">
-            25.2%
+            {none === null ? '—' : `${none.toFixed(1)}%`}
           </text>
           <text x="80" y="40" textAnchor="end" fill={isDark ? "#cbd5e1" : "#475569"} fontSize="9.5" fontWeight="600" fontFamily="sans-serif">
             No Interaction
@@ -378,7 +399,7 @@ const SecurityFitnessDonut = ({ isDark }) => {
         <g>
           <polyline points="128,126 112,142 86,142" fill="none" stroke="#f87171" strokeWidth="1.2" />
           <text x="82" y="138" textAnchor="end" fill="#f87171" fontSize="11" className="font-voda-exb">
-            24.6%
+            {hook === null ? '—' : `${hook.toFixed(1)}%`}
           </text>
           <text x="82" y="150" textAnchor="end" fill={isDark ? "#cbd5e1" : "#475569"} fontSize="9.5" fontWeight="600" fontFamily="sans-serif">
             Hook Rate
@@ -388,10 +409,10 @@ const SecurityFitnessDonut = ({ isDark }) => {
 
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className={`text-[11px] font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          This
+          {periodLabel.split(' ')[0]}
         </span>
         <span className={`text-[11px] font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          Quarter
+          {periodLabel.split(' ').slice(1).join(' ')}
         </span>
       </div>
     </div>
@@ -404,7 +425,23 @@ const SecurityFitnessDonut = ({ isDark }) => {
 const HomeScreen = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
-  const [activeQuarter, setActiveQuarter] = useState('This Quater');
+  const [period, setPeriod] = useState(PERIODS[0]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const { loading, error, summary, latest } = useHomeDashboard(period);
+  const lc = latest;
+  const locations = lc?.locations ?? [];
+  const waiting = lc && !lc.loaded;
+  const num = (value) => (lc && lc.loaded ? value : '…');
+  const bar = (value) => `${Math.min(100, Math.max(0, value ?? 0))}%`;
+
+  useEffect(() => {
+    const close = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
 
   const cardBgImage = isDark ? CardBgDark : CardBgLight;
   const quoteBgImage = isDark ? QuoteCardDark : QuoteCardLight;
@@ -532,12 +569,12 @@ const HomeScreen = () => {
                       </h4>
                     </div>
                     <span className={`text-[9.5px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Out of 3 Campaigns
+                      Out of {summary.evaluated} Campaign{summary.evaluated === 1 ? '' : 's'}
                     </span>
                   </div>
 
                   <div className="transform -translate-y-[26px] translate-x-6 mb-0">
-                    <SecurityFitnessDonut isDark={isDark} />
+                    <SecurityFitnessDonut isDark={isDark} report={summary.reportRate} hook={summary.hookRate} none={summary.noInteractRate} periodLabel={period} />
                   </div>
                 </div>
 
@@ -571,14 +608,14 @@ const HomeScreen = () => {
                         }`}
                       >
                         <span className="text-[22px] font-voda-exb leading-none">
-                          7
+                          {loading ? '…' : summary.total}
                         </span>
                         <span className={`text-[9px] font-bold mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           Campaigns
                         </span>
                         <div className="flex flex-col items-center text-[8.5px] font-bold mt-0.5 text-[#22c55e] leading-tight">
-                          <span>Active 2</span>
-                          <span className="text-[#595959]">Closed 5</span>
+                          <span>Active {summary.active}</span>
+                          <span className="text-[#595959]">Closed {summary.closed}</span>
                         </div>
                       </div>
 
@@ -594,7 +631,78 @@ const HomeScreen = () => {
                         />
                       </svg>
                     </div>
+
+                    {/* Period slicer */}
+                    <div
+                      className={`flex-1 ml-1.5 px-3 py-2 rounded-[10px] flex items-start justify-between relative transition-colors mb-1.5 select-none ${
+                        isDark ? 'bg-[#202127]' : 'bg-[#f1f3f7]'
+                      }`}
+                    >
+                      <div className="flex flex-col pr-1">
+                        <span className={`text-[14px] font-voda-exb uppercase tracking-wider leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          SELECTED:
+                        </span>
+                        <span className={`text-[12px] font-bold tracking-tight leading-tight mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {period}
+                        </span>
+                      </div>
+
+                      <div className="relative flex-shrink-0" ref={menuRef}>
+                        <button
+                          type="button"
+                          aria-haspopup="listbox"
+                          aria-expanded={menuOpen}
+                          aria-label="Choose the period"
+                          onClick={() => setMenuOpen((open) => !open)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10.5px] font-bold cursor-pointer transition-colors ${
+                            isDark
+                              ? 'bg-[#15161a] border-white/10 text-white hover:bg-white/5'
+                              : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          Period
+                          <svg width="9" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true">
+                            <path d="M0 0.5L5 5.5L10 0.5H0Z" />
+                          </svg>
+                        </button>
+
+                        {menuOpen && (
+                          <div
+                            role="listbox"
+                            className={`absolute right-0 top-full mt-1 w-48 rounded-lg border shadow-lg py-1 z-50 ${
+                              isDark ? 'bg-[#15161a] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'
+                            }`}
+                          >
+                            {PERIODS.map((option) => (
+                              <button
+                                key={option}
+                                type="button"
+                                role="option"
+                                aria-selected={period === option}
+                                onClick={() => {
+                                  setPeriod(option);
+                                  setMenuOpen(false);
+                                }}
+                                className={`w-full px-2.5 py-1 text-left text-[10.5px] font-semibold transition-colors cursor-pointer ${
+                                  period === option
+                                    ? isDark ? 'bg-white/10 text-white font-bold' : 'bg-slate-100 text-slate-900 font-bold'
+                                    : isDark ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {error && (
+                    <p role="alert" className="text-[10px] font-semibold text-[#E60000] mt-1">
+                      Couldn't load the campaigns. The numbers below are empty.
+                    </p>
+                  )}
 
                   {/* BOTTOM TIER: Full-width Foot with 4 Mini Donut Gauges */}
                   <div
@@ -602,10 +710,10 @@ const HomeScreen = () => {
                       isDark ? 'bg-[#202127]' : 'bg-[#f1f3f7]'
                     }`}
                   >
-                    <MiniDonutGauge label="Email Reach Rate" percentage={100} color="#c084fc" isDark={isDark} />
-                    <MiniDonutGauge label="Open Rate" percentage={88} color="#22c55e" isDark={isDark} />
-                    <MiniDonutGauge label="Compromised Rate" percentage={12} color="#fb7185" isDark={isDark} />
-                    <MiniDonutGauge label="Trained Rate" percentage={77} color="#22c55e" isDark={isDark} />
+                    <MiniDonutGauge label="Email Reach Rate" percentage={summary.reachRate} color="#c084fc" isDark={isDark} />
+                    <MiniDonutGauge label="Open Rate" percentage={summary.openRate} color="#22c55e" isDark={isDark} />
+                    <MiniDonutGauge label="Compromised Rate" percentage={summary.compromisedRate} color="#fb7185" isDark={isDark} />
+                    <MiniDonutGauge label="Trained Rate" percentage={summary.trainedRate} color="#22c55e" isDark={isDark} />
                   </div>
                 </div>
               </div>
@@ -635,7 +743,7 @@ const HomeScreen = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]"></span>
                   </span>
-                  <span>Live</span>
+                  <span>{lc && !lc.live ? 'Completed' : 'Live'}</span>
                 </div>
               </div>
 
@@ -663,20 +771,20 @@ const HomeScreen = () => {
 
                       <div className="flex flex-col gap-1 text-[10.5px] min-w-0">
                         <p className={`truncate font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Campaign ID:</strong> VS-00028
+                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Campaign ID:</strong> {lc?.id ?? '—'}
                         </p>
                         <p className={`truncate font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Campaign Name:</strong> Mandatory Verification of Salary Bank Account
+                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Campaign Name:</strong> {lc?.name ?? (loading ? 'Loading…' : 'No campaign has been sent yet')}
                         </p>
                         <p className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Campaign Type:</strong> User Verification
+                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Campaign Type:</strong> {lc?.type || '—'}
                         </p>
                         <div className="flex items-center gap-3 font-semibold text-[10.5px] mt-0.5">
                           <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
-                            <strong className={isDark ? 'text-white' : 'text-slate-900'}>Sent date :</strong> 21st April 2026, Monday
+                            <strong className={isDark ? 'text-white' : 'text-slate-900'}>Sent date :</strong> {longDate(lc?.startedAt)}
                           </span>
                           <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
-                            <strong className={isDark ? 'text-white' : 'text-slate-900'}>End date :</strong> Live (Not Ended)
+                            <strong className={isDark ? 'text-white' : 'text-slate-900'}>End date :</strong> {lc?.live ? 'Live (Not Ended)' : longDate(lc?.endTime)}
                           </span>
                         </div>
                       </div>
@@ -695,14 +803,14 @@ const HomeScreen = () => {
                         </span>
                         <div className="my-1">
                           <span className={`text-[15px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            624
+                            {num(lc?.sent)}
                           </span>
                           <span className={`text-[9px] font-semibold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            out of 624 (100%)
+                            out of {num(lc?.sent)} ({lc?.sent ? '100%' : '—'})
                           </span>
                         </div>
                         <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                          <div className="bg-[#22c55e] h-full rounded-full" style={{ width: '100%' }} />
+                          <div className="bg-[#22c55e] h-full rounded-full" style={{ width: lc?.sent ? '100%' : '0%' }} />
                         </div>
 
                         <svg
@@ -730,14 +838,14 @@ const HomeScreen = () => {
                         </span>
                         <div className="my-1">
                           <span className={`text-[15px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            426
+                            {num(lc?.opened)}
                           </span>
                           <span className={`text-[9px] font-semibold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            out of 624 (68.3%)
+                            out of {num(lc?.sent)} ({showRate(lc?.openPercent ?? null, 1)})
                           </span>
                         </div>
                         <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                          <div className="bg-[#fb7185] h-full rounded-full" style={{ width: '68.3%' }} />
+                          <div className="bg-[#fb7185] h-full rounded-full" style={{ width: bar(lc?.openPercent) }} />
                         </div>
                       </div>
                     </div>
@@ -758,14 +866,14 @@ const HomeScreen = () => {
                       </span>
                       <div className="my-1">
                         <span className={`text-[15px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          26
+                          {num(lc?.clicked)}
                         </span>
                         <span className={`text-[9px] font-semibold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                          out of 426
+                          out of {num(lc?.opened)}
                         </span>
                       </div>
                       <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                        <div className="bg-[#fb7185] h-full rounded-full" style={{ width: '6.1%' }} />
+                        <div className="bg-[#fb7185] h-full rounded-full" style={{ width: bar(lc?.clickedPercent) }} />
                       </div>
                     </div>
 
@@ -782,14 +890,14 @@ const HomeScreen = () => {
                       </span>
                       <div className="my-1">
                         <span className={`text-[15px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          327
+                          {num(lc?.reported)}
                         </span>
                         <span className={`text-[9px] font-semibold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                          out of 426
+                          out of {num(lc?.opened)}
                         </span>
                       </div>
                       <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                        <div className="bg-[#22c55e] h-full rounded-full" style={{ width: '76.8%' }} />
+                        <div className="bg-[#22c55e] h-full rounded-full" style={{ width: bar(lc?.reportedPercent) }} />
                       </div>
                     </div>
                   </div>
@@ -815,7 +923,7 @@ const HomeScreen = () => {
                         HOOK RATE %
                       </span>
                       <span className={`text-[9px] font-semibold mt-1 leading-tight truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        Total 28 Recipients
+                        Total {num(lc?.clicked)} Recipients
                       </span>
                       <span className={`text-[9px] font-semibold mt-0.5 leading-tight truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         got Phished
@@ -837,7 +945,7 @@ const HomeScreen = () => {
                           fill="transparent"
                           strokeWidth="10"
                           strokeDasharray={`${2 * Math.PI * 34}`}
-                          strokeDashoffset={`${2 * Math.PI * 34 * (1 - 0.22)}`}
+                          strokeDashoffset={`${2 * Math.PI * 34 * (1 - (lc?.hookRate ?? 0) / 100)}`}
                           strokeLinecap="round"
                           r="34"
                           cx="42"
@@ -846,7 +954,7 @@ const HomeScreen = () => {
                       </svg>
                       
                       <span className={`absolute text-[13.5px] xl:text-[12.5px] font-voda-exb ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        2.3%
+                        {waiting ? '…' : showRate(lc?.hookRate ?? null, 1)}
                       </span>
                     </div>
                   </div>
@@ -871,7 +979,12 @@ const HomeScreen = () => {
                       </div>
 
                       <div className="flex flex-col gap-1.5 flex-1 min-w-0 pr-1">
-                        {targetMarkers.map((loc) => (
+                        {locations.length === 0 && (
+                          <span className={`text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {waiting ? 'Loading…' : 'No locations yet'}
+                          </span>
+                        )}
+                        {locations.map((loc) => (
                           <div
                             key={loc.name}
                             className={`w-full px-2.5 py-1 rounded-md border flex items-center justify-start text-[9px] font-bold transition-all ${
@@ -880,7 +993,7 @@ const HomeScreen = () => {
                                 : 'bg-white border-slate-200/50 text-slate-800 shadow-2xs'
                             }`}
                           >
-                            <span className="truncate">{loc.name} - Hook Rate {loc.rate}</span>
+                            <span className="truncate">{loc.name} - Hook Rate {showRate(loc.hookRate, 1)}</span>
                           </div>
                         ))}
                       </div>
@@ -935,8 +1048,8 @@ const HomeScreen = () => {
                           }
                         </Geographies>
 
-                        {targetMarkers.map(({ name, coordinates }) => (
-                          <Marker key={name} coordinates={coordinates}>
+                        {locations.filter((loc) => COUNTRY_COORDINATES[loc.name]).map(({ name }) => (
+                          <Marker key={name} coordinates={COUNTRY_COORDINATES[name]}>
                             <circle r={20} fill="#E60000" className="animate-ping opacity-60" />
                             <circle r={10} fill="#E60000" />
                           </Marker>
