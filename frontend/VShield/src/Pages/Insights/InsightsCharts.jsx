@@ -179,7 +179,7 @@ export function Card({ title, sub, action, define, children, i = 0, reduce, styl
       {...rise(reduce, i)}
       className={`ins-card${onOpen ? ' ins-open' : ''}`}
       onClick={onOpen ? (e) => { if (!e.defaultPrevented) onOpen(); } : undefined}
-      style={{ position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
+      style={{ position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 10, background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
       {...rest}
     >
       {(title || action || onOpen) && (

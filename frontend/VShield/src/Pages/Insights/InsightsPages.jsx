@@ -26,7 +26,7 @@ const head = (s) => `30 days to ${day(s.to)}`;
 const steps = (hi, by) => Array.from({ length: Math.floor(hi / by) + 1 }, (_, k) => k * by);
 const within = (v, T) => (T.better === 'down' ? v <= T.target : v >= T.target);
 const grid = (cols, rows) => ({ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: cols, gridTemplateRows: rows, gap: 12 });
-const card = { background: 'var(--base)', borderRadius: 16, padding: '12px 16px 10px' };
+const card = { background: 'var(--plate)', borderRadius: 10, padding: '12px 16px 10px' };
 // a clickable mark shows its count on hover (useHoverTip in Insights.jsx)
 const tip = (text) => ({ 'data-tip': text });
 const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }, style: { cursor: 'pointer' } });
