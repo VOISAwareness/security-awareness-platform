@@ -176,7 +176,7 @@ function PeriodSwitch({ shownDays, onDays, range, isDark, reduce }) {
 // What the period holds, in six boxes, on a light card like the tabs.
 function ScopeCard({ totals, range }) {
   return (
-    <section data-ins-scope aria-label="In this period" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
+    <section data-ins-scope aria-label="In this period" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
       <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span style={eyebrow}>In this period</span><span style={{ ...small, fontWeight: 700 }}>{range}</span></span>
       <div data-ins-totals style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'minmax(0,1fr)', gap: 6 }}>
         {totals.map(([label, v]) => (
@@ -192,21 +192,37 @@ function ScopeCard({ totals, range }) {
 
 // The sheet's heading: the tab's name, or the department open with the way
 // back. (Replaces the old corner tile; no description line.)
-function SheetHeading({ tab, dept, people, onBack, reduce }) {
-  const t = TABS.find((x) => x.id === tab);
+function SheetHeading({ dept, people, onBack, reduce }) {
+  if (!dept) return null; // no label on the tab views
+
   return (
-    <div data-ins-corner={dept ? 'department' : tab} style={{ flexShrink: 0, padding: '14px 18px 0' }}>
+    <div data-ins-corner="department" style={{ flexShrink: 0, padding: '14px 18px 0' }}>
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={dept || tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.15, ease: EASE }} style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-          {dept ? (
-            <>
-              <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</span>
-              <span style={{ ...small, fontWeight: 700 }}>{num(people)} people</span>
-            </>
-          ) : (
-            <span style={{ fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--text)' }}>{t.label}</span>
-          )}
+        <motion.div
+          key={dept}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduce ? 0 : 0.15, ease: EASE }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}
+        >
+          <button
+            type="button"
+            className="ins-crumb"
+            data-ins-back
+            onClick={onBack}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <ChevronLeft size={12} strokeWidth={2.8} aria-hidden />
+            All departments
+          </button>
+          <span aria-hidden style={{ flexShrink: 0, color: 'var(--muted)', fontWeight: 700 }}>/</span>
+          <span style={{ minWidth: 0, fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {dept}
+          </span>
+          <span style={{ flexShrink: 0, ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            · {num(people)} people
+          </span>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -484,7 +500,12 @@ function InsightsView({ data }) {
 
             {/* the sheet: one plain rounded panel */}
             <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--sheet)', border: '1px solid var(--sheet-edge)', borderRadius: SHEET_R, overflow: 'hidden' }}>
-              
+              <SheetHeading
+                dept={deptRow ? dept : null}
+                people={deptRow?.people}
+                onBack={() => setDept(null)}
+                reduce={reduce}
+              />
               {/* the measures, each against its target (Open rate has none) */}
               <div style={{ height: KPI_H, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, minmax(0,1fr))`, gap: 6, padding: '12px 14px 0', position: 'relative' }}>
                 {kpis.map((k) => <TargetKpi key={k.id} k={k} ink={ink} reduce={reduce} days={m.basis.days} dim={focus && !focus.includes(k.id)} />)}
