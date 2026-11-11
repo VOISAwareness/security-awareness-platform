@@ -162,10 +162,14 @@ Small running totals, so no screen ever scans the events table.
 so a period's rates are always "of the emails sent in it". `completeDaysSum`
 is in tenths of a day.
 
-A new `stats-engine` function reads the events stream and adds to these rows,
-the same way `points-engine` keeps the points ledger. A 90-day view is a
-read of 90 small rows per scope. If analytics later moves to the data lake in
-the HLD, the API keeps the same shape and only its source changes.
+**Step 7 decision:** Insights does not read this table. It needs medians,
+per-person tiers and the people behind each figure, which daily totals
+cannot give, so `insights-api` works everything out from the recipient and
+training rows (about 15,000 rows: under a second, kept warm for five
+minutes). The seeded rows stay for Home. A `stats-engine` on the events
+stream that keeps them current is only worth building once the rows grow
+past what one Lambda reads quickly; the API's shape stays the same, and so
+does it if analytics later moves to the data lake in the HLD.
 
 ### people-snapshots
 | Field | Notes |
@@ -183,8 +187,9 @@ high clicked more than once, moderate clicked once or never reported, low
 reported and never clicked. The Risk Score is everyone's tier on 0 to 100
 (0, 33, 67, 100), averaged. These are the rules Insights uses today.
 
-Written by a monthly job (and by the seed for past months). It gives the
-risk score over time, who moved between levels, and high-risk people.
+Written by the seed for past months. Insights works tiers out at each step
+from the recipient rows instead (the same rule), so it needs no monthly job;
+these rows keep each person's points and level over time.
 
 ## 5. The fake company (seed)
 
@@ -222,7 +227,7 @@ anything.
 | Training report | training-assignments | `GET /training/assignments?path=` |
 | My Training | training-assignments and the training content | `GET /my-training`, `POST /my-training/{id}/progress`, `/quiz`, `/enrol` |
 | Announcements | announcements, recipients, events | CRUD plus submit, approve, send, acknowledge |
-| Insights (all four tabs), Big Picture | stats-daily, people-snapshots, recipients, training-assignments, settings | `GET /insights?days=&scope=`, `GET /insights/people` |
+| Insights (all four tabs), Big Picture | campaigns, recipients, training-assignments, training-paths, users, settings | `GET /insights` (one payload; see `insights-data.md`) |
 | Leaderboard, My Space | points-ledger, recipients, training-assignments | none new for points; `GET /my-space` for the person's own history |
 
 ## 7. Frontend files this removes
