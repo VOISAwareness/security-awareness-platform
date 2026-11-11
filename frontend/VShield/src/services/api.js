@@ -270,6 +270,22 @@ export const api = {
     assignments: (path) =>
       request(`/training/assignments${path ? `?path=${encodeURIComponent(path)}` : ''}`),
   },
+  // Announcements: TEMPLATE rows (the gallery) and ROLLOUT rows (one sending
+  // of a template). `actor` is client-asserted, as elsewhere.
+  announcements: {
+    list: (kind) => request(`/announcements${kind ? `?kind=${encodeURIComponent(kind)}` : ''}`),
+    // A roll-out also says how it is submitted: submit 'approve' (publish) or 'request'.
+    create: (fields) => request('/announcements', { method: 'POST', body: fields }),
+    update: (id, fields) =>
+      request(`/announcements/${encodeURIComponent(id)}`, { method: 'PUT', body: fields }),
+    remove: (id, actor) =>
+      request(`/announcements/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}`, { method: 'DELETE' }),
+    decide: (id, actor, decision, comments) =>
+      request(`/announcements/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: { actor, decision, comments },
+      }),
+  },
   campaignsCatalog: { list: () => request('/campaigns-catalog') },
 
   campaigns: {

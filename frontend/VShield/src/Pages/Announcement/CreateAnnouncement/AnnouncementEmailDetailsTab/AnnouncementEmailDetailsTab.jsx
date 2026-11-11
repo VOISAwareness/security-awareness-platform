@@ -3,7 +3,10 @@ import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import { ChevronDown } from "lucide-react";
 
 import EmailBodyRichTextEditor from "../../../Scenarios/CreateNewScenario/EmailDetailsTab/EmailBodyRichTextEditor";
-import announcamentScenariosJsonData from "../../../Announcement/AnnouncementData.json";
+import { announcementTemplatesLive, useAnnouncementData } from "../../../../services/announcements";
+// Templates and user lists from the backend (services/announcements.js),
+// kept in objects shaped like the sample files they replace.
+const announcamentScenariosJsonData = announcementTemplatesLive;
 
 const FX_PARAMETERS = [
   {
@@ -81,6 +84,8 @@ const AnnouncementEmailDetailsTab = ({
   setFormData,
   setErrorMsg,
 }) => {
+  // Templates and user lists from the backend (services/announcements.js).
+  useAnnouncementData();
   const { isDark } = useUserType?.() || {
     isDark: false,
   };
