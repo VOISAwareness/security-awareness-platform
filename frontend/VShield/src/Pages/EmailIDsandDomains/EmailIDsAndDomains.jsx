@@ -30,8 +30,8 @@ import EmailIDsLightIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAnd
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
 // =========================================================================
-const VarEmailIDsScale = 0.91;
-const VarOverallRoundednessScale = 0.75;
+const VarEmailIDsScale = 0.94;
+const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
@@ -321,13 +321,13 @@ const EmailIDsAndDomains = () => {
 
       <div
         style={{ zoom: VarEmailIDsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "ADD NEW EMAIL ID & DOMAIN" ─────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] py-2.5 px-6 -mt-1 rounded-xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
               ? "bg-white text-black border-white/10"
               : "bg-[#000000] text-white border-black/10"
