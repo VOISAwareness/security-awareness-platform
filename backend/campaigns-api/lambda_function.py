@@ -50,6 +50,12 @@ STRIPPED = {"loadedData"}
 
 EDITABLE_STATUSES = {"DRAFT", "REJECTED"}
 
+# The most campaigns one list returns. Rows carry their email body and landing
+# page, and a Lambda response must stay under 6 MB, so the list also stops
+# once its rows add up to MAX_LIST_BYTES (and says so with `truncated`).
+MAX_LIST = 2000
+MAX_LIST_BYTES = 5 * 1024 * 1024
+
 # A campaign can be cancelled while it waits for approval or for its start.
 CANCELLABLE_STATUSES = ("PENDING_APPROVAL", "APPROVED")
 MAX_REASON = 500
@@ -128,6 +134,22 @@ def size_error(size):
             "instead of embedding them."
         ),
     )
+
+
+def read_all(operation, **kwargs):
+    """(items, truncated): every item a query or scan returns, across pages,
+    up to MAX_LIST items or MAX_LIST_BYTES of JSON."""
+    items, size = [], 0
+    while True:
+        resp = operation(**kwargs)
+        for item in resp.get("Items", []):
+            size += len(json.dumps(item, cls=DecimalEncoder))
+            if len(items) >= MAX_LIST or size > MAX_LIST_BYTES:
+                return items, True
+            items.append(item)
+        if not resp.get("LastEvaluatedKey"):
+            return items, False
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 
 def get_campaign(campaign_id):
@@ -306,21 +328,21 @@ def lambda_handler(event, context):
 
     try:
         if route == "GET /campaigns":
-            limit = min(int(qs.get("limit", 100)), 100)
+            # Every campaign (or every one in a status), following pages: a
+            # single page stopped at 100 rows and hid the rest.
             status = qs.get("status")
             if status:
                 # status-index keeps the hub and approvals queue off a full scan.
-                resp = campaigns.query(
+                items, truncated = read_all(
+                    campaigns.query,
                     IndexName="status-index",
                     KeyConditionExpression=Key("status").eq(status),
                     ScanIndexForward=False,
-                    Limit=limit,
                 )
             else:
-                resp = campaigns.scan(Limit=limit)
-            items = resp.get("Items", [])
+                items, truncated = read_all(campaigns.scan)
             items.sort(key=lambda c: str(c.get("createdAt", "")), reverse=True)
-            return ok(items, count=len(items))
+            return ok(items, count=len(items), truncated=truncated)
 
         if route == "POST /campaigns":
             body = clean_input(parse_body(event))
