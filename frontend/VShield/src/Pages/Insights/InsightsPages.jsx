@@ -155,7 +155,7 @@ export function SummaryPage({ ctx }) {
             { key: 'trained', name: 'Completed training', people: c?.trained, rate: c?.trainedRate, color: ink.good },
             { key: 'untrained', name: 'No training', people: c?.untrained, rate: c?.untrainedRate, color: ink.bad },
           ]}
-          note={x ? `Trained people click ${x.toFixed(1)}× less` : null}
+          note={liftNote(x)}
         />
       </Card>
     </div>
@@ -391,7 +391,7 @@ export function DepartmentPage({ ctx, name }) {
 
 // ------------------------------------------------------------- Campaigns
 
-const CAMP_GRID = 'minmax(0,2fr) 70px 70px 80px 84px 84px';
+const CAMP_GRID = 'minmax(0,2fr) 64px 60px 70px 70px 76px 84px';
 const SORTS = [
   { id: 'newest', label: 'Newest', by: (a, b) => +new Date(b.started) - +new Date(a.started) },
   { id: 'clicked', label: 'Most clicked', by: (a, b) => (b.hooked ?? 0) - (a.hooked ?? 0) },
@@ -433,7 +433,7 @@ export function CampaignsPage({ ctx }) {
       <Card i={1} reduce={reduce} title="Campaigns" action={seg} style={card} data-ins-campaigns>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
           <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: CAMP_GRID, columnGap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
-            <span style={head}>Campaign</span><span style={head}>Started</span><span style={{ ...head, textAlign: 'right' }}>Emails</span><span style={{ ...head, textAlign: 'right' }}>Hook rate</span><span style={{ ...head, textAlign: 'right' }}>Report rate</span><span style={{ ...head, textAlign: 'right' }}>Compromise rate</span>
+            <span style={head}>Campaign</span><span style={head}>Started</span><span style={{ ...head, textAlign: 'right' }}>Emails</span><span style={{ ...head, textAlign: 'right' }}>Open rate</span><span style={{ ...head, textAlign: 'right' }}>Hook rate</span><span style={{ ...head, textAlign: 'right' }}>Report rate</span><span style={{ ...head, textAlign: 'right' }}>Compromise rate</span>
           </div>
           <FitList
             key={sort}
@@ -445,6 +445,7 @@ export function CampaignsPage({ ctx }) {
                 <span style={{ fontSize: TYPE.strong, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
                 <span style={{ ...small, fontSize: TYPE.body }}>{day(+new Date(c.started))}</span>
                 <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800 }}>{num(c.delivered)}</span>
+                <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{pc1(c.openRate)}</span>
                 <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800, color: ink.bad }}>{pc1(c.hooked)}</span>
                 <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800, color: ink.good }}>{pc1(c.reportRate)}</span>
                 <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 700 }}>{pc1(c.delivered ? c.compromised / c.delivered : null)}</span>
@@ -455,6 +456,14 @@ export function CampaignsPage({ ctx }) {
       </Card>
     </div>
   );
+}
+
+// how many times as likely the untrained are to click, in words either way
+// (real data can show trained people clicking more: training follows a click)
+function liftNote(x) {
+  if (!Number.isFinite(x) || x <= 0) return null;
+  if (Math.abs(x - 1) < 0.05) return 'Trained and untrained people click about as often';
+  return x > 1 ? `Trained people click ${x.toFixed(1)}× less` : `Trained people click ${(1 / x).toFixed(1)}× more`;
 }
 
 // -------------------------------------------------------------- Training
@@ -508,27 +517,61 @@ function Sankey({ cohorts, ink, onOpen }) {
   );
 }
 
-const TRAIN_GRID = 'minmax(0,1.6fr) minmax(0,1fr) 40px 64px';
+// a name, its trained rate as a bar and a figure, then a column for each of `cols`
+const trainGrid = (n) => `minmax(0,1.6fr) minmax(0,1fr) 40px${' 74px'.repeat(n)}`;
 function TrainRows({ items, cols, what, ink, onRow }) {
   const head = { fontSize: TYPE.label, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--muted)' };
+  const grid = trainGrid(cols.length - 1);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: 6 }}>
-      <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
-        <span style={head}>{cols[0]}</span><span style={head}>Trained rate</span><span /><span style={{ ...head, textAlign: 'right', whiteSpace: 'nowrap' }}>{cols[1]}</span>
+      <div aria-hidden style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: grid, columnGap: 8, padding: '0 8px 6px', borderBottom: '1px solid var(--hair-strong)' }}>
+        <span style={head}>{cols[0]}</span><span style={head}>Trained rate</span><span />
+        {cols.slice(1).map((c) => <span key={c} style={{ ...head, textAlign: 'right', whiteSpace: 'nowrap' }}>{c}</span>)}
       </div>
       <FitList
         items={items}
         rowH={28}
         what={what}
         render={(x, k) => (
-          <button key={x.name} type="button" className="ins-row" onClick={() => onRow(x)} {...tip(x.tip)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: TRAIN_GRID, columnGap: 8, alignItems: 'center', height: 28, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+          <button key={x.name} type="button" className="ins-row" onClick={() => onRow(x)} {...tip(x.tip)} style={{ '--d': `${k * 0.012}s`, flexShrink: 0, display: 'grid', gridTemplateColumns: grid, columnGap: 8, alignItems: 'center', height: 28, padding: '0 8px', border: 'none', borderBottom: '1px solid var(--row-hair)', background: 'transparent', color: 'var(--text)', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
             <span style={{ fontSize: TYPE.strong, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.name}</span>
             <span style={{ height: 7, borderRadius: 4, background: 'var(--track)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${(x.done || 0) * 100}%`, background: ink.measure, borderRadius: 4, transformOrigin: 'left' }} /></span>
             <span style={{ fontSize: TYPE.strong, fontWeight: 800 }}>{pc(x.done)}</span>
-            <span style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800 }}>{x.right}</span>
+            {x.right.map((v, i) => <span key={cols[i + 1]} style={{ textAlign: 'right', fontSize: TYPE.strong, fontWeight: 800 }}>{v}</span>)}
           </button>
         )}
       />
+    </div>
+  );
+}
+
+const score0 = (v) => (Number.isFinite(v) ? v.toFixed(0) : '—');
+const daysText = (v) => (Number.isFinite(v) ? `${v.toFixed(1)} d` : '—');
+
+// The training lift: how often each group clicked an email sent in the
+// period, as columns: trained after a click (assigned), trained by choice
+// (voluntary), not trained. Each column opens its people.
+function LiftColumns({ groups, ink, onOpen }) {
+  const max = Math.max(0.05, ...groups.map((g) => g.rate || 0)) * 1.15;
+  const label = { Assigned: 'Assigned training', Voluntary: 'Voluntary training', None: 'No training' };
+  return (
+    <div role="group" aria-label="Click rate by training" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap: 18, padding: '14px 10px 0', borderBottom: '1px solid var(--hair-strong)' }}>
+        {groups.map((g) => (
+          <div key={g.key} data-ins-lift-col={g.key} {...pressable(() => onOpen(`${label[g.key]}`, { trained: g.key }))} {...tip(`${num(g.clicked)} of ${num(g.people)} people clicked`)} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', cursor: 'pointer' }}>
+            <span style={{ fontSize: TYPE.figure, fontWeight: 800, marginBottom: 4 }}>{pc1(g.rate)}</span>
+            <span style={{ width: '46%', height: `${((g.rate || 0) / max) * 82}%`, minHeight: 2, background: ink.measure, borderRadius: '6px 6px 0 0' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 18, padding: '5px 10px 0' }}>
+        {groups.map((g) => (
+          <span key={g.key} style={{ flex: 1, display: 'grid', justifyItems: 'center', textAlign: 'center' }}>
+            <span style={{ ...small, fontWeight: 700, color: 'var(--text)' }}>{label[g.key]}</span>
+            <span style={{ ...small }}>{num(g.people)} people</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -540,8 +583,11 @@ export function TrainingPage({ ctx, programmes }) {
   const depts = [...p.departments].sort((a, b) => (b.training.completion ?? 0) - (a.training.completion ?? 0));
   return (
     <div style={grid('minmax(0,1fr) minmax(0,1fr)', 'minmax(0,0.85fr) minmax(0,1.15fr)')}>
-      <Card i={0} reduce={reduce} title="Training lift" style={card} data-ins-lift>
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>{p.now.cohorts && <Sankey cohorts={p.now.cohorts} ink={ink} onOpen={people} />}</div>
+      <Card i={0} reduce={reduce} title="Training lift" action={<span style={{ ...small, fontWeight: 700 }}>Click rate</span>} style={card} data-ins-lift>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', marginTop: 4 }}>
+          {p.now.cohorts?.groups ? <LiftColumns groups={p.now.cohorts.groups} ink={ink} onOpen={people} />
+            : p.now.cohorts && <Sankey cohorts={p.now.cohorts} ink={ink} onOpen={people} />}
+        </div>
       </Card>
       <Card i={1} reduce={reduce} title="Training progress" style={card} data-ins-funnel>
         <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap: 18, padding: '18px 10px 0' }}>
@@ -555,10 +601,10 @@ export function TrainingPage({ ctx, programmes }) {
         </div>
       </Card>
       <Card i={2} reduce={reduce} title="Departments" style={card} data-ins-train-depts>
-        <TrainRows items={depts.map((d) => ({ name: d.name, done: d.training.completion, right: Number.isFinite(d.training.quizScore) ? d.training.quizScore.toFixed(0) : '—', tip: `${num(d.training.assigned)} assigned` }))} cols={['Department', 'Quiz score']} what="departments" ink={ink} onRow={(x) => people(x.name, { department: x.name, step: 'Started' })} />
+        <TrainRows items={depts.map((d) => ({ name: d.name, done: d.training.completion, right: [pc(d.training.quizPassRate), score0(d.training.quizScore)], tip: `${num(d.training.assigned)} assigned` }))} cols={['Department', 'Pass rate', 'Avg quiz score']} what="departments" ink={ink} onRow={(x) => people(x.name, { department: x.name, step: 'Started' })} />
       </Card>
       <Card i={3} reduce={reduce} title="Programmes" style={card} data-ins-programmes>
-        <TrainRows items={[...programmes].sort((a, b) => b.completion - a.completion).map((x) => ({ name: x.program, done: x.completion / 100, right: `${x.pass}%`, tip: `${x.completion}% completed` }))} cols={['Programme', 'Pass rate']} what="programmes" ink={ink} onRow={(x) => people(x.name, { programme: x.name })} />
+        <TrainRows items={[...programmes].sort((a, b) => (b.completion ?? 0) - (a.completion ?? 0)).map((x) => ({ name: x.program, done: x.completion, right: [pc(x.quizPassRate), score0(x.quizScore), daysText(x.avgDays)], tip: `${num(x.assigned)} assigned` }))} cols={['Programme', 'Pass rate', 'Avg quiz score', 'Avg time']} what="programmes" ink={ink} onRow={(x) => people(x.name, { programme: x.name })} />
       </Card>
     </div>
   );

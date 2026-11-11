@@ -180,6 +180,12 @@ export const api = {
         body: { PointsAssigned: points, ModifiedBy: actor },
       }),
   },
+  // Insights' sources (insights-api), for the roles with the Analytics page;
+  // `role` is client-asserted until sign-in exists. services/insightsData.js
+  // reads it.
+  insights: {
+    get: (role) => request(`/insights?role=${encodeURIComponent(role || '')}`),
+  },
   // Insights' targets as an admin set them (reference-api, settings table).
   // `version` is the one read, so a change made since is refused (409);
   // `role` is client-asserted, like the leaderboard's, until sign-in exists.

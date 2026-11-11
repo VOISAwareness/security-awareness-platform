@@ -13,7 +13,7 @@ const ITEMS = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((campaign) => ({ campaign, r
 const M = insights(ITEMS, { days: 30 });
 const P = peopleInsights(organisation({ end: M.basis.end }), { days: 30 });
 const LIST = standsOut(M, P);
-const TRAINING = { programmes: [{ program: 'Basics', completion: 75, pass: 70, score: 80, status: 'Good' }] };
+const TRAINING = { programmes: [{ program: 'Basics', assigned: 40, completion: 0.75, quizPassRate: 0.7, quizScore: 80, avgDays: 4.5 }] };
 
 const sheetNames = (bytes) => [...strFromU8(unzipSync(bytes)['xl/workbook.xml']).matchAll(/<sheet name="([^"]+)"/g)].map((x) => x[1]);
 

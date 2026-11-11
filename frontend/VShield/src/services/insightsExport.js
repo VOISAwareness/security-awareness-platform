@@ -196,10 +196,11 @@ export function insightsBook(m, list, training, { title = 'Insights', source = '
       { table: {
         columns: [
           { label: 'Programme', value: (x) => x.program, width: 34 },
-          { label: GLOSSARY.trainingCompletion.name, value: (x) => x.completion / 100, kind: 'pct', width: 12 },
-          { label: 'Pass rate', value: (x) => x.pass / 100, kind: 'pct', width: 11 },
-          { label: 'Average score', value: (x) => x.score, kind: 'int', width: 12 },
-          { label: 'Status', value: (x) => x.status, width: 12 },
+          { label: 'Assigned', value: (x) => x.assigned, kind: 'int', width: 10 },
+          { label: GLOSSARY.trainingCompletion.name, value: (x) => x.completion, kind: 'pct', width: 12 },
+          { label: 'Pass rate', value: (x) => x.quizPassRate, kind: 'pct', width: 11 },
+          { label: 'Avg quiz score', value: (x) => x.quizScore, kind: 'int', width: 13 },
+          { label: 'Avg days to complete', value: (x) => x.avgDays, kind: 'dec', width: 18 },
         ],
         rows: training.programmes,
       } }] : []),
