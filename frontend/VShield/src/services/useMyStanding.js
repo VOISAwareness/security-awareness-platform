@@ -1,29 +1,25 @@
 /**
- * useMyStanding — the signed-in person's points, rank and level.
- *
- * Sample data by default (services/sampleStanding.js, from the bundled user
- * list); `sample: true` says so. With VITE_LIVE_LEVELS=true it reads GET
- * /standing instead (liveStanding.js), and falls back to the sample if the
- * server can't answer. `ready` is false only while that first read is under
- * way, so screens don't treat a placeholder as the person's level.
+ * useMyStanding — the signed-in person's points, rank and level, from
+ * GET /standing (the points ledger; liveStanding.js). `ready` is false only
+ * while it is read, so screens don't treat a placeholder as the person's
+ * level; if it can't be read, `failed` is true and they show 0 points.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import masterUsers from '../MasterUserData.json';
 import { DEMO_USER } from '../appConfig';
 import { useUserType } from '../UserTypeContext/UserTypeContext';
 import { api } from './api';
-import { LIVE_LEVELS, standingFromApi } from './liveStanding';
-import { sampleStanding } from './sampleStanding';
+import { levelFor, progressFor } from './levels';
+import { standingFromApi } from './liveStanding';
+
+const nothing = (email, extra) => ({ email, points: 0, rank: null, total: null, level: null, progress: null, best: null, history: [], ...extra });
 
 export function useMyStanding() {
   const { user } = useUserType() || {};
   const email = (user?.UserEMailID || DEMO_USER.email).trim().toLowerCase();
-  const sample = useMemo(() => ({ ...sampleStanding(masterUsers, email), sample: true, ready: true }), [email]);
   const [live, setLive] = useState(null); // { email, standing }
 
   useEffect(() => {
-    if (!LIVE_LEVELS) return undefined;
     let active = true;
     api.points
       .standing(email)
@@ -32,7 +28,7 @@ export function useMyStanding() {
         if (active) setLive({ email, standing });
       })
       .catch((e) => {
-        console.error('Could not load your points; showing sample data', e);
+        console.error('Could not load your points', e);
         if (active) setLive({ email, standing: null });
       });
     return () => {
@@ -40,9 +36,8 @@ export function useMyStanding() {
     };
   }, [email, user?.UserName, user?.Department]);
 
-  if (!LIVE_LEVELS) return sample;
-  if (!live || live.email !== email) {
-    return { email, points: 0, rank: null, total: null, level: null, progress: null, best: null, history: [], sample: false, ready: false };
-  }
-  return live.standing ? { ...live.standing, sample: false, ready: true } : sample;
+  if (!live || live.email !== email) return nothing(email, { ready: false });
+  if (live.standing) return { ...live.standing, ready: true };
+  // unknown to the ledger, or it could not be read: a New Joiner on 0 points
+  return nothing(email, { level: levelFor(0), progress: progressFor(0), ready: true, failed: true });
 }

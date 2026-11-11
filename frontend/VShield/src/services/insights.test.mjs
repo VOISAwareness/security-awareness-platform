@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { arrival, insights, median, movement, peopleInsights, standsOut, summary } from './insights.js';
-import { campaignReport } from './sampleReports.js';
-import { CAMPAIGNS, DEPTS, MOTIVATORS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
-import { TIERS, organisation, riskScore } from './sampleOrganisation.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
+import { CAMPAIGNS, DEPTS, MOTIVATORS, PAST_CAMPAIGNS, person } from '../test-fixtures/sampleCampaigns.js';
+import { TIERS, organisation, riskScore } from '../test-fixtures/sampleOrganisation.js';
 
 const ITEMS = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((campaign) => ({ campaign, report: campaignReport(campaign, { depts: DEPTS, personAt: person }) }));
 const DAY = 86400000;

@@ -481,7 +481,7 @@ const CampaignEmail = () => {
  const [loadedData, setLoadedData] = useState(null);
  const membersFetchedRef = useRef(false);
 
- // Single user dropdown state from MasterUserData.json
+ // Single user dropdown state, from the people directory (GET /users)
  const [selectedSingleUser, setSelectedSingleUser] = useState(null);
  const [isSingleUserDropdownOpen, setIsSingleUserDropdownOpen] = useState(false);
  const [singleUserSearch, setSingleUserSearch] = useState('');
@@ -855,7 +855,7 @@ const CampaignEmail = () => {
  const activeData = loadedData || currentSelectedList;
 
  // A loaded list's members as they appear in the people directory
- // (MasterUserData.json); members who are not in it are left out.
+ // (GET /users); members who are not in it are left out.
  const directoryMembers = (activeData?.users || [])
   .map((u) => {
    const email = String(u.email || u.UserEMailID || '').toLowerCase();

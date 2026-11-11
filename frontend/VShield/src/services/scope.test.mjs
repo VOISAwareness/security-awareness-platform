@@ -3,8 +3,8 @@ import test from 'node:test';
 
 import { scopeItems, sliceOf } from './scope.js';
 import { insights } from './insights.js';
-import { campaignReport } from './sampleReports.js';
-import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
+import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../test-fixtures/sampleCampaigns.js';
 
 const ITEMS = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((campaign) => ({ campaign, report: campaignReport(campaign, { depts: DEPTS, personAt: person }) }));
 

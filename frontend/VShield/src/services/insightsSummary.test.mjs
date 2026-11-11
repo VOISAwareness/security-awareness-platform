@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from './sampleCampaigns.js';
-import { campaignReport } from './sampleReports.js';
+import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../test-fixtures/sampleCampaigns.js';
+import { campaignReport } from '../test-fixtures/sampleReports.js';
 import { insights, peopleInsights, periodSteps, summary } from './insights.js';
-import { organisation } from './sampleOrganisation.js';
+import { organisation } from '../test-fixtures/sampleOrganisation.js';
 import { scoreAt, trends } from './insightsSummary.js';
 
 const items = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) }));

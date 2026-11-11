@@ -1,7 +1,6 @@
 /**
  * The global leaderboard from the server (GET /leaderboard), in the shape of
- * the sample board (sampleLeaderboard.js globalBoard), so the screen takes
- * either. Read only when VITE_LIVE_LEVELS=true (see liveStanding.js).
+ * the board the Leaderboard draws.
  *
  * The server never sends emails; it marks the viewer's row `you`, and for a
  * level below zero the viewer may not see it sends neither the level nor the

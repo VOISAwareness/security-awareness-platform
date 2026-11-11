@@ -10,9 +10,9 @@ import DeptCrest from '../../GlobalComponents/DeptCrest';
 import { DEPT_CODE } from '../../GlobalComponents/deptCodes';
 import AllBadges from '../../GlobalComponents/AllBadges';
 import { useMyStanding } from '../../services/useMyStanding';
-import { samplePointsFor, visibleLevel } from '../../services/sampleLeaderboard';
+import { visibleLevel } from '../../services/levels';
 import { useGlobalBoard } from '../../services/useGlobalBoard';
-import { gradeName, levelAltText, levelFor, progressFor, rangeText } from '../../services/levels';
+import { gradeName, levelAltText, progressFor, rangeText } from '../../services/levels';
 
 // Clay-model corner artwork, reused from the existing asset set so the
 // leaderboard reads like the Campaigns / Requests & Approvals screens.
@@ -22,18 +22,16 @@ import ReportsChart from '../../assets/LeaderboardAssets/ReportsChart.png';
 import { BigPictureSheet, BigPictureTeaser } from './BigPicture';
 import { CampaignList } from './CampaignList';
 import { PointsPlate } from './PointsPlate';
-import { CAMPAIGNS, DEPTS, person } from '../../services/sampleCampaigns';
-import { campaignReport } from '../../services/sampleReports';
+import { campaignBoard, ongoing, pictureItems as itemsOf, useBoardData } from '../../services/leaderboardData';
 import { bigPicture } from '../../services/bigPicture';
 
 // =============================================================================
 // VOIS Shield — Leaderboard (design prototype)
 //
-// The global board comes from useGlobalBoard: the bundled user list ranked by
-// points (services/sampleLeaderboard.js, the same list My Space reads), or,
-// with VITE_LIVE_LEVELS=true, the points ledger (GET /leaderboard). The
-// campaign boards are still made up. Keyed by email, shown by name; scores
-// from the gamification rules.
+// The global board comes from useGlobalBoard: the points ledger (GET
+// /leaderboard). The campaign boards and The Big Picture come from GET
+// /insights/board (services/leaderboardData.js): each campaign's recipients
+// ranked by the points it gave them, by the gamification rules. Shown by name.
 //
 // Everyone's level badge leads their row, in the place of an avatar (like a
 // game's ranking: rank, this week's move, badge, the person, their points),
@@ -127,31 +125,10 @@ const FONT_IMPORT = `
   }
 `;
 
-// --- sample data -------------------------------------------------------------
-
-// FIRST, LAST, DEPTS and person() live in services/sampleCampaigns.js, shared with Insights.
-
-// Every participant, ranked. Points fall off steeply at the top and flatten
-// out down the field, the way a real leaderboard does.
-function buildBoard(seed, total) {
-  const all = [];
-  for (let rank = 1; rank <= total; rank += 1) {
-    const t = total > 1 ? (rank - 1) / (total - 1) : 0;
-    const s = (1 - t) ** 1.6 * rank ** -0.08; // 1 at the top, 0 at the bottom
-    const p = person(rank - 1 + seed * 37);
-    const pts = Math.round(80 + 1400 * s - (seed % 5) * 7);
-    const move = ((rank * 13 + seed * 7) % 9) - 3; // places gained (+) or lost (-) this week
-    const overall = samplePointsFor(rank - 1 + seed * 37); // their points across every campaign
-    const levelId = levelFor(overall)?.id || null; // their overall level
-    all.push({ rank, ...p, pts: pts.toLocaleString(), move, levelId, overall });
-  }
-  return { podium: { first: all[0], second: all[1], third: all[2] }, rows: all.slice(3), total };
-}
-
-
-// The sample campaigns (CAMPAIGNS) live in services/sampleCampaigns.js too.
-
-
+// A board with no one on it, while the campaigns are read or if there are none.
+const EMPTY_BOARD = { podium: { first: null, second: null, third: null }, rows: [], total: 0, youRank: null, sample: false };
+// "6 Nov", from the API's ISO date
+const dayText = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
 
 const MEDAL = { first: '#E8B30B', second: '#8A94A6', third: '#C2772E' };
 const toNum = (s) => Number(String(s).replace(/,/g, '')) || 0;
@@ -665,7 +642,9 @@ const Leaderboard = () => {
   const reduce = useReducedMotion();
   const rules = useGamificationRules();
   const mine = useMyStanding(); // the viewer's points, rank and level
-  const globalBoard = useGlobalBoard(mine.email, user?.role, mine.rank);
+  const globalBoard = useGlobalBoard(mine.email, user?.role);
+  // every sent campaign and what everyone did with it, for My Campaigns and The Big Picture
+  const { board: sent } = useBoardData(user?.role, mine.email, canCampaigns || canReports);
   const viewerRole = user?.role;
   const youDept = mine.department || user?.Department || '';
   const [badges, setBadges] = useState(null); // All badges: null, or { selected, subject }
@@ -681,7 +660,7 @@ const Leaderboard = () => {
   const view = (pickedView === 'campaign' && canCampaigns) || (pickedView === 'reports' && canReports) ? pickedView : 'global';
   const [pictureOf, setPictureOf] = useState('org'); // The Big Picture: 'org' or a campaign id
   const [pictureDays, setPictureDays] = useState(30); // the organisation's period: 30, 60 or 90 days
-  const [campaignId, setCampaignId] = useState(CAMPAIGNS[0].id);
+  const [campaignId, setCampaignId] = useState(null);
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState('people'); // podium shows 'people' or 'depts'
   const [rowsPerPage, setRowsPerPage] = useState(7);
@@ -706,42 +685,41 @@ const Leaderboard = () => {
   const youName = (user && user.UserName) ? user.UserName : 'You';
   const youInitials = youName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'YOU';
 
-  const campaign = useMemo(() => CAMPAIGNS.find((c) => c.id === campaignId) || CAMPAIGNS[0], [campaignId]);
+  // the campaigns still open, or (when none is) the latest ones
+  const open = useMemo(() => (sent ? ongoing(sent) : []), [sent]);
+  const railCampaigns = useMemo(() => (open.length ? open : (sent?.campaigns || []).slice(0, 12)).map((c) => ({ ...c, startedText: dayText(c.started) })), [open, sent]);
+  const allCampaigns = useMemo(() => (sent?.campaigns || []).map((c) => ({ ...c, startedText: dayText(c.started) })), [sent]);
+  const campaign = useMemo(() => railCampaigns.find((c) => c.id === campaignId) || railCampaigns[0] || null, [railCampaigns, campaignId]);
 
-  // The Big Picture (sample until the reports API exists): every campaign's
-  // results, read over everyone on the board for the organisation, or over a
-  // campaign's own recipients.
-  const pictureItems = useMemo(() => {
-    if (!canReports) return [];
-    const opts = { depts: DEPTS, personAt: person, rules: rules.points };
-    return CAMPAIGNS.map((c) => ({ campaign: c, report: campaignReport(c, opts) }));
-  }, [canReports, rules.points]);
+  // The Big Picture: every campaign's results, read over everyone for the
+  // organisation, or over a campaign's own recipients, from what each person
+  // did with each email.
+  const pictureItems = useMemo(() => (canReports && sent ? itemsOf(sent) : []), [canReports, sent]);
   const orgPicture = useMemo(() => {
-    if (!canReports) return null;
-    const { podium: top, rows } = globalBoard;
-    const people = [top.first, top.second, top.third, ...rows]
-      .filter((p) => p && p.points !== null && p.points !== undefined)
-      .map((p) => ({ key: p.email || `${p.name}|${p.rank}`, name: p.name, email: p.email || '', dept: p.dept, points: Number(p.points) }));
-    return bigPicture(pictureItems, people, { days: pictureDays, rules: rules.points });
-  }, [canReports, pictureItems, globalBoard, rules.points, pictureDays]);
-  const pictureCampaign = CAMPAIGNS.find((c) => c.id === pictureOf) || null;
+    if (!canReports || !sent) return null;
+    return bigPicture(pictureItems, sent.people, { days: pictureDays, rules: rules.points, now: sent.asOf });
+  }, [canReports, sent, pictureItems, rules.points, pictureDays]);
+  const pictureCampaign = allCampaigns.find((c) => c.id === pictureOf) || null;
   const campaignPicture = useMemo(() => {
-    if (!pictureCampaign || view !== 'reports') return null;
-    const { podium: top, rows } = buildBoard(pictureCampaign.seed, pictureCampaign.total);
-    const people = [top.first, top.second, top.third, ...rows].map((p) => ({ key: `${p.name}|${p.rank}`, name: p.name, email: '', dept: p.dept, points: p.overall }));
-    return bigPicture(pictureItems, people, { focus: pictureCampaign.id, rules: rules.points });
-  }, [pictureCampaign, view, pictureItems, rules.points]);
+    if (!pictureCampaign || view !== 'reports' || !sent) return null;
+    const people = sent.people.filter((p) => p.events.some((e) => e.campaign === pictureCampaign.id));
+    return bigPicture(pictureItems, people, { focus: pictureCampaign.id, rules: rules.points, now: sent.asOf });
+  }, [pictureCampaign, view, sent, pictureItems, rules.points]);
 
   const scope = useMemo(() => {
     if (view === 'global') {
       return { board: globalBoard, youRank: globalBoard.youRank, counter: globalBoard.total.toLocaleString(), counterLabel: 'participants', title: 'Global Leaderboard', sub: 'Everyone ranked across every campaign · all time', live: false };
     }
+    if (!campaign || !sent) {
+      return { board: EMPTY_BOARD, youRank: null, counter: '0', counterLabel: 'recipients', title: sent ? 'No campaigns yet' : 'Loading campaigns…', sub: '', live: false };
+    }
+    const b = campaignBoard(sent, campaign.id, rules.points);
     return {
-      board: buildBoard(campaign.seed, campaign.total), youRank: campaign.youRank,
-      counter: campaign.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
-      sub: `${campaign.type} · started ${campaign.started}`, live: true,
+      board: b, youRank: b.youRank,
+      counter: b.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
+      sub: `${campaign.type} · started ${campaign.startedText}`, live: open.some((c) => c.id === campaign.id),
     };
-  }, [view, campaign, globalBoard]);
+  }, [view, campaign, globalBoard, sent, rules.points, open]);
 
   const youRow = useMemo(() => {
     const { podium: top, rows } = scope.board; // the viewer may be on the podium
@@ -942,9 +920,9 @@ const Leaderboard = () => {
             {/* the only scrolling regions on the page: the campaign lists */}
             {view === 'campaign' && (
               <CampaignList
-                label={`Ongoing campaigns · ${CAMPAIGNS.length}`}
-                campaigns={CAMPAIGNS}
-                selected={campaignId}
+                label={open.length ? `Ongoing campaigns · ${open.length}` : `Latest campaigns · ${railCampaigns.length}`}
+                campaigns={railCampaigns}
+                selected={campaign?.id}
                 onSelect={chooseCampaign}
                 meta={(c) => `${c.type} · ${c.total.toLocaleString()} recipients`}
                 isDark={isDark}
@@ -955,10 +933,10 @@ const Leaderboard = () => {
               <CampaignList
                 label="The big picture of"
                 org={{ title: 'The organisation', sub: `Last ${pictureDays} days, everyone on the board`, listLabel: 'Or one campaign' }}
-                campaigns={CAMPAIGNS}
+                campaigns={allCampaigns}
                 selected={pictureOf}
                 onSelect={setPictureOf}
-                meta={(c) => `${c.type} · started ${c.started}`}
+                meta={(c) => `${c.type} · started ${c.startedText}`}
                 isDark={isDark}
                 tint={{ fill: 'var(--cap-reports)', edge: isDark ? '#5EEAD4' : '#14B8A6', glow: 'rgba(20,184,166,0.18)' }}
               />
