@@ -68,10 +68,12 @@ const RequestsAndApprovals = ({
   // Active view tab state: 'queue' | 'rejected' | 'expired' | 'approved'
   const [activeTab, setActiveTab] = useState('queue');
 
-  console.log("Requests & Approvals rendering: user =", user, "isCampaignCreator =", isCampaignCreator, "activeTab =", activeTab, "paths =", paths);
+  // Trigger for plain-reject confirmation popup modal
+  const [rejectingPath, setRejectingPath] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [pendingAction, setPendingAction] = useState(null);
 
-  // Trigger for rejection note window modal
-  
   const handleApprove = async (path) => {
     const updatedPath = {
       ...path,
@@ -87,21 +89,53 @@ const RequestsAndApprovals = ({
     }
   };
 
-  const handleRejectSubmit = async (path, message) => {
+  const executeReject = async (path, reason) => {
     const updatedPath = {
       ...path,
       status: 'Rejected',
       approvedBy: activeUserEmail || 'abhay.hs1@vodafone.com',
-      rejectionMessage: message,
+      rejectionMessage: reason,
+      NotificationMessage: reason,
     };
     try {
       await savePath(updatedPath);
       setPaths(prev => prev.map(p => p.TrainingPathID === path.TrainingPathID ? updatedPath : p));
       showToast?.(`"${path.TrainingPathName}" has been rejected.`);
+      return true;
     } catch (e) {
       console.error("Failed to reject learning path", e);
+      return false;
     }
-      };
+  };
+
+  const handleRejectOpen = (path, message) => {
+    if (typeof message === 'string' && message.trim()) {
+      executeReject(path, message.trim());
+      return;
+    }
+    setRejectReason("");
+    setActionError("");
+    setRejectingPath(path);
+  };
+
+  const confirmReject = async () => {
+    const path = rejectingPath;
+    if (!path) return;
+    if (!rejectReason.trim()) {
+      setActionError("Please provide a reason so the creator knows why.");
+      return;
+    }
+    setPendingAction(path.TrainingPathID);
+    setActionError("");
+    const success = await executeReject(path, rejectReason.trim());
+    if (success) {
+      setRejectingPath(null);
+      setRejectReason("");
+    } else {
+      setActionError("Could not reject that learning path.");
+    }
+    setPendingAction(null);
+  };
 
 
   // Switcher navigation items configuration (Notified removed)
@@ -289,7 +323,7 @@ const RequestsAndApprovals = ({
                 <ApprovalQueueGallery
                   paths={paths}
                   onApprove={handleApprove}
-                  onReject={handleRejectSubmit}
+                  onReject={handleRejectOpen}
                   isDark={isDark}
                   videos={videos}
                   quizzes={quizzes}
@@ -324,6 +358,68 @@ const RequestsAndApprovals = ({
             )}
           </div>
         </div>
+
+        {/* Plain reject: final popup modal, with the reason the creator will see. */}
+        {rejectingPath && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white p-6 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col gap-3">
+              <h2 className="text-[16px] font-voda font-black tracking-tight">
+                Reject this learning path?
+              </h2>
+              <p className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 leading-snug">
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {rejectingPath.TrainingPathName}
+                </span>{" "}
+                ({rejectingPath.TrainingPathID}) will move to Rejected Paths
+                and be closed.
+              </p>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
+                  Reason for rejecting <span className="text-[#EF4444]">*</span>
+                </span>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => {
+                    setRejectReason(e.target.value);
+                    setActionError("");
+                  }}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="The creator sees this on the Rejected tab"
+                  className="w-full rounded-xl px-3 py-2 text-[11px] font-medium bg-[#EEF2F6] dark:bg-[#12141A] text-slate-900 dark:text-white border border-black/5 dark:border-white/10 outline-none resize-none"
+                />
+              </label>
+              {actionError && (
+                <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-300">
+                  {actionError}
+                </p>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionError("");
+                    setRejectingPath(null);
+                    setRejectReason("");
+                  }}
+                  className="px-5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmReject}
+                  disabled={pendingAction === rejectingPath.TrainingPathID}
+                  className="px-5 py-1.5 rounded-xl bg-[#F87171] hover:bg-[#EF4444] disabled:opacity-50 text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  {pendingAction === rejectingPath.TrainingPathID
+                    ? "Rejecting…"
+                    : "Reject"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

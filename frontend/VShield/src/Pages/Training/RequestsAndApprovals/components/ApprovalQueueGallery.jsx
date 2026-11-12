@@ -49,14 +49,6 @@ const ApprovalQueueGallery = ({
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [detailModalItem, setDetailModalItem] = useState(null);
 
-  // Inline Rejection States
-  const [inlineRejectPathId, setInlineRejectPathId] = useState(null);
-  const [rejectComment, setRejectComment] = useState('');
-
-  // Specifications Modal Rejection States
-  const [modalRejecting, setModalRejecting] = useState(false);
-  const [modalRejectComment, setModalRejectComment] = useState('');
-
   const lCardBg = getLCardBg(isDark);
 
   const handleDetailsClick = (e, path) => {
@@ -237,12 +229,11 @@ const ApprovalQueueGallery = ({
           ) : (
             processedPaths.map((path, idx) => {
               const cardBgColor = getCardBgColor(idx);
-              const isRejectingThis = inlineRejectPathId === path.TrainingPathID;
 
               return (
                 <div
                   key={path.TrainingPathID}
-                  onClick={(e) => !isRejectingThis && handleDetailsClick(e, path)}
+                  onClick={(e) => handleDetailsClick(e, path)}
                   style={{
                     backgroundColor: cardBgColor,
                     borderRadius: `${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px`,
@@ -271,16 +262,14 @@ const ApprovalQueueGallery = ({
 
                     <div className="flex items-center gap-1.5 text-[8.5px] font-bold text-slate-600">
                       <span>Created on: {formatShortDate(path.CreatedOn)}</span>
-                      {!isRejectingThis && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleDetailsClick(e, path)}
-                          className="text-slate-700 hover:text-black cursor-pointer ml-1"
-                          title="View Full Specifications"
-                        >
-                          <ExternalLink className="w-3 h-3 stroke-[2.2]" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDetailsClick(e, path)}
+                        className="text-slate-700 hover:text-black cursor-pointer ml-1"
+                        title="View Full Specifications"
+                      >
+                        <ExternalLink className="w-3 h-3 stroke-[2.2]" />
+                      </button>
                     </div>
                   </div>
 
@@ -335,72 +324,29 @@ const ApprovalQueueGallery = ({
 
                   {/* Action Buttons Row */}
                   <div className={`flex items-center gap-1.5 pt-1.5 mt-0.5 ${getButtonsRowJustifyClass()}`}>
-                    {isRejectingThis ? (
-                      <div className="flex flex-col gap-2 w-full mt-1.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex flex-col gap-1 text-left">
-                          <label className="text-[9px] font-extrabold text-slate-600 uppercase tracking-wider">
-                            Provide rejection remarks:
-                          </label>
-                          <textarea
-                            value={rejectComment}
-                            onChange={(e) => setRejectComment(e.target.value)}
-                            placeholder="State reason for rejecting this path..."
-                            className="w-full h-12 p-2 rounded-lg border border-red-300 bg-white text-[10px] font-semibold text-slate-850 focus:outline-none focus:border-red-500 resize-none leading-relaxed shadow-inner"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setInlineRejectPathId(null);
-                              setRejectComment('');
-                            }}
-                            className="h-6 px-3 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-[8px] font-bold uppercase transition-colors cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!rejectComment.trim()}
-                            onClick={() => {
-                              onReject(path, rejectComment.trim());
-                              setInlineRejectPathId(null);
-                              setRejectComment('');
-                            }}
-                            className="h-6 px-3 rounded bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[8px] font-bold uppercase transition-colors cursor-pointer"
-                          >
-                            Submit Rejection
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onApprove && onApprove(path);
-                          }}
-                          className="h-6 px-3 rounded-md bg-[#84D988] hover:bg-[#72C872] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
-                        >
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                          Approve
-                        </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onApprove && onApprove(path);
+                      }}
+                      className="h-6 px-3 rounded-md bg-[#84D988] hover:bg-[#72C872] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                    >
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      Approve
+                    </button>
 
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInlineRejectPathId(path.TrainingPathID);
-                            setRejectComment('');
-                          }}
-                          className="h-6 px-3 rounded-md bg-[#F87171] hover:bg-[#EF4444] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
-                        >
-                          <XCircle className="w-2.5 h-2.5 stroke-[2.5]" />
-                          Reject
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReject && onReject(path);
+                      }}
+                      className="h-6 px-3 rounded-md bg-[#F87171] hover:bg-[#EF4444] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                    >
+                      <XCircle className="w-2.5 h-2.5 stroke-[2.5]" />
+                      Reject
+                    </button>
                   </div>
                 </div>
               );
@@ -430,8 +376,6 @@ const ApprovalQueueGallery = ({
                   type="button"
                   onClick={() => {
                     setDetailModalItem(null);
-                    setModalRejecting(false);
-                    setModalRejectComment('');
                   }}
                   className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-voda font-bold text-[9px] uppercase cursor-pointer transition-colors shadow-2xs"
                 >
@@ -496,76 +440,33 @@ const ApprovalQueueGallery = ({
                 </div>
               </div>
 
-              {/* Bottom: 3 Action Buttons inside Modal */}
-              <div className="flex flex-col gap-3 pt-2 border-t border-black/10">
-                {modalRejecting ? (
-                  <div className="flex flex-col gap-2 w-full">
-                    <div className="flex flex-col gap-1 text-left">
-                      <label className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
-                        Rejection Feedback & Remarks:
-                      </label>
-                      <textarea
-                        value={modalRejectComment}
-                        onChange={(e) => setModalRejectComment(e.target.value)}
-                        placeholder="State reason for rejecting this learning path..."
-                        className="w-full h-16 p-3 rounded-lg border border-red-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-red-500 resize-none leading-relaxed shadow-inner"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModalRejecting(false);
-                          setModalRejectComment('');
-                        }}
-                        className="h-8 px-4 rounded-xl border border-slate-200 bg-white text-[10px] font-voda font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-50 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!modalRejectComment.trim()}
-                        onClick={() => {
-                          onReject && onReject(detailModalItem, modalRejectComment.trim());
-                          setDetailModalItem(null);
-                          setModalRejecting(false);
-                          setModalRejectComment('');
-                        }}
-                        className="h-8 px-5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-voda font-bold uppercase tracking-wider cursor-pointer"
-                      >
-                        Submit Rejection
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`flex items-center gap-2 w-full ${getButtonsRowJustifyClass()}`}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onApprove && onApprove(detailModalItem);
-                        setDetailModalItem(null);
-                      }}
-                      className="px-4 rounded-lg bg-[#84D988] hover:bg-[#72C872] text-white text-[10px] font-voda font-bold uppercase tracking-wider transition-all
-                      shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      Approve
-                    </button>
+              {/* Bottom: Action Buttons inside Modal */}
+              <div className={`flex items-center gap-2 w-full pt-2 border-t border-black/10 ${getButtonsRowJustifyClass()}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApprove && onApprove(detailModalItem);
+                    setDetailModalItem(null);
+                  }}
+                  className="px-4 py-1.5 rounded-lg bg-[#84D988] hover:bg-[#72C872] text-white text-[10px] font-voda font-bold uppercase tracking-wider transition-all
+                  shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  Approve
+                </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setModalRejecting(true);
-                        setModalRejectComment('');
-                      }}
-                      className="px-4 rounded-lg bg-[#F87171] hover:bg-[#EF4444] text-white text-[10px] font-voda font-bold uppercase tracking-wider transition-all
-                      shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-                      Reject
-                    </button>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onReject && onReject(detailModalItem);
+                    setDetailModalItem(null);
+                  }}
+                  className="px-4 py-1.5 rounded-lg bg-[#F87171] hover:bg-[#EF4444] text-white text-[10px] font-voda font-bold uppercase tracking-wider transition-all
+                  shadow-2xs active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <XCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                  Reject
+                </button>
               </div>
             </div>
           </div>
