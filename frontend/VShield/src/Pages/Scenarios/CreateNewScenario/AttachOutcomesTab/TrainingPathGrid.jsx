@@ -35,13 +35,10 @@ const TrainingPathGrid = ({ onSelect }) => {
   const [previewCertModal, setPreviewCertModal] = useState(null);
 
   const [selectedPathId, setSelectedPathId] = useState(null);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  /*
-   * ----------------------------------------------------------
+  /* ----------------------------------------------------------
    * THEME
-   * ----------------------------------------------------------
-   */
+   * ----------------------------------------------------------*/
 
   React.useEffect(() => {
     if (typeof userContext.isDark === "boolean") {
@@ -186,7 +183,6 @@ const TrainingPathGrid = ({ onSelect }) => {
     if (!path) return;
 
     setSelectedPathId(path.TrainingPathID);
-    setErrorMsg("");
 
     const { videos, quiz, certificate, questionCount, passingScore } =
       resolvePathDetails(path);

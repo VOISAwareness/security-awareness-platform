@@ -67,7 +67,7 @@ const getScenarioImage = (coverImageId) => {
 
   try {
     return new URL(`../Scenarios/` + coverImageId, import.meta.url).href;
-  } catch (e) {
+  } catch (_e) { 
     return `/assets/Scenarios/${coverImageId}`;
   }
 };

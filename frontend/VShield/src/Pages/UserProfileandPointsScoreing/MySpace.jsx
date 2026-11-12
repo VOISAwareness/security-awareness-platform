@@ -35,14 +35,12 @@ import {
   riskColor,
   riskPosition,
 } from "../../services/levels";
+import { VODAFONE_FONT_STYLE } from "@/shared/SharedStyles";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
 const VarMySpaceScale = 0.94;
-
-// 🌟 GLOBAL CORNER RADIUS SCALE (Reduces roundedness universally by ~2-4px)
-const VarOverallMySpaceRoundednessScale = 0.5;
 
 // 🌟 MY ACTIVITIES DONUT CHART SCALE
 const VarMyActivitiesDonutScale = 1.05;
@@ -54,27 +52,6 @@ const VarMySpacePart2Scale = 1.0; // Scale of Part 2 (1.0 = 100%, 0.95 = 95%, et
 const VarMySpacePart2OffsetY = 0; // Move Up (-) / Down (+) in px
 const VarMySpacePart2OffsetX = 0; // Move Left (-) / Right (+) in px
 const VarMySpacePart2MarginTop = 14; // Gap between Explore bar & Part 2 in px
-
-const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
-
-  .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
-    font-weight: 900;
-  }
-
-  .font-mono-tech {
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* Universal Roundedness Scaler */
-  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallMySpaceRoundednessScale)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallMySpaceRoundednessScale)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallMySpaceRoundednessScale)}px !important; }
-  .rounded-md  { border-radius: ${Math.round(6 * VarOverallMySpaceRoundednessScale)}px !important; }
-  .voda-rounded-2xl { border-radius: ${Math.round(20 * VarOverallMySpaceRoundednessScale)}px !important; }
-  
-`;
 
 // =========================================================================
 // 🌟 1. UNBREAKABLE ELASTIC LANYARD & SNAP-BACK ID BADGE (LOWERED BY 4PX)

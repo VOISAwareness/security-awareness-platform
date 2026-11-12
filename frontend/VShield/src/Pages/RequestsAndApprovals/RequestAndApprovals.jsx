@@ -30,12 +30,12 @@ import MegaphoneImg from "../../assets/RequestAndApprovalsAssets/NotifyForChange
 import ExpiredImg from "../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png";
 import MyApprovedImg from "../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import { VarOverallCornerRoundednessAdjuster, VODAFONE_FONT_STYLE } from "@/shared/SharedStyles";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
 // =========================================================================
 export const VarRequestsScale = 0.94;
-export const VarOverallCornerRoundednessAdjuster = 0.5;
 export const VarLeftSectionWidth = "22%";
 export const VarRightSectionWidth = "77%";
 export const VarSectionGap = 12; // in px
@@ -43,40 +43,6 @@ export const VarNavButtonsHeightAdjuster = 75; // Height in px for each of the 5
 export const VarButtonsPopAnimationAdjuster = 1; // Hover pop scale multiplier (e.g. 1.02 = 102%, 1.04 = 104%)
 export const VarAppToCreRatioVisualHeight = 142; // Height in px for the ratio visual card
 export const VarAppToCreRatioVisualBarScale = 0.95; // Scale multiplier for the ratio bar
-
-// =========================================================================
-// 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
-// =========================================================================
-const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
-  
-  .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
-    font-weight: 900;
-  }
-
-  .font-mono-tech {
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .voda-rounded-2xl {
-    border-radius: ${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px !important;
-  }
-
-  .nav-capsule-btn {
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
-  }
-  .nav-capsule-btn:hover {
-    transform: scale(${VarButtonsPopAnimationAdjuster});
-  }
-  .nav-capsule-btn:active {
-    transform: scale(0.97);
-  }
-`;
 
 const RequestAndApprovals = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };

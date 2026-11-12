@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUserType } from "../../../UserTypeContext/UserTypeContext";
 import { Search, ChevronDown, User, Bell, Edit3, X } from "lucide-react";
+import { VODAFONE_FONT_STYLE } from "@/shared/SharedStyles";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS (MATCHING APPROVAL QUEUE GALLERY)
@@ -10,30 +11,6 @@ export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardLenghtAdjuster = 1.0;
 export const VarGallaryCardsScaleAdjuster = 1.0;
 export const VarGalleryLowerBaseHeightAdjuster = 430; // Height of Lower L-Base (in px)
-
-// =========================================================================
-// 🔤 VODAFONE TYPOGRAPHY & CORNER STYLES
-// =========================================================================
-const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
-  
-  .font-voda {
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 800;
-  }
-  .font-voda-exb {
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 800;
-  }
-  .font-mono-tech {
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
-`;
 
 // Pure white in light mode, dark tone in dark mode
 const getLCardBg = (isDark) => (isDark ? "#1C1E24" : "#FFFFFF");

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { api } from "../../services/api";
@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import gamificationJsonData from "./GamificationData.json";
+import { VODAFONE_FONT_STYLE } from "@/shared/SharedStyles";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -26,24 +27,6 @@ const VarGamificationScale = 0.94;
 // 🌟 DEDICATED SCALE CONTROL FOR THE 6 GALLERY ITEMS (0.85 = 85%, 0.88 = 88%, etc.)
 const VarGamificationGalleryItemsScale = 1.15;
 
-const VarOverallRoundednessScale = 0.5;
-
-const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap');
-  
-  .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
-    font-weight: 900;
-  }
-  .font-mono-tech {
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .rounded-3xl { border-radius: ${Math.round(24 * VarOverallRoundednessScale)}px !important; }
-  .rounded-2xl { border-radius: ${Math.round(18 * VarOverallRoundednessScale)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallRoundednessScale)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallRoundednessScale)}px !important; }
-  .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
-`;
 
 // Helper to format today's date matching "01-Aug-2026" / "1-Aug-26" pattern
 const getFormattedTodayDate = () => {

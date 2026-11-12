@@ -189,7 +189,7 @@ const SelectedTrainingPreview = ({ formData, onRedo, isDark }) => {
     training.coverImage ||
     "CovImg-001.png";
 
-  let coverSrc = "";
+  let coverSrc;
 
   try {
     coverSrc = new URL(`../Scenarios/` + coverImage, import.meta.url).href;
@@ -1536,7 +1536,6 @@ const AttachOutcomesTab = ({
     onClose,
     onSelect,
     selectedLandingPageId,
-    isDark,
   }) => {
     if (!isOpen) {
       return null;

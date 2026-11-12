@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,26 +10,12 @@ import {
   AlertTriangle,
   Flame,
 } from "lucide-react";
+import { VODAFONE_FONT_STYLE } from "@/shared/SharedStyles";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & STYLE CONSTANTS
 // =========================================================================
 const VarMySpacePart2Scale = 0.975;
-const VarOverallRoundednessScale = 0.75;
-
-const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
-  
-  .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
-    font-weight: 900;
-  }
-
-  .rounded-2xl { border-radius: ${Math.round(16 * VarOverallRoundednessScale)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(12 * VarOverallRoundednessScale)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(8 * VarOverallRoundednessScale)}px !important; }
-  .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
-`;
 
 // =========================================================================
 // 🌟 10 MASONRY VIDEO MODULES
@@ -315,12 +301,12 @@ const MySpacePart2 = () => {
                       {/* Status Badge (No timestamp) */}
                       <div className="absolute top-2.5 right-2.5 z-10">
                         {isCompleted ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
                             <CheckCircle2 className="w-2.5 h-2.5 stroke-[3]" />
                             COMPLETED
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
                             <Flame className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                             AVAILABLE
                           </span>

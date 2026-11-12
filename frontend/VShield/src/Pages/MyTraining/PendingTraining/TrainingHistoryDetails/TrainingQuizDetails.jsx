@@ -479,8 +479,6 @@ function QuizSession({
 
   const [skipped, setSkipped] = useState([]);
 
-  const [finished, setFinished] = useState(false);
-
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const t = isDark ? THEMES.dark : THEMES.light;
@@ -645,8 +643,7 @@ function QuizSession({
         };
       }),
     };
-
-    setFinished(true);
+    
     onComplete?.(result);
   };
 

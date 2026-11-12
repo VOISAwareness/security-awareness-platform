@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { formatDateTime } from "../../../services/campaignStatus";
 import { Search, ChevronDown, ExternalLink, UserX } from "lucide-react";
+import { VODAFONE_FONT_STYLE } from "@/shared/SharedStyles";
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -8,27 +9,6 @@ import { Search, ChevronDown, ExternalLink, UserX } from "lucide-react";
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardsScaleAdjuster = 1.0;
 export const VarGalleryLowerBaseHeightAdjuster = 430;
-
-const VODAFONE_FONT_STYLE = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;800&display=swap');
-  
-  .font-voda {
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 800;
-  }
-  .font-voda-exb {
-    font-family: 'Outfit', sans-serif !important;
-    font-weight: 800;
-  }
-  .font-mono-tech {
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallCornerRoundednessAdjuster)}px !important; }
-  .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
-`;
 
 const getLCardBg = (isDark) => (isDark ? "#1C1E24" : "#FFFFFF");
 
@@ -157,7 +137,7 @@ const RejectedCampaignsGallery = ({
             borderTopRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
           }}
-          className="w-[calc(100%-182px)] ml-auto h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
+          className="w-[calc(100%-182px)] h-[133px] px-4 py-2.5 flex items-center justify-between relative z-30 select-none -ml-2 transition-colors border-t border-r border-black/5 dark:border-white/5 flex-shrink-0"
         >
           <div className="flex flex-col gap-2 -mt-8 max-w-[340px] w-full">
             <div className="relative flex items-center">
@@ -208,7 +188,7 @@ const RejectedCampaignsGallery = ({
           <div className="flex flex-col items-end justify-center text-right pr-2">
             <span
               style={{ color: CAPSULE_COUNTER_COLOR }}
-              className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
+              className="text-5xl leading-none tracking-tight font-voda font-bold"
             >
               {String(filteredRejectedCampaigns.length).padStart(2, "0")}
             </span>

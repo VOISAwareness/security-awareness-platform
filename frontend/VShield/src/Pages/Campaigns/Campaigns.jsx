@@ -637,9 +637,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* 👉 RIGHT COLUMN: DYNAMIC GALLERY (CARDS AND L-BASE VIEW)                  */}
-          {/* ========================================================================= */}
+          {/* ============================================================ */}
+          {/* RIGHT COLUMN: DYNAMIC GALLERY(CARDS AND L-BASE VIEW)         */}
+          {/* ============================================================ */}
           <div
             style={{
               width: VarRightSectionWidth,
@@ -660,7 +660,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
               <div className="flex items-center gap-4">
                 <span
                   style={{ color: activeTabConfig.counterColor }}
-                  className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
+                  className="text-5xl leading-none tracking-tight font-voda font-bold"
                 >
                   {String(currentCategoryList.length).padStart(2, "0")}
                 </span>
@@ -957,9 +957,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
           />
         )}
 
-        {/* ========================================================================= */}
-        {/* ── 🌟 SIMULATED EMAIL BODY PREVIEW POPUP ──                               */}
-        {/* ========================================================================= */}
+        {/* ============================================================= */}
+        {/* ── 🌟 SIMULATED EMAIL BODY PREVIEW POPUP                      */}
+        {/* ============================================================= */}
         {previewEmailHtml && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
             <div className="w-full max-w-2xl bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col">

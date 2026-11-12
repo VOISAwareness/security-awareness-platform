@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -8,8 +8,6 @@ import { Rocket, Wand2, Trophy } from 'lucide-react';
 // Card Background Texture Assets
 import CardBgLight from '../../assets/HomeScreenCardLightMode.png';
 import CardBgDark from '../../assets/HomeScreenCardDarkMode.png';
-import QuoteCardLight from '../../assets/HomeScreenQuoteCard2LightMode.png';
-import QuoteCardDark from '../../assets/HomeScreenQuoteCard2DarkMode.png';
 import { DEMO_USER } from '../../appConfig';
 import { useHomeDashboard } from '../../services/useHomeDashboard';
 import { longDate, PERIODS, showRate } from '../../services/homeDashboard';
@@ -444,7 +442,6 @@ const HomeScreen = () => {
   }, []);
 
   const cardBgImage = isDark ? CardBgDark : CardBgLight;
-  const quoteBgImage = isDark ? QuoteCardDark : QuoteCardLight;
 
   return (
     <>
