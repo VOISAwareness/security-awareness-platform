@@ -7,7 +7,7 @@ import { useSize } from './useSize';
 import { trends } from '../../services/insightsSummary';
 import { DRIVERS, levelsByMonth } from '../../services/insightsPeople';
 import { targetText } from '../../services/insightsTargets';
-import { alpha, day, mins, num, pc, pc1, small, TYPE } from './insightsUi';
+import { alpha, day, num, pc, pc1, small, TYPE } from './insightsUi';
 
 // Insights' four tabs, under the corner tile and the six measures:
 //   Summary      the company over time against its targets
@@ -20,7 +20,9 @@ import { alpha, day, mins, num, pc, pc1, small, TYPE } from './insightsUi';
 // third level. Green is within a target, red past it; nothing else is
 // coloured but the risk levels. They report; they never advise.
 
-const minutes = (v) => `${Math.round(v)}m`;
+// minutes shown as hours: "2.2h" on the chart, "2.2 hours" in words
+const hoursShort = (v) => `${Number((v / 60).toFixed(1))}h`;
+const hoursText = (v) => (Number.isFinite(v) ? `${(v / 60).toFixed(1)} hours` : '—');
 // a department's own charts: thirty days at a time
 const head = (s) => `30 days to ${day(s.to)}`;
 const steps = (hi, by) => Array.from({ length: Math.floor(hi / by) + 1 }, (_, k) => k * by);
@@ -137,14 +139,14 @@ export function SummaryPage({ ctx }) {
       <Card i={3} reduce={reduce} title="Avg time for reporting" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="report-time">
         <Trend
           points={t.months}
-          label={`Average minutes from sending to a report: ${mins(last?.avgReport)} in ${last?.range}; the target is ${targetText(F, 'min')}`}
+          label={`Average time from sending to a report: ${hoursText(last?.avgReport)} in ${last?.range}; the target is ${hoursText(F.target)} or less`}
           lo={0}
           hi={avgHi}
-          ticks={steps(avgHi, avgHi > 120 ? 30 : 15)}
-          tickText={minutes}
-          columns={{ key: 'avgReport', colorOf: (v) => (v <= F.target ? ink.good : ink.bad), text: minutes }}
+          ticks={steps(avgHi, 30)}
+          tickText={hoursShort}
+          columns={{ key: 'avgReport', colorOf: (v) => (v <= F.target ? ink.good : ink.bad), text: hoursShort }}
           right={10}
-          tip={(s) => ({ head: s.range, rows: [{ label: 'Avg time for reporting', value: mins(s.avgReport), color: s.avgReport <= F.target ? ink.good : ink.bad }] })}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Avg time for reporting', value: hoursText(s.avgReport), color: s.avgReport <= F.target ? ink.good : ink.bad }] })}
         />
       </Card>
       <Card i={4} reduce={reduce} title="Training effectiveness" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">

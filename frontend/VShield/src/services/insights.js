@@ -62,8 +62,8 @@ const meanReport = (t) => (t.firstReport === null || t.firstReport === undefined
  * The Summary's chart steps: the last `count` calendar months up to the one
  * `end` falls in, oldest first, the same whatever period is chosen. Each
  * { from, to, axis, range }: from (exclusive) and to (inclusive) in ms, the
- * axis label ("June", or "Nov (so far)" for the month not yet over) and the
- * dates in words ("June 2026", "1–12 Nov 2026").
+ * axis label ("June") and the dates in words ("June 2026", or "1–12 Nov
+ * 2026" for the month not yet over, in the tooltip).
  */
 export function calendarMonths(end, count = 6) {
   const e = new Date(end);
@@ -78,7 +78,7 @@ export function calendarMonths(end, count = 6) {
     return {
       from: Date.UTC(y, mo, 1) - 1, // just before the 1st: a step holds what is after `from`
       to,
-      axis: sofar ? `${short} (so far)` : name,
+      axis: name,
       range: sofar ? `1–${new Date(to).getUTCDate()} ${short} ${new Date(to).getUTCFullYear()}` : `${name} ${new Date(to).getUTCFullYear()}`,
     };
   });

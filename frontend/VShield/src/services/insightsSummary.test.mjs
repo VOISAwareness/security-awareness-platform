@@ -26,10 +26,10 @@ test('the year: twelve steps of thirty days, oldest first, the newest ending wit
 });
 
 
-test('the Summary steps: the last six calendar months, the newest so far', () => {
+test('the Summary steps: the last six calendar months, named in full', () => {
   const end = Date.UTC(2026, 10, 12, 9); // 12 Nov
   const m = calendarMonths(end);
-  assert.deepEqual(m.map((s) => s.axis), ['June', 'July', 'August', 'September', 'October', 'Nov (so far)']);
+  assert.deepEqual(m.map((s) => s.axis), ['June', 'July', 'August', 'September', 'October', 'November']);
   assert.equal(m[0].range, 'June 2026');
   assert.equal(m.at(-1).range, '1–12 Nov 2026');
   assert.equal(m.at(-1).to, end);
@@ -37,7 +37,7 @@ test('the Summary steps: the last six calendar months, the newest so far', () =>
   // the months follow on with no gap
   m.forEach((s, i) => { if (i) assert.equal(s.from, m[i - 1].to); });
   // across a year end
-  assert.deepEqual(calendarMonths(Date.UTC(2027, 1, 3)).map((s) => s.axis), ['September', 'October', 'November', 'December', 'January', 'Feb (so far)']);
+  assert.deepEqual(calendarMonths(Date.UTC(2027, 1, 3)).map((s) => s.axis), ['September', 'October', 'November', 'December', 'January', 'February']);
   // on a month's last moment it is whole
   assert.equal(calendarMonths(Date.UTC(2026, 10, 1) - 1).at(-1).axis, 'October');
 });
