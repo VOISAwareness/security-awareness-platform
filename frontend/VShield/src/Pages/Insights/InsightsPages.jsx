@@ -7,7 +7,7 @@ import { useSize } from './useSize';
 import { trends } from '../../services/insightsSummary';
 import { DRIVERS, levelsByMonth } from '../../services/insightsPeople';
 import { targetText } from '../../services/insightsTargets';
-import { alpha, day, mins, num, pc, pc1, small, TYPE } from './insightsUi';
+import { alpha, day, num, pc, pc1, small, TYPE } from './insightsUi';
 
 // Insights' four tabs, under the corner tile and the six measures:
 //   Summary      the company over time against its targets
@@ -20,7 +20,9 @@ import { alpha, day, mins, num, pc, pc1, small, TYPE } from './insightsUi';
 // third level. Green is within a target, red past it; nothing else is
 // coloured but the risk levels. They report; they never advise.
 
-const minutes = (v) => `${Math.round(v)}m`;
+// minutes shown as hours: "2.2h" on the chart, "2.2 hours" in words
+const hoursShort = (v) => `${Number((v / 60).toFixed(1))}h`;
+const hoursText = (v) => (Number.isFinite(v) ? `${(v / 60).toFixed(1)} hours` : '—');
 // a department's own charts: thirty days at a time
 const head = (s) => `30 days to ${day(s.to)}`;
 const steps = (hi, by) => Array.from({ length: Math.floor(hi / by) + 1 }, (_, k) => k * by);
@@ -31,70 +33,26 @@ const card = { background: 'var(--plate)', borderRadius: 10, padding: '12px 16px
 const tip = (text) => ({ 'data-tip': text });
 const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }, style: { cursor: 'pointer' } });
 
-// Click rates side by side, as columns on a 0% scale: one per group of
-// people (trained, not trained; or by kind of training). The taller the
-// column, the more that group clicked. Each column: its rate on top, its
-// name and its people under it.
-export function ClickRateColumns({ groups, ink, note, label }) {
-  const shown = groups.filter((g) => Number.isFinite(g.rate));
-  if (!shown.length) return <span style={small}>No figures yet.</span>;
-  const most = Math.max(...shown.map((g) => g.rate));
-  const top = Math.max(0.05, Math.ceil((most * 1.15) / 0.05) * 0.05);
-  const ticks = steps(top, top > 0.2 ? 0.1 : 0.05);
-  return (
-    <div role="img" aria-label={label ?? shown.map((g) => `${g.name}: ${pc1(g.rate)} clicked`).join('; ')} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '34px minmax(0,1fr)', gridTemplateRows: 'minmax(0,1fr) auto auto', columnGap: 6 }}>
-      <div aria-hidden style={{ position: 'relative' }}>
-        {ticks.map((t) => <span key={t} style={{ position: 'absolute', right: 0, bottom: `${(t / top) * 100}%`, transform: 'translateY(50%)', ...small, fontSize: TYPE.label }}>{pc(t)}</span>)}
-      </div>
-      <div style={{ position: 'relative', borderLeft: '1px solid var(--hair-strong)', borderBottom: '1px solid var(--hair-strong)' }}>
-        {ticks.filter((t) => t > 0).map((t) => <span key={t} aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: `${(t / top) * 100}%`, borderTop: '1px dashed var(--hair)' }} />)}
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', padding: '0 4%' }}>
-          {shown.map((g, k) => (
-            <div key={g.name} data-ins-click-col={g.key} style={{ width: `${Math.min(28, 70 / shown.length)}%`, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 3 }}>
-              <span style={{ fontSize: TYPE.strong, fontWeight: 800, color: 'var(--text)' }}>{pc1(g.rate)}</span>
-              <span className="ins-rise" style={{ '--d': `${k * 0.06}s`, width: '100%', height: `${(g.rate / top) * 100}%`, minHeight: 3, background: g.color, borderRadius: '6px 6px 0 0' }} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <span />
-      <div style={{ display: 'flex', justifyContent: 'space-around', padding: '5px 4% 0' }}>
-        {shown.map((g) => (
-          <span key={g.name} style={{ width: `${Math.min(34, 90 / shown.length)}%`, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', lineHeight: 1.2 }}>
-            <span style={{ fontSize: TYPE.body, fontWeight: 700, color: 'var(--text)' }}>{g.name}</span>
-            {Number.isFinite(g.people) && <span style={{ ...small, fontSize: TYPE.label }}>{num(g.people)} people</span>}
-          </span>
-        ))}
-      </div>
-      {note && <span style={{ gridColumn: '1 / -1', paddingTop: 6, fontSize: TYPE.body, fontWeight: 700, color: ink.good }}>{note}</span>}
-    </div>
-  );
-}
-
-// how many times more often one group clicks than another, in words
-const timesMore = (more, less) => (Number.isFinite(more) && Number.isFinite(less) && less > 0 ? more / less : null);
 
 // --------------------------------------------------------------- Summary
 
 export function SummaryPage({ ctx }) {
   const { m, p, ink, reduce, targets: T } = ctx;
   const t = trends(m, p);
-  const by = m.basis.days <= 30 ? 'by week' : 'by month';
-  const R = T.riskScore; const H = T.hookRate; const P = T.reportRate; const G = T.gaveDetails; const F = T.firstReport;
+  const R = T.riskScore; const H = T.hookRate; const P = T.reportRate; const G = T.gaveDetails; const F = T.firstReport; const C = T.trainingCompletion;
   const scores = t.risk.map((s) => s.score).filter(Number.isFinite);
   const lo = Math.max(0, Math.floor(Math.min(...scores, R.target) / 2) * 2 - 4);
   const hi = Math.ceil(Math.max(...scores, R.target) / 2) * 2 + 2;
   const gaveHi = Math.max(G.target * 3, ...t.months.map((s) => s.gave || 0)) * 1.2;
   const avgHi = Math.max(F.target + 10, ...t.months.map((s) => s.avgReport || 0)) * 1.15;
   const last = t.months.at(-1);
-  const c = p.now.cohorts;
-  const x = timesMore(c?.untrainedRate, c?.trainedRate);
+  const lastTrained = t.trained.at(-1);
   return (
     <div data-ins-summary style={grid('repeat(6, minmax(0,1fr))', 'minmax(0,1.1fr) minmax(0,1fr)')}>
-      <Card i={0} reduce={reduce} title={`Risk score, ${by}`} style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
+      <Card i={0} reduce={reduce} title="Risk score" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
         <Trend
           points={t.risk}
-          label={`Risk Score ${by}: ${t.risk.map((s) => `${s.range} ${Number.isFinite(s.score) ? s.score.toFixed(1) : 'no figure'}`).join(', ')}; the target is ${targetText(R)}`}
+          label={`Risk Score by month: ${t.risk.map((s) => `${s.range} ${Number.isFinite(s.score) ? s.score.toFixed(1) : 'no figure'}`).join(', ')}; the target is ${targetText(R)}`}
           lo={lo}
           hi={hi}
           ticks={steps(hi, 2).filter((v) => v >= lo)}
@@ -106,7 +64,7 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: s.range, rows: [{ label: 'Risk Score', value: s.score.toFixed(1), color: s.score <= R.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={1} reduce={reduce} title={`Clicked vs reported, ${by}`} style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
+      <Card i={1} reduce={reduce} title="Clicked vs reported" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
         <Trend
           points={t.months}
           label={`Reported ${pc1(last?.reportRate)} and clicked ${pc1(last?.hooked)} of emails delivered in ${last?.range}`}
@@ -121,7 +79,7 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: s.range, rows: [{ label: 'Reported', value: pc1(s.reportRate), color: ink.good }, { label: 'Clicked', value: pc1(s.hooked), color: ink.bad }] })}
         />
       </Card>
-      <Card i={2} reduce={reduce} title={`Compromise rate, ${by}`} style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
+      <Card i={2} reduce={reduce} title="Compromise rate" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
         <Trend
           points={t.months}
           label={`Compromise rate: ${pc1(last?.gave)} in ${last?.range}; the target is ${targetText(G, '%')}`}
@@ -135,27 +93,32 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: s.range, rows: [{ label: 'Compromise rate', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={3} reduce={reduce} title={`Avg time for reporting, ${by}`} style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="report-time">
+      <Card i={3} reduce={reduce} title="Avg time for reporting" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="report-time">
         <Trend
           points={t.months}
-          label={`Average minutes from sending to a report: ${mins(last?.avgReport)} in ${last?.range}; the target is ${targetText(F, 'min')}`}
+          label={`Average time from sending to a report: ${hoursText(last?.avgReport)} in ${last?.range}; the target is ${hoursText(F.target)} or less`}
           lo={0}
           hi={avgHi}
-          ticks={steps(avgHi, avgHi > 120 ? 30 : 15)}
-          tickText={minutes}
-          columns={{ key: 'avgReport', colorOf: (v) => (v <= F.target ? ink.good : ink.bad), text: minutes }}
+          ticks={steps(avgHi, 30)}
+          tickText={hoursShort}
+          columns={{ key: 'avgReport', colorOf: (v) => (v <= F.target ? ink.good : ink.bad), text: hoursShort }}
           right={10}
-          tip={(s) => ({ head: s.range, rows: [{ label: 'Avg time for reporting', value: mins(s.avgReport), color: s.avgReport <= F.target ? ink.good : ink.bad }] })}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Avg time for reporting', value: hoursText(s.avgReport), color: s.avgReport <= F.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={4} reduce={reduce} title="Training effectiveness" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="training">
-        <ClickRateColumns
-          ink={ink}
-          groups={[
-            { key: 'trained', name: 'Completed training', people: c?.trained, rate: c?.trainedRate, color: ink.good },
-            { key: 'untrained', name: 'No training', people: c?.untrained, rate: c?.untrainedRate, color: ink.bad },
-          ]}
-          note={liftNote(x)}
+      <Card i={4} reduce={reduce} title="Trained rate" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="trained">
+        <Trend
+          points={t.trained}
+          label={`Trained rate: ${pc(lastTrained?.rate)} of the trainings assigned in ${lastTrained?.range} were completed; the target is ${targetText(C, '%')}`}
+          lo={0}
+          hi={1}
+          ticks={[0, 0.25, 0.5, 0.75, 1]}
+          tickText={pc}
+          zones={[{ from: C.target, to: 1, color: ink.good }]}
+          targets={[{ v: C.target, color: ink.good, label: `Target ${targetText(C, '%')}`, below: true }]}
+          columns={{ key: 'rate', colorOf: (v) => (v >= C.target ? ink.good : ink.bad), text: pc }}
+          right={10}
+          tip={(s) => ({ head: s.range, rows: [{ label: 'Trained rate', value: pc(s.rate), color: s.rate >= C.target ? ink.good : ink.bad }, { label: 'Assigned', value: num(s.assigned) }, { label: 'Completed', value: num(s.completed) }] })}
         />
       </Card>
     </div>
@@ -456,14 +419,6 @@ export function CampaignsPage({ ctx }) {
       </Card>
     </div>
   );
-}
-
-// how many times as likely the untrained are to click, in words either way
-// (real data can show trained people clicking more: training follows a click)
-function liftNote(x) {
-  if (!Number.isFinite(x) || x <= 0) return null;
-  if (Math.abs(x - 1) < 0.05) return 'Trained and untrained people click about as often';
-  return x > 1 ? `Trained people click ${x.toFixed(1)}× less` : `Trained people click ${(1 / x).toFixed(1)}× more`;
 }
 
 // -------------------------------------------------------------- Training

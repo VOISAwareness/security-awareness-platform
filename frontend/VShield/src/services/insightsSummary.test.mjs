@@ -3,9 +3,10 @@ import test from 'node:test';
 
 import { CAMPAIGNS, DEPTS, PAST_CAMPAIGNS, person } from '../test-fixtures/sampleCampaigns.js';
 import { campaignReport } from '../test-fixtures/sampleReports.js';
-import { insights, peopleInsights, periodSteps, summary } from './insights.js';
+import { calendarMonths, insights, peopleInsights, summary } from './insights.js';
 import { organisation } from '../test-fixtures/sampleOrganisation.js';
 import { scoreAt, trends } from './insightsSummary.js';
+import { dateOf } from './bigPicture.js';
 
 const items = [...CAMPAIGNS, ...PAST_CAMPAIGNS].map((c) => ({ campaign: c, report: campaignReport(c, { depts: DEPTS, personAt: person }) }));
 const at = (days) => {
@@ -24,30 +25,30 @@ test('the year: twelve steps of thirty days, oldest first, the newest ending wit
   assert.deepEqual(m.year.slice(-6).map((s) => s.campaigns), m.months.map((s) => s.campaigns));
 });
 
-const DAY = 86400000;
 
-test('the period in steps: four of about a week for 30 days, calendar months for 60 and 90', () => {
-  const end = Date.UTC(2026, 9, 6); // 6 Oct
-  const w = periodSteps(end - 30 * DAY, end, 30);
-  assert.equal(w.length, 4);
-  assert.equal(w[0].from, end - 30 * DAY);
-  assert.equal(w.at(-1).to, end);
-  assert.equal(w[0].axis, '7–13 Sept');
-  const m = periodSteps(end - 90 * DAY, end, 90);
-  assert.deepEqual(m.map((s) => s.axis), ['Jul', 'Aug', 'Sept', 'Oct']);
-  assert.equal(m[1].range, 'August 2026'); // a whole month
-  assert.equal(m[0].range, '9–31 Jul'); // cut to the period
-  assert.equal(m.at(-1).range, '1–6 Oct');
-  // the steps follow on, and cover the period exactly
-  m.forEach((s, i) => assert.equal(s.from, i === 0 ? end - 90 * DAY : m[i - 1].to));
+test('the Summary steps: the last six calendar months, named in full', () => {
+  const end = Date.UTC(2026, 10, 12, 9); // 12 Nov
+  const m = calendarMonths(end);
+  assert.deepEqual(m.map((s) => s.axis), ['June', 'July', 'August', 'September', 'October', 'November']);
+  assert.equal(m[0].range, 'June 2026');
+  assert.equal(m.at(-1).range, '1–12 Nov 2026');
   assert.equal(m.at(-1).to, end);
+  assert.equal(m[0].from, Date.UTC(2026, 5, 1) - 1);
+  // the months follow on with no gap
+  m.forEach((s, i) => { if (i) assert.equal(s.from, m[i - 1].to); });
+  // across a year end
+  assert.deepEqual(calendarMonths(Date.UTC(2027, 1, 3)).map((s) => s.axis), ['September', 'October', 'November', 'December', 'January', 'February']);
+  // on a month's last moment it is whole
+  assert.equal(calendarMonths(Date.UTC(2026, 10, 1) - 1).at(-1).axis, 'October');
 });
 
-test('every campaign in the period is in exactly one step', () => {
-  for (const days of [30, 60, 90]) {
-    const { m } = at(days);
-    assert.equal(m.period.reduce((a, s) => a + s.campaigns, 0), m.now.campaigns, `${days} days`);
-  }
+test('the Summary steps are the same whatever the period, and hold every campaign in them once', () => {
+  const steps = [30, 60, 90].map((days) => at(days).m.period);
+  assert.deepEqual(steps[0], steps[1]);
+  assert.deepEqual(steps[0], steps[2]);
+  const m = steps[0];
+  const inside = items.filter((x) => dateOf(x.campaign.started) > m[0].from && dateOf(x.campaign.started) <= m.at(-1).to).length;
+  assert.equal(m.reduce((a, s) => a + s.campaigns, 0), inside);
 });
 
 test('the average time to report is after the first report and counts every report', () => {
@@ -78,10 +79,15 @@ test('trends: the campaign steps carry their measures and their dates in words',
   });
 });
 
-test('trends: training is the click rate of each group, and the trained click less in the sample', () => {
+test('trends: each month has the Trained rate of the step ending nearest its end', () => {
   const { m, p } = at(30);
-  const { training } = trends(m, p);
-  assert.equal(training.untrained, p.now.cohorts.untrainedRate);
-  assert.equal(training.trained, p.now.cohorts.trainedRate);
-  assert.ok(training.trained < training.untrained);
+  const t = trends(m, p);
+  assert.equal(t.trained.length, m.period.length);
+  t.trained.forEach((s, i) => {
+    const near = [...p.trend].sort((a, b) => Math.abs(a.to - m.period[i].to) - Math.abs(b.to - m.period[i].to))[0];
+    assert.equal(s.rate, near.completion);
+    assert.equal(s.completed, near.completed);
+    assert.ok(s.axis && s.range);
+  });
+  assert.equal(t.trained.at(-1).rate, p.trend.at(-1).completion); // the month we are in: the newest step
 });

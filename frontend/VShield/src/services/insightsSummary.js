@@ -26,20 +26,27 @@ export function scoreAt(trend, t) {
 }
 
 /**
- * The Summary's charts, over the period in its steps (m.period: a calendar
- * month each, or about a week each for 30 days). `risk`: the Risk Score at
+ * The Summary's charts, over the last six calendar months (m.period). `risk`: the Risk Score at
  * the end of each step. `months`: the campaigns' measures in each step
  * (a step without a campaign has no figures); `gave` is the Compromise
  * Rate, `avgReport` the average minutes to a report. Each point keeps its
- * axis label and its dates in words. `training`: the click rates of people
- * not yet trained and of people trained.
+ * axis label and its dates in words. `trained`: each month's Trained rate
+ * (trainings completed of those assigned), from the 30-day step of the
+ * people's figures ending nearest the month's end, as the Risk Score is.
  */
+// the step of `trend` (each { to }) whose end is nearest `t`
+const nearest = (trend, t) => trend.reduce((best, s) => (!best || Math.abs(s.to - t) < Math.abs(best.to - t) ? s : best), null);
+
 export function trends(m, p) {
   const steps = m.period || [];
   const label = (s) => ({ to: s.to, axis: s.axis, range: s.range });
   return {
     risk: steps.map((s) => ({ ...label(s), score: scoreAt(p.trend, s.to) })),
     months: steps.map((s) => ({ ...label(s), campaigns: s.campaigns, hooked: s.hooked, reportRate: s.reportRate, gave: rate(s.compromised, s.delivered), avgReport: s.avgReport })),
-    training: { untrained: p.now.cohorts?.untrainedRate ?? null, trained: p.now.cohorts?.trainedRate ?? null },
+    // the Trained rate of the 30-day step ending nearest each month's end
+    trained: steps.map((s) => {
+      const near = nearest(p.trend, s.to);
+      return { ...label(s), rate: near?.completion ?? null, assigned: near?.assigned ?? null, completed: near?.completed ?? null };
+    }),
   };
 }
