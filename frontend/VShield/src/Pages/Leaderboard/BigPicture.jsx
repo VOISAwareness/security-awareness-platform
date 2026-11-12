@@ -65,8 +65,8 @@ function ProgressStrip({ r, campaign, ink, isDark }) {
           <img src={VERDICT_ART[p.word]} alt="" width={26} height={26} />
         </span>
         <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', rowGap: 4 }}>
-          <span className="vs-rank" style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.05, color: 'var(--text)', whiteSpace: 'nowrap' }}>{word}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 20, padding: '0 8px', borderRadius: 999, background: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', fontSize: 9.5, fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap' }}>
+          <span className="vs-rank" style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.05, color: 'var(--text)', whiteSpace: 'nowrap' }}>{word}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 20, padding: '0 8px', borderRadius: 999, background: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', fontSize: 9.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>
             <Arrow size={11} strokeWidth={3} color={arrow} aria-hidden />{signed(p.change)} pts each
           </span>
         </span>
@@ -76,7 +76,7 @@ function ProgressStrip({ r, campaign, ink, isDark }) {
           <div style={{ ...eyebrow, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 5, whiteSpace: 'nowrap' }}>
             {c.Icon && <c.Icon size={12} strokeWidth={3} color={c.color} aria-hidden style={{ alignSelf: 'center' }} />}
-            <span className="vs-rank" style={{ fontSize: 18, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)' }}>{c.value}</span>
+            <span className="vs-rank" style={{ fontSize: 18, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em', color: 'var(--text)' }}>{c.value}</span>
             <span style={{ ...small, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.sub}</span>
           </div>
         </div>
@@ -104,7 +104,7 @@ function Item({ f, onOpen }) {
       style={{ position: 'relative', width: 'calc(100% + 24px)', boxSizing: 'border-box', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, padding: '0 34px 0 12px', margin: '0 -12px', border: 'none', borderRadius: 12, background: 'none', color: 'var(--text)', textAlign: 'left', cursor: f.link ? 'pointer' : 'default' }}
     >
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-        <span className="vs-rank" style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.02em' }}>{f.value}</span>
+        <span className="vs-rank" style={{ fontSize: 26, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em' }}>{f.value}</span>
         {f.unit && <span style={{ ...small, fontWeight: 800 }}>{f.unit}</span>}
       </span>
       <span style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.3 }}>{f.headline}</span>
