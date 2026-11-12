@@ -79,7 +79,6 @@ const timesMore = (more, less) => (Number.isFinite(more) && Number.isFinite(less
 export function SummaryPage({ ctx }) {
   const { m, p, ink, reduce, targets: T } = ctx;
   const t = trends(m, p);
-  const by = m.basis.days <= 30 ? 'by week' : 'by month';
   const R = T.riskScore; const H = T.hookRate; const P = T.reportRate; const G = T.gaveDetails; const F = T.firstReport;
   const scores = t.risk.map((s) => s.score).filter(Number.isFinite);
   const lo = Math.max(0, Math.floor(Math.min(...scores, R.target) / 2) * 2 - 4);
@@ -91,10 +90,10 @@ export function SummaryPage({ ctx }) {
   const x = timesMore(c?.untrainedRate, c?.trainedRate);
   return (
     <div data-ins-summary style={grid('repeat(6, minmax(0,1fr))', 'minmax(0,1.1fr) minmax(0,1fr)')}>
-      <Card i={0} reduce={reduce} title={`Risk score, ${by}`} style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
+      <Card i={0} reduce={reduce} title="Risk score" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="risk">
         <Trend
           points={t.risk}
-          label={`Risk Score ${by}: ${t.risk.map((s) => `${s.range} ${Number.isFinite(s.score) ? s.score.toFixed(1) : 'no figure'}`).join(', ')}; the target is ${targetText(R)}`}
+          label={`Risk Score by month: ${t.risk.map((s) => `${s.range} ${Number.isFinite(s.score) ? s.score.toFixed(1) : 'no figure'}`).join(', ')}; the target is ${targetText(R)}`}
           lo={lo}
           hi={hi}
           ticks={steps(hi, 2).filter((v) => v >= lo)}
@@ -106,7 +105,7 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: s.range, rows: [{ label: 'Risk Score', value: s.score.toFixed(1), color: s.score <= R.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={1} reduce={reduce} title={`Clicked vs reported, ${by}`} style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
+      <Card i={1} reduce={reduce} title="Clicked vs reported" style={{ ...card, gridColumn: 'span 3' }} data-ins-trend="culture">
         <Trend
           points={t.months}
           label={`Reported ${pc1(last?.reportRate)} and clicked ${pc1(last?.hooked)} of emails delivered in ${last?.range}`}
@@ -121,7 +120,7 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: s.range, rows: [{ label: 'Reported', value: pc1(s.reportRate), color: ink.good }, { label: 'Clicked', value: pc1(s.hooked), color: ink.bad }] })}
         />
       </Card>
-      <Card i={2} reduce={reduce} title={`Compromise rate, ${by}`} style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
+      <Card i={2} reduce={reduce} title="Compromise rate" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="gave">
         <Trend
           points={t.months}
           label={`Compromise rate: ${pc1(last?.gave)} in ${last?.range}; the target is ${targetText(G, '%')}`}
@@ -135,7 +134,7 @@ export function SummaryPage({ ctx }) {
           tip={(s) => ({ head: s.range, rows: [{ label: 'Compromise rate', value: pc1(s.gave), color: s.gave <= G.target ? ink.good : ink.bad }] })}
         />
       </Card>
-      <Card i={3} reduce={reduce} title={`Avg time for reporting, ${by}`} style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="report-time">
+      <Card i={3} reduce={reduce} title="Avg time for reporting" style={{ ...card, gridColumn: 'span 2' }} data-ins-trend="report-time">
         <Trend
           points={t.months}
           label={`Average minutes from sending to a report: ${mins(last?.avgReport)} in ${last?.range}; the target is ${targetText(F, 'min')}`}

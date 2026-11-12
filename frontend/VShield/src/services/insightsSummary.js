@@ -26,8 +26,7 @@ export function scoreAt(trend, t) {
 }
 
 /**
- * The Summary's charts, over the period in its steps (m.period: a calendar
- * month each, or about a week each for 30 days). `risk`: the Risk Score at
+ * The Summary's charts, over the last six calendar months (m.period). `risk`: the Risk Score at
  * the end of each step. `months`: the campaigns' measures in each step
  * (a step without a campaign has no figures); `gave` is the Compromise
  * Rate, `avgReport` the average minutes to a report. Each point keeps its

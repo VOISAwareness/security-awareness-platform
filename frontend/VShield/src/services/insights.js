@@ -59,36 +59,29 @@ const meanReport = (t) => (t.firstReport === null || t.firstReport === undefined
   : t.firstReport - 1 + (Math.max(1, t.medianReport - t.firstReport + 1)) * Math.exp((SPREAD * SPREAD) / 2));
 
 /**
- * The period cut into the steps its charts show: one per calendar month it
- * touches (the first and last cut to the period), or, for a period of 30
- * days or less, four of about a week. Each { from, to, axis, range }: from
- * (exclusive) and to (inclusive) in ms, the axis label and the dates in words.
+ * The Summary's chart steps: the last `count` calendar months up to the one
+ * `end` falls in, oldest first, the same whatever period is chosen. Each
+ * { from, to, axis, range }: from (exclusive) and to (inclusive) in ms, the
+ * axis label ("June", or "Nov (so far)" for the month not yet over) and the
+ * dates in words ("June 2026", "1–12 Nov 2026").
  */
-export function periodSteps(from, end, days) {
-  const dd = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'UTC' });
-  const mm = (t) => new Date(t).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
-  const words = (a, b) => (mm(a) === mm(b) ? `${dd(a)}–${dd(b)} ${mm(b)}` : `${dd(a)} ${mm(a)} – ${dd(b)} ${mm(b)}`);
-  const first = (a) => a + DAY; // the step's first day: the day after `from`
-  if (days <= 30) {
-    const size = (end - from) / 4;
-    return Array.from({ length: 4 }, (_, k) => {
-      const a = from + k * size;
-      const b = k === 3 ? end : from + (k + 1) * size;
-      const range = words(first(Math.floor(a / DAY) * DAY), Math.floor(b / DAY) * DAY);
-      return { from: a, to: b, axis: range, range };
-    });
-  }
-  const out = [];
-  let a = from;
-  while (a < end) {
-    const d = new Date(a + DAY);
-    const monthEnd = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) - 1;
-    const b = Math.min(end, monthEnd);
-    const whole = new Date(a + DAY).getUTCDate() === 1 && b === monthEnd;
-    out.push({ from: a, to: b, axis: mm(b), range: whole ? new Date(b).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : words(first(Math.floor(a / DAY) * DAY), Math.floor(b / DAY) * DAY) });
-    a = b;
-  }
-  return out;
+export function calendarMonths(end, count = 6) {
+  const e = new Date(end);
+  return Array.from({ length: count }, (_, k) => {
+    const y = e.getUTCFullYear();
+    const mo = e.getUTCMonth() - (count - 1 - k);
+    const monthEnd = Date.UTC(y, mo + 1, 1) - 1;
+    const to = Math.min(end, monthEnd);
+    const name = new Date(to).toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
+    const short = new Date(to).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' });
+    const sofar = to < monthEnd; // the month `end` is in, until it is over
+    return {
+      from: Date.UTC(y, mo, 1) - 1, // just before the 1st: a step holds what is after `from`
+      to,
+      axis: sofar ? `${short} (so far)` : name,
+      range: sofar ? `1–${new Date(to).getUTCDate()} ${short} ${new Date(to).getUTCFullYear()}` : `${name} ${new Date(to).getUTCFullYear()}`,
+    };
+  });
 }
 
 const add = (rows) => Object.fromEntries(COUNTS.map((k) => [k, rows.reduce((a, r) => a + (r[k] || 0), 0)]));
@@ -185,10 +178,9 @@ export function insights(items, { days = 30, now = null, steps = 13 } = {}) {
     return { to, ...summary(inStep.map((x) => x.report)), departments: deptsOf(inStep), inPeriod: to > from };
   });
   const months = stepsBack(6);
-  // the period in its chart steps: calendar months, or weeks for 30 days
-  // (the first step includes the period's first moment, as the period does)
-  const period = periodSteps(from, end, days).map((st, i) => {
-    const inStep = items.filter((x) => (i === 0 ? at(x) >= st.from : at(x) > st.from) && at(x) <= st.to);
+  // the Summary's charts: the last six calendar months, whatever the period
+  const period = calendarMonths(end).map((st) => {
+    const inStep = items.filter((x) => at(x) > st.from && at(x) <= st.to);
     return { ...st, ...summary(inStep.map((x) => x.report)) };
   });
 

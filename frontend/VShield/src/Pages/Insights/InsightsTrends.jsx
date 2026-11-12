@@ -117,7 +117,6 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
           {targets.map((t) => (
             <g key={t.label}>
               <line x1={L} x2={L + iw} y1={Y(t.v)} y2={Y(t.v)} stroke={t.color} strokeWidth={1.4} strokeDasharray="5 4" />
-              <text x={L + 6} y={Y(t.v) + (t.below ? 11 : -5)} style={{ fontSize: TYPE.label, fontWeight: 700, fill: t.color }}>{t.label}</text>
             </g>
           ))}
           {between && betweenMarks()}
@@ -141,6 +140,8 @@ export function Trend({ points, lo, hi, ticks, tickText, zones = [], targets = [
             );
           })}
           {lines.map(lineMarks)}
+          {/* the targets' names over the columns, haloed so a column never hides them */}
+          {targets.map((t) => <text key={`name-${t.label}`} x={L + 6} y={Y(t.v) + (t.below ? 11 : -5)} style={{ fontSize: TYPE.label, fontWeight: 700, fill: t.color, stroke: 'var(--card)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>{t.label}</text>)}
           {pk >= 0 && <text x={X(pk)} y={Y(points[pk][peak.key]) - 9} textAnchor="middle" style={{ fontSize: TYPE.label, fontWeight: 700, fill: peak.color }}>{peak.text(points[pk][peak.key])}</text>}
           {tag && ok(last[tag.key]) && (
             <g>
