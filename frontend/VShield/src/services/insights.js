@@ -405,7 +405,7 @@ export function peopleInsights(org, { days = 30 } = {}) {
     before: startOf ? { ...snap(startOf), ...flows(earlier) } : null,
     moved,
     departments,
-    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, completion: rate(s.training.completed, s.training.assigned), repeatClickers: s.drivers?.repeatClickers ?? null, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
+    trend: org.map((s) => ({ to: s.to, tiers: s.tiers, people: s.people, score: riskScore(s.tiers), highRisk: s.tiers.high + s.tiers.critical, quizScore: s.training.quizScore, completion: rate(s.training.completed, s.training.assigned), assigned: s.training.assigned, completed: s.training.completed, repeatClickers: s.drivers?.repeatClickers ?? null, cohorts: cohortOf(s.cohorts), inPeriod: s.to > last.to - k * STEP_DAYS * DAY })),
     tiers: TIERS,
   };
 }

@@ -79,10 +79,15 @@ test('trends: the campaign steps carry their measures and their dates in words',
   });
 });
 
-test('trends: training is the click rate of each group, and the trained click less in the sample', () => {
+test('trends: each month has the Trained rate of the step ending nearest its end', () => {
   const { m, p } = at(30);
-  const { training } = trends(m, p);
-  assert.equal(training.untrained, p.now.cohorts.untrainedRate);
-  assert.equal(training.trained, p.now.cohorts.trainedRate);
-  assert.ok(training.trained < training.untrained);
+  const t = trends(m, p);
+  assert.equal(t.trained.length, m.period.length);
+  t.trained.forEach((s, i) => {
+    const near = [...p.trend].sort((a, b) => Math.abs(a.to - m.period[i].to) - Math.abs(b.to - m.period[i].to))[0];
+    assert.equal(s.rate, near.completion);
+    assert.equal(s.completed, near.completed);
+    assert.ok(s.axis && s.range);
+  });
+  assert.equal(t.trained.at(-1).rate, p.trend.at(-1).completion); // the month we are in: the newest step
 });
