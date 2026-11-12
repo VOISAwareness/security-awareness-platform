@@ -23,6 +23,14 @@ export default defineConfig([
     },
     rules: {
       'react/jsx-uses-vars': 'error',
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   },
   {
