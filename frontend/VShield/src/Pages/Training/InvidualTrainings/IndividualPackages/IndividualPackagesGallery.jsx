@@ -1,5 +1,6 @@
-import { useMemo } from "react";
-import { Search, Plus, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import TrainingGalleryHeader from "../../components/shared/TrainingGalleryHeader";
 
 export const IndividualPackagesGallery = ({
   packages,
@@ -10,62 +11,70 @@ export const IndividualPackagesGallery = ({
   onDeletePackage,
   setCurrentView
 }) => {
-  const filteredPackages = useMemo(() => {
-    return packages.filter((pkg) => {
-      const matchSearch = pkg.PackageName.toLowerCase().includes(search.toLowerCase());
-      return matchSearch;
+  const [sortChoice, setSortBy] = useState(null);
+  const sortBy = sortChoice || "Latest Created Date";
+
+  const displayPackages = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    const sourceList = packages || [];
+    let list = sourceList.filter((pkg) => {
+      if (!q) return true;
+      const matchName = (pkg.PackageName || "").toLowerCase().includes(q);
+      const matchId = (pkg.PackageID || "").toLowerCase().includes(q);
+      return matchName || matchId;
     });
-  }, [packages, search]);
+
+    return [...list].sort((a, b) => {
+      const dateA = new Date(a.CreatedOn || a.createdAt || a.updatedAt || 0).getTime();
+      const dateB = new Date(b.CreatedOn || b.createdAt || b.updatedAt || 0).getTime();
+      const expA = new Date(a.ExpiryDate || a.ExpiresOn || 0).getTime();
+      const expB = new Date(b.ExpiryDate || b.ExpiresOn || 0).getTime();
+
+      if (sortBy === "Shortest Expiring Date") return expA - expB;
+      if (sortBy === "Latest Updated") {
+        const upA = new Date(a.updatedAt || a.CreatedOn || 0).getTime();
+        const upB = new Date(b.updatedAt || b.CreatedOn || 0).getTime();
+        return upB - upA;
+      }
+      if (sortBy === "Oldest Created Date") {
+        return (dateA - dateB) || String(a.PackageID || "").localeCompare(String(b.PackageID || ""), undefined, { numeric: true });
+      }
+      return (dateB - dateA) || String(b.PackageID || "").localeCompare(String(a.PackageID || ""), undefined, { numeric: true });
+    });
+  }, [packages, search, sortBy]);
+
+  const actionButton = (
+    <button
+      type="button"
+      onClick={() => setCurrentView("add-package")}
+      className={`h-6 px-3 rounded-lg text-[8.5px] font-voda font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+        isDark ? "bg-white text-[#0B1121] hover:bg-slate-200" : "bg-[#06080D] text-white hover:bg-slate-800"
+      }`}
+    >
+      <span>Add Zip Package</span>
+      <span className={`w-3.5 h-3.5 rounded-sm flex items-center justify-center ${isDark ? "bg-[#0B1121]/10" : "bg-white/15"}`}>
+        <Plus className="w-2.5 h-2.5" strokeWidth={3} />
+      </span>
+    </button>
+  );
 
   return (
     <div className="flex-1 flex flex-col min-h-0 h-full">
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-black/5 dark:border-white/5 pb-4 mb-5 gap-3 flex-shrink-0">
-        <div className="flex items-center gap-4 text-left select-none">
-          <span className="text-4xl text-[#16A34A] font-black tracking-tight leading-none">
-            {packages.length < 10 ? `0${packages.length}` : packages.length}
-          </span>
-          <div className="flex flex-col leading-none">
-            <span className="text-[11px] font-voda font-bold text-slate-900 dark:text-white uppercase tracking-wider">Total</span>
-            <span className="text-[12px] font-voda font-black text-slate-900 dark:text-white uppercase tracking-tight mt-0.5">
-              Zip Packages Stored
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          <div className={`flex items-center h-[34px] rounded-lg border shadow-xs transition-colors px-2.5 gap-2 w-48 sm:w-64 ${
-            isDark ? "bg-[#15161a] border-white/10" : "bg-white border-slate-200"
-          }`}>
-            <Search className="w-3.5 h-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Filter materials..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={`flex-1 min-w-0 text-[10px] font-medium bg-transparent outline-none ${
-                isDark ? "text-white placeholder:text-white/30" : "text-slate-800 placeholder:text-slate-400"
-              }`}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setCurrentView("add-package")}
-            className={`h-[34px] pl-4 pr-3.5 rounded-full text-[9px] font-voda font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer ${
-              isDark ? "bg-white text-[#0B1121] hover:bg-slate-200" : "bg-[#06080D] text-white hover:bg-slate-800"
-            }`}
-          >
-            Add Zip Package
-            <span className={`w-[18px] h-[18px] rounded-md flex items-center justify-center ${isDark ? "bg-[#0B1121]/10" : "bg-white/15"}`}>
-              <Plus className="w-3.5 h-3.5" strokeWidth={3} />
-            </span>
-          </button>
-        </div>
-      </div>
+      <TrainingGalleryHeader
+        count={displayPackages.length}
+        title="Training Packages"
+        counterColor="#F59E0B"
+        search={search}
+        setSearch={setSearch}
+        searchPlaceholder="Search by Package ID or Package Name"
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        actionButton={actionButton}
+      />
 
       <div className="flex-1 overflow-y-auto pr-1 pb-12 custom-light-scrollbar">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start content-start">
-          {filteredPackages.map((pkg) => (
+          {displayPackages.map((pkg) => (
             <div
               key={pkg.PackageID}
               className={`border rounded-3xl p-5 flex flex-col justify-between h-[220px] transition-all duration-200 relative overflow-hidden select-none text-left ${
