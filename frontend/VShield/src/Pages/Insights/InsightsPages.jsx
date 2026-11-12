@@ -26,7 +26,7 @@ const head = (s) => `30 days to ${day(s.to)}`;
 const steps = (hi, by) => Array.from({ length: Math.floor(hi / by) + 1 }, (_, k) => k * by);
 const within = (v, T) => (T.better === 'down' ? v <= T.target : v >= T.target);
 const grid = (cols, rows) => ({ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: cols, gridTemplateRows: rows, gap: 12 });
-const card = { background: 'var(--base)', borderRadius: 16, padding: '12px 16px 10px' };
+const card = { background: 'var(--plate)', borderRadius: 10, padding: '12px 16px 10px' };
 // a clickable mark shows its count on hover (useHoverTip in Insights.jsx)
 const tip = (text) => ({ 'data-tip': text });
 const pressable = (onClick) => ({ role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }, style: { cursor: 'pointer' } });
@@ -300,7 +300,7 @@ function DriverTiles({ drivers, people: total, onOpen }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridTemplateRows: 'repeat(2, minmax(0,1fr))', gap: 10, marginTop: 6 }}>
       {drivers.map((dr) => (
-        <div key={dr.key} data-ins-driver={dr.key} {...pressable(() => onOpen(dr))} {...tip(dr.rule)} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '8px 14px', borderRadius: 12, background: DRIVER_COLOR[dr.key], color: '#FFFFFF', cursor: 'pointer' }}>
+        <div key={dr.key} data-ins-driver={dr.key} {...pressable(() => onOpen(dr))} {...tip(dr.rule)} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, padding: '8px 14px', borderRadius: 10, background: DRIVER_COLOR[dr.key], color: '#FFFFFF', cursor: 'pointer' }}>
           <strong style={{ fontSize: TYPE.heading, fontWeight: 800, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{num(dr.count)}</strong>
           <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dr.label}</span>
           <span style={{ fontSize: TYPE.small, fontWeight: 500, opacity: 0.85 }}>{pc1(total ? dr.count / total : null)} of people</span>

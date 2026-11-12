@@ -15,7 +15,6 @@ import TabDepartmentsIcon from '../../assets/InsightsAssets/TabDepartmentsIcon.p
 import TabCampaignsIcon from '../../assets/InsightsAssets/TabCampaignsIcon.png';
 import TabTrainingIcon from '../../assets/InsightsAssets/TabTrainingIcon.png';
 import { Definition, Delta, Explain } from './InsightsBits';
-import { useSize } from './useSize';
 import { CampaignsPage, DepartmentPage, DepartmentsPage, SummaryPage, TrainingPage } from './InsightsPages';
 import { PeopleList } from './InsightsPeopleList';
 import { EASE, INK, change, eyebrow, num, small, swap, TYPE, themeVars } from './insightsUi';
@@ -30,18 +29,18 @@ import { TargetBar, TargetsButton, TargetsEditor } from './InsightsTargets';
 //
 // On the left, four tab cards (Summary, Departments, Campaigns, Training) in
 // the Requests & Approvals style, and under them what the period holds. The
-// period (30, 60 or 90 days, in the top bar) is the whole page's. On the right, the sheet in its L:
-// the corner tile says what the tab shows; along the arm, seven measures, each
-// against its target (Set targets in the top bar); below, the tab
-// (InsightsPages.jsx). There are three levels at most: the tab, a
-// department's own charts, and the people behind any bar, row or figure
-// (InsightsPeopleList.jsx), which open in the Big Picture too. Green is
-// within a target, red past it. It reports; it never says what to do.
+// period (30, 60 or 90 days, in the top bar) is the whole page's. On the
+// right, one plain sheet: a heading says which tab (or department) is open;
+// under it, seven measures, each against its target (Set targets in the top
+// bar); below, the tab (InsightsPages.jsx). There are three levels at most:
+// the tab, a department's own charts, and the people behind any bar, row or
+// figure (InsightsPeopleList.jsx), which open in the Big Picture too. Green
+// is within a target, red past it. It reports; it never says what to do.
 // =============================================================================
 
 const FONT_IMPORT = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&display=swap');
-  .ins-page { font-family: 'Inter', system-ui, sans-serif; scrollbar-width: thin; }
+  .ins-page { font-family: 'Segoe UI', Arial, sans-serif; scrollbar-width: thin; }
   .ins-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--hair-strong) transparent; }
   /* short cards drop what they can do without, so nothing spills or scrolls */
   @container (max-height: 250px) { .ins-optional { display: none !important; } .ins-big { font-size: 30px !important; } }
@@ -51,7 +50,7 @@ const FONT_IMPORT = `
 
   /* Cards settle on hover; what opens something lifts a little and its arrow nudges */
   .ins-card { transition: box-shadow .25s ease, border-color .25s ease, background-color .25s ease; }
-  .ins-card:hover { box-shadow: var(--lift); border-color: var(--hair-strong) !important; }
+  .ins-card:hover { border-color: var(--hair-strong) !important; }
   .ins-open:hover .ins-go-arrow, .ins-go:hover .ins-go-arrow { transform: translate(2px, -2px); }
   .ins-go-arrow { transition: transform .2s ease; }
   .ins-kpi { transition: box-shadow .25s ease; }
@@ -99,6 +98,9 @@ const FONT_IMPORT = `
   .ins-grow-x { animation: ins-grow-x .55s cubic-bezier(.22,1,.36,1) var(--d, 0s) backwards; }
   .ins-fade { animation: ins-fade .5s ease var(--d, 0s) backwards; }
 
+  /* No pop-up entrance on charts and cards */
+  .ins-rise, .ins-pop-in, .ins-pop { animation: none !important; }
+
   /* The clay pieces float, very slowly */
   @keyframes ins-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
   .ins-float { animation: ins-float 7s ease-in-out infinite; }
@@ -109,28 +111,17 @@ const FONT_IMPORT = `
   }
 `;
 
-// The sheet: the corner tile, the sheet wrapping round it in an L with a
-// small even gap and a concave corner.
-const CAP_W = 236;
-const CAP_H = 104;
-const L_GAP = 7;
-const L_R = 16;
-const FILLET = L_R + L_GAP;
-// one path round the whole L, so its edge runs unbroken round the concave
-// corner; the half-pixel inset keeps the 1px edge sharp
-function lPath(w, h, capH) {
-  const e = 0.5; const r = L_R; const f = FILLET;
-  const x0 = CAP_W + L_GAP; const y1 = capH + L_GAP; const W = w - e; const H = h - e;
-  return `M${x0 + r},${e} H${W - r} A${r},${r} 0 0 1 ${W},${e + r} V${H - r} A${r},${r} 0 0 1 ${W - r},${H} H${e + r} A${r},${r} 0 0 1 ${e},${H - r} V${y1 + r} A${r},${r} 0 0 1 ${e + r},${y1} H${x0 - f} A${f},${f} 0 0 0 ${x0},${y1 - f} V${e + r} A${r},${r} 0 0 1 ${x0 + r},${e} Z`;
-}
+// The sheet: one plain rounded panel (no corner tile, no L).
+const SHEET_R = 10;
+const KPI_H = 104; // height of the row of measures
 
-// each tab's card on the left, its colour (its title when picked, its icon)
-// and what the corner tile says of it; `measures` are the ones it is about
+// each tab's card on the left, its colour (its title when picked, its icon);
+// `measures` are the ones it is about
 const TABS = [
-  { id: 'summary', label: 'Summary', sub: 'The company against its targets', says: 'The whole company against its targets', art: TabSummaryIcon, color: '#8B5CF6', measures: ['risk', 'highRisk', 'opened', 'hooked', 'reported', 'gave', 'completion'] },
-  { id: 'departments', label: 'Departments', sub: 'Every department, every target', says: 'Each department against every target', art: TabDepartmentsIcon, color: '#3B82F6', measures: ['risk', 'highRisk', 'opened', 'hooked', 'reported', 'gave', 'completion'] },
-  { id: 'campaigns', label: 'Campaigns', sub: 'Phishing campaigns and types', says: 'Every phishing campaign and type', art: TabCampaignsIcon, color: '#F97316', measures: ['opened', 'hooked', 'reported', 'gave'] },
-  { id: 'training', label: 'Training', sub: 'Training and what it changes', says: 'Assigned training by department and programme', art: TabTrainingIcon, color: '#94A3B8', measures: ['completion'] },
+  { id: 'summary', label: 'Summary', sub: 'The company against its targets', art: TabSummaryIcon, color: '#8B5CF6', measures: ['risk', 'highRisk', 'opened', 'hooked', 'reported', 'gave', 'completion'] },
+  { id: 'departments', label: 'Departments', sub: 'Every department, every target', art: TabDepartmentsIcon, color: '#3B82F6', measures: ['risk', 'highRisk', 'opened', 'hooked', 'reported', 'gave', 'completion'] },
+  { id: 'campaigns', label: 'Campaigns', sub: 'Phishing campaigns and types', art: TabCampaignsIcon, color: '#F97316', measures: ['opened', 'hooked', 'reported', 'gave'] },
+  { id: 'training', label: 'Training', sub: 'Training and what it changes', art: TabTrainingIcon, color: '#94A3B8', measures: ['completion'] },
 ];
 // where each measure is shown
 const HOME = { risk: 'departments', highRisk: 'departments', opened: 'campaigns', hooked: 'campaigns', reported: 'campaigns', gave: 'campaigns', completion: 'training' };
@@ -152,7 +143,7 @@ function TabCard({ t, on, onPick, isDark }) {
   const ink = isDark ? '#0F172A' : '#FFFFFF';
   // the same card as Requests & Approvals: a 15.5px bold title, a 9px line
   return (
-    <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 72, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 12, borderRadius: 20, border: on ? `1px solid ${fill}` : '1px solid var(--card-edge)', background: on ? fill : 'var(--sheet)', color: on ? ink : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 4px 10px rgba(15,23,42,0.14)' : 'none', transition: 'background .2s ease, color .2s ease' }}>
+    <button type="button" role="tab" aria-selected={on} data-ins-tab={t.id} onClick={onPick} className="ins-tabcard" style={{ position: 'relative', overflow: 'hidden', flexShrink: 0, height: 72, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 12, borderRadius: 10, border: on ? `1px solid ${fill}` : '1px solid var(--card-edge)', background: on ? fill : 'var(--sheet)', color: on ? ink : 'var(--text)', textAlign: 'left', font: 'inherit', cursor: 'pointer', boxShadow: on ? '0 4px 10px rgba(15,23,42,0.14)' : 'none', transition: 'background .2s ease, color .2s ease' }}>
       <span className="text-[15.5px] font-bold tracking-tight leading-tight" style={{ position: 'relative', zIndex: 1, color: on ? (isDark ? '#0F172A' : t.color) : 'inherit' }}>{t.label}</span>
       <span className="text-[9px] font-medium leading-tight" style={{ position: 'relative', zIndex: 1, maxWidth: 170, color: on ? (isDark ? '#334155' : '#CBD5E1') : (isDark ? '#94A3B8' : '#64748B') }}>{t.sub}</span>
       <img src={t.art} alt="" aria-hidden width={56} height={56} style={{ position: 'absolute', right: -8, bottom: -8, width: 56, height: 56, objectFit: 'contain' }} />
@@ -185,7 +176,7 @@ function PeriodSwitch({ shownDays, onDays, range, isDark, reduce }) {
 // What the period holds, in six boxes, on a light card like the tabs.
 function ScopeCard({ totals, range }) {
   return (
-    <section data-ins-scope aria-label="In this period" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
+    <section data-ins-scope aria-label="In this period" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--card-edge)', background: 'var(--sheet)', color: 'var(--text)' }}>
       <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span style={eyebrow}>In this period</span><span style={{ ...small, fontWeight: 700 }}>{range}</span></span>
       <div data-ins-totals style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gridAutoRows: 'minmax(0,1fr)', gap: 6 }}>
         {totals.map(([label, v]) => (
@@ -199,37 +190,51 @@ function ScopeCard({ totals, range }) {
   );
 }
 
-// The corner tile: what the tab shows, or the department open.
-function CornerTile({ tab, dept, people, onBack, reduce }) {
-  const t = TABS.find((x) => x.id === tab);
+// The sheet's heading: the tab's name, or the department open with the way
+// back. (Replaces the old corner tile; no description line.)
+function SheetHeading({ dept, people, onBack, reduce }) {
+  if (!dept) return null; // no label on the tab views
+
   return (
-    <div data-ins-corner={dept ? 'department' : tab} style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, width: CAP_W, height: CAP_H, boxSizing: 'border-box', borderRadius: L_R, background: 'var(--sheet)', border: '1px solid var(--sheet-edge)', padding: '12px 18px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, overflow: 'hidden' }}>
+    <div data-ins-corner="department" style={{ flexShrink: 0, padding: '14px 18px 0' }}>
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={dept || tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.15, ease: EASE }} style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-          {dept ? (
-            <>
-              <button type="button" className="ins-crumb" data-ins-back onClick={onBack} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, cursor: 'pointer' }}><ChevronLeft size={12} strokeWidth={2.8} aria-hidden />All departments</button>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept}</span>
-              <span style={{ ...small, fontWeight: 700 }}>{num(people)} people</span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, color: 'var(--text)' }}>{t.label}</span>
-              <span style={{ ...small, fontSize: TYPE.body, lineHeight: 1.35 }}>{t.says}</span>
-            </>
-          )}
+        <motion.div
+          key={dept}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduce ? 0 : 0.15, ease: EASE }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}
+        >
+          <button
+            type="button"
+            className="ins-crumb"
+            data-ins-back
+            onClick={onBack}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2, padding: 0, border: 'none', background: 'none', color: 'var(--muted)', fontSize: TYPE.small, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <ChevronLeft size={12} strokeWidth={2.8} aria-hidden />
+            All departments
+          </button>
+          <span aria-hidden style={{ flexShrink: 0, color: 'var(--muted)', fontWeight: 700 }}>/</span>
+          <span style={{ minWidth: 0, fontSize: TYPE.heading, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {dept}
+          </span>
+          <span style={{ flexShrink: 0, ...small, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            · {num(people)} people
+          </span>
         </motion.div>
       </AnimatePresence>
     </div>
   );
 }
 
-// Along the arm: seven measures (Open rate has no target), the company's or, with a department open,
-// the department's, on tiles of one size, each on the same rows, centred:
-// its name, its figure, its change against the period before, its bar
-// against its target, and the target in words. The company's open where
-// they are explained. Its change against the period before is in its ⓘ,
-// under what the measure means, so the tile stays clean.
+// Under the heading: seven measures (Open rate has no target), the company's
+// or, with a department open, the department's, on tiles of one size, each on
+// the same rows, centred: its name, its figure, its bar against its target,
+// and the target in words. The company's open where they are explained. Its
+// change against the period before is in its ⓘ, under what the measure
+// means, so the tile stays clean.
 const tileStyle = (opens) => ({ minWidth: 0, display: 'grid', justifyItems: 'center', alignContent: 'center', textAlign: 'center', rowGap: 4, padding: '6px 4px', borderRadius: 14, background: 'var(--plate)', color: 'var(--text)', cursor: opens ? 'pointer' : 'default', outline: 'none' });
 const STANDING_WORD = { on: 'on track', risk: 'at risk', off: 'off track' };
 
@@ -304,7 +309,7 @@ const savedOf = (r) => {
 function Waiting({ status, error, retry, isDark }) {
   const failed = status === 'failed';
   return (
-    <div className="ins-page" data-ins-state={status} style={{ ...themeVars(isDark), width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="ins-page" data-ins-state={status} style={{ ...themeVars(isDark), width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'transparent', color: 'var(--text)' }}>
       <div role={failed ? 'alert' : 'status'} style={{ display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center', maxWidth: 360, padding: 16 }}>
         <strong style={{ fontSize: TYPE.figure, fontWeight: 800 }}>{failed ? 'Insights could not be loaded' : 'Working out Insights…'}</strong>
         <span style={{ ...small, fontSize: TYPE.body }}>{failed ? (error?.status === 403 ? 'Insights is for admins, campaign creators and campaign managers.' : error?.message || 'Try again in a minute.') : 'From every campaign, recipient and training record.'}</span>
@@ -358,7 +363,6 @@ function InsightsView({ data }) {
   const [tab, setTab] = useState(restore?.tab || 'summary');
   const [dept, setDept] = useState(restore?.dept || null); // a department's own charts, the second level
   const [who, setWho] = useState(null); // the people behind what was clicked, the third
-  const [lBox, { w: lW, h: lH }] = useSize();
   const hover = useHoverTip();
 
   // the sent campaigns' reports, and the organisation thirty days at a time,
@@ -471,13 +475,13 @@ function InsightsView({ data }) {
     <>
       <style>{FONT_IMPORT}</style>
 
-      <div className="ins-page" data-ins-page={deptRow ? 'department' : tab} onMouseMove={hover.onMove} onMouseLeave={hover.hide} onClick={hover.hide} style={{ ...vars, position: 'relative', background: 'var(--bg-edge)', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}>
+      {/* no canvas colour: the page sits on whatever is behind it */}
+      <div className="ins-page" data-ins-page={deptRow ? 'department' : tab} onMouseMove={hover.onMove} onMouseLeave={hover.hide} onClick={hover.hide} style={{ ...vars, position: 'relative', background: 'transparent', color: 'var(--text)', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto', marginTop: '-8px' }}>
         <div className="ins-sheet" style={{ position: 'relative', isolation: 'isolate', height: '100%', minHeight: FLOOR, boxSizing: 'border-box', padding: '6px 14px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: -1, background: 'var(--bg)', pointerEvents: 'none' }} />
 
           {/* top bar: black on the light theme, glass on the dark */}
-          <div style={{ background: isDark ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' : '#000000', border: isDark ? '1px solid var(--card-edge)' : 'none', boxSizing: 'border-box', color: isDark ? 'var(--text)' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px 0 18px', flexShrink: 0 }}>
-            <h1 className="text-[14.5px] font-bold tracking-tight uppercase" style={{ margin: 0 }}>Insights</h1>
+          <div style={{ background: isDark ? 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)' : '#000000', border: isDark ? '1px solid var(--card-edge)' : 'none', boxSizing: 'border-box', color: isDark ? 'var(--text)' : '#FFFFFF', borderRadius: 10, height: 38, display: 'flex', alignItems: 'center', gap: 10, padding: '0 10px 0 24px', flexShrink: 0 }}>
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase" style={{ margin: 0 }}>Insights</h1>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
               <PeriodSwitch shownDays={scopeDays} onDays={setScopeDays} range={range} isDark={isDark} reduce={reduce} />
               {canSetTargets && <TargetsButton onClick={() => setEditing(true)} isDark={isDark} />}
@@ -494,18 +498,16 @@ function InsightsView({ data }) {
               <ScopeCard totals={totals} range={range} />
             </nav>
 
-            {/* the sheet, in its L */}
-            <div ref={lBox} style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-              {lW > 0 && lH > 0 && (
-                <svg aria-hidden width={lW} height={lH} style={{ position: 'absolute', inset: 0, zIndex: 0, display: 'block', overflow: 'visible', pointerEvents: 'none' }}>
-                  <path d={lPath(lW, lH, CAP_H)} transform="translate(0 3)" fill="none" stroke="var(--l-shadow)" strokeOpacity={0.35} strokeWidth={8} strokeLinejoin="round" />
-                  <path d={lPath(lW, lH, CAP_H)} fill="var(--sheet)" stroke="var(--sheet-edge)" strokeWidth={1} />
-                </svg>
-              )}
-              <CornerTile tab={tab} dept={deptRow ? dept : null} people={deptRow?.people} onBack={() => setDept(null)} reduce={reduce} />
-
-              {/* the arm: the measures, each against its target (Open rate has none) */}
-              <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, minmax(0,1fr))`, gap: 6, padding: `10px 10px ${L_GAP + 3}px 12px`, position: 'relative' }}>
+            {/* the sheet: one plain rounded panel */}
+            <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--sheet)', border: '1px solid var(--sheet-edge)', borderRadius: SHEET_R, overflow: 'hidden' }}>
+              <SheetHeading
+                dept={deptRow ? dept : null}
+                people={deptRow?.people}
+                onBack={() => setDept(null)}
+                reduce={reduce}
+              />
+              {/* the measures, each against its target (Open rate has none) */}
+              <div style={{ height: KPI_H, boxSizing: 'border-box', flexShrink: 0, display: 'grid', gridTemplateColumns: `repeat(${kpis.length}, minmax(0,1fr))`, gap: 6, padding: '12px 14px 0', position: 'relative' }}>
                 {kpis.map((k) => <TargetKpi key={k.id} k={k} ink={ink} reduce={reduce} days={m.basis.days} dim={focus && !focus.includes(k.id)} />)}
               </div>
 

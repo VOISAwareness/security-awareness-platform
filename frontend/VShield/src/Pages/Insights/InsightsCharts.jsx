@@ -103,7 +103,7 @@ function useMarks(n, { from = 0, place } = {}) {
 export function Tip({ x, y, w, children, edge, below = false, style, id }) {
   const shift = x < w * 0.25 ? '0%' : x > w * 0.75 ? '-100%' : '-50%';
   return (
-    <div role="tooltip" id={id} data-ins-tip style={{ position: 'absolute', zIndex: 20, left: x, top: y, transform: `translate(${shift}, ${below ? `${edge ?? 10}px` : `calc(-100% - ${edge ?? 10}px)`})`, pointerEvents: 'none', minWidth: 150, padding: '8px 11px', borderRadius: 12, background: 'var(--glass)', backdropFilter: 'blur(12px) saturate(1.4)', WebkitBackdropFilter: 'blur(12px) saturate(1.4)', border: '1px solid var(--hair-strong)', boxShadow: '0 16px 34px rgba(15,23,42,0.18)', whiteSpace: 'nowrap', color: 'var(--text)', ...style }}>
+    <div role="tooltip" id={id} data-ins-tip style={{ position: 'absolute', zIndex: 20, left: x, top: y, transform: `translate(${shift}, ${below ? `${edge ?? 10}px` : `calc(-100% - ${edge ?? 10}px)`})`, pointerEvents: 'none', minWidth: 150, padding: '8px 11px', borderRadius: 10, background: 'var(--glass)', backdropFilter: 'blur(12px) saturate(1.4)', WebkitBackdropFilter: 'blur(12px) saturate(1.4)', border: '1px solid var(--hair-strong)', boxShadow: '0 16px 34px rgba(15,23,42,0.18)', whiteSpace: 'nowrap', color: 'var(--text)', ...style }}>
       {children}
     </div>
   );
@@ -179,7 +179,7 @@ export function Card({ title, sub, action, define, children, i = 0, reduce, styl
       {...rise(reduce, i)}
       className={`ins-card${onOpen ? ' ins-open' : ''}`}
       onClick={onOpen ? (e) => { if (!e.defaultPrevented) onOpen(); } : undefined}
-      style={{ position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 18, border: '1px solid var(--card-edge)', background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
+      style={{ position: 'relative', minWidth: 0, minHeight: 0, containerType: 'size', display: 'flex', flexDirection: 'column', padding: '14px 16px 12px', borderRadius: 10, background: 'var(--card)', cursor: onOpen ? 'pointer' : 'default', ...style }}
       {...rest}
     >
       {(title || action || onOpen) && (
@@ -456,7 +456,7 @@ export function Staircase({ at, values, lit, start, good, bad, format, reduce, t
 /** A plain sentence under a chart: what it shows, and a line of detail. */
 export function Insight({ children, sub, tone }) {
   return (
-    <div className="ins-optional" style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, padding: '9px 12px', borderRadius: 12, border: '1px solid var(--hair)', background: 'var(--plate)' }}>
+    <div className="ins-optional" style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--hair)', background: 'var(--plate)' }}>
       {tone && <span aria-hidden style={{ flexShrink: 0, width: 7, height: 7, borderRadius: 999, marginTop: 4, background: tone }} />}
       <span style={{ minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: TYPE.strong, fontWeight: 700, color: 'var(--text)', lineHeight: 1.35 }}>{children}</span>
@@ -615,7 +615,7 @@ export function PillColumns({ items, color, reduce, onOpen, label, lit = null, f
             onBlur={() => setHover(null)}
             style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, padding: 0, border: 'none', background: 'none', color: 'var(--text)', cursor: onOpen ? 'pointer' : 'default' }}
           >
-            <span style={{ position: 'relative', flex: 1, minWidth: 0, minHeight: 0, width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', padding: 5, borderRadius: 14, background: 'var(--plate)' }}>
+            <span style={{ position: 'relative', flex: 1, minWidth: 0, minHeight: 0, width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', padding: 5, borderRadius: 10, background: 'var(--plate)' }}>
               <motion.span
                 initial={{ scaleY: still ? 1 : 0 }}
                 animate={{ scaleY: 1 }}
