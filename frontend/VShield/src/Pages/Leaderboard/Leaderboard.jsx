@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, color, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bold, ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
+import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
@@ -857,7 +857,7 @@ const Leaderboard = () => {
 
   // A scope capsule: a switch between Global and My Campaigns, or, with Global
   // the only view (Regular Users), a plain title card.
-  const railCapsule = (id, label, sub, art, activeColor) => {
+  const railCapsule = (id, label, sub, art) => {
     const selected = view === id;
     const Cap = canCampaigns ? 'button' : 'div';
     const compact = canCampaigns;
@@ -875,8 +875,8 @@ const Leaderboard = () => {
           boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
         }}
       >
-        <div style={{ textOpacity: 1, position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0f172a' : '#ffffff') : 'var(--text)' }}>{label}</div>
-        <div style={{ textOpacity: 1, position: 'relative', fontSize: 9.5, fontWeight: 500, color: selected && isDark ? '#0f172a' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
+        <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0f172a' : '#ffffff') : 'var(--text)' }}>{label}</div>
+        <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 500, color: selected && isDark ? '#0f172a' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
         <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: compact ? 50 : 56, height: compact ? 50 : 56, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
       </Cap>
     );
