@@ -159,6 +159,21 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // View Analytics pop-up: the campaign and its card's position (for its colour)
   const [analyticsItem, setAnalyticsItem] = useState(null);
 
+  const detailModalBg =
+    detailModalItem != null
+      ? getCardBgColor(detailModalItem._cardIdx ?? 0, isDark)
+      : null;
+
+  const previewModalBg =
+    previewEmailHtml != null
+      ? getCardBgColor(
+          (typeof previewEmailHtml === "object"
+            ? previewEmailHtml.cardIdx
+            : detailModalItem?._cardIdx) ?? 0,
+          isDark,
+        )
+      : null;
+
   const lCardBg = getLCardBg(isDark);
 
   // The last action failure.
@@ -797,7 +812,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
                       tab={activeTab}
                       background={getCardBgColor(idx, isDark)}
                       roundness={VarOverallCornerRoundednessAdjuster}
-                      onDetails={setDetailModalItem}
+                      onDetails={(c) =>
+                        setDetailModalItem({
+                          ...(c || camp),
+                          _cardIdx: idx,
+                        })
+                      }
                       onAnalytics={
                         activeTab === "scheduled" || activeTab === "cancelled"
                           ? null
@@ -828,20 +848,24 @@ const Campaigns = ({ isDark: propIsDark }) => {
           <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             <div
               style={{
+                backgroundColor: detailModalBg,
                 borderRadius: `${Math.round(24 * VarOverallCornerRoundednessAdjuster)}px`,
               }}
-              className="w-full max-w-3xl bg-white dark:bg-[#12141A] border border-black/10 dark:border-white/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 dark:text-white transition-colors"
+              className="w-full max-w-3xl border border-black/10 dark:border-white/10 p-6 relative overflow-hidden shadow-2xl flex flex-col gap-3.5 text-slate-900 dark:text-white transition-colors"
             >
               {/* Top Bar: ID Pill (Left) + Close Button (Right) */}
               <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#D8F3DC] text-emerald-900 shadow-2xs">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 text-slate-900 dark:text-white shadow-2xs border border-black/5 dark:border-white/10">
                   <span className="w-2 h-2 rounded-full bg-[#E60000]" />
                   <span>{detailModalItem.campaignId}</span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setDetailModalItem(null)}
+                  onClick={() => {
+                    setDetailModalItem(null);
+                    setPreviewEmailHtml(null);
+                  }}
                   className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-voda font-bold text-[9px] uppercase cursor-pointer transition-colors shadow-2xs"
                 >
                   Close
@@ -853,18 +877,18 @@ const Campaigns = ({ isDark: propIsDark }) => {
                 <h3 className="text-xl font-voda font-bold tracking-tight text-slate-950 dark:text-white">
                   {detailModalItem.CampaignTitle}
                 </h3>
-                <p className="text-[12px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="text-[12px] font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
                   <strong>Description: </strong>
                   {detailModalItem.CampaignDescription}
                 </p>
-                <div className="text-[11px] font-bold text-slate-800 dark:text-slate-400 mt-0.5">
+                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 mt-0.5">
                   Created on:{" "}
                   {formatDisplayDate(detailModalItem.CreationDate, true)} &bull;
                   Created By: {detailModalItem.CreatedBy}
                 </div>
               </div>
 
-              <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+              <div className="w-full h-px bg-black/10 dark:bg-white/10" />
 
               {/* Specifications Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800 dark:text-slate-200">
@@ -893,12 +917,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
 
               {/* Email & Target Setup Box */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-black/5 dark:border-white/10 flex flex-col gap-2 shadow-2xs">
+              <div className="p-4 rounded-xl bg-white/70 dark:bg-black/30 border border-black/5 dark:border-white/10 flex flex-col gap-2 shadow-2xs">
                 <h4 className="text-[12.5px] font-voda font-bold uppercase text-slate-900 dark:text-white">
                   Email Dispatch Details & Payloads
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-6 text-[11.5px] text-slate-700 dark:text-slate-300 font-medium">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-6 text-[11.5px] text-slate-800 dark:text-slate-200 font-medium">
                   <div>
                     <strong>Sender Name: </strong>
                     <span>{detailModalItem.SenderName || "Not set"}</span>
@@ -933,9 +957,12 @@ const Campaigns = ({ isDark: propIsDark }) => {
                     <button
                       type="button"
                       onClick={() =>
-                        setPreviewEmailHtml(detailModalItem.EmailBody)
+                        setPreviewEmailHtml({
+                          html: detailModalItem.EmailBody,
+                          cardIdx: detailModalItem._cardIdx ?? 0,
+                        })
                       }
-                      className="px-3 py-1 rounded-lg bg-white dark:bg-black text-slate-800 dark:text-white border border-slate-300 dark:border-white/15 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-slate-50 shadow-2xs cursor-pointer w-fit transition-colors"
+                      className="px-3 py-1 rounded-lg bg-white dark:bg-black text-slate-800 dark:text-white border border-slate-300 dark:border-white/15 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-zinc-900 shadow-2xs cursor-pointer w-fit transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5 text-[#E60000]" />
                       <span>Preview Email Body</span>
@@ -962,25 +989,35 @@ const Campaigns = ({ isDark: propIsDark }) => {
         {/* ========================================================================= */}
         {previewEmailHtml && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="w-full max-w-2xl bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col">
-              <div className="px-5 py-3 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-100 dark:bg-[#121418]">
+            <div
+              style={{
+                backgroundColor: previewModalBg,
+                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
+              }}
+              className="w-full max-w-2xl overflow-hidden shadow-2xl border border-black/10 dark:border-white/20 flex flex-col transition-colors"
+            >
+              <div className="px-5 py-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between bg-white/40 dark:bg-black/30 backdrop-blur-xs">
                 <span className="text-xs font-voda font-bold text-slate-900 dark:text-white uppercase tracking-wide">
                   Simulated Email Payload Preview
                 </span>
                 <button
                   type="button"
                   onClick={() => setPreviewEmailHtml(null)}
-                  className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
+                  className="p-1 rounded text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white cursor-pointer transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-5 overflow-y-auto max-h-[60vh] bg-slate-100/70 dark:bg-black/50">
+              <div className="p-5 overflow-y-auto max-h-[60vh] bg-black/5 dark:bg-black/40">
                 <div
                   className="bg-white text-slate-900 p-6 rounded-xl shadow-xs border border-slate-200/80 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:mb-2 [&_p]:mb-2.5 [&_p]:leading-relaxed [&_a]:text-[#E60000] [&_a]:underline [&_a]:font-semibold"
                   dangerouslySetInnerHTML={{
-                    __html: String(previewEmailHtml)
+                    __html: String(
+                      typeof previewEmailHtml === "object" && previewEmailHtml !== null
+                        ? previewEmailHtml.html
+                        : previewEmailHtml
+                    )
                       .replace(/{{userName}}/g, DEMO_USER.name)
                       .replace(/{{email}}/g, DEMO_USER.email)
                       .replace(/{{department}}/g, "AI & Data Analytics")
