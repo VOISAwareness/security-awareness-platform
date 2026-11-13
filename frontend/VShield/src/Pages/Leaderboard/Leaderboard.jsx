@@ -66,7 +66,7 @@ const FONT_IMPORT = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap');
   .lb-exb  { font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', sans-serif; font-weight: 900; }
   .lb-mono { font-family: 'JetBrains Mono', monospace; }
-  .lb-page { font-family: 'Inter', system-ui, sans-serif; }
+  .lb-page { font-family: 'Segoe UI', Arial, sans-serif; }
   .lb-scroll::-webkit-scrollbar { width: 7px; }
   .lb-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,145,0.35); border-radius: 999px; }
   .lb-pg:disabled { cursor: default; opacity: 0.4; }
@@ -178,7 +178,7 @@ const HERO_H = 136;
 const CAP_W = 224;
 const CAP_H = HERO_H;
 const L_GAP = 7;
-const L_R = 16;
+const L_R = 10;
 const FILLET = L_R + L_GAP; // concave corner, concentric with the capsule's
 const STAGE_RAISE = 34; // the podium rises this far into the arm, under the switch
 
@@ -448,13 +448,30 @@ const RankRow = ({ r, you, level, hidden, people, isDark, onBadge }) => (
 const STAGES = [{ id: 'people', label: 'Top people' }, { id: 'depts', label: 'Top departments' }];
 
 const StageSwitch = ({ value, onChange, canDepts }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-    <div role="tablist" aria-label="Podium" style={{ display: 'inline-flex', padding: 4, gap: 2, borderRadius: 999, background: 'var(--track)' }}>
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+    }}
+  >
+    <div
+      role="tablist"
+      aria-label="Podium"
+      style={{
+        display: 'inline-flex',
+        padding: 3,
+        gap: 2,
+        borderRadius: 999,
+        background: 'var(--track)',
+      }}
+    >
       {STAGES.map((st) => {
         const on = value === st.id;
         const disabled = st.id === 'depts' && !canDepts;
+
         return (
-          <button
+          <motion.button
             key={st.id}
             type="button"
             role="tab"
@@ -462,15 +479,59 @@ const StageSwitch = ({ value, onChange, canDepts }) => (
             disabled={disabled}
             onClick={() => onChange(st.id)}
             className="lb-pg"
+
+            animate={{
+              scale: on ? 1.06 : 1,
+            }}
+
+            whileHover={
+              !disabled && !on
+                ? { scale: 1.03 }
+                : undefined
+            }
+
+            whileTap={
+              !disabled
+                ? { scale: 0.97 }
+                : undefined
+            }
+
+            transition={{
+              type: 'spring',
+              stiffness: 350,
+              damping: 24,
+            }}
+
             style={{
-              height: 34, padding: '0 18px', borderRadius: 999, border: 'none', cursor: on ? 'default' : 'pointer',
-              fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap',
-              background: on ? 'var(--base)' : 'transparent', color: on ? 'var(--text)' : 'var(--muted)',
-              boxShadow: on ? '0 1px 3px rgba(15,23,42,0.14)' : 'none', transition: 'background .15s ease, color .15s ease',
+              height: 26,
+              padding: '0 13px',
+              borderRadius: 999,
+              border: 'none',
+              cursor: disabled
+                ? 'default'
+                : on
+                  ? 'default'
+                  : 'pointer',
+
+              fontSize: 10,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+
+              background: on
+                ? 'var(--base)'
+                : 'transparent',
+
+              color: on
+                ? 'var(--text)'
+                : 'var(--muted)',
+
+              boxShadow: on
+                ? '0 2px 6px rgba(15,23,42,0.14)'
+                : 'none',
             }}
           >
             {st.label}
-          </button>
+          </motion.button>
         );
       })}
     </div>
@@ -796,7 +857,7 @@ const Leaderboard = () => {
 
   // A scope capsule: a switch between Global and My Campaigns, or, with Global
   // the only view (Regular Users), a plain title card.
-  const railCapsule = (id, label, sub, art, activeColor) => {
+  const railCapsule = (id, label, sub, art) => {
     const selected = view === id;
     const Cap = canCampaigns ? 'button' : 'div';
     const compact = canCampaigns;
@@ -810,12 +871,12 @@ const Leaderboard = () => {
           position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: canCampaigns ? 'pointer' : 'default', width: '100%', flexShrink: 0,
           borderRadius: L_R, padding: compact ? '13px 16px 14px' : '16px 16px 18px', marginBottom: compact ? 8 : 10, minHeight: compact ? 70 : 96,
           border: selected ? '1px solid transparent' : '1px solid var(--hair)',
-          background: selected ? (isDark ? '#FFFFFF' : `var(--cap-${id === 'global' ? 'global' : id === 'campaign' ? 'camp' : 'reports'})`) : 'var(--rail)',
+          background: selected ? (isDark ? '#FFFFFF' : '#000000') : 'var(--rail)',
           boxShadow: selected ? '0 8px 18px rgba(15,23,42,0.10)' : 'none', color: 'var(--text)',
         }}
       >
-        <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0F172A' : activeColor) : 'var(--text)' }}>{label}</div>
-        <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 600, color: selected && isDark ? '#475569' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
+        <div style={{ position: 'relative', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: selected ? (isDark ? '#0f172a' : '#ffffff') : 'var(--text)' }}>{label}</div>
+        <div style={{ position: 'relative', fontSize: 9.5, fontWeight: 500, color: selected && isDark ? '#0f172a' : 'var(--muted)', marginTop: 4, lineHeight: 1.35, maxWidth: 170 }}>{sub}</div>
         <img className="lb-art" src={art} alt="" aria-hidden style={{ position: 'absolute', bottom: -8, right: -8, width: compact ? 50 : 56, height: compact ? 50 : 56, objectFit: 'contain', pointerEvents: 'none', userSelect: 'none' }} />
       </Cap>
     );
@@ -826,7 +887,7 @@ const Leaderboard = () => {
       <style>{FONT_IMPORT}</style>
 
       {/* Fills <main> exactly; nothing inside lets the page itself scroll. */}
-      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', position: 'relative', background: 'var(--bg)', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', position: 'relative', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12, marginTop:'-16px' }}>
 
         <AnimatePresence>
           {badges && (
@@ -845,8 +906,8 @@ const Leaderboard = () => {
         </AnimatePresence>
 
         {/* top black bar */}
-        <div style={{ background: isDark ? '#FFFFFF' : '#000000', color: isDark ? '#000000' : '#FFFFFF', borderRadius: 12, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 18px', flexShrink: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase' }}>Leaderboard</span>
+        <div style={{ background: isDark ? '#FFFFFF' : '#000000', color: isDark ? '#000000' : '#FFFFFF', borderRadius: 10, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 24px', flexShrink: 0 }}>
+          <span style={{ fontSize: '13.5px', fontWeight: 700, letterSpacing: '-0.025em', textTransform: 'uppercase' }}>Leaderboard</span>
           <button
             type="button"
             data-lb-back
@@ -984,7 +1045,12 @@ const Leaderboard = () => {
             {/* top-right arm of the L: the podium switch, on the sheet's centre line */}
             <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '18px 24px 0', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
               {/* the arm starts CAP_W + L_GAP in, so pull back by half that to centre on the whole sheet */}
-              <div style={{ transform: `translateX(-${(CAP_W + L_GAP) / 2}px)` }}>
+              <div style={{
+    transform: `translate(
+      -${(CAP_W + L_GAP) / 2}px,
+      -5px
+    )`
+  }}>
                 <StageSwitch
                   value={podium.id}
                   onChange={(id) => { setStage(id); setPage(0); }}
