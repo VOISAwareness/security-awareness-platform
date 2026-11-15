@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -62,6 +62,7 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CAMPAIGN_STEPS = [
   { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario', path: '/start-campaign' },
   { id: 'details', step: 2, titleLine1: 'Details &', titleLine2: 'Settings', path: '/start-campaign/details' },
@@ -148,7 +149,7 @@ const getScenarioImage = (coverImageId) => {
 
   try {
     return new URL(`../Scenarios/${coverImageId}`, import.meta.url).href;
-  } catch (e) {
+  } catch {
     return `/assets/Scenarios/${coverImageId}`;
   }
 };
@@ -222,29 +223,25 @@ const ChooseAScenario = () => {
   };
 
   // Theme check
-  const [isDark, setIsDark] = useState(() => {
+  const [domIsDark, setDomIsDark] = useState(() => {
     if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || !!userContext.isDark;
+      return document.documentElement.classList.contains('dark');
     }
-    return !!userContext.isDark;
+    return false;
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === 'boolean') {
-      setIsDark(userContext.isDark);
-    }
-  }, [userContext.isDark]);
-
-  useEffect(() => {
-    const checkDark = () => {
-      const hasDarkClass = document.documentElement.classList.contains('dark');
-      setIsDark(hasDarkClass || !!userContext.isDark);
-    };
-    checkDark();
-    const observer = new MutationObserver(checkDark);
+    const observer = new MutationObserver(() => {
+      setDomIsDark(document.documentElement.classList.contains('dark'));
+    });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  }, [userContext.isDark]);
+  }, []);
+
+  const isDark =
+    typeof userContext.isDark === 'boolean'
+      ? userContext.isDark
+      : domIsDark;
 
   // Normalise a scenario row for display. Sorted by id because a DynamoDB scan
   // returns no guaranteed order (and the cover-image fallback is index-based).
@@ -471,15 +468,6 @@ const ChooseAScenario = () => {
     pickScenario(draft?.scenarioId || scenariosList[0]?.scenarioId || '');
   };
 
-  const handleNextStep = async () => {
-    if (selectedScenarioId === START_FRESH_ID) {
-      await handleStartFresh();
-      return;
-    }
-    const selected = scenariosList.find((s) => s.scenarioId === selectedScenarioId) || scenariosList[0];
-    await handleUseScenario(selected);
-  };
-
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
@@ -684,7 +672,10 @@ const ChooseAScenario = () => {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDetailModalItem(scenario);
+                          setDetailModalItem({
+                            ...scenario,
+                            _theme: theme,
+                          });
                         }}
                         className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
                         title="View Full Scenario Details"
@@ -777,7 +768,10 @@ const ChooseAScenario = () => {
         {detailModalItem && (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
             {(() => {
-              const modalTheme = DIFFICULTY_THEMES[detailModalItem.difficulty] || DIFFICULTY_THEMES.Low;
+              const modalTheme =
+                detailModalItem._theme ||
+                DIFFICULTY_THEMES[detailModalItem.difficulty] ||
+                DIFFICULTY_THEMES.Low;
               const modalImgSrc = getScenarioImage(detailModalItem.CoverImageID);
 
               return (
@@ -786,7 +780,7 @@ const ChooseAScenario = () => {
                     backgroundColor: isDark ? modalTheme.bgDark : modalTheme.bgLight,
                     borderColor: isDark ? modalTheme.borderDark : modalTheme.border
                   }}
-                  className="w-full max-w-3xl rounded-[18px] border-2 p-6 sm:p-7 relative overflow-hidden shadow-2xl flex flex-col gap-4 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-150"
+                  className="w-full max-w-3xl rounded-[18px] border-2 p-6 sm:p-7 relative overflow-hidden shadow-2xl flex flex-col gap-4 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-150 transition-colors"
                 >
                   {/* Top Bar: Pill Badge (Left) + Go Back Button (Right) */}
                   <div className="flex items-center justify-between">
@@ -797,10 +791,13 @@ const ChooseAScenario = () => {
 
                     <button
                       type="button"
-                      onClick={() => setDetailModalItem(null)}
-                      className="px-4 py-1.5 rounded-xl bg-slate-500/80 hover:bg-slate-600 text-white font-bold text-xs uppercase cursor-pointer transition-colors"
+                      onClick={() => {
+                        setDetailModalItem(null);
+                        setPreviewEmailHtml(null);
+                      }}
+                      className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase cursor-pointer transition-colors shadow-2xs"
                     >
-                      Go Back
+                      Close
                     </button>
                   </div>
 
@@ -818,7 +815,7 @@ const ChooseAScenario = () => {
                     </div>
                   </div>
 
-                  <div className="w-full h-px bg-slate-400/30 dark:bg-white/10" />
+                  <div className="w-full h-px bg-black/10 dark:bg-white/10" />
 
                   {/* 2x2 Specifications Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-6 text-[12px] font-medium text-slate-800 dark:text-slate-200">
@@ -836,7 +833,7 @@ const ChooseAScenario = () => {
                     </div>
                     <div>
                       <strong>Difficulty: </strong>
-                      <span className={`font-bold ${modalTheme.diffTextColor}`}>
+                      <span className="font-bold text-slate-900 dark:text-white">
                         {detailModalItem.difficulty}
                       </span>
                     </div>
@@ -875,7 +872,12 @@ const ChooseAScenario = () => {
                     <div className="pt-1">
                       <button
                         type="button"
-                        onClick={() => setPreviewEmailHtml(detailModalItem.emailBody)}
+                        onClick={() =>
+                          setPreviewEmailHtml({
+                            html: detailModalItem.emailBody,
+                            theme: modalTheme,
+                          })
+                        }
                         className="px-3 py-1 rounded-lg bg-white/90 dark:bg-black/60 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-white/15 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-white shadow-2xs cursor-pointer"
                       >
                         <span>Preview Email Body</span>
@@ -918,36 +920,57 @@ const ChooseAScenario = () => {
         {/* ========================================================================= */}
         {/* ── 🌟 SIMULATED EMAIL BODY PREVIEW POPUP MODAL                            */}
         {/* ========================================================================= */}
-        {previewEmailHtml && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="w-full max-w-2xl bg-white dark:bg-[#181A20] rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col">
-              <div className="px-5 py-3 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-100 dark:bg-[#121418]">
-                <span className="text-xs font-bold text-slate-900 dark:text-white uppercase">
-                  Simulated Email Payload Preview
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPreviewEmailHtml(null)}
-                  className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="p-4 overflow-y-auto max-h-[60vh] bg-slate-50 dark:bg-black/50">
-                <div
-                  className="bg-white p-5 rounded-xl shadow-xs border border-slate-200"
-                  dangerouslySetInnerHTML={{
-                    __html: previewEmailHtml
-                      .replace(/{{userName}}/g, DEMO_USER.name)
-                      .replace(/{{email}}/g, DEMO_USER.email)
-                      .replace(/{{department}}/g, 'AI & Data Analytics')
-                      .replace(/{{phishLink}}/g, '#training')
-                  }}
-                />
+        {previewEmailHtml && (() => {
+          const previewTheme =
+            (typeof previewEmailHtml === 'object' && previewEmailHtml !== null
+              ? previewEmailHtml.theme
+              : null) ||
+            (detailModalItem && detailModalItem._theme) ||
+            DIFFICULTY_THEMES[detailModalItem?.difficulty] ||
+            DIFFICULTY_THEMES.Low;
+
+          const rawHtml =
+            typeof previewEmailHtml === 'object' && previewEmailHtml !== null
+              ? previewEmailHtml.html
+              : previewEmailHtml;
+
+          return (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+              <div
+                style={{
+                  backgroundColor: isDark ? previewTheme.bgDark : previewTheme.bgLight,
+                  borderColor: isDark ? previewTheme.borderDark : previewTheme.border,
+                }}
+                className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl border flex flex-col transition-colors"
+              >
+                <div className="px-5 py-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between bg-white/40 dark:bg-black/30 backdrop-blur-xs">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                    Simulated Email Payload Preview
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewEmailHtml(null)}
+                    className="p-1 rounded text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white cursor-pointer transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-4 overflow-y-auto max-h-[60vh] bg-black/5 dark:bg-black/40">
+                  <div
+                    className="bg-white p-5 rounded-xl shadow-xs border border-slate-200 text-slate-900 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:mb-2 [&_p]:mb-2.5 [&_p]:leading-relaxed [&_a]:text-[#E60000] [&_a]:underline [&_a]:font-semibold"
+                    dangerouslySetInnerHTML={{
+                      __html: String(rawHtml || '')
+                        .replace(/{{userName}}/g, DEMO_USER.name)
+                        .replace(/{{email}}/g, DEMO_USER.email)
+                        .replace(/{{department}}/g, 'AI & Data Analytics')
+                        .replace(/{{phishLink}}/g, '#training')
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       <DraftDialog
