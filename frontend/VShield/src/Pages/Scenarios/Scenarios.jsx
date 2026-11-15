@@ -67,7 +67,7 @@ const getScenarioImage = (coverImageId) => {
 
   try {
     return new URL(`../Scenarios/` + coverImageId, import.meta.url).href;
-  } catch (e) {
+  } catch {
     return `/assets/Scenarios/${coverImageId}`;
   }
 };
@@ -694,35 +694,28 @@ const Scenarios = () => {
   const userContext = useUserType?.() || {};
 
   // Theme check
-  const [isDark, setIsDark] = useState(() => {
+  const [domIsDark, setDomIsDark] = useState(() => {
     if (typeof document !== "undefined") {
-      return (
-        document.documentElement.classList.contains("dark") ||
-        !!userContext.isDark
-      );
+      return document.documentElement.classList.contains("dark");
     }
-    return !!userContext.isDark;
+    return false;
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === "boolean") {
-      setIsDark(userContext.isDark);
-    }
-  }, [userContext.isDark]);
-
-  useEffect(() => {
-    const checkDark = () => {
-      const hasDarkClass = document.documentElement.classList.contains("dark");
-      setIsDark(hasDarkClass || !!userContext.isDark);
-    };
-    checkDark();
-    const observer = new MutationObserver(checkDark);
+    const observer = new MutationObserver(() => {
+      setDomIsDark(document.documentElement.classList.contains("dark"));
+    });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
     });
     return () => observer.disconnect();
-  }, [userContext.isDark]);
+  }, []);
+
+  const isDark =
+    typeof userContext.isDark === "boolean"
+      ? userContext.isDark
+      : domIsDark;
 
   const [rawScenarios, setRawScenarios] = useState([]);
   const [scenariosLoading, setScenariosLoading] = useState(true);

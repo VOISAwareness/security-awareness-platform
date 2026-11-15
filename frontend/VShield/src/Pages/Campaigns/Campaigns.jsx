@@ -110,38 +110,30 @@ const Campaigns = ({ isDark: propIsDark }) => {
     useCampaigns({ actor });
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof propIsDark === "boolean") return propIsDark;
+  const [domIsDark, setDomIsDark] = useState(() => {
     if (typeof document !== "undefined") {
-      return (
-        document.documentElement.classList.contains("dark") ||
-        !!userContext.isDark
-      );
+      return document.documentElement.classList.contains("dark");
     }
-    return !!userContext.isDark;
+    return false;
   });
 
   useEffect(() => {
-    if (typeof propIsDark === "boolean") {
-      setIsDark(propIsDark);
-    } else if (typeof userContext.isDark === "boolean") {
-      setIsDark(userContext.isDark);
-    }
-  }, [propIsDark, userContext.isDark]);
-
-  useEffect(() => {
-    const checkDark = () => {
-      const hasDarkClass = document.documentElement.classList.contains("dark");
-      setIsDark(hasDarkClass || !!userContext.isDark);
-    };
-    checkDark();
-    const observer = new MutationObserver(checkDark);
+    const observer = new MutationObserver(() => {
+      setDomIsDark(document.documentElement.classList.contains("dark"));
+    });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
     });
     return () => observer.disconnect();
-  }, [userContext.isDark]);
+  }, []);
+
+  const isDark =
+    typeof propIsDark === "boolean"
+      ? propIsDark
+      : typeof userContext.isDark === "boolean"
+      ? userContext.isDark
+      : domIsDark;
 
   // Active selected view: 'ongoing' | 'scheduled' | 'historical'
   const [activeTab, setActiveTab] = useState("ongoing");

@@ -251,24 +251,38 @@ const LearningProgress = ({ isDark }) => {
   // CSV Export
   const handleExportCsv = useCallback(() => {
     const headers = ["Full Name", "Email", "Department", "Start Date", "Completion Date", "Progress", "Status", "Enrollments"];
+
+    const escapeCsvCell = (val) => {
+      if (val === null || val === undefined) return '""';
+      let str = String(val);
+      // Neutralize formula injection in spreadsheet applications (=, +, -, @)
+      if (/^[=+\-@]/.test(str)) {
+        str = `'${str}`;
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const rows = filteredRecords.map((r) => [
-      `"${r.fullName.replace(/"/g, '""')}"`,
-      `"${r.email.replace(/"/g, '""')}"`,
-      `"${r.department.replace(/"/g, '""')}"`,
-      `"${r.startDate}"`,
-      `"${r.completionDate}"`,
-      `"${r.completionPercentage}%"`,
-      `"${r.status}"`,
-      r.enrollments
+      escapeCsvCell(r.fullName),
+      escapeCsvCell(r.email),
+      escapeCsvCell(r.department),
+      escapeCsvCell(r.startDate),
+      escapeCsvCell(r.completionDate),
+      escapeCsvCell(`${r.completionPercentage}%`),
+      escapeCsvCell(r.status),
+      escapeCsvCell(r.enrollments),
     ]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
+
+    const csvContent = [headers.map(escapeCsvCell).join(","), ...rows.map((row) => row.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.href = url;
     link.setAttribute("download", `training-report-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }, [filteredRecords]);
 
   // Reset all filters
@@ -806,7 +820,7 @@ const LearningProgress = ({ isDark }) => {
             )}
           </div>
 
-          <div className="flex flex-col gap-2 max-h-[135px] overflow-y-auto pr-1 custom-light-scrollbar">
+          <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1.5 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent] custom-light-scrollbar">
             {departmentStats.length === 0 ? (
               <span className="text-xs text-slate-400 py-3 text-center">No department metrics available</span>
             ) : (

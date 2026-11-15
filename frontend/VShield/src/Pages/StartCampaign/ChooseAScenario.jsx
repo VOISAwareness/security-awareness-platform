@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -62,6 +62,7 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CAMPAIGN_STEPS = [
   { id: 'scenario', step: 1, titleLine1: 'Choose A', titleLine2: 'Scenario', path: '/start-campaign' },
   { id: 'details', step: 2, titleLine1: 'Details &', titleLine2: 'Settings', path: '/start-campaign/details' },
@@ -148,7 +149,7 @@ const getScenarioImage = (coverImageId) => {
 
   try {
     return new URL(`../Scenarios/${coverImageId}`, import.meta.url).href;
-  } catch (e) {
+  } catch {
     return `/assets/Scenarios/${coverImageId}`;
   }
 };
@@ -222,29 +223,25 @@ const ChooseAScenario = () => {
   };
 
   // Theme check
-  const [isDark, setIsDark] = useState(() => {
+  const [domIsDark, setDomIsDark] = useState(() => {
     if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || !!userContext.isDark;
+      return document.documentElement.classList.contains('dark');
     }
-    return !!userContext.isDark;
+    return false;
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === 'boolean') {
-      setIsDark(userContext.isDark);
-    }
-  }, [userContext.isDark]);
-
-  useEffect(() => {
-    const checkDark = () => {
-      const hasDarkClass = document.documentElement.classList.contains('dark');
-      setIsDark(hasDarkClass || !!userContext.isDark);
-    };
-    checkDark();
-    const observer = new MutationObserver(checkDark);
+    const observer = new MutationObserver(() => {
+      setDomIsDark(document.documentElement.classList.contains('dark'));
+    });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  }, [userContext.isDark]);
+  }, []);
+
+  const isDark =
+    typeof userContext.isDark === 'boolean'
+      ? userContext.isDark
+      : domIsDark;
 
   // Normalise a scenario row for display. Sorted by id because a DynamoDB scan
   // returns no guaranteed order (and the cover-image fallback is index-based).
@@ -469,15 +466,6 @@ const ChooseAScenario = () => {
   const handleKeepEdits = () => {
     setReplaceTarget(null);
     pickScenario(draft?.scenarioId || scenariosList[0]?.scenarioId || '');
-  };
-
-  const handleNextStep = async () => {
-    if (selectedScenarioId === START_FRESH_ID) {
-      await handleStartFresh();
-      return;
-    }
-    const selected = scenariosList.find((s) => s.scenarioId === selectedScenarioId) || scenariosList[0];
-    await handleUseScenario(selected);
   };
 
   return (
