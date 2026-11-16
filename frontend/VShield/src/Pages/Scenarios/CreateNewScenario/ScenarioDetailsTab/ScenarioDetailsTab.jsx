@@ -22,7 +22,9 @@ const FormInput = ({
       </label>
       <div
         title={hint || undefined}
-        className={`w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative ${
+        className={`w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative dark:bg-[#15161A]
+          dark:border-white/10
+          dark:text-white ${
           disabled
             ? "bg-slate-100 text-slate-500 cursor-not-allowed"
             : "bg-white text-slate-900"
@@ -67,7 +69,7 @@ const FormSelect = ({ label, value, onChange, options = [] }) => {
           onChange={onChange}
           className="
           w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900
-          dark:bg-[#202127]
+          dark:bg-[#15161A]
           dark:border-white/10
           dark:text-white
           dark:focus:border-[#F8B2C0]
@@ -126,11 +128,10 @@ const FormTextarea = ({
           focus:border-[#990099]
           focus:ring-2
           focus:ring-[#990099]/10
-          dark:bg-[#202127]
+          dark:bg-[#15161A]
           dark:border-white/10
           dark:text-white
           dark:placeholder:text-slate-500
-          dark:focus:border-[#F8B2C0]
         "
       />
     </div>
