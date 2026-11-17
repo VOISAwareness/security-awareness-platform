@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import TopHeaderSection from './TopHeaderSection';
+import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/CreateNewScenario';
 
 // =========================================================================
 // 🎛️ LAYOUT SCALE, HEIGHT, WEIGHT & THEMED COLOR CONTROLS
@@ -207,7 +208,10 @@ const Layout = () => {
               label="SCENARIOS"
               icon={FileText}
               perm="scenarios"
-              activePaths={['/new-scenario']}
+              activePaths={[
+                '/new-scenario',
+                ...SCENARIO_STEPS.map((step) => `/new-scenario/${step.path}`)
+              ]}
             />
             <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="campaigns" />
             <NavLink to="/training" label="TRAINING" icon={Laptop} perm="training" />
