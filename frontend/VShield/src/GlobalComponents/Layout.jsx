@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 import TopHeaderSection from './TopHeaderSection';
-import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/CreateNewScenario';
+import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
 
 // =========================================================================
 // 🎛️ LAYOUT SCALE, HEIGHT, WEIGHT & THEMED COLOR CONTROLS
