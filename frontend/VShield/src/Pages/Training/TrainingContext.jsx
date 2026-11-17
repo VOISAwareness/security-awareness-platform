@@ -35,10 +35,14 @@ export const TrainingProvider = ({ children }) => {
   const userContext = useUserType?.() || {};
 
   // Top right toast feedback state
-  const [toastMessage, setToastMessage] = useState("");
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 4000);
+  const [toastMessage, setToastMessage] = useState(null);
+  const showToast = (msg, type = "info", title) => {
+    if (typeof msg === "object" && msg !== null) {
+      setToastMessage(msg);
+    } else {
+      setToastMessage({ message: msg, type, title });
+    }
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   // Theme check

@@ -144,7 +144,7 @@ const UserListUploadViaDL = () => {
   // Table Controls & Expand State
   const [tableSearch, setTableSearch] = useState("");
   const [isTableMaximized, setIsTableMaximized] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState(null);
 
   // Delete Action Toaster State
   const [deletedSuccessMsg, setDeletedSuccessMsg] = useState("");
@@ -245,9 +245,9 @@ const UserListUploadViaDL = () => {
     }
   }, [editId, peopleLoading]);
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 2500);
+  const showToast = (msg, type = "info", title) => {
+    setToast({ message: msg, type, title });
+    setTimeout(() => setToast(null), 3000);
   };
 
   // DL Selection change handler
@@ -265,7 +265,7 @@ const UserListUploadViaDL = () => {
   // Load Action
   const handleLoad = () => {
     if (!selectedDLId) {
-      showToast("Please select a Distribution List first!");
+      showToast("Please select a Distribution List first!", "warning", "Input Required");
       return;
     }
 
@@ -290,9 +290,9 @@ const UserListUploadViaDL = () => {
       setLoadedReportRate(`${avgReport}%`);
 
       setIsLoaded(true);
-      showToast(`Loaded ${resolved.length} users from Active Directory`);
+      showToast(`Loaded ${resolved.length} users from Active Directory`, "success");
     } else {
-      showToast("No user records found in this Distribution List");
+      showToast("No user records found in this Distribution List", "warning");
     }
   };
 
@@ -331,11 +331,11 @@ const UserListUploadViaDL = () => {
   // Save Action
   const handleSave = () => {
     if (!cohortName.trim()) {
-      showToast("Please enter a Cohort Name");
+      showToast("Please enter a Cohort Name", "warning", "Input Required");
       return;
     }
     if (!isLoaded || loadedMembers.length === 0) {
-      showToast("No user records staged. Click LOAD first!");
+      showToast("No user records staged. Click LOAD first!", "warning", "Input Required");
       return;
     }
 
@@ -418,13 +418,13 @@ const UserListUploadViaDL = () => {
         );
       }
 
-      showToast(`Saved User List '${cohortName.trim()}' successfully!`);
+      showToast(`Saved User List '${cohortName.trim()}' successfully!`, "success");
       setTimeout(() => {
         navigate("/user-dls");
       }, 700);
     } catch (e) {
       console.error(e);
-      showToast("Error saving user list");
+      showToast("Error saving user list", "error");
     }
   };
 
@@ -870,10 +870,12 @@ const UserListUploadViaDL = () => {
         </div>
 
         {/* Standardized Toast Notifications */}
-        {toastMessage && (
+        {toast && (
           <Toast
-            message={toastMessage}
-            onClose={() => setToastMessage("")}
+            message={toast.message}
+            type={toast.type}
+            title={toast.title}
+            onClose={() => setToast(null)}
           />
         )}
 

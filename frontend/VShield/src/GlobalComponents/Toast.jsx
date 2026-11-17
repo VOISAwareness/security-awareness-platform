@@ -35,43 +35,49 @@ export const Toast = ({
     ? message.message || message.text || ""
     : String(message || "");
 
-  // Resolve notification kind: 'success' | 'error' | 'warning' | 'info'
-  let kind = (type || variant || (isObject && (message.type || message.variant)) || "").toLowerCase();
+  // Resolve notification kind strictly from explicit props/object - NO keyword sniffing
+  let rawKind = (
+    type ||
+    variant ||
+    (isObject && (message.type || message.variant || message.kind)) ||
+    ""
+  ).toLowerCase();
 
-  if (!kind) {
+  if (!rawKind) {
     if (isError || (isObject && message.isError) || tone === "bad" || (isObject && message.tone === "bad")) {
-      kind = "error";
+      rawKind = "error";
     } else if (tone === "good" || (isObject && message.tone === "good")) {
-      kind = "success";
-    } else if (/error|failed|couldn't|cannot|reject|invalid|required|unsupported|missing/i.test(messageText)) {
-      kind = "error";
-    } else if (/warning|caution|alert|expired/i.test(messageText)) {
-      kind = "warning";
-    } else {
-      kind = "success";
+      rawKind = "success";
     }
   }
 
-  if (kind === "failure" || kind === "bad") kind = "error";
-  if (kind === "warn") kind = "warning";
-  if (kind === "good") kind = "success";
+  // Normalize aliases
+  let kind = rawKind;
+  if (kind === "err" || kind === "failure" || kind === "bad") kind = "error";
+  else if (kind === "warn") kind = "warning";
+  else if (kind === "good") kind = "success";
+  else if (kind === "notice") kind = "info";
 
-  // Resolve title
+  // If type/kind was not supplied, warn developer in dev mode and fall back to neutral "info"
+  if (!kind || !["success", "error", "warning", "info"].includes(kind)) {
+    if (import.meta.env?.DEV) {
+      console.warn(
+        `[Toast] Missing required 'type' prop (received: "${type}"). Please pass type="success" | "error" | "warning" | "info". Defaulting to "info".`
+      );
+    }
+    kind = "info";
+  }
+
+  // Resolve title: explicit title if provided, otherwise standard title per kind
   let displayTitle = title || (isObject && message.title);
   if (!displayTitle) {
-    if (kind === "error") {
-      displayTitle = /reject/i.test(messageText)
-        ? "Action Recorded"
-        : /required|missing|enter|specify|select/i.test(messageText)
-        ? "Input Required"
-        : "Error";
-    } else if (kind === "warning") {
-      displayTitle = "Warning";
-    } else if (kind === "info") {
-      displayTitle = "Notice";
-    } else {
-      displayTitle = /approved|publish/i.test(messageText) ? "Approved" : "Success";
-    }
+    const defaultTitles = {
+      success: "Success",
+      error: "Error",
+      warning: "Warning",
+      info: "Notice",
+    };
+    displayTitle = defaultTitles[kind] || "Notice";
   }
 
   const kindStyles = {

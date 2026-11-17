@@ -87,15 +87,15 @@ const EmailBodyRichTextEditor = ({
   const [rawHtmlMode, setRawHtmlMode] = useState(false);
   const [rawHtmlCode, setRawHtmlCode] = useState(value || "");
   const [isExpanded, setIsExpanded] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState(null);
   const [showFxMenu, setShowFxMenu] = useState(false);
   const fxRef = useRef(null);
 
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
+  const showToast = useCallback((message, type = "info", title) => {
+    setToast({ message, type, title });
 
     window.setTimeout(() => {
-      setToastMessage("");
+      setToast(null);
     }, 2500);
   }, []);
 
@@ -404,7 +404,7 @@ const EmailBodyRichTextEditor = ({
     ];
 
     if (!allowedImageTypes.includes(file.type)) {
-      showToast("Please select a valid image file.");
+      showToast("Please select a valid image file.", "warning", "Input Required");
       event.target.value = "";
       return;
     }
@@ -412,7 +412,7 @@ const EmailBodyRichTextEditor = ({
     const maximumFileSize = 5 * 1024 * 1024;
 
     if (file.size > maximumFileSize) {
-      showToast("Image size must be less than 5 MB.");
+      showToast("Image size must be less than 5 MB.", "warning", "Input Required");
       event.target.value = "";
       return;
     }
@@ -425,7 +425,7 @@ const EmailBodyRichTextEditor = ({
       const imageSource = readerEvent.target?.result;
 
       if (typeof imageSource !== "string") {
-        showToast("Unable to read the selected image.");
+        showToast("Unable to read the selected image.", "error");
         return;
       }
 
@@ -473,7 +473,7 @@ const EmailBodyRichTextEditor = ({
       };
 
       imageElement.onerror = () => {
-        showToast("The selected image could not be displayed.");
+        showToast("The selected image could not be displayed.", "error");
       };
 
       imageWrapper.appendChild(imageElement);
@@ -500,13 +500,13 @@ const EmailBodyRichTextEditor = ({
       internalHtmlRef.current = updatedHtml;
       onChange?.(updatedHtml);
 
-      showToast("Image inserted successfully.");
+      showToast("Image inserted successfully.", "success");
 
       editor.focus();
     };
 
     reader.onerror = () => {
-      showToast("Unable to read the selected image.");
+      showToast("Unable to read the selected image.", "error");
     };
 
     reader.readAsDataURL(file);
@@ -1246,10 +1246,12 @@ const EmailBodyRichTextEditor = ({
           document.body,
         )}
 
-      {toastMessage && (
+      {toast && (
         <Toast
-          message={toastMessage}
-          onClose={() => setToastMessage("")}
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
         />
       )}
     </>

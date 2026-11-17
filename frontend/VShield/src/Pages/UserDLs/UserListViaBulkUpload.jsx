@@ -115,14 +115,14 @@ const UserListViaBulkUpload = () => {
   // Table Controls & Expand State
   const [tableSearch, setTableSearch] = useState("");
   const [isTableMaximized, setIsTableMaximized] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState(null);
 
   // Floating Toaster for Deleted Records
   const [deletedSuccessMsg, setDeletedSuccessMsg] = useState("");
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 2500);
+  const showToast = (msg, type = "info", title) => {
+    setToast({ message: msg, type, title });
+    setTimeout(() => setToast(null), 3000);
   };
 
   // A recipient row, completed from the people directory (GET /users):
@@ -229,7 +229,7 @@ const UserListViaBulkUpload = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Downloaded sample template (.csv)");
+    showToast("Downloaded sample template (.csv)", "info");
   };
 
   // Canonical column order the backend ingest expects.
@@ -285,13 +285,13 @@ const UserListViaBulkUpload = () => {
       r.some((c) => String(c ?? "").trim() !== ""),
     );
     if (nonEmpty.length <= 1) {
-      showToast("File appears empty or missing data rows");
+      showToast("File appears empty or missing data rows", "warning");
       return;
     }
 
     const idx = columnIndexes(nonEmpty[0]);
     if (idx.email === -1) {
-      showToast("Missing an 'Email ID' column. Use the sample template.");
+      showToast("Missing an 'Email ID' column. Use the sample template.", "error");
       return;
     }
 
@@ -315,7 +315,7 @@ const UserListViaBulkUpload = () => {
     });
 
     if (parsedRows.length === 0) {
-      showToast("No rows with an email address were found");
+      showToast("No rows with an email address were found", "warning");
       return;
     }
 
@@ -330,6 +330,7 @@ const UserListViaBulkUpload = () => {
       `Loaded ${resolved.length} recipients` +
         (unregisteredCount ? ` (${unregisteredCount} unregistered)` : "") +
         (skipped ? ` — ${skipped} row(s) skipped, no email` : ""),
+      "success"
     );
   };
 
@@ -344,13 +345,13 @@ const UserListViaBulkUpload = () => {
     if (!cohortName) {
       setCohortName(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
     }
-    showToast(`Selected "${file.name}". Click LOAD to evaluate.`);
+    showToast(`Selected "${file.name}". Click LOAD to evaluate.`, "info");
   };
 
   // Load Action: parse the chosen file and stage its rows
   const handleLoad = async () => {
     if (!pendingFile) {
-      showToast("Please select an Excel or CSV file first!");
+      showToast("Please select an Excel or CSV file first!", "warning", "Input Required");
       return;
     }
     const ext = (pendingFile.name.split(".").pop() || "").toLowerCase();
@@ -375,13 +376,13 @@ const UserListViaBulkUpload = () => {
         const text = await pendingFile.text();
         applyRows(text.split(/\r?\n/).map(splitCsvLine));
       } else if (ext === "xls") {
-        showToast("Legacy .xls is not supported — save as .xlsx or .csv");
+        showToast("Legacy .xls is not supported — save as .xlsx or .csv", "warning");
       } else {
-        showToast("Unsupported file type. Please upload .csv or .xlsx");
+        showToast("Unsupported file type. Please upload .csv or .xlsx", "error");
       }
     } catch (err) {
       console.error("Failed to read file", err);
-      showToast("Could not read that file. Please check the format.");
+      showToast("Could not read that file. Please check the format.", "error");
     }
   };
 
@@ -407,11 +408,11 @@ const UserListViaBulkUpload = () => {
   // Save Action
   const handleSave = async () => {
     if (!cohortName.trim()) {
-      showToast("Please enter a Name for this list");
+      showToast("Please enter a Name for this list", "warning", "Input Required");
       return;
     }
     if (!isLoaded || loadedMembers.length === 0) {
-      showToast("No user records staged. Click LOAD first!");
+      showToast("No user records staged. Click LOAD first!", "warning", "Input Required");
       return;
     }
 
@@ -441,7 +442,7 @@ const UserListViaBulkUpload = () => {
         ].join("\n");
         const csvName =
           (uploadedFileName || name).replace(/\.[^/.]+$/, "") + ".csv";
-        showToast("Uploading recipient list...");
+        showToast("Uploading recipient list...", "info");
         const saved = await api.userLists.upload({
           name,
           description: desc,
@@ -450,14 +451,15 @@ const UserListViaBulkUpload = () => {
         });
         showToast(
           `Saved '${name}' with ${saved?.totalUsers ?? loadedMembers.length} recipients!`,
+          "success"
         );
       } else if (editId) {
         // Editing metadata only (members unchanged).
         await api.userLists.update(editId, { name, description: desc });
-        showToast(`Updated '${name}' successfully!`);
+        showToast(`Updated '${name}' successfully!`, "success");
       } else {
         setIsSaving(false);
-        showToast("Please select a file to upload");
+        showToast("Please select a file to upload", "warning", "Input Required");
         return;
       }
 
@@ -469,6 +471,7 @@ const UserListViaBulkUpload = () => {
       console.error(e);
       showToast(
         e?.message || "Could not save the user list. Please try again.",
+        "error"
       );
     }
   };
@@ -944,10 +947,12 @@ const UserListViaBulkUpload = () => {
         </div>
 
         {/* Standardized Toast Notifications */}
-        {toastMessage && (
+        {toast && (
           <Toast
-            message={toastMessage}
-            onClose={() => setToastMessage("")}
+            message={toast.message}
+            type={toast.type}
+            title={toast.title}
+            onClose={() => setToast(null)}
           />
         )}
 
