@@ -496,7 +496,7 @@ const ScenarioFilters = ({
         />
 
         <FilterRow
-          title="Emotion"
+          title="Motivator"
           options={emotions}
           selected={selectedEmotions}
           onChange={(value) =>

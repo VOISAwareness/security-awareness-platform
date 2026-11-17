@@ -55,7 +55,7 @@ import {
 import AttachOutcomesTab from "./AttachOutcomesTab/AttachOutcomesTab";
 import EmailDetailsTab from "./EmailDetailsTab/EmailDetailsTab";
 import { createPortal } from "react-dom";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
 import { Check, X, CheckCircle2, AlertTriangle, Info } from "lucide-react";
 
@@ -83,6 +83,18 @@ const VODAFONE_FONT_STYLE = `
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important; }
 `;
 
+export const SCENARIO_STEPS = [
+  { id: 0, path: "scenario-details", titleLine1: "Scenario", titleLine2: "Details" },
+  { id: 1, path: "email-details", titleLine1: "Email", titleLine2: "Details" },
+  { id: 2, path: "attach-outcomes", titleLine1: "Attach", titleLine2: "Outcomes" },
+  { id: 3, path: "review-publish", titleLine1: "Review &", titleLine2: "Publish" },
+];
+
+const stepIndexFromPath = (path) => {
+  const found = SCENARIO_STEPS.findIndex((step) => step.path === path);
+  return found >= 0 ? found : null;
+};
+
 // ============================================================
 // TAB HEADER (Docked Stepper Strip style — matches ChooseAScenario.jsx)
 // NOTE: This now renders *inside* the shared white/dark shell in
@@ -90,12 +102,11 @@ const VODAFONE_FONT_STYLE = `
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
 const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
-  const steps = [
-    { id: 0, titleLine1: "Scenario", titleLine2: "Details" },
-    { id: 1, titleLine1: "Email", titleLine2: "Details" },
-    { id: 2, titleLine1: "Attach", titleLine2: "Outcomes" },
-    { id: 3, titleLine1: "Review &", titleLine2: editing ? "Save" : "Publish" },
-  ];
+  const steps = SCENARIO_STEPS.map((step) =>
+    step.id === 3
+      ? { ...step, titleLine2: editing ? "Save" : "Publish" }
+      : step,
+  );
 
   return (
     <div
@@ -281,7 +292,9 @@ const ScenarioEditor = ({ opening }) => {
   // one; otherwise a new one, with the scenario in progress offered back first
   // unless the author just chose "Start new" or was already asked about it.
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const routeParams = useParams();
   const [viewer] = useState(() => currentActor());
   const [draftOpening] = useState(opening);
   const [openedDraft] = useState(() =>
@@ -316,13 +329,14 @@ const ScenarioEditor = ({ opening }) => {
     location.state?.from === "drafts" ? "drafts" : "all",
   );
 
-  const [activeTab, setActiveTab] = useState(openedDraft?.activeTab ?? 0);
+  const [activeTab, setActiveTab] = useState(
+    () => stepIndexFromPath(routeParams.step) ?? (openedDraft?.activeTab ?? 0),
+  );
   const [errorMsg, setErrorMsg] = useState("");
   // Kept separate from errorMsg on purpose. A validation hint is transient and
   // self-dismisses; a failed save means nothing was written, so it has to stay
   // on screen until the author dismisses it.
   const [saveError, setSaveError] = useState("");
-  const navigate = useNavigate();
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
   // Saved, but the new cover of a copy / revision could not be added after it.
@@ -549,20 +563,35 @@ const ScenarioEditor = ({ opening }) => {
   const editingDraftId = scenarioDraft.offer ? "" : scenarioDraft.draftId;
   const editingScenarioId = edit?.scenarioId || editRequest?.scenarioId || "";
   useEffect(() => {
-    if (!editingDraftId) return;
-    if (
-      searchParams.get("draft") === editingDraftId &&
-      (searchParams.get("edit") || "") === editingScenarioId
-    ) {
+    const stepPath = SCENARIO_STEPS[activeTab]?.path || SCENARIO_STEPS[0].path;
+    const nextPathname = `/new-scenario/${stepPath}`;
+
+    const query = {};
+    if (editingScenarioId) query.edit = editingScenarioId;
+    if (editingDraftId) query.draft = editingDraftId;
+    const nextSearch = new URLSearchParams(query).toString();
+
+    const currentSearch = location.search.replace(/^\?/, "");
+    if (location.pathname === nextPathname && currentSearch === nextSearch) {
       return;
     }
-    setSearchParams(
-      editingScenarioId
-        ? { edit: editingScenarioId, draft: editingDraftId }
-        : { draft: editingDraftId },
+
+    navigate(
+      {
+        pathname: nextPathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
       { replace: true, state: null },
     );
-  }, [editingDraftId, editingScenarioId, searchParams, setSearchParams]);
+  }, [
+    activeTab,
+    editingDraftId,
+    editingScenarioId,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
+    
 
   const handleContinueDraft = () => {
     const restored = scenarioDraft.resume();

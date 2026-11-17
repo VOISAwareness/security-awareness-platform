@@ -1,6 +1,35 @@
+import { useEffect, useState } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import { typeOptions } from "../../../../services/campaignTypes";
+import { api } from "../../../../services/api";
+import { currentActor } from "../../../../services/identity";
+import { readScenarioDraftItems } from "../../../../services/scenarioDraftSync";
 
+async function existingScenarioIds(viewer) {
+  const [rows, drafts] = await Promise.all([
+    api.scenarios.list({ viewer }).catch(() => []),
+    readScenarioDraftItems(api, viewer).catch(() => []),
+  ]);
+  return [
+    ...(Array.isArray(rows) ? rows.map((row) => row?.scenarioId) : []),
+    ...(Array.isArray(drafts)
+      ? drafts.map((item) => item?.summary?.scenarioId)
+      : []),
+  ]
+    .filter(Boolean)
+    .map(String);
+}
+
+const nextScenarioIdFrom = (existingIds = []) => {
+  const numbers = existingIds
+    .map((id) => {
+      const match = /^sc-(\d+)$/i.exec(String(id ?? "").trim());
+      return match ? parseInt(match[1], 10) : null;
+    })
+    .filter((n) => Number.isInteger(n));
+  const next = numbers.length ? Math.max(...numbers) + 1 : 1;
+  return `SC-${String(next).padStart(3, "0")}`;
+};
 // ============================================================
 // REUSABLE INPUT (dark bg updated for contrast against tinted L-shape)
 // ============================================================
@@ -25,10 +54,10 @@ const FormInput = ({
         className={`w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative dark:bg-[#15161A]
           dark:border-white/10
           dark:text-white ${
-          disabled
-            ? "bg-slate-100 text-slate-500 cursor-not-allowed"
-            : "bg-white text-slate-900"
-        }`}
+            disabled
+              ? "bg-white bg-slate-100 text-slate-500 cursor-not-allowed"
+              : "bg-white text-slate-900"
+          }`}
       >
         <input
           type="text"
@@ -39,7 +68,7 @@ const FormInput = ({
           readOnly={disabled}
           aria-readonly={disabled || undefined}
           className="
-          w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400 disabled:cursor-not-allowed
+          w-full bg-transparent text-[10.5px] font-medium outline-none placeholder-slate-400 disabled:disabled:cursor-not-allowed
         "
         />
       </div>
@@ -152,6 +181,28 @@ const ScenarioDetailsTab = ({
   idLockedHint = "",
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
+
+  const [autoFilledId, setAutoFilledId] = useState(false);
+  const [customTargetAudience, setCustomTargetAudience] = useState(false);
+  const [customCampaignType, setCustomCampaignType] = useState(false);
+  const [customCampaignMotivator, setCustomCampaignMotivator] = useState(false);
+  useEffect(() => {
+    if (idLockedHint) return undefined;
+    if (formData.scenarioId?.trim()) return undefined;
+    let active = true;
+    existingScenarioIds(currentActor()).then((ids) => {
+      if (!active) return;
+      setFormData((previous) => {
+        if (previous.scenarioId?.trim()) return previous;
+        setAutoFilledId(true);
+        return { ...previous, scenarioId: nextScenarioIdFrom(ids) };
+      });
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once on mount
+  }, []);
   // =========================================================
   // UPDATE FORM FIELD
   // =========================================================
@@ -165,6 +216,12 @@ const ScenarioDetailsTab = ({
   const shellBg = isDark ? "#1C1E24" : "#F1F5F7";
 
   const lCardBg = isDark ? "#1C1E24" : "#F1F5F7";
+
+  const scenarioIdHint =
+    idLockedHint ||
+    (autoFilledId
+      ? "This ID was generated automatically and can't be changed."
+      : "");
 
   return (
     <div className="w-full">
@@ -276,9 +333,8 @@ const ScenarioDetailsTab = ({
                 label="Scenario ID"
                 value={formData.scenarioId}
                 onChange={(e) => updateField("scenarioId", e.target.value)}
-                placeholder="SC-001"
-                disabled={Boolean(idLockedHint)}
-                hint={idLockedHint}
+                disabled={true}
+                hint={scenarioIdHint}
               />
 
               <FormInput
@@ -309,36 +365,178 @@ const ScenarioDetailsTab = ({
                 gap-1.5
               "
             >
-              <FormSelect
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  {customCampaignType ? (
+                    <FormInput
+                      label="Type"
+                      value={formData.type}
+                      onChange={(e) =>
+                        updateField("type", e.target.value)
+                      }
+                      placeholder="Enter Scenario Type"
+                    />
+                  ) : (
+                    <FormSelect
                 label="Type"
                 value={formData.type}
                 onChange={(e) => updateField("type", e.target.value)}
                 options={typeOptions(formData.type)}
               />
+                  )}
+                </div>
 
-              <FormSelect
-                label="Target Audience"
-                value={formData.targetAudience}
-                onChange={(e) => updateField("targetAudience", e.target.value)}
-                options={[
-                  {
-                    value: "remote-hybrid",
-                    label: "Remote / Hybrid users",
-                  },
-                  {
-                    value: "office",
-                    label: "Office users",
-                  },
-                  {
-                    value: "executives",
-                    label: "Executives",
-                  },
-                  {
-                    value: "all",
-                    label: "All Employees",
-                  },
-                ]}
-              />
+                <button
+                  type="button"
+                  title={
+                    customCampaignType
+                      ? "Use predefined type"
+                      : "Add custom type"
+                  }
+                  onClick={() => {
+                    setCustomCampaignType((previous) => !previous);
+                    updateField("type", "");
+                  }}
+                  className="
+      mb-2
+      w-7
+      h-7
+      shrink-0
+      rounded-lg
+      flex
+      items-center
+      justify-center
+      bg-[#000000]
+      text-white
+      text-[18px]
+      font-medium
+      leading-none
+      transition-all
+      duration-200
+      hover:bg-[#000000]
+      hover:scale-105
+      active:scale-95
+      dark:bg-[#FFFFFF]
+      dark:text-black
+      dark:hover:bg-[#FFFFFF]
+      dark:hover:text-black
+    "
+                >
+                  {customCampaignType ? "×" : "+"}
+                </button>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  {customTargetAudience ? (
+                    <FormInput
+                      label="Target Audience"
+                      value={formData.targetAudience}
+                      onChange={(e) =>
+                        updateField("targetAudience", e.target.value)
+                      }
+                      placeholder="Enter target audience"
+                    />
+                  ) : (
+                    <FormSelect
+                      label="Target Audience"
+                      value={formData.targetAudience}
+                      onChange={(e) =>
+                        updateField("targetAudience", e.target.value)
+                      }
+                      options={[
+                        {
+                          value: "all",
+                          label: "All Employees",
+                        },
+                        {
+                          value: "managers-leaders",
+                          label: "Managers / Leaders",
+                        },
+                        {
+                          value: "remote-employees",
+                          label: "Remote Employees",
+                        },
+                        {
+                          value: "office-employees",
+                          label: "Office Employees",
+                        },
+                        {
+                          value: "hybrid-employees",
+                          label: "Hybrid Employees",
+                        },
+                        {
+                          value: "finance-teams",
+                          label: "Finance Teams",
+                        },
+                        {
+                          value: "legal-teams",
+                          label: "Legal Teams",
+                        },
+                        {
+                          value: "care-teams",
+                          label: "CARE Teams",
+                        },
+                        {
+                          value: "business-teams",
+                          label: "Business Teams",
+                        },
+                        {
+                          value: "hr",
+                          label: "HR",
+                        },
+                        {
+                          value: "senior-leadership",
+                          label: "Senior Leadership",
+                        },
+                        {
+                          value: "new-joiners",
+                          label: "New Joiners",
+                        },
+                      ]}
+                    />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  title={
+                    customTargetAudience
+                      ? "Use predefined target audience"
+                      : "Add custom target audience"
+                  }
+                  onClick={() => {
+                    setCustomTargetAudience((previous) => !previous);
+                    updateField("targetAudience", "");
+                  }}
+                  className="
+      mb-2
+      w-7
+      h-7
+      shrink-0
+      rounded-lg
+      flex
+      items-center
+      justify-center
+      bg-[#000000]
+      text-white
+      text-[18px]
+      font-medium
+      leading-none
+      transition-all
+      duration-200
+      hover:bg-[#000000]
+      hover:scale-105
+      active:scale-95
+      dark:bg-[#FFFFFF]
+      dark:text-black
+      dark:hover:bg-[#FFFFFF]
+      dark:hover:text-black
+    "
+                >
+                  {customTargetAudience ? "×" : "+"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -365,18 +563,35 @@ const ScenarioDetailsTab = ({
           <div className="grid grid-cols-1 lg:grid-cols-[55.7%_76.2%] gap-x-6 gap-y-3.5">
             {/* MOTIVATOR */}
             <div className="min-w-0">
-              <FormSelect
+              
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  {customCampaignMotivator ? (
+                    <FormInput
+                      label="Motivator"
+                      value={formData.motivator}
+                      onChange={(e) =>
+                        updateField("motivator", e.target.value)
+                      }
+                      placeholder="Enter motivator"
+                    />
+                  ) : (
+                    <FormSelect
                 label="Motivator"
                 value={formData.motivator}
                 onChange={(e) => updateField("motivator", e.target.value)}
                 options={[
                   {
-                    value: "fear-feedback-curiosity",
-                    label: "Fear, Feedback, Curiosity",
+                    value: "fear",
+                    label: "Fear",
                   },
                   {
                     value: "urgency",
                     label: "Urgency",
+                  },
+                  {
+                    value: "curiosity",
+                    label: "Curiosity",
                   },
                   {
                     value: "authority",
@@ -386,8 +601,78 @@ const ScenarioDetailsTab = ({
                     value: "reward",
                     label: "Reward",
                   },
+                  {
+                    value: "recognition",
+                    label: "Recognition",
+                  },
+                  {
+                    value: "opportunity",
+                    label: "Opportunity",
+                  },
+                  {
+                    value: "job-function",
+                    label: "Job Function",
+                  },
+                  {
+                    value: "software-update",
+                    label: "Software Update",
+                  },
+                  {
+                    value: "security-account-alert",
+                    label: "Security / Account Alert",
+                  },
+                  {
+                    value: "financial",
+                    label: "Financial",
+                  },
+                  {
+                    value: "social",
+                    label: "Social",
+                  },
                 ]}
               />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  title={
+                    customCampaignMotivator
+                      ? "Use predefined motivator"
+                      : "Add custom motivator"
+                  }
+                  onClick={() => {
+                    setCustomCampaignMotivator((previous) => !previous);
+                    updateField("motivator", "");
+                  }}
+                  className="
+      mb-2
+      w-7
+      h-7
+      shrink-0
+      rounded-lg
+      flex
+      items-center
+      justify-center
+      bg-[#000000]
+      text-white
+      text-[18px]
+      font-medium
+      leading-none
+      transition-all
+      duration-200
+      hover:bg-[#000000]
+      hover:scale-105
+      active:scale-95
+      dark:bg-[#FFFFFF]
+      dark:text-black
+      dark:hover:bg-[#FFFFFF]
+      dark:hover:text-black
+    "
+                >
+                  {customCampaignMotivator ? "×" : "+"}
+                </button>
+              </div>
             </div>
 
             {/* DIFFICULTY */}
