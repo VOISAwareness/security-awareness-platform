@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import Toast from "../../GlobalComponents/Toast";
 import {
   ChevronDown,
   ChevronUp,
@@ -10,7 +10,6 @@ import {
   RefreshCw,
   User as UserIcon,
   Trash2,
-  X,
 } from "lucide-react";
 
 import ExchangeIcon from "../../assets/UserListScreenAssets/ExchangeIconUserListScreens.png";
@@ -870,40 +869,22 @@ const UserListUploadViaDL = () => {
           </div>
         </div>
 
-        {/* Bottom Toast Notification */}
+        {/* Standardized Toast Notifications */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#2E7D32] text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2">
-            <Check className="w-4 h-4 stroke-[3]" />
-            {toastMessage}
-          </div>
+          <Toast
+            message={toastMessage}
+            onClose={() => setToastMessage("")}
+          />
         )}
 
-        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL) ── */}
-        {deletedSuccessMsg &&
-          typeof document !== "undefined" &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-emerald-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#16A34A] flex items-center justify-center flex-shrink-0">
-                <Check className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1">
-                <span className="text-[10px] font-voda font-bold text-[#16A34A] uppercase tracking-wider">
-                  Success
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {deletedSuccessMsg}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDeletedSuccessMsg("")}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>,
-            document.body,
-          )}
+        {deletedSuccessMsg && (
+          <Toast
+            message={deletedSuccessMsg}
+            type="success"
+            title="Success"
+            onClose={() => setDeletedSuccessMsg("")}
+          />
+        )}
       </div>
     </>
   );

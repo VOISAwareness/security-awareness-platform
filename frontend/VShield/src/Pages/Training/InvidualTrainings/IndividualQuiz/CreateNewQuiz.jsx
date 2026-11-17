@@ -17,6 +17,7 @@ import {
 import { useIsDarkMode } from "../../components/modals/helpers";
 import { useOptionalTraining } from "../../TrainingContext";
 import quizTemplateUrl from "@/assets/Training(LMS)/samples/Quiz Template - Awareness App.xlsx?url";
+import Toast from "../../../../GlobalComponents/Toast";
 
 // Helper to safely extract clean text string from various ExcelJS cell value formats
 const extractCellText = (cellVal) => {
@@ -1438,43 +1439,12 @@ export const CreateNewQuiz = ({
   );
 
   const toastElement = localToast && (
-    <div
-      role="status"
-      className={`fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border ${
-        localToast.isError ? "border-red-500/30" : "border-emerald-500/30"
-      } shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm`}
-    >
-      <div
-        className={`w-8 h-8 rounded-full ${
-          localToast.isError ? "bg-red-100 text-[#E60000]" : "bg-emerald-100 text-[#16A34A]"
-        } flex items-center justify-center flex-shrink-0`}
-      >
-        {localToast.isError ? (
-          <AlertCircle className="w-4 h-4 stroke-[2.5]" />
-        ) : (
-          <Check className="w-4 h-4 stroke-[2.5]" />
-        )}
-      </div>
-      <div className="flex flex-col text-left leading-tight flex-1">
-        <span
-          className={`text-[10px] font-voda font-bold ${
-            localToast.isError ? "text-[#E60000]" : "text-[#16A34A]"
-          } uppercase tracking-wider`}
-        >
-          {localToast.title}
-        </span>
-        <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-          {localToast.message}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={() => setLocalToast(null)}
-        className="p-1 rounded text-slate-400 hover:text-black cursor-pointer flex-shrink-0"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </div>
+    <Toast
+      message={localToast.message}
+      title={localToast.title}
+      type={localToast.isError ? "error" : "success"}
+      onClose={() => setLocalToast(null)}
+    />
   );
 
   if (isInline) {

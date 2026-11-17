@@ -667,7 +667,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
               <div className="flex items-center gap-4">
                 <span
                   style={{ color: activeTabConfig.counterColor }}
-                  className="text-5xl font-black leading-none tracking-tight font-voda font-bold"
+                  className="text-5xl leading-none tracking-tight font-voda font-bold"
                 >
                   {String(currentCategoryList.length).padStart(2, "0")}
                 </span>

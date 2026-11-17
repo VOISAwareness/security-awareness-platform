@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import HtmlCodeEditor from "../../../../GlobalComponents/HtmlCodeEditor";
+import Toast from "../../../../GlobalComponents/Toast";
 
 const FX_PARAMETERS = [
   { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
@@ -1312,9 +1313,10 @@ const LandingPageRichTextEditor = ({
         )}
 
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-[2147483647] rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-xl">
-          {toastMessage}
-        </div>
+        <Toast
+          message={toastMessage}
+          onClose={() => setToastMessage("")}
+        />
       )}
     </>
   );

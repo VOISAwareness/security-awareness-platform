@@ -8,8 +8,9 @@ const announcamentScenariosJsonData = announcementTemplatesLive;
 import AnnouncementEmailDetailsTab from "../AnnouncementEmailDetailsTab/AnnouncementEmailDetailsTab";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import Toast from "../../../../GlobalComponents/Toast";
 
-import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Check, CheckCircle2 } from "lucide-react";
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -820,37 +821,14 @@ const AnnouncementTemplateDetails = () => {
       {/* ====================================================
     TOP-RIGHT VALIDATION TOAST
 ==================================================== */}
-      {errorMsg &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-            {/* Error Icon */}
-            <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-            </div>
-
-            {/* Error Message */}
-            <div className="flex flex-col text-left leading-tight flex-1">
-              <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                Input Required
-              </span>
-
-              <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                {errorMsg}
-              </span>
-            </div>
-
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => setErrorMsg("")}
-              className="p-1 rounded text-slate-400 hover:text-black cursor-pointer flex-shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>,
-          document.body,
-        )}
+      {errorMsg && (
+        <Toast
+          message={errorMsg}
+          type="error"
+          title="Input Required"
+          onClose={() => setErrorMsg("")}
+        />
+      )}
       <div
         style={{
           zoom: VarScenarioScale,

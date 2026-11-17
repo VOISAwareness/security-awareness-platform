@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { motion, AnimatePresence } from "framer-motion";
+import Toast from "../../GlobalComponents/Toast";
 import {
   Search,
   Trash2,
   Edit3,
-  Check,
   X,
   ChevronDown,
   RefreshCw,
   Send,
-  AlertCircle,
 } from "lucide-react";
 
 // Default initial dataset
@@ -929,27 +928,14 @@ const EmailIDsAndDomains = () => {
         </AnimatePresence>
 
         {/* Toast Feedback Notification */}
-        <AnimatePresence>
-          {toastMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 15 }}
-              role="status"
-              data-sender-toast={toastTone}
-              className={`fixed bottom-6 right-6 z-50 max-w-md px-4 py-2 rounded-xl text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2 ${
-                toastTone === "bad" ? "bg-[#E60000]" : "bg-[#22C55E]"
-              }`}
-            >
-              {toastTone === "bad" ? (
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              ) : (
-                <Check className="w-4 h-4 stroke-[3] flex-shrink-0" />
-              )}
-              {toastMessage}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {toastMessage && (
+          <Toast
+            message={toastMessage}
+            type={toastTone === "bad" ? "error" : "success"}
+            data-sender-toast={toastTone}
+            onClose={() => setToastMessage("")}
+          />
+        )}
       </div>
     </>
   );

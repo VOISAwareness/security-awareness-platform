@@ -2,11 +2,11 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import Toast from '../../GlobalComponents/Toast';
 import {
   Plus,
   ArrowLeft,
   Eye,
-  Check,
   X,
   Bold,
   Italic,
@@ -1198,25 +1198,14 @@ const LandingPageCatalogue = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* ── 5. TOAST NOTIFICATION (PORTALED)                                      */}
+        {/* ── 5. TOAST NOTIFICATION                                                 */}
         {/* ========================================================================= */}
-        {toastMessage &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              style={{
-                position: 'fixed',
-                bottom: '24px',
-                right: '24px',
-                zIndex: 2147483647
-              }}
-              className="px-4 py-2 rounded-xl bg-[#2E7D32] text-white text-xs font-voda font-bold shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200"
-            >
-              <Check className="w-4 h-4 stroke-[3]" />
-              {toastMessage}
-            </div>,
-            document.body
-          )}
+        {toastMessage && (
+          <Toast
+            message={toastMessage}
+            onClose={() => setToastMessage('')}
+          />
+        )}
       </div>
     </>
   );

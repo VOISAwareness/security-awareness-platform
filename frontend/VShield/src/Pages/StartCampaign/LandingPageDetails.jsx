@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -11,33 +11,25 @@ import {
   Italic,
   Underline,
   Strikethrough,
-  Subscript,
-  Superscript,
   RemoveFormatting,
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify,
-  List,
-  ListOrdered,
-  Indent,
-  Outdent,
   Image as ImageIcon,
   Link as LinkIcon,
   Code,
   Palette,
-  Highlighter,
   Maximize2,
   Minimize2,
   ArrowRight,
   ArrowLeft,
-  AlertTriangle
 } from 'lucide-react';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import { api } from '../../services/api';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { IN_WIZARD } from '../../services/campaignWizard';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
+import Toast from '../../GlobalComponents/Toast';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import initialLandingCatalogues from '../LandingPageCatalogue/LandingPageCatalogues.json';
 import attachAnyOtherImg from '../../assets/AttachAnyOtherStartNewCampaign.png';
@@ -154,9 +146,6 @@ const LandingPageDetails = () => {
     draft.scenarioId === 'start-fresh' ||
     draft.scenarioName === 'Start Fresh' ||
     Boolean(draft.isStartFresh);
-
-  // Base background
-  const lCardBg = isDark ? '#1C1E24' : '#F1F5F7';
 
   // Available landing pages. The catalogue now lives in the API; the bundled
   // LandingPageCatalogues.json stays as the offline fallback. It arrives after
@@ -430,13 +419,6 @@ const LandingPageDetails = () => {
         break;
     }
     runCommand('insertHTML', html);
-  };
-
-  const promptInsertLink = () => {
-    const url = prompt('Enter Destination URL (e.g. #training):', '#training');
-    if (url) {
-      runCommand('createLink', url);
-    }
   };
 
   const handleToggleCodeMode = () => {
@@ -1121,33 +1103,16 @@ const LandingPageDetails = () => {
         </div>
 
         {/* ========================================================================= */}
-        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL)                            */}
+        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER                                     */}
         {/* ========================================================================= */}
-        {errorMsg &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1">
-                <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                  Input Required
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {errorMsg}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setErrorMsg('')}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>,
-            document.body
-          )}
+        {errorMsg && (
+          <Toast
+            message={errorMsg}
+            type="error"
+            title="Input Required"
+            onClose={() => setErrorMsg('')}
+          />
+        )}
 
         {/* ========================================================================= */}
         {/* ── 🌟 COMPLETE BROWSER-SCREEN LIVE PREVIEW VIA REACT PORTAL               */}

@@ -5,6 +5,7 @@ import { api } from "../../services/api";
 import { actorFor } from "../../services/identity";
 import { eventName } from "../../services/gamificationPoints";
 import { useGamificationRules } from "../../services/useGamificationRules";
+import Toast from "../../GlobalComponents/Toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
@@ -522,25 +523,13 @@ const GamificationEngine = () => {
         {/* ========================================================================= */}
         {/* ── 3. TOAST CONFIRMATION NOTIFICATION ─────────────────────────────────── */}
         {/* ========================================================================= */}
-        <AnimatePresence>
-          {toastMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 15 }}
-              className={`fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl text-white text-xs font-bold font-voda shadow-xl flex items-center gap-2 ${
-                toastIsError ? "bg-[#E11D48]" : "bg-[#22C55E]"
-              }`}
-            >
-              {toastIsError ? (
-                <AlertTriangle className="w-4 h-4" />
-              ) : (
-                <Check className="w-4 h-4 stroke-[3]" />
-              )}
-              {toastMessage}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {toastMessage && (
+          <Toast
+            message={toastMessage}
+            type={toastIsError ? "error" : "success"}
+            onClose={() => setToastMessage("")}
+          />
+        )}
       </div>
     </>
   );
