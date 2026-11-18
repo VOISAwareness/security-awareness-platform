@@ -759,3 +759,14 @@ def test_saving_a_package_starts_its_unpacking_and_delete_removes_it(mod, monkey
         s3.put_object(Bucket="assets", Key=unpacked + "index.html", Body=b"x")
         assert _packages(mod, "DELETE", "/training/packages/{id}", pid="SP-001")[0] == 204
         assert s3.list_objects_v2(Bucket="assets", Prefix=unpacked).get("KeyCount") == 0
+
+
+def test_launch_url_only_for_unpacked_packages(mod):
+    prefix = f"training-content/{'b' * 32}/"
+    ready = {"ContentStatus": "READY", "ContentPrefix": prefix, "LaunchPath": "My Course/index_lms.html?lang=en"}
+    assert mod.launch_url(ready) == f"/scorm/{'b' * 32}/My%20Course/index_lms.html?lang=en"
+    assert mod.launch_url({**ready, "LaunchPath": "story.html"}) == f"/scorm/{'b' * 32}/story.html"
+    assert mod.launch_url({**ready, "ContentStatus": "PENDING"}) is None
+    assert mod.launch_url({**ready, "ContentPrefix": "uploads/recipients/x/"}) is None
+    assert mod.launch_url({**ready, "LaunchPath": ""}) is None
+    assert mod.launch_url(None) is None
