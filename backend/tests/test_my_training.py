@@ -198,3 +198,97 @@ def test_score_quiz(mod):
     assert mod.score_quiz(QUIZ, answers(5)) == (100, 5, 5)
     assert mod.score_quiz(QUIZ, None) == (0, 0, 5)
     assert mod.score_quiz({"QuizData": {}}, {}) == (0, 0, 0)
+
+
+# --- package paths (a SCORM / HTML5 package in place of videos and a quiz) ---
+
+@pytest.fixture
+def zip_path(mod, env, monkeypatch):
+    db = mod.dynamodb
+    packages = make(db, f"{mod.TABLE_PREFIX}-training-packages", [("PackageID", "HASH")])
+    packages.put_item(Item={"PackageID": "SP-1", "PackageName": "Spot the phish", "ContentStatus": "READY",
+                            "PackageKey": f"uploads/training-packages/{'e' * 32}/c.zip",
+                            "ContentPrefix": f"training-content/{'e' * 32}/", "LaunchURL": f"/scorm/{'e' * 32}/index.html"})
+    env.paths.put_item(Item={"TrainingPathID": "TP-Z", "TrainingPathName": "Phish course", "isZipPath": True,
+                             "attachedZipID": "SP-1", "TrainingVideoAttached": [], "TrainingQuizAttached": [],
+                             "TrainingCertificateAttached": ["TC-1"]})
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", None)
+    return env
+
+
+def report(mod, **fields):
+    return call(mod, "POST /my-training/package", {"viewer": ANA, "TrainingPathID": "TP-Z", **fields})
+
+
+def test_a_package_path_saves_progress_then_its_result(mod, zip_path):
+    status, body = call(mod, "POST /my-training/enrol", {"viewer": ANA, "TrainingPathID": "TP-Z"})
+    assert status == 201
+    row = body["data"]
+    assert row["isZipPath"] is True and row["package"]["PackageName"] == "Spot the phish"
+    assert row["package"]["LaunchURL"].startswith("/scorm/") and "PackageKey" not in row["package"]
+
+    # progress only: kept for resuming, the training stays open
+    status, body = report(mod, status="incomplete", location="slide-3", suspendData='{"q":2}', sessionSeconds=60)
+    assert status == 200
+    row = body["data"]
+    assert (row["status"], row["packageLocation"], row["packageSuspendData"]) == ("IN_PROGRESS", "slide-3", '{"q":2}')
+    assert body["result"]["passed"] is None and "quizPassed" not in row
+
+    # a failed sitting: the result is kept, the training stays open
+    row = report(mod, status="failed", completed=True, passed=False, score=33, finished=True, sessionSeconds=90)[1]["data"]
+    assert (row["status"], row["quizPassed"], row["quizScore"], row["attemptCount"], row["packageSeconds"]) == (
+        "IN_PROGRESS", False, 33, 1, 90)
+
+    # a pass completes it, with its certificate
+    status, body = report(mod, status="passed", completed=True, passed=True, score=100, finished=True, sessionSeconds=30)
+    row = body["data"]
+    assert (row["status"], row["quizPassed"], row["quizScore"], row["certificateId"]) == ("COMPLETED", True, 100, "TC-1")
+    assert row["packageSeconds"] == 120 and row["attemptCount"] == 2
+
+    # a later sitting can't undo the pass
+    row = report(mod, status="failed", completed=True, passed=False, score=0, finished=True)[1]["data"]
+    assert (row["status"], row["quizPassed"], row["quizScore"]) == ("COMPLETED", True, 100)
+    assert row["packageScore"] == 0  # what the course said last
+
+
+def test_completion_only_courses_complete_the_training(mod, zip_path):
+    call(mod, "POST /my-training/enrol", {"viewer": ANA, "TrainingPathID": "TP-Z"})
+    row = report(mod, status="completed", completed=True, finished=True)[1]["data"]
+    assert row["status"] == "COMPLETED" and row["quizPassed"] is True and "quizScore" not in row
+
+
+def test_a_campaign_assigned_package_pass_records_the_training_events(mod, zip_path):
+    zip_path.assignments.put_item(Item={
+        "owner": ANA, "assignmentId": "A#2026-11-01T00:00:00Z#TP-Z", "TrainingPathID": "TP-Z", "source": "ASSIGNED",
+        "campaignId": "CMP-1", "recipientId": "R-1", "assignedAt": "2026-11-01T00:00:00Z", "status": "ASSIGNED"})
+    report(mod, status="passed", completed=True, passed=True, score=90, finished=True)
+    report(mod, status="passed", completed=True, passed=True, score=90, finished=True)  # once each
+    events = zip_path.events.scan()["Items"]
+    assert sorted(e["eventType"] for e in events) == ["EVALUATED", "TRAINED"]
+    assert all(e["eventSource"] == "TRAINING" for e in events)
+
+
+@pytest.mark.parametrize("fields, says", [
+    ({"status": "done"}, "status"),
+    ({"score": 101}, "score"),
+    ({"score": True}, "score"),
+    ({"passed": "yes"}, "passed"),
+    ({"completed": 1}, "completed"),
+    ({"suspendData": "x" * 64001}, "suspendData"),
+    ({"location": 5}, "location"),
+    ({"sessionSeconds": -1}, "sessionSeconds"),
+])
+def test_package_reports_are_checked(mod, zip_path, fields, says):
+    call(mod, "POST /my-training/enrol", {"viewer": ANA, "TrainingPathID": "TP-Z"})
+    status, body = report(mod, **fields)
+    assert status == 400 and says in body["error"]["message"]
+
+
+def test_only_package_paths_take_package_reports(mod, zip_path):
+    call(mod, "POST /my-training/enrol", {"viewer": ANA, "TrainingPathID": "TP-1"})
+    status, _ = call(mod, "POST /my-training/package", {"viewer": ANA, "TrainingPathID": "TP-1", "status": "passed"})
+    assert status == 409
+    assert report(mod, status="passed")[0] == 404  # TP-Z not enrolled
+    # a videos-and-quiz path's rows carry no package fields
+    row = call(mod, "GET /my-training", query={"viewer": ANA})[1]["data"][0]
+    assert "isZipPath" not in row and "package" not in row

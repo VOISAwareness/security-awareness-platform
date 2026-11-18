@@ -1881,6 +1881,9 @@ def training_content(route, event, params, context):
 #   POST /my-training/progress {viewer, TrainingPathID, videoId}
 #   POST /my-training/check    {viewer, TrainingPathID, questionId, option}
 #   POST /my-training/quiz     {viewer, TrainingPathID}
+#   POST /my-training/package  {viewer, TrainingPathID, status, completed,
+#                               passed, score, location, suspendData,
+#                               sessionSeconds, finished}
 #   GET  /training/assignments?path=    -> everyone's (the Training report)
 # The quiz's answers never reach a learner (GET /training/quizzes leaves them
 # out unless an editor role asks). Each answer is checked here, and the first
@@ -1896,8 +1899,24 @@ MY_TRAINING_ROUTES = frozenset({
     "POST /my-training/progress",
     "POST /my-training/check",
     "POST /my-training/quiz",
+    "POST /my-training/package",
     "GET /training/assignments",
 })
+# A package path (isZipPath, attachedZipID: a SCORM / HTML5 package in place of
+# videos and a quiz) reports through the player's SCORM run-time
+# (frontend services/scormRuntime.js): POST /my-training/package keeps where
+# the learner is (packageLocation, packageSuspendData) so they can resume, and
+# once the course gives a result it is the training's result: passed (or, for
+# a course that only reports completion, completed) completes it like a quiz
+# pass; failed leaves it open to try again. The course scores itself in the
+# browser, so this result is as trustworthy as the learner's browser (a quiz
+# path's score is worked out here instead).
+PACKAGE_STATUSES = frozenset({
+    "not attempted", "browsed", "incomplete", "completed", "passed", "failed", "unknown",
+})
+MAX_SUSPEND_DATA = 64000
+MAX_PACKAGE_LOCATION = 1000
+MAX_SESSION_SECONDS = 24 * 3600
 # Roles that edit quizzes, and so see their answers (client-asserted, as
 # elsewhere, until sign-in exists).
 QUIZ_EDITOR_ROLES = frozenset({"Admin", "Campaign Creator", "Campaign Manager"})
@@ -1961,9 +1980,28 @@ def score_quiz(quiz, answers):
     return (round(correct * 100 / total) if total else 0), correct, total
 
 
+def path_package_id(path):
+    """The package a package path plays, or None for a videos-and-quiz path."""
+    path = path or {}
+    pid = path.get("attachedZipID")
+    return pid if path.get("isZipPath") and isinstance(pid, str) and pid else None
+
+
+def learner_package(row):
+    """A package as a learner's player needs it: where it plays from."""
+    signed = sign_package(row)
+    keep = ("PackageID", "PackageName", "Description", "Duration", "ContentStatus", "LaunchURL",
+            "PackageURL", "ScormVersion")
+    return {k: signed[k] for k in keep if k in signed}
+
+
 def enrich_assignments(rows):
-    """Each row with its path's name and quiz, and its campaign's title."""
+    """Each row with its path's name and quiz (or package), and its campaign's title."""
     paths = {p.get("TrainingPathID"): p for p in scan_all("training-paths")}
+    wanted = {path_package_id(paths.get(r.get("TrainingPathID"))) for r in rows} - {None}
+    packages = {}
+    if wanted:
+        packages = {p.get("PackageID"): p for p in scan_all("training-packages") if p.get("PackageID") in wanted}
     titles = {}
     out = []
     for r in rows:
@@ -1979,8 +2017,56 @@ def enrich_assignments(rows):
             "TrainingQuizID": ((path.get("TrainingQuizAttached") or [None])[0]),
             "TrainingCertificateID": ((path.get("TrainingCertificateAttached") or [None])[0]),
             "campaignTitle": titles.get(cid, "") if cid else "",
+            **package_fields(path, packages),
         })
     return out
+
+
+def package_fields(path, packages):
+    """isZipPath and the package to play, for a package path; nothing otherwise."""
+    pid = path_package_id(path)
+    if not pid:
+        return {}
+    row = packages.get(pid)
+    return {"isZipPath": True, "attachedZipID": pid, "package": learner_package(row) if row else None}
+
+
+def clean_package_progress(body):
+    """(fields, None) or (None, why) from what the player reports."""
+    status = body.get("status")
+    if status is not None and status not in PACKAGE_STATUSES:
+        return None, "status must be a SCORM status"
+    fields = {"status": status or "incomplete"}
+    for name in ("completed", "finished"):
+        value = body.get(name, False)
+        if not isinstance(value, bool):
+            return None, f"{name} must be true or false"
+        fields[name] = value
+    passed = body.get("passed")
+    if passed is not None and not isinstance(passed, bool):
+        return None, "passed must be true, false or null"
+    fields["passed"] = passed
+    score = body.get("score")
+    if score is not None and (isinstance(score, bool) or not isinstance(score, int | float) or not 0 <= score <= 100):
+        return None, "score must be 0 to 100, or null"
+    fields["score"] = None if score is None else int(round(score))
+    for name, limit in (("location", MAX_PACKAGE_LOCATION), ("suspendData", MAX_SUSPEND_DATA)):
+        value = body.get(name) or ""
+        if not isinstance(value, str) or len(value) > limit:
+            return None, f"{name} must be text of at most {limit} characters"
+        fields[name] = value
+    seconds = body.get("sessionSeconds") or 0
+    if isinstance(seconds, bool) or not isinstance(seconds, int | float) or not 0 <= seconds <= MAX_SESSION_SECONDS:
+        return None, f"sessionSeconds must be 0 to {MAX_SESSION_SECONDS}"
+    fields["sessionSeconds"] = int(seconds)
+    return fields, None
+
+
+def package_result(fields):
+    """True (passed), False (failed) or None (no result yet) from a report."""
+    if fields["passed"] is not None:
+        return fields["passed"]
+    return True if fields["completed"] else None
 
 
 def person_of(email):
@@ -2093,6 +2179,60 @@ def my_training(route, event, context):
             ReturnValues="ALL_NEW",
         )["Attributes"]
         return ok(enrich_assignments([updated])[0])
+
+    if route == "POST /my-training/package":
+        if not path_package_id(path):
+            return err(409, "This path has no package")
+        fields, problem = clean_package_progress(body)
+        if problem:
+            return err(400, problem)
+        result = package_result(fields)
+        was_passed = bool(current.get("quizPassed"))
+        names = {"#ps": "packageStatus", "#pl": "packageLocation", "#pd": "packageSuspendData"}
+        values = {":ps": fields["status"], ":pl": fields["location"], ":pd": fields["suspendData"], ":now": now}
+        sets = ["#ps = :ps", "#pl = :pl", "#pd = :pd", "startedAt = if_not_exists(startedAt, :now)",
+                "lastAttemptAt = :now"]
+        adds = []
+        if fields["score"] is not None:
+            sets.append("packageScore = :score")
+            values[":score"] = fields["score"]
+        if fields["finished"]:
+            # session time is per sitting; it is added once, when the sitting ends
+            adds += ["packageSeconds :secs", "attemptCount :one"]
+            values.update({":secs": fields["sessionSeconds"], ":one": 1})
+        if not was_passed:
+            names["#s"] = "status"
+            if result is True:
+                sets += ["#s = :done", "quizPassed = :t", "completedAt = :now"]
+                values.update({":done": "COMPLETED", ":t": True})
+                if fields["score"] is not None:
+                    sets.append("quizScore = :score")
+                cert = (path.get("TrainingCertificateAttached") or [None])[0]
+                if cert:
+                    sets += ["certificateId = :cert", "certificateIssuedAt = :now"]
+                    values[":cert"] = cert
+            else:
+                sets.append("#s = :open")
+                values[":open"] = "IN_PROGRESS"
+                if result is False:
+                    sets.append("quizPassed = :f")
+                    values[":f"] = False
+                    if fields["score"] is not None:
+                        sets.append("quizScore = :score")
+        updated = tbl.update_item(
+            Key=key,
+            UpdateExpression="SET " + ", ".join(sets) + (" ADD " + ", ".join(adds) if adds else ""),
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+            ReturnValues="ALL_NEW",
+        )["Attributes"]
+        if result is True and not was_passed:
+            record_training_event(updated, "TRAINED", now)
+            record_training_event(updated, "EVALUATED", now)
+            log(context, "package passed", path=path_id, score=fields["score"])
+        return ok(enrich_assignments([updated])[0], result={
+            "passed": result, "score": fields["score"], "alreadyPassed": was_passed,
+        })
 
     # POST /my-training/check and /quiz
     quiz = path_quiz(path)

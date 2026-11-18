@@ -223,6 +223,7 @@ locals {
     "POST /my-training/progress",
     "POST /my-training/check",
     "POST /my-training/quiz",
+    "POST /my-training/package",
     "GET /training/assignments",
     # Announcements: templates and roll-outs (schema_tables.tf: announcements).
     "GET /announcements",

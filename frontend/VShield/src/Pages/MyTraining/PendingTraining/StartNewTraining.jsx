@@ -9,6 +9,7 @@ import GetTrainedDetails from "./TrainingHistoryDetails/GetTrainedDetail";
 import TrainingQuizDetails from "./TrainingHistoryDetails/TrainingQuizDetails";
 import { useParams } from "react-router-dom";
 import { submitQuiz, useMyTraining } from "../../../services/myTraining";
+import PackageCourse from "./PackageCourse";
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -41,12 +42,13 @@ const VODAFONE_FONT_STYLE = `
 // NewScenario's main return, so it no longer carries its own
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
-const TrainingTabs = ({ activeTab, onTabChange }) => {
+const TrainingTabs = ({ activeTab, onTabChange, isPackage = false }) => {
+  // A package path has no separate quiz: the course is the assessment.
   const steps = [
     { id: 0, titleLine1: "Get Trained", titleLine2: "" },
     { id: 1, titleLine1: "Take Quiz", titleLine2: "" },
     { id: 2, titleLine1: "Completion", titleLine2: "" },
-  ];
+  ].filter((step) => !(isPackage && step.id === 1));
 
   return (
     <div
@@ -60,7 +62,7 @@ const TrainingTabs = ({ activeTab, onTabChange }) => {
         select-none
       "
     >
-      {steps.map((step) => {
+      {steps.map((step, index) => {
         const isCurrent = activeTab === step.id;
         const isCompleted = activeTab > step.id;
 
@@ -132,7 +134,7 @@ const TrainingTabs = ({ activeTab, onTabChange }) => {
               {isCompleted && !isCurrent ? (
                 <Check className="w-3 h-3 stroke-[3]" />
               ) : (
-                step.id + 1
+                index + 1
               )}
             </div>
 
@@ -187,7 +189,21 @@ const StartNewTraining = () => {
 
   // The signed-in person's trainings and the catalogue, from the backend;
   // the steps below read them once loaded.
-  const { loading: trainingLoading, error: trainingError, reload } = useMyTraining();
+  const { trainings, loading: trainingLoading, error: trainingError, reload } = useMyTraining();
+  const allocation = (trainings || []).find((t) => t.TrainingPathID === trainingPathID) || null;
+  const isPackage = Boolean(allocation?.isZipPath);
+  const packagePassed = isPackage && allocation?.evalutionStatus === "passed";
+
+  // A package path: the course gave a result (saved by PackageCourse).
+  const handlePackageResult = (result) => {
+    setQuizResult(
+      Number.isFinite(result.score)
+        ? { score: result.score, status: result.passed ? "passed" : "failed", TrainingPathName: allocation?.TrainingPathName }
+        : null,
+    );
+    setQuizSubmitted(true);
+    setIsVideoCompleted(true);
+  };
 
   const handleQuizComplete = (result) => {
     setQuizResult(result);
@@ -218,7 +234,7 @@ const StartNewTraining = () => {
 
   const handleRetake = () => {
     setQuizResult(null);
-    setActiveTab(1);
+    setActiveTab(isPackage ? 0 : 1);
   };
 
   // ==========================================================
@@ -321,7 +337,7 @@ const StartNewTraining = () => {
             }
           `}
         >
-          <TrainingTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <TrainingTabs activeTab={activeTab} onTabChange={setActiveTab} isPackage={isPackage} />
 
           <div
             className="
@@ -334,7 +350,10 @@ const StartNewTraining = () => {
             "
           >
             {/* Scenario Details */}
-            {activeTab === 0 && (
+            {activeTab === 0 && isPackage && (
+              <PackageCourse allocation={allocation} onResult={handlePackageResult} />
+            )}
+            {activeTab === 0 && !isPackage && (
               <GetTrainedDetails
                 onVideoCompleted={() => setIsVideoCompleted(true)}
               />
@@ -455,12 +474,12 @@ const StartNewTraining = () => {
                   <button
                     type="button"
                     disabled={
-                      (activeTab === 0 && !isVideoCompleted) ||
+                      (activeTab === 0 && !isVideoCompleted && !packagePassed) ||
                       (activeTab === 1 && !quizSubmitted)
                     }
                     onClick={() => {
                       if (activeTab === 0) {
-                        setActiveTab(1);
+                        setActiveTab(isPackage ? 2 : 1);
                       } else if (activeTab === 1 && quizSubmitted) {
                         setActiveTab(2);
                       } else if (activeTab === 1 && !quizSubmitted) {
