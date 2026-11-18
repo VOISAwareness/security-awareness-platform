@@ -2525,7 +2525,45 @@ GET_BY_ID = {
 }
 
 
+# Reads every viewer shares, which change slowly: CloudFront in front of the
+# API (infra/terraform/scorm_cdn.tf, /api/*) may answer them from its cache
+# for this many seconds (s-maxage; browsers keep nothing: max-age=0). Every
+# other response says no-store, so nothing personal or fast-moving (My
+# Training, standing, packages being unpacked, drafts, approvals) is ever
+# served from a shared cache. The query string is part of CloudFront's cache
+# key, and a browser that has just written adds its own (_w), so its next
+# reads skip the shared copy.
+SHARED_CACHE_SECONDS = {
+    "GET /users": 300,
+    "GET /landing-pages": 60,
+    "GET /gamification-rules": 300,
+    "GET /training/paths": 60,
+    "GET /training/videos": 60,
+    "GET /training/quizzes": 60,
+    "GET /training/certificates": 60,
+    "GET /campaigns-catalog": 300,
+    "GET /scenarios": 60,
+    "GET /levels": 600,
+    "GET /insights-targets": 300,
+}
+
+
+def cache_headers(route, response):
+    """The response with the Cache-Control a shared cache must follow."""
+    seconds = SHARED_CACHE_SECONDS.get(route)
+    headers = dict(response.get("headers") or {})
+    if seconds and response.get("statusCode") == 200:
+        headers["Cache-Control"] = f"public, max-age=0, s-maxage={seconds}"
+    else:
+        headers["Cache-Control"] = "no-store"
+    return {**response, "headers": headers}
+
+
 def lambda_handler(event, context):
+    return cache_headers(event.get("routeKey", ""), handle(event, context))
+
+
+def handle(event, context):
     route = event.get("routeKey", "")
     params = event.get("pathParameters") or {}
 

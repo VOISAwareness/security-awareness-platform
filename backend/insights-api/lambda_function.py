@@ -590,7 +590,25 @@ def fresh_ctx(context, force=False):
     return _cache["ctx"]
 
 
+# Insights and the board are the same for everyone with the same query (role,
+# viewer), and this Lambda already keeps them for CACHE_SECONDS: CloudFront
+# in front of the API (/api/*) may keep them as long, so most reads never
+# reach this Lambda. A forced rebuild (fresh=1) and errors are never stored.
+def cache_headers(event, response):
+    qs = event.get("queryStringParameters") or {}
+    headers = dict(response.get("headers") or {})
+    if response.get("statusCode") == 200 and qs.get("fresh") != "1":
+        headers["Cache-Control"] = f"public, max-age=0, s-maxage={CACHE_SECONDS}"
+    else:
+        headers["Cache-Control"] = "no-store"
+    return {**response, "headers": headers}
+
+
 def lambda_handler(event, context):
+    return cache_headers(event, handle(event, context))
+
+
+def handle(event, context):
     route = event.get("routeKey", "")
     qs = event.get("queryStringParameters") or {}
     try:

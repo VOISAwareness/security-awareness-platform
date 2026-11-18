@@ -184,3 +184,12 @@ def test_handler_caches(mod):
     assert first["statusCode"] == 200
     mod.users_table = FakeTable([])  # a second call inside the cache window reads nothing
     assert mod.lambda_handler(q, None)["body"] == first["body"]
+
+
+def test_insights_may_be_kept_by_a_shared_cache_but_not_a_forced_rebuild(mod):
+    res = mod.lambda_handler({"routeKey": "GET /insights", "queryStringParameters": {"role": "Admin"}}, None)
+    assert res["headers"]["Cache-Control"] == f"public, max-age=0, s-maxage={mod.CACHE_SECONDS}"
+    forced = mod.lambda_handler({"routeKey": "GET /insights", "queryStringParameters": {"role": "Admin", "fresh": "1"}}, None)
+    assert forced["headers"]["Cache-Control"] == "no-store"
+    refused = mod.lambda_handler({"routeKey": "GET /insights", "queryStringParameters": {"role": "Regular User"}}, None)
+    assert refused["statusCode"] == 403 and refused["headers"]["Cache-Control"] == "no-store"

@@ -22,9 +22,58 @@
 
 locals {
   # AWS-managed policies (the same ids in every account).
-  cache_policy_caching_optimized   = "658327ea-f89d-4fab-a63d-7e88639e58f6"
-  response_headers_security_policy = "67f7725c-6f97-4210-82d7-5512b31e9d03"
-  scorm_origin_id                  = "training-content"
+  cache_policy_caching_optimized             = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  response_headers_security_policy           = "67f7725c-6f97-4210-82d7-5512b31e9d03"
+  origin_request_all_viewer_except_host_name = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+  scorm_origin_id                            = "training-content"
+  api_origin_id                              = "http-api"
+}
+
+# --- /api/*: the HTTP API, through the same distribution -------------------
+#
+# The app reads the API at /api/<route>. CloudFront passes every request on
+# (any method, body, query string and header but Host) and keeps a GET answer
+# only when the Lambda said it may: reference-api and insights-api send
+# Cache-Control: s-maxage=N for reads every viewer shares (the training
+# catalogue, people, levels, rules, Insights...) and no-store for everything
+# else; a response with neither is not kept (default TTL 0). So a shared read
+# costs one Lambda run per minute or five, not one per page view, and JSON is
+# sent compressed. The cache key is the path, the whole query string and the
+# Origin header (CORS answers differ by origin). A browser that has just
+# written adds its own query parameter, so it never reads its own change
+# from the shared copy.
+
+resource "aws_cloudfront_function" "api_path" {
+  name    = "${var.name_prefix}-api-path"
+  runtime = "cloudfront-js-2.0"
+  comment = "/api/<route> -> /<route> for the HTTP API"
+  publish = true
+  code    = file("${path.module}/functions/api_path.js")
+}
+
+resource "aws_cloudfront_cache_policy" "api" {
+  name        = "${var.name_prefix}-api"
+  comment     = "Keeps only what the API marks s-maxage; query string and Origin in the key"
+  min_ttl     = 0
+  default_ttl = 0
+  max_ttl     = 600
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+    cookies_config {
+      cookie_behavior = "none"
+    }
+    headers_config {
+      header_behavior = "whitelist"
+      headers {
+        items = ["Origin"]
+      }
+    }
+    query_strings_config {
+      query_string_behavior = "all"
+    }
+  }
 }
 
 resource "aws_cloudfront_origin_access_control" "assets" {
@@ -45,7 +94,7 @@ resource "aws_cloudfront_function" "scorm_path" {
 
 resource "aws_cloudfront_distribution" "scorm" {
   enabled         = true
-  comment         = "${var.name_prefix} training packages (/scorm/*)"
+  comment         = "${var.name_prefix} training packages (/scorm/*) and the API (/api/*)"
   price_class     = "PriceClass_200" # includes India
   http_version    = "http2and3"
   is_ipv6_enabled = true
@@ -56,7 +105,35 @@ resource "aws_cloudfront_distribution" "scorm" {
     origin_access_control_id = aws_cloudfront_origin_access_control.assets.id
   }
 
-  # Every path goes through the function: /scorm/... is served, the rest is 404.
+  origin {
+    origin_id   = local.api_origin_id
+    domain_name = replace(aws_apigatewayv2_api.main.api_endpoint, "https://", "")
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+      origin_read_timeout    = 30
+    }
+  }
+
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    target_origin_id         = local.api_origin_id
+    viewer_protocol_policy   = "https-only"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    compress                 = true
+    cache_policy_id          = aws_cloudfront_cache_policy.api.id
+    origin_request_policy_id = local.origin_request_all_viewer_except_host_name
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_path.arn
+    }
+  }
+
+  # Every other path goes through the function: /scorm/... is served, the rest is 404.
   default_cache_behavior {
     target_origin_id           = local.scorm_origin_id
     viewer_protocol_policy     = "redirect-to-https"
@@ -98,6 +175,11 @@ resource "aws_s3_bucket_policy" "assets" {
       Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.scorm.arn } }
     }]
   })
+}
+
+output "api_cdn_base_url" {
+  description = "The API through CloudFront (the app's VITE_API_BASE_URL)"
+  value       = "https://${aws_cloudfront_distribution.scorm.domain_name}/api"
 }
 
 output "scorm_content_domain" {
