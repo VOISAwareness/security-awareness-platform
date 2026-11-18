@@ -68,8 +68,6 @@ export const LmsMainContent = () => {
     setActiveCert,
     launchStandalonePkg,
     setLaunchStandalonePkg,
-    launchHtmlUrl,
-    zipError,
     handleLaunchStandalone,
     handleLaunchPathway,
     filteredPaths,
@@ -304,8 +302,6 @@ export const LmsMainContent = () => {
           setActiveCert={setActiveCert}
           launchStandalonePkg={launchStandalonePkg}
           setLaunchStandalonePkg={setLaunchStandalonePkg}
-          launchHtmlUrl={launchHtmlUrl}
-          zipError={zipError}
           handleLaunchStandalone={handleLaunchStandalone}
           onAddVideo={async (newVideo, file) => {
             try {

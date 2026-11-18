@@ -1,11 +1,10 @@
 import { X } from "lucide-react";
 import { GlassmorphicBackdrop } from "../shared/GlassmorphicBackdrop";
 import { useIsDarkMode } from "./helpers";
+import PackageFrame from "../PackageFrame";
 
 export const PackageViewerModal = ({
   pkg,
-  launchHtmlUrl,
-  zipError,
   onClose,
   isInline = false
 }) => {
@@ -40,27 +39,8 @@ export const PackageViewerModal = ({
       </div>
 
       {/* ── SIMULATION SANDBOX BODY ── */}
-      <div className="flex-1 min-h-0 bg-black relative flex items-center justify-center overflow-hidden">
-        {zipError ? (
-          <div className="p-6 text-center max-w-md">
-            <p className="text-red-400 text-sm font-bold uppercase">Compilation Error</p>
-            <p className="text-xs text-slate-400 mt-2">{zipError}</p>
-          </div>
-        ) : launchHtmlUrl ? (
-          <iframe
-            src={launchHtmlUrl}
-            title={pkg?.PackageName || "Package Preview"}
-            className="w-full h-full border-none"
-            sandbox="allow-scripts allow-same-origin allow-modals"
-          />
-        ) : (
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-              Extracting files and launching the package...
-            </p>
-          </div>
-        )}
+      <div className="flex-1 min-h-0 bg-black relative flex overflow-hidden">
+        <PackageFrame pkg={pkg} />
       </div>
 
       {/* ── DOCKED FOOTER BAR ── */}

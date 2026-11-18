@@ -163,22 +163,10 @@ export const TrainingProvider = ({ children }) => {
   const [activeInteractivePath, setActiveInteractivePath] = useState(null);
 
   const [launchStandalonePkg, setLaunchStandalonePkg] = useState(null);
-  const [launchHtmlUrl, setLaunchHtmlUrl] = useState("");
-  const [zipError, setZipError] = useState("");
-
-  const handleLaunchStandalone = async (pkg) => {
+  // The player (components/PackageFrame.jsx) works out where the package
+  // plays from and opens it; this only says which package is open.
+  const handleLaunchStandalone = (pkg) => {
     setLaunchStandalonePkg(pkg);
-    setLaunchHtmlUrl("");
-    setZipError("");
-    try {
-      const source = pkg.isLocalUrl && pkg.localPath ? pkg.localPath : pkg.fileBlob;
-      if (!source) throw new Error("Could not trace package website files source.");
-      const url = await extractZipHtml(source);
-      setLaunchHtmlUrl(url);
-    } catch (err) {
-      console.error(err);
-      setZipError(err?.message || "Internal error compiling HTML5 package.");
-    }
   };
 
   const handleLaunchPathway = (path) => {
@@ -305,10 +293,6 @@ export const TrainingProvider = ({ children }) => {
     setActiveInteractivePath,
     launchStandalonePkg,
     setLaunchStandalonePkg,
-    launchHtmlUrl,
-    setLaunchHtmlUrl,
-    zipError,
-    setZipError,
     handleLaunchStandalone,
     handleLaunchPathway,
     handleNextSequenceStep,

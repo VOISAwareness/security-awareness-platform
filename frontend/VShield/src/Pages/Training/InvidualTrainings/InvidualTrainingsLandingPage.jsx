@@ -45,8 +45,6 @@ export const InvidualTrainingsLandingPage = ({
   setActiveCert,
   launchStandalonePkg,
   setLaunchStandalonePkg,
-  launchHtmlUrl,
-  zipError,
   handleLaunchStandalone,
   onAddVideo,
   onAddQuiz,
@@ -199,8 +197,6 @@ export const InvidualTrainingsLandingPage = ({
       return (
         <PackageViewerModal
           pkg={launchStandalonePkg}
-          launchHtmlUrl={launchHtmlUrl}
-          zipError={zipError}
           onClose={() => setLaunchStandalonePkg(null)}
           isInline={true}
         />

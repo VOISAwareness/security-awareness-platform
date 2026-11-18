@@ -19,7 +19,7 @@ import { CertificateViewerModal } from "../../components/modals/CertificateViewe
 import CreateNewVideos from "../../InvidualTrainings/IndividualVideos/CreateNewVideos";
 import CreateNewQuiz from "../../InvidualTrainings/IndividualQuiz/CreateNewQuiz";
 import { ZipUploader } from "../../InvidualTrainings/IndividualPackages/CreateNewPackages";
-import { extractZipHtml } from "../../components/utility/zipHelpers";
+import PackageFrame from "../../components/PackageFrame";
 import { TrainingVideoCard } from "../../components/cards/TrainingVideoCard";
 import { TrainingQuizCard } from "../../components/cards/TrainingQuizCard";
 import { TrainingCertificateCard } from "../../components/cards/TrainingCertificateCard";
@@ -86,22 +86,9 @@ export const CreateNewTrainingPath = ({
   const [previewQuiz, setPreviewQuiz] = useState(null);
   const [previewCert, setPreviewCert] = useState(null);
   const [previewPackage, setPreviewPackage] = useState(null);
-  const [packageZipError, setPackageZipError] = useState("");
-  const [packageLaunchHtmlUrl, setPackageLaunchHtmlUrl] = useState("");
 
-  const handleLaunchPreviewPackage = async (pkg) => {
+  const handleLaunchPreviewPackage = (pkg) => {
     setPreviewPackage(pkg);
-    setPackageLaunchHtmlUrl("");
-    setPackageZipError("");
-    try {
-      const source = pkg.isLocalUrl && pkg.localPath ? pkg.localPath : pkg.fileBlob;
-      if (!source) throw new Error("Could not trace package website files source.");
-      const url = await extractZipHtml(source);
-      setPackageLaunchHtmlUrl(url);
-    } catch (e) {
-      console.error(e);
-      setPackageZipError(e?.message || "Internal error compiling HTML5 zip website package.");
-    }
   };
 
   const toggleVideo = (id) => {
@@ -244,27 +231,8 @@ export const CreateNewTrainingPath = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="flex-1 bg-black relative flex items-center justify-center">
-          {packageZipError ? (
-            <div className="p-6 text-center max-w-md">
-              <p className="text-red-400 text-sm font-bold uppercase">Compilation Error</p>
-              <p className="text-xs text-slate-400 mt-2">{packageZipError}</p>
-            </div>
-          ) : packageLaunchHtmlUrl ? (
-            <iframe
-              src={packageLaunchHtmlUrl}
-              title={previewPackage.PackageName}
-              className="w-full h-full border-none"
-              sandbox="allow-scripts allow-same-origin allow-modals"
-            />
-          ) : (
-            <div className="text-center">
-              <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                Setting up preview...
-              </p>
-            </div>
-          )}
+        <div className="flex-1 min-h-0 bg-black relative flex">
+          <PackageFrame pkg={previewPackage} />
         </div>
       </div>
     );
