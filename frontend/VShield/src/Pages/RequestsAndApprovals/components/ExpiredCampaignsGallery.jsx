@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { formatDateTime } from "../../../services/campaignStatus";
+import Toast from "../../../GlobalComponents/Toast";
 import {
   Search,
   ChevronDown,
   ExternalLink,
   RotateCcw,
-  X,
   Calendar,
-  AlertTriangle,
   ArrowRight,
 } from "lucide-react";
 
@@ -191,21 +190,12 @@ const ExpiredCampaignsGallery = ({
 
       {/* Top Right Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 right-6 z-[250] flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white dark:bg-[#161820] text-slate-900 dark:text-white border border-[#E57A44]/40 shadow-2xl max-w-md">
-          <div className="w-7 h-7 rounded-full bg-[#E57A44]/15 text-[#E57A44] flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-          </div>
-          <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 leading-tight flex-1">
-            {toastMessage}
-          </p>
-          <button
-            type="button"
-            onClick={() => setToastMessage("")}
-            className="text-slate-400 hover:text-black dark:hover:text-white p-0.5"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <Toast
+          message={toastMessage}
+          type="warning"
+          title="Warning"
+          onClose={() => setToastMessage("")}
+        />
       )}
 
       {/* 🌟 ROOT L-SHAPE CONTAINER */}

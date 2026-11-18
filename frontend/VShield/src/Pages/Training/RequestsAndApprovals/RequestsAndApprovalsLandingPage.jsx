@@ -83,7 +83,7 @@ const RequestsAndApprovals = ({
     try {
       await savePath(updatedPath);
       setPaths(prev => prev.map(p => p.TrainingPathID === path.TrainingPathID ? updatedPath : p));
-      showToast?.(`"${path.TrainingPathName}" approved and published successfully.`);
+      showToast?.(`"${path.TrainingPathName}" approved and published successfully.`, "success");
     } catch (e) {
       console.error("Failed to approve learning path", e);
     }
@@ -100,7 +100,7 @@ const RequestsAndApprovals = ({
     try {
       await savePath(updatedPath);
       setPaths(prev => prev.map(p => p.TrainingPathID === path.TrainingPathID ? updatedPath : p));
-      showToast?.(`"${path.TrainingPathName}" has been rejected.`);
+      showToast?.(`"${path.TrainingPathName}" has been rejected.`, "info", "Action Recorded");
       return true;
     } catch (e) {
       console.error("Failed to reject learning path", e);

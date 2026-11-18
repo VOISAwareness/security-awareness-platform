@@ -190,6 +190,27 @@ def test_campaign_type_is_checked_on_create_and_edit(mod, env):
     assert call(mod, "PUT /campaigns/{campaignId}", cid, {"campaignTitle": "no type change"})[0] == 200
 
 
+def test_the_ten_email_types_are_accepted_and_named_when_refused(mod, env):
+    assert len(mod.EMAIL_TYPES) == 10 and not set(mod.EMAIL_TYPES) & set(mod.LEGACY_TYPES)
+    for kind in mod.EMAIL_TYPES:
+        status, body = call(mod, "POST /campaigns", body={"campaignTitle": kind, "campaignType": kind})
+        assert status == 201, kind
+        assert body["data"]["campaignType"] == kind
+    status, body = call(mod, "POST /campaigns", body={"campaignType": "Ransomware"})
+    assert status == 400
+    message = body["error"]["message"]
+    assert "QR Code" in message and "Call / Callback" in message
+    assert "Travel scam" not in message  # older names are kept, never offered
+
+
+def test_campaigns_saved_with_an_older_type_stay_editable(mod, env):
+    for kind in mod.LEGACY_TYPES:
+        status, body = call(mod, "POST /campaigns", body={"campaignTitle": kind, "campaignType": kind})
+        assert status == 201, kind
+        cid = body["data"]["campaignId"]
+        assert call(mod, "PUT /campaigns/{campaignId}", cid, {"campaignTitle": "renamed", "campaignType": kind})[0] == 200
+
+
 def test_the_list_returns_every_campaign_across_pages(mod, env, monkeypatch):
     for i in range(130):
         env.campaigns.put_item(Item={"campaignId": f"C{i:03d}", "status": "SENT" if i % 2 else "DRAFT",

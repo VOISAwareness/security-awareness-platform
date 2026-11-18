@@ -210,7 +210,7 @@ function TrainingDashboardInner() {
                 try {
                   await savePath(submittedPath);
                   setPaths(prev => prev.map(item => item.TrainingPathID === pToSubmit.TrainingPathID ? submittedPath : item));
-                  showToast("Learning path pathway submitted successfully to manager approvals queue.");
+                  showToast("Learning path pathway submitted successfully to manager approvals queue.", "success");
                   setCurrentView("requests");
                 } catch (err) {
                   console.error("Failed to submit path for approval", err);

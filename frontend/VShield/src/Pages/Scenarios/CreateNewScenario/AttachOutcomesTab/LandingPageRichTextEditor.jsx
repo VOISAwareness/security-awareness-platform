@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import HtmlCodeEditor from "../../../../GlobalComponents/HtmlCodeEditor";
+import Toast from "../../../../GlobalComponents/Toast";
 
 const FX_PARAMETERS = [
   { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
@@ -86,15 +87,15 @@ const LandingPageRichTextEditor = ({
   const [rawHtmlMode, setRawHtmlMode] = useState(false);
   const [rawHtmlCode, setRawHtmlCode] = useState(value || "");
   const [isExpanded, setIsExpanded] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState(null);
   const [showFxMenu, setShowFxMenu] = useState(false);
   const fxRef = useRef(null);
 
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
+  const showToast = useCallback((message, type = "info", title) => {
+    setToast({ message, type, title });
 
     window.setTimeout(() => {
-      setToastMessage("");
+      setToast(null);
     }, 2500);
   }, []);
 
@@ -403,7 +404,7 @@ const LandingPageRichTextEditor = ({
     ];
 
     if (!allowedImageTypes.includes(file.type)) {
-      showToast("Please select a valid image file.");
+      showToast("Please select a valid image file.", "warning", "Input Required");
       event.target.value = "";
       return;
     }
@@ -411,7 +412,7 @@ const LandingPageRichTextEditor = ({
     const maximumFileSize = 5 * 1024 * 1024;
 
     if (file.size > maximumFileSize) {
-      showToast("Image size must be less than 5 MB.");
+      showToast("Image size must be less than 5 MB.", "warning", "Input Required");
       event.target.value = "";
       return;
     }
@@ -424,7 +425,7 @@ const LandingPageRichTextEditor = ({
       const imageSource = readerEvent.target?.result;
 
       if (typeof imageSource !== "string") {
-        showToast("Unable to read the selected image.");
+        showToast("Unable to read the selected image.", "error");
         return;
       }
 
@@ -472,7 +473,7 @@ const LandingPageRichTextEditor = ({
       };
 
       imageElement.onerror = () => {
-        showToast("The selected image could not be displayed.");
+        showToast("The selected image could not be displayed.", "error");
       };
 
       imageWrapper.appendChild(imageElement);
@@ -499,13 +500,13 @@ const LandingPageRichTextEditor = ({
       internalHtmlRef.current = updatedHtml;
       onChange?.(updatedHtml);
 
-      showToast("Image inserted successfully.");
+      showToast("Image inserted successfully.", "success");
 
       editor.focus();
     };
 
     reader.onerror = () => {
-      showToast("Unable to read the selected image.");
+      showToast("Unable to read the selected image.", "error");
     };
 
     reader.readAsDataURL(file);
@@ -1311,10 +1312,13 @@ const LandingPageRichTextEditor = ({
           document.body,
         )}
 
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-[2147483647] rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-xl">
-          {toastMessage}
-        </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          title={toast.title}
+          onClose={() => setToast(null)}
+        />
       )}
     </>
   );

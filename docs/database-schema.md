@@ -82,7 +82,7 @@ fields).
 | New field | Notes |
 |---|---|
 | `status` gains `CANCELLED` | with `cancelledBy`, `cancelledAt`, `cancellationReason` |
-| `campaignType` | one of the six types; chosen in "Start fresh", copied from the scenario otherwise |
+| `campaignType` | the type of email, one of ten: Click, Data Entry, Attachment, Reply Based, QR Code, Download, Consent / Authorization, Call / Callback, Payment / Transaction, Multi-Step. Chosen in "Start fresh", copied from the scenario otherwise. Campaigns saved earlier keep their older name (Credential theft, Helpdesk impersonation, Reward scam, Travel scam, Custom, …), which `campaigns-api` still accepts so they stay editable |
 | `counts` | `{ sent, delivered, opened, clicked, compromised, reported }`, kept current by the stats function, so lists don't count rows |
 
 ### recipients

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';

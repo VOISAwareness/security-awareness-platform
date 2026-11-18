@@ -2,11 +2,11 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import Toast from '../../GlobalComponents/Toast';
 import {
   Plus,
   ArrowLeft,
   Eye,
-  Check,
   X,
   Bold,
   Italic,
@@ -120,7 +120,7 @@ const LandingPageCatalogue = () => {
   const [searchFilter, setSearchFilter] = useState('Name'); // 'Name' or 'ID'
   const [previewModalItem, setPreviewModalItem] = useState(null);
   const [deleteConfirmationItem, setDeleteConfirmationItem] = useState(null);
-  const [toastMessage, setToastMessage] = useState('');
+  const [toast, setToast] = useState(null);
 
   // Editor States
   const [editorId, setEditorId] = useState(null);
@@ -169,9 +169,9 @@ const LandingPageCatalogue = () => {
     }
   }, [isFullScreenLivePreview, isEditorExpanded]);
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 2500);
+  const showToast = (msg, type = "info", title) => {
+    setToast({ message: msg, type, title });
+    setTimeout(() => setToast(null), 3000);
   };
 
   // Safe Property Extractors
@@ -227,11 +227,11 @@ const LandingPageCatalogue = () => {
       .then(() => {
         setCatalogues((prev) => prev.filter((item) => getItemId(item) !== id));
         setDeleteConfirmationItem(null);
-        showToast(`Deleted ${id}`);
+        showToast(`Deleted ${id}`, "success");
       })
       .catch((e) => {
         console.error(e);
-        showToast('Could not delete landing page. Please try again.');
+        showToast('Could not delete landing page. Please try again.', "error");
       });
   };
 
@@ -300,7 +300,7 @@ const LandingPageCatalogue = () => {
     if (!file) return;
 
     if (!['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'].includes(file.type)) {
-      showToast('Please upload a valid PNG, JPG, or JPEG file');
+      showToast('Please upload a valid PNG, JPG, or JPEG file', "warning");
       return;
     }
 
@@ -313,7 +313,7 @@ const LandingPageCatalogue = () => {
         if (editorCanvasRef.current) {
           activeHtmlRef.current = editorCanvasRef.current.innerHTML;
         }
-        showToast('Image inserted onto canvas');
+        showToast('Image inserted onto canvas', "success");
       }
     };
     reader.readAsDataURL(file);
@@ -338,7 +338,7 @@ const LandingPageCatalogue = () => {
     if (!name) {
       const fallbackPrompt = prompt('Please enter a Landing Page Name:', currentDisplayId ? `Landing Page ${currentDisplayId}` : 'New Landing Page');
       if (!fallbackPrompt || !fallbackPrompt.trim()) {
-        showToast('Please specify a Landing Page Name');
+        showToast('Please specify a Landing Page Name', "warning", "Input Required");
         return;
       }
       name = fallbackPrompt.trim();
@@ -352,7 +352,7 @@ const LandingPageCatalogue = () => {
       : activeHtmlRef.current || '';
 
     if (!htmlContent.trim()) {
-      showToast('Landing Page canvas cannot be empty!');
+      showToast('Landing Page canvas cannot be empty!', "warning", "Input Required");
       return;
     }
 
@@ -379,11 +379,11 @@ const LandingPageCatalogue = () => {
           setCatalogues((prev) =>
             prev.map((item) => (getItemId(item) === editorId ? saved : item))
           );
-          showToast(`Updated '${pageName.trim()}'`);
+          showToast(`Updated '${pageName.trim()}'`, "success");
         })
         .catch((e) => {
           console.error(e);
-          showToast('Could not save landing page. Please try again.');
+          showToast('Could not save landing page. Please try again.', "error");
         });
     } else {
       // The backend assigns the next LP-00N id.
@@ -396,11 +396,11 @@ const LandingPageCatalogue = () => {
         })
         .then((created) => {
           setCatalogues((prev) => [created, ...prev]);
-          showToast(`Created '${created?.LandingPageID || ''}' successfully!`);
+          showToast(`Created '${created?.LandingPageID || ''}' successfully!`, "success");
         })
         .catch((e) => {
           console.error(e);
-          showToast('Could not create landing page. Please try again.');
+          showToast('Could not create landing page. Please try again.', "error");
         });
     }
 
@@ -1198,25 +1198,16 @@ const LandingPageCatalogue = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* ── 5. TOAST NOTIFICATION (PORTALED)                                      */}
+        {/* ── 5. TOAST NOTIFICATION                                                 */}
         {/* ========================================================================= */}
-        {toastMessage &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              style={{
-                position: 'fixed',
-                bottom: '24px',
-                right: '24px',
-                zIndex: 2147483647
-              }}
-              className="px-4 py-2 rounded-xl bg-[#2E7D32] text-white text-xs font-voda font-bold shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200"
-            >
-              <Check className="w-4 h-4 stroke-[3]" />
-              {toastMessage}
-            </div>,
-            document.body
-          )}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            title={toast.title}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     </>
   );
