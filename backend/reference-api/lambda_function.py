@@ -26,6 +26,7 @@ from botocore.exceptions import ClientError
 TABLE_PREFIX = os.environ["TABLE_PREFIX"]
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET")
 INGEST_FUNCTION = os.environ.get("INGEST_FUNCTION")
+EXTRACT_FUNCTION = os.environ.get("EXTRACT_FUNCTION")
 dynamodb = boto3.resource("dynamodb")
 s3_client = boto3.client("s3")
 lambda_client = boto3.client("lambda")
@@ -1297,7 +1298,11 @@ def insights_targets(route, event, context):
 #   (browser PUTs the zip to uploadUrl)
 #   POST   /training/packages  {PackageName, PackageKey, ...}  -> the row
 #   GET    /training/packages  -> rows, each with PackageURL
-#   DELETE /training/packages/{id}  -> the row and its zip
+#   DELETE /training/packages/{id}  -> the row, its zip and its unpacked files
+# Saving a package also starts package-extract (asynchronously), which
+# unpacks the zip once under training-content/<uploadId>/ and records on the
+# row ContentStatus (PENDING -> EXTRACTING -> READY | FAILED), LaunchPath and
+# ScormVersion, so a player can load the course file by file.
 # Field names follow the Training screen's own (PackageName, Size, ...).
 PACKAGE_ROUTES = frozenset(
     {
@@ -1384,6 +1389,27 @@ def package_folder(key):
     return key.rsplit("/", 1)[0] + "/"
 
 
+def content_folder(key):
+    """Where package-extract unpacks a package's zip."""
+    return "training-content/" + key.split("/")[2] + "/"
+
+
+def start_extract(package_id, context):
+    """Ask package-extract to unpack the zip; it runs on its own (the save
+    does not wait). A failure to ask is logged, and the row stays PENDING
+    for seed-data/extract_training_packages.py to pick up."""
+    try:
+        lambda_client.invoke(
+            FunctionName=EXTRACT_FUNCTION,
+            InvocationType="Event",
+            Payload=json.dumps({"packageId": package_id}).encode("utf-8"),
+        )
+        return True
+    except ClientError as e:
+        log(context, "package extract not started", packageId=package_id, code=e.response.get("Error", {}).get("Code"))
+        return False
+
+
 def training_packages(route, event, params, context):
     if not UPLOAD_BUCKET:
         return err(500, "Upload bucket is not configured")
@@ -1439,6 +1465,8 @@ def training_packages(route, event, params, context):
                 "PackageKey": key,
                 "CreatedOn": package_date(datetime.now(UTC)),
             }
+            if EXTRACT_FUNCTION:
+                item["ContentStatus"] = "PENDING"
             # SP-00N, as the screen numbers them; two saves at once may pick
             # the same number, so the write refuses a taken one and tries the next.
             for _ in range(3):
@@ -1452,6 +1480,8 @@ def training_packages(route, event, params, context):
             else:
                 return err(409, "Could not number the package; try again", code="STALE")
             log(context, "training package saved", packageId=item["PackageID"], sizeBytes=size)
+            if EXTRACT_FUNCTION:
+                start_extract(item["PackageID"], context)
             return respond(201, {"data": sign_package(item)})
 
         # DELETE /training/packages/{id}
@@ -1461,6 +1491,7 @@ def training_packages(route, event, params, context):
         tbl.delete_item(Key={"PackageID": params["id"]})
         if is_package_key(item.get("PackageKey")):
             delete_s3_prefix(UPLOAD_BUCKET, package_folder(item["PackageKey"]))
+            delete_s3_prefix(UPLOAD_BUCKET, content_folder(item["PackageKey"]))
         log(context, "training package deleted", packageId=params["id"])
         return respond(204, {"data": None})
     except ClientError as e:

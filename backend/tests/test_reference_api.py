@@ -712,3 +712,50 @@ def test_a_seeded_placeholder_can_still_have_its_description_edited(mod, monkeyp
     assert status == 200 and body["data"]["description"] == "new"
     assert body["data"]["verificationStatus"] == "Not verified"
     assert _senders(mod, "DELETE", "/sender-identities/{id}", sid="em-002")[0] == 204
+
+
+def test_saving_a_package_starts_its_unpacking_and_delete_removes_it(mod, monkeypatch):
+    """With EXTRACT_FUNCTION set, a saved package is PENDING and package-extract
+    is started without waiting; deleting it also removes the unpacked files."""
+    import boto3
+    from moto import mock_aws
+
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.setenv(name, "testing")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    invoked = []
+
+    class FakeLambda:
+        def invoke(self, **kwargs):
+            invoked.append(kwargs)
+            return {"StatusCode": 202}
+
+    with mock_aws():
+        region = "ap-south-1"
+        s3 = boto3.client("s3", region_name=region)
+        s3.create_bucket(Bucket="assets", CreateBucketConfiguration={"LocationConstraint": region})
+        db = boto3.resource("dynamodb", region_name=region)
+        db.create_table(
+            TableName=f"{mod.TABLE_PREFIX}-training-packages",
+            KeySchema=[{"AttributeName": "PackageID", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "PackageID", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        monkeypatch.setattr(mod, "dynamodb", db)
+        monkeypatch.setattr(mod, "s3_client", s3)
+        monkeypatch.setattr(mod, "lambda_client", FakeLambda())
+        monkeypatch.setattr(mod, "UPLOAD_BUCKET", "assets")
+        monkeypatch.setattr(mod, "EXTRACT_FUNCTION", "extract-fn")
+
+        _, up = _packages(mod, "POST", "/training/packages/upload", {"fileName": "c.zip"})
+        key = up["data"]["packageKey"]
+        s3.put_object(Bucket="assets", Key=key, Body=b"PK")
+        status, body = _packages(mod, "POST", body={"PackageName": "C", "PackageKey": key})
+        assert status == 201 and body["data"]["ContentStatus"] == "PENDING"
+        assert invoked == [{"FunctionName": "extract-fn", "InvocationType": "Event", "Payload": b'{"packageId": "SP-001"}'}]
+
+        unpacked = mod.content_folder(key)
+        assert unpacked == "training-content/" + key.split("/")[2] + "/"
+        s3.put_object(Bucket="assets", Key=unpacked + "index.html", Body=b"x")
+        assert _packages(mod, "DELETE", "/training/packages/{id}", pid="SP-001")[0] == 204
+        assert s3.list_objects_v2(Bucket="assets", Prefix=unpacked).get("KeyCount") == 0
