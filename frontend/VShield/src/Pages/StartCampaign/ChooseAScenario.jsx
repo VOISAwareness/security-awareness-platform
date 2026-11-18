@@ -825,7 +825,7 @@ const ChooseAScenario = () => {
                     </div>
                     <div>
                       <strong>Motivator: </strong>
-                      <span>{detailModalItem.motivator || 'Security / Urgency'}</span>
+                      <span>{detailModalItem.motivator || '—'}</span>
                     </div>
                     <div>
                       <strong>Target Audience: </strong>
