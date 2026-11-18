@@ -533,7 +533,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Scenario
@@ -632,7 +632,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Date &amp; Time Settings
@@ -750,7 +750,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Sender Details
@@ -919,7 +919,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-3 py-1.5 flex flex-col justify-center gap-1 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-3 py-1.5 flex flex-col justify-center gap-1 z-10"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Landing Page

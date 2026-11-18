@@ -1424,7 +1424,7 @@ const CampaignEmail = () => {
         {/* 🌟 3. Top-Right Arm of L-Shape Container */}
         <div
          style={{ backgroundColor: lCardBg }}
-         className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+         className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10"
         >
          {/* Sender Email ID Field: Non-typeable Dropdown */}
          <div className="flex flex-col gap-0.5">
@@ -1615,7 +1615,7 @@ const CampaignEmail = () => {
         {/* 🌟 3. Top-Right Arm of L-Shape Container */}
         <div
          style={{ backgroundColor: lCardBg }}
-         className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1 z-50 -ml-2 relative overflow-visible"
+         className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1 z-50 relative overflow-visible"
         >
          {testMode && (
           <div className="flex items-center justify-between">
