@@ -25,7 +25,7 @@ const fullForm = {
   scenarioName: 'Quarterly benefits check',
   description: 'A lure about benefits enrolment.',
   type: 'click',
-  targetAudience: 'remote-hybrid',
+  targetAudience: 'hybrid-employees',
   motivator: 'urgency',
   difficulty: 'high',
   emailId: 'noreply@example.com',
@@ -44,7 +44,7 @@ test('emits exactly the stored fields and nothing else', () => {
 test('maps the wizard slugs to display labels', () => {
   const record = toStoredScenario(fullForm);
   assert.equal(record.campaignType, 'Click');
-  assert.equal(record.targetAudience, 'Remote / Hybrid users');
+  assert.equal(record.targetAudience, 'Hybrid Employees');
   assert.equal(record.motivator, 'Urgency');
   assert.equal(record.difficulty, 'High');
 });
@@ -121,10 +121,22 @@ test('passes through seeded values the wizard never offers', () => {
   assert.equal(back.targetAudience, 'Finance Workers');
 });
 
-test("the seeded campaign types are the builder's own now", () => {
-  const back = toWizardFormData({ campaignType: 'Credential theft' });
-  assert.equal(back.type, 'credential-theft');
-  assert.equal(toStoredScenario({ ...fullForm, type: back.type }).campaignType, 'Credential theft');
+test('the new lists save their labels, and older wording passes through', () => {
+  const record = toStoredScenario({ ...fullForm, type: 'qr-code', targetAudience: 'managers-leaders', motivator: 'security-account-alert' });
+  assert.equal(record.campaignType, 'QR Code');
+  assert.equal(record.targetAudience, 'Managers / Leaders');
+  assert.equal(record.motivator, 'Security / Account Alert');
+  const back = toWizardFormData(record);
+  assert.deepEqual([back.type, back.targetAudience, back.motivator], ['qr-code', 'managers-leaders', 'security-account-alert']);
+  // a scenario saved with an older type keeps it, and saves it back unchanged
+  const old = toWizardFormData({ campaignType: 'Credential theft', motivator: 'Fear, Feedback, Curiosity' });
+  assert.equal(old.type, 'Credential theft');
+  assert.equal(toStoredScenario({ ...fullForm, ...old }).campaignType, 'Credential theft');
+  assert.equal(toStoredScenario({ ...fullForm, ...old }).motivator, 'Fear, Feedback, Curiosity');
+  // a slug an older draft may hold still saves its label, and a typed-in value as typed
+  assert.equal(toStoredScenario({ ...fullForm, type: 'credential-theft', targetAudience: 'office' }).campaignType, 'Credential theft');
+  assert.equal(toStoredScenario({ ...fullForm, targetAudience: 'office' }).targetAudience, 'Office users');
+  assert.equal(toStoredScenario({ ...fullForm, motivator: 'Peer pressure' }).motivator, 'Peer pressure');
 });
 
 test('catalogueCoverName reduces a bundler path to a filename', () => {

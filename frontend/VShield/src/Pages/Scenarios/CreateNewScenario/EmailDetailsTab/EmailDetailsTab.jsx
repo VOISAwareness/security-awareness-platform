@@ -56,7 +56,9 @@ const FormInput = ({ label, value, onChange, placeholder = "Type here" }) => {
         <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
       </label>
 
-      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900">
+      <div className="w-full h-7 px-2.5 mb-2 rounded-xl flex items-center shadow-2xs relative bg-white text-slate-900 dark:bg-[#15161A]
+                    dark:border-white/10
+                    dark:text-white">
         <input
           type="text"
           value={value || ""}
@@ -348,6 +350,9 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                     relative
                     bg-white
                     text-slate-900
+                    dark:bg-[#15161A]
+                    dark:border-white/10
+                    dark:text-white
                   "
                 >
                   <select
@@ -362,6 +367,7 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                       cursor-pointer
                       pr-4
                       appearance-none
+                      
                     "
                   >
                     <option value="">Select Email</option>
@@ -373,6 +379,8 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                         className="
                             bg-white
                             text-slate-900
+                            dark:bg-[#15161A]
+                            dark:text-white
                           "
                       >
                         {email}
@@ -446,7 +454,7 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                 <div
                   className="
                     w-full
-                    h-12
+                    h-16
                     px-2.5
                     mb-2
                     rounded-xl
@@ -456,6 +464,9 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                     relative
                     bg-white
                     text-slate-900
+                    dark:bg-[#15161A]
+                    dark:border-white/10
+                    dark:text-white
                   "
                 >
                   <input
@@ -633,7 +644,9 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
             rounded-b-xl
             p-4
             sm:p-5
-            z-10
+            z-0
+            overflow-y-auto
+            [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md
           "
         >
           <div

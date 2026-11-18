@@ -162,6 +162,7 @@ function App() {
             {/* Campaign Management Routes */}
             <Route path="/create-scenario" element={<Scenarios/>} />
             <Route path="/new-scenario" element={<NewScenario/>} />
+            <Route path="/new-scenario/:step" element={<NewScenario/>} />
 
             {/* Training & Learning Routes */}
             <Route path="/training" element={<Training />} />
