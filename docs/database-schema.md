@@ -83,6 +83,8 @@ fields).
 |---|---|
 | `status` gains `CANCELLED` | with `cancelledBy`, `cancelledAt`, `cancellationReason` |
 | `campaignType` | the type of email, one of ten: Click, Data Entry, Attachment, Reply Based, QR Code, Download, Consent / Authorization, Call / Callback, Payment / Transaction, Multi-Step. Chosen in "Start fresh", copied from the scenario otherwise. Campaigns saved earlier keep their older name (Credential theft, Helpdesk impersonation, Reward scam, Travel scam, Custom, …), which `campaigns-api` still accepts so they stay editable |
+| `motivator`, `targetAudience` | from the scenario builder's lists (`frontend/VShield/src/services/scenarioOptions.js`), or a value typed in with "+". Start fresh asks for both |
+| `legacyCampaignType`, `legacyMotivator`, `legacyTargetAudience` | the value a row had before `backend/seed-data/migrate_scenario_options.py` moved it to the new lists (scenarios carry them too) |
 | `counts` | `{ sent, delivered, opened, clicked, compromised, reported }`, kept current by the stats function, so lists don't count rows |
 
 ### recipients

@@ -75,8 +75,7 @@ def test_reports_match_the_recipient_rows(data, company):
         for key in ("delivered", "clicked", "reported", "compromised"):
             assert sum(d[key] for d in r["departments"]) == r[key]
         assert r["trained"] <= r["clicked"]
-        assert x["campaign"]["type"] in {"Data Entry", "Click", "Credential theft", "Helpdesk impersonation",
-                                         "Reward scam", "Travel scam"}
+        assert x["campaign"]["type"] in {"Data Entry", "Click"}  # the seed's lures, as the new types
         if r["reported"]:
             t = r["timing"]
             assert 0 <= t["firstReport"] <= t["medianReport"]

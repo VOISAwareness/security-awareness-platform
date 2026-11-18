@@ -84,8 +84,8 @@ LAST = ("Ahmed", "Bianchi", "Costa", "Das", "Fischer", "Garcia", "Hassan", "Hoxh
         "Rao", "Rossi", "Saleh", "Schmidt", "Shah", "Silva", "Taylor", "Verma", "Weber",
         "Wright", "Youssef", "Zaman")
 
-# Campaign type -> (scenario it uses, how tempting, chance a click goes on to
-# give details, training path it leads to). Types and ids as the app has them.
+# The six lures the fake company is sent -> (scenario it uses, how tempting,
+# chance a click goes on to give details, training path it leads to).
 TYPES = {
     "Credential theft": ("SC-001", 1.15, 0.42, "TP-00004"),
     "Data Entry": ("SC-003", 1.00, 0.38, "TP-00003"),
@@ -93,6 +93,17 @@ TYPES = {
     "Helpdesk impersonation": ("SC-044", 1.10, 0.34, "TP-00001"),
     "Reward scam": ("", 1.20, 0.22, "TP-00005"),
     "Travel scam": ("", 0.85, 0.20, "TP-00002"),
+}
+# Each lure as the app's lists name it: (type of email, motivator), as
+# migrate_scenario_options.py moves the older names (a test checks the two
+# agree).
+LURE_AS = {
+    "Credential theft": ("Data Entry", "Security / Account Alert"),
+    "Data Entry": ("Data Entry", "Urgency"),
+    "Click": ("Click", "Curiosity"),
+    "Helpdesk impersonation": ("Click", "Authority"),
+    "Reward scam": ("Click", "Reward"),
+    "Travel scam": ("Click", "Opportunity"),
 }
 # The videos each path holds (as in the training-paths table), all watched
 # before the quiz.
@@ -277,8 +288,9 @@ def build(today, people_count=800, seed=2026):
         start = dt.datetime.combine(today - dt.timedelta(days=age), dt.time(rng.choice((7, 8, 9, 10)), 30))
         if start >= now:
             continue
-        ctype = type_names[k % len(type_names)]
-        scenario, tempting, gives, path = TYPES[ctype]
+        lure = type_names[k % len(type_names)]
+        scenario, tempting, gives, path = TYPES[lure]
+        ctype, motivator = LURE_AS[lure]
         cid = f"CAMP-S{k + 1:03d}"
         title = f"{TITLES[k % len(TITLES)]} ({start.strftime('%b %Y')})"
         if rng.random() < 0.35:
@@ -361,8 +373,8 @@ def build(today, people_count=800, seed=2026):
         creator = rng.choice(creators)
         campaigns.append({
             "campaignId": cid, "status": "SENT", "campaignTitle": title,
-            "campaignDescription": f"{ctype} simulation for {len(audience)} people.",
-            "campaignType": ctype, "scenarioId": scenario, "trainingId": path,
+            "campaignDescription": f"{lure} simulation for {len(audience)} people.",
+            "campaignType": ctype, "motivator": motivator, "scenarioId": scenario, "trainingId": path,
             "startTime": iso(start), "endTime": iso(end), "startAt": iso(start), "endAt": iso(end), "timeZone": "UTC",
             "autoEndPostSending": True, "isTestCampaign": False,
             "senderEmailId": f"no-reply@{EMAIL_DOMAIN}", "senderName": "IT Service Desk",
@@ -374,13 +386,14 @@ def build(today, people_count=800, seed=2026):
 
     # --- a few campaigns still in the workflow (no recipient list: never sent) --
     for n, status in enumerate(("DRAFT", "DRAFT", "PENDING_APPROVAL", "PENDING_APPROVAL", "REJECTED")):
-        ctype = type_names[n % len(type_names)]
+        lure = type_names[n % len(type_names)]
+        ctype, motivator = LURE_AS[lure]
         created = now - dt.timedelta(days=n + 1)
         creator = rng.choice(creators)
         row = {
             "campaignId": f"CAMP-W{n + 1:03d}", "status": status, "campaignTitle": f"{TITLES[-1 - n]} (planned)",
-            "campaignDescription": f"{ctype} simulation, not sent.", "campaignType": ctype,
-            "scenarioId": TYPES[ctype][0], "trainingId": TYPES[ctype][3], "isTestCampaign": False,
+            "campaignDescription": f"{lure} simulation, not sent.", "campaignType": ctype, "motivator": motivator,
+            "scenarioId": TYPES[lure][0], "trainingId": TYPES[lure][3], "isTestCampaign": False,
             "senderEmailId": f"no-reply@{EMAIL_DOMAIN}", "senderName": "IT Service Desk",
             "emailSubject": TITLES[-1 - n], "emailBody": "<p>Seeded campaign.</p>",
             "createdBy": creator, "createdAt": iso(created), "updatedAt": iso(created), "seed": True,
