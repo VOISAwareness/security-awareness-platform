@@ -408,7 +408,7 @@ const DetailsAndSettings = () => {
                 {/* 🌟 3. Top-Right Arm of L-Shape Container (#F1F5F7) */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2.5 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2.5 flex flex-col justify-center gap-1.5 z-10"
                 >
                   <label className="text-[12.5px] py-2.5 mt-2 font-bold text-slate-900 dark:text-white leading-none">
                     Campaign Title <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
