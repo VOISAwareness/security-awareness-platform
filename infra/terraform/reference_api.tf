@@ -65,9 +65,10 @@ resource "aws_lambda_function" "reference_api" {
 
   environment {
     variables = {
-      TABLE_PREFIX    = var.name_prefix
-      UPLOAD_BUCKET   = aws_s3_bucket.assets.bucket
-      INGEST_FUNCTION = aws_lambda_function.recipient_ingest.function_name
+      TABLE_PREFIX     = var.name_prefix
+      UPLOAD_BUCKET    = aws_s3_bucket.assets.bucket
+      INGEST_FUNCTION  = aws_lambda_function.recipient_ingest.function_name
+      EXTRACT_FUNCTION = aws_lambda_function.package_extract.function_name
     }
   }
 }
@@ -115,6 +116,7 @@ resource "aws_iam_role_policy" "reference_api_s3" {
               "uploads/scenario-covers/*",
               "uploads/training-packages/*",
               "uploads/training-media/*",
+              "training-content/*",
             ]
           }
         }
@@ -122,7 +124,13 @@ resource "aws_iam_role_policy" "reference_api_s3" {
       {
         Effect   = "Allow"
         Action   = ["lambda:InvokeFunction"]
-        Resource = aws_lambda_function.recipient_ingest.arn
+        Resource = [aws_lambda_function.recipient_ingest.arn, aws_lambda_function.package_extract.arn]
+      },
+      {
+        # Deleting a package also removes the files package-extract unpacked.
+        Effect   = "Allow"
+        Action   = ["s3:DeleteObject"]
+        Resource = "${aws_s3_bucket.assets.arn}/training-content/*"
       },
     ]
   })
