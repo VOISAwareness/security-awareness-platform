@@ -31,7 +31,6 @@ import {
   canOpenForEdit,
   conflictMessage,
   editContext,
-  editNote,
   existingVersionId,
   idLockHint,
   nextScenarioId,
@@ -45,7 +44,10 @@ import DraftDialog from "../../../GlobalComponents/DraftDialog";
 import SaveDraftButton from "../../../GlobalComponents/SaveDraftButton";
 import PageLoading from "../../../GlobalComponents/PageLoading";
 import initialLandingCatalogues from "../../LandingPageCatalogue/LandingPageCatalogues.json";
-import { trainingSnapshot, useTrainingCatalog } from "../../../services/trainingCatalog";
+import {
+  trainingSnapshot,
+  useTrainingCatalog,
+} from "../../../services/trainingCatalog";
 import {
   DEFAULT_EMAIL_BODY,
   SCENARIO_DRAFT_DEFAULTS,
@@ -53,47 +55,39 @@ import {
 import AttachOutcomesTab from "./AttachOutcomesTab/AttachOutcomesTab";
 import EmailDetailsTab from "./EmailDetailsTab/EmailDetailsTab";
 import { createPortal } from "react-dom";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
-import {
-  Check,
-  X,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-} from "lucide-react";
+import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import {SCENARIO_STEPS} from './ScenarioConstants';
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
 // ============================================================
-const VarScenarioScale = 0.975;
+const VarScenarioScale = 0.94;
 
-const VarOverallScenarioRoundednessScale = 0.75;
+const VarOverallScenarioRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
 
   .font-voda-exb {
-    font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Vodafone ExB', 'Montserrat', sans-serif;
     font-weight: 900;
   }
-
-  .rounded-2xl {
-    border-radius: ${Math.round(16 * VarOverallScenarioRoundednessScale)}px !important;
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
   }
-
-  .rounded-xl {
-    border-radius: ${Math.round(12 * VarOverallScenarioRoundednessScale)}px !important;
-  }
-
-  .rounded-lg {
-    border-radius: ${Math.round(8 * VarOverallScenarioRoundednessScale)}px !important;
-  }
-
-  .rounded-md {
-    border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important;
-  }
+  .rounded-3xl { border-radius: ${Math.round(28 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-2xl { border-radius: ${Math.round(20 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-xl  { border-radius: ${Math.round(14 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-lg  { border-radius: ${Math.round(10 * VarOverallScenarioRoundednessScale)}px !important; }
+  .rounded-md  { border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important; }
 `;
+
+const stepIndexFromPath = (path) => {
+  const found = SCENARIO_STEPS.findIndex((step) => step.path === path);
+  return found >= 0 ? found : null;
+};
 
 // ============================================================
 // TAB HEADER (Docked Stepper Strip style — matches ChooseAScenario.jsx)
@@ -102,12 +96,11 @@ const VODAFONE_FONT_STYLE = `
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
 const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
-  const steps = [
-    { id: 0, titleLine1: "Scenario", titleLine2: "Details" },
-    { id: 1, titleLine1: "Email", titleLine2: "Details" },
-    { id: 2, titleLine1: "Attach", titleLine2: "Outcomes" },
-    { id: 3, titleLine1: "Review &", titleLine2: editing ? "Save" : "Publish" },
-  ];
+  const steps = SCENARIO_STEPS.map((step) =>
+    step.id === 3
+      ? { ...step, titleLine2: editing ? "Save" : "Publish" }
+      : step,
+  );
 
   return (
     <div
@@ -161,7 +154,7 @@ const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
                     cursor-not-allowed
                     ${
                       isCompleted
-                        ? "bg-[#06080D] text-[#8ED973] dark:text-[#74D054]"
+                        ? "dark:bg-white bg-black text-[#8ED973] dark:text-[#74D054]"
                         : ""
                     }
                   `
@@ -185,7 +178,7 @@ const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
                   isCurrent
                     ? "bg-white dark:bg-black text-black dark:text-white"
                     : isCompleted
-                      ? "bg-[#22c55e] text-white"
+                      ? "bg-[#8ED973] text-white"
                       : "bg-slate-900 text-white dark:bg-white dark:text-black"
                 }
               `}
@@ -197,7 +190,7 @@ const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
               )}
             </div>
 
-            <div className="flex flex-col text-left leading-tight text-[11px] font-voda font-bold tracking-tight">
+            <div className="flex flex-col text-left leading-tight text-[11px] font-bold tracking-tight">
               <span>{step.titleLine1}</span>
               <span>{step.titleLine2}</span>
             </div>
@@ -293,7 +286,9 @@ const ScenarioEditor = ({ opening }) => {
   // one; otherwise a new one, with the scenario in progress offered back first
   // unless the author just chose "Start new" or was already asked about it.
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const routeParams = useParams();
   const [viewer] = useState(() => currentActor());
   const [draftOpening] = useState(opening);
   const [openedDraft] = useState(() =>
@@ -328,13 +323,14 @@ const ScenarioEditor = ({ opening }) => {
     location.state?.from === "drafts" ? "drafts" : "all",
   );
 
-  const [activeTab, setActiveTab] = useState(openedDraft?.activeTab ?? 0);
+  const [activeTab, setActiveTab] = useState(
+    () => stepIndexFromPath(routeParams.step) ?? (openedDraft?.activeTab ?? 0),
+  );
   const [errorMsg, setErrorMsg] = useState("");
   // Kept separate from errorMsg on purpose. A validation hint is transient and
   // self-dismisses; a failed save means nothing was written, so it has to stay
   // on screen until the author dismisses it.
   const [saveError, setSaveError] = useState("");
-  const navigate = useNavigate();
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
   // Saved, but the new cover of a copy / revision could not be added after it.
@@ -561,20 +557,35 @@ const ScenarioEditor = ({ opening }) => {
   const editingDraftId = scenarioDraft.offer ? "" : scenarioDraft.draftId;
   const editingScenarioId = edit?.scenarioId || editRequest?.scenarioId || "";
   useEffect(() => {
-    if (!editingDraftId) return;
-    if (
-      searchParams.get("draft") === editingDraftId &&
-      (searchParams.get("edit") || "") === editingScenarioId
-    ) {
+    const stepPath = SCENARIO_STEPS[activeTab]?.path || SCENARIO_STEPS[0].path;
+    const nextPathname = `/new-scenario/${stepPath}`;
+
+    const query = {};
+    if (editingScenarioId) query.edit = editingScenarioId;
+    if (editingDraftId) query.draft = editingDraftId;
+    const nextSearch = new URLSearchParams(query).toString();
+
+    const currentSearch = location.search.replace(/^\?/, "");
+    if (location.pathname === nextPathname && currentSearch === nextSearch) {
       return;
     }
-    setSearchParams(
-      editingScenarioId
-        ? { edit: editingScenarioId, draft: editingDraftId }
-        : { draft: editingDraftId },
+
+    navigate(
+      {
+        pathname: nextPathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
       { replace: true, state: null },
     );
-  }, [editingDraftId, editingScenarioId, searchParams, setSearchParams]);
+  }, [
+    activeTab,
+    editingDraftId,
+    editingScenarioId,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
+    
 
   const handleContinueDraft = () => {
     const restored = scenarioDraft.resume();
@@ -1263,76 +1274,21 @@ const ScenarioEditor = ({ opening }) => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="
-          w-full
-          max-w-[1780px]
-          mx-auto
-          p-3
-          sm:p-3
-          -mt-3
-          select-none
-          font-sans
-          flex
-          flex-col
-          gap-3
-        "
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
       >
         {/* ====================================================
             PAGE HEADER
         ==================================================== */}
         <div
-          className={`
-            w-full
-            h-[38px]
-            px-5
-            rounded-xl
-            border
-            flex
-            items-center
-            justify-between
-            transition-colors
-            duration-300
-            shadow-sm
-
-            ${
-              isDark
-                ? "bg-white text-[#0B1121] border-slate-200"
-                : "bg-[#06080D] text-white border-black/10"
-            }
-          `}
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+            isDark
+              ? "bg-white text-black border-white/10"
+              : "bg-[#000000] text-white border-black/10"
+          }`}
         >
           <h1 className="text-[13.5px] font-bold tracking-tight uppercase whitespace-nowrap">
             {edit || editRequest ? "EDIT SCENARIO" : "CREATE NEW SCENARIO"}
           </h1>
-          <div className="flex items-center justify-end gap-2 min-w-0 ml-4">
-            {/* What Save will do with this edit (a copy, a pending revision...),
-                on the right in its own colour so it is seen. */}
-            {edit && (
-              <span
-                role="note"
-                title={`${edit.name ? `${edit.name}: ` : ""}${editNote(edit)}`}
-                className="inline-flex items-center gap-1.5 min-w-0 max-w-[620px] px-3 py-1 rounded-full bg-[#FFE19C] text-[#3D2A0A] text-[10.5px] font-semibold normal-case shadow-2xs"
-              >
-                <Info className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
-                <span className="truncate">
-                  {edit.name && (
-                    <strong className="font-bold font-voda">{edit.name}</strong>
-                  )}
-                  {edit.name ? " · " : ""}
-                  {editNote(edit)}
-                </span>
-              </span>
-            )}
-            {scenarioDraft.saveFailed && (
-              <span
-                role="status"
-                className="text-[10px] font-bold normal-case px-2.5 py-1 rounded-full bg-amber-100 text-amber-900"
-              >
-                {scenarioDraft.saveFailedMessage ||
-                  "This browser's storage is full, so this draft isn't being saved. Delete old ones under Scenarios → Drafts."}
-              </span>
-            )}
-          </div>
         </div>
 
         {/* This work was kept as a draft of its own: someone else's save of the

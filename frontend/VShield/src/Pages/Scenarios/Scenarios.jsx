@@ -24,6 +24,7 @@ import {
 } from "../../services/scenarioOwnership";
 import { DEMO_USER } from "../../appConfig";
 import { TYPE_NAMES } from "../../services/campaignTypes";
+import { MOTIVATORS, TARGET_AUDIENCES, namesOf } from "../../services/scenarioOptions";
 import DraftDialog from "../../GlobalComponents/DraftDialog";
 import { setActiveScenarioDraftId } from "../../services/scenarioDraftList";
 import {
@@ -128,7 +129,7 @@ const OWNERSHIP_DOT = {
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarMySpaceScale = 0.975;
+const VarMySpaceScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -153,15 +154,11 @@ const VODAFONE_FONT_STYLE = `
 // The app's one list of campaign types (services/campaignTypes.js).
 const campaignTypes = TYPE_NAMES;
 
-const emotions = [
-  "Urgency",
-  "Fear",
-  "Inconvenience",
-  "Authority",
-  "Routine authority",
-];
+// The motivators and target audiences, from the same lists the builder
+// offers (services/scenarioOptions.js), so a filter finds what was saved.
+const emotions = namesOf(MOTIVATORS);
 
-const targetAudiences = ["All users", "Remote", "Employees", "Finance"];
+const targetAudiences = namesOf(TARGET_AUDIENCES);
 
 // =====================================================
 // FILTER ROW — dot + label + count, expands on click to
@@ -496,7 +493,7 @@ const ScenarioFilters = ({
         />
 
         <FilterRow
-          title="Emotion"
+          title="Motivator"
           options={emotions}
           selected={selectedEmotions}
           onChange={(value) =>
@@ -532,11 +529,9 @@ const ScenarioFilters = ({
 const Scenarios = () => {
   const [search, setSearch] = useState("");
 
-  const [selectedCampaignTypes, setSelectedCampaignTypes] = useState([
-    "Data Entry",
-  ]);
-  const [selectedEmotions, setSelectedEmotions] = useState(["Urgency"]);
-  const [selectedAudiences, setSelectedAudiences] = useState(["All users"]);
+  const [selectedCampaignTypes, setSelectedCampaignTypes] = useState([]);
+  const [selectedEmotions, setSelectedEmotions] = useState([]);
+  const [selectedAudiences, setSelectedAudiences] = useState([]);
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
   const navigate = useNavigate();
@@ -788,25 +783,52 @@ const Scenarios = () => {
   const editingIds = useMemo(() => editedScenarioIds(drafts), [drafts]);
 
   const filteredScenarios = useMemo(() => {
-    const listed = scenariosList.filter(
-      (scenario) => !editingIds.has(String(scenario.scenarioId)),
-    );
-    if (!search.trim()) return listed;
+  let listed = scenariosList.filter(
+    (scenario) => !editingIds.has(String(scenario.scenarioId)),
+  );
 
-    const searchText = search.toLowerCase();
-
-    return listed.filter(
-      (scenario) =>
-        scenario.title?.toLowerCase().includes(searchText) ||
-        scenario.id?.toLowerCase().includes(searchText) ||
-        scenario.type?.toLowerCase().includes(searchText) ||
-        scenario.description?.toLowerCase().includes(searchText) ||
-        scenario.campaignType?.toLowerCase().includes(searchText) ||
-        scenario.intensityColor?.toLowerCase().includes(searchText) ||
-        scenario.CreatedOn?.toLowerCase().includes(searchText) ||
-        scenario.CoverImageID?.toLowerCase().includes(searchText),
+  // Empty selection = no filter applied for that row (show everything)
+  if (selectedCampaignTypes.length > 0) {
+    listed = listed.filter((scenario) =>
+      selectedCampaignTypes.includes(scenario.campaignType),
     );
-  }, [search, scenariosList, editingIds]);
+  }
+
+  if (selectedEmotions.length > 0) {
+    listed = listed.filter((scenario) =>
+      selectedEmotions.includes(scenario.motivator),
+    );
+  }
+
+  if (selectedAudiences.length > 0) {
+    listed = listed.filter((scenario) =>
+      selectedAudiences.includes(scenario.targetAudience),
+    );
+  }
+
+  if (!search.trim()) return listed;
+
+  const searchText = search.toLowerCase();
+
+  return listed.filter(
+    (scenario) =>
+      scenario.title?.toLowerCase().includes(searchText) ||
+      scenario.id?.toLowerCase().includes(searchText) ||
+      scenario.type?.toLowerCase().includes(searchText) ||
+      scenario.description?.toLowerCase().includes(searchText) ||
+      scenario.campaignType?.toLowerCase().includes(searchText) ||
+      scenario.intensityColor?.toLowerCase().includes(searchText) ||
+      scenario.CreatedOn?.toLowerCase().includes(searchText) ||
+      scenario.CoverImageID?.toLowerCase().includes(searchText),
+  );
+}, [
+  search,
+  scenariosList,
+  editingIds,
+  selectedCampaignTypes,
+  selectedEmotions,
+  selectedAudiences,
+]);
 
   // ---------------------------------------------------
   // Card actions, per who owns the scenario (scenarioOwnership.js):
@@ -893,7 +915,7 @@ const Scenarios = () => {
         {/* PAGE HEADER */}
         {/* ================================================= */}
         <div
-          className={`w-full h-[38px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
+          className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
               ? "bg-white text-black border-white/10"
               : "bg-[#000000] text-white border-black/10"
@@ -1121,6 +1143,7 @@ const Scenarios = () => {
 
                       return (
                         <div
+                          onClick={() => handleEdit(scenario)}
                           key={scenario._key}
                           data-scenario-id={scenario.scenarioId}
                           data-ownership={actions.ownership}
@@ -1151,6 +1174,7 @@ const Scenarios = () => {
       hover:shadow-md
       hover:-translate-y-0.5
       p-4
+      cursor-pointer
     "
                         >
                           {/* ================================================= */}
@@ -1451,7 +1475,7 @@ const Scenarios = () => {
                         <div>
                           <strong>Motivator: </strong>
                           <span>
-                            {detailModalItem.motivator || "Security / Urgency"}
+                            {detailModalItem.motivator || "—"}
                           </span>
                         </div>
                         <div>
