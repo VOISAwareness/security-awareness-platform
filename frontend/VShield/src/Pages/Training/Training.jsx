@@ -53,8 +53,6 @@ function TrainingDashboardInner() {
     setActiveInteractivePath,
     launchStandalonePkg,
     setLaunchStandalonePkg,
-    launchHtmlUrl,
-    zipError,
     packages
   } = useTraining();
 
@@ -181,8 +179,6 @@ function TrainingDashboardInner() {
           ) : (launchStandalonePkg && currentView !== "individual") ? (
             <PackageViewerModal
               pkg={launchStandalonePkg}
-              launchHtmlUrl={launchHtmlUrl}
-              zipError={zipError}
               onClose={() => setLaunchStandalonePkg(null)}
               isInline={true}
             />
