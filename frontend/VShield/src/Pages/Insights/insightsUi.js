@@ -2,7 +2,6 @@
 // number formats, the health colours, an icon for each kind of lure, and how
 // things move. Plain module (no JSX), so the page, its charts and its tabs
 // share it without breaking fast refresh.
-import { FormInput, Gift, Headset, KeyRound, Mail, MousePointerClick, Plane } from 'lucide-react';
 
 import { typeShort } from '../../services/campaignTypes';
 
@@ -77,11 +76,9 @@ export const glow = (color, isDark, a = 0.3) => {
   return `0 0 20px rgba(${r},${g},${b},${a})`;
 };
 
-// An icon for each campaign type (services/campaignTypes.js); a plain
-// envelope for any other ("Custom", or an older scenario's type).
-const TYPE_ICON = { 'Data Entry': FormInput, Click: MousePointerClick, 'Credential theft': KeyRound, 'Helpdesk impersonation': Headset, 'Reward scam': Gift, 'Travel scam': Plane };
-export const lureIcon = (type) => TYPE_ICON[type] || Mail;
-// "Credential theft" -> "Credentials", for tight labels
+// An icon for each type of email (lureIcons.js)
+export { lureIcon } from './lureIcons';
+// "Consent / Authorization" -> "Consent", for tight labels
 export const lureShort = typeShort;
 
 // How far back the risk score is drawn: a year or two.
