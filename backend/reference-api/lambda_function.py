@@ -1299,6 +1299,7 @@ def insights_targets(route, event, context):
 #   POST   /training/packages  {PackageName, PackageKey, ...}  -> the row
 #   GET    /training/packages  -> rows, each with PackageURL
 #   DELETE /training/packages/{id}  -> the row, its zip and its unpacked files
+#   POST   /training/packages/{id}/extract -> unpack it again (after FAILED)
 # Saving a package also starts package-extract (asynchronously), which
 # unpacks the zip once under training-content/<uploadId>/ and records on the
 # row ContentStatus (PENDING -> EXTRACTING -> READY | FAILED), LaunchPath and
@@ -1310,6 +1311,7 @@ PACKAGE_ROUTES = frozenset(
         "POST /training/packages/upload",
         "POST /training/packages",
         "DELETE /training/packages/{id}",
+        "POST /training/packages/{id}/extract",
     }
 )
 PACKAGE_PREFIX = "uploads/training-packages/"
@@ -1506,6 +1508,30 @@ def training_packages(route, event, params, context):
             if EXTRACT_FUNCTION:
                 start_extract(item["PackageID"], context)
             return respond(201, {"data": sign_package(item)})
+
+        if route == "POST /training/packages/{id}/extract":
+            if not EXTRACT_FUNCTION:
+                return err(500, "Unpacking is not configured")
+            item = tbl.get_item(Key={"PackageID": params["id"]}).get("Item")
+            if not item or not is_package_key(item.get("PackageKey")):
+                return err(404, "No package with that id")
+            # one run at a time: a package being unpacked is left to finish
+            try:
+                item = tbl.update_item(
+                    Key={"PackageID": params["id"]},
+                    UpdateExpression="SET ContentStatus = :p REMOVE ContentError",
+                    ConditionExpression="attribute_exists(PackageID) AND "
+                    "(attribute_not_exists(ContentStatus) OR ContentStatus <> :x)",
+                    ExpressionAttributeValues={":p": "PENDING", ":x": "EXTRACTING"},
+                    ReturnValues="ALL_NEW",
+                )["Attributes"]
+            except ClientError as e:
+                if not conditional_failed(e):
+                    raise
+                return err(409, "The package is being unpacked right now", code="BUSY")
+            start_extract(item["PackageID"], context)
+            log(context, "training package extract restarted", packageId=item["PackageID"])
+            return ok(sign_package(item))
 
         # DELETE /training/packages/{id}
         item = tbl.get_item(Key={"PackageID": params["id"]}).get("Item")

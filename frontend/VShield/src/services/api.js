@@ -259,6 +259,8 @@ export const api = {
       });
     },
     remove: (id) => request(`/training/packages/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    // Unpack it again on the server (after it failed): the row, PENDING.
+    extract: (id) => request(`/training/packages/${encodeURIComponent(id)}/extract`, { method: 'POST' }),
   },
   // My Training: the viewer's assignments, taking a path, a watched video and
   // a quiz (scored by the server). `viewer` is client-asserted, as elsewhere.

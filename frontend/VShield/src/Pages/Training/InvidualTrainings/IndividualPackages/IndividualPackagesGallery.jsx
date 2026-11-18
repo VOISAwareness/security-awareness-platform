@@ -1,6 +1,55 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, RotateCcw, Trash2 } from "lucide-react";
 import TrainingGalleryHeader from "../../components/shared/TrainingGalleryHeader";
+import { useTraining } from "../../TrainingContext";
+import { packageState } from "@/services/trainingPackages";
+
+const STATE_TONE = {
+  good: "text-emerald-700 dark:text-emerald-400",
+  busy: "text-amber-700 dark:text-amber-300",
+  bad: "text-rose-600 dark:text-rose-400",
+  muted: "text-slate-500 dark:text-slate-400",
+};
+
+/** Where a package stands on the server, and a retry when unpacking failed. */
+const PackageStatus = ({ pkg }) => {
+  const { retryPackageUnpack, showToast } = useTraining();
+  const [retrying, setRetrying] = useState(false);
+  const state = packageState(pkg);
+  const retry = async (e) => {
+    e.stopPropagation();
+    setRetrying(true);
+    try {
+      await retryPackageUnpack(pkg.PackageID);
+      showToast?.(`Unpacking ${pkg.PackageName} again`);
+    } catch (err) {
+      console.error(err);
+      showToast?.(`Couldn't start unpacking: ${err?.message || "error"}`, "error");
+    } finally {
+      setRetrying(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-0.5 min-h-[18px]" data-testid="package-state" title={state.detail || undefined}>
+      <div className="flex items-center gap-2">
+        {state.busy && <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />}
+        <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${STATE_TONE[state.tone]}`}>{state.label}</span>
+        {state.canRetry && (
+          <button
+            type="button"
+            onClick={retry}
+            disabled={retrying}
+            className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:underline disabled:opacity-50 cursor-pointer"
+          >
+            <RotateCcw className="w-3 h-3" />
+            {state.tone === "bad" ? "Try again" : "Unpack now"}
+          </button>
+        )}
+      </div>
+      {state.detail && <span className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">{state.detail}</span>}
+    </div>
+  );
+};
 
 export const IndividualPackagesGallery = ({
   packages,
@@ -94,6 +143,7 @@ export const IndividualPackagesGallery = ({
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                   {pkg.Description}
                 </p>
+                <PackageStatus pkg={pkg} />
               </div>
 
               <div className="absolute right-4 top-4 w-12 h-12 opacity-10 pointer-events-none select-none text-slate-400 dark:text-white">

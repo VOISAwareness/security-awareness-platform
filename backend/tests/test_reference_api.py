@@ -754,6 +754,19 @@ def test_saving_a_package_starts_its_unpacking_and_delete_removes_it(mod, monkey
         assert status == 201 and body["data"]["ContentStatus"] == "PENDING"
         assert invoked == [{"FunctionName": "extract-fn", "InvocationType": "Event", "Payload": b'{"packageId": "SP-001"}'}]
 
+        # unpack again: FAILED -> PENDING and started; not while one is running
+        db.Table(f"{mod.TABLE_PREFIX}-training-packages").update_item(
+            Key={"PackageID": "SP-001"}, UpdateExpression="SET ContentStatus = :f, ContentError = :e",
+            ExpressionAttributeValues={":f": "FAILED", ":e": "The zip is empty"})
+        status, body = _packages(mod, "POST", "/training/packages/{id}/extract", pid="SP-001")
+        assert status == 200 and body["data"]["ContentStatus"] == "PENDING" and "ContentError" not in body["data"]
+        assert len(invoked) == 2 and invoked[-1]["Payload"] == b'{"packageId": "SP-001"}'
+        db.Table(f"{mod.TABLE_PREFIX}-training-packages").update_item(
+            Key={"PackageID": "SP-001"}, UpdateExpression="SET ContentStatus = :x", ExpressionAttributeValues={":x": "EXTRACTING"})
+        assert _packages(mod, "POST", "/training/packages/{id}/extract", pid="SP-001")[0] == 409
+        assert _packages(mod, "POST", "/training/packages/{id}/extract", pid="SP-404")[0] == 404
+        assert len(invoked) == 2
+
         unpacked = mod.content_folder(key)
         assert unpacked == "training-content/" + key.split("/")[2] + "/"
         s3.put_object(Bucket="assets", Key=unpacked + "index.html", Body=b"x")

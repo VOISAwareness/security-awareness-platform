@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { createContext, useCallback, useContext, useState, useEffect, useMemo, useRef } from "react";
 import { useUserType } from "@/UserTypeContext/UserTypeContext";
 
 import { getPackages } from "./components/utility/db";
@@ -10,9 +10,8 @@ import { loadTraining } from "@/services/trainingCatalog";
 // Add ZIP Package and stored in S3 (GET/POST /training/packages).
 import sampleScormUrl from "@/assets/Training(LMS)/samples/sample-scorm12-spot-the-phish.zip?url";
 
-import { extractZipHtml } from "./components/utility/zipHelpers";
 import { api } from "@/services/api";
-import { fromServer, mergePackages } from "@/services/trainingPackages";
+import { anyUnpacking, fromServer, mergePackages } from "@/services/trainingPackages";
 
 const SAMPLE_PACKAGE = {
   PackageID: "SP-SAMPLE",
@@ -25,7 +24,6 @@ const SAMPLE_PACKAGE = {
   duration: 5,
   isLocalUrl: true,
   localPath: sampleScormUrl,
-  compiledHtmlUrl: "",
   isSample: true
 };
 
@@ -119,24 +117,12 @@ export const TrainingProvider = ({ children }) => {
         if (active) setTrainingLoad({ loading: false, error: err });
       });
 
+    // Packages kept only in this browser (from before packages moved to S3).
+    // They are unpacked when played (PackageFrame), not on every page load.
     getPackages()
-      .then((dbPkgs) =>
-        Promise.all(
-          dbPkgs.map(async (pkg) => {
-            if (pkg.fileBlob) {
-              try {
-                pkg.compiledHtmlUrl = await extractZipHtml(pkg.fileBlob);
-              } catch (err) {
-                console.error("Failed to extract saved standalone package on load", err);
-              }
-            }
-            return pkg;
-          })
-        )
-      )
-      .then((extractedDbPkgs) => {
-        if (active && extractedDbPkgs.length) {
-          setPackages((prev) => mergePackages(prev.filter((p) => !p.isSample), extractedDbPkgs, [SAMPLE_PACKAGE]));
+      .then((dbPkgs) => {
+        if (active && dbPkgs.length) {
+          setPackages((prev) => mergePackages(prev.filter((p) => !p.isSample), dbPkgs, [SAMPLE_PACKAGE]));
         }
       })
       .catch((err) => console.error("Could not read packages kept in this browser", err));
@@ -144,6 +130,40 @@ export const TrainingProvider = ({ children }) => {
       active = false;
     };
   }, []);
+
+  // The server unpacks each uploaded package (PENDING -> READY / FAILED):
+  // while any is being unpacked, the list is read again every few seconds
+  // (for up to three minutes after the last upload or retry).
+  const pollsLeft = useRef(36);
+  const refreshServerPackages = useCallback(async () => {
+    const rows = await api.trainingPackages.list();
+    const serverPkgs = (Array.isArray(rows) ? rows : []).map(fromServer);
+    setPackages((prev) => mergePackages(serverPkgs, prev.filter((p) => !p.onServer && !p.isSample), [SAMPLE_PACKAGE]));
+  }, []);
+  const unpacking = anyUnpacking(packages);
+  useEffect(() => {
+    if (!unpacking || pollsLeft.current <= 0) return undefined;
+    const timer = setTimeout(() => {
+      pollsLeft.current -= 1;
+      refreshServerPackages().catch((err) => console.error("Could not re-read training packages", err));
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [unpacking, packages, refreshServerPackages]);
+
+  /** A package added or retried: watch it again until it is unpacked. */
+  const watchUnpacking = useCallback(() => {
+    pollsLeft.current = 36;
+  }, []);
+
+  /** Ask the server to unpack a package again (after it failed). */
+  const retryPackageUnpack = useCallback(
+    async (id) => {
+      const row = await api.trainingPackages.extract(id);
+      watchUnpacking();
+      setPackages((prev) => prev.map((p) => (p.PackageID === id ? fromServer(row) : p)));
+    },
+    [watchUnpacking],
+  );
 
   const [activeTab, setActiveTab] = useState("paths");
   const [currentView, setCurrentView] = useState("hub");
@@ -295,6 +315,8 @@ export const TrainingProvider = ({ children }) => {
     setLaunchStandalonePkg,
     handleLaunchStandalone,
     handleLaunchPathway,
+    retryPackageUnpack,
+    watchUnpacking,
     handleNextSequenceStep,
     showVideoUploader,
     setShowVideoUploader,
