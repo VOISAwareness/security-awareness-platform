@@ -1,4 +1,5 @@
 import { withScheduleInstants } from './calendarDates.js';
+import { afterWrite, cachedGet } from './queryCache.js';
 
 // Central API client for the VShield backend (AWS HTTP API).
 // Base URL comes from VITE_API_BASE_URL; falls back to the POC endpoint so the
@@ -18,9 +19,24 @@ const uploadTarget = (url) =>
     ? `/__s3-upload?url=${encodeURIComponent(url)}`
     : url;
 
+// Reads go through one in-memory cache (services/queryCache.js): a page
+// visited again, or several components reading the same path, cost no new
+// request while the answer is fresh; `fresh: true` always reads. Any write
+// marks every cached read stale, so the next read after a change is current.
 // `keepalive` lets a request outlive the page (sent as it closes). Browsers
 // refuse a keepalive body over 64 KB, so callers check the size first.
-async function request(path, { method = 'GET', body, keepalive = false } = {}) {
+async function request(path, options = {}) {
+  const { method = 'GET', fresh = false } = options;
+  if (method === 'GET') return cachedGet(path, () => send(path, options), { fresh });
+  try {
+    return await send(path, options);
+  } finally {
+    // even a failed write may have changed something (a timeout after saving)
+    afterWrite();
+  }
+}
+
+async function send(path, { method = 'GET', body, keepalive = false } = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -56,13 +72,18 @@ async function request(path, { method = 'GET', body, keepalive = false } = {}) {
   return payload?.data ?? payload;
 }
 
-// Like request(), but keeps the envelope's `result` beside `data`.
+// Like request(), but keeps the envelope's `result` beside `data` (a POST).
 async function fetchWithResult(path, body) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } finally {
+    afterWrite();
+  }
   const payload = await res.json().catch(() => null);
   if (!res.ok) {
     const error = new Error(payload?.error?.message || payload?.message || `Request failed (${res.status})`);
@@ -241,7 +262,8 @@ export const api = {
   // SCORM / HTML5 packages: the zip goes straight to S3 through a presigned
   // PUT, then the row is saved; listing gives each a presigned GET (PackageURL).
   trainingPackages: {
-    list: () => request('/training/packages'),
+    // `fresh`: the server's latest (polled while packages are being unpacked)
+    list: ({ fresh = false } = {}) => request('/training/packages', { fresh }),
     async upload({ file, fields }) {
       const presign = await request('/training/packages/upload', {
         method: 'POST',
