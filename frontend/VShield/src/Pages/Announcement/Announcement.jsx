@@ -16,6 +16,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { announcementTemplatesLive, useAnnouncementData } from "../../services/announcements";
+import { TYPE_NAMES } from "../../services/campaignTypes";
+import { TARGET_AUDIENCES, namesOf } from "../../services/scenarioOptions";
 // Templates and user lists from the backend (services/announcements.js),
 // kept in objects shaped like the sample files they replace.
 const AnnouncamentScenariosJsonData = announcementTemplatesLive;
@@ -84,24 +86,12 @@ const VODAFONE_FONT_STYLE = `
 // Filter Data
 // -----------------------------------------------------
 
-const campaignTypes = [
-  "Data Entry",
-  "Click",
-  "Credential theft",
-  "Helpdesk impersonation",
-  "Reward scam",
-  "Travel scam",
-];
+// The type of email and the audience, from the lists the scenario and
+// template builders offer (services/scenarioOptions.js). Announcements
+// carry no motivator, so there is no motivator filter.
+const campaignTypes = TYPE_NAMES;
 
-const emotions = [
-  "Urgency",
-  "Fear",
-  "Inconvenience",
-  "Authority",
-  "Routine authority",
-];
-
-const targetAudiences = ["All users", "Remote", "Employees", "Finance"];
+const targetAudiences = namesOf(TARGET_AUDIENCES);
 
 // =====================================================
 // FILTER ROW — dot + label + count, expands on click to
@@ -303,9 +293,6 @@ const AnnouncementScenarioFilters = ({
   selectedCampaignTypes,
   setSelectedCampaignTypes,
 
-  selectedEmotions,
-  setSelectedEmotions,
-
   selectedAudiences,
   setSelectedAudiences,
 
@@ -326,13 +313,11 @@ const AnnouncementScenarioFilters = ({
   // Active filter count
   const activeCount =
     selectedCampaignTypes.length +
-    selectedEmotions.length +
     selectedAudiences.length;
 
   // Clear all
   const clearAll = () => {
     setSelectedCampaignTypes([]);
-    setSelectedEmotions([]);
     setSelectedAudiences([]);
   };
 
@@ -367,7 +352,7 @@ const AnnouncementScenarioFilters = ({
             </h3>
           </div>
           <p className="text-[9.5px] leading-[1.3] font-medium opacity-75 mt-1">
-            Filter scenarios by type, emotion and audience.
+            Filter templates by type and audience.
           </p>
         </div>
 
@@ -445,19 +430,6 @@ const AnnouncementScenarioFilters = ({
         />
 
         <FilterRow
-          title="Emotion"
-          options={emotions}
-          selected={selectedEmotions}
-          onChange={(value) =>
-            toggleValue(value, selectedEmotions, setSelectedEmotions)
-          }
-          isOpen={openSection === "emotion"}
-          onToggle={() => handleSectionToggle("emotion")}
-          accent="#7C3AED"
-          isDark={isDark}
-        />
-
-        <FilterRow
           title="Target Audience"
           options={targetAudiences}
           selected={selectedAudiences}
@@ -530,11 +502,9 @@ const Announcement = () => {
       diffTextColor: "text-purple-600 dark:text-purple-400",
     },
   };
-  const [selectedCampaignTypes, setSelectedCampaignTypes] = useState([
-    "Data Entry",
-  ]);
-  const [selectedEmotions, setSelectedEmotions] = useState(["Urgency"]);
-  const [selectedAudiences, setSelectedAudiences] = useState(["All users"]);
+  // nothing ticked: every template shows until a filter is chosen
+  const [selectedCampaignTypes, setSelectedCampaignTypes] = useState([]);
+  const [selectedAudiences, setSelectedAudiences] = useState([]);
 
   // Selected State
   const [detailModalItem, setDetailModalItem] = useState(null);
@@ -603,23 +573,24 @@ const Announcement = () => {
   });
 
   // ---------------------------------------------------
-  // Search (matches id, title, or type)
+  // Search (matches id, title, or type) and the ticked filters
   // ---------------------------------------------------
   const filteredScenarios = useMemo(() => {
-    if (!search.trim()) return scenariosList;
-
-    const searchText = search.toLowerCase();
-
+    const searchText = search.trim().toLowerCase();
     return scenariosList.filter(
       (scenario) =>
-        scenario.announcementScenarioId?.toLowerCase().includes(searchText) ||
-        scenario.announcementDescription?.toLowerCase().includes(searchText) ||
-        scenario.announcementCampaignType?.toLowerCase().includes(searchText) ||
-        scenario.announcementCreatedOn?.toLowerCase().includes(searchText) ||
-        scenario.announcementCoverImageID?.toLowerCase().includes(searchText) ||
-        scenario.announcementScenarioName?.toLowerCase().includes(searchText),
+        // the ticked filters: a template shows when it is one of them
+        (!selectedCampaignTypes.length || selectedCampaignTypes.includes(scenario.announcementCampaignType)) &&
+        (!selectedAudiences.length || selectedAudiences.includes(scenario.announcementTargetAudience)) &&
+        (!searchText ||
+          scenario.announcementScenarioId?.toLowerCase().includes(searchText) ||
+          scenario.announcementDescription?.toLowerCase().includes(searchText) ||
+          scenario.announcementCampaignType?.toLowerCase().includes(searchText) ||
+          scenario.announcementCreatedOn?.toLowerCase().includes(searchText) ||
+          scenario.announcementCoverImageID?.toLowerCase().includes(searchText) ||
+          scenario.announcementScenarioName?.toLowerCase().includes(searchText)),
     );
-  }, [search, scenariosList]);
+  }, [search, scenariosList, selectedCampaignTypes, selectedAudiences]);
 
   // ---------------------------------------------------
   // Use announcement scenario
@@ -1327,8 +1298,6 @@ const Announcement = () => {
             <AnnouncementScenarioFilters
               selectedCampaignTypes={selectedCampaignTypes}
               setSelectedCampaignTypes={setSelectedCampaignTypes}
-              selectedEmotions={selectedEmotions}
-              setSelectedEmotions={setSelectedEmotions}
               selectedAudiences={selectedAudiences}
               setSelectedAudiences={setSelectedAudiences}
               isDark={isDark}

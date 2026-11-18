@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Move scenarios and campaigns onto the new Type of email, Motivator and
-Target Audience lists.
+Move scenarios, campaigns and announcement templates onto the new Type of
+email, Motivator and Target Audience lists.
 
 The lists changed (frontend services/scenarioOptions.js): ten types of
 email, twelve motivators, twelve audiences. Rows saved before carry the
@@ -9,6 +9,8 @@ older wording ("Credential theft", "Fear, Feedback, Curiosity", "Office
 users"); this gives each the new name the team agreed, so filters, Start
 fresh and Insights group them with new rows.
 
+- A dropdown's code saved by mistake ("click", "all-employees") becomes its
+  name.
 - Each value is changed only when the mapping below has an answer for it;
   anything else (a value already new, "Custom", a typed-in motivator) is
   left as it is.
@@ -29,10 +31,17 @@ from collections import Counter
 
 REGION = "ap-south-1"
 PREFIX = "security-awareness-poc"
-# table -> its key attribute
-TABLES = {"scenarios": "scenarioId", "campaigns": "campaignId"}
 FIELDS = ("campaignType", "motivator", "targetAudience")
-LEGACY = {f: "legacy" + f[0].upper() + f[1:] for f in FIELDS}
+# table -> (its key attribute, {field: the attribute it is stored in}).
+# Announcement templates name theirs announcementCampaignType and
+# announcementTargetAudience, and carry no motivator.
+TABLES = {
+    "scenarios": ("scenarioId", {f: f for f in FIELDS}),
+    "campaigns": ("campaignId", {f: f for f in FIELDS}),
+    "announcements": ("announcementId", {"campaignType": "announcementCampaignType",
+                                         "targetAudience": "announcementTargetAudience"}),
+}
+LEGACY_PREFIX = "legacy"
 
 # The new lists (as the frontend's scenarioOptions.js has them).
 EMAIL_TYPES = (
@@ -67,6 +76,17 @@ OLD_AUDIENCES = {
 _MOTIVATOR_BY_LOWER = {m.lower(): m for m in MOTIVATORS}
 
 
+def _slug(label):
+    return "-".join("".join(c if c.isalnum() else " " for c in label.lower()).split())
+
+
+# A dropdown's code saved by mistake ("click", "all-employees") -> its name.
+SLUGS = {
+    "campaignType": {_slug(t): t for t in EMAIL_TYPES},
+    "targetAudience": {**{_slug(a): a for a in AUDIENCES}, "all": "All Employees"},
+}
+
+
 def new_motivator(value):
     """An older motivator's new name: the first of its words ("Urgency / Fear /
     Security", "Fear, Feedback, Curiosity") that is a motivator now; None
@@ -84,6 +104,8 @@ def changes(row):
     """{field: new value} for one row: only what the mapping changes."""
     out = {}
     kind = row.get("campaignType")
+    if kind in SLUGS["campaignType"]:
+        out["campaignType"] = SLUGS["campaignType"][kind]
     if kind in OLD_TYPES:
         out["campaignType"], from_type = OLD_TYPES[kind]
         if not str(row.get("motivator") or "").strip():
@@ -95,7 +117,21 @@ def changes(row):
     audience = row.get("targetAudience")
     if audience in OLD_AUDIENCES:
         out["targetAudience"] = OLD_AUDIENCES[audience]
+    elif audience in SLUGS["targetAudience"]:
+        out["targetAudience"] = SLUGS["targetAudience"][audience]
     return out
+
+
+def table_changes(row, fields):
+    """{stored attribute: new value} for a row of a table storing `fields`
+    ({field: attribute}): the row read as the three fields, and only the
+    fields that table has."""
+    found = {f: row[attr] for f, attr in fields.items() if attr in row}
+    return {fields[f]: v for f, v in changes(found).items() if f in fields}
+
+
+def legacy_name(attribute):
+    return LEGACY_PREFIX + attribute[0].upper() + attribute[1:]
 
 
 def update_args(key_name, row, change):
@@ -113,7 +149,7 @@ def update_args(key_name, row, change):
         else:
             values[f":o{i}"] = old
             conds.append(f"#f{i} = :o{i}")
-            names[f"#l{i}"] = LEGACY[field]
+            names[f"#l{i}"] = legacy_name(field)
             sets.append(f"#l{i} = if_not_exists(#l{i}, :o{i})")
     return {
         "Key": {key_name: row[key_name]},
@@ -134,14 +170,15 @@ def scan_all(table):
             return rows
 
 
-def migrate(table, key_name, write):
+def migrate(table, key_name, write, fields=None):
     """(planned, written, skipped): the rows' changes, how many were written,
     and the ids changed by someone else meanwhile (left alone)."""
     from botocore.exceptions import ClientError
 
+    fields = fields or {f: f for f in FIELDS}
     planned, written, skipped = [], 0, []
     for row in scan_all(table):
-        change = changes(row)
+        change = table_changes(row, fields)
         if not change:
             continue
         planned.append((row[key_name], {f: (row.get(f), v) for f, v in change.items()}))
@@ -166,9 +203,9 @@ def main(argv=None):
     import boto3
 
     db = boto3.resource("dynamodb", region_name=args.region)
-    for short, key_name in TABLES.items():
+    for short, (key_name, fields) in TABLES.items():
         table = db.Table(f"{args.prefix}-{short}")
-        planned, written, skipped = migrate(table, key_name, args.write)
+        planned, written, skipped = migrate(table, key_name, args.write, fields)
         print(f"{table.name}: {len(planned)} rows to change")
         moves = Counter((f, old, new) for _, change in planned for f, (old, new) in change.items())
         for (field, old, new), n in sorted(moves.items(), key=lambda x: (x[0][0], str(x[0][1]))):

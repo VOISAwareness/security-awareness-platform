@@ -124,3 +124,41 @@ def test_a_row_edited_meanwhile_is_left_alone(mod, table, monkeypatch):
     assert written == 0 and skipped == ["C1"]
     row = rows(table)["C1"]
     assert row["campaignType"] == "QR Code" and "legacyCampaignType" not in row
+
+
+def test_codes_saved_by_mistake_become_names(mod):
+    assert mod.changes({"campaignType": "click", "targetAudience": "all-employees"}) == {
+        "campaignType": "Click", "targetAudience": "All Employees"}
+    assert mod.changes({"campaignType": "qr-code", "targetAudience": "all"}) == {
+        "campaignType": "QR Code", "targetAudience": "All Employees"}
+
+
+def test_announcement_templates_keep_their_own_field_names_and_get_no_motivator(mod, monkeypatch):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "ap-south-1")
+    for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        monkeypatch.setenv(key, os.environ.get(key, "test"))
+    key_name, fields = mod.TABLES["announcements"]
+    with mock_aws():
+        table = boto3.resource("dynamodb", region_name="ap-south-1").create_table(
+            TableName="t-announcements",
+            KeySchema=[{"AttributeName": key_name, "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": key_name, "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        table.put_item(Item={"announcementId": "ANC-1", "announcementCampaignType": "Credential theft",
+                             "announcementTargetAudience": "Office Workers"})
+        table.put_item(Item={"announcementId": "ANC-2", "announcementCampaignType": "click",
+                             "announcementTargetAudience": "all-employees"})
+        table.put_item(Item={"announcementId": "ANC-3", "announcementCampaignType": "Click",
+                             "announcementTargetAudience": "HR"})
+        planned, written, _ = mod.migrate(table, key_name, True, fields)
+        assert written == 2
+        found = {r["announcementId"]: r for r in table.scan()["Items"]}
+        assert found["ANC-1"]["announcementCampaignType"] == "Data Entry"
+        assert found["ANC-1"]["announcementTargetAudience"] == "Office Employees"
+        assert found["ANC-1"]["legacyAnnouncementCampaignType"] == "Credential theft"
+        assert "motivator" not in found["ANC-1"]
+        assert found["ANC-2"]["announcementCampaignType"] == "Click"
+        assert found["ANC-2"]["announcementTargetAudience"] == "All Employees"
+        assert found["ANC-3"] == {"announcementId": "ANC-3", "announcementCampaignType": "Click",
+                                  "announcementTargetAudience": "HR"}
