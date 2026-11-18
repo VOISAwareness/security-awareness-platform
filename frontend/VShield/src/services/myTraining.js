@@ -70,6 +70,27 @@ export function legacyAllocation(a, now = Date.now()) {
     campaignId: a.campaignId || '',
     campaignTitle: a.campaignTitle || '',
     source: a.source || '',
+    // A package path: the package to play and where the learner left it.
+    isZipPath: Boolean(a.isZipPath),
+    package: a.package || null,
+    packageProgress: a.isZipPath
+      ? { status: a.packageStatus || '', location: a.packageLocation || '', suspendData: a.packageSuspendData || '' }
+      : null,
+  };
+}
+
+/** What a package's player reports, as POST /my-training/package takes it. */
+export function packageReport(summary) {
+  const s = summary || {};
+  return {
+    status: s.status || 'incomplete',
+    completed: Boolean(s.completed),
+    passed: s.passed === true || s.passed === false ? s.passed : null,
+    score: Number.isFinite(s.score) ? s.score : null,
+    location: String(s.location || ''),
+    suspendData: String(s.suspendData || ''),
+    sessionSeconds: Math.max(0, Math.round(Number(s.sessionSeconds) || 0)),
+    finished: Boolean(s.finished),
   };
 }
 
@@ -114,6 +135,16 @@ export async function submitQuiz(pathId, { viewer = currentActor(), client = api
   const { data, result: scored } = await client.myTraining.quiz(viewer, pathId);
   replaceRow(data);
   return scored;
+}
+
+/**
+ * Save what a package path's course reported. Returns {row, result}: the
+ * assignment in the screens' shape and {passed, score} (passed null until
+ * the course gives a result).
+ */
+export async function savePackageProgress(pathId, summary, { viewer = currentActor(), client = api } = {}) {
+  const { data, result } = await client.myTraining.package(viewer, pathId, packageReport(summary));
+  return { row: replaceRow(data), result: result || { passed: null, score: null } };
 }
 
 /** The viewer's trainings for a component: `trainings` in the screens' shape. */

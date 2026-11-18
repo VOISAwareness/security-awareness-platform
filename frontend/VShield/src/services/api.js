@@ -274,6 +274,10 @@ export const api = {
       request('/my-training/check', { method: 'POST', body: { viewer, TrainingPathID, questionId, option } }),
     // Score the attempt from the checked answers; the answer carries `result`.
     quiz: (viewer, TrainingPathID) => fetchWithResult('/my-training/quiz', { viewer, TrainingPathID }),
+    // A package path: what the course reported (services/scormRuntime.js
+    // summary); the answer carries `result` ({passed, score}).
+    package: (viewer, TrainingPathID, report) =>
+      fetchWithResult('/my-training/package', { viewer, TrainingPathID, ...report }),
     // Everyone's (the Training report); `path` narrows to one programme.
     assignments: (path) =>
       request(`/training/assignments${path ? `?path=${encodeURIComponent(path)}` : ''}`),
