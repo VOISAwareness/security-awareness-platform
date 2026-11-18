@@ -211,6 +211,50 @@ resource "aws_iam_role_policy" "github_terraform" {
         Resource = local.api_arn
       },
       {
+        # The training-packages CDN (scorm_cdn.tf). Distributions and origin
+        # access controls have no names to scope by at create time; deleting a
+        # distribution is left to a person.
+        Sid    = "ScormCdn"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateDistribution",
+          "cloudfront:UpdateDistribution",
+          "cloudfront:GetDistribution",
+          "cloudfront:GetDistributionConfig",
+          "cloudfront:ListDistributions",
+          "cloudfront:ListTagsForResource",
+          "cloudfront:TagResource",
+          "cloudfront:UntagResource",
+          "cloudfront:CreateOriginAccessControl",
+          "cloudfront:GetOriginAccessControl",
+          "cloudfront:GetOriginAccessControlConfig",
+          "cloudfront:UpdateOriginAccessControl",
+          "cloudfront:ListOriginAccessControls",
+          "cloudfront:GetCachePolicy",
+          "cloudfront:GetResponseHeadersPolicy",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ScormCdnFunction"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateFunction",
+          "cloudfront:UpdateFunction",
+          "cloudfront:PublishFunction",
+          "cloudfront:DescribeFunction",
+          "cloudfront:GetFunction",
+        ]
+        Resource = "arn:aws:cloudfront::${local.account_id}:function/${var.name_prefix}-*"
+      },
+      {
+        # The bucket policy that lets only that distribution read training-content/.
+        Sid      = "AssetsBucketPolicy"
+        Effect   = "Allow"
+        Action   = ["s3:PutBucketPolicy"]
+        Resource = aws_s3_bucket.assets.arn
+      },
+      {
         # Data can only be destroyed by a person, whatever the plan says.
         Sid    = "NeverDeleteData"
         Effect = "Deny"

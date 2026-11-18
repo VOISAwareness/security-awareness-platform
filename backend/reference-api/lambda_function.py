@@ -16,7 +16,7 @@ import uuid
 import zlib
 from datetime import UTC, datetime
 from html import escape as html_escape
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -1372,13 +1372,36 @@ def clean_package(body):
     return fields, None
 
 
+# Unpacked packages are served on the app's own origin at
+# /scorm/<uploadId>/<path> (CloudFront, infra/terraform/scorm_cdn.tf; the
+# Vite dev server forwards /scorm there).
+SCORM_PATH = "/scorm/"
+CONTENT_PREFIX_RE = re.compile(r"training-content/([0-9a-f]{32})/")
+
+
+def launch_url(item):
+    """Where the player opens an unpacked package (same origin, so the
+    course can reach the app's SCORM API), or None until it is READY."""
+    item = item or {}
+    match = CONTENT_PREFIX_RE.fullmatch(str(item.get("ContentPrefix") or ""))
+    launch = item.get("LaunchPath")
+    if item.get("ContentStatus") != "READY" or not match or not isinstance(launch, str) or not launch:
+        return None
+    path, sep, query = launch.partition("?")
+    return f"{SCORM_PATH}{match.group(1)}/{quote(path, safe='/')}{sep}{query}"
+
+
 def sign_package(item):
     """The row as the browser needs it: a presigned GET for its zip
-    (PackageURL, an hour) beside the stored key."""
+    (PackageURL, an hour) beside the stored key, and LaunchURL once the
+    package is unpacked."""
     key = (item or {}).get("PackageKey")
     if not UPLOAD_BUCKET or not is_package_key(key):
         return item
     signed = dict(item)
+    url = launch_url(item)
+    if url:
+        signed["LaunchURL"] = url
     signed["PackageURL"] = s3_client.generate_presigned_url(
         "get_object", Params={"Bucket": UPLOAD_BUCKET, "Key": key}, ExpiresIn=3600
     )

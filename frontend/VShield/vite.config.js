@@ -9,6 +9,12 @@ const API_TARGET =
   process.env.VITE_API_PROXY_TARGET ||
   'https://1ldu4adn0l.execute-api.ap-south-1.amazonaws.com'
 
+// Unpacked training packages (SCORM) are served by CloudFront at /scorm/...
+// (infra/terraform/scorm_cdn.tf, output scorm_content_domain). Forwarding
+// /scorm keeps a course on the app's own origin, which it needs to reach the
+// app's SCORM API through window.parent. Unset: /scorm is not forwarded.
+const SCORM_TARGET = process.env.VITE_SCORM_PROXY_TARGET || ''
+
 // Recipient uploads PUT straight to a presigned S3 URL, which skips the proxy
 // above and hits the bucket's own CORS allowlist — same localhost-only list.
 // Forward those server-side too. The target comes from the presigned URL rather
@@ -73,6 +79,7 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      ...(SCORM_TARGET ? { '/scorm': { target: SCORM_TARGET, changeOrigin: true } } : {}),
     },
   }
 })
