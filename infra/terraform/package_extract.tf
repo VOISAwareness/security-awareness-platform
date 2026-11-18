@@ -2,7 +2,9 @@
 # into training-content/<uploadId>/ in the assets bucket, and records on the
 # package's row what to open (LaunchPath) and its SCORM version. reference-api
 # starts it (asynchronously) after POST /training/packages; nothing else calls
-# it. It has no API route.
+# it. It has no API route. Lambda retries an asynchronous invoke that errors
+# (twice, its default); unpacking a package again is safe, and a zip that
+# cannot be played is marked FAILED without an error, so it is not retried.
 
 data "archive_file" "package_extract" {
   type             = "zip"
@@ -82,13 +84,4 @@ resource "aws_lambda_function" "package_extract" {
       UPLOAD_BUCKET = aws_s3_bucket.assets.bucket
     }
   }
-}
-
-# An asynchronous invoke is retried twice by Lambda on an error; a package is
-# safe to unpack again, but one that failed for good should not run three
-# times, so one retry is enough.
-resource "aws_lambda_function_event_invoke_config" "package_extract" {
-  function_name                = aws_lambda_function.package_extract.function_name
-  maximum_retry_attempts       = 1
-  maximum_event_age_in_seconds = 3600
 }
