@@ -9,6 +9,12 @@ import { useCampaignDraft } from '../../services/useCampaignDraft';
 import { BACK_TO_STEP_1, IN_WIZARD, detailsFieldValue } from '../../services/campaignWizard';
 import { isAfter } from '../../services/calendarDates';
 import { TYPE_NAMES } from '../../services/campaignTypes';
+import { MOTIVATORS, TARGET_AUDIENCES, namesOf } from '../../services/scenarioOptions';
+
+// Start fresh asks for what a scenario would bring: the type of email, its
+// motivator and its audience, from the scenario builder's own lists.
+const MOTIVATOR_NAMES = namesOf(MOTIVATORS);
+const AUDIENCE_NAMES = namesOf(TARGET_AUDIENCES);
 import DateTimeField from '../../GlobalComponents/DateTimeField';
 import gamificationCardLogo from '../../assets/GamificationCardLogoStartNewCamapignScreen.png';
 import { useGamificationRules } from '../../services/useGamificationRules';
@@ -108,8 +114,10 @@ const DetailsAndSettings = () => {
   const [isTestCampaign, setIsTestCampaign] = useState(false);
   // Defaults to true when the draft carries no value — same rule as before.
   const [autoEndPostSending, setAutoEndPostSending] = useState(true);
-  // Start fresh only: the campaign's type (a scenario brings its own).
+  // Start fresh only: the campaign's type, motivator and audience (a scenario brings its own).
   const [campaignType, setCampaignType] = useState('');
+  const [motivator, setMotivator] = useState('');
+  const [targetAudience, setTargetAudience] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   // Seed the form from the draft once it lands. `seededRef` keeps it to a single
@@ -151,6 +159,8 @@ const DetailsAndSettings = () => {
       );
     }
     if (!touched.campaignType) setCampaignType(TYPE_NAMES.includes(draft.campaignType) ? draft.campaignType : '');
+    if (!touched.motivator) setMotivator(MOTIVATOR_NAMES.includes(draft.motivator) ? draft.motivator : '');
+    if (!touched.targetAudience) setTargetAudience(AUDIENCE_NAMES.includes(draft.targetAudience) ? draft.targetAudience : '');
     if (!touched.startTime) setStartTime(draft.startTime || '');
     if (!touched.endTime) setEndTime(draft.endTime || '');
     if (!touched.isTestCampaign) setIsTestCampaign(Boolean(draft.isTestCampaign));
@@ -215,6 +225,14 @@ const DetailsAndSettings = () => {
     }
     if (draft?.isStartFresh && !TYPE_NAMES.includes(campaignType)) {
       setErrorMsg('Please choose a Campaign Type');
+      return;
+    }
+    if (draft?.isStartFresh && !MOTIVATOR_NAMES.includes(motivator)) {
+      setErrorMsg('Please choose a Motivator');
+      return;
+    }
+    if (draft?.isStartFresh && !AUDIENCE_NAMES.includes(targetAudience)) {
+      setErrorMsg('Please choose a Target Audience');
       return;
     }
     if (!startTime.trim()) {
@@ -446,32 +464,40 @@ const DetailsAndSettings = () => {
                       />
                     </div>
                     {draft?.isStartFresh && (
-                      <div className="flex items-center gap-3 mt-1">
-                        <label htmlFor="campaign-type" className="text-[12.5px] font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                          Campaign Type <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
-                        </label>
-                        <select
-                          id="campaign-type"
-                          value={campaignType}
-                          onChange={(e) => {
-                            markTouched('campaignType');
-                            setCampaignType(e.target.value);
-                            setErrorMsg('');
-                            persistChanges({ campaignType: e.target.value });
-                          }}
-                          className={`flex-1 h-9 px-3 rounded-xl shadow-2xs text-[11.5px] font-medium outline-none cursor-pointer ${
-                            isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
-                          }`}
-                        >
-                          <option value="" disabled>
-                            Choose what the email asks people to do
-                          </option>
-                          {TYPE_NAMES.map((name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="grid grid-cols-3 gap-3 mt-1">
+                        {[
+                          { id: 'campaign-type', field: 'campaignType', label: 'Campaign Type', value: campaignType, set: setCampaignType, names: TYPE_NAMES, hint: 'What the email asks people to do' },
+                          { id: 'campaign-motivator', field: 'motivator', label: 'Motivator', value: motivator, set: setMotivator, names: MOTIVATOR_NAMES, hint: 'What it leans on' },
+                          { id: 'campaign-audience', field: 'targetAudience', label: 'Target Audience', value: targetAudience, set: setTargetAudience, names: AUDIENCE_NAMES, hint: 'Who it is for' },
+                        ].map((f) => (
+                          <div key={f.id} className="flex flex-col gap-1.5 min-w-0">
+                            <label htmlFor={f.id} className="text-[12.5px] font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                              {f.label} <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
+                            </label>
+                            <select
+                              id={f.id}
+                              value={f.value}
+                              onChange={(e) => {
+                                markTouched(f.field);
+                                f.set(e.target.value);
+                                setErrorMsg('');
+                                persistChanges({ [f.field]: e.target.value });
+                              }}
+                              className={`w-full h-9 px-3 rounded-xl shadow-2xs text-[11.5px] font-medium outline-none cursor-pointer ${
+                                isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'
+                              }`}
+                            >
+                              <option value="" disabled>
+                                {f.hint}
+                              </option>
+                              {f.names.map((name) => (
+                                <option key={name} value={name}>
+                                  {name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

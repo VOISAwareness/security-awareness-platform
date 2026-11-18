@@ -528,7 +528,19 @@ const ExpiredCampaignsGallery = ({
                   </span>
                 </div>
                 <div>
+                  <strong>Type of email: </strong>
+                  <span>{detailModalItem.campaignType || "—"}</span>
+                </div>
+                <div>
+                  <strong>Motivator: </strong>
+                  <span>{detailModalItem.motivator || "—"}</span>
+                </div>
+                <div>
                   <strong>Target Audience: </strong>
+                  <span>{detailModalItem.targetAudience || "—"}</span>
+                </div>
+                <div>
+                  <strong>Recipients: </strong>
                   <span>
                     {detailModalItem.UserList ||
                       detailModalItem.TargetUsers ||
