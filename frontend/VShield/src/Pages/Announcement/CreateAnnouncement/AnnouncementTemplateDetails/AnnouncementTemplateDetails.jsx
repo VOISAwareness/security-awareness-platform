@@ -7,6 +7,7 @@ import { announcementTemplatesLive, publishTemplate, useAnnouncementData } from 
 const announcamentScenariosJsonData = announcementTemplatesLive;
 import AnnouncementEmailDetailsTab from "../AnnouncementEmailDetailsTab/AnnouncementEmailDetailsTab";
 import { createPortal } from "react-dom";
+import { EMAIL_TYPES, TARGET_AUDIENCES, nameOptions } from "../../../../services/scenarioOptions";
 import { useNavigate } from "react-router-dom";
 import Toast from "../../../../GlobalComponents/Toast";
 
@@ -441,20 +442,7 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                 onChange={(e) =>
                   updateField("announcementCampaignType", e.target.value)
                 }
-                options={[
-                  {
-                    value: "data-entry",
-                    label: "Data Entry",
-                  },
-                  {
-                    value: "phishing",
-                    label: "Phishing Simulation",
-                  },
-                  {
-                    value: "social-engineering",
-                    label: "Social Engineering",
-                  },
-                ]}
+                options={nameOptions(EMAIL_TYPES, formData.announcementCampaignType)}
               />
 
               <FormSelect
@@ -463,24 +451,7 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                 onChange={(e) =>
                   updateField("announcementTargetAudience", e.target.value)
                 }
-                options={[
-                  {
-                    value: "remote-hybrid",
-                    label: "Remote / Hybrid users",
-                  },
-                  {
-                    value: "office",
-                    label: "Office users",
-                  },
-                  {
-                    value: "executives",
-                    label: "Executives",
-                  },
-                  {
-                    value: "all",
-                    label: "All Employees",
-                  },
-                ]}
+                options={nameOptions(TARGET_AUDIENCES, formData.announcementTargetAudience)}
               />
             </div>
           </div>

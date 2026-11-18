@@ -73,3 +73,13 @@ export function optionsWith(list, current = '') {
 
 /** What to show for a dropdown value: its label, or (an older or typed-in value) the value itself. */
 export const labelFor = (list, value) => list.find((x) => x.slug === value)?.label ?? value ?? '';
+
+/**
+ * Options whose value is the label itself, for a form that saves what it
+ * shows (the announcement template builder), plus the current value when
+ * the list doesn't hold it, so editing never loses it.
+ */
+export function nameOptions(list, current = '') {
+  const options = list.map((x) => ({ value: x.label, label: x.label }));
+  return current && !list.some((x) => x.label === current) ? [...options, { value: current, label: current }] : options;
+}
