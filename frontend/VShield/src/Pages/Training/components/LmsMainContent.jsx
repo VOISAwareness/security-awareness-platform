@@ -70,6 +70,7 @@ export const LmsMainContent = () => {
     setLaunchStandalonePkg,
     handleLaunchStandalone,
     handleLaunchPathway,
+    watchUnpacking,
     filteredPaths,
     showToast,
     trainingLoad
@@ -83,8 +84,10 @@ export const LmsMainContent = () => {
       toast(`Uploading ${p.PackageName}…`);
       try {
         const row = await api.trainingPackages.upload({ file: p.fileBlob, fields: serverFields(p) });
-        // already unpacked on upload, so it plays at once
-        setPackages((prev) => [{ ...fromServer(row), compiledHtmlUrl: p.compiledHtmlUrl || "" }, ...prev]);
+        // the server unpacks it now (ContentStatus PENDING -> READY); until
+        // then it plays from its zip
+        setPackages((prev) => [fromServer(row), ...prev]);
+        watchUnpacking();
         toast(`Uploaded ${row.PackageName} as ${row.PackageID}`);
         return;
       } catch (err) {

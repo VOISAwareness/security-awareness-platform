@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { X, UploadCloud } from "lucide-react";
-import { useIsDarkMode, loadJSZip, getMimeType } from "../../components/modals/helpers";
+import { useIsDarkMode } from "../../components/modals/helpers";
+import { checkPackageZip } from "../../../../services/zipEntries";
 
 // AddNewPackageScreen (default export: CreateNewPackages)
 export const CreateNewPackages = ({
@@ -60,54 +61,11 @@ export const CreateNewPackages = ({
     setProgress(15);
 
     try {
-      const JSZip = await loadJSZip();
-      setProgress(40);
-
-      const zip = await JSZip.loadAsync(selectedFile);
-      setProgress(60);
-
-      const blobUrlMap = {};
-      const fileKeys = Object.keys(zip.files).filter((key) => !zip.files[key].dir);
-      const totalFiles = fileKeys.length;
-
-      for (let i = 0; i < totalFiles; i++) {
-        const fileKey = fileKeys[i];
-        const file = zip.files[fileKey];
-        const mimeType = getMimeType(fileKey);
-        const fileBlob = await file.async("blob");
-        const mimeBlob = new Blob([fileBlob], { type: mimeType });
-        const objectUrl = URL.createObjectURL(mimeBlob);
-        blobUrlMap[fileKey] = objectUrl;
-
-        const currentProgress = Math.round(60 + (i / totalFiles) * 30);
-        setProgress(currentProgress);
-      }
-
-      let htmlFileKey = Object.keys(zip.files).find((key) => key.endsWith("index_local.html"));
-      if (!htmlFileKey) {
-        htmlFileKey = Object.keys(zip.files).find((key) => key.endsWith("index.html"));
-      }
-      if (!htmlFileKey) {
-        htmlFileKey = Object.keys(zip.files).find((key) => key.endsWith(".html"));
-      }
-
-      if (!htmlFileKey) {
-        throw new Error("No HTML entry point found inside the ZIP archive.");
-      }
-
-      let htmlContent = await zip.files[htmlFileKey].async("string");
-      setProgress(95);
-
-      const sortedPaths = Object.keys(blobUrlMap).sort((a, b) => b.length - a.length);
-      for (const relativePath of sortedPaths) {
-        const blobUrl = blobUrlMap[relativePath];
-        const escapedPath = relativePath.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-        const regex = new RegExp(`(?:\\./)?${escapedPath}`, "g");
-        htmlContent = htmlContent.replace(regex, blobUrl);
-      }
-
-      const finalHtmlBlob = new Blob([htmlContent], { type: "text/html" });
-      const compiledHtmlUrl = URL.createObjectURL(finalHtmlBlob);
+      // Only the zip's file list is read here (nothing is unpacked): the
+      // server unpacks the package after upload. This catches what it would
+      // refuse before the upload starts.
+      const check = await checkPackageZip(selectedFile);
+      if (!check.ok) throw new Error(check.why);
       setProgress(100);
 
       onSave({
@@ -124,12 +82,11 @@ export const CreateNewPackages = ({
         TargetAudience: targetAudience,
         Difficulty: difficulty,
         fileBlob: selectedFile,
-        compiledHtmlUrl,
         duration: duration
       });
     } catch (err) {
       console.error(err);
-      alert(err?.message || "Failed to extract and compile the uploaded file.");
+      alert(err?.message || "This zip can't be used as a training package.");
       setIsCompiling(false);
       setProgress(0);
     }
@@ -291,7 +248,7 @@ export const CreateNewPackages = ({
               isDark ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-white"
             }`}>
               <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
-                <span>Extracting and mapping relative pathways...</span>
+                <span>Checking the zip...</span>
                 <span>{progress}%</span>
               </div>
               <div className={`w-full h-1.5 rounded-full overflow-hidden ${
@@ -384,61 +341,9 @@ export const ZipUploader = ({
     setUploadProgress(10);
 
     try {
-      // 1. Load JSZip dynamically
-      const JSZip = await loadJSZip();
-      setUploadProgress(30);
-
-      // 2. Load the ZIP file
-      const zip = await JSZip.loadAsync(selectedFile);
-      setUploadProgress(50);
-
-      // 3. Compile all files inside the ZIP
-      const blobUrlMap = {};
-      const fileKeys = Object.keys(zip.files).filter((key) => !zip.files[key].dir);
-      const totalFiles = fileKeys.length;
-
-      for (let i = 0; i < totalFiles; i++) {
-        const fileKey = fileKeys[i];
-        const file = zip.files[fileKey];
-        const mimeType = getMimeType(fileKey);
-        const fileBlob = await file.async("blob");
-        const mimeBlob = new Blob([fileBlob], { type: mimeType });
-        const objectUrl = URL.createObjectURL(mimeBlob);
-        blobUrlMap[fileKey] = objectUrl;
-
-        // Progressively increment progress from 50% to 90%
-        const fileProgress = Math.round(50 + (i / totalFiles) * 40);
-        setUploadProgress(fileProgress);
-      }
-
-      // 4. Resolve HTML entry point
-      let htmlFileKey = Object.keys(zip.files).find((key) => key.endsWith("index_local.html"));
-      if (!htmlFileKey) {
-        htmlFileKey = Object.keys(zip.files).find((key) => key.endsWith("index.html"));
-      }
-      if (!htmlFileKey) {
-        htmlFileKey = Object.keys(zip.files).find((key) => key.endsWith(".html"));
-      }
-
-      if (!htmlFileKey) {
-        throw new Error("No HTML entry point found inside the ZIP archive.");
-      }
-
-      let htmlContent = await zip.files[htmlFileKey].async("string");
-      setUploadProgress(95);
-
-      // 5. Rewrite HTML links
-      const sortedPaths = Object.keys(blobUrlMap).sort((a, b) => b.length - a.length);
-      for (const relativePath of sortedPaths) {
-        const blobUrl = blobUrlMap[relativePath];
-        const escapedPath = relativePath.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-        const regex = new RegExp(`(?:\\./)?${escapedPath}`, "g");
-        htmlContent = htmlContent.replace(regex, blobUrl);
-      }
-
-      const finalHtmlBlob = new Blob([htmlContent], { type: "text/html" });
-      const compiledHtmlUrl = URL.createObjectURL(finalHtmlBlob);
-
+      // Only the zip's file list is read here; the server unpacks it.
+      const check = await checkPackageZip(selectedFile);
+      if (!check.ok) throw new Error(check.why);
       setUploadProgress(100);
 
       // 6. Save the package!
@@ -453,15 +358,14 @@ export const ZipUploader = ({
           year: "numeric"
         }).replace(/ /g, "-"),
         Size: `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`,
-        fileBlob: selectedFile,
-        compiledHtmlUrl
+        fileBlob: selectedFile
       });
 
       setIsUploading(false);
       onClose();
     } catch (err) {
       console.error(err);
-      alert(err?.message || "Failed to extract and compile the SCORM zip.");
+      alert(err?.message || "This zip can't be used as a training package.");
       setIsUploading(false);
       setUploadProgress(0);
     }

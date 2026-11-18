@@ -237,6 +237,7 @@ locals {
     "POST /training/packages/upload",
     "POST /training/packages",
     "DELETE /training/packages/{id}",
+    "POST /training/packages/{id}/extract",
     "GET /campaigns-catalog",
     # The scenario editor's drafts (tables.tf: scenario_drafts).
     "GET /scenario-drafts",
