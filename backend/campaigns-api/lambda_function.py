@@ -60,12 +60,22 @@ MAX_LIST_BYTES = 5 * 1024 * 1024
 CANCELLABLE_STATUSES = ("PENDING_APPROVAL", "APPROVED")
 MAX_REASON = 500
 
-# The app's campaign types (frontend services/campaignTypes.js), plus "Custom"
-# for Start fresh and the two older names some scenarios still carry.
-CAMPAIGN_TYPES = frozenset({
-    "Data Entry", "Click", "Credential theft", "Helpdesk impersonation", "Reward scam", "Travel scam",
+# The type of email a campaign sends: what it asks the person who gets it
+# to do. The ten the app offers (the frontend's list of email types; a test
+# keeps the two the same once it exists), in the order it shows them.
+EMAIL_TYPES = (
+    "Click", "Data Entry", "Attachment", "Reply Based", "QR Code", "Download",
+    "Consent / Authorization", "Call / Callback", "Payment / Transaction", "Multi-Step",
+)
+# Names campaigns saved before the ten still carry: the six earlier types,
+# "Custom" (Start fresh before it asked for a type) and two older scenario
+# names. Accepted so those campaigns can still be edited, cancelled and
+# copied; nothing offers them for a new campaign.
+LEGACY_TYPES = (
+    "Credential theft", "Helpdesk impersonation", "Reward scam", "Travel scam",
     "Custom", "Phishing Simulation", "Social Engineering",
-})
+)
+CAMPAIGN_TYPES = frozenset(EMAIL_TYPES + LEGACY_TYPES)
 
 # What GET /campaigns/{id}/results returns of each recipient row. Never the
 # tracking token, its URL or fingerprint.
@@ -161,7 +171,7 @@ def type_problem(body):
     if "campaignType" not in body or body["campaignType"] in (None, ""):
         return None
     if body["campaignType"] not in CAMPAIGN_TYPES:
-        return f"campaignType must be one of: {', '.join(sorted(CAMPAIGN_TYPES))}"
+        return f"campaignType must be one of: {', '.join(EMAIL_TYPES)}"
     return None
 
 
