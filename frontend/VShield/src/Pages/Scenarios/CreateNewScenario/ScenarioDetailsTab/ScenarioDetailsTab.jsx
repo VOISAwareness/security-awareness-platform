@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import { typeOptions } from "../../../../services/campaignTypes";
+import { MOTIVATORS, TARGET_AUDIENCES, optionsWith } from "../../../../services/scenarioOptions";
 import { api } from "../../../../services/api";
 import { currentActor } from "../../../../services/identity";
 import { readScenarioDraftItems } from "../../../../services/scenarioDraftSync";
@@ -184,7 +185,6 @@ const ScenarioDetailsTab = ({
 
   const [autoFilledId, setAutoFilledId] = useState(false);
   const [customTargetAudience, setCustomTargetAudience] = useState(false);
-  const [customCampaignType, setCustomCampaignType] = useState(false);
   const [customCampaignMotivator, setCustomCampaignMotivator] = useState(false);
   useEffect(() => {
     if (idLockedHint) return undefined;
@@ -367,63 +367,16 @@ const ScenarioDetailsTab = ({
             >
               <div className="flex items-end gap-2">
                 <div className="flex-1 min-w-0">
-                  {customCampaignType ? (
-                    <FormInput
-                      label="Type"
-                      value={formData.type}
-                      onChange={(e) =>
-                        updateField("type", e.target.value)
-                      }
-                      placeholder="Enter Scenario Type"
-                    />
-                  ) : (
-                    <FormSelect
-                label="Type"
-                value={formData.type}
-                onChange={(e) => updateField("type", e.target.value)}
-                options={typeOptions(formData.type)}
-              />
-                  )}
+                  <FormSelect
+                    label="Type"
+                    value={formData.type}
+                    onChange={(e) => updateField("type", e.target.value)}
+                    options={typeOptions(formData.type)}
+                  />
                 </div>
-
-                <button
-                  type="button"
-                  title={
-                    customCampaignType
-                      ? "Use predefined type"
-                      : "Add custom type"
-                  }
-                  onClick={() => {
-                    setCustomCampaignType((previous) => !previous);
-                    updateField("type", "");
-                  }}
-                  className="
-      mb-2
-      w-7
-      h-7
-      shrink-0
-      rounded-lg
-      flex
-      items-center
-      justify-center
-      bg-[#000000]
-      text-white
-      text-[18px]
-      font-medium
-      leading-none
-      transition-all
-      duration-200
-      hover:bg-[#000000]
-      hover:scale-105
-      active:scale-95
-      dark:bg-[#FFFFFF]
-      dark:text-black
-      dark:hover:bg-[#FFFFFF]
-      dark:hover:text-black
-    "
-                >
-                  {customCampaignType ? "×" : "+"}
-                </button>
+                {/* the type of email is one of the ten (no custom value),
+                    so no "+": this keeps it as wide as the fields beside it */}
+                <span aria-hidden className="mb-2 w-7 h-7 shrink-0" />
               </div>
 
               <div className="flex items-end gap-2">
@@ -444,56 +397,7 @@ const ScenarioDetailsTab = ({
                       onChange={(e) =>
                         updateField("targetAudience", e.target.value)
                       }
-                      options={[
-                        {
-                          value: "all",
-                          label: "All Employees",
-                        },
-                        {
-                          value: "managers-leaders",
-                          label: "Managers / Leaders",
-                        },
-                        {
-                          value: "remote-employees",
-                          label: "Remote Employees",
-                        },
-                        {
-                          value: "office-employees",
-                          label: "Office Employees",
-                        },
-                        {
-                          value: "hybrid-employees",
-                          label: "Hybrid Employees",
-                        },
-                        {
-                          value: "finance-teams",
-                          label: "Finance Teams",
-                        },
-                        {
-                          value: "legal-teams",
-                          label: "Legal Teams",
-                        },
-                        {
-                          value: "care-teams",
-                          label: "CARE Teams",
-                        },
-                        {
-                          value: "business-teams",
-                          label: "Business Teams",
-                        },
-                        {
-                          value: "hr",
-                          label: "HR",
-                        },
-                        {
-                          value: "senior-leadership",
-                          label: "Senior Leadership",
-                        },
-                        {
-                          value: "new-joiners",
-                          label: "New Joiners",
-                        },
-                      ]}
+                      options={optionsWith(TARGET_AUDIENCES, formData.targetAudience)}
                     />
                   )}
                 </div>
@@ -580,56 +484,7 @@ const ScenarioDetailsTab = ({
                 label="Motivator"
                 value={formData.motivator}
                 onChange={(e) => updateField("motivator", e.target.value)}
-                options={[
-                  {
-                    value: "fear",
-                    label: "Fear",
-                  },
-                  {
-                    value: "urgency",
-                    label: "Urgency",
-                  },
-                  {
-                    value: "curiosity",
-                    label: "Curiosity",
-                  },
-                  {
-                    value: "authority",
-                    label: "Authority",
-                  },
-                  {
-                    value: "reward",
-                    label: "Reward",
-                  },
-                  {
-                    value: "recognition",
-                    label: "Recognition",
-                  },
-                  {
-                    value: "opportunity",
-                    label: "Opportunity",
-                  },
-                  {
-                    value: "job-function",
-                    label: "Job Function",
-                  },
-                  {
-                    value: "software-update",
-                    label: "Software Update",
-                  },
-                  {
-                    value: "security-account-alert",
-                    label: "Security / Account Alert",
-                  },
-                  {
-                    value: "financial",
-                    label: "Financial",
-                  },
-                  {
-                    value: "social",
-                    label: "Social",
-                  },
-                ]}
+                options={optionsWith(MOTIVATORS, formData.motivator)}
               />
                   )}
                 </div>

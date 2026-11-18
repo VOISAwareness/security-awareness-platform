@@ -16,6 +16,7 @@ import {
 
 import { createPortal } from "react-dom";
 import { DEMO_USER } from "../../../../appConfig";
+import { EMAIL_TYPES, MOTIVATORS, TARGET_AUDIENCES, labelFor } from "../../../../services/scenarioOptions";
 // ============================================================
 // REVIEW CARD THEMES
 // ============================================================
@@ -580,21 +581,21 @@ const ReviewPublishDashboard = ({ formData }) => {
             {/* TYPE */}
             <ScenarioSummaryField
               label="Type"
-              value={formData.type}
+              value={labelFor(EMAIL_TYPES, formData.type)}
               isDark={isDark}
             />
 
             {/* MOTIVATOR */}
             <ScenarioSummaryField
               label="Motivator"
-              value={formData.motivator}
+              value={labelFor(MOTIVATORS, formData.motivator)}
               isDark={isDark}
             />
 
             {/* TARGET AUDIENCE */}
             <ScenarioSummaryField
               label="Target Audience"
-              value={formData.targetAudience}
+              value={labelFor(TARGET_AUDIENCES, formData.targetAudience)}
               isDark={isDark}
             />
 

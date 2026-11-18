@@ -8,37 +8,40 @@
  * "All Employees" and the three difficulty levels already appear verbatim in the
  * seeded data, and a label is what the list screen renders.
  *
- * Seeded records carry values the wizard never offers ("Credential theft",
- * "Finance Workers"). Those are passed through untouched rather than forced onto
- * a slug that would misdescribe them.
+ * Records saved before the current lists carry their own wording ("Credential
+ * theft", "Finance Workers", "Fear, Feedback, Curiosity"), and the builder's
+ * "+" lets a motivator or audience be typed in. Those are passed through
+ * untouched rather than forced onto a slug that would misdescribe them.
  *
- * Option lists mirror the Target Audience, Motivator and Difficulty selects in
- * ScenarioDeatils.jsx (ScenarioDetailsTab) — keep them in step. The Type select
- * reads campaignTypes.js, as this file does.
+ * The Type, Target Audience and Motivator lists are scenarioOptions.js, the
+ * one copy the builder's dropdowns read too.
  */
 
-import { TYPE_LABELS } from './campaignTypes.js';
+import { EMAIL_TYPES, MOTIVATORS, TARGET_AUDIENCES, labelsOf } from './scenarioOptions.js';
 
-const AUDIENCE_LABELS = {
+// Slugs the builder used before the current lists, which a draft kept in a
+// browser may still hold: saved with the label they had then.
+const LEGACY_LABELS = {
+  'credential-theft': 'Credential theft',
+  'helpdesk-impersonation': 'Helpdesk impersonation',
+  'reward-scam': 'Reward scam',
+  'travel-scam': 'Travel scam',
   'remote-hybrid': 'Remote / Hybrid users',
   office: 'Office users',
   executives: 'Executives',
-  all: 'All Employees',
+  'fear-feedback-curiosity': 'Fear, Feedback, Curiosity',
 };
 
-const MOTIVATOR_LABELS = {
-  'fear-feedback-curiosity': 'Fear, Feedback, Curiosity',
-  urgency: 'Urgency',
-  authority: 'Authority',
-  reward: 'Reward',
-};
+const TYPE_LABELS = labelsOf(EMAIL_TYPES);
+const AUDIENCE_LABELS = labelsOf(TARGET_AUDIENCES);
+const MOTIVATOR_LABELS = labelsOf(MOTIVATORS);
 
 const DIFFICULTY_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
 
 const invert = (map) =>
   Object.fromEntries(Object.entries(map).map(([slug, text]) => [text, slug]));
 
-const toLabel = (map, value) => map[value] ?? value ?? '';
+const toLabel = (map, value) => map[value] ?? LEGACY_LABELS[value] ?? value ?? '';
 const toSlug = (map, value) => invert(map)[value] ?? value ?? '';
 
 /** Exactly the fields a stored scenario carries. Nothing else is persisted. */

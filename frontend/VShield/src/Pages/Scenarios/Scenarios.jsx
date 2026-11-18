@@ -24,6 +24,7 @@ import {
 } from "../../services/scenarioOwnership";
 import { DEMO_USER } from "../../appConfig";
 import { TYPE_NAMES } from "../../services/campaignTypes";
+import { MOTIVATORS, TARGET_AUDIENCES, namesOf } from "../../services/scenarioOptions";
 import DraftDialog from "../../GlobalComponents/DraftDialog";
 import { setActiveScenarioDraftId } from "../../services/scenarioDraftList";
 import {
@@ -153,15 +154,11 @@ const VODAFONE_FONT_STYLE = `
 // The app's one list of campaign types (services/campaignTypes.js).
 const campaignTypes = TYPE_NAMES;
 
-const emotions = [
-  "Urgency",
-  "Fear",
-  "Inconvenience",
-  "Authority",
-  "Routine authority",
-];
+// The motivators and target audiences, from the same lists the builder
+// offers (services/scenarioOptions.js), so a filter finds what was saved.
+const emotions = namesOf(MOTIVATORS);
 
-const targetAudiences = ["All users", "Remote", "Employees", "Finance"];
+const targetAudiences = namesOf(TARGET_AUDIENCES);
 
 // =====================================================
 // FILTER ROW — dot + label + count, expands on click to
@@ -799,7 +796,7 @@ const Scenarios = () => {
 
   if (selectedEmotions.length > 0) {
     listed = listed.filter((scenario) =>
-      selectedEmotions.includes(scenario.emotion),
+      selectedEmotions.includes(scenario.motivator),
     );
   }
 
@@ -1478,7 +1475,7 @@ const Scenarios = () => {
                         <div>
                           <strong>Motivator: </strong>
                           <span>
-                            {detailModalItem.motivator || "Security / Urgency"}
+                            {detailModalItem.motivator || "—"}
                           </span>
                         </div>
                         <div>
