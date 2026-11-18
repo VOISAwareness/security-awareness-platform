@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -315,12 +315,12 @@ const MySpacePart2 = () => {
                       {/* Status Badge (No timestamp) */}
                       <div className="absolute top-2.5 right-2.5 z-10">
                         {isCompleted ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
                             <CheckCircle2 className="w-2.5 h-2.5 stroke-[3]" />
                             COMPLETED
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[8px] font-bold uppercase tracking-tight text-black/50 dark:text-white/50 border border-[#22c55e]/25 backdrop-blur-md">
                             <Flame className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                             AVAILABLE
                           </span>

@@ -21,8 +21,6 @@ import {
   Maximize2,
   Minimize2,
   Search,
-  AlertTriangle,
-  X,
 } from "lucide-react";
 import { api } from "../../../../services/api";
 import { announcementTemplatesLive, useAnnouncementData, userListsLive } from "../../../../services/announcements";
@@ -31,6 +29,7 @@ import { announcementTemplatesLive, useAnnouncementData, userListsLive } from ".
 const userDLsJson = userListsLive;
 const AnnouncamentScenariosJsonData = announcementTemplatesLive;
 import { usePeople } from "../../../../services/people";
+import Toast from "../../../../GlobalComponents/Toast";
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
@@ -1834,33 +1833,16 @@ const AnnouncementsCampaignEmail = () => {
         </div>
 
         {/* ========================================================================= */}
-        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL)                            */}
+        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER                                     */}
         {/* ========================================================================= */}
-        {errorMsg &&
-          typeof document !== "undefined" &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1">
-                <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                  Input Required
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {errorMsg}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setErrorMsg("")}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>,
-            document.body,
-          )}
+        {errorMsg && (
+          <Toast
+            message={errorMsg}
+            type="error"
+            title="Input Required"
+            onClose={() => setErrorMsg("")}
+          />
+        )}
 
         {/* Fullscreen Modal Portal for Expanded Rich Editor */}
         {isEditorExpanded &&

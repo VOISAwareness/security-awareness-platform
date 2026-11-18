@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -14,8 +14,6 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  List,
-  ListOrdered,
   Image as ImageIcon,
   Link as LinkIcon,
   Code,
@@ -23,7 +21,6 @@ import {
   Maximize2,
   Minimize2,
   Search,
-  AlertTriangle,
   FileText,
   X
 } from 'lucide-react';
@@ -40,6 +37,7 @@ import userDLsJson from '../UserDLs/UserDLsData.json';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { usePeople } from '../../services/people';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
+import Toast from '../../GlobalComponents/Toast';
 import PageLoading from '../../GlobalComponents/PageLoading';
 import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
 import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
@@ -435,29 +433,6 @@ const CampaignEmail = () => {
   }
  }, [serverDraft, initialContent, rawHtmlMode]);
 
- // Click outside listeners to close menus
- useEffect(() => {
-  const handleClickOutside = (e) => {
-   // The toolbar menus: their button or the menu itself (in either editor).
-   if (!e.target.closest?.('[data-editor-menu="fx"]')) {
-    setShowEditorFxMenu(false);
-   }
-   if (!e.target.closest?.('[data-editor-menu="body"]')) {
-    setShowBodyMenu(false);
-   }
-   if (subjectFxRef.current && !subjectFxRef.current.contains(e.target)) {
-    setShowSubjectFxMenu(false);
-   }
-   if (userListDropdownRef.current && !userListDropdownRef.current.contains(e.target)) {
-    setIsDropdownOpen(false);
-   }
-   if (singleUserDropdownRef.current && !singleUserDropdownRef.current.contains(e.target)) {
-    setIsSingleUserDropdownOpen(false);
-   }
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => document.removeEventListener('mousedown', handleClickOutside);
- }, []);
 
  // Lock Body Overflow when expanded fullscreen
  useEffect(() => {
@@ -487,6 +462,30 @@ const CampaignEmail = () => {
  const [singleUserSearch, setSingleUserSearch] = useState('');
 
  const [errorMsg, setErrorMsg] = useState('');
+
+ // Click outside listeners to close menus
+ useEffect(() => {
+  const handleClickOutside = (e) => {
+   // The toolbar menus: their button or the menu itself (in either editor).
+   if (!e.target.closest?.('[data-editor-menu="fx"]')) {
+    setShowEditorFxMenu(false);
+   }
+   if (!e.target.closest?.('[data-editor-menu="body"]')) {
+    setShowBodyMenu(false);
+   }
+   if (subjectFxRef.current && !subjectFxRef.current.contains(e.target)) {
+    setShowSubjectFxMenu(false);
+   }
+   if (userListDropdownRef.current && !userListDropdownRef.current.contains(e.target)) {
+    setIsDropdownOpen(false);
+   }
+   if (singleUserDropdownRef.current && !singleUserDropdownRef.current.contains(e.target)) {
+    setIsSingleUserDropdownOpen(false);
+   }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+ }, []);
 
  // A test campaign (ticked on Details & settings) is sent only to email IDs
  // added here one by one, from the user directory or typed: no recipient list.
@@ -1028,7 +1027,7 @@ const CampaignEmail = () => {
      <button 
       type="button" 
       onMouseDown={(e) => { e.preventDefault(); runCommand('removeFormat'); }} 
-      className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black text-slate-400 hover:text-white dark:hover:text-black" 
+      className="p-0.5 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black hover:text-white dark:hover:text-black" 
       title="Clear Formatting"
      >
       <RemoveFormatting className="w-3 h-3" />
@@ -1425,7 +1424,7 @@ const CampaignEmail = () => {
         {/* 🌟 3. Top-Right Arm of L-Shape Container */}
         <div
          style={{ backgroundColor: lCardBg }}
-         className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+         className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
         >
          {/* Sender Email ID Field: Non-typeable Dropdown */}
          <div className="flex flex-col gap-0.5">
@@ -1616,7 +1615,7 @@ const CampaignEmail = () => {
         {/* 🌟 3. Top-Right Arm of L-Shape Container */}
         <div
          style={{ backgroundColor: lCardBg }}
-         className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1 z-50 -ml-2 relative overflow-visible"
+         className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1 z-50 -ml-2 relative overflow-visible"
         >
          {testMode && (
           <div className="flex items-center justify-between">
@@ -2038,31 +2037,14 @@ const CampaignEmail = () => {
     {/* ========================================================================= */}
     {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL)                            */}
     {/* ========================================================================= */}
-    {errorMsg &&
-      typeof document !== 'undefined' &&
-      createPortal(
-        <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-          <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-          </div>
-          <div className="flex flex-col text-left leading-tight flex-1">
-            <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-              Input Required
-            </span>
-            <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-              {errorMsg}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setErrorMsg('')}
-            className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>,
-        document.body
-      )}
+    {errorMsg && (
+      <Toast
+        message={errorMsg}
+        type="error"
+        title="Input Required"
+        onClose={() => setErrorMsg('')}
+      />
+    )}
 
     {/* Fullscreen Modal Portal for Expanded Rich Editor */}
     {isEditorExpanded &&

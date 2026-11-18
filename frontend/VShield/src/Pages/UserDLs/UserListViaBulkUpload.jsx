@@ -1,18 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import Toast from "../../GlobalComponents/Toast";
 import {
   ChevronDown,
   ChevronUp,
   Search,
-  Check,
   RefreshCw,
   Upload,
   Download,
   User as UserIcon,
   Trash2,
-  X,
 } from "lucide-react";
 
 import ExcelIcon from "../../assets/UserListScreenAssets/ExcelIconUserListsScreen.png";
@@ -117,14 +115,14 @@ const UserListViaBulkUpload = () => {
   // Table Controls & Expand State
   const [tableSearch, setTableSearch] = useState("");
   const [isTableMaximized, setIsTableMaximized] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [toast, setToast] = useState(null);
 
   // Floating Toaster for Deleted Records
   const [deletedSuccessMsg, setDeletedSuccessMsg] = useState("");
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 2500);
+  const showToast = (msg, type = "info", title) => {
+    setToast({ message: msg, type, title });
+    setTimeout(() => setToast(null), 3000);
   };
 
   // A recipient row, completed from the people directory (GET /users):
@@ -231,7 +229,7 @@ const UserListViaBulkUpload = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Downloaded sample template (.csv)");
+    showToast("Downloaded sample template (.csv)", "info");
   };
 
   // Canonical column order the backend ingest expects.
@@ -287,13 +285,13 @@ const UserListViaBulkUpload = () => {
       r.some((c) => String(c ?? "").trim() !== ""),
     );
     if (nonEmpty.length <= 1) {
-      showToast("File appears empty or missing data rows");
+      showToast("File appears empty or missing data rows", "warning");
       return;
     }
 
     const idx = columnIndexes(nonEmpty[0]);
     if (idx.email === -1) {
-      showToast("Missing an 'Email ID' column. Use the sample template.");
+      showToast("Missing an 'Email ID' column. Use the sample template.", "error");
       return;
     }
 
@@ -317,7 +315,7 @@ const UserListViaBulkUpload = () => {
     });
 
     if (parsedRows.length === 0) {
-      showToast("No rows with an email address were found");
+      showToast("No rows with an email address were found", "warning");
       return;
     }
 
@@ -332,6 +330,7 @@ const UserListViaBulkUpload = () => {
       `Loaded ${resolved.length} recipients` +
         (unregisteredCount ? ` (${unregisteredCount} unregistered)` : "") +
         (skipped ? ` — ${skipped} row(s) skipped, no email` : ""),
+      "success"
     );
   };
 
@@ -346,13 +345,13 @@ const UserListViaBulkUpload = () => {
     if (!cohortName) {
       setCohortName(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
     }
-    showToast(`Selected "${file.name}". Click LOAD to evaluate.`);
+    showToast(`Selected "${file.name}". Click LOAD to evaluate.`, "info");
   };
 
   // Load Action: parse the chosen file and stage its rows
   const handleLoad = async () => {
     if (!pendingFile) {
-      showToast("Please select an Excel or CSV file first!");
+      showToast("Please select an Excel or CSV file first!", "warning", "Input Required");
       return;
     }
     const ext = (pendingFile.name.split(".").pop() || "").toLowerCase();
@@ -377,13 +376,13 @@ const UserListViaBulkUpload = () => {
         const text = await pendingFile.text();
         applyRows(text.split(/\r?\n/).map(splitCsvLine));
       } else if (ext === "xls") {
-        showToast("Legacy .xls is not supported — save as .xlsx or .csv");
+        showToast("Legacy .xls is not supported — save as .xlsx or .csv", "warning");
       } else {
-        showToast("Unsupported file type. Please upload .csv or .xlsx");
+        showToast("Unsupported file type. Please upload .csv or .xlsx", "error");
       }
     } catch (err) {
       console.error("Failed to read file", err);
-      showToast("Could not read that file. Please check the format.");
+      showToast("Could not read that file. Please check the format.", "error");
     }
   };
 
@@ -409,11 +408,11 @@ const UserListViaBulkUpload = () => {
   // Save Action
   const handleSave = async () => {
     if (!cohortName.trim()) {
-      showToast("Please enter a Name for this list");
+      showToast("Please enter a Name for this list", "warning", "Input Required");
       return;
     }
     if (!isLoaded || loadedMembers.length === 0) {
-      showToast("No user records staged. Click LOAD first!");
+      showToast("No user records staged. Click LOAD first!", "warning", "Input Required");
       return;
     }
 
@@ -443,7 +442,7 @@ const UserListViaBulkUpload = () => {
         ].join("\n");
         const csvName =
           (uploadedFileName || name).replace(/\.[^/.]+$/, "") + ".csv";
-        showToast("Uploading recipient list...");
+        showToast("Uploading recipient list...", "info");
         const saved = await api.userLists.upload({
           name,
           description: desc,
@@ -452,14 +451,15 @@ const UserListViaBulkUpload = () => {
         });
         showToast(
           `Saved '${name}' with ${saved?.totalUsers ?? loadedMembers.length} recipients!`,
+          "success"
         );
       } else if (editId) {
         // Editing metadata only (members unchanged).
         await api.userLists.update(editId, { name, description: desc });
-        showToast(`Updated '${name}' successfully!`);
+        showToast(`Updated '${name}' successfully!`, "success");
       } else {
         setIsSaving(false);
-        showToast("Please select a file to upload");
+        showToast("Please select a file to upload", "warning", "Input Required");
         return;
       }
 
@@ -471,6 +471,7 @@ const UserListViaBulkUpload = () => {
       console.error(e);
       showToast(
         e?.message || "Could not save the user list. Please try again.",
+        "error"
       );
     }
   };
@@ -945,40 +946,24 @@ const UserListViaBulkUpload = () => {
           </div>
         </div>
 
-        {/* Bottom Toast Notification */}
-        {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl bg-[#2E7D32] text-white text-xs font-voda font-bold shadow-xl flex items-center gap-2">
-            <Check className="w-4 h-4 stroke-[3]" />
-            {toastMessage}
-          </div>
+        {/* Standardized Toast Notifications */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            title={toast.title}
+            onClose={() => setToast(null)}
+          />
         )}
 
-        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL) ── */}
-        {deletedSuccessMsg &&
-          typeof document !== "undefined" &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-emerald-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-[#16A34A] flex items-center justify-center flex-shrink-0">
-                <Check className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1">
-                <span className="text-[10px] font-voda font-bold text-[#16A34A] uppercase tracking-wider">
-                  Success
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {deletedSuccessMsg}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDeletedSuccessMsg("")}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>,
-            document.body,
-          )}
+        {deletedSuccessMsg && (
+          <Toast
+            message={deletedSuccessMsg}
+            type="success"
+            title="Success"
+            onClose={() => setDeletedSuccessMsg("")}
+          />
+        )}
       </div>
     </>
   );

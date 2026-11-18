@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
-import { Check, AlertTriangle, X } from 'lucide-react';
+import { Check } from 'lucide-react';
+import Toast from '../../GlobalComponents/Toast';
 import { CAMPAIGN_STEPS } from './ChooseAScenario';
 import scenariosJsonData from '../Scenarios/ScenariosData.json';
 import { useCampaignDraft } from '../../services/useCampaignDraft';
@@ -390,7 +390,7 @@ const DetailsAndSettings = () => {
                 {/* 🌟 3. Top-Right Arm of L-Shape Container (#F1F5F7) */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2.5 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2.5 flex flex-col justify-center gap-1.5 z-10 -ml-2"
                 >
                   <label className="text-[12.5px] py-2.5 mt-2 font-bold text-slate-900 dark:text-white leading-none">
                     Campaign Title <span className="text-[#FF6B6B] dark:text-[#FFA8A8] font-bold">*</span>
@@ -701,33 +701,16 @@ const DetailsAndSettings = () => {
         </div>
 
         {/* ========================================================================= */}
-        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PORTAL)                            */}
+        {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER                                     */}
         {/* ========================================================================= */}
-        {errorMsg &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1">
-                <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                  Input Required
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {errorMsg}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setErrorMsg('')}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>,
-            document.body
-          )}
+        {errorMsg && (
+          <Toast
+            message={errorMsg}
+            type="error"
+            title="Input Required"
+            onClose={() => setErrorMsg('')}
+          />
+        )}
       </div>
     </>
   );

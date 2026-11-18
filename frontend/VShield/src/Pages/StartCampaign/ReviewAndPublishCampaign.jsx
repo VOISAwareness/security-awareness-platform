@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTrainingCatalog } from '../../services/trainingCatalog';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +15,6 @@ import {
   ArrowLeft,
   Users,
   CheckCircle2,
-  AlertTriangle
 } from 'lucide-react';
 import { useCampaignDraft, clearActiveCampaign } from '../../services/useCampaignDraft';
 import { IN_WIZARD } from '../../services/campaignWizard';
@@ -33,6 +32,7 @@ import PageLoading from '../../GlobalComponents/PageLoading';
 import SaveDraftButton from '../../GlobalComponents/SaveDraftButton';
 import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 import { testRecipientEmails, usesTestRecipients } from '../../services/testRecipients';
+import Toast from '../../GlobalComponents/Toast';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -284,7 +284,7 @@ const ReviewAndPublishCampaign = () => {
   const matchedLanding = landingCatalogues.find(
     (c) => (c.LandingPageID || c.landingPageId || c.id) === landingPageId
   ) || landingCatalogues[0] || {};
-  const landingPageName = draft.landingPageName || matchedLanding.LandingPageName || 'Blue Security Alert Landing Page';
+
   const landingPageContent = draft.landingPageContent || matchedLanding.LandingPageContent || '<div style="padding: 40px; text-align: center;"><h2>Phishing Intercept</h2><p>This is a simulated phishing campaign test.</p></div>';
 
   // Training Path
@@ -533,7 +533,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Scenario
@@ -632,7 +632,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Date &amp; Time Settings
@@ -750,7 +750,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-4 py-2 flex flex-col justify-center gap-1.5 z-10 -ml-2"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Sender Details
@@ -919,7 +919,7 @@ const ReviewAndPublishCampaign = () => {
                 {/* 3. Top-Right Arm of L-Shape Container */}
                 <div
                   style={{ backgroundColor: lCardBg }}
-                  className="w-[calc(100%-170px)] ml-auto h-[129px] rounded-t-xl px-3 py-1.5 flex flex-col justify-center gap-1 z-10 -ml-2"
+                  className="w-[calc(100%-170px)] h-[129px] rounded-t-xl px-3 py-1.5 flex flex-col justify-center gap-1 z-10 -ml-2"
                 >
                   <label className="text-[12.5px] mb-1 font-bold text-slate-900 dark:text-white leading-none">
                     Landing Page
@@ -1243,51 +1243,32 @@ const ReviewAndPublishCampaign = () => {
         {/* ========================================================================= */}
         {/* ── 🌟 SCREEN TOP-RIGHT CORNER TOASTER (PUBLISH FAILURE)                   */}
         {/* ========================================================================= */}
-        {publishError &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div className="fixed top-5 right-6 z-[2147483647] flex items-start gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 border border-red-500/30 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200 max-w-sm">
-              <div className="w-8 h-8 rounded-full bg-red-100 text-[#E60000] flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-              </div>
-              <div className="flex flex-col text-left leading-tight flex-1 min-w-0">
-                <span className="text-[10px] font-voda font-bold text-[#E60000] uppercase tracking-wider">
-                  Submission Failed
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-700 mt-0.5">
-                  {publishError}
-                </span>
-
-                {/* Per-field reasons from the server (capped so a long list cannot
-                    blow out the toaster) */}
-                {publishProblems.length > 0 && (
-                  <div className="flex flex-col gap-1 mt-1.5">
-                    {publishProblems.slice(0, MAX_VISIBLE_PROBLEMS).map((problem) => (
-                      <div key={problem} className="flex items-start gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#E60000] flex-shrink-0 mt-[3px]" />
-                        <span className="text-[9px] font-medium text-slate-600 leading-snug">
-                          {problem}
-                        </span>
-                      </div>
-                    ))}
-                    {publishProblems.length > MAX_VISIBLE_PROBLEMS && (
-                      <span className="text-[9px] font-bold text-slate-500 pl-3">
-                        +{publishProblems.length - MAX_VISIBLE_PROBLEMS} more
-                      </span>
-                    )}
+        {publishError && (
+          <Toast
+            message={publishError}
+            type="error"
+            title="Submission Failed"
+            onClose={dismissPublishError}
+          >
+            {publishProblems.length > 0 && (
+              <div className="flex flex-col gap-1 mt-1.5">
+                {publishProblems.slice(0, MAX_VISIBLE_PROBLEMS).map((problem) => (
+                  <div key={problem} className="flex items-start gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E60000] flex-shrink-0 mt-[3px]" />
+                    <span className="text-[9px] font-medium text-slate-600 leading-snug">
+                      {problem}
+                    </span>
                   </div>
+                ))}
+                {publishProblems.length > MAX_VISIBLE_PROBLEMS && (
+                  <span className="text-[9px] font-bold text-slate-500 pl-3">
+                    +{publishProblems.length - MAX_VISIBLE_PROBLEMS} more
+                  </span>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={dismissPublishError}
-                className="p-1 rounded text-slate-400 hover:text-black dark:hover:text-white cursor-pointer flex-shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>,
-            document.body
-          )}
+            )}
+          </Toast>
+        )}
       </div>
     </>
   );
