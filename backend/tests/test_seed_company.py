@@ -169,3 +169,15 @@ def test_a_dry_run_writes_nothing(mod, capsys):
     mod.main(["--today", "2026-11-10", "--people", "40"])
     out = capsys.readouterr().out
     assert "users: 40 rows" in out and "Dry run: nothing written" in out
+
+
+def test_the_lures_are_named_as_the_migration_names_them(mod):
+    spec = importlib.util.spec_from_file_location(
+        "migrate_scenario_options", BACKEND / "seed-data" / "migrate_scenario_options.py")
+    migrate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migrate)
+    assert set(mod.LURE_AS) == set(mod.TYPES)
+    for lure, (kind, motivator) in mod.LURE_AS.items():
+        assert kind in migrate.EMAIL_TYPES and motivator in migrate.MOTIVATORS
+        if lure in migrate.OLD_TYPES:
+            assert (kind, motivator) == migrate.OLD_TYPES[lure], lure
