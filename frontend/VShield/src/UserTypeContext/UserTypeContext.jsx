@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { forgetReads } from '../services/queryCache.js';
 
 const UserTypeContext = createContext();
 
@@ -162,6 +163,8 @@ export const UserTypeProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
+    // the next person starts with nothing read for the last one
+    forgetReads();
     try {
       localStorage.removeItem('voisshield_active_user');
       localStorage.removeItem('voisshield_current_user');

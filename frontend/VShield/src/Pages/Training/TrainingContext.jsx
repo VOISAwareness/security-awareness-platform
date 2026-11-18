@@ -136,7 +136,7 @@ export const TrainingProvider = ({ children }) => {
   // (for up to three minutes after the last upload or retry).
   const pollsLeft = useRef(36);
   const refreshServerPackages = useCallback(async () => {
-    const rows = await api.trainingPackages.list();
+    const rows = await api.trainingPackages.list({ fresh: true });
     const serverPkgs = (Array.isArray(rows) ? rows : []).map(fromServer);
     setPackages((prev) => mergePackages(serverPkgs, prev.filter((p) => !p.onServer && !p.isSample), [SAMPLE_PACKAGE]));
   }, []);
