@@ -175,7 +175,8 @@ function App() {
             <Route path="/announcements/details" element={<AnnouncementsDetailsAndSettings />} />
             <Route path="/announcements/email" element={<AnnouncementsTemplateEmail />} />
             <Route path="/announcements/review" element={<AnnouncementsReviewPublish />} />
-            <Route path="/new-announcement-details" element={<AnnouncementTemplateDetails />} />
+            <Route path="/new-announcement" element={<AnnouncementTemplateDetails />} />
+            <Route path="/new-announcement/:step" element={<AnnouncementTemplateDetails />} />
 
             {/* Fallback inside dashboard -> Route to user role default */}
             <Route path="*" element={<DashboardFallback />} />
