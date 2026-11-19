@@ -1,5 +1,5 @@
 import { withScheduleInstants } from './calendarDates.js';
-import { afterWrite, cachedGet } from './queryCache.js';
+import { afterWrite, cachedGet, readUrl } from './queryCache.js';
 
 // Central API client for the VShield backend (AWS HTTP API).
 // Base URL comes from VITE_API_BASE_URL; falls back to the POC endpoint so the
@@ -37,7 +37,7 @@ async function request(path, options = {}) {
 }
 
 async function send(path, { method = 'GET', body, keepalive = false } = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE_URL}${method === 'GET' ? readUrl(path) : path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,

@@ -10,7 +10,10 @@
  *   what it got can't change what the next screen reads.
  *
  * Any write (POST / PUT / PATCH / DELETE) marks everything read as stale
- * (`afterWrite`), so the next read after a change is fresh. Callers that
+ * (`afterWrite`), so the next read after a change is fresh. The API is read
+ * through CloudFront, which keeps shared reads for a minute or more; after a
+ * write, reads carry the time of this tab's last write (`readUrl`, _w=), so
+ * CloudFront never answers them with a copy from before it. Callers that
  * must see the server's latest (a list polled while packages unpack) pass
  * `fresh: true`.
  *
@@ -63,8 +66,21 @@ export async function cachedGet(path, load, { fresh = false, client = queryClien
   return copy(data);
 }
 
+let lastWriteAt = 0;
+
+/**
+ * The URL path to read: as it is until this tab writes; after that, with the
+ * time of the last write (_w=), so a shared cache (CloudFront) never answers
+ * with a copy from before this tab's change. The API ignores the parameter.
+ */
+export function readUrl(path, stamp = lastWriteAt) {
+  if (!stamp) return path;
+  return `${path}${path.includes('?') ? '&' : '?'}_w=${stamp}`;
+}
+
 /** A write happened: everything read so far is stale (read again on next use). */
-export function afterWrite({ client = queryClient } = {}) {
+export function afterWrite({ client = queryClient, now = Date.now() } = {}) {
+  lastWriteAt = Math.max(now, lastWriteAt + 1);
   return client.invalidateQueries({ queryKey: ['api'], refetchType: 'none' });
 }
 

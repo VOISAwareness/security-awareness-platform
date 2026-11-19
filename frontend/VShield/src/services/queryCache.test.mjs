@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { QueryClient } from '@tanstack/react-query';
-import { afterWrite, cachedGet, DEFAULT_FRESH_MS, forgetReads, freshFor } from './queryCache.js';
+import { afterWrite, cachedGet, DEFAULT_FRESH_MS, forgetReads, freshFor, readUrl } from './queryCache.js';
 
 const fresh = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const counter = (value) => {
@@ -71,4 +71,16 @@ test('slow-changing reads stay fresh longer', () => {
   assert.equal(freshFor('/campaigns/CAMP-1'), DEFAULT_FRESH_MS);
   assert.equal(freshFor('/users'), 5 * 60 * 1000);
   assert.equal(freshFor('/campaigns'), DEFAULT_FRESH_MS);
+});
+
+test('after a write, reads skip the shared (CloudFront) copy', async () => {
+  assert.equal(readUrl('/training/paths', 0), '/training/paths');
+  assert.equal(readUrl('/training/paths', 1763540000000), '/training/paths?_w=1763540000000');
+  assert.equal(readUrl('/insights?role=Admin', 5), '/insights?role=Admin&_w=5');
+  const client = fresh();
+  const later = Date.now() + 60_000; // later than any write the tests above made
+  await afterWrite({ client, now: later });
+  assert.equal(readUrl('/levels'), `/levels?_w=${later}`);
+  await afterWrite({ client, now: later }); // two writes in the same millisecond still differ
+  assert.equal(readUrl('/levels'), `/levels?_w=${later + 1}`);
 });
