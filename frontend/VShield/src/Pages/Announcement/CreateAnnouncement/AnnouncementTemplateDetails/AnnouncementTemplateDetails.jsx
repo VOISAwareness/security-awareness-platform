@@ -8,10 +8,11 @@ const announcamentScenariosJsonData = announcementTemplatesLive;
 import AnnouncementEmailDetailsTab from "../AnnouncementEmailDetailsTab/AnnouncementEmailDetailsTab";
 import { createPortal } from "react-dom";
 import { EMAIL_TYPES, TARGET_AUDIENCES, nameOptions } from "../../../../services/scenarioOptions";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Toast from "../../../../GlobalComponents/Toast";
 
-import { Check, CheckCircle2 } from "lucide-react";
+import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ANNOUNCEMENT_STEPS } from "../AnnouncementConstants";
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -38,6 +39,11 @@ const VODAFONE_FONT_STYLE = `
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallScenarioRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallScenarioRoundednessScale)}px !important; }
 `;
+
+const stepIndexFromPath = (path) => {
+  const found = ANNOUNCEMENT_STEPS.findIndex((step) => step.path === path);
+  return found >= 0 ? found : null;
+};
 // ============================================================
 // REUSABLE INPUT (dark bg updated for contrast against tinted L-shape)
 // ============================================================
@@ -160,12 +166,6 @@ const FormTextarea = ({
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
 const TemplateTabs = ({ activeTab, onTabChange }) => {
-  const steps = [
-    { id: 0, titleLine1: "Announcement", titleLine2: "Template Details" },
-    { id: 1, titleLine1: "Announcement", titleLine2: "Email Details" },
-    { id: 2, titleLine1: "Announcement", titleLine2: "Review & Publish" },
-  ];
-
   return (
     <div
       className="
@@ -178,7 +178,7 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
         select-none
       "
     >
-      {steps.map((step) => {
+      {ANNOUNCEMENT_STEPS.map((step) => {
         const isCurrent = activeTab === step.id;
         const isCompleted = activeTab > step.id;
 
@@ -242,7 +242,7 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
                   isCurrent
                     ? "bg-white dark:bg-black text-black dark:text-white"
                     : isCompleted
-                      ? "bg-[#8ED973] dark:bg-[#74D054] text-white"
+                      ? "bg-[#8ED973] text-white"
                       : "bg-slate-900 text-white dark:bg-white dark:text-black"
                 }
               `}
@@ -273,6 +273,9 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
 // ============================================================
 const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
   const { isDark } = useUserType?.() || { isDark: false };
+  const [customTargetAudience, setCustomTargetAudience] = useState(false);
+  const [customAnnouncementType, setCustomAnnouncementType] = useState(false);
+
   const [draft] = useState(() => {
     try {
       const stored = localStorage.getItem(
@@ -436,23 +439,137 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                 gap-1.5
               "
             >
-              <FormSelect
-                label="Type"
-                value={formData.announcementCampaignType}
-                onChange={(e) =>
-                  updateField("announcementCampaignType", e.target.value)
-                }
-                options={nameOptions(EMAIL_TYPES, formData.announcementCampaignType)}
-              />
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  {customAnnouncementType ? (
+                    <FormInput
+                      label="Type"
+                      value={formData.announcementCampaignType}
+                      onChange={(e) =>
+                        updateField("announcementCampaignType", e.target.value)
+                      }
+                      placeholder="Enter Announcement Type"
+                    />
+                  ) : (
+                    <FormSelect
+                      label="Type"
+                      value={formData.type}
+                      onChange={(e) =>
+                        updateField("announcementCampaignType", e.target.value)
+                      }
+                      options={nameOptions(EMAIL_TYPES, formData.announcementCampaignType)}
+                    />
+                  )}
+                </div>
 
-              <FormSelect
-                label="Target Audience"
-                value={formData.announcementTargetAudience}
-                onChange={(e) =>
-                  updateField("announcementTargetAudience", e.target.value)
-                }
-                options={nameOptions(TARGET_AUDIENCES, formData.announcementTargetAudience)}
-              />
+                <button
+                  type="button"
+                  title={
+                    customAnnouncementType
+                      ? "Use predefined type"
+                      : "Add custom Announcement type"
+                  }
+                  onClick={() => {
+                    setCustomAnnouncementType((previous) => !previous);
+                    updateField("announcementCampaignType", "");
+                  }}
+                  className="
+                    mb-2
+                    w-7
+                    h-7
+                    shrink-0
+                    rounded-lg
+                    flex
+                    items-center
+                    justify-center
+                    bg-[#000000]
+                    text-white
+                    text-[18px]
+                    font-medium
+                    leading-none
+                    transition-all
+                    duration-200
+                    hover:bg-[#000000]
+                    hover:scale-105
+                    active:scale-95
+                    dark:bg-[#FFFFFF]
+                    dark:text-black
+                    dark:hover:bg-[#FFFFFF]
+                    dark:hover:text-black
+                  "
+                >
+                  {customAnnouncementType ? "×" : "+"}
+                </button>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  {customTargetAudience ? (
+                    <FormInput
+                      label="Target Audience"
+                      value={formData.announcementTargetAudience}
+                      onChange={(e) =>
+                        updateField(
+                          "announcementTargetAudience",
+                          e.target.value,
+                        )
+                      }
+                      placeholder="Enter target audience"
+                    />
+                  ) : (
+                    <FormSelect
+                      label="Target Audience"
+                      value={formData.announcementTargetAudience}
+                      onChange={(e) =>
+                        updateField(
+                          "announcementTargetAudience",
+                          e.target.value,
+                        )
+                      }
+                      options={nameOptions(TARGET_AUDIENCES, formData.announcementTargetAudience)}
+                    />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  title={
+                    customTargetAudience
+                      ? "Use predefined target audience"
+                      : "Add custom target audience"
+                  }
+                  onClick={() => {
+                    setCustomTargetAudience((previous) => !previous);
+                    updateField("announcementTargetAudience", "");
+                  }}
+                  className="
+      mb-2
+      w-7
+      h-7
+      shrink-0
+      rounded-lg
+      flex
+      items-center
+      justify-center
+      bg-[#000000]
+      text-white
+      text-[18px]
+      font-medium
+      leading-none
+      transition-all
+      duration-200
+      hover:bg-[#000000]
+      hover:scale-105
+      active:scale-95
+      dark:bg-[#FFFFFF]
+      dark:text-black
+      dark:hover:bg-[#FFFFFF]
+      dark:hover:text-black
+    "
+                >
+                  {customTargetAudience ? "×" : "+"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -503,9 +620,13 @@ const AnnouncementTemplateDetails = () => {
     isDark: false,
   };
 
-  const [activeTab, setActiveTab] = useState(0);
-  const [errorMsg, setErrorMsg] = useState("");
+  const location = useLocation();
   const navigate = useNavigate();
+  const routeParams = useParams();
+  const [activeTab, setActiveTab] = useState(
+    () => stepIndexFromPath(routeParams.step) ?? 0,
+  );
+  const [errorMsg, setErrorMsg] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
 
@@ -523,6 +644,16 @@ const AnnouncementTemplateDetails = () => {
 
     return () => clearTimeout(timer);
   }, [errorMsg]);
+
+  useEffect(() => {
+    const stepPath =
+      ANNOUNCEMENT_STEPS[activeTab]?.path || ANNOUNCEMENT_STEPS[0].path;
+    const nextPathname = `/new-announcement/${stepPath}`;
+    if (location.pathname === nextPathname) {
+      return;
+    }
+    navigate(nextPathname, { replace: true, state: null });
+  }, [activeTab]);
 
   // ==========================================================
   // FORM DATA
@@ -793,13 +924,13 @@ const AnnouncementTemplateDetails = () => {
     TOP-RIGHT VALIDATION TOAST
 ==================================================== */}
       {errorMsg && (
-        <Toast
+          <Toast
           message={errorMsg}
           type="error"
           title="Input Required"
           onClose={() => setErrorMsg("")}
         />
-      )}
+        )}
       <div
         style={{
           zoom: VarScenarioScale,

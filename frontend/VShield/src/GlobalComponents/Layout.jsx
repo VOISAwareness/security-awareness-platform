@@ -22,6 +22,7 @@ import {
 
 import TopHeaderSection from './TopHeaderSection';
 import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
+import { ANNOUNCEMENT_STEPS } from '../Pages/Announcement/CreateAnnouncement/AnnouncementConstants';
 
 // =========================================================================
 // 🎛️ LAYOUT SCALE, HEIGHT, WEIGHT & THEMED COLOR CONTROLS
@@ -221,7 +222,10 @@ const Layout = () => {
               label="ANNOUNCEMENT"
               icon={MessageSquare}
               perm="announcements"
-              activePaths={['/new-announcement-details']}
+              activePaths={[
+                '/new-announcement',
+                ...ANNOUNCEMENT_STEPS.map((step) => `/new-announcement/${step.path}`)
+              ]}
             />
             <NavLink to="/user-dls" label="USER LIST (DL)" icon={Users} perm="user-dls" />
             <NavLink to="/email-domains" label="EMAIL IDs & DOMAINS" icon={AtSign} perm="email-domains" />

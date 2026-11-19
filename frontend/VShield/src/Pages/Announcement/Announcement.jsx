@@ -340,7 +340,7 @@ const AnnouncementScenarioFilters = ({
         --------------------------------------------- */}
         <div
           style={{
-            backgroundColor: isDark ? "#241C3D" : "#E9E4FF",
+            backgroundColor: isDark ? "#382124" : "#F4D5D2",
           }}
           className="w-[calc(50%-4px)] h-[120px] p-3.5 rounded-2xl flex flex-col justify-between shadow-xs z-20 justify-start items-start text-left transition-colors mb-2"
         >
@@ -508,6 +508,7 @@ const Announcement = () => {
 
   // Selected State
   const [detailModalItem, setDetailModalItem] = useState(null);
+  const [detailModalCardTheme, setDetailModalCardTheme] = useState(null);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
@@ -575,7 +576,7 @@ const Announcement = () => {
   // ---------------------------------------------------
   // Search (matches id, title, or type) and the ticked filters
   // ---------------------------------------------------
-  const filteredScenarios = useMemo(() => {
+  const filteredAnnouncements = useMemo(() => {
     const searchText = search.trim().toLowerCase();
     return scenariosList.filter(
       (scenario) =>
@@ -736,7 +737,7 @@ const Announcement = () => {
               </button>
             </Link>
 
-            <Link to="/new-announcement-details">
+            <Link to="/new-announcement">
               <button
                 type="button"
                 className={`
@@ -859,7 +860,7 @@ const Announcement = () => {
             {/* ================================================= */}
             <div className="flex-1 min-w-0 flex flex-col">
               <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
-                {filteredScenarios.length === 0 ? (
+                {filteredAnnouncements.length === 0 ? (
                   <div
                     className={`h-[250px] flex items-center justify-center font-bold text-sm ${
                       isDark ? "text-white" : "text-[#0B1121]"
@@ -869,7 +870,7 @@ const Announcement = () => {
                   </div>
                 ) : (
                   <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
-                    {filteredScenarios.map((scenario, cardIndex) => {
+                    {filteredAnnouncements.map((scenario, cardIndex) => {
                       const dotColor =
                         INTENSITY_COLORS[scenario.intensityColor] ||
                         INTENSITY_COLORS.yellow;
@@ -966,6 +967,7 @@ const Announcement = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setDetailModalItem(scenario);
+                                  setDetailModalCardTheme(cardBackgroundTheme);
                                 }}
                                 className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
                                 title="View Full Scenario Details"
@@ -1123,19 +1125,22 @@ const Announcement = () => {
             {detailModalItem && (
               <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
                 {(() => {
-                  const modalTheme =
+                  const difficultyTheme =
                     DIFFICULTY_THEMES[detailModalItem.announcementDifficulty] ||
                     DIFFICULTY_THEMES.Low;
+
+                    const modalCardTheme =
+                    detailModalCardTheme || CARD_BACKGROUND_THEMES[0];
 
                   return (
                     <div
                       style={{
                         backgroundColor: isDark
-                          ? modalTheme.bgDark
-                          : modalTheme.bgLight,
+                          ? modalCardTheme.bgDark
+                          : modalCardTheme.bgLight,
                         borderColor: isDark
-                          ? modalTheme.borderDark
-                          : modalTheme.border,
+                          ? modalCardTheme.borderDark
+                          : modalCardTheme.border,
                       }}
                       className="w-full max-w-3xl rounded-[18px] border-2 p-6 sm:p-7 relative overflow-hidden shadow-2xl flex flex-col gap-4 text-slate-900 dark:text-white animate-in fade-in zoom-in-95 duration-150"
                     >
@@ -1148,7 +1153,10 @@ const Announcement = () => {
 
                         <button
                           type="button"
-                          onClick={() => setDetailModalItem(null)}
+                          onClick={() => {
+                            setDetailModalItem(null);
+                            setDetailModalCardTheme(null);
+                          }}
                           className="px-4 py-1.5 rounded-xl bg-slate-500/80 hover:bg-slate-600 text-white font-bold text-xs uppercase cursor-pointer transition-colors"
                         >
                           Go Back
@@ -1189,7 +1197,7 @@ const Announcement = () => {
                         <div>
                           <strong>Difficulty: </strong>
                           <span
-                            className={`font-bold ${modalTheme.diffTextColor}`}
+                            className={`font-bold ${difficultyTheme.diffTextColor}`}
                           >
                             {detailModalItem.announcementDifficulty}
                           </span>
