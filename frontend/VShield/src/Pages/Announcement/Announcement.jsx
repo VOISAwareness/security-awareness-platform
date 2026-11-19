@@ -15,7 +15,10 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
-import { announcementTemplatesLive, useAnnouncementData } from "../../services/announcements";
+import {
+  announcementTemplatesLive,
+  useAnnouncementData,
+} from "../../services/announcements";
 import { TYPE_NAMES } from "../../services/campaignTypes";
 import { TARGET_AUDIENCES, namesOf } from "../../services/scenarioOptions";
 // Templates and user lists from the backend (services/announcements.js),
@@ -311,9 +314,7 @@ const AnnouncementScenarioFilters = ({
   };
 
   // Active filter count
-  const activeCount =
-    selectedCampaignTypes.length +
-    selectedAudiences.length;
+  const activeCount = selectedCampaignTypes.length + selectedAudiences.length;
 
   // Clear all
   const clearAll = () => {
@@ -581,15 +582,25 @@ const Announcement = () => {
     return scenariosList.filter(
       (scenario) =>
         // the ticked filters: a template shows when it is one of them
-        (!selectedCampaignTypes.length || selectedCampaignTypes.includes(scenario.announcementCampaignType)) &&
-        (!selectedAudiences.length || selectedAudiences.includes(scenario.announcementTargetAudience)) &&
+        (!selectedCampaignTypes.length ||
+          selectedCampaignTypes.includes(scenario.announcementCampaignType)) &&
+        (!selectedAudiences.length ||
+          selectedAudiences.includes(scenario.announcementTargetAudience)) &&
         (!searchText ||
           scenario.announcementScenarioId?.toLowerCase().includes(searchText) ||
-          scenario.announcementDescription?.toLowerCase().includes(searchText) ||
-          scenario.announcementCampaignType?.toLowerCase().includes(searchText) ||
+          scenario.announcementDescription
+            ?.toLowerCase()
+            .includes(searchText) ||
+          scenario.announcementCampaignType
+            ?.toLowerCase()
+            .includes(searchText) ||
           scenario.announcementCreatedOn?.toLowerCase().includes(searchText) ||
-          scenario.announcementCoverImageID?.toLowerCase().includes(searchText) ||
-          scenario.announcementScenarioName?.toLowerCase().includes(searchText)),
+          scenario.announcementCoverImageID
+            ?.toLowerCase()
+            .includes(searchText) ||
+          scenario.announcementScenarioName
+            ?.toLowerCase()
+            .includes(searchText)),
     );
   }, [search, scenariosList, selectedCampaignTypes, selectedAudiences]);
 
@@ -692,11 +703,39 @@ const Announcement = () => {
           {/* ================================================= */}
           {/* TOOLBAR */}
           {/* ================================================= */}
-          <div className="flex items-center justify-end gap-2.5 flex-shrink-0">
-            <Link to="#">
-              <button
-                type="button"
-                className={`
+          <div className="flex items-center justify-between gap-2.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate("/announcements/history")}
+              className={`
+      h-[30px]
+      px-3
+      rounded-lg
+      text-[10px]
+      font-bold
+      uppercase
+      tracking-wider
+      flex
+      items-center
+      justify-center
+      gap-2
+      shadow-sm
+      transition-all
+      cursor-pointer
+      ${
+        isDark
+          ? "bg-white text-[#0B1121] hover:bg-slate-200"
+          : "bg-[#06080D] text-white hover:bg-slate-800"
+      }
+    `}
+            >
+              ALL ANNOUNCEMENT
+            </button>
+            <div className="flex items-center justify-end gap-2.5">
+              <Link to="/announcements/approvals">
+                <button
+                  type="button"
+                  className={`
               h-[30px]
               pl-3
               pr-2.5
@@ -719,10 +758,10 @@ const Announcement = () => {
                   : "bg-[#A83D43] text-white hover:bg-800"
               }
             `}
-              >
-                Announcement History
-                <span
-                  className={`
+                >
+                  Requests & Approvals
+                  <span
+                    className={`
                 w-[18px]
                 h-[18px]
                 rounded-md
@@ -731,16 +770,16 @@ const Announcement = () => {
                 justify-center
                 ${isDark ? "bg-[#0B1121]/10" : "bg-white/15"}
               `}
-                >
-                  <NotebookPen className="w-3 h-3" strokeWidth={3} />
-                </span>
-              </button>
-            </Link>
+                  >
+                    <NotebookPen className="w-3 h-3" strokeWidth={3} />
+                  </span>
+                </button>
+              </Link>
 
-            <Link to="/new-announcement">
-              <button
-                type="button"
-                className={`
+              <Link to="/new-announcement">
+                <button
+                  type="button"
+                  className={`
               h-[30px]
               pl-3
               pr-2.5
@@ -763,10 +802,10 @@ const Announcement = () => {
                   : "bg-[#06080D] text-white hover:bg-slate-800"
               }
             `}
-              >
-                CREATE NEW TEMPLATE
-                <span
-                  className={`
+                >
+                  CREATE NEW TEMPLATE
+                  <span
+                    className={`
                 w-[18px]
                 h-[18px]
                 rounded-md
@@ -775,14 +814,14 @@ const Announcement = () => {
                 justify-center
                 ${isDark ? "bg-[#0B1121]/10" : "bg-white/15"}
               `}
-                >
-                  <Plus className="w-3 h-3" strokeWidth={3} />
-                </span>
-              </button>
-            </Link>
+                  >
+                    <Plus className="w-3 h-3" strokeWidth={3} />
+                  </span>
+                </button>
+              </Link>
 
-            <div
-              className={`
+              <div
+                className={`
               flex
               items-stretch
               h-[30px]
@@ -797,13 +836,13 @@ const Announcement = () => {
                   : "bg-white border-slate-200"
               }
             `}
-            >
-              <input
-                type="text"
-                placeholder="Type here"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={`
+              >
+                <input
+                  type="text"
+                  placeholder="Type here"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={`
           flex-1
           min-w-0
           px-2
@@ -817,11 +856,11 @@ const Announcement = () => {
               : "text-slate-800 placeholder:text-slate-400"
           }
         `}
-              />
+                />
 
-              <button
-                type="button"
-                className={`
+                <button
+                  type="button"
+                  className={`
         w-[78px]
         flex-shrink-0
         flex
@@ -841,13 +880,14 @@ const Announcement = () => {
             : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-[#e60000]"
         }
       `}
-              >
-                <span className="leading-tight text-center">
-                  Search By
-                  <br />
-                  Name
-                </span>
-              </button>
+                >
+                  <span className="leading-tight text-center">
+                    Search By
+                    <br />
+                    Name
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1129,7 +1169,7 @@ const Announcement = () => {
                     DIFFICULTY_THEMES[detailModalItem.announcementDifficulty] ||
                     DIFFICULTY_THEMES.Low;
 
-                    const modalCardTheme =
+                  const modalCardTheme =
                     detailModalCardTheme || CARD_BACKGROUND_THEMES[0];
 
                   return (
