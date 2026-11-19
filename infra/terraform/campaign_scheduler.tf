@@ -54,6 +54,7 @@ resource "aws_lambda_function" "campaign_scheduler" {
   function_name    = "${var.name_prefix}-campaign-scheduler"
   role             = aws_iam_role.campaign_scheduler.arn
   runtime          = "python3.12"
+  architectures    = ["arm64"] # Graviton: pure Python, 20% cheaper per ms
   handler          = "lambda_function.lambda_handler"
   filename         = data.archive_file.campaign_scheduler.output_path
   source_code_hash = data.archive_file.campaign_scheduler.output_base64sha256

@@ -71,6 +71,7 @@ resource "aws_lambda_function" "points_engine" {
   function_name    = "${var.name_prefix}-points-engine"
   role             = aws_iam_role.points_engine.arn
   runtime          = "python3.12"
+  architectures    = ["arm64"] # Graviton: pure Python, 20% cheaper per ms
   handler          = "lambda_function.lambda_handler"
   filename         = data.archive_file.points_engine.output_path
   source_code_hash = data.archive_file.points_engine.output_base64sha256

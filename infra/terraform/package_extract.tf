@@ -66,6 +66,7 @@ resource "aws_lambda_function" "package_extract" {
   function_name    = "${var.name_prefix}-package-extract"
   role             = aws_iam_role.package_extract.arn
   runtime          = "python3.12"
+  architectures    = ["arm64"] # Graviton: pure Python, 20% cheaper per ms
   handler          = "lambda_function.lambda_handler"
   filename         = data.archive_file.package_extract.output_path
   source_code_hash = data.archive_file.package_extract.output_base64sha256

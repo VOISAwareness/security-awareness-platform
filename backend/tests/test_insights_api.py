@@ -193,3 +193,7 @@ def test_insights_may_be_kept_by_a_shared_cache_but_not_a_forced_rebuild(mod):
     assert forced["headers"]["Cache-Control"] == "no-store"
     refused = mod.lambda_handler({"routeKey": "GET /insights", "queryStringParameters": {"role": "Regular User"}}, None)
     assert refused["statusCode"] == 403 and refused["headers"]["Cache-Control"] == "no-store"
+
+
+def test_a_warm_ping_returns_at_once(mod):
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True}

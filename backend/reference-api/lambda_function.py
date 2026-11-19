@@ -27,10 +27,27 @@ TABLE_PREFIX = os.environ["TABLE_PREFIX"]
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET")
 INGEST_FUNCTION = os.environ.get("INGEST_FUNCTION")
 EXTRACT_FUNCTION = os.environ.get("EXTRACT_FUNCTION")
+
+
+class LazyClient:
+    """A boto3 client made on first use. Most requests only need DynamoDB, so
+    S3, Lambda and SES clients are not built while the Lambda starts (each
+    costs CPU time on a cold start)."""
+
+    def __init__(self, service):
+        self._service = service
+        self._client = None
+
+    def __getattr__(self, name):
+        if self._client is None:
+            self._client = boto3.client(self._service)
+        return getattr(self._client, name)
+
+
 dynamodb = boto3.resource("dynamodb")
-s3_client = boto3.client("s3")
-lambda_client = boto3.client("lambda")
-ses_client = boto3.client("ses")
+s3_client = LazyClient("s3")
+lambda_client = LazyClient("lambda")
+ses_client = LazyClient("ses")
 
 
 def table(name):
@@ -2559,7 +2576,14 @@ def cache_headers(route, response):
     return {**response, "headers": headers}
 
 
+def is_warm_ping(event):
+    """The keep-warm schedule's event (infra/terraform/keep_warm.tf)."""
+    return isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event
+
+
 def lambda_handler(event, context):
+    if is_warm_ping(event):
+        return {"warm": True}
     return cache_headers(event.get("routeKey", ""), handle(event, context))
 
 
