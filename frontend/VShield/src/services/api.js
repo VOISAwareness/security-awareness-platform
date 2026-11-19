@@ -10,14 +10,17 @@ const BASE_URL = (
   'https://1ldu4adn0l.execute-api.ap-south-1.amazonaws.com'
 ).replace(/\/$/, '');
 
-// Recipient uploads PUT straight to a presigned S3 URL, bypassing the dev
-// proxy. The bucket's CORS allowlist only covers the localhost dev origins, so
-// in dev the PUT is routed through the dev server instead — see the
-// s3-upload proxy in vite.config.js. Builds keep PUTting to S3 directly.
-const uploadTarget = (url) =>
-  typeof import.meta !== 'undefined' && import.meta.env?.DEV
-    ? `/__s3-upload?url=${encodeURIComponent(url)}`
-    : url;
+// Uploads (recipient lists, covers, training media, packages) PUT straight
+// to a presigned S3 URL. The bucket's CORS allows the localhost dev servers
+// and GitHub Codespaces addresses (*.app.github.dev, infra/terraform/s3_cors.tf),
+// so those and builds upload directly. Any other dev address (a tunnel) goes
+// through the dev server's s3-upload proxy (vite.config.js) instead. Codespaces
+// must not use that proxy: its port forwarding refuses large bodies (413), so
+// a 90 MB course could never get through.
+export function uploadTarget(url, { dev = Boolean(typeof import.meta !== 'undefined' && import.meta.env?.DEV), host = globalThis.location?.hostname || '' } = {}) {
+  const corsAllowed = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.app.github.dev');
+  return dev && !corsAllowed ? `/__s3-upload?url=${encodeURIComponent(url)}` : url;
+}
 
 // Reads go through one in-memory cache (services/queryCache.js): a page
 // visited again, or several components reading the same path, cost no new
