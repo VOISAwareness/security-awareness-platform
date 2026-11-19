@@ -329,6 +329,11 @@ export const api = {
     // REJECTED | SENDING | SENT | FAILED
     list: (status) =>
       request(`/campaigns${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+    // The list without each campaign's email and landing page HTML (most of
+    // its bytes), for screens that never show them: Home, the notices bell.
+    summary: () => request('/campaigns?view=summary'),
+    // {campaignId: counts} for up to 50 campaigns in one read (Home).
+    tallies: (ids) => request(`/campaigns/tallies?ids=${(ids || []).map(encodeURIComponent).join(',')}`),
     get: (id) => request(`/campaigns/${encodeURIComponent(id)}`),
     // Every write of a start / end time also sends it as a UTC instant and the
     // zone it was picked in (calendarDates.withScheduleInstants), which is what

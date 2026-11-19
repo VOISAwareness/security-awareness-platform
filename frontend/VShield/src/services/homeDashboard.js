@@ -87,28 +87,53 @@ export function readRow(row) {
   };
 }
 
-/** The counts for a set of result rows (each campaign's rows separately keyed). */
-export function tally(rowSets) {
-  const t = { targeted: 0, reached: 0, opened: 0, clicked: 0, compromised: 0, reported: 0, hooked: 0, trained: 0 };
-  rowSets.forEach((rows) => {
-    const seen = new Set();
-    (rows || []).forEach((raw) => {
-      const email = String(raw.recipientEmail || '').trim().toLowerCase();
-      if (email) {
-        if (seen.has(email)) return;
-        seen.add(email);
-      }
-      const r = readRow(raw);
-      t.targeted += 1;
-      if (!r.reached) return;
-      t.reached += 1;
-      if (r.opened) t.opened += 1;
-      if (r.clicked) t.clicked += 1;
-      if (r.compromised) t.compromised += 1;
-      if (r.reported) t.reported += 1;
-      else if (r.clicked) t.hooked += 1;
-      if (r.clicked && r.trained) t.trained += 1;
-    });
+const COUNTS = ['targeted', 'reached', 'opened', 'clicked', 'compromised', 'reported', 'hooked', 'trained'];
+
+/**
+ * One campaign's counts from its result rows: each person once; `hooked` is
+ * clicked without reporting; reached and clicked per country. The server
+ * works out the same (campaigns-api tally_rows, GET /campaigns/tallies);
+ * fixtures/tallyCases.json is tested on both sides.
+ */
+export function tallyRows(rows) {
+  const t = Object.fromEntries(COUNTS.map((k) => [k, 0]));
+  const countries = {};
+  const seen = new Set();
+  (rows || []).forEach((raw) => {
+    const email = String(raw.recipientEmail || '').trim().toLowerCase();
+    if (email) {
+      if (seen.has(email)) return;
+      seen.add(email);
+    }
+    const r = readRow(raw);
+    t.targeted += 1;
+    if (!r.reached) return;
+    t.reached += 1;
+    if (r.opened) t.opened += 1;
+    if (r.clicked) t.clicked += 1;
+    if (r.compromised) t.compromised += 1;
+    if (r.reported) t.reported += 1;
+    else if (r.clicked) t.hooked += 1;
+    if (r.clicked && r.trained) t.trained += 1;
+    const place = (countries[r.country] ||= { reached: 0, clicked: 0 });
+    place.reached += 1;
+    if (r.clicked) place.clicked += 1;
+  });
+  return { ...t, countries };
+}
+
+/** A campaign's counts from either its result rows or the server's tally. */
+export function asTally(rowsOrTally) {
+  if (Array.isArray(rowsOrTally)) return tallyRows(rowsOrTally);
+  return rowsOrTally && typeof rowsOrTally === 'object' ? rowsOrTally : null;
+}
+
+/** The counts of several campaigns added up (each given as rows or a tally). */
+export function tally(sets) {
+  const t = Object.fromEntries(COUNTS.map((k) => [k, 0]));
+  sets.forEach((set) => {
+    const one = asTally(set);
+    if (one) COUNTS.forEach((k) => (t[k] += Number(one[k]) || 0));
   });
   return t;
 }
@@ -121,7 +146,7 @@ export function tally(rowSets) {
 export function summarisePeriod(campaigns, resultsById) {
   const active = campaigns.filter((c) => derivePhase(c) === PHASE.LIVE).length;
   const closed = campaigns.filter((c) => derivePhase(c) === PHASE.COMPLETED).length;
-  const loaded = campaigns.filter((c) => Array.isArray(resultsById[c.campaignId]));
+  const loaded = campaigns.filter((c) => asTally(resultsById[c.campaignId]) !== null);
   const t = tally(loaded.map((c) => resultsById[c.campaignId]));
   const hookedOrReported = t.hooked + t.reported;
   return {
@@ -151,22 +176,18 @@ export function latestCampaign(campaigns) {
   return sent[0] || null;
 }
 
-/** The latest campaign's card: counts, percentages and hook rate per country. */
-export function summariseCampaign(campaign, rows) {
+/**
+ * The latest campaign's card: counts, percentages and hook rate per country,
+ * from its result rows or the server's tally (each person counted once).
+ */
+export function summariseCampaign(campaign, rowsOrTally) {
   if (!campaign) return null;
-  const facts = Array.isArray(rows) ? rows.map((r) => ({ ...readRow(r), email: r.recipientEmail })) : null;
-  const reachedRows = facts ? facts.filter((f) => f.reached) : [];
-  const count = (key) => reachedRows.filter((f) => f[key]).length;
-  const countries = {};
-  reachedRows.forEach((f) => {
-    const c = (countries[f.country] ||= { name: f.country, reached: 0, clicked: 0 });
-    c.reached += 1;
-    if (f.clicked) c.clicked += 1;
-  });
-  const sent = reachedRows.length;
-  const opened = count('opened');
-  const clicked = count('clicked');
-  const reported = count('reported');
+  const t = asTally(rowsOrTally);
+  const sent = t ? t.reached : 0;
+  const opened = t ? t.opened : 0;
+  const clicked = t ? t.clicked : 0;
+  const reported = t ? t.reported : 0;
+  const countries = Object.entries(t?.countries || {}).map(([name, c]) => ({ name, ...c }));
   return {
     id: campaign.campaignId,
     name: campaign.campaignTitle || campaign.campaignId,
@@ -174,7 +195,7 @@ export function summariseCampaign(campaign, rows) {
     startedAt: startedAt(campaign),
     endTime: parseDate(campaign.endTime),
     live: derivePhase(campaign) === PHASE.LIVE,
-    loaded: facts !== null,
+    loaded: t !== null,
     sent,
     opened,
     openPercent: percent(opened, sent, 1),
@@ -183,7 +204,7 @@ export function summariseCampaign(campaign, rows) {
     reported,
     reportedPercent: percent(reported, opened, 1),
     hookRate: percent(clicked, sent, 1),
-    locations: Object.values(countries)
+    locations: countries
       .filter((c) => c.name !== 'Unknown')
       .map((c) => ({ name: c.name, hookRate: percent(c.clicked, c.reached, 1) }))
       .sort((a, b) => b.hookRate - a.hookRate || a.name.localeCompare(b.name))

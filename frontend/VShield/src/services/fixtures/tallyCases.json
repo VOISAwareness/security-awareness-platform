@@ -1,0 +1,34 @@
+{
+  "about": "Result rows and the counts they make. The Home screen counts them in the browser (services/homeDashboard.js tallyRows) and campaigns-api on the server (tally_rows, GET /campaigns/tallies); both test against these cases so they never disagree.",
+  "cases": [
+    {
+      "name": "each person once, reported wins over clicked, failed sends not reached",
+      "rows": [
+        { "recipientEmail": "a@x.example", "sendStatus": "SENT", "country": "India", "opened": true, "clicked": true },
+        { "recipientEmail": "A@x.example", "sendStatus": "SENT", "country": "India", "opened": true, "clicked": true },
+        { "recipientEmail": "b@x.example", "sendStatus": "SENT", "country": "UK", "opened": true, "clicked": true, "reported": true },
+        { "recipientEmail": "c@x.example", "sendStatus": "SENT", "country": "UK", "opened": true },
+        { "recipientEmail": "d@x.example", "sendStatus": "SENT", "country": "India" },
+        { "recipientEmail": "e@x.example", "sendStatus": "FAILED", "country": "India" }
+      ],
+      "tally": {
+        "targeted": 5, "reached": 4, "opened": 3, "clicked": 2, "compromised": 0, "reported": 1, "hooked": 1, "trained": 0,
+        "countries": { "India": { "reached": 2, "clicked": 1 }, "UK": { "reached": 2, "clicked": 1 } }
+      }
+    },
+    {
+      "name": "reached by a send time, or by opening; trained only when clicked; compromised counted",
+      "rows": [
+        { "recipientEmail": "f@x.example", "sentAt": "2026-11-01T09:00:00Z", "clicked": true, "trained": true, "compromised": true },
+        { "recipientEmail": "g@x.example", "sendStatus": "QUEUED", "reported": true },
+        { "recipientEmail": "h@x.example", "sendStatus": "QUEUED", "trained": true },
+        { "recipientEmail": "", "sendStatus": "SENT", "country": "Spain" },
+        { "recipientEmail": "", "sendStatus": "SENT", "country": "Spain" }
+      ],
+      "tally": {
+        "targeted": 5, "reached": 4, "opened": 2, "clicked": 1, "compromised": 1, "reported": 1, "hooked": 1, "trained": 1,
+        "countries": { "Unknown": { "reached": 2, "clicked": 1 }, "Spain": { "reached": 2, "clicked": 0 } }
+      }
+    }
+  ]
+}

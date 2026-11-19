@@ -1,7 +1,9 @@
 /**
- * useHomeDashboard — the Home screen's data: the campaigns list, then the
- * results of the campaigns in the chosen period and of the latest campaign
- * (one GET /campaigns/{id}/results each, kept once fetched).
+ * useHomeDashboard — the Home screen's data: the campaigns list (without its
+ * HTML: GET /campaigns?view=summary), then the counts of the campaigns in the
+ * chosen period and of the latest campaign, in one read
+ * (GET /campaigns/tallies, kept once fetched; a new period reads only the
+ * campaigns not yet counted).
  */
 import { useEffect, useMemo, useState } from 'react';
 
@@ -13,13 +15,16 @@ import {
   periodRange,
   summariseCampaign,
   summarisePeriod,
+  tallyRows,
 } from './homeDashboard.js';
 
-// A period with more campaigns than this shows its newest ones' results.
+// A period with more campaigns than this shows its newest ones' results (the
+// tallies read takes at most 50, with the latest campaign).
 const MAX_RESULT_FETCHES = 40;
 
 // One object for ever: a new one each render would restart the effects below.
-const API = { list: (...a) => api.campaigns.list(...a), results: (id) => api.campaigns.results(id) };
+const API = { list: () => api.campaigns.summary(), tallies: (ids) => api.campaigns.tallies(ids) };
+const NOTHING = tallyRows([]);
 
 export function useHomeDashboard(period, load = API) {
   const [campaigns, setCampaigns] = useState(null);
@@ -56,18 +61,21 @@ export function useHomeDashboard(period, load = API) {
 
   useEffect(() => {
     let active = true;
-    wanted
-      .filter((id) => !(id in results))
-      .forEach((id) => {
-        load
-          .results(id)
-          .then((rows) => active && setResults((r) => ({ ...r, [id]: Array.isArray(rows) ? rows : [] })))
-          .catch((error) => {
-            console.error('Could not load results for', id, error);
-            // Counted as having no rows rather than waiting for ever.
-            if (active) setResults((r) => ({ ...r, [id]: [] }));
-          });
-      });
+    const missing = wanted.filter((id) => !(id in results));
+    if (missing.length) {
+      // A campaign the answer leaves out (deleted meanwhile), or a failed
+      // read, counts as having no rows rather than waiting for ever.
+      const settle = (found) =>
+        active &&
+        setResults((r) => ({ ...r, ...Object.fromEntries(missing.map((id) => [id, found?.[id] || NOTHING])) }));
+      load
+        .tallies(missing)
+        .then(settle)
+        .catch((error) => {
+          console.error('Could not load campaign counts for Home', error);
+          settle(null);
+        });
+    }
     return () => {
       active = false;
     };
