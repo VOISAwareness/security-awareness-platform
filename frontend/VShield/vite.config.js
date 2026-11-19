@@ -5,9 +5,13 @@ import { fileURLToPath, URL } from "url";
 // The HTTP API's CORS config only allows the localhost dev origins, so a browser
 // on a Codespace/tunnel hostname gets blocked. Proxying keeps API calls
 // same-origin — the dev server makes the real call, where CORS does not apply.
+// The API is read through CloudFront (infra/terraform/scorm_cdn.tf, /api/*,
+// output api_cdn_base_url), which keeps the reads every viewer shares for a
+// minute or more and compresses JSON. Set VITE_API_PROXY_TARGET to the HTTP
+// API itself (https://<id>.execute-api.<region>.amazonaws.com) to skip it.
 const API_TARGET =
   process.env.VITE_API_PROXY_TARGET ||
-  'https://1ldu4adn0l.execute-api.ap-south-1.amazonaws.com'
+  'https://d36tp8wb28b0en.cloudfront.net/api'
 
 // Unpacked training packages (SCORM) are served by CloudFront at /scorm/...
 // (infra/terraform/scorm_cdn.tf, output scorm_content_domain). Forwarding
