@@ -32,6 +32,7 @@ import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApproval
 
 // 🌟 Announcements: the list, a three-step send (details, email, review) and a new announcement
 import Announcements from './Pages/Announcement/Announcement';
+import AnnouncementRequestAndApprovals from './Pages/Announcement/AnnouncementRequestsApprovals/AnnouncementRequestsApprovals';
 import AnnouncementsDetailsAndSettings from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateDetails/AnnouncementsDetailsAndSettings';
 import AnnouncementsTemplateEmail from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementTemplateEmail';
 import AnnouncementsReviewPublish from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateReview/AnnouncementsReviewPublish';
@@ -59,6 +60,7 @@ import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
 // 🌟 My Training (a person's own training: pending, history, each path's details)
 import MyTraining from './Pages/MyTraining/MyTraining';
 import TrainingDetails from './Pages/MyTraining/PendingTraining/StartNewTraining';
+import AnnouncementHistory from './Pages/Announcement/AnnouncementHistory/AnnouncementHistory';
 
 
 // Protected Route Wrapper with automatic fallback routing
@@ -172,6 +174,8 @@ function App() {
 
             {/* Communications & Directories */}
             <Route path="/announcements" element={<Announcements />} />
+            <Route path="/announcements/approvals" element={<AnnouncementRequestAndApprovals />} />
+            <Route path="/announcements/history" element={<AnnouncementHistory />} />
             <Route path="/announcements/details" element={<AnnouncementsDetailsAndSettings />} />
             <Route path="/announcements/email" element={<AnnouncementsTemplateEmail />} />
             <Route path="/announcements/review" element={<AnnouncementsReviewPublish />} />
