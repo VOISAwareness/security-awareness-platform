@@ -806,3 +806,18 @@ def test_the_handler_adds_cache_headers(mod, monkeypatch):
     monkeypatch.setattr(mod, "handle", lambda event, context: {"statusCode": 200, "headers": {}, "body": "{}"})
     assert mod.lambda_handler({"routeKey": "GET /levels"}, None)["headers"]["Cache-Control"].endswith("s-maxage=600")
     assert mod.lambda_handler({"routeKey": "GET /my-training"}, None)["headers"]["Cache-Control"] == "no-store"
+
+
+def test_warm_pings_return_at_once_and_clients_wait_for_first_use(mod, monkeypatch):
+    def boom(event, context):
+        raise AssertionError("a warm ping must not be routed")
+
+    monkeypatch.setattr(mod, "handle", boom)
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
+    assert mod.is_warm_ping({"warm": True, "routeKey": "GET /users"}) is False  # a real request
+    made = []
+    monkeypatch.setattr(mod.boto3, "client", lambda service: made.append(service) or type("C", (), {"ping": lambda self: "pong"})())
+    lazy = mod.LazyClient("ses")
+    assert made == []
+    assert lazy.ping() == "pong" and lazy.ping() == "pong"
+    assert made == ["ses"]

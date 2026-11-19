@@ -605,6 +605,10 @@ def cache_headers(event, response):
 
 
 def lambda_handler(event, context):
+    # the keep-warm schedule (infra/terraform/keep_warm.tf): staying started
+    # also keeps the built Insights in memory for the next viewer
+    if isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event:
+        return {"warm": True}
     return cache_headers(event, handle(event, context))
 
 

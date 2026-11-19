@@ -332,6 +332,9 @@ def results(campaign_id):
 
 
 def lambda_handler(event, context):
+    # the keep-warm schedule (infra/terraform/keep_warm.tf)
+    if isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event:
+        return {"warm": True}
     route = event.get("routeKey", "")
     params = event.get("pathParameters") or {}
     qs = event.get("queryStringParameters") or {}

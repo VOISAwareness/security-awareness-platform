@@ -67,11 +67,12 @@ resource "aws_lambda_function" "campaigns_api" {
   function_name    = "${var.name_prefix}-campaigns-api"
   role             = aws_iam_role.campaigns_api.arn
   runtime          = "python3.12"
+  architectures    = ["arm64"] # Graviton: pure Python, 20% cheaper per ms
   handler          = "lambda_function.lambda_handler"
   filename         = data.archive_file.campaigns_api.output_path
   source_code_hash = data.archive_file.campaigns_api.output_base64sha256
   timeout          = 10
-  memory_size      = 256
+  memory_size      = 1024 # ~0.6 vCPU (256 MB is ~0.15): starts and answers several times faster
 
   environment {
     variables = {

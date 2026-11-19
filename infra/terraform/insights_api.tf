@@ -58,6 +58,7 @@ resource "aws_lambda_function" "insights_api" {
   function_name    = "${var.name_prefix}-insights-api"
   role             = aws_iam_role.insights_api.arn
   runtime          = "python3.12"
+  architectures    = ["arm64"] # Graviton: pure Python, 20% cheaper per ms
   handler          = "lambda_function.lambda_handler"
   filename         = data.archive_file.insights_api.output_path
   source_code_hash = data.archive_file.insights_api.output_base64sha256

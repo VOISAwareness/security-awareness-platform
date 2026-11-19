@@ -233,3 +233,7 @@ def test_a_list_too_large_for_one_response_is_cut_and_says_so(mod, env, monkeypa
     monkeypatch.setattr(mod, "MAX_LIST_BYTES", 2500)
     body = call(mod, "GET /campaigns")[1]
     assert body["count"] == 2 and body["truncated"] is True
+
+
+def test_a_warm_ping_returns_at_once(mod):
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
