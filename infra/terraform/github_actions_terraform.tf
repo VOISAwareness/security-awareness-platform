@@ -211,7 +211,7 @@ resource "aws_iam_role_policy" "github_terraform" {
         Resource = local.api_arn
       },
       {
-        # The training-packages CDN (scorm_cdn.tf). Distributions and origin
+        # The app's CDN (scorm_cdn.tf): training packages and the API. Distributions and origin
         # access controls have no names to scope by at create time; deleting a
         # distribution is left to a person.
         Sid    = "ScormCdn"
@@ -231,6 +231,11 @@ resource "aws_iam_role_policy" "github_terraform" {
           "cloudfront:UpdateOriginAccessControl",
           "cloudfront:ListOriginAccessControls",
           "cloudfront:GetCachePolicy",
+          "cloudfront:GetCachePolicyConfig",
+          "cloudfront:ListCachePolicies",
+          "cloudfront:CreateCachePolicy",
+          "cloudfront:UpdateCachePolicy",
+          "cloudfront:GetOriginRequestPolicy",
           "cloudfront:GetResponseHeadersPolicy",
         ]
         Resource = "*"

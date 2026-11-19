@@ -783,3 +783,26 @@ def test_launch_url_only_for_unpacked_packages(mod):
     assert mod.launch_url({**ready, "ContentPrefix": "uploads/recipients/x/"}) is None
     assert mod.launch_url({**ready, "LaunchPath": ""}) is None
     assert mod.launch_url(None) is None
+
+
+def test_only_shared_slow_reads_may_be_kept_by_a_shared_cache(mod):
+    ok = {"statusCode": 200, "headers": {"Content-Type": "application/json"}, "body": "{}"}
+    assert mod.cache_headers("GET /training/paths", ok)["headers"] == {
+        "Content-Type": "application/json", "Cache-Control": "public, max-age=0, s-maxage=60"}
+    assert mod.cache_headers("GET /users", ok)["headers"]["Cache-Control"].endswith("s-maxage=300")
+    # personal, fast-moving and written: never stored
+    for route in ("GET /my-training", "GET /standing", "GET /training/packages", "GET /scenario-drafts",
+                  "GET /announcements", "POST /training/paths", "PUT /training/paths/{id}"):
+        assert mod.cache_headers(route, ok)["headers"]["Cache-Control"] == "no-store", route
+    # an error is never stored, even for a shared read
+    assert mod.cache_headers("GET /users", {**ok, "statusCode": 503})["headers"]["Cache-Control"] == "no-store"
+    # every GET the API routes is either listed or no-store; listed ones are real routes
+    tf = (Path(__file__).resolve().parents[2] / "infra" / "terraform" / "reference_api.tf").read_text()
+    for route in mod.SHARED_CACHE_SECONDS:
+        assert f'"{route}"' in tf, route
+
+
+def test_the_handler_adds_cache_headers(mod, monkeypatch):
+    monkeypatch.setattr(mod, "handle", lambda event, context: {"statusCode": 200, "headers": {}, "body": "{}"})
+    assert mod.lambda_handler({"routeKey": "GET /levels"}, None)["headers"]["Cache-Control"].endswith("s-maxage=600")
+    assert mod.lambda_handler({"routeKey": "GET /my-training"}, None)["headers"]["Cache-Control"] == "no-store"
