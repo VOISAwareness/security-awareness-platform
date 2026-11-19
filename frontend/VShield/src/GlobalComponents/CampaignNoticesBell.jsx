@@ -40,7 +40,7 @@ export default function CampaignNoticesBell() {
   const load = useCallback(() => {
     if (!actor || !actor.includes('@')) return;
     api.campaigns
-      .list()
+      .summary()
       .then((rows) => setNotices(noticesFor(rows, actor)))
       .catch(() => {}); // the bell stays as it was; the pages show the error
   }, [actor]);

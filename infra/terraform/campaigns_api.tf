@@ -103,6 +103,9 @@ locals {
     "PUT /campaigns/{campaignId}",
     "DELETE /campaigns/{campaignId}",
     "GET /campaigns/{campaignId}/results",
+    # Home: counts for several campaigns in one read (static, so it wins over
+    # GET /campaigns/{campaignId})
+    "GET /campaigns/tallies",
     "POST /campaigns/{campaignId}/cancel",
     "POST /campaigns/{campaignId}/reinvoke",
   ]

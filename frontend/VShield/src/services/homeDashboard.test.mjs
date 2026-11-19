@@ -10,7 +10,9 @@ import {
   summariseCampaign,
   summarisePeriod,
   tally,
+  tallyRows,
 } from './homeDashboard.js';
+import { readFileSync } from 'node:fs';
 
 const NOW = new Date(2026, 10, 11); // 11 Nov 2026: Q3 of the 2026-27 financial year
 
@@ -167,4 +169,23 @@ test('long dates read like the screen shows them', () => {
   assert.equal(longDate(new Date(2026, 3, 11)), '11th April 2026, Saturday');
   assert.equal(longDate(new Date(2026, 3, 2)), '2nd April 2026, Thursday');
   assert.equal(longDate(null), '—');
+});
+
+test('the browser and the server count result rows the same way', () => {
+  const { cases } = JSON.parse(readFileSync(new URL('./fixtures/tallyCases.json', import.meta.url), 'utf8'));
+  for (const c of cases) assert.deepEqual(tallyRows(c.rows), c.tally, c.name);
+});
+
+test('the period and the card read the server\'s tallies as they read rows', () => {
+  const rows = [
+    row('a@x.example', { clicked: true, country: 'UK' }),
+    row('b@x.example', { reported: true, clicked: true, country: 'UK' }),
+    row('c@x.example', { opened: true, country: 'India' }),
+    row('d@x.example', { country: 'India' }),
+  ];
+  const c = camp('A', '2026-11-01T09:00');
+  assert.deepEqual(summarisePeriod([c], { A: tallyRows(rows) }), summarisePeriod([c], { A: rows }));
+  assert.deepEqual(summariseCampaign(c, tallyRows(rows)), summariseCampaign(c, rows));
+  assert.equal(summarisePeriod([c], { A: tallyRows([]) }).evaluated, 1);
+  assert.equal(summarisePeriod([c], {}).waiting, 1);
 });

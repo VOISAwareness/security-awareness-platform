@@ -79,6 +79,10 @@ CAMPAIGN_TYPES = frozenset(EMAIL_TYPES + LEGACY_TYPES)
 
 # What GET /campaigns/{id}/results returns of each recipient row. Never the
 # tracking token, its URL or fingerprint.
+# What ?view=summary leaves out of the campaigns list: the email and landing
+# page HTML and the cover (about two thirds of the list's bytes).
+HEAVY_FIELDS = frozenset({"emailBody", "landingPageContent", "CoverImageID"})
+
 RESULT_FIELDS = (
     "recipientId", "recipientName", "recipientEmail", "department", "country", "sendStatus",
     "sentAt", "deliveredAt", "openedAt", "clickedAt", "compromisedAt", "reportedAt",
@@ -312,15 +316,76 @@ def result_row(r, people, done):
     return row
 
 
-def results(campaign_id):
-    campaign = get_campaign(campaign_id)
-    if not campaign:
-        return err(404, "Campaign not found")
+def result_rows(campaign_id):
+    """A campaign's recipients as result rows (see result_row), by email."""
     rows = query_all(recipients_table, KeyConditionExpression=Key("campaignId").eq(campaign_id))
     missing = {str(r.get("recipientEmail") or "").lower() for r in rows if not r.get("department")}
     people = people_by_email(missing - {""}) if missing else {}
     done = completed_trainings(rows)
-    out = sorted((result_row(r, people, done) for r in rows), key=lambda x: x["recipientEmail"])
+    return sorted((result_row(r, people, done) for r in rows), key=lambda x: x["recipientEmail"])
+
+
+def tally_rows(rows):
+    """One campaign's counts, as the Home screen works them out
+    (frontend services/homeDashboard.js tallyRows; the same cases are tested
+    on both sides): each person once; `reached` is sent and not failed;
+    `hooked` clicked without reporting; `trained` clicked and trained;
+    reached and clicked per country."""
+    t = {k: 0 for k in ("targeted", "reached", "opened", "clicked", "compromised", "reported", "hooked", "trained")}
+    countries = {}
+    seen = set()
+    for r in rows:
+        email = str(r.get("recipientEmail") or "").strip().lower()
+        if email:
+            if email in seen:
+                continue
+            seen.add(email)
+        opened = bool(r.get("opened") or r.get("clicked") or r.get("reported"))
+        reached = bool(r.get("sentAt") or r.get("deliveredAt") or r.get("sendStatus") == "SENT" or opened) \
+            and r.get("sendStatus") != "FAILED"
+        t["targeted"] += 1
+        if not reached:
+            continue
+        clicked = bool(r.get("clicked"))
+        t["reached"] += 1
+        t["opened"] += opened
+        t["clicked"] += clicked
+        t["compromised"] += bool(r.get("compromised"))
+        if r.get("reported"):
+            t["reported"] += 1
+        elif clicked:
+            t["hooked"] += 1
+        t["trained"] += clicked and bool(r.get("trained"))
+        place = countries.setdefault(r.get("country") or "Unknown", {"reached": 0, "clicked": 0})
+        place["reached"] += 1
+        place["clicked"] += clicked
+    return {**t, "countries": countries}
+
+
+MAX_TALLIES = 50
+
+
+def tallies(ids_text):
+    """GET /campaigns/tallies?ids=A,B: {campaignId: counts} for each known
+    campaign; the Home screen's one read instead of every recipient row of
+    every campaign. Unknown ids are left out."""
+    ids = [i for i in dict.fromkeys(str(ids_text or "").split(",")) if i.strip()]
+    if not ids:
+        return err(400, "ids is required (campaign ids, comma-separated)")
+    if len(ids) > MAX_TALLIES:
+        return err(400, f"At most {MAX_TALLIES} campaigns at a time")
+    out = {}
+    for campaign_id in ids:
+        if get_campaign(campaign_id):
+            out[campaign_id] = tally_rows(result_rows(campaign_id))
+    return ok(out)
+
+
+def results(campaign_id):
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        return err(404, "Campaign not found")
+    out = result_rows(campaign_id)
     count = lambda key: sum(1 for x in out if x[key])  # noqa: E731
     summary = {
         "recipients": len(out),
@@ -355,7 +420,14 @@ def lambda_handler(event, context):
             else:
                 items, truncated = read_all(campaigns.scan)
             items.sort(key=lambda c: str(c.get("createdAt", "")), reverse=True)
+            if qs.get("view") == "summary":
+                # lists that never show a campaign's email or landing page
+                # (Home, the notices bell) skip their HTML: most of the bytes
+                items = [{k: v for k, v in c.items() if k not in HEAVY_FIELDS} for c in items]
             return ok(items, count=len(items), truncated=truncated)
+
+        if route == "GET /campaigns/tallies":
+            return tallies(qs.get("ids"))
 
         if route == "POST /campaigns":
             body = clean_input(parse_body(event))

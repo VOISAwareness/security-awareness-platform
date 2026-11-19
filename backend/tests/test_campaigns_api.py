@@ -237,3 +237,35 @@ def test_a_list_too_large_for_one_response_is_cut_and_says_so(mod, env, monkeypa
 
 def test_a_warm_ping_returns_at_once(mod):
     assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
+
+
+TALLY_CASES = Path(__file__).resolve().parents[2] / "frontend" / "VShield" / "src" / "services" / "fixtures" / "tallyCases.json"
+
+
+def test_tallies_count_as_the_home_screen_does(mod):
+    for case in json.loads(TALLY_CASES.read_text())["cases"]:
+        assert mod.tally_rows(case["rows"]) == case["tally"], case["name"]
+
+
+def test_tallies_route(mod, monkeypatch):
+    rows = {"C1": [{"recipientEmail": "a@x.example", "sendStatus": "SENT", "clicked": True, "country": "UK"}], "C2": []}
+    monkeypatch.setattr(mod, "get_campaign", lambda cid: {"campaignId": cid} if cid in rows else None)
+    monkeypatch.setattr(mod, "result_rows", lambda cid: rows[cid])
+    call = lambda ids: mod.lambda_handler({"routeKey": "GET /campaigns/tallies", "queryStringParameters": {"ids": ids}}, None)  # noqa: E731
+    res = call("C1,C2,NOPE,C1")
+    assert res["statusCode"] == 200
+    data = json.loads(res["body"])["data"]
+    assert sorted(data) == ["C1", "C2"]  # unknown ids left out, repeats once
+    assert data["C1"]["hooked"] == 1 and data["C1"]["countries"] == {"UK": {"reached": 1, "clicked": 1}}
+    assert data["C2"]["targeted"] == 0
+    assert call("")["statusCode"] == 400
+    assert call(",".join(f"C{i}" for i in range(51)))["statusCode"] == 400
+
+
+def test_the_summary_view_leaves_out_the_html(mod, monkeypatch):
+    items = [{"campaignId": "C1", "campaignTitle": "T", "emailBody": "<p>x</p>", "landingPageContent": "<div/>",
+              "CoverImageID": "k", "createdAt": "2026-11-01"}]
+    monkeypatch.setattr(mod, "read_all", lambda *a, **k: ([dict(i) for i in items], False))
+    call = lambda qs: json.loads(mod.lambda_handler({"routeKey": "GET /campaigns", "queryStringParameters": qs}, None)["body"])["data"]  # noqa: E731
+    assert call({"view": "summary"}) == [{"campaignId": "C1", "campaignTitle": "T", "createdAt": "2026-11-01"}]
+    assert call(None)[0]["emailBody"] == "<p>x</p>"
