@@ -52,7 +52,28 @@ def mod():
     spec = importlib.util.spec_from_file_location("approval", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    module.user_lists_table = FakeLists(LISTS)
     return module
+
+
+# Recipient lists the checks read (user-lists table).
+LISTS = {
+    "UL-1": {"userListId": "UL-1", "name": "Finance", "status": "READY", "totalUsers": 12},
+    "UL-UP": {"userListId": "UL-UP", "name": "Half uploaded", "status": "UPLOADING", "totalUsers": 0},
+    "UL-0": {"userListId": "UL-0", "name": "Empty", "status": "READY", "totalUsers": 0},
+    "UL-OLD": {"userListId": "UL-OLD", "name": "Older list", "totalUsers": 40},
+}
+
+
+class FakeLists:
+    def __init__(self, rows, error=None):
+        self.rows, self.error = rows, error
+
+    def get_item(self, Key):
+        if self.error:
+            raise self.error
+        row = self.rows.get(Key["userListId"])
+        return {"Item": dict(row)} if row else {}
 
 
 def call(mod, monkeypatch, item, action, body):
@@ -296,3 +317,32 @@ def test_approve_checks_again_and_says_what_is_missing(mod, monkeypatch):
     assert "Recipient List is required" in body["problems"]
     assert any("{{phishLink}}" in p for p in body["problems"])
     assert table.updates == []
+
+
+def test_the_recipient_list_must_have_people_to_send_to(mod):
+    ready = {**READY}
+    assert mod.validate_for_submit({**ready, "selectedListId": "UL-1"}) == []
+    assert mod.validate_for_submit({**ready, "selectedListId": "UL-OLD"}) == []  # no status: its count decides
+    (gone,) = mod.validate_for_submit({**ready, "selectedListId": "UL-NOPE"})
+    assert "no longer exists" in gone
+    (half,) = mod.validate_for_submit({**ready, "selectedListId": "UL-UP"})
+    assert "not ready (uploading)" in half and "Half uploaded" in half
+    (empty,) = mod.validate_for_submit({**ready, "selectedListId": "UL-0"})
+    assert "has no people" in empty
+
+
+def test_a_list_that_cannot_be_read_does_not_block(mod, monkeypatch):
+    from botocore.exceptions import ClientError
+
+    denied = ClientError({"Error": {"Code": "AccessDeniedException", "Message": "no"}}, "GetItem")
+    monkeypatch.setattr(mod, "user_lists_table", FakeLists(LISTS, error=denied))
+    assert mod.validate_for_submit({**READY, "selectedListId": "UL-0"}) == []
+
+
+def test_submit_with_an_unfinished_list_never_reaches_approval(mod, monkeypatch):
+    item = {**READY, "selectedListId": "UL-UP", "campaignId": "CMP-1", "status": "DRAFT"}
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 1, 1, tzinfo=mod.UTC))
+    status, body, table = call(mod, monkeypatch, item, "submit", {"actor": "elena.weber@x.com"})
+    assert status == 400 and body["message"] == "Campaign is not ready to submit"
+    assert any("not ready (uploading)" in p for p in body["problems"])
+    assert table.updates == []  # still a draft

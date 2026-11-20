@@ -29,3 +29,20 @@ resource "aws_apigatewayv2_route" "campaign_withdraw" {
   route_key = "POST /campaigns/{campaignId}/withdraw"
   target    = "integrations/${aws_apigatewayv2_integration.approval.id}"
 }
+
+# Submit and approve check the chosen recipient list can be sent to (it
+# exists, its upload finished, it has people), so a campaign that would fail
+# at its start never reaches approval. The approval Lambda's role predates
+# Terraform; this adds only that one read to it.
+resource "aws_iam_role_policy" "approval_reads_user_lists" {
+  name = "approval-reads-user-lists"
+  role = element(split("/", data.aws_lambda_function.approval.role), length(split("/", data.aws_lambda_function.approval.role)) - 1)
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "dynamodb:GetItem"
+      Resource = aws_dynamodb_table.user_lists.arn
+    }]
+  })
+}

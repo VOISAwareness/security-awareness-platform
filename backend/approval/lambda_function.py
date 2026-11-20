@@ -3,15 +3,22 @@ import os
 from datetime import UTC, datetime, timedelta, timezone
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 CAMPAIGNS_TABLE = os.environ["CAMPAIGNS_TABLE"]
 # Campaigns saved before the wizard sent startAt (a UTC instant) have only the
 # local startTime with no zone; it is read at this offset from UTC (IST).
 DEFAULT_UTC_OFFSET_MINUTES = int(os.environ.get("DEFAULT_UTC_OFFSET_MINUTES", "330"))
 
+# The recipient lists (user-lists table): named after the campaigns table
+# unless set, since this Lambda's settings predate Terraform.
+USER_LISTS_TABLE = os.environ.get("USER_LISTS_TABLE") or (
+    CAMPAIGNS_TABLE.rsplit("-campaigns", 1)[0] + "-user-lists"
+)
+
 dynamodb = boto3.resource("dynamodb")
 campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
+user_lists_table = dynamodb.Table(USER_LISTS_TABLE)
 
 
 # `required_statuses` is a tuple: SUBMIT accepts more than one starting state.
@@ -118,6 +125,36 @@ def has_started(campaign):
     return start is not None and start <= utc_now()
 
 
+def recipient_list_problem(list_id):
+    """
+    Why the chosen recipient list can't be sent to, or None. Only what is
+    known to be wrong blocks: the list was deleted, its upload never finished
+    or failed (status other than READY), or it has no people (totalUsers 0).
+    A list row without a status (older lists) passes on its count. If the
+    list can't be read at all (permissions), nothing is blocked here; the
+    sender still refuses an empty list visibly at the start time.
+    """
+    try:
+        item = user_lists_table.get_item(Key={"userListId": list_id}).get("Item")
+    except (ClientError, BotoCoreError) as error:
+        code = error.response.get("Error", {}).get("Code") if isinstance(error, ClientError) else type(error).__name__
+        print(json.dumps({"message": "Recipient list not checked", "code": code}))
+        return None
+    if not item:
+        return "The recipient list no longer exists. Choose another list"
+    name = str(item.get("name") or list_id)
+    status = str(item.get("status") or "").upper()
+    if status and status != "READY":
+        return (
+            f'The recipient list "{name}" is not ready ({status.lower()}): its upload did not finish. '
+            "Upload it again or choose another list"
+        )
+    total = item.get("totalUsers")
+    if total is not None and int(total) <= 0:
+        return f'The recipient list "{name}" has no people in it. Choose another list'
+    return None
+
+
 # The link placeholders email-sender replaces (its INLINE_LINK_PLACEHOLDERS).
 LINK_PLACEHOLDERS = ("{{phishLink}}", "{{PHISH_LINK}}", "{{phishingLink}}", "{{trackingUrl}}", "{{TRACKING_URL}}")
 
@@ -143,6 +180,11 @@ def validate_for_submit(campaign):
             problems.extend(check_test_recipients(campaign))
         elif missing(field):
             problems.append(f"{label} is required")
+        elif field == "selectedListId":
+            # a list is chosen: it must have people to send to
+            problem = recipient_list_problem(str(campaign["selectedListId"]).strip())
+            if problem:
+                problems.append(problem)
 
     # End time may be omitted only when the campaign auto-ends after sending.
     if missing("endTime") and not campaign.get("autoEndPostSending"):
