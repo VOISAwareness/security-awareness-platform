@@ -245,22 +245,39 @@ def cover_key_from_url(value):
 #
 # Row kinds (scenario_kind):
 #   template  no createdBy: the fixed seed scenarios, visible to everyone.
-#   own       a user's scenario. Private until a SENT campaign uses it, then
-#             shared with everyone and frozen -- edits go through a revision.
+#   own       a user's scenario. A draft (private) until its creator publishes
+#             it (POST /scenarios/{id}/publish: sharedAt, sharedBy) or a SENT
+#             campaign uses it; then shared with everyone and frozen -- edits
+#             go through a revision, which the creator publishes onto it.
 #   copy      copyOf=X: its owner's private edited version of template / shared X,
 #             a scenario of its own: X stays as it is and is still listed, and
 #             one person may make any number of versions of X.
 #   revision  revisionOf=S: its owner's pending edit of their own shared S,
-#             published onto S once a campaign that used it has been SENT.
+#             published onto S when its owner publishes it, or once a campaign
+#             that used it has been SENT.
 # The handler only does I/O; every rule lives in the pure helpers below.
 
 # Kept from the original when a revision's content is published onto it.
 PUBLISH_KEPT_FIELDS = frozenset(
-    {"scenarioId", "createdBy", "CreatedOn", "copyOf", "revisionOf", "publishedAt", "deletedAt", "deletedBy"}
+    {
+        "scenarioId",
+        "createdBy",
+        "CreatedOn",
+        "copyOf",
+        "revisionOf",
+        "publishedAt",
+        "sharedAt",
+        "sharedBy",
+        "deletedAt",
+        "deletedBy",
+    }
 )
+# Set only by POST /scenarios/{id}/publish (see publish_scenario).
+SHARE_MARK_FIELDS = frozenset({"sharedAt", "sharedBy"})
 # A PUT can't change who owns a row, where it came from, or whether it was deleted.
 PUT_LOCKED_FIELDS = frozenset(
     {"scenarioId", "createdBy", "copyOf", "revisionOf", "publishedAt", "deletedAt", "deletedBy"}
+    | SHARE_MARK_FIELDS
 )
 # Set only by DELETE of a shared scenario (see deleted_scenario).
 DELETE_MARK_FIELDS = frozenset({"deletedAt", "deletedBy"})
@@ -323,8 +340,11 @@ def is_deleted(row):
 
 
 def is_shared(row, sent_ids):
-    """A user's own scenario is shared once a SENT campaign has used it."""
-    return scenario_kind(row) == "own" and str(row.get("scenarioId")) in sent_ids
+    """A user's own scenario is shared once its creator has published it, or a
+    SENT campaign has used it."""
+    if scenario_kind(row) != "own":
+        return False
+    return bool(row.get("sharedAt")) or str(row.get("scenarioId")) in sent_ids
 
 
 def visible_scenarios(rows, sent_ids, viewer):
@@ -397,25 +417,32 @@ def publishable_revisions(rows, sent_ids):
             continue
         if parse_identity(rev.get("createdBy")) != parse_identity(original.get("createdBy")):
             continue
-        content = {
-            k: v
-            for k, v in rev.items()
-            if k not in PUBLISH_KEPT_FIELDS and k not in NEVER_STORED_FIELDS
-        }
-        plan.append((rev, original, {**original, **content}))
+        plan.append((rev, original, merged_revision(rev, original)))
     return plan
 
 
+def merged_revision(rev, original):
+    """The original with the revision's content but its own identity fields."""
+    content = {
+        k: v for k, v in rev.items() if k not in PUBLISH_KEPT_FIELDS and k not in NEVER_STORED_FIELDS
+    }
+    return {**original, **content}
+
+
 def clean_scenario_input(body):
-    """A POST body as it may be stored: response-only fields, publishedAt and
-    the deleted mark dropped (only the lazy publish / DELETE set them),
+    """A POST body as it may be stored: response-only fields, publishedAt, the
+    published mark and the deleted mark dropped (only the publishes / DELETE
+    set them; a duplicate of a published scenario starts as a draft),
     createdBy lower-cased, copyOf/revisionOf as plain ids, a presigned cover
     URL back to its key. A copy never keeps the copied row's own id (an older
     editor sent it along): the API names that copy instead."""
     item = {
         k: v
         for k, v in body.items()
-        if k not in NEVER_STORED_FIELDS and k != "publishedAt" and k not in DELETE_MARK_FIELDS
+        if k not in NEVER_STORED_FIELDS
+        and k != "publishedAt"
+        and k not in DELETE_MARK_FIELDS
+        and k not in SHARE_MARK_FIELDS
     }
     author = parse_identity(item.pop("createdBy", None))
     if author:
@@ -528,8 +555,7 @@ def modify_refusal(row, actor, sent_ids, action):
     if action == "edit" and is_shared(row, sent_ids):
         return err(
             409,
-            "This scenario is shared (a sent campaign used it), so editing it "
-            "creates a revision instead",
+            "This scenario is published, so editing it creates a revision instead",
         )
     return None
 
@@ -565,52 +591,127 @@ def load_campaign_refs():
     )
 
 
+def write_revision(tbl, revision, original, merged, context=None):
+    """Write a revision's content onto its original, then stamp the revision
+    with publishedAt. Returns the stamp, or None when the original changed
+    hands, was deleted, or a write failed (the revision stays pending).
+    Stamped last, so a failure in between just publishes it again later."""
+    rev_id, orig_id = revision["scenarioId"], original["scenarioId"]
+    try:
+        # Only onto the original as read: still there, same owner.
+        tbl.put_item(
+            Item=merged,
+            ConditionExpression=(
+                "attribute_exists(scenarioId) AND createdBy = :by AND attribute_not_exists(deletedAt)"
+            ),
+            ExpressionAttributeValues={":by": original["createdBy"]},
+        )
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        log(context, "Revision publish skipped", revisionId=rev_id, scenarioId=orig_id, code=code)
+        return None
+    published_at = datetime.now(UTC).isoformat()
+    try:
+        tbl.update_item(
+            Key={"scenarioId": rev_id},
+            UpdateExpression="SET publishedAt = :at",
+            ConditionExpression="attribute_exists(scenarioId) AND attribute_not_exists(publishedAt)",
+            ExpressionAttributeValues={":at": published_at},
+        )
+    except ClientError as e:
+        # A conditional failure means another request stamped it first:
+        # published either way. Anything else retries on the next list.
+        if not conditional_failed(e):
+            code = e.response.get("Error", {}).get("Code")
+            log(context, "Revision stamp failed", revisionId=rev_id, scenarioId=orig_id, code=code)
+            return None
+    log(context, "Scenario revision published", revisionId=rev_id, scenarioId=orig_id)
+    return published_at
+
+
 def publish_revisions(rows, sent_ids, context=None):
-    """Lazy publish (see publishable_revisions): write each sent revision's
-    content onto its original, then stamp the revision with publishedAt.
-    Idempotent -- a stamped revision is never picked again -- and best effort:
-    a failed write leaves the revision pending for the next list rather than
-    failing this one. Returns the rows as they now stand."""
+    """Lazy publish (see publishable_revisions): each sent revision's content
+    onto its original (write_revision). Idempotent -- a stamped revision is
+    never picked again -- and best effort: a failed write leaves the revision
+    pending for the next list rather than failing this one. Returns the rows
+    as they now stand."""
     plan = publishable_revisions(rows, sent_ids)
     if not plan:
         return rows
     tbl = table("scenarios")
     changed = {}
     for revision, original, merged in plan:
-        rev_id, orig_id = revision["scenarioId"], original["scenarioId"]
-        try:
-            # Only onto the original as read: still there, same owner.
-            tbl.put_item(
-                Item=merged,
-                ConditionExpression=(
-                    "attribute_exists(scenarioId) AND createdBy = :by AND attribute_not_exists(deletedAt)"
-                ),
-                ExpressionAttributeValues={":by": original["createdBy"]},
-            )
-        except ClientError as e:
-            code = e.response.get("Error", {}).get("Code")
-            log(context, "Revision publish skipped", revisionId=rev_id, scenarioId=orig_id, code=code)
-            continue
-        changed[str(orig_id)] = merged
-        published_at = datetime.now(UTC).isoformat()
-        try:
-            # Stamped last, so a failure in between just republishes next time.
-            tbl.update_item(
-                Key={"scenarioId": rev_id},
-                UpdateExpression="SET publishedAt = :at",
-                ConditionExpression="attribute_exists(scenarioId) AND attribute_not_exists(publishedAt)",
-                ExpressionAttributeValues={":at": published_at},
-            )
-        except ClientError as e:
-            # A conditional failure means another request stamped it first:
-            # published either way. Anything else retries on the next list.
-            if not conditional_failed(e):
-                code = e.response.get("Error", {}).get("Code")
-                log(context, "Revision stamp failed", revisionId=rev_id, scenarioId=orig_id, code=code)
-                continue
-        changed[str(rev_id)] = {**revision, "publishedAt": published_at}
-        log(context, "Scenario revision published", revisionId=rev_id, scenarioId=orig_id)
+        published_at = write_revision(tbl, revision, original, merged, context)
+        if published_at:
+            changed[str(original["scenarioId"])] = merged
+            changed[str(revision["scenarioId"])] = {**revision, "publishedAt": published_at}
     return [changed.get(str(row.get("scenarioId")), row) for row in rows]
+
+
+def publish_refusal(row, actor, rows):
+    """Why `actor` can't publish this row (POST /scenarios/{id}/publish), as
+    an error response, or None. Only a row's creator publishes it: their
+    draft, their old-style copy (which becomes a scenario of its own), or
+    their pending revision of their own published scenario."""
+    actor = parse_identity(actor)
+    if not actor:
+        return err(400, "actor is required")
+    if not row or is_deleted(row):
+        return err(404, "Scenario not found")
+    kind = scenario_kind(row)
+    if kind == "template":
+        return err(409, "Templates are already visible to everyone")
+    if parse_identity(row.get("createdBy")) != actor:
+        return err(403, "Only the scenario's creator can publish it")
+    if kind != "revision":
+        return None
+    if row.get("publishedAt"):
+        return err(409, "These changes are already published")
+    original = next((r for r in rows if str(r.get("scenarioId")) == str(row["revisionOf"])), None)
+    if (
+        not original
+        or is_deleted(original)
+        or scenario_kind(original) != "own"
+        or parse_identity(original.get("createdBy")) != actor
+    ):
+        return err(409, "The scenario these changes were made to is no longer yours to publish")
+    return None
+
+
+def publish_scenario(row, actor, rows, context=None):
+    """Publish a row publish_refusal allowed. A draft or copy is marked
+    shared (sharedAt, sharedBy; a copy also stops being one); a revision's
+    content goes onto its original now. Returns (status, response body)."""
+    tbl = table("scenarios")
+    actor = parse_identity(actor)
+    if scenario_kind(row) == "revision":
+        original = next(r for r in rows if str(r.get("scenarioId")) == str(row["revisionOf"]))
+        merged = merged_revision(row, original)
+        if not write_revision(tbl, row, original, merged, context):
+            return err(409, "The scenario changed while publishing. Reload and try again.")
+        return ok({**merged, "ownership": "mine", "isShared": True, "replaces": None})
+    if row.get("sharedAt"):
+        return ok(row)  # published already: nothing to do
+    now = datetime.now(UTC).isoformat()
+    expression = "SET sharedAt = :at, sharedBy = :by" + (" REMOVE copyOf" if row.get("copyOf") else "")
+    try:
+        # Only the row as read: still there, still theirs, not deleted.
+        tbl.update_item(
+            Key={"scenarioId": row["scenarioId"]},
+            UpdateExpression=expression,
+            ConditionExpression=(
+                "attribute_exists(scenarioId) AND createdBy = :by AND attribute_not_exists(deletedAt)"
+            ),
+            ExpressionAttributeValues={":at": now, ":by": actor},
+        )
+    except ClientError as e:
+        if conditional_failed(e):
+            return err(409, "The scenario changed while publishing. Reload and try again.")
+        raise
+    published = {k: v for k, v in row.items() if k != "copyOf"}
+    published.update(sharedAt=now, sharedBy=actor)
+    log(context, "Scenario published", scenarioId=row["scenarioId"])
+    return ok({**published, "ownership": "mine", "isShared": True, "replaces": None})
 
 
 # --- scenario drafts ------------------------------------------------------
@@ -2795,6 +2896,15 @@ def handle(event, context):
                     return err(409, "Scenario changed while saving. Reload and try again.")
                 raise
             return ok(merged)
+
+        if route == "POST /scenarios/{id}/publish":
+            body = parse_body(event)
+            rows = scan_all("scenarios")
+            row = next((r for r in rows if str(r.get("scenarioId")) == params["id"]), None)
+            refusal = publish_refusal(row, body.get("actor"), rows)
+            if refusal:
+                return refusal
+            return publish_scenario(row, body.get("actor"), rows, context)
 
         if route == "DELETE /scenarios/{id}":
             existing = get_one("scenarios", {"scenarioId": params["id"]})
