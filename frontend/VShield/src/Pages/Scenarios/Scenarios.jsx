@@ -1298,8 +1298,13 @@ const Scenarios = () => {
                               </button>
                             </div>
                           )}
-                          {/* Wraps rather than run past the card on a narrow one (the card clips). */}
-                          <div className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto">
+                          {/* Wraps rather than run past the card on a narrow one (the card clips).
+                              A click on a button here stays here: the card's own click opens the
+                              editor, which Delete (and its Yes / No) must not do. */}
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto"
+                          >
                             {busyIds[scenario.scenarioId] ? (
                               <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">
                                 Working…
