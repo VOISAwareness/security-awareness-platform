@@ -126,6 +126,10 @@ export const api = {
       request(`/scenarios/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}`, {
         method: 'DELETE',
       }),
+    // The creator shares their draft with everyone, or puts their unpublished
+    // changes (a revision's id) onto their published scenario.
+    publish: (id, actor) =>
+      request(`/scenarios/${encodeURIComponent(id)}/publish`, { method: 'POST', body: { actor } }),
 
     // Presign, then PUT the image straight to S3. Returns the key to store as
     // CoverImageID; the API hands back a presigned GET for it on later reads.

@@ -5,6 +5,8 @@ import {
   SlidersHorizontal,
   Pencil,
   RotateCcw,
+  Copy,
+  Globe,
   Trash2,
   Check,
   X,
@@ -19,7 +21,9 @@ import { api } from "../../services/api";
 import { currentActor } from "../../services/identity";
 import {
   DELETE_KINDS,
+  PUBLISH_KINDS,
   cardActions,
+  duplicatePayload,
   scenariosForViewer,
 } from "../../services/scenarioOwnership";
 import { DEMO_USER } from "../../appConfig";
@@ -904,6 +908,68 @@ const Scenarios = () => {
     }
   };
 
+  // A card's Publish / Duplicate: one at a time per card, "Working…" meanwhile,
+  // and a failure shown on the card (and in the details pop-up).
+  const runCardAction = async (scenario, action, failure) => {
+    const id = String(scenario.scenarioId);
+    setConfirmId(null);
+    setCardError(null);
+    setBusyIds((busy) => ({ ...busy, [id]: true }));
+    try {
+      await action();
+    } catch (error) {
+      setCardError({ id, message: error?.message || failure });
+    } finally {
+      setBusyIds((busy) => {
+        const rest = { ...busy };
+        delete rest[id];
+        return rest;
+      });
+    }
+  };
+
+  // Publish a draft for everyone, or put unpublished changes live (the
+  // revision's own id). The list is read again to show the result.
+  const handlePublish = (scenario) =>
+    runCardAction(
+      scenario,
+      async () => {
+        await api.scenarios.publish(String(scenario.scenarioId), viewer);
+        setDetailModalItem(null);
+        setListVersion((v) => v + 1);
+      },
+      "Couldn't publish this scenario.",
+    );
+
+  // Duplicate: the same content and name as a new draft of the viewer's own,
+  // with no link back to the original, opened straight in the editor.
+  const handleDuplicate = (scenario) =>
+    runCardAction(
+      scenario,
+      async () => {
+        const made = await api.scenarios.create(
+          duplicatePayload(scenario._row, viewer),
+        );
+        const newId = String(made?.scenarioId || "");
+        if (!newId) throw new Error("The duplicate was not given an ID.");
+        setDetailModalItem(null);
+        navigate(`/new-scenario?edit=${encodeURIComponent(newId)}`, {
+          state: { from: "all" },
+        });
+      },
+      "Couldn't duplicate this scenario.",
+    );
+
+  // Someone else's scenario (or a template) isn't edited: its card opens its
+  // details, where Duplicate makes a draft of the viewer's own.
+  const openDetails = (scenario, themeKey, theme, cardIndex) =>
+    setDetailModalItem({
+      ...scenario,
+      _themeKey: themeKey,
+      _theme: theme,
+      _cardIndex: cardIndex,
+    });
+
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
@@ -1108,7 +1174,7 @@ const Scenarios = () => {
                       isDark={isDark}
                       onContinue={(id) => continueDraft(id)}
                       onDelete={deleteDraft}
-                      emptyText="A scenario you start and leave before publishing is kept here."
+                      emptyText="A scenario you start and leave before saving is kept here."
                     />
                   </>
                 ) : filteredScenarios.length === 0 ? (
@@ -1143,7 +1209,16 @@ const Scenarios = () => {
 
                       return (
                         <div
-                          onClick={() => handleEdit(scenario)}
+                          onClick={() =>
+                            actions.canEdit
+                              ? handleEdit(scenario)
+                              : openDetails(scenario, themeKey, theme, cardIndex)
+                          }
+                          title={
+                            actions.canEdit
+                              ? "Click to edit"
+                              : "Click to view. Duplicate makes a draft of your own."
+                          }
                           key={scenario._key}
                           data-scenario-id={scenario.scenarioId}
                           data-ownership={actions.ownership}
@@ -1196,12 +1271,7 @@ const Scenarios = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setDetailModalItem({
-                                    ...scenario,
-                                    _themeKey: themeKey,
-                                    _theme: theme,
-                                    _cardIndex: cardIndex,
-                                  });
+                                  openDetails(scenario, themeKey, theme, cardIndex);
                                 }}
                                 className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
                                 title="View Full Scenario Details"
@@ -1331,36 +1401,31 @@ const Scenarios = () => {
                               </>
                             ) : (
                               <>
-                                {/* Edit */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleEdit(scenario)}
-                                  title={
-                                    actions.editMode === "copy"
-                                      ? "Edit your own copy (only you see it)"
-                                      : undefined
-                                  }
-                                  className={`
-          h-[26px]
-          px-2
-          rounded-lg
-          text-[9.5px]
-          font-bold
-          flex
-          items-center
-          justify-center
-          gap-1
-          border
-          transition-colors
-          cursor-pointer
-          ${theme.btnBg}
-          ${theme.btnBorder}
-          ${theme.btnText}
-        `}
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                  Edit
-                                </button>
+                                {/* Publish / Publish changes — the viewer's drafts and unpublished changes */}
+                                {actions.publishKind && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePublish(scenario)}
+                                    title={PUBLISH_KINDS[actions.publishKind].hint}
+                                    className="h-[26px] px-2 rounded-lg bg-[#17794a] hover:bg-[#1d8f58] text-white text-[9.5px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
+                                  >
+                                    <Globe className="w-3 h-3" />
+                                    {PUBLISH_KINDS[actions.publishKind].label}
+                                  </button>
+                                )}
+
+                                {/* Duplicate — on someone else's scenario or a template (own ones: in the details pop-up) */}
+                                {!actions.canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDuplicate(scenario)}
+                                    title="Make a draft of your own with the same content. The original stays as it is."
+                                    className={`h-[26px] px-2 rounded-lg text-[9.5px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer whitespace-nowrap ${theme.btnBg} ${theme.btnBorder} ${theme.btnText}`}
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    Duplicate
+                                  </button>
+                                )}
 
                                 {/* Delete / Reset to original / Discard changes — own rows only */}
                                 {removal && (
@@ -1532,8 +1597,8 @@ const Scenarios = () => {
                           </div>
                         </div>
 
-                        {/* Preview Email Body Button */}
-                        <div className="pt-1">
+                        {/* Preview Email Body + what this viewer may do with it */}
+                        <div className="pt-1 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() =>
@@ -1547,6 +1612,85 @@ const Scenarios = () => {
                             <span>Preview Email Body</span>
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+                          {(() => {
+                            const item = detailModalItem;
+                            const can = cardActions(item._row, viewer);
+                            const id = String(item.scenarioId);
+                            const busy = Boolean(busyIds[id]);
+                            const button =
+                              "px-3 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+                            const plain = `${button} bg-white/90 dark:bg-black/60 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-white/15 hover:bg-white`;
+                            return (
+                              <>
+                                {can.canEdit && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setDetailModalItem(null);
+                                      handleEdit(item);
+                                    }}
+                                    className={plain}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+                                )}
+                                {can.canDuplicate && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => handleDuplicate(item)}
+                                    title="Make a draft of your own with the same content. The original stays as it is."
+                                    className={plain}
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Duplicate</span>
+                                  </button>
+                                )}
+                                {can.publishKind && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => handlePublish(item)}
+                                    title={PUBLISH_KINDS[can.publishKind].hint}
+                                    className={`${button} bg-[#17794a] hover:bg-[#1d8f58] text-white`}
+                                  >
+                                    <Globe className="w-3.5 h-3.5" />
+                                    <span>
+                                      {busy
+                                        ? PUBLISH_KINDS[can.publishKind].busy
+                                        : PUBLISH_KINDS[can.publishKind].label}
+                                    </span>
+                                  </button>
+                                )}
+                                {can.deleteKind && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      // Asked on the card, as there.
+                                      setDetailModalItem(null);
+                                      setCardError(null);
+                                      setConfirmId(item.scenarioId);
+                                    }}
+                                    className={`${button} bg-[#e60000] hover:bg-[#ff2020] text-white`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>{DELETE_KINDS[can.deleteKind].label}</span>
+                                  </button>
+                                )}
+                                {cardError?.id === id && (
+                                  <span
+                                    role="alert"
+                                    className="basis-full text-[11px] font-semibold text-[#b00000] dark:text-[#ff8080]"
+                                  >
+                                    {cardError.message}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

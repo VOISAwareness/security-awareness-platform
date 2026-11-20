@@ -21,6 +21,8 @@ import {
   scenariosForViewer,
   toSavePayload,
   visibleForViewer,
+  PUBLISH_KINDS,
+  duplicatePayload,
 } from './scenarioOwnership.js';
 import { toWizardFormData } from './scenarioMapper.js';
 
@@ -79,24 +81,25 @@ const actions = (fields, viewer = ALICE) => {
 
 test('the matrix: edit mode, delete and badge per ownership', () => {
   assert.deepEqual(actions({ ownership: 'template' }), ['copy', false, null, '']);
-  assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, 'Shared']);
-  assert.deepEqual(actions({ ownership: 'mine', isShared: false, createdBy: ALICE }), ['update', true, 'delete', 'Only you']);
-  assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Shared']);
-  assert.deepEqual(actions({ ownership: 'myCopy', copyOf: 'SC-9' }), ['update', true, 'delete', 'Edited from SC-9']);
-  assert.deepEqual(actions({ ownership: 'myRevision', replaces: 'SC-9' }), ['update', true, 'discard', 'Your edit — not live yet']);
+  assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, 'Published']);
+  assert.deepEqual(actions({ ownership: 'mine', isShared: false, createdBy: ALICE }), ['update', true, 'delete', 'Draft · only you']);
+  assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Published']);
+  assert.deepEqual(actions({ ownership: 'myCopy', copyOf: 'SC-9' }), ['update', true, 'delete', 'Draft · only you']);
+  assert.deepEqual(actions({ ownership: 'myRevision', replaces: 'SC-9' }), ['update', true, 'discard', 'Unpublished changes']);
 });
 
-test('everyone can edit; the owner of a shared scenario may delete it, warned first', () => {
+test('only the viewer\'s own rows open the editor; the owner of a published scenario may delete it, warned first', () => {
   for (const ownership of ['template', 'shared', 'mine', 'myCopy', 'myRevision']) {
     const a = cardActions(row({ ownership, isShared: ownership === 'shared' }), ALICE);
-    assert.equal(a.canEdit, true, ownership);
+    assert.equal(a.canEdit, !['template', 'shared'].includes(ownership), ownership);
+    assert.equal(a.canDuplicate, true, ownership);
     assert.equal(a.ownership, ownership);
   }
   const shared = cardActions(row({ ownership: 'mine', isShared: true }), ALICE);
   assert.equal(shared.canDelete, true);
   assert.match(DELETE_KINDS[shared.deleteKind].warning, /Others won't be able to use this scenario/);
   assert.match(DELETE_KINDS[shared.deleteKind].warning, /Campaigns already sent keep their own copy/);
-  // Someone else's shared scenario and the templates still can't be deleted.
+  // Someone else's published scenario and the templates still can't be deleted.
   assert.equal(cardActions(row({ ownership: 'shared', isShared: true }), ALICE).canDelete, false);
   assert.equal(cardActions(row({ ownership: 'template' }), ALICE).canDelete, false);
 });
@@ -114,23 +117,60 @@ test('every delete kind has its own label and confirmation', () => {
   assert.equal(DELETE_KINDS.discard.label, 'Discard changes');
 });
 
-test('older API: own rows are editable in place and deletable, others become copies', () => {
-  assert.deepEqual(actions({ createdBy: ALICE }), ['update', true, 'delete', 'Only you']);
-  assert.deepEqual(actions({ createdBy: BOB }), ['copy', false, null, 'Shared']);
+test('older API: own rows are editable in place and deletable, others are published', () => {
+  assert.deepEqual(actions({ createdBy: ALICE }), ['update', true, 'delete', 'Draft · only you']);
+  assert.deepEqual(actions({ createdBy: BOB }), ['copy', false, null, 'Published']);
   assert.deepEqual(actions({}), ['copy', false, null, '']);
 });
 
-test('every badge explains itself on hover, naming what a version was made from', () => {
+test('every badge explains itself on hover; an old copy is just a draft, with no link back shown', () => {
   for (const ownership of ['shared', 'mine', 'myCopy', 'myRevision']) {
     assert.ok(cardActions(row({ ownership }), ALICE).badgeHint, ownership);
   }
   const copy = cardActions(row({ ownership: 'myCopy', copyOf: 'SC-101' }), ALICE);
-  assert.equal(copy.badge, 'Edited from SC-101');
-  assert.match(copy.badgeHint, /^Your edited version of SC-101, with its own ID\. The original stays as it is\./);
-  assert.match(cardActions(row({ ownership: 'myRevision', replaces: 'SC-600' }), ALICE).badgeHint, /^Your edit of SC-600\./);
-  const unnamed = cardActions(row({ ownership: 'myCopy' }), ALICE);
-  assert.equal(unnamed.badge, 'Edited version');
-  assert.match(unnamed.badgeHint, /^Your edited version, with its own ID/);
+  assert.equal(copy.badge, 'Draft · only you');
+  assert.doesNotMatch(copy.badgeHint, /SC-101/);
+  assert.match(cardActions(row({ ownership: 'myRevision', replaces: 'SC-600' }), ALICE).badgeHint, /^Your changes of SC-600\./);
+  assert.match(cardActions(row({ ownership: 'shared' }), ALICE).badgeHint, /only one who can change it/);
+});
+
+test('Publish: on drafts and unpublished changes only', () => {
+  const kind = (fields) => cardActions(row(fields), ALICE).publishKind;
+  assert.equal(kind({ ownership: 'mine', isShared: false }), 'publish');
+  assert.equal(kind({ ownership: 'myCopy', copyOf: 'SC-1' }), 'publish');
+  assert.equal(kind({ ownership: 'myRevision', replaces: 'SC-1' }), 'publishChanges');
+  assert.equal(kind({ ownership: 'mine', isShared: true }), null);
+  assert.equal(kind({ ownership: 'shared', isShared: true }), null);
+  assert.equal(kind({ ownership: 'template' }), null);
+  assert.equal(PUBLISH_KINDS.publish.label, 'Publish');
+  assert.equal(PUBLISH_KINDS.publishChanges.label, 'Publish changes');
+});
+
+test('Duplicate: the same content and name, a new draft of the viewer\'s own, no link back', () => {
+  const source = {
+    scenarioId: 'SC-9',
+    scenarioName: 'Parcel delivery',
+    emailBody: '<p>hi</p>',
+    createdBy: BOB,
+    CreatedOn: '2-Jan-26',
+    copyOf: 'SC-1',
+    sharedAt: 'x',
+    sharedBy: BOB,
+    ownership: 'shared',
+    isShared: true,
+    replaces: null,
+    CoverImageID: 'https://bucket.s3.amazonaws.com/uploads/scenario-covers/SC-9/c.png?X-Amz-Signature=abc',
+    coverImageKey: 'uploads/scenario-covers/SC-9/c.png',
+    _key: 'k',
+  };
+  assert.deepEqual(duplicatePayload(source, ' Alice@X.com '), {
+    scenarioName: 'Parcel delivery',
+    emailBody: '<p>hi</p>',
+    CoverImageID: 'uploads/scenario-covers/SC-9/c.png',
+    createdBy: 'alice@x.com',
+  });
+  // A catalogue cover (no stored key) is kept as it is.
+  assert.equal(duplicatePayload({ scenarioName: 'n', CoverImageID: 'CovImg-002.png' }, ALICE).CoverImageID, 'CovImg-002.png');
 });
 
 test('editing a template: a new scenario, whose ID is chosen like a new one\'s', () => {
@@ -166,11 +206,11 @@ test('editContext records what an edit draft needs', () => {
 });
 
 test('the Saved message says who sees the result', () => {
-  assert.equal(savedAudience({ mode: 'copy', ownership: 'template' }), 'Only you see this version.');
-  assert.equal(savedAudience({ mode: 'update', ownership: 'myCopy' }), 'Only you see this version.');
-  assert.match(savedAudience({ mode: 'revision', ownership: 'mine' }), /goes live for everyone when a campaign using it is sent/);
-  assert.match(savedAudience({ mode: 'update', ownership: 'myRevision' }), /goes live for everyone/);
-  assert.match(savedAudience({ mode: 'update', ownership: 'mine' }), /^Only you see it until/);
+  assert.equal(savedAudience({ mode: 'copy', ownership: 'template' }), 'Only you see it until you publish it.');
+  assert.equal(savedAudience({ mode: 'update', ownership: 'myCopy' }), 'Only you see it until you publish it.');
+  assert.match(savedAudience({ mode: 'revision', ownership: 'mine' }), /published version until you publish your changes/);
+  assert.match(savedAudience({ mode: 'update', ownership: 'myRevision' }), /until you publish your changes/);
+  assert.match(savedAudience({ mode: 'update', ownership: 'mine' }), /^Only you see it until you publish it/);
 });
 
 // --- toSavePayload ------------------------------------------------------------------
@@ -359,10 +399,10 @@ test('nothing changed: same, with name and baseline kept', () => {
   assert.equal(refreshNotice(r), '');
 });
 
-test('own scenario shared since the edit began: saved as a pending revision, and said so', () => {
+test('own scenario published since the edit began: saved as unpublished changes, and said so', () => {
   const r = refreshEdit(edit('A5', 'update', 'mine'), LIST, ALICE);
   assert.deepEqual([r.change, r.edit.mode, r.edit.ownership, r.edit.baseline], ['nowShared', 'revision', 'mine', 'b']);
-  assert.match(refreshNotice(r), /shared since you started/);
+  assert.match(refreshNotice(r), /published since you started/);
 });
 
 test('a template\'s edit is a new version: another version saved meanwhile is no conflict', () => {
