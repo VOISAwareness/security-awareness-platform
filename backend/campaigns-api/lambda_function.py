@@ -15,9 +15,12 @@ Deliberate safeguards (see vault note 18, mapped from the frontend):
   editor blobs that can inline base64 images, so oversized writes are rejected
   with a clear message instead of an opaque DynamoDB error.
 - Campaigns can only be edited while DRAFT or REJECTED.
-- Cancel (PENDING_APPROVAL or APPROVED, before it starts -> CANCELLED) and
-  reinvoke (CANCELLED -> DRAFT) are conditional writes, so a campaign the
-  sender has already locked (APPROVED -> SENDING) can never be cancelled.
+- Cancel (PENDING_APPROVAL or APPROVED -> CANCELLED) and reinvoke (CANCELLED
+  or SEND_FAILED -> DRAFT) are conditional writes, so a campaign the sender
+  has already locked (APPROVED -> SENDING) can never be cancelled. An
+  APPROVED campaign whose start has passed but which was never sent (it could
+  not be: no recipients, no link...) can still be cancelled, so it is never
+  stuck.
 - GET /campaigns/{id}/results lists each recipient's outcome (opened, clicked,
   gave details, reported, trained). Tracking tokens and URLs never leave the
   table.
@@ -183,12 +186,6 @@ def actor_of(body):
     return str(body.get("actor") or "").strip().lower()[:200]
 
 
-def started(campaign, now):
-    """True once the campaign's start time has passed."""
-    start = str(campaign.get("startAt") or campaign.get("startTime") or "")
-    return bool(start) and start[:19] <= now[:19]
-
-
 def cancel(campaign_id, body):
     actor = actor_of(body)
     reason = str(body.get("reason") or "").strip()
@@ -205,8 +202,10 @@ def cancel(campaign_id, body):
     if status not in CANCELLABLE_STATUSES:
         return err(409, f"Only a campaign waiting for approval or for its start can be cancelled; this one is {status}.")
     now = now_iso()
-    if status == "APPROVED" and started(existing, now):
-        return err(409, "This campaign has already started, so it can no longer be cancelled.")
+    # Still APPROVED means nothing was sent: the sender locks a campaign
+    # (APPROVED -> SENDING) before its first email, and this write only
+    # succeeds while it is APPROVED. So a campaign whose start passed without
+    # sending can be cancelled too, instead of staying scheduled for ever.
     try:
         updated = campaigns.update_item(
             Key={"campaignId": campaign_id},
@@ -239,18 +238,23 @@ def reinvoke(campaign_id, body):
             Key={"campaignId": campaign_id},
             UpdateExpression=(
                 "SET #status = :draft, reinvokedBy = :actor, reinvokedAt = :now, updatedAt = :now "
-                "REMOVE approvedBy, approvedAt, submittedBy, submittedAt"
+                "REMOVE approvedBy, approvedAt, submittedBy, submittedAt, failureReason, failedAt"
             ),
-            ConditionExpression="#status = :cancelled",
+            # a cancelled campaign, or one that could not be sent, goes back
+            # to its author to fix and submit again
+            ConditionExpression="#status IN (:cancelled, :failed, :failed_old)",
             ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={":draft": "DRAFT", ":cancelled": "CANCELLED", ":actor": actor, ":now": now},
+            ExpressionAttributeValues={
+                ":draft": "DRAFT", ":cancelled": "CANCELLED", ":failed": "SEND_FAILED", ":failed_old": "FAILED",
+                ":actor": actor, ":now": now,
+            },
             ReturnValues="ALL_NEW",
         )["Attributes"]
     except ClientError as e:
         if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             if not get_campaign(campaign_id):
                 return err(404, "Campaign not found")
-            return err(409, "Only a cancelled campaign can be reinvoked.")
+            return err(409, "Only a cancelled campaign, or one that could not be sent, can be reinvoked.")
         raise
     return ok(updated)
 

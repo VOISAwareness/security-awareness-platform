@@ -68,7 +68,8 @@ def call(mod, monkeypatch, item, action, body):
 
 
 def pending(**extra):
-    return {"campaignId": "CMP-1", "status": "PENDING_APPROVAL", **extra}
+    # a request ready to approve (READY is defined below; read at call time)
+    return {"campaignId": "CMP-1", "status": "PENDING_APPROVAL", **READY, "selectedListId": "UL-1", **extra}
 
 
 def test_identify_action_covers_every_route(mod):
@@ -164,6 +165,7 @@ def test_withdraw_requires_a_pending_campaign(mod, monkeypatch):
 
 
 def test_approve_still_works(mod, monkeypatch):
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 1, 1, tzinfo=mod.UTC))
     status, body, _ = call(mod, monkeypatch, pending(), "approve", {"actor": "m@x.com"})
     assert status == 200
     assert body["currentStatus"] == "APPROVED"
@@ -180,6 +182,7 @@ READY = {
     "trainingId": "TP-1",
     "autoEndPostSending": True,
     "landingPageId": "LP-1",
+    "emailBody": "<p>Please check {{phishLink}}</p>",
 }
 
 
@@ -270,3 +273,26 @@ def test_cannot_submit_to_start_in_the_past(mod, monkeypatch):
     status, body, _ = call(mod, monkeypatch, item, "submit", {"actor": "c@x.com"})
     assert status == 409
     assert body["code"] == "START_PASSED"
+
+
+# --- what the sender needs is checked before a campaign can be submitted or approved
+
+def test_the_email_needs_a_body_with_the_phishing_link(mod):
+    ready = {**READY, "selectedListId": "UL-1"}
+    assert mod.validate_for_submit(ready) == []
+    assert mod.validate_for_submit({**ready, "emailBody": " "}) == ["Email body is required"]
+    no_link = mod.validate_for_submit({**ready, "emailBody": "<p>Hello</p>"})
+    assert len(no_link) == 1 and "{{phishLink}}" in no_link[0]
+    assert mod.validate_for_submit({**ready, "emailBody": "<a href='{{TRACKING_URL}}'>x</a>"}) == []
+    # a legacy S3 template stands in for the body
+    assert mod.validate_for_submit({**ready, "emailBody": "", "templateBucket": "b", "templateKey": "k"}) == []
+
+
+def test_approve_checks_again_and_says_what_is_missing(mod, monkeypatch):
+    monkeypatch.setattr(mod, "utc_now", lambda: mod.datetime(2026, 1, 1, tzinfo=mod.UTC))
+    item = pending(selectedListId="", emailBody="<p>no link</p>")
+    status, body, table = call(mod, monkeypatch, item, "approve", {"actor": "m@x.com"})
+    assert status == 400 and body["message"] == "Campaign is not ready to approve"
+    assert "Recipient List is required" in body["problems"]
+    assert any("{{phishLink}}" in p for p in body["problems"])
+    assert table.updates == []

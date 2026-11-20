@@ -118,6 +118,10 @@ def has_started(campaign):
     return start is not None and start <= utc_now()
 
 
+# The link placeholders email-sender replaces (its INLINE_LINK_PLACEHOLDERS).
+LINK_PLACEHOLDERS = ("{{phishLink}}", "{{PHISH_LINK}}", "{{phishingLink}}", "{{trackingUrl}}", "{{TRACKING_URL}}")
+
+
 def validate_for_submit(campaign):
     """Return a list of human-readable problems blocking submission."""
     problems = []
@@ -149,6 +153,19 @@ def validate_for_submit(campaign):
     # The wizard accepts either a catalogue page or hand-authored HTML.
     if missing("landingPageId") and missing("landingPageContent"):
         problems.append("A Landing Page must be attached or designed")
+
+    # What email-sender needs at the start time (it refuses the campaign
+    # otherwise): an email body, or a legacy S3 template, and in an inline
+    # body the phishing link placeholder it replaces with each person's link.
+    has_template = not missing("templateBucket") and not missing("templateKey")
+    if not has_template:
+        if missing("emailBody"):
+            problems.append("Email body is required")
+        elif not any(p in str(campaign.get("emailBody")) for p in LINK_PLACEHOLDERS):
+            problems.append(
+                "The email body needs the phishing link placeholder ({{phishLink}}) "
+                "so each person gets their own tracked link"
+            )
 
     return problems
 
@@ -383,6 +400,21 @@ def lambda_handler(event, context):
             )
 
         elif action == "APPROVE":
+            # The same checks again: a campaign submitted before a check
+            # existed, or changed since, must not be approved only to fail
+            # at its start time. The approver sees what is missing and can
+            # send it back for changes.
+            problems = validate_for_submit(campaign)
+            if problems:
+                return build_response(
+                    400,
+                    {
+                        "message": "Campaign is not ready to approve",
+                        "campaignId": campaign_id,
+                        "problems": problems
+                    }
+                )
+
             update_expression = (
                 "SET #status = :newStatus, "
                 "approvedBy = :actor, "

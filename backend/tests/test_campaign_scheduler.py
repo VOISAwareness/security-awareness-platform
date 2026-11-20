@@ -30,6 +30,10 @@ class FakeTable:
     def __init__(self, pages):
         self.pages = pages
         self.calls = []
+        self.updates = []
+
+    def update_item(self, **kwargs):
+        self.updates.append(kwargs)
 
     def query(self, **kwargs):
         self.calls.append(kwargs)
@@ -79,6 +83,21 @@ def test_an_old_start_is_missed_not_sent(mod, monkeypatch):
     assert result["missed"] == ["old"]
     assert result["sent"] == ["late-ok"]
     assert len(client.invoked) == 1
+
+
+def test_a_missed_or_dateless_campaign_is_marked_failed_not_left_scheduled(mod, monkeypatch):
+    _, table, _ = run(mod, monkeypatch, [[
+        {"campaignId": "old", "status": "APPROVED", "startAt": "2026-11-05T07:00:00Z"},
+        {"campaignId": "none", "status": "APPROVED"},
+        {"campaignId": "later", "status": "APPROVED", "startAt": "2026-11-05T10:00:00Z"},
+    ]])
+    marked = {u["Key"]["campaignId"]: u for u in table.updates}
+    assert set(marked) == {"old", "none"}
+    for update in marked.values():
+        assert update["ConditionExpression"] == "#s = :approved"  # never overwrites a change
+        assert update["ExpressionAttributeValues"][":failed"] == "SEND_FAILED"
+    assert "60 minutes" in marked["old"]["ExpressionAttributeValues"][":reason"]
+    assert "no readable start" in marked["none"]["ExpressionAttributeValues"][":reason"]
 
 
 def test_reads_every_page(mod, monkeypatch):

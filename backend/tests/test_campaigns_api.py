@@ -154,7 +154,8 @@ def test_what_cannot_be_cancelled(mod, env):
     env.campaigns.put_item(Item={"campaignId": "SENT", "status": "SENT"})
     env.campaigns.put_item(Item={"campaignId": "WAIT", "status": "PENDING_APPROVAL"})
     ask = {"actor": "me@x", "reason": "r"}
-    assert call(mod, "POST /campaigns/{campaignId}/cancel", "GO", ask)[0] == 409  # already started
+    env.campaigns.put_item(Item={"campaignId": "SENDING", "status": "SENDING", "startAt": "2000-01-01T09:00:00Z"})
+    assert call(mod, "POST /campaigns/{campaignId}/cancel", "SENDING", ask)[0] == 409  # being sent
     assert call(mod, "POST /campaigns/{campaignId}/cancel", "SENT", ask)[0] == 409
     assert call(mod, "POST /campaigns/{campaignId}/cancel", "nope", ask)[0] == 404
     assert call(mod, "POST /campaigns/{campaignId}/cancel", "WAIT", {"actor": "me@x"})[0] == 400  # no reason
@@ -162,6 +163,22 @@ def test_what_cannot_be_cancelled(mod, env):
     assert call(mod, "POST /campaigns/{campaignId}/cancel", "WAIT", {"actor": "me@x", "reason": "x" * 501})[0] == 400
     assert call(mod, "POST /campaigns/{campaignId}/cancel", "WAIT", ask)[0] == 200
     assert call(mod, "POST /campaigns/{campaignId}/reinvoke", "nope", {"actor": "me@x"})[0] == 404
+
+
+def test_a_campaign_whose_start_passed_unsent_is_never_stuck(mod, env):
+    """Its start passed but it could not be sent (still APPROVED): it can be
+    cancelled; one marked SEND_FAILED can be reinvoked. Both go back to DRAFT."""
+    env.campaigns.put_item(Item={"campaignId": "LATE", "status": "APPROVED", "startAt": "2000-01-01T09:00:00Z"})
+    status, body = call(mod, "POST /campaigns/{campaignId}/cancel", "LATE", {"actor": "elena@x", "reason": "No recipients"})
+    assert status == 200 and body["data"]["status"] == "CANCELLED"
+    env.campaigns.put_item(Item={"campaignId": "FAIL", "status": "SEND_FAILED", "failureReason": "Campaign has no recipients.",
+                                 "failedAt": "2026-11-19T09:00:00Z", "approvedBy": "boss@x"})
+    status, body = call(mod, "POST /campaigns/{campaignId}/reinvoke", "FAIL", {"actor": "elena@x"})
+    assert status == 200
+    row = body["data"]
+    assert row["status"] == "DRAFT" and "failureReason" not in row and "approvedBy" not in row
+    env.campaigns.put_item(Item={"campaignId": "OK", "status": "SENT"})
+    assert call(mod, "POST /campaigns/{campaignId}/reinvoke", "OK", {"actor": "elena@x"})[0] == 409
 
 
 def test_cancel_loses_cleanly_to_the_sender(mod, env, monkeypatch):
