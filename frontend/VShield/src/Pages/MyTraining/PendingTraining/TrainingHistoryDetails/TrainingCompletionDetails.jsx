@@ -808,7 +808,7 @@ export default function TrainingCompletionDetails({
         <style>{ANIMATION_STYLE}</style>
 
         <div
-          className="relative flex h-[calc(90dvh-120px)] min-h-[420px] w-full flex-1 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border p-6 text-center"
+          className="relative flex lg:h-[calc(90dvh-120px)] min-h-[420px] w-full flex-1 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border p-6 text-center"
           style={panelStyle}
         >
           <span className="tqc-float" style={{ color: AMBER }}>

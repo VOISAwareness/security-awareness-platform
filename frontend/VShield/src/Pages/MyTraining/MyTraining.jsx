@@ -3,6 +3,7 @@ import {
   Search
 } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import useIsWide from '../../GlobalComponents/useIsWide';
 
 // Assets imported strictly from src/assets/CampaignsAssets
 import OnGoingImg from '../../assets/CampaignsAssets/OnGoingCampaignsImage.png';
@@ -65,6 +66,8 @@ const TAB_CONFIG = {
 
 const MyTraining = ({ isDark: propIsDark }) => {
   const userContext = useUserType?.() || {};
+  // Phones and tablets: the tabs sit side by side above the list, which takes the full width.
+  const isWide = useIsWide();
   const [trainingCount, setTrainingCount] = useState(0);
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
@@ -147,8 +150,8 @@ const MyTraining = ({ isDark: propIsDark }) => {
           {/* 👈 LEFT COLUMN: 3 SWITCHER CAPSULES + MINI CALENDAR CARD                 */}
           {/* ========================================================================= */}
           <div
-            style={{ width: VarLeftSectionWidth, flex: `0 0 ${VarLeftSectionWidth}` }}
-            className="flex flex-col gap-3.5 min-w-[280px]"
+            style={isWide ? { width: VarLeftSectionWidth, flex: `0 0 ${VarLeftSectionWidth}` } : { width: '100%' }}
+            className={isWide ? "flex flex-col gap-3.5 min-w-[280px]" : "grid grid-cols-2 gap-2.5"}
           >
             {/* 1. ON GOING MY TRAINING CAPSULE */}
             <div
@@ -216,7 +219,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
           {/* 👉 RIGHT COLUMN: DYNAMIC GALLERY (CARDS AND L-BASE VIEW)                  */}
           {/* ========================================================================= */}
           <div
-            style={{ width: VarRightSectionWidth, flex: `0 0 ${VarRightSectionWidth}` }}
+            style={isWide ? { width: VarRightSectionWidth, flex: `0 0 ${VarRightSectionWidth}` } : { width: '100%' }}
             className="flex flex-col min-w-0"
           >
             {/* 🌟 1. TOP-RIGHT ARM: CONTROLS & DYNAMIC BIG COUNTER (ELEVATED Z-INDEX) */}
@@ -226,7 +229,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
                 borderTopRightRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
                 borderTopLeftRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`
               }}
-              className="w-full h-[100px] px-6 flex items-center justify-between border-t border-l border-r border-black/5 dark:border-white/5 transition-colors relative z-30"
+              className="w-full min-h-[100px] py-3 lg:py-0 lg:h-[100px] px-4 lg:px-6 flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 border-t border-l border-r border-black/5 dark:border-white/5 transition-colors relative z-30"
             >
               {/* Left Side: Dynamic Big Counter + Category Headline */}
               <div className="flex items-center gap-4">
@@ -244,7 +247,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
               {/* Right Side: Search Input & Sort Dropdown */}
 
               {/* Search Box + Export CSV Button */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full lg:w-auto">
                 {/* Search Box */}
                 <div className="relative flex-1 min-w-0">
                   <input
@@ -252,7 +255,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
                     placeholder="Search by Training Name"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-[300px] h-8 pl-3 pr-8 rounded-lg
+                    className="w-full lg:w-[300px] h-8 pl-3 pr-8 rounded-lg
   bg-[#EEF2F6] dark:bg-[#12141A]
   font-medium text-slate-800 dark:text-slate-200
   text-[11px] placeholder-slate-400
@@ -273,7 +276,8 @@ const MyTraining = ({ isDark: propIsDark }) => {
             <div
               style={{
                 backgroundColor: lCardBg,
-                height: `${VarRightGalleryBaseHeight}px`,
+                // Wide: a fixed panel that scrolls inside; narrower: the page scrolls.
+                ...(isWide ? { height: `${VarRightGalleryBaseHeight}px` } : { minHeight: 320 }),
                 borderBottomLeftRadius: `${Math.round(
                   20 * VarOverallCornerRoundednessAdjuster
                 )}px`,
