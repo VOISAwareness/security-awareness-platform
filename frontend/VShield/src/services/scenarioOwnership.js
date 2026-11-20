@@ -5,9 +5,9 @@
  *
  * The rules are the reference API's. `GET /scenarios?viewer=<email>` returns the
  * rows that person may see, each annotated with `ownership`:
- *   template    a fixed template. Nobody edits it; anyone may Duplicate it.
+ *   template    a fixed template. Nobody edits it; anyone may Clone it.
  *   shared      someone else's scenario, published by its creator. Only they
- *               change it; anyone may Duplicate it.
+ *               change it; anyone may Clone it.
  *   mine        the viewer's own scenario. A draft (only they see it) until they
  *               Publish it -- using it in a campaign never does; then shared
  *               (`isShared`), and edited through a revision.
@@ -15,7 +15,7 @@
  *               scenario, with its own ID. Shown as a draft of the viewer's own.
  *   myRevision  the viewer's unpublished changes to their own published
  *               scenario, shown to them instead of it until they publish them.
- * Duplicate (duplicatePayload) makes a new draft of the viewer's own with the
+ * Clone (clonePayload) makes a new draft of the viewer's own with the
  * same content and no link back: it is untouched when the original changes or
  * is deleted.
  * An older API sends no annotations, and every row: visibleForViewer applies
@@ -159,14 +159,38 @@ export const PUBLISH_KINDS = {
   },
 };
 
+export const TEMPLATE_BYLINE = 'VOIS Shield (template)';
+
+/**
+ * A person's name from their email until a people directory is wired in:
+ * "aarav.rossi@x.example" -> "Aarav Rossi". The local part split on . _ - and
+ * capitalised; the email itself when nothing is left.
+ */
+export function personName(email) {
+  const text = typeof email === 'string' ? email.trim() : '';
+  const local = text.split('@')[0] || '';
+  const words = local.split(/[._-]+/).filter((w) => /[a-z]/i.test(w));
+  if (!words.length) return text;
+  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+/** "Published by <name>" for someone else's published scenario (who published it, else its creator). */
+export function publisherLine(row, viewer) {
+  const who = row?.sharedBy || row?.createdBy;
+  if (!identity(who)) return TEMPLATE_BYLINE;
+  if (identity(who) === identity(viewer)) return 'Published by you';
+  return `Published by ${personName(who)}`;
+}
+
 const DRAFT_HINT = 'A draft: only you see it until you publish it.';
 
 /**
  * The card's buttons and badge for this viewer:
  *   { ownership, canEdit, editMode, canDelete, deleteKind, publishKind,
- *     canDuplicate, badge, badgeHint }
+ *     canClone, badge, badgeHint }
+ * badge: the card's "Published by" line (publisherLine), never empty.
  * canEdit: the card (and Edit) opens the editor -- the viewer's own rows only;
- * anyone else's opens its details, where Duplicate makes their own draft.
+ * anyone else's opens its details, where Clone makes their own draft.
  * editMode: 'copy' (POST copyOf), 'revision' (POST revisionOf) or 'update' (PUT).
  * deleteKind: a DELETE_KINDS key, or null. publishKind: a PUBLISH_KINDS key, or null.
  */
@@ -178,7 +202,7 @@ export function cardActions(row, viewer) {
     canDelete: false,
     deleteKind: null,
     publishKind: null,
-    canDuplicate: true,
+    canClone: true,
   };
   switch (ownership) {
     case 'shared':
@@ -186,8 +210,8 @@ export function cardActions(row, viewer) {
         ...base,
         canEdit: false,
         editMode: 'copy',
-        badge: 'Published',
-        badgeHint: 'Published by its creator, who is the only one who can change it. Duplicate makes a draft of your own.',
+        badge: publisherLine(row, viewer),
+        badgeHint: 'Published by its creator, who is the only one who can change it. Clone makes a draft of your own.',
       };
     case 'mine':
       if (row?.isShared === true) {
@@ -196,7 +220,7 @@ export function cardActions(row, viewer) {
           editMode: 'revision',
           canDelete: true,
           deleteKind: 'deleteShared',
-          badge: 'Published',
+          badge: 'Published by you',
           badgeHint:
             'Everyone can see and use this. Your edits stay with you as unpublished changes until you publish them. Deleting it removes it for everyone.',
         };
@@ -228,18 +252,24 @@ export function cardActions(row, viewer) {
         canDelete: true,
         deleteKind: 'discard',
         publishKind: 'publishChanges',
-        badge: 'Unpublished changes',
+        badge: 'Unpublished changes · only you',
         badgeHint: `Your changes${standsInFor(row)}. Everyone else sees the published version until you publish them.`,
       };
     default:
-      return { ...base, canEdit: false, editMode: 'copy', badge: '', badgeHint: '' };
+      return {
+        ...base,
+        canEdit: false,
+        editMode: 'copy',
+        badge: TEMPLATE_BYLINE,
+        badgeHint: 'A ready-made template. Clone makes a draft of your own.',
+      };
   }
 }
 
-// What a duplicate never takes from the row it is made from: who made it, what
+// What a clone never takes from the row it is made from: who made it, what
 // it was linked to, whether it was published or deleted, and the API's
-// response-only annotations. The API names the duplicate itself.
-const NOT_DUPLICATED = new Set([
+// response-only annotations. The API names the clone itself.
+const NOT_CLONED = new Set([
   'scenarioId',
   'createdBy',
   'CreatedOn',
@@ -257,13 +287,13 @@ const NOT_DUPLICATED = new Set([
 ]);
 
 /**
- * The POST /scenarios body for Duplicate: the row's content, same name, as a
+ * The POST /scenarios body for Clone: the row's content, same name, as a
  * new draft of the viewer's own, with no link back to it. The cover is the
  * stored key (coverImageKey) rather than the list's presigned link.
  */
-export function duplicatePayload(row, viewer) {
+export function clonePayload(row, viewer) {
   const body = Object.fromEntries(
-    Object.entries(row || {}).filter(([field]) => !NOT_DUPLICATED.has(field) && !field.startsWith('_'))
+    Object.entries(row || {}).filter(([field]) => !NOT_CLONED.has(field) && !field.startsWith('_'))
   );
   if (row?.coverImageKey) body.CoverImageID = row.coverImageKey;
   return { ...body, createdBy: identity(viewer) };

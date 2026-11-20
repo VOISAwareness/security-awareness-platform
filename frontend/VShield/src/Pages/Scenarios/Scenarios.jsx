@@ -23,7 +23,7 @@ import {
   DELETE_KINDS,
   PUBLISH_KINDS,
   cardActions,
-  duplicatePayload,
+  clonePayload,
   scenariosForViewer,
 } from "../../services/scenarioOwnership";
 import { DEMO_USER } from "../../appConfig";
@@ -45,6 +45,7 @@ import {
 import { markAsked, markDeferred, wasAsked } from "../../services/resumePrompt";
 import DraftCards from "../../GlobalComponents/DraftCards";
 import draftArt from "../../assets/CreateNewOneStartNewCampaign.png";
+import ScenarioCardBody from "../../GlobalComponents/ScenarioCardBody";
 import ViewTabs from "../../GlobalComponents/ViewTabs";
 import { SCENARIO_DRAFT_DEFAULTS } from "./scenarioDraftDefaults";
 import PageLoading from "../../GlobalComponents/PageLoading";
@@ -121,14 +122,6 @@ const INTENSITY_COLORS = {
   yellow: "#f5b942",
   red: "#e60000",
   green: "#22c55e",
-};
-
-// The ownership badge's dot (scenarioOwnership.js cardActions().badge).
-const OWNERSHIP_DOT = {
-  shared: "#22C55E",
-  mine: "#64748B",
-  myCopy: "#8B5CF6",
-  myRevision: "#F59E0B",
 };
 
 // =========================================================================
@@ -908,7 +901,7 @@ const Scenarios = () => {
     }
   };
 
-  // A card's Publish / Duplicate: one at a time per card, "Working…" meanwhile,
+  // A card's Publish / Clone: one at a time per card, "Working…" meanwhile,
   // and a failure shown on the card (and in the details pop-up).
   const runCardAction = async (scenario, action, failure) => {
     const id = String(scenario.scenarioId);
@@ -941,27 +934,27 @@ const Scenarios = () => {
       "Couldn't publish this scenario.",
     );
 
-  // Duplicate: the same content and name as a new draft of the viewer's own,
+  // Clone: the same content and name as a new draft of the viewer's own,
   // with no link back to the original, opened straight in the editor.
-  const handleDuplicate = (scenario) =>
+  const handleClone = (scenario) =>
     runCardAction(
       scenario,
       async () => {
         const made = await api.scenarios.create(
-          duplicatePayload(scenario._row, viewer),
+          clonePayload(scenario._row, viewer),
         );
         const newId = String(made?.scenarioId || "");
-        if (!newId) throw new Error("The duplicate was not given an ID.");
+        if (!newId) throw new Error("The clone was not given an ID.");
         setDetailModalItem(null);
         navigate(`/new-scenario?edit=${encodeURIComponent(newId)}`, {
           state: { from: "all" },
         });
       },
-      "Couldn't duplicate this scenario.",
+      "Couldn't clone this scenario.",
     );
 
   // Someone else's scenario (or a template) isn't edited: its card opens its
-  // details, where Duplicate makes a draft of the viewer's own.
+  // details, where Clone makes a draft of the viewer's own.
   const openDetails = (scenario, themeKey, theme, cardIndex) =>
     setDetailModalItem({
       ...scenario,
@@ -1217,7 +1210,7 @@ const Scenarios = () => {
                           title={
                             actions.canEdit
                               ? "Click to edit"
-                              : "Click to view. Duplicate makes a draft of your own."
+                              : "Click to view. Clone makes a draft of your own."
                           }
                           key={scenario._key}
                           data-scenario-id={scenario.scenarioId}
@@ -1279,51 +1272,22 @@ const Scenarios = () => {
                           {/* ================================================= */}
                           {/* CONTENT */}
                           {/* ================================================= */}
-                          <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%]">
-                            {/* Whose it is, for this viewer (none on a template) */}
-                            {actions.badge && (
-                              <span
-                                title={actions.badgeHint}
-                                className="self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-white/70 dark:bg-black/40 text-slate-700 dark:text-slate-300 cursor-help"
-                              >
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                  style={{
-                                    backgroundColor:
-                                      OWNERSHIP_DOT[actions.ownership] ||
-                                      OWNERSHIP_DOT.mine,
-                                  }}
-                                />
-                                {actions.badge}
-                              </span>
-                            )}
-
-                            {/* Title */}
-                            <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight">
-                              {scenario.scenarioName}
-                            </h3>
-
-                            {/* Description */}
-                            {scenario.description && (
-                              <p className="mt-2 text-[9.5px] leading-[1.25] text-slate-700 dark:text-white/70">
-                                <span className="font-bold">Description:</span>{" "}
-                                {scenario.description}
-                              </p>
-                            )}
-
-                            <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                              Type: {scenario.campaignType}
-                            </div>
-                          </div>
+                          <ScenarioCardBody
+                            name={scenario.scenarioName}
+                            description={scenario.description}
+                            type={scenario.campaignType}
+                            byline={actions.badge}
+                            bylineHint={actions.badgeHint}
+                          />
 
                           {/* ================================================= */}
                           {/* IMAGE — BOTTOM RIGHT */}
                           {/* ================================================= */}
                           {resolvedImageSrc && (
-                            <div className="absolute -right-[10%] -bottom-[10%] w-[135px] h-[135px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+                            <div className="absolute right-3 bottom-3 w-[64px] h-[64px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
                               <img
                                 src={resolvedImageSrc}
-                                alt={scenario.scenarioName}
+                                alt=""
                                 className="w-full h-full object-contain object-bottom-right"
                                 loading="eager"
                                 onError={(e) => {
@@ -1368,7 +1332,7 @@ const Scenarios = () => {
                               editor, which Delete (and its Yes / No) must not do. */}
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto"
+                            className="absolute left-4 right-[84px] bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto"
                           >
                             {busyIds[scenario.scenarioId] ? (
                               <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">
@@ -1409,16 +1373,16 @@ const Scenarios = () => {
                                   </button>
                                 )}
 
-                                {/* Duplicate — on someone else's scenario or a template (own ones: in the details pop-up) */}
+                                {/* Clone — on someone else's scenario or a template (own ones: in the details pop-up) */}
                                 {!actions.canEdit && (
                                   <button
                                     type="button"
-                                    onClick={() => handleDuplicate(scenario)}
+                                    onClick={() => handleClone(scenario)}
                                     title="Make a draft of your own with the same content. The original stays as it is."
                                     className={`h-[26px] px-2 rounded-lg text-[9.5px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer whitespace-nowrap ${theme.btnBg} ${theme.btnBorder} ${theme.btnText}`}
                                   >
                                     <Copy className="w-3 h-3" />
-                                    Duplicate
+                                    Clone
                                   </button>
                                 )}
 
@@ -1631,16 +1595,16 @@ const Scenarios = () => {
                                     <span>Edit</span>
                                   </button>
                                 )}
-                                {can.canDuplicate && (
+                                {can.canClone && (
                                   <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={() => handleDuplicate(item)}
+                                    onClick={() => handleClone(item)}
                                     title="Make a draft of your own with the same content. The original stays as it is."
                                     className={plain}
                                   >
                                     <Copy className="w-3.5 h-3.5" />
-                                    <span>Duplicate</span>
+                                    <span>Clone</span>
                                   </button>
                                 )}
                                 {can.publishKind && (

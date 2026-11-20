@@ -12,7 +12,7 @@ import { api } from '../../services/api';
 import { openCampaignDraft, parkCampaignDraft, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
-import { scenariosForViewer } from '../../services/scenarioOwnership';
+import { cardActions, scenariosForViewer } from '../../services/scenarioOwnership';
 import { editedScenarioIds, readScenarioDraftItems } from '../../services/scenarioDraftSync';
 import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
@@ -34,6 +34,7 @@ import DraftDialog from '../../GlobalComponents/DraftDialog';
 import DraftCards from '../../GlobalComponents/DraftCards';
 import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
+import ScenarioCardBody from '../../GlobalComponents/ScenarioCardBody';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
@@ -257,6 +258,8 @@ const ChooseAScenario = () => {
 
   // Scenarios come from the API (bundled JSON is only an offline fallback).
   const [scenariosList, setScenariosList] = useState([]);
+  // Who is looking, for each card's "Published by" line.
+  const [viewer] = useState(() => currentActor());
   const [scenariosLoading, setScenariosLoading] = useState(true);
 
   // Selected State — back from step 2, seeded from the campaign being worked on
@@ -644,6 +647,7 @@ const ChooseAScenario = () => {
               const theme = DIFFICULTY_THEMES[scenario.difficulty] || DIFFICULTY_THEMES.Low;
               const isSelected = selectedScenarioId === scenario.scenarioId;
               const resolvedImageSrc = getScenarioImage(scenario.CoverImageID);
+              const actions = cardActions(scenario, viewer);
 
               return (
                 <div
@@ -653,7 +657,7 @@ const ChooseAScenario = () => {
                     backgroundColor: isDark ? theme.bgDark : theme.bgLight,
                     borderColor: isSelected ? '#e66565' : isDark ? theme.borderDark : theme.border
                   }}
-                  className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full h-[270px] shadow-2xs hover:shadow-md ${
+                  className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col overflow-hidden select-none w-full h-[270px] shadow-2xs hover:shadow-md ${
                     isSelected ? 'ring-1 ring-[#e66565]' : ''
                   }`}
                 >
@@ -685,24 +689,17 @@ const ChooseAScenario = () => {
                     </div>
                   </div>
 
-                  {/* Title & Description & Type */}
-                  <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%]">
-                    <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight">
-                      {scenario.scenarioName}
-                    </h3>
-
-                    <p className="text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-8 leading-relaxed">
-                      <strong className="text-slate-900 dark:text-white">Description: </strong>
-                      {scenario.description}
-                    </p>
-
-                    <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                      Type: {scenario.campaignType}
-                    </div>
-                  </div>
+                  {/* Title, description, type, who published it: the Scenarios page's card */}
+                  <ScenarioCardBody
+                    name={scenario.scenarioName}
+                    description={scenario.description}
+                    type={scenario.campaignType}
+                    byline={actions.badge}
+                    bylineHint={actions.badgeHint}
+                  />
 
                   {/* Bottom Left "Use This ->" Button */}
-                  <div className="pt-2 z-10 flex items-center">
+                  <div className="mt-auto pt-2 z-10 flex items-center">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -716,12 +713,12 @@ const ChooseAScenario = () => {
                     </button>
                   </div>
 
-                  {/* ── 3D Asset: Attached to walls, cropped ~10% bottom & 10% right ── */}
-                  <div className="absolute -right-[10%] -bottom-[10%] w-[135px] h-[135px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+                  {/* ── 3D Asset: bottom right, inside the card, clear of the text ── */}
+                  <div className="absolute right-3 bottom-3 w-[64px] h-[64px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
                     {resolvedImageSrc && (
                       <img
                         src={resolvedImageSrc}
-                        alt={scenario.scenarioName}
+                        alt=""
                         className="w-full h-full object-contain filter drop-shadow-md"
                         loading="eager"
                         onError={(e) => {

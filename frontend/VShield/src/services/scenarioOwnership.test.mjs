@@ -22,7 +22,9 @@ import {
   toSavePayload,
   visibleForViewer,
   PUBLISH_KINDS,
-  duplicatePayload,
+  clonePayload,
+  personName,
+  publisherLine,
 } from './scenarioOwnership.js';
 import { toWizardFormData } from './scenarioMapper.js';
 
@@ -80,19 +82,19 @@ const actions = (fields, viewer = ALICE) => {
 };
 
 test('the matrix: edit mode, delete and badge per ownership', () => {
-  assert.deepEqual(actions({ ownership: 'template' }), ['copy', false, null, '']);
-  assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, 'Published']);
+  assert.deepEqual(actions({ ownership: 'template' }), ['copy', false, null, 'VOIS Shield (template)']);
+  assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, `Published by ${personName(BOB)}`]);
   assert.deepEqual(actions({ ownership: 'mine', isShared: false, createdBy: ALICE }), ['update', true, 'delete', 'Draft · only you']);
-  assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Published']);
+  assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Published by you']);
   assert.deepEqual(actions({ ownership: 'myCopy', copyOf: 'SC-9' }), ['update', true, 'delete', 'Draft · only you']);
-  assert.deepEqual(actions({ ownership: 'myRevision', replaces: 'SC-9' }), ['update', true, 'discard', 'Unpublished changes']);
+  assert.deepEqual(actions({ ownership: 'myRevision', replaces: 'SC-9' }), ['update', true, 'discard', 'Unpublished changes · only you']);
 });
 
 test('only the viewer\'s own rows open the editor; the owner of a published scenario may delete it, warned first', () => {
   for (const ownership of ['template', 'shared', 'mine', 'myCopy', 'myRevision']) {
     const a = cardActions(row({ ownership, isShared: ownership === 'shared' }), ALICE);
     assert.equal(a.canEdit, !['template', 'shared'].includes(ownership), ownership);
-    assert.equal(a.canDuplicate, true, ownership);
+    assert.equal(a.canClone, true, ownership);
     assert.equal(a.ownership, ownership);
   }
   const shared = cardActions(row({ ownership: 'mine', isShared: true }), ALICE);
@@ -119,8 +121,8 @@ test('every delete kind has its own label and confirmation', () => {
 
 test('older API: own rows are editable in place and deletable, others are published', () => {
   assert.deepEqual(actions({ createdBy: ALICE }), ['update', true, 'delete', 'Draft · only you']);
-  assert.deepEqual(actions({ createdBy: BOB }), ['copy', false, null, 'Published']);
-  assert.deepEqual(actions({}), ['copy', false, null, '']);
+  assert.deepEqual(actions({ createdBy: BOB }), ['copy', false, null, 'Published by Bob']);
+  assert.deepEqual(actions({}), ['copy', false, null, 'VOIS Shield (template)']);
 });
 
 test('every badge explains itself on hover; an old copy is just a draft, with no link back shown', () => {
@@ -146,7 +148,7 @@ test('Publish: on drafts and unpublished changes only', () => {
   assert.equal(PUBLISH_KINDS.publishChanges.label, 'Publish changes');
 });
 
-test('Duplicate: the same content and name, a new draft of the viewer\'s own, no link back', () => {
+test('Clone: the same content and name, a new draft of the viewer\'s own, no link back', () => {
   const source = {
     scenarioId: 'SC-9',
     scenarioName: 'Parcel delivery',
@@ -163,14 +165,14 @@ test('Duplicate: the same content and name, a new draft of the viewer\'s own, no
     coverImageKey: 'uploads/scenario-covers/SC-9/c.png',
     _key: 'k',
   };
-  assert.deepEqual(duplicatePayload(source, ' Alice@X.com '), {
+  assert.deepEqual(clonePayload(source, ' Alice@X.com '), {
     scenarioName: 'Parcel delivery',
     emailBody: '<p>hi</p>',
     CoverImageID: 'uploads/scenario-covers/SC-9/c.png',
     createdBy: 'alice@x.com',
   });
   // A catalogue cover (no stored key) is kept as it is.
-  assert.equal(duplicatePayload({ scenarioName: 'n', CoverImageID: 'CovImg-002.png' }, ALICE).CoverImageID, 'CovImg-002.png');
+  assert.equal(clonePayload({ scenarioName: 'n', CoverImageID: 'CovImg-002.png' }, ALICE).CoverImageID, 'CovImg-002.png');
 });
 
 test('editing a template: a new scenario, whose ID is chosen like a new one\'s', () => {
@@ -428,4 +430,17 @@ test('older API: the same checks from createdBy', () => {
   assert.equal(refreshEdit(edit('A2', 'revision', 'mine'), OLD, ALICE).change, 'replaced');
   // A1 is still listed (AX, a copy of her own scenario, is bad data that hides nothing).
   assert.equal(refreshEdit(edit('A1', 'update', 'mine'), OLD, ALICE).change, 'same');
+});
+
+test('Published by: the person\'s name, "you" on your own, the template line when nobody made it', () => {
+  assert.equal(personName('aarav.rossi@vshield-demo.example'), 'Aarav Rossi');
+  assert.equal(personName('MAYA_LEE-2@x.example'), 'Maya Lee');
+  assert.equal(personName('42@x.example'), '42@x.example');
+  assert.equal(publisherLine({ createdBy: 'aarav.rossi@x.example' }, ALICE), 'Published by Aarav Rossi');
+  assert.equal(publisherLine({ createdBy: 'a@x.example', sharedBy: 'maya.lee@x.example' }, ALICE), 'Published by Maya Lee');
+  assert.equal(publisherLine({ createdBy: ` ${ALICE.toUpperCase()} ` }, ALICE), 'Published by you');
+  assert.equal(publisherLine({}, ALICE), 'VOIS Shield (template)');
+  for (const ownership of ['template', 'shared', 'mine', 'myCopy', 'myRevision']) {
+    assert.ok(cardActions({ ownership, createdBy: BOB }, ALICE).badge, `${ownership} always has a line`);
+  }
 });
