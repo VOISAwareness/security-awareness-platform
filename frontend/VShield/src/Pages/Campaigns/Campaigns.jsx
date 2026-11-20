@@ -24,6 +24,7 @@ import { DEMO_USER } from "../../appConfig";
 import PageLoading from "../../GlobalComponents/PageLoading";
 import CampaignGalleryCard from "./CampaignGalleryCard";
 import ViewAnalyticsModal from "./ViewAnalyticsModal";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -451,8 +452,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
       {/* 🌟 ROOT CONTAINER */}
       <div
-        style={{ zoom: VarCampaignsScale }}
-        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 h-full"
       >
         {/* ── TOP HEADER BAR: "Campaigns" ── */}
         <div
@@ -474,7 +475,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
             it, and is hidden while loading (it has no card behind it). */}
         <div
           style={{ gap: `${VarSectionGap}px` }}
-          className={`relative grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? "invisible" : ""}`}
+          className={`relative grow min-h-0 w-full flex flex-col lg:flex-row items-start lg:items-stretch ${coverLoading ? "invisible" : ""}`}
         >
           {/* The campaigns are on their way from the server. */}
           <PageLoading show={coverLoading} isDark={isDark} surface="page" />
@@ -777,7 +778,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
             <div
               style={{
                 backgroundColor: lCardBg,
-                height: `${VarRightGalleryBaseHeight}px`,
+                flex: '1 1 0', // fills the column to the foot of the page
+                minHeight: 320,
                 borderBottomLeftRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
                 borderBottomRightRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
               }}

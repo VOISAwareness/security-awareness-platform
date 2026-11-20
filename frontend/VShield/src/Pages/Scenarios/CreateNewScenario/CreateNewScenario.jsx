@@ -59,6 +59,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
 import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import {SCENARIO_STEPS} from './ScenarioConstants';
+import { PAGE_SCALE } from '../../../shared/SharedStyles';
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -1331,7 +1332,7 @@ const ScenarioEditor = ({ opening }) => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ====================================================
             PAGE HEADER
@@ -1607,7 +1608,7 @@ const ScenarioEditor = ({ opening }) => {
 // The editor's frame while the draft it opens on is read from the server.
 const OpeningLoading = ({ isDark, editing }) => (
   <div
-    style={{ zoom: VarScenarioScale }}
+    style={{ zoom: PAGE_SCALE }}
     className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
   >
     <div

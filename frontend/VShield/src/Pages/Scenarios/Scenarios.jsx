@@ -48,6 +48,7 @@ import draftArt from "../../assets/CreateNewOneStartNewCampaign.png";
 import ViewTabs from "../../GlobalComponents/ViewTabs";
 import { SCENARIO_DRAFT_DEFAULTS } from "./scenarioDraftDefaults";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 const S3_BUCKET_BASE_URL =
   (typeof import.meta !== "undefined" &&
@@ -133,7 +134,6 @@ const OWNERSHIP_DOT = {
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarMySpaceScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -974,8 +974,8 @@ const Scenarios = () => {
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
       <div
-        style={{ zoom: VarMySpaceScale }}
-        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ================================================= */}
         {/* PAGE HEADER */}
@@ -1186,7 +1186,7 @@ const Scenarios = () => {
                     No scenarios found.
                   </div>
                 ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                     {filteredScenarios.map((scenario, cardIndex) => {
                       const dotColor =
                         INTENSITY_COLORS[scenario.intensityColor] ||
@@ -1239,11 +1239,6 @@ const Scenarios = () => {
       overflow-hidden
       select-none
       w-full
-      sm:w-[calc(50%-8px)]
-      md:w-[calc(33.333%-11px)]
-      lg:w-[calc(25%-12px)]
-      min-w-[230px]
-      max-w-[320px]
       h-[270px]
       shadow-2xs
       hover:shadow-md

@@ -13,11 +13,11 @@ import QuoteCardDark from '../../assets/HomeScreenQuoteCard2DarkMode.png';
 import { DEMO_USER } from '../../appConfig';
 import { useHomeDashboard } from '../../services/useHomeDashboard';
 import { longDate, PERIODS, showRate } from '../../services/homeDashboard';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarHomeScreenScale = 0.9;
 const VarSection2HeightAdjuster = 1.3;
 
 // 🌟 FADED CIRCLES STEP DISC SCALE (1.0 = 100%, 0.85 = 85%, 1.2 = 120%, etc.)
@@ -454,7 +454,7 @@ const HomeScreen = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       <div
-        style={{ zoom: VarHomeScreenScale }}
+        style={{ zoom: PAGE_SCALE }}
         className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans"
       >
         <div className="flex flex-col lg:flex-row items-stretch gap-4 w-full">

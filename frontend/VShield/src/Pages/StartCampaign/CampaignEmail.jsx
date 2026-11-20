@@ -48,11 +48,11 @@ import {
  removeTestRecipient,
  testRecipientEmails
 } from '../../services/testRecipients';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
 // =========================================================================
-const VarStartCampaignScale = 0.93;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -1304,7 +1304,7 @@ const CampaignEmail = () => {
 
    {/* Screen Shell */}
    <div
-    style={{ zoom: VarStartCampaignScale }}
+    style={{ zoom: PAGE_SCALE }}
     className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(109.5vh-0px)] overflow-hidden"
    >
     {/* ========================================================================= */}

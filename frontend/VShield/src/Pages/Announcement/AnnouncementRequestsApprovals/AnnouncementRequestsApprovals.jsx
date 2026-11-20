@@ -3,6 +3,7 @@ import {
   Search
 } from 'lucide-react';
 import { useUserType } from '../../../UserTypeContext/UserTypeContext';
+import { PAGE_SCALE } from '../../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -58,7 +59,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark }) => {
 
       {/* 🌟 ROOT CONTAINER */}
       <div
-        style={{ zoom: VarTrainingScale }}
+        style={{ zoom: PAGE_SCALE }}
         className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ── TOP HEADER BAR: "My Training" ── */}
