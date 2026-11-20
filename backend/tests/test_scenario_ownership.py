@@ -685,9 +685,15 @@ class FakeTable:
 
     def update_item(self, Key, ExpressionAttributeValues, **kwargs):
         _check({**kwargs, "ExpressionAttributeValues": ExpressionAttributeValues}, self.rows.get(Key[self.key]))
-        assert kwargs["UpdateExpression"] == "SET publishedAt = :at"
+        row, vals, expr = self.rows[Key[self.key]], ExpressionAttributeValues, kwargs["UpdateExpression"]
         self.writes.append(("update", Key[self.key]))
-        self.rows[Key[self.key]]["publishedAt"] = ExpressionAttributeValues[":at"]
+        if expr == "SET publishedAt = :at":
+            row["publishedAt"] = vals[":at"]
+            return
+        assert expr in ("SET sharedAt = :at, sharedBy = :by", "SET sharedAt = :at, sharedBy = :by REMOVE copyOf")
+        row.update(sharedAt=vals[":at"], sharedBy=vals[":by"])
+        if expr.endswith("REMOVE copyOf"):
+            row.pop("copyOf", None)
 
     def delete_item(self, Key, **kwargs):
         _check(kwargs, self.rows.get(Key[self.key]))
@@ -1090,3 +1096,145 @@ def test_sent_unstamped_revision_does_not_block_the_next_edit(mod, sc_world):
     shared = {r["scenarioId"]: r for r in others["data"]}["SC-001"]
     assert (shared["ownership"], shared["scenarioName"]) == ("shared", "first edit")
     assert call(mod, "PUT /scenarios/{id}", "SC-003", body={"actor": ALICE, "scenarioName": "x"})[0] == 200
+
+
+# --- publishing (POST /scenarios/{id}/publish) --------------------------------
+
+
+def test_a_published_draft_is_shared_with_everyone(mod):
+    rows = [*WORLD[:2], sc("A1", ALICE, sharedAt="2026-11-20T00:00:00+00:00", sharedBy=ALICE), *WORLD[3:]]
+    assert mod.is_shared(rows[2], set())
+    assert (view(mod, BOB, rows)["A1"]["ownership"], view(mod, BOB, rows)["A1"]["isShared"]) == ("shared", True)
+    assert view(mod, ALICE, rows)["A1"]["isShared"] is True
+
+
+def test_share_mark_only_counts_on_own_rows(mod):
+    assert not mod.is_shared(sc("C", BOB, copyOf="T1", sharedAt="x"), set())
+    assert not mod.is_shared(sc("T", sharedAt="x"), set())
+
+
+def test_the_share_mark_is_never_taken_from_a_body(mod):
+    item = mod.clean_scenario_input({"scenarioName": "x", "createdBy": ALICE, "sharedAt": "x", "sharedBy": BOB})
+    assert "sharedAt" not in item and "sharedBy" not in item
+    merged = mod.scenario_update(sc("A1", ALICE), {"sharedAt": "x", "sharedBy": BOB})
+    assert "sharedAt" not in merged and "sharedBy" not in merged
+
+
+def test_a_published_draft_is_edited_through_a_revision(mod):
+    rows = [sc("A1", ALICE, sharedAt="x", sharedBy=ALICE)]
+    assert mod.modify_refusal(rows[0], ALICE, set(), "edit")["statusCode"] == 409
+    assert mod.create_refusal(sc("R", ALICE, revisionOf="A1"), rows, set(), set()) is None
+
+
+def publish_status(mod, sid, actor, rows=WORLD):
+    row = next((r for r in rows if r["scenarioId"] == sid), None)
+    resp = mod.publish_refusal(row, actor, rows)
+    return resp and resp["statusCode"]
+
+
+def test_publish_refusals(mod):
+    deleted = [*WORLD, sc("D1", ALICE, deletedAt="x"), sc("DR", ALICE, revisionOf="D1")]
+    assert publish_status(mod, "A1", "  ") == 400
+    assert publish_status(mod, "NOPE", ALICE) == 404
+    assert publish_status(mod, "D1", ALICE, deleted) == 404
+    assert publish_status(mod, "T1", ALICE) == 409
+    assert publish_status(mod, "A1", BOB) == 403, "only the creator publishes"
+    assert publish_status(mod, "A2R", BOB) == 403
+    assert publish_status(mod, "A3R", ALICE) == 409, "already published"
+    assert publish_status(mod, "DR", ALICE, deleted) == 409, "its original was deleted"
+
+
+@pytest.mark.parametrize("sid, actor", [("A1", "Alice@X.com"), ("B2", BOB), ("BC1", BOB), ("A2R", ALICE)])
+def test_the_creator_may_publish_drafts_copies_and_revisions(mod, sid, actor):
+    assert publish_status(mod, sid, actor) is None
+
+
+def test_post_publish_shares_a_draft_once(mod, world):
+    status, body = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": "Alice@X.com"})
+    assert status == 200
+    stored = world["scenarios"].rows["A1"]
+    assert stored["sharedBy"] == ALICE and stored["sharedAt"]
+    assert (body["data"]["isShared"], body["data"]["sharedBy"]) == (True, ALICE)
+    _, seen = call(mod, "GET /scenarios", query={"viewer": CAROL})
+    assert {r["scenarioId"]: r["ownership"] for r in seen["data"]}["A1"] == "shared"
+
+    writes = list(world["scenarios"].writes)
+    status, _ = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    assert status == 200 and world["scenarios"].writes == writes, "publishing again writes nothing"
+
+
+def test_post_publish_by_someone_else_writes_nothing(mod, world):
+    status, body = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": BOB})
+    assert status == 403 and "creator" in body["error"]["message"]
+    assert world["scenarios"].writes == []
+    assert "sharedAt" not in world["scenarios"].rows["A1"]
+
+
+def test_post_publish_turns_an_old_copy_into_a_scenario_of_its_own(mod, world):
+    status, _ = call(mod, "POST /scenarios/{id}/publish", "BC1", {"actor": BOB})
+    assert status == 200
+    stored = world["scenarios"].rows["BC1"]
+    assert "copyOf" not in stored and stored["sharedBy"] == BOB
+    _, seen = call(mod, "GET /scenarios", query={"viewer": CAROL})
+    ids = {r["scenarioId"]: r["ownership"] for r in seen["data"]}
+    assert ids["BC1"] == "shared" and ids["T1"] == "template"
+
+
+def test_post_publish_puts_a_revision_onto_its_original_now(mod, world):
+    world["scenarios"].rows["A2R"]["scenarioName"] = "Revised"
+    status, body = call(mod, "POST /scenarios/{id}/publish", "A2R", {"actor": ALICE})
+    assert status == 200
+    assert body["data"]["scenarioId"] == "A2" and body["data"]["scenarioName"] == "Revised"
+    assert world["scenarios"].writes == [("put", "A2"), ("update", "A2R")]
+    stored = world["scenarios"].rows
+    assert stored["A2"]["scenarioName"] == "Revised" and "revisionOf" not in stored["A2"]
+    assert stored["A2R"]["publishedAt"]
+    _, seen = call(mod, "GET /scenarios", query={"viewer": BOB})
+    assert {r["scenarioId"]: r["scenarioName"] for r in seen["data"]}["A2"] == "Revised"
+
+
+def test_post_publish_of_a_deleted_draft_meanwhile_is_409(mod, world):
+    real_update = world["scenarios"].update_item
+
+    def racing_update(**kwargs):
+        world["scenarios"].rows["A1"]["deletedAt"] = "x"
+        return real_update(**kwargs)
+
+    world["scenarios"].update_item = racing_update
+    status, _ = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    assert status == 409
+    assert "sharedAt" not in world["scenarios"].rows["A1"]
+
+
+def test_a_published_draft_is_soft_deleted_so_campaigns_still_resolve_it(mod, world):
+    call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    status, _ = call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    assert status == 204
+    assert world["scenarios"].rows["A1"]["deletedAt"], "kept, marked deleted"
+
+
+def test_duplicates_of_a_published_scenario_survive_its_deletion(mod, world):
+    """Duplicate = a plain POST of the content: a draft of the duplicator's own."""
+    call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    copy = {k: v for k, v in world["scenarios"].rows["A1"].items() if k not in ("scenarioId", "createdBy")}
+    status, made = call(mod, "POST /scenarios", body={**copy, "createdBy": BOB})
+    assert status == 201
+    dup = made["data"]
+    assert "sharedAt" not in dup and "copyOf" not in dup and dup["createdBy"] == BOB
+    call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    _, seen = call(mod, "GET /scenarios", query={"viewer": BOB})
+    ids = {r["scenarioId"]: r["ownership"] for r in seen["data"]}
+    assert "A1" not in ids and ids[dup["scenarioId"]] == "mine"
+
+
+def test_a_draft_cover_a_duplicate_still_shows_is_kept(mod, world, monkeypatch):
+    cleaned = []
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", "bucket")
+    monkeypatch.setattr(mod, "delete_s3_prefix", lambda bucket, prefix: cleaned.append(prefix))
+    world["scenarios"].rows["A1"]["CoverImageID"] = "uploads/scenario-covers/A1/c.png"
+    world["scenarios"].rows["D9"] = sc("D9", BOB, CoverImageID="uploads/scenario-covers/A1/c.png")
+    status, _ = call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    assert status == 204 and "A1" not in world["scenarios"].rows
+    assert cleaned == [], "D9 still shows it"
+    status, _ = call(mod, "DELETE /scenarios/{id}", "D9", query={"actor": BOB})
+    assert cleaned == ["uploads/scenario-covers/D9/"], "D9's own folder; A1's is left alone"
