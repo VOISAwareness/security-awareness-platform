@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -22,6 +22,9 @@ const VarSection2HeightAdjuster = 1.3;
 
 // 🌟 FADED CIRCLES STEP DISC SCALE (1.0 = 100%, 0.85 = 85%, 1.2 = 120%, etc.)
 const VarFadedStepDiscScale = 0.85;
+
+// 🌟 RECTANGLE SLICER WIDTH ADJUSTER (1.0 = 100%, 0.9 = 90%, 1.1 = 110%, etc.)
+const VarRectangleSlicerWidthAdjuster = 0.925;
 
 const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
 
@@ -539,7 +542,7 @@ const HomeScreen = () => {
             }`}
           >
             {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* SECTION 1: SECURITY HEALTH PULSE                                          */}
+            {/* SECTION 1: SECURITY HEALTH PULSE                                         */}
             {/* ───────────────────────────────────────────────────────────────────────── */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
@@ -634,7 +637,11 @@ const HomeScreen = () => {
 
                     {/* Period slicer */}
                     <div
-                      className={`flex-1 ml-1.5 px-3 py-2 rounded-[10px] flex items-start justify-between relative transition-colors mb-1.5 select-none ${
+                      style={{
+                        transform: `scaleX(${VarRectangleSlicerWidthAdjuster})`,
+                        transformOrigin: 'left center'
+                      }}
+                      className={`flex-1 ml-1.5 mr-3.5 px-3 py-2 rounded-[10px] flex items-start justify-between relative transition-colors mb-1.5 select-none ${
                         isDark ? 'bg-[#202127]' : 'bg-[#f1f3f7]'
                       }`}
                     >
@@ -720,7 +727,7 @@ const HomeScreen = () => {
             </div>
 
             {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* SECTION 2: LATEST CAMPAIGN                                                */}
+            {/* SECTION 2: LATEST CAMPAIGN                                               */}
             {/* ───────────────────────────────────────────────────────────────────────── */}
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
@@ -1026,7 +1033,7 @@ const HomeScreen = () => {
                         style={{ 
                           width: "100%", 
                           height: "100%", 
-                          borderRadius: "12px 12px 12px 12px",
+                          borderRadius: "12px 12px 12px 12px", 
                           overflow: "hidden" 
                         }}
                       >
