@@ -138,7 +138,14 @@ const RequestAndApprovals = () => {
       await fn();
       return true;
     } catch (e) {
-      setActionError(e?.message || fallbackMessage);
+      // "Campaign is not ready to approve" comes with what is missing:
+      // show it, so the approver can send it back for those changes.
+      const problems = Array.isArray(e?.problems) ? e.problems.filter(Boolean) : [];
+      setActionError(
+        problems.length
+          ? `${e.message}: ${problems.join("; ")}. Send it back with "Reject with notification" so the creator can fix it.`
+          : e?.message || fallbackMessage,
+      );
       return false;
     }
   };

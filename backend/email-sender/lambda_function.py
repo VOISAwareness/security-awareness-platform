@@ -651,6 +651,44 @@ def sender_for(campaign):
     return formataddr((name, chosen)) if name else chosen
 
 
+
+def refuse_send(campaign_id, message):
+    """
+    The campaign can't be sent as it is (no email body, no link placeholder,
+    no recipients). Mark it SEND_FAILED with the reason, only while it is
+    still APPROVED, and answer 400. Leaving it APPROVED made it look scheduled
+    for ever once its start passed, with nothing able to move it; as
+    SEND_FAILED its author sees why and can reinvoke it to a draft and fix it.
+    """
+    failed_at = utc_timestamp()
+    try:
+        campaigns_table.update_item(
+            Key={"campaignId": campaign_id},
+            UpdateExpression=(
+                "SET #status = :failed, failureReason = :reason, "
+                "failedAt = :failedAt, updatedAt = :failedAt"
+            ),
+            ConditionExpression="#status = :approved",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":failed": "SEND_FAILED",
+                ":approved": "APPROVED",
+                ":reason": message[:500],
+                ":failedAt": failed_at,
+            },
+        )
+        status = "SEND_FAILED"
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":
+            raise
+        status = None  # changed meanwhile (cancelled, sent): left as it is
+    print(json.dumps({"message": "Campaign cannot be sent", "campaignId": campaign_id, "reason": message[:200]}))
+    body = {"message": message, "campaignId": campaign_id}
+    if status:
+        body["campaignStatus"] = status
+    return build_response(400, body)
+
+
 def lambda_handler(event, context):
     """Send one recipient-specific tracked POC email."""
     campaign_id = get_campaign_id(event)
@@ -722,16 +760,7 @@ def lambda_handler(event, context):
         )
 
         if not has_s3_template and not has_inline_body:
-            return build_response(
-                400,
-                {
-                    "message": (
-                        "Campaign has no email body or "
-                        "template to send"
-                    ),
-                    "campaignId": campaign_id
-                }
-            )
+            return refuse_send(campaign_id, "Campaign has no email body or template to send")
 
         template_html = None
 
@@ -753,15 +782,9 @@ def lambda_handler(event, context):
         # Pre-validate the inline body once, before locking, so a malformed
         # body fails with 400 rather than leaving the campaign stuck in SENDING.
         if has_inline_body and not inline_link_present(email_body):
-            return build_response(
-                400,
-                {
-                    "message": (
-                        "Email body has no link placeholder; expected "
-                        "one of: " + ", ".join(INLINE_LINK_PLACEHOLDERS)
-                    ),
-                    "campaignId": campaign_id
-                }
+            return refuse_send(
+                campaign_id,
+                "Email body has no link placeholder; expected one of: " + ", ".join(INLINE_LINK_PLACEHOLDERS),
             )
 
         # Resolve who to send to: a test campaign's own email IDs, else the
@@ -773,16 +796,10 @@ def lambda_handler(event, context):
         source_address = sender_for(campaign)
 
         if not recipients:
-            return build_response(
-                400,
-                {
-                    "message": (
-                        "Campaign has no recipients. Attach a recipient "
-                        "list or a single user (for a test campaign, add "
-                        "test email IDs) before sending."
-                    ),
-                    "campaignId": campaign_id
-                }
+            return refuse_send(
+                campaign_id,
+                "Campaign has no recipients. Attach a recipient list or a single user "
+                "(for a test campaign, add test email IDs) before sending.",
             )
 
         raw_subject = (

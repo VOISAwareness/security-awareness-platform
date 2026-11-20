@@ -97,7 +97,7 @@ const TAB_CONFIG = {
   cancelled: {
     id: "cancelled",
     title: "Cancelled Campaigns",
-    subtitle: "Campaigns that were scheduled and then cancelled",
+    subtitle: "Cancelled before they ran, or could not be sent: reinvoke one to fix it and send it again",
     counterColor: "#EF4444", // Red
     img: CancelledImg,
   },
@@ -207,9 +207,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
-  // Published campaigns split on their schedule (the derived phase). Drafts,
-  // failed sends and campaigns sent back for changes are under Start New
-  // Campaign -> Drafts; pending, rejected and expired requests live on
+  // Published campaigns split on their schedule (the derived phase). A
+  // campaign that could not be sent (no recipients, no link, start missed)
+  // is listed with the cancelled ones, with its reason and Reinvoke, so it is
+  // never stuck. Drafts and campaigns sent back for changes are under Start
+  // New Campaign -> Drafts; pending, rejected and expired requests live on
   // Requests & Approvals.
   const categorizedCampaigns = useMemo(() => {
     const ongoing = [];
@@ -218,7 +220,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
     const cancelled = [];
 
     campaignsList.forEach((c) => {
-      if (c.CampaignStatus === DESIGN_STATUS.CANCELLED) {
+      if (c.CampaignStatus === DESIGN_STATUS.CANCELLED || c.CampaignStatus === DESIGN_STATUS.FAILED) {
         cancelled.push(c);
       } else if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
         if (c.phase === PHASE.COMPLETED) historical.push(c);
