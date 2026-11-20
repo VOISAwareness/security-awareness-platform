@@ -6,17 +6,15 @@
  * The rules are the reference API's. `GET /scenarios?viewer=<email>` returns the
  * rows that person may see, each annotated with `ownership`:
  *   template    a fixed template. Nobody edits it; anyone may Duplicate it.
- *   shared      someone else's published scenario (published by its creator, or
- *               used by a sent campaign). Only its creator changes it; anyone
- *               may Duplicate it.
+ *   shared      someone else's scenario, published by its creator. Only they
+ *               change it; anyone may Duplicate it.
  *   mine        the viewer's own scenario. A draft (only they see it) until they
- *               Publish it or a campaign using it is sent; then shared
+ *               Publish it -- using it in a campaign never does; then shared
  *               (`isShared`), and edited through a revision.
  *   myCopy      an older kind of edited version of a template / someone else's
  *               scenario, with its own ID. Shown as a draft of the viewer's own.
  *   myRevision  the viewer's unpublished changes to their own published
- *               scenario, shown to them instead of it until they publish them
- *               (or a campaign that used them is sent).
+ *               scenario, shown to them instead of it until they publish them.
  * Duplicate (duplicatePayload) makes a new draft of the viewer's own with the
  * same content and no link back: it is untouched when the original changes or
  * is deleted.
