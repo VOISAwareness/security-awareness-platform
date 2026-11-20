@@ -12,6 +12,7 @@ import HistoricalImg from '../../assets/CampaignsAssets/HistoricalCampaignsImage
 // Fallback direct JSON data
 import PendingTrainingTableData from './PendingTraining/PendingTrainingTable';
 import HistoryTrainingTableData from './TrainingHistory/HistoryTrainingTable';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -126,8 +127,8 @@ const MyTraining = ({ isDark: propIsDark }) => {
 
       {/* 🌟 ROOT CONTAINER */}
       <div
-        style={{ zoom: VarTrainingScale }}
-        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 lg:h-full"
       >
         {/* ── TOP HEADER BAR: "My Training" ── */}
         <div
@@ -144,7 +145,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
         <div
           style={{ gap: `${VarSectionGap}px` }}
-          className="w-full flex flex-col lg:flex-row items-start"
+          className="w-full lg:flex-1 lg:min-h-0 flex flex-col lg:flex-row items-start lg:items-stretch"
         >
           {/* ========================================================================= */}
           {/* 👈 LEFT COLUMN: 3 SWITCHER CAPSULES + MINI CALENDAR CARD                 */}
@@ -277,7 +278,7 @@ const MyTraining = ({ isDark: propIsDark }) => {
               style={{
                 backgroundColor: lCardBg,
                 // Wide: a fixed panel that scrolls inside; narrower: the page scrolls.
-                ...(isWide ? { height: `${VarRightGalleryBaseHeight}px` } : { minHeight: 320 }),
+                ...(isWide ? { flex: '1 1 0', minHeight: 320 } : { minHeight: 320 }),
                 borderBottomLeftRadius: `${Math.round(
                   20 * VarOverallCornerRoundednessAdjuster
                 )}px`,

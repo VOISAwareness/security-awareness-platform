@@ -22,6 +22,7 @@ import {
 
 import TopHeaderSection from './TopHeaderSection';
 import useIsWide from './useIsWide';
+import useLayoutScale from './useLayoutScale';
 import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
 import { ANNOUNCEMENT_STEPS } from '../Pages/Announcement/CreateAnnouncement/AnnouncementConstants';
 
@@ -53,6 +54,8 @@ const Layout = () => {
   // Wide windows: the docked sidebar, expanded on hover. Narrower (tablets,
   // phones): a slide-in menu opened from the header, so pages get the width.
   const isWide = useIsWide();
+  // The whole app's zoom: 0.9 on a laptop-sized window, more on bigger ones (useLayoutScale.js).
+  const layoutScale = useLayoutScale();
   // The menu is open only on the page it was opened on, and only while narrow:
   // following a link (or widening the window) closes it.
   const [menuOpenOn, setMenuOpenOn] = useState(null);
@@ -135,9 +138,9 @@ const Layout = () => {
   return (
     <div 
       style={{ 
-        zoom: VarLayoutScale,
-        width: `${100 / VarLayoutScale}vw`,
-        height: `${100 / VarLayoutScale}vh`
+        zoom: layoutScale,
+        width: `${100 / layoutScale}vw`,
+        height: `${100 / layoutScale}vh`
       }} 
       className="flex overflow-hidden bg-slate-50 dark:bg-[#030403] relative transition-colors duration-500"
     >

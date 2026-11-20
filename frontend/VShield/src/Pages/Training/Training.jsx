@@ -1,7 +1,6 @@
 
 import './Training.css'
 
-import { VarMySpaceScale } from "@/shared/SharedStyles";
 import { TrainingProvider, useTraining } from "./TrainingContext";
 
 // Modularized Components
@@ -16,6 +15,7 @@ import PathwaySequencePlayerModal from "./components/modals/PathwaySequencePlaye
 import TrainingToast from "./components/shared/TrainingToast";
 
 import { savePath } from "./components/utility/db";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 export const VarLmsHeaderClass = (isDark) =>
   `w-full h-[38px] py-2.5 px-6 -mt-1 rounded-[10px] border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
@@ -59,11 +59,11 @@ function TrainingDashboardInner() {
   return (
     <>
       <div
-        style={{ zoom: VarMySpaceScale }}
+        style={{ zoom: PAGE_SCALE }}
         className={`w-full max-w-[2560px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} ${
           currentView === "reports" || currentView === "hub"
-            ? "min-h-[calc(100vh-70px)] h-auto overflow-y-auto overflow-x-hidden pb-12"
-            : "h-[calc(104vh-3.5px)] overflow-hidden"
+            ? "min-h-full h-auto overflow-y-auto overflow-x-hidden pb-12"
+            : "h-full overflow-hidden"
         }`}
       >
         {/* PAGE HEADER TOOLBAR */}

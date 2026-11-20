@@ -38,11 +38,11 @@ import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.pn
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
 import PageLoading from '../../GlobalComponents/PageLoading';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED)
 // =========================================================================
-const VarStartCampaignScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -474,8 +474,8 @@ const ChooseAScenario = () => {
 
       {/* Screen Shell */}
       <div
-        style={{ zoom: VarStartCampaignScale }}
-        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 h-[calc(108vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 h-full overflow-hidden"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP HEADER BAR: "Start New Campaign"                                */}
@@ -568,12 +568,12 @@ const ChooseAScenario = () => {
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
           {view === 'all' ? (
           <>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
               onClick={() => pickScenario(START_FRESH_ID)}
-              className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px] h-[270px] shadow-2xs hover:shadow-md ${
+              className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full h-[270px] shadow-2xs hover:shadow-md ${
                 isDark 
                   ? 'bg-white text-black border-slate-200' 
                   : 'bg-black text-white border-black/20'
@@ -653,7 +653,7 @@ const ChooseAScenario = () => {
                     backgroundColor: isDark ? theme.bgDark : theme.bgLight,
                     borderColor: isSelected ? '#e66565' : isDark ? theme.borderDark : theme.border
                   }}
-                  className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full sm:w-[calc(50%-8px)] md:w-[calc(33.333%-11px)] lg:w-[calc(20%-13px)] min-w-[250px] max-w-[310px] h-[270px] shadow-2xs hover:shadow-md ${
+                  className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full h-[270px] shadow-2xs hover:shadow-md ${
                     isSelected ? 'ring-1 ring-[#e66565]' : ''
                   }`}
                 >

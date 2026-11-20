@@ -38,11 +38,11 @@ import LandingPageCatalogues from './LandingPageCatalogues.json';
 import { api } from '../../services/api';
 import HtmlCodeEditor from '../../GlobalComponents/HtmlCodeEditor';
 import LandingPageDesigner from './LandingPageDesigner';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS
 // =========================================================================
-const VarUserDLsScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -871,8 +871,8 @@ const LandingPageCatalogue = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       <div
-        style={{ zoom: VarUserDLsScale }}
-        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP HEADER BAR: "LANDING PAGE CATALOGUE"                            */}
@@ -904,7 +904,7 @@ const LandingPageCatalogue = () => {
         {/* ========================================================================= */}
         {currentView === VIEW_GALLERY && (
           <>
-            <div className="flex flex-col gap-3 h-full overflow-hidden">
+            <div className={`flex flex-col gap-3 h-full overflow-hidden p-4 rounded-2xl border ${isDark ? 'bg-[#0F1015] border-white/10' : 'bg-white border-slate-200'}`}>
               {/* Top Controls: Search Bar + "SEARCH BY" Dropdown + "CREATE NEW" Button */}
               <div className="flex items-center justify-between gap-3 flex-shrink-0">
                 <div className="flex items-center gap-2.5">
@@ -957,7 +957,7 @@ const LandingPageCatalogue = () => {
               </div>
 
               {/* Gallery Grid */}
-              <div className="auto-rows-[215px] flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="auto-rows-[215px] flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredCatalogues.map((item) => (
                   <div
                     key={getItemId(item)}
