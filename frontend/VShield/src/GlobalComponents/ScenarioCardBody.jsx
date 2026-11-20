@@ -1,9 +1,8 @@
 // The text of a scenario card, the same on the Scenarios page and on Start a
 // campaign -> Choose a scenario: the title in two lines' space, the description
 // in three (cut with "…"; the details pop-up has the rest), then Type and
-// who published it. The description is justified, both edges straight, with
-// whole words only (no hyphens); text-wrap: pretty evens the lines out so the
-// gaps between words stay small.
+// who published it. Left-aligned, every line starting at the same place, in a
+// fixed-size box; a little space between each part.
 const PUBLISHED_BY = 'Published by ';
 
 export default function ScenarioCardBody({ name, description, type, byline, bylineHint }) {
@@ -12,7 +11,7 @@ export default function ScenarioCardBody({ name, description, type, byline, byli
     <div className="flex flex-col text-left z-10 min-w-0">
       <h3
         title={name}
-        className="text-[13.5px] font-black text-slate-950 dark:text-white leading-[1.25] tracking-tight h-[2.5em] line-clamp-2 break-words"
+        className="mt-1 text-[13.5px] font-black text-slate-950 dark:text-white leading-[1.25] tracking-tight h-[2.5em] line-clamp-2 break-words"
       >
         {name}
       </h3>
@@ -21,19 +20,19 @@ export default function ScenarioCardBody({ name, description, type, byline, byli
       {description && (
         <p
           title={description}
-          className="mt-1.5 text-[9.5px] leading-[1.45] h-[4.35em] line-clamp-3 text-justify [text-wrap:pretty] break-words text-slate-700 dark:text-white/70"
+          className="mt-2.5 text-[9.5px] leading-[1.45] h-[4.35em] line-clamp-3 break-words text-slate-700 dark:text-white/70"
         >
           <span className="font-bold text-slate-900 dark:text-white">Description:</span> {description}
         </p>
       )}
 
-      <div className="mt-1.5 text-[9.5px] leading-[1.45] font-bold text-slate-800 dark:text-slate-200 truncate">
+      <div className="mt-2.5 text-[9.5px] leading-[1.45] font-bold text-slate-800 dark:text-slate-200 truncate">
         Type: {type || '—'}
       </div>
       {byline && (
         <div
           title={bylineHint || undefined}
-          className="text-[9.5px] leading-[1.45] font-bold text-slate-800 dark:text-slate-200 truncate"
+          className="mt-1 text-[9.5px] leading-[1.45] font-bold text-slate-800 dark:text-slate-200 truncate"
         >
           {named ? (
             <>
