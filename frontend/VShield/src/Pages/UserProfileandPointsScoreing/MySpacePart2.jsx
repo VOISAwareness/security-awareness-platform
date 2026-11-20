@@ -211,7 +211,7 @@ const MySpacePart2 = () => {
 
       <div
         style={{ zoom: VarMySpacePart2Scale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 select-none font-sans flex flex-col gap-4"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 select-none font-sans flex flex-col gap-4"
       >
         {/* ========================================================================= */}
         {/* ── TOP-RIGHT SEARCH & FILTER CONTROLS (NO OUTER TITLE BOX) ────────────── */}

@@ -1331,7 +1331,7 @@ const ScenarioEditor = ({ opening }) => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
       >
         {/* ====================================================
             PAGE HEADER
@@ -1608,7 +1608,7 @@ const ScenarioEditor = ({ opening }) => {
 const OpeningLoading = ({ isDark, editing }) => (
   <div
     style={{ zoom: VarScenarioScale }}
-    className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
+    className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
   >
     <div
       className={`w-full h-[38px] px-5 rounded-xl border flex items-center shadow-sm ${

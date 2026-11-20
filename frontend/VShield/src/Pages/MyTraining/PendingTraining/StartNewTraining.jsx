@@ -277,7 +277,7 @@ const StartNewTraining = () => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* ====================================================
             PAGE HEADER

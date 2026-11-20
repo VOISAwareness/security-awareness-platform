@@ -452,7 +452,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
       {/* 🌟 ROOT CONTAINER */}
       <div
         style={{ zoom: VarCampaignsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
       >
         {/* ── TOP HEADER BAR: "Campaigns" ── */}
         <div
