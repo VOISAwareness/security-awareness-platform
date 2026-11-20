@@ -1179,7 +1179,7 @@ const Scenarios = () => {
                     No scenarios found.
                   </div>
                 ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                     {filteredScenarios.map((scenario, cardIndex) => {
                       const dotColor =
                         INTENSITY_COLORS[scenario.intensityColor] ||
