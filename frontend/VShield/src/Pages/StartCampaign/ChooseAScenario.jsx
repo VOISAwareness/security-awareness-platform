@@ -713,12 +713,12 @@ const ChooseAScenario = () => {
                     </button>
                   </div>
 
-                  {/* ── 3D Asset: bottom right, inside the card, clear of the text ── */}
-                  <div className="absolute right-3 bottom-3 w-[64px] h-[64px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+                  {/* ── 3D Asset: Attached to walls, cropped ~10% bottom & 10% right ── */}
+                  <div className="absolute -right-[10%] -bottom-[10%] w-[135px] h-[135px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
                     {resolvedImageSrc && (
                       <img
                         src={resolvedImageSrc}
-                        alt=""
+                        alt={scenario.scenarioName}
                         className="w-full h-full object-contain filter drop-shadow-md"
                         loading="eager"
                         onError={(e) => {

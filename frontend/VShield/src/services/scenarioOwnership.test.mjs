@@ -82,7 +82,7 @@ const actions = (fields, viewer = ALICE) => {
 };
 
 test('the matrix: edit mode, delete and badge per ownership', () => {
-  assert.deepEqual(actions({ ownership: 'template' }), ['copy', false, null, 'VOIS Shield (template)']);
+  assert.deepEqual(actions({ ownership: 'template' }), ['copy', false, null, 'Published by VOIS Shield']);
   assert.deepEqual(actions({ ownership: 'shared', isShared: true, createdBy: BOB }), ['copy', false, null, `Published by ${personName(BOB)}`]);
   assert.deepEqual(actions({ ownership: 'mine', isShared: false, createdBy: ALICE }), ['update', true, 'delete', 'Draft · only you']);
   assert.deepEqual(actions({ ownership: 'mine', isShared: true, createdBy: ALICE }), ['revision', true, 'deleteShared', 'Published by you']);
@@ -122,7 +122,7 @@ test('every delete kind has its own label and confirmation', () => {
 test('older API: own rows are editable in place and deletable, others are published', () => {
   assert.deepEqual(actions({ createdBy: ALICE }), ['update', true, 'delete', 'Draft · only you']);
   assert.deepEqual(actions({ createdBy: BOB }), ['copy', false, null, 'Published by Bob']);
-  assert.deepEqual(actions({}), ['copy', false, null, 'VOIS Shield (template)']);
+  assert.deepEqual(actions({}), ['copy', false, null, 'Published by VOIS Shield']);
 });
 
 test('every badge explains itself on hover; an old copy is just a draft, with no link back shown', () => {
@@ -439,7 +439,7 @@ test('Published by: the person\'s name, "you" on your own, the template line whe
   assert.equal(publisherLine({ createdBy: 'aarav.rossi@x.example' }, ALICE), 'Published by Aarav Rossi');
   assert.equal(publisherLine({ createdBy: 'a@x.example', sharedBy: 'maya.lee@x.example' }, ALICE), 'Published by Maya Lee');
   assert.equal(publisherLine({ createdBy: ` ${ALICE.toUpperCase()} ` }, ALICE), 'Published by you');
-  assert.equal(publisherLine({}, ALICE), 'VOIS Shield (template)');
+  assert.equal(publisherLine({}, ALICE), 'Published by VOIS Shield');
   for (const ownership of ['template', 'shared', 'mine', 'myCopy', 'myRevision']) {
     assert.ok(cardActions({ ownership, createdBy: BOB }, ALICE).badge, `${ownership} always has a line`);
   }

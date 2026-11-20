@@ -1284,10 +1284,10 @@ const Scenarios = () => {
                           {/* IMAGE — BOTTOM RIGHT */}
                           {/* ================================================= */}
                           {resolvedImageSrc && (
-                            <div className="absolute right-3 bottom-3 w-[64px] h-[64px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+                            <div className="absolute -right-[10%] -bottom-[10%] w-[135px] h-[135px] pointer-events-none select-none flex items-center justify-center overflow-hidden">
                               <img
                                 src={resolvedImageSrc}
-                                alt=""
+                                alt={scenario.scenarioName}
                                 className="w-full h-full object-contain object-bottom-right"
                                 loading="eager"
                                 onError={(e) => {
@@ -1332,7 +1332,7 @@ const Scenarios = () => {
                               editor, which Delete (and its Yes / No) must not do. */}
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute left-4 right-[84px] bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto"
+                            className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto"
                           >
                             {busyIds[scenario.scenarioId] ? (
                               <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">

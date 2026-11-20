@@ -159,7 +159,7 @@ export const PUBLISH_KINDS = {
   },
 };
 
-export const TEMPLATE_BYLINE = 'VOIS Shield (template)';
+export const TEMPLATE_BYLINE = 'Published by VOIS Shield';
 
 /**
  * A person's name from their email until a people directory is wired in:
