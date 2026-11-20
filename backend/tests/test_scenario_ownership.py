@@ -1225,3 +1225,16 @@ def test_duplicates_of_a_published_scenario_survive_its_deletion(mod, world):
     _, seen = call(mod, "GET /scenarios", query={"viewer": BOB})
     ids = {r["scenarioId"]: r["ownership"] for r in seen["data"]}
     assert "A1" not in ids and ids[dup["scenarioId"]] == "mine"
+
+
+def test_a_draft_cover_a_duplicate_still_shows_is_kept(mod, world, monkeypatch):
+    cleaned = []
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", "bucket")
+    monkeypatch.setattr(mod, "delete_s3_prefix", lambda bucket, prefix: cleaned.append(prefix))
+    world["scenarios"].rows["A1"]["CoverImageID"] = "uploads/scenario-covers/A1/c.png"
+    world["scenarios"].rows["D9"] = sc("D9", BOB, CoverImageID="uploads/scenario-covers/A1/c.png")
+    status, _ = call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    assert status == 204 and "A1" not in world["scenarios"].rows
+    assert cleaned == [], "D9 still shows it"
+    status, _ = call(mod, "DELETE /scenarios/{id}", "D9", query={"actor": BOB})
+    assert cleaned == ["uploads/scenario-covers/D9/"], "D9's own folder; A1's is left alone"

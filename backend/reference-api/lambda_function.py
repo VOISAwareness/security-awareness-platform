@@ -560,6 +560,13 @@ def modify_refusal(row, actor, sent_ids, action):
     return None
 
 
+def cover_in_use(rows, prefix):
+    """Whether a row still shows a cover under `prefix` (a deleted scenario's
+    cover folder): a duplicate keeps the cover of the scenario it was made
+    from, so that folder must outlive the original."""
+    return any(str(r.get("CoverImageID") or "").startswith(prefix) for r in rows)
+
+
 def deleted_scenario(row, actor, now):
     """The row a DELETE of a shared scenario stores: marked deleted, not
     removed, so the campaigns that used it still resolve its id."""
@@ -2952,11 +2959,9 @@ def handle(event, context):
                 if conditional_failed(e):
                     return err(409, "Published revisions are kept for campaign history")
                 raise
-            if UPLOAD_BUCKET:
-                delete_s3_prefix(
-                    UPLOAD_BUCKET,
-                    f"uploads/scenario-covers/{safe_name(params['id'])}/",
-                )
+            covers = f"uploads/scenario-covers/{safe_name(params['id'])}/"
+            if UPLOAD_BUCKET and not cover_in_use(scan_all("scenarios"), covers):
+                delete_s3_prefix(UPLOAD_BUCKET, covers)
             return respond(204, {"data": None})
 
         # Presign a cover upload. No DynamoDB row is written here -- the POST or
