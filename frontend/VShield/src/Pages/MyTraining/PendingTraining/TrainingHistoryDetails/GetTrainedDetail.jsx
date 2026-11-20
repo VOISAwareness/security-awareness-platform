@@ -835,10 +835,10 @@ const GetTrainedDetailContent = ({ onVideoCompleted, trainingPathID }) => {
 
   return (
     <div
-      className="w-full h-[calc(90dvh-120px)] min-h-[420px] overflow-hidden rounded-2xl"
+      className="w-full lg:h-[calc(90dvh-120px)] min-h-[420px] lg:overflow-hidden rounded-2xl"
       style={{ color: t.primaryText, backgroundColor: t.shellBg }}
     >
-      <div className="grid grid-cols-1 lg:grid-cols-[30%_minmax(0,70%)] gap-3 h-full min-h-0 p-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[30%_minmax(0,70%)] gap-3 lg:h-full min-h-0 p-3">
         <aside
           className="min-w-0 min-h-0 flex flex-col gap-3 pr-1 [scrollbar-width:thin] lg:h-full lg:overflow-y-auto lg:overflow-x-hidden"
           aria-label="Training information"

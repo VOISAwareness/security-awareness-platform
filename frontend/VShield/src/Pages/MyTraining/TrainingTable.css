@@ -604,3 +604,11 @@
 }
 
 
+
+
+/* Phones and tablets: columns keep their width; the table scrolls sideways in its card */
+@media (max-width: 1023px) {
+  .training-table {
+    min-width: 680px;
+  }
+}

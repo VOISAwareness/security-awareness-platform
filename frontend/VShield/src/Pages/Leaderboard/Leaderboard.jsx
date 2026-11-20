@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ClipboardCheck, Flag, GraduationCap, KeyRound, MailOpen, MousePointerClick, Users } from 'lucide-react';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
+import useIsWide from '../../GlobalComponents/useIsWide';
 import { useGamificationRules } from '../../services/useGamificationRules';
 import { formatPoints } from '../../services/gamificationPoints';
 import LevelBadge from '../../GlobalComponents/LevelBadge';
@@ -66,7 +67,9 @@ const FONT_IMPORT = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap');
   .lb-exb  { font-family: 'Vodafone ExB', 'Vodafone', 'Montserrat', sans-serif; font-weight: 900; }
   .lb-mono { font-family: 'JetBrains Mono', monospace; }
-  .lb-page { font-family: 'Segoe UI', Arial, sans-serif; }
+  .lb-page { font-family: 'Segoe UI', Arial, sans-serif; --lb-cols: 82px 50px minmax(0, 1fr) 112px; }
+  /* Phones and tablets: narrower rank and points columns, so the name keeps room */
+  @media (max-width: 1023px) { .lb-page { --lb-cols: 52px 40px minmax(0, 1fr) 80px; } }
   .lb-scroll::-webkit-scrollbar { width: 7px; }
   .lb-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,145,0.35); border-radius: 999px; }
   .lb-pg:disabled { cursor: default; opacity: 0.4; }
@@ -113,6 +116,8 @@ const FONT_IMPORT = `
   /* Points rules: drop the one-line descriptions when the rail runs short,
      and tighten the rows when it runs shorter still, so all six fit */
   .lb-rules { container-type: size; }
+  /* Narrower windows: the card grows with its rules (size containment would give it no height) */
+  @media (max-width: 1023px) { .lb-rules { container-type: normal; } }
   @container (max-height: 360px) { .lb-rule-desc { display: none !important; } }
   @container (max-height: 330px) {
     .lb-rule { padding: 4px 0 !important; }
@@ -168,7 +173,7 @@ const NUMERAL = { first: '1', second: '2', third: '3' };
 const PASTEL_INK = { '--text': '#0F172A', '--muted': '#475569', '--chip': 'rgba(255,255,255,0.72)', '--t-green': '#15803D' };
 // DEPT_CODE lives in GlobalComponents/deptCodes.js, shared with Insights.
 // Rank (and this week's move) | Badge | Person | Points
-const COLS = '82px 50px minmax(0, 1fr) 112px';
+const COLS = 'var(--lb-cols)'; // set on .lb-page (FONT_IMPORT), narrower on phones
 const ROW_PAD = 14; // row side padding; the column header lines up with it
 
 // L-shape sheet, built like Requests & Approvals: the colour capsule is its own
@@ -691,6 +696,10 @@ const StandingCard = ({ name, initials, dept, pts, level, rank, total, move, bad
 
 const Leaderboard = () => {
   const { isDark, user, hasAccess } = useUserType() || {};
+  // Phones and tablets: the rail stacks above the board and the page scrolls,
+  // instead of the two columns locked to the window.
+  const isWide = useIsWide();
+  const SIDE = isWide ? 24 : 10; // the sheet's side padding
   const navigate = useNavigate();
   // My Campaigns is for every role but Regular User, who sees Global only.
   const canCampaigns = Boolean(hasAccess && hasAccess('leaderboard-campaigns'));
@@ -886,8 +895,8 @@ const Leaderboard = () => {
     <>
       <style>{FONT_IMPORT}</style>
 
-      {/* Fills <main> exactly; nothing inside lets the page itself scroll. */}
-      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', position: 'relative', color: 'var(--text)', width: '100%', height: '100%', overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12, marginTop:'-16px' }}>
+      {/* Wide: fills <main> exactly; nothing inside lets the page itself scroll. Narrower: the page scrolls. */}
+      <div className="lb-page" style={{ ...vars, '--accent': '#E60000', position: 'relative', color: 'var(--text)', width: '100%', height: isWide ? '100%' : 'auto', overflow: isWide ? 'hidden' : 'visible', padding: isWide ? 14 : 10, display: 'flex', flexDirection: 'column', gap: 12, marginTop:'-16px' }}>
 
         <AnimatePresence>
           {badges && (
@@ -921,10 +930,10 @@ const Leaderboard = () => {
         </div>
 
         {/* two-column workspace */}
-        <div style={{ flex: 1, display: 'flex', gap: 12, minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: isWide ? 'row' : 'column', gap: 12, minHeight: 0 }}>
 
           {/* LEFT RAIL */}
-          <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ width: isWide ? 300 : '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
             <StandingCard
               name={youName}
@@ -949,12 +958,12 @@ const Leaderboard = () => {
 
             {/* colleagues, Global view: how points are earned, read live from the Gamification Engine */}
             {view === 'global' && !canReports && (
-              <div className="lb-rules" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
+              <div className="lb-rules" style={{ flex: isWide ? 1 : 'none', minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--rail)', border: '1px solid var(--hair)', borderRadius: L_R, padding: '14px 16px', overflow: 'hidden' }}>
                 <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>How to earn points</span>
                 <div style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginTop: 2, marginBottom: 6 }}>
                   {rules.error ? 'Live rules unavailable right now' : 'Live from the Gamification Engine'}
                 </div>
-                <div style={{ flex: 1, minHeight: 0, maxHeight: 420, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div style={{ flex: isWide ? 1 : 'none', minHeight: 0, maxHeight: isWide ? 420 : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   {RULES.map((rule) => {
                     const v = rules.points[rule.event];
                     const tone = v > 0 ? 'var(--t-green)' : v < 0 ? 'var(--t-red)' : 'var(--muted)';
@@ -1020,8 +1029,8 @@ const Leaderboard = () => {
           {view !== 'reports' && (
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
-            {/* capsule: its own tile, set apart from the sheet by L_GAP */}
-            <div style={{ ...(isDark ? PASTEL_INK : null), position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H, zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
+            {/* capsule: its own tile, set apart from the sheet by L_GAP (narrower: a full-width tile above it) */}
+            <div style={{ ...(isDark ? PASTEL_INK : null), ...(isWide ? { position: 'absolute', top: 0, left: 0, width: CAP_W, height: CAP_H } : { position: 'relative', width: '100%', minHeight: 96, padding: '12px 16px', marginBottom: L_GAP }), zIndex: 2, padding: '0 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6, background: view === 'global' ? 'var(--cap-global)' : 'var(--cap-camp)', borderRadius: L_R, overflow: 'hidden' }}>
               {scope.live && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: 999, background: '#16A34A' }} />
@@ -1038,18 +1047,18 @@ const Leaderboard = () => {
             </div>
 
             {/* concave fillet joining the arm to the base, following the capsule's corner */}
-            <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: 'block' }}>
+            <svg aria-hidden width={FILLET} height={FILLET} viewBox={`0 0 ${FILLET} ${FILLET}`} style={{ position: 'absolute', top: CAP_H - L_R, left: CAP_W - L_R, zIndex: 1, display: isWide ? 'block' : 'none' }}>
               <path d={`M 0 ${FILLET} A ${FILLET} ${FILLET} 0 0 0 ${FILLET} 0 V ${FILLET} H 0 Z`} fill="var(--base)" />
             </svg>
 
             {/* top-right arm of the L: the podium switch, on the sheet's centre line */}
-            <div style={{ marginLeft: CAP_W + L_GAP, height: CAP_H + L_GAP, flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '18px 24px 0', background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
+            <div style={{ marginLeft: isWide ? CAP_W + L_GAP : 0, height: isWide ? CAP_H + L_GAP : 'auto', flexShrink: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: isWide ? '18px 24px 0' : `14px ${SIDE}px ${STAGE_RAISE + 14}px`, background: 'var(--base)', borderTop: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderRadius: `${L_R}px ${L_R}px 0 0` }}>
               {/* the arm starts CAP_W + L_GAP in, so pull back by half that to centre on the whole sheet */}
               <div style={{
-    transform: `translate(
+    transform: isWide ? `translate(
       -${(CAP_W + L_GAP) / 2}px,
       -5px
-    )`
+    )` : 'none'
   }}>
                 <StageSwitch
                   value={podium.id}
@@ -1063,7 +1072,7 @@ const Leaderboard = () => {
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--base)', borderLeft: '1px solid var(--hair)', borderRight: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', borderRadius: `${L_R}px 0 ${L_R}px ${L_R}px` }}>
 
               {/* podium, centred on the sheet and lit from below: top people, or top departments via the switch */}
-              <div data-podium style={{ flexShrink: 0, marginTop: -STAGE_RAISE, padding: '0 24px 10px', background: 'radial-gradient(34% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
+              <div data-podium style={{ flexShrink: 0, marginTop: -STAGE_RAISE, padding: `0 ${SIDE}px 10px`, zoom: isWide ? 1 : 0.64, background: 'radial-gradient(34% 92% at 50% 100%, rgba(232,179,11,0.12), transparent 72%)' }}>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={`${podium.id}-${view}-${campaignId}`}
@@ -1071,7 +1080,7 @@ const Leaderboard = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={reduce ? { opacity: 0 } : { opacity: 0, x: podium.id === 'depts' ? -24 : 24 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
-                    style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 22 }}
+                    style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: isWide ? 22 : 8 }}
                   >
                     {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} hidden={hiddenOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
                     {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} hidden={hiddenOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
@@ -1081,7 +1090,7 @@ const Leaderboard = () => {
               </div>
 
               {/* column header */}
-              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${24 + 1 + ROW_PAD}px 8px`, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
+              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${SIDE + 1 + ROW_PAD}px 8px`, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
                 <div>Rank</div>
                 <div style={{ textAlign: 'center' }}>{podium.id === 'depts' ? '' : 'Level'}</div>
                 <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
@@ -1089,7 +1098,8 @@ const Leaderboard = () => {
               </div>
 
               {/* ranked list — one page at a time, sized to fit */}
-              <div ref={listRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', margin: '0 24px' }}>
+              {/* Narrower windows: a fixed page of 8 rows, as the page itself scrolls */}
+              <div ref={listRef} style={{ flex: isWide ? 1 : 'none', height: isWide ? undefined : 8 * ROW_H + 7 * ROW_GAP, minHeight: 0, overflow: 'hidden', margin: `0 ${SIDE}px` }}>
                 <motion.div
                   key={`${podium.id}-${view}-${campaignId}-${safePage}`}
                   initial={reduce ? false : { opacity: 0, y: 8 }}
@@ -1117,7 +1127,7 @@ const Leaderboard = () => {
               </div>
 
               {/* footer: the viewer's rank + their pill, which jumps to their page (left); pagination (right) */}
-              <div data-lb-footer style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
+              <div data-lb-footer style={{ flexShrink: 0, borderTop: '1px solid var(--hair)', padding: `10px ${SIDE}px`, display: 'flex', flexWrap: isWide ? 'nowrap' : 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: isWide ? 16 : 10, background: 'var(--base)', borderRadius: `0 0 ${L_R - 1}px ${L_R - 1}px` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                   {list.you && (
                     <>

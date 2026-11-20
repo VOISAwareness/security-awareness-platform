@@ -435,8 +435,10 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
     },
   ];
 
+  // A fixed height on wide windows; narrower, the open section's cards stack
+  // and the box grows with them.
   return (
-    <div className="flex flex-col gap-2.5 w-full h-[480px] min-w-0 select-none">
+    <div className="flex flex-col gap-2.5 w-full h-auto lg:h-[480px] min-w-0 select-none">
       {sections.map((section, index) => {
         const isActive = index === active;
 
@@ -446,6 +448,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
             layout
             transition={{ duration: 0.45, ease: [0.25, 1, 0.5, 1] }}
             onMouseEnter={() => setActive(index)}
+            onClick={() => setActive(index)}
             className={`relative rounded-[8px] border transition-colors duration-300 overflow-hidden cursor-pointer ${
               isActive
                 ? `flex-1 ${
