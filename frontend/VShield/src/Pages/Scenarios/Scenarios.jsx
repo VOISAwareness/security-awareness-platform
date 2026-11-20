@@ -1179,7 +1179,7 @@ const Scenarios = () => {
                     No scenarios found.
                   </div>
                 ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                     {filteredScenarios.map((scenario, cardIndex) => {
                       const dotColor =
                         INTENSITY_COLORS[scenario.intensityColor] ||
@@ -1250,11 +1250,11 @@ const Scenarios = () => {
                                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: dotColor }}
                               />
-                              <span>{scenario.scenarioId}</span>
+                              <span className="whitespace-nowrap">{scenario.scenarioId}</span>
                             </div>
 
                             <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                              <span>Created on: {scenario.CreatedOn}</span>
+                              <span className="whitespace-nowrap">Created on: {scenario.CreatedOn}</span>
                               <button
                                 type="button"
                                 onClick={(e) => {

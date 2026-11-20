@@ -571,7 +571,7 @@ const ChooseAScenario = () => {
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
           {view === 'all' ? (
           <>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
@@ -666,12 +666,12 @@ const ChooseAScenario = () => {
                     {/* ID Badge with red dot */}
                     <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 shadow-2xs text-slate-900 dark:text-white">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
-                      <span>{scenario.scenarioId}</span>
+                      <span className="whitespace-nowrap">{scenario.scenarioId}</span>
                     </div>
 
                     {/* Created on & Expand Button */}
                     <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                      <span>Created on: {scenario.CreatedOn}</span>
+                      <span className="whitespace-nowrap">Created on: {scenario.CreatedOn}</span>
                       <button
                         type="button"
                         onClick={(e) => {

@@ -1,11 +1,9 @@
 // The text of a scenario card, the same on the Scenarios page and on Start a
 // campaign -> Choose a scenario: the title in two lines' space, the description
 // in four (cut with "…"; the details pop-up has the rest), then Type and
-// who published it. The description is justified, both edges straight; long
-// words carry soft hyphens (softHyphens.js) so they split across lines rather
-// than leave wide gaps, at the same text size.
-import { softHyphenate } from '../services/softHyphens';
-
+// who published it. The description is justified, both edges straight, with
+// whole words only (no hyphens); text-wrap: pretty evens the lines out so the
+// gaps between words stay small.
 const PUBLISHED_BY = 'Published by ';
 
 export default function ScenarioCardBody({ name, description, type, byline, bylineHint }) {
@@ -23,9 +21,9 @@ export default function ScenarioCardBody({ name, description, type, byline, byli
       {description && (
         <p
           title={description}
-          className="mt-1.5 text-[9.5px] leading-[1.45] h-[5.8em] line-clamp-4 text-justify break-words text-slate-700 dark:text-white/70"
+          className="mt-1.5 text-[9.5px] leading-[1.45] h-[5.8em] line-clamp-4 text-justify [text-wrap:pretty] break-words text-slate-700 dark:text-white/70"
         >
-          <span className="font-bold text-slate-900 dark:text-white">Description:</span> {softHyphenate(description)}
+          <span className="font-bold text-slate-900 dark:text-white">Description:</span> {description}
         </p>
       )}
 
