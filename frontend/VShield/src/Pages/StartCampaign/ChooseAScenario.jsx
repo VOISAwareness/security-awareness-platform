@@ -12,7 +12,7 @@ import { api } from '../../services/api';
 import { openCampaignDraft, parkCampaignDraft, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
-import { scenariosForViewer } from '../../services/scenarioOwnership';
+import { cardActions, scenariosForViewer } from '../../services/scenarioOwnership';
 import { editedScenarioIds, readScenarioDraftItems } from '../../services/scenarioDraftSync';
 import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
@@ -34,6 +34,7 @@ import DraftDialog from '../../GlobalComponents/DraftDialog';
 import DraftCards from '../../GlobalComponents/DraftCards';
 import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
+import ScenarioCardBody from '../../GlobalComponents/ScenarioCardBody';
 import chooseAScenarioStartFresh from '../../assets/ChooseAScenarioStartFresh.png';
 import draftArt from '../../assets/CreateNewOneStartNewCampaign.png';
 import { DEMO_USER } from '../../appConfig';
@@ -257,6 +258,8 @@ const ChooseAScenario = () => {
 
   // Scenarios come from the API (bundled JSON is only an offline fallback).
   const [scenariosList, setScenariosList] = useState([]);
+  // Who is looking, for each card's "Published by" line.
+  const [viewer] = useState(() => currentActor());
   const [scenariosLoading, setScenariosLoading] = useState(true);
 
   // Selected State — back from step 2, seeded from the campaign being worked on
@@ -568,7 +571,7 @@ const ChooseAScenario = () => {
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
           {view === 'all' ? (
           <>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
@@ -644,6 +647,7 @@ const ChooseAScenario = () => {
               const theme = DIFFICULTY_THEMES[scenario.difficulty] || DIFFICULTY_THEMES.Low;
               const isSelected = selectedScenarioId === scenario.scenarioId;
               const resolvedImageSrc = getScenarioImage(scenario.CoverImageID);
+              const actions = cardActions(scenario, viewer);
 
               return (
                 <div
@@ -653,7 +657,7 @@ const ChooseAScenario = () => {
                     backgroundColor: isDark ? theme.bgDark : theme.bgLight,
                     borderColor: isSelected ? '#e66565' : isDark ? theme.borderDark : theme.border
                   }}
-                  className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col justify-between overflow-hidden select-none w-full h-[270px] shadow-2xs hover:shadow-md ${
+                  className={`relative p-4 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col overflow-hidden select-none w-full h-[270px] shadow-2xs hover:shadow-md ${
                     isSelected ? 'ring-1 ring-[#e66565]' : ''
                   }`}
                 >
@@ -662,12 +666,12 @@ const ChooseAScenario = () => {
                     {/* ID Badge with red dot */}
                     <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/90 dark:bg-black/60 shadow-2xs text-slate-900 dark:text-white">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
-                      <span>{scenario.scenarioId}</span>
+                      <span className="whitespace-nowrap">{scenario.scenarioId}</span>
                     </div>
 
                     {/* Created on & Expand Button */}
                     <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                      <span>Created on: {scenario.CreatedOn}</span>
+                      <span className="whitespace-nowrap">Created on: {scenario.CreatedOn}</span>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -685,24 +689,17 @@ const ChooseAScenario = () => {
                     </div>
                   </div>
 
-                  {/* Title & Description & Type */}
-                  <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%]">
-                    <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight">
-                      {scenario.scenarioName}
-                    </h3>
-
-                    <p className="text-[9.5px] text-slate-700 dark:text-slate-300 font-medium line-clamp-8 leading-relaxed">
-                      <strong className="text-slate-900 dark:text-white">Description: </strong>
-                      {scenario.description}
-                    </p>
-
-                    <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                      Type: {scenario.campaignType}
-                    </div>
-                  </div>
+                  {/* Title, description, type, who published it: the Scenarios page's card */}
+                  <ScenarioCardBody
+                    name={scenario.scenarioName}
+                    description={scenario.description}
+                    type={scenario.campaignType}
+                    byline={actions.badge}
+                    bylineHint={actions.badgeHint}
+                  />
 
                   {/* Bottom Left "Use This ->" Button */}
-                  <div className="pt-2 z-10 flex items-center">
+                  <div className="mt-auto pt-2 z-10 flex items-center">
                     <button
                       type="button"
                       onClick={(e) => {
