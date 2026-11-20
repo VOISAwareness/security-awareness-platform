@@ -246,15 +246,16 @@ def cover_key_from_url(value):
 # Row kinds (scenario_kind):
 #   template  no createdBy: the fixed seed scenarios, visible to everyone.
 #   own       a user's scenario. A draft (private) until its creator publishes
-#             it (POST /scenarios/{id}/publish: sharedAt, sharedBy) or a SENT
-#             campaign uses it; then shared with everyone and frozen -- edits
-#             go through a revision, which the creator publishes onto it.
+#             it (POST /scenarios/{id}/publish: sharedAt, sharedBy); then
+#             shared with everyone and frozen -- edits go through a revision,
+#             which the creator publishes onto it. Using a scenario in a
+#             campaign, even a sent one, never publishes it: campaigns keep
+#             their own copy of the content.
 #   copy      copyOf=X: its owner's private edited version of template / shared X,
 #             a scenario of its own: X stays as it is and is still listed, and
 #             one person may make any number of versions of X.
 #   revision  revisionOf=S: its owner's pending edit of their own shared S,
-#             published onto S when its owner publishes it, or once a campaign
-#             that used it has been SENT.
+#             published onto S when its owner publishes it (and only then).
 # The handler only does I/O; every rule lives in the pure helpers below.
 
 # Kept from the original when a revision's content is published onto it.
@@ -292,29 +293,19 @@ def parse_identity(value):
 
 
 def campaign_scenario_refs(campaign_rows):
-    """(referenced, sent): ids of scenarios any campaign references, in any
-    status, and the subset a SENT campaign used -- what makes a user's scenario
-    shared and a revision publishable. Reads legacy rows too (CampaignStatus,
-    ScenarioID) and any status casing."""
-    referenced, sent = set(), set()
+    """Ids of the scenarios any campaign references, in any status (legacy
+    rows too: ScenarioID). Such an id is never handed out again."""
+    referenced = set()
     for row in campaign_rows:
-        ids = {str(row[attr]) for attr in ("scenarioId", "ScenarioID") if row.get(attr)}
-        referenced |= ids
-        status = row.get("status") or row.get("CampaignStatus") or ""
-        if str(status).strip().upper() == "SENT":
-            sent |= ids
-    return referenced, sent
-
-
-def sent_scenario_ids(campaign_rows):
-    return campaign_scenario_refs(campaign_rows)[1]
+        referenced |= {str(row[attr]) for attr in ("scenarioId", "ScenarioID") if row.get(attr)}
+    return referenced
 
 
 def next_scenario_id(rows, referenced_ids):
     """The next SC-00N id, past every id a row OR a campaign has ever used.
-    "Sent" is tracked by id, so a reissued id would inherit an old campaign's
-    history: a new scenario born shared, a new revision published unreviewed.
-    So an id stays retired after its row is deleted if any campaign used it."""
+    Campaigns name their scenario by id, so a reissued id would attach an old
+    campaign's history to a new scenario. So an id stays retired after its
+    row is deleted if any campaign used it."""
     used = [*rows, *({"scenarioId": sid} for sid in referenced_ids)]
     return next_sequence_id(used, "scenarioId", "SC")
 
@@ -339,15 +330,12 @@ def is_deleted(row):
     return bool((row or {}).get("deletedAt"))
 
 
-def is_shared(row, sent_ids):
-    """A user's own scenario is shared once its creator has published it, or a
-    SENT campaign has used it."""
-    if scenario_kind(row) != "own":
-        return False
-    return bool(row.get("sharedAt")) or str(row.get("scenarioId")) in sent_ids
+def is_shared(row):
+    """A user's own scenario is shared once its creator has published it."""
+    return scenario_kind(row) == "own" and bool(row.get("sharedAt"))
 
 
-def visible_scenarios(rows, sent_ids, viewer):
+def visible_scenarios(rows, viewer):
     """The rows `viewer` may see, each annotated (response only) with
     ownership, isShared and replaces. The viewer's pending revision stands in
     for their own shared scenario -- for them alone. Their copies are listed
@@ -374,7 +362,7 @@ def visible_scenarios(rows, sent_ids, viewer):
     visible = []
     for row in rows:
         kind, sid = scenario_kind(row), str(row.get("scenarioId"))
-        shared, replaces = is_shared(row, sent_ids), None
+        shared, replaces = is_shared(row), None
         if kind == "template":
             ownership = "template"
         elif kind == "own" and mine(row):
@@ -397,28 +385,6 @@ def visible_scenarios(rows, sent_ids, viewer):
             replaces = str(row["revisionOf"])
         visible.append({**row, "ownership": ownership, "isShared": shared, "replaces": replaces})
     return visible
-
-
-def publishable_revisions(rows, sent_ids):
-    """Revisions due for lazy publish: unpublished, used by a SENT campaign,
-    and by the same author as the original they revise. Returns
-    (revision, original, merged_original) tuples, where merged_original is the
-    original with the revision's content but its own identity fields. Oldest
-    first, so if two revisions of one original are due, the newest lands last."""
-    by_id = {str(row.get("scenarioId")): row for row in rows}
-    plan = []
-    for rev in sorted(rows, key=lambda row: sequence_order(row.get("scenarioId"))):
-        if scenario_kind(rev) != "revision" or rev.get("publishedAt"):
-            continue
-        if str(rev.get("scenarioId")) not in sent_ids:
-            continue
-        original = by_id.get(str(rev["revisionOf"]))
-        if not original or scenario_kind(original) != "own" or is_deleted(original):
-            continue
-        if parse_identity(rev.get("createdBy")) != parse_identity(original.get("createdBy")):
-            continue
-        plan.append((rev, original, merged_revision(rev, original)))
-    return plan
 
 
 def merged_revision(rev, original):
@@ -472,7 +438,7 @@ def scenario_update(existing, body):
     return {**existing, **updates}
 
 
-def create_refusal(item, rows, referenced_ids, sent_ids):
+def create_refusal(item, rows, referenced_ids):
     """Why a POST of `item` (already cleaned) can't go ahead, as an error
     response, or None."""
     copy_of, revision_of = item.get("copyOf"), item.get("revisionOf")
@@ -493,7 +459,7 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
     target = next(
         (r for r in rows if str(r.get("scenarioId")) == target_id and not is_deleted(r)), None
     )
-    shared = bool(target) and is_shared(target, sent_ids)
+    shared = bool(target) and is_shared(target)
     owner = parse_identity((target or {}).get("createdBy"))
     if copy_of:
         if not target or not (
@@ -504,9 +470,7 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
         return None
     if not shared or owner != author:
         return err(400, "revisionOf must be one of your own shared scenarios")
-    # One pending revision per scenario and person. A revision a SENT campaign
-    # used is published by the next list even if not stamped yet, so it
-    # doesn't block the next one.
+    # One pending revision per scenario and person.
     existing = next(
         (
             r
@@ -515,7 +479,6 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
             and str(r.get("revisionOf")) == target_id
             and parse_identity(r.get("createdBy")) == author
             and not r.get("publishedAt")
-            and str(r.get("scenarioId")) not in sent_ids
         ),
         None,
     )
@@ -528,14 +491,13 @@ def create_refusal(item, rows, referenced_ids, sent_ids):
     return None
 
 
-def modify_refusal(row, actor, sent_ids, action):
+def modify_refusal(row, actor, action):
     """Why `actor` can't PUT (action "edit") or DELETE ("delete") this row, as
-    an error response, or None when they can. A copy a SENT campaign used, or
-    a private scenario an unsent campaign uses, may still be deleted: campaigns
-    keep their own copy of the content, and next_scenario_id / create_refusal
-    never hand the id out again. The owner may delete a shared scenario too
-    (see deleted_scenario): others can no longer pick it, and the campaigns
-    already sent keep their own copy."""
+    an error response, or None when they can. A draft or copy a campaign used
+    may still be deleted: campaigns keep their own copy of the content, and
+    next_scenario_id / create_refusal never hand the id out again. The owner
+    may delete a published scenario too (see deleted_scenario): others can no
+    longer pick it, and the campaigns that used it keep their own copy."""
     actor = parse_identity(actor)
     if not actor:
         return err(400, "actor is required")
@@ -548,11 +510,10 @@ def modify_refusal(row, actor, sent_ids, action):
         return err(403, "Templates can't be deleted")
     if parse_identity(row.get("createdBy")) != actor:
         return err(403, f"Only the scenario's creator can {action} it")
-    # A revision a SENT campaign used is published (or about to be by the next
-    # list): it backs the original's content and the campaign's history.
-    if kind == "revision" and (row.get("publishedAt") or str(row.get("scenarioId")) in sent_ids):
+    # A published revision backs its original's content.
+    if kind == "revision" and row.get("publishedAt"):
         return err(409, "Published revisions are kept for campaign history")
-    if action == "edit" and is_shared(row, sent_ids):
+    if action == "edit" and is_shared(row):
         return err(
             409,
             "This scenario is published, so editing it creates a revision instead",
@@ -573,36 +534,27 @@ def deleted_scenario(row, actor, now):
     return {**row, "deletedAt": now, "deletedBy": parse_identity(actor)}
 
 
-def revisions_to_discard(rows, scenario_id, sent_ids):
-    """When a shared scenario is deleted, its owner's pending revisions go with
-    it. A revision a SENT campaign used stays (campaign history); it is hidden
-    with the original and never published onto it."""
+def revisions_to_discard(rows, scenario_id):
+    """When a shared scenario is deleted, its owner's pending revisions go with it."""
     return [
         r
         for r in rows
         if scenario_kind(r) == "revision"
         and str(r["revisionOf"]) == str(scenario_id)
         and not r.get("publishedAt")
-        and str(r.get("scenarioId")) not in sent_ids
     ]
 
 
 def load_campaign_refs():
-    """One projected scan of the campaigns table: (referenced, sent) ids."""
-    return campaign_scenario_refs(
-        scan_all(
-            "campaigns",
-            ProjectionExpression="#s, CampaignStatus, scenarioId, ScenarioID",
-            ExpressionAttributeNames={"#s": "status"},
-        )
-    )
+    """One projected scan of the campaigns table: the scenario ids they reference."""
+    return campaign_scenario_refs(scan_all("campaigns", ProjectionExpression="scenarioId, ScenarioID"))
 
 
 def write_revision(tbl, revision, original, merged, context=None):
     """Write a revision's content onto its original, then stamp the revision
     with publishedAt. Returns the stamp, or None when the original changed
     hands, was deleted, or a write failed (the revision stays pending).
-    Stamped last, so a failure in between just publishes it again later."""
+    Stamped last, so a failure in between can simply be published again."""
     rev_id, orig_id = revision["scenarioId"], original["scenarioId"]
     try:
         # Only onto the original as read: still there, same owner.
@@ -627,32 +579,13 @@ def write_revision(tbl, revision, original, merged, context=None):
         )
     except ClientError as e:
         # A conditional failure means another request stamped it first:
-        # published either way. Anything else retries on the next list.
+        # published either way.
         if not conditional_failed(e):
             code = e.response.get("Error", {}).get("Code")
             log(context, "Revision stamp failed", revisionId=rev_id, scenarioId=orig_id, code=code)
             return None
     log(context, "Scenario revision published", revisionId=rev_id, scenarioId=orig_id)
     return published_at
-
-
-def publish_revisions(rows, sent_ids, context=None):
-    """Lazy publish (see publishable_revisions): each sent revision's content
-    onto its original (write_revision). Idempotent -- a stamped revision is
-    never picked again -- and best effort: a failed write leaves the revision
-    pending for the next list rather than failing this one. Returns the rows
-    as they now stand."""
-    plan = publishable_revisions(rows, sent_ids)
-    if not plan:
-        return rows
-    tbl = table("scenarios")
-    changed = {}
-    for revision, original, merged in plan:
-        published_at = write_revision(tbl, revision, original, merged, context)
-        if published_at:
-            changed[str(original["scenarioId"])] = merged
-            changed[str(revision["scenarioId"])] = {**revision, "publishedAt": published_at}
-    return [changed.get(str(row.get("scenarioId")), row) for row in rows]
 
 
 def publish_refusal(row, actor, rows):
@@ -2727,9 +2660,7 @@ def handle(event, context):
             # except deleted shared scenarios, which no list shows.
             viewer = parse_identity((event.get("queryStringParameters") or {}).get("viewer"))
             if viewer:
-                _, sent_ids = load_campaign_refs()
-                items = publish_revisions(items, sent_ids, context)
-                items = visible_scenarios(items, sent_ids, viewer)
+                items = visible_scenarios(items, viewer)
             else:
                 items = [i for i in items if not is_deleted(i)]
             items = [sign_cover(i) for i in items]
@@ -2832,8 +2763,8 @@ def handle(event, context):
             now = datetime.now(UTC)
             created_on = f"{now.day}-{now.strftime('%b-%y')}"
             rows = scan_all("scenarios")
-            referenced, sent_ids = load_campaign_refs()
-            refusal = create_refusal(item, rows, referenced, sent_ids)
+            referenced = load_campaign_refs()
+            refusal = create_refusal(item, rows, referenced)
             if refusal:
                 return refusal
             if item.get("revisionOf"):
@@ -2884,8 +2815,7 @@ def handle(event, context):
             existing = get_one("scenarios", {"scenarioId": params["id"]})
             if not existing:
                 return err(404, "Scenario not found")
-            _, sent_ids = load_campaign_refs()
-            refusal = modify_refusal(existing, body.get("actor"), sent_ids, "edit")
+            refusal = modify_refusal(existing, body.get("actor"), "edit")
             if refusal:
                 return refusal
             merged = scenario_update(existing, body)
@@ -2921,11 +2851,10 @@ def handle(event, context):
                 # shared one, to the campaigns that used it).
                 return respond(204, {"data": None})
             actor = (event.get("queryStringParameters") or {}).get("actor")
-            _, sent_ids = load_campaign_refs()
-            refusal = modify_refusal(existing, actor, sent_ids, "delete")
+            refusal = modify_refusal(existing, actor, "delete")
             if refusal:
                 return refusal
-            if is_shared(existing, sent_ids):
+            if is_shared(existing):
                 # Others may have used it: mark it deleted instead of removing
                 # it, so campaign references still resolve. Its cover stays for
                 # the same reason; its pending revisions go with it.
@@ -2939,7 +2868,7 @@ def handle(event, context):
                     if conditional_failed(e):
                         return respond(204, {"data": None})
                     raise
-                for rev in revisions_to_discard(scan_all("scenarios"), params["id"], sent_ids):
+                for rev in revisions_to_discard(scan_all("scenarios"), params["id"]):
                     try:
                         table("scenarios").delete_item(
                             Key={"scenarioId": rev["scenarioId"]},
