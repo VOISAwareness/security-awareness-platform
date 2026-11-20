@@ -29,7 +29,7 @@ export const SCENARIO_STEPS = [
   'Scenario Details',
   'Email Details',
   'Attach Outcomes',
-  'Review & Publish',
+  'Review & Save',
 ];
 
 // Session-only state that must never be saved: the raw cover File, and any

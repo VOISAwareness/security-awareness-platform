@@ -5,16 +5,21 @@
  *
  * The rules are the reference API's. `GET /scenarios?viewer=<email>` returns the
  * rows that person may see, each annotated with `ownership`:
- *   template    a fixed template. Everyone may edit it, as a personal copy.
- *   shared      someone else's scenario, shared because a sent campaign used it.
- *               Editing makes a personal copy.
- *   mine        the viewer's own scenario. Private until a campaign using it is
- *               sent; then shared (`isShared`), and edited through a revision.
- *   myCopy      the viewer's edited version of a template / someone else's shared
- *               scenario: a scenario of its own (its own ID), listed beside the
- *               one it was made from, which never changes. Always private.
- *   myRevision  the viewer's pending edit of their own shared scenario, shown to
- *               them instead of it, until a campaign that used it is sent.
+ *   template    a fixed template. Nobody edits it; anyone may Duplicate it.
+ *   shared      someone else's published scenario (published by its creator, or
+ *               used by a sent campaign). Only its creator changes it; anyone
+ *               may Duplicate it.
+ *   mine        the viewer's own scenario. A draft (only they see it) until they
+ *               Publish it or a campaign using it is sent; then shared
+ *               (`isShared`), and edited through a revision.
+ *   myCopy      an older kind of edited version of a template / someone else's
+ *               scenario, with its own ID. Shown as a draft of the viewer's own.
+ *   myRevision  the viewer's unpublished changes to their own published
+ *               scenario, shown to them instead of it until they publish them
+ *               (or a campaign that used them is sent).
+ * Duplicate (duplicatePayload) makes a new draft of the viewer's own with the
+ * same content and no link back: it is untouched when the original changes or
+ * is deleted.
  * An older API sends no annotations, and every row: visibleForViewer applies
  * the same hiding the API would (other people's copies and pending edits,
  * published revisions, what the viewer's own pending edits stand in for), and rows are
@@ -142,22 +147,49 @@ export const DELETE_KINDS = {
   discard: { label: 'Discard changes', confirm: 'Discard your changes?', yes: 'Yes, discard' },
 };
 
+/** What the card's Publish button does. */
+export const PUBLISH_KINDS = {
+  publish: {
+    label: 'Publish',
+    busy: 'Publishing…',
+    hint: 'Make it visible to everyone, who can then use it in their campaigns.',
+  },
+  publishChanges: {
+    label: 'Publish changes',
+    busy: 'Publishing…',
+    hint: 'Put your changes live. Everyone sees the new version from now on.',
+  },
+};
+
+const DRAFT_HINT = 'A draft: only you see it until you publish it.';
+
 /**
  * The card's buttons and badge for this viewer:
- *   { ownership, canEdit, editMode, canDelete, deleteKind, badge, badgeHint }
+ *   { ownership, canEdit, editMode, canDelete, deleteKind, publishKind,
+ *     canDuplicate, badge, badgeHint }
+ * canEdit: the card (and Edit) opens the editor -- the viewer's own rows only;
+ * anyone else's opens its details, where Duplicate makes their own draft.
  * editMode: 'copy' (POST copyOf), 'revision' (POST revisionOf) or 'update' (PUT).
- * deleteKind: a DELETE_KINDS key, or null.
+ * deleteKind: a DELETE_KINDS key, or null. publishKind: a PUBLISH_KINDS key, or null.
  */
 export function cardActions(row, viewer) {
   const ownership = ownershipOf(row, viewer);
-  const base = { ownership, canEdit: true, canDelete: false, deleteKind: null };
+  const base = {
+    ownership,
+    canEdit: true,
+    canDelete: false,
+    deleteKind: null,
+    publishKind: null,
+    canDuplicate: true,
+  };
   switch (ownership) {
     case 'shared':
       return {
         ...base,
+        canEdit: false,
         editMode: 'copy',
-        badge: 'Shared',
-        badgeHint: 'Shared by its creator. Edit makes your own copy, which only you see.',
+        badge: 'Published',
+        badgeHint: 'Published by its creator, who is the only one who can change it. Duplicate makes a draft of your own.',
       };
     case 'mine':
       if (row?.isShared === true) {
@@ -166,9 +198,9 @@ export function cardActions(row, viewer) {
           editMode: 'revision',
           canDelete: true,
           deleteKind: 'deleteShared',
-          badge: 'Shared',
+          badge: 'Published',
           badgeHint:
-            'Everyone can use this: a sent campaign used it. Your edits stay with you until a campaign using them is sent. Deleting it removes it for everyone.',
+            'Everyone can see and use this. Your edits stay with you as unpublished changes until you publish them. Deleting it removes it for everyone.',
         };
       }
       return {
@@ -176,18 +208,20 @@ export function cardActions(row, viewer) {
         editMode: 'update',
         canDelete: true,
         deleteKind: 'delete',
-        badge: 'Only you',
-        badgeHint: 'Only you see this until a campaign using it is sent.',
+        publishKind: 'publish',
+        badge: 'Draft · only you',
+        badgeHint: DRAFT_HINT,
       };
     case 'myCopy':
-      // A scenario of its own: deleting it leaves the original as it is.
+      // A scenario of its own: deleting it leaves the one it came from as it is.
       return {
         ...base,
         editMode: 'update',
         canDelete: true,
         deleteKind: 'delete',
-        badge: row?.copyOf ? `Edited from ${row.copyOf}` : 'Edited version',
-        badgeHint: `Your edited version${row?.copyOf ? ` of ${row.copyOf}` : ''}, with its own ID. The original stays as it is. Only you see this one.`,
+        publishKind: 'publish',
+        badge: 'Draft · only you',
+        badgeHint: DRAFT_HINT,
       };
     case 'myRevision':
       return {
@@ -195,12 +229,46 @@ export function cardActions(row, viewer) {
         editMode: 'update',
         canDelete: true,
         deleteKind: 'discard',
-        badge: 'Your edit — not live yet',
-        badgeHint: `Your edit${standsInFor(row)}. Only you see it until a campaign using it is sent; then it goes live for everyone.`,
+        publishKind: 'publishChanges',
+        badge: 'Unpublished changes',
+        badgeHint: `Your changes${standsInFor(row)}. Everyone else sees the published version until you publish them.`,
       };
     default:
-      return { ...base, editMode: 'copy', badge: '', badgeHint: '' };
+      return { ...base, canEdit: false, editMode: 'copy', badge: '', badgeHint: '' };
   }
+}
+
+// What a duplicate never takes from the row it is made from: who made it, what
+// it was linked to, whether it was published or deleted, and the API's
+// response-only annotations. The API names the duplicate itself.
+const NOT_DUPLICATED = new Set([
+  'scenarioId',
+  'createdBy',
+  'CreatedOn',
+  'copyOf',
+  'revisionOf',
+  'publishedAt',
+  'sharedAt',
+  'sharedBy',
+  'deletedAt',
+  'deletedBy',
+  'ownership',
+  'isShared',
+  'replaces',
+  'coverImageKey',
+]);
+
+/**
+ * The POST /scenarios body for Duplicate: the row's content, same name, as a
+ * new draft of the viewer's own, with no link back to it. The cover is the
+ * stored key (coverImageKey) rather than the list's presigned link.
+ */
+export function duplicatePayload(row, viewer) {
+  const body = Object.fromEntries(
+    Object.entries(row || {}).filter(([field]) => !NOT_DUPLICATED.has(field) && !field.startsWith('_'))
+  );
+  if (row?.coverImageKey) body.CoverImageID = row.coverImageKey;
+  return { ...body, createdBy: identity(viewer) };
 }
 
 /**
@@ -234,11 +302,10 @@ export function nextScenarioId(taken = []) {
 
 /** Who sees the saved result, for the "Saved" message. */
 export function savedAudience(edit) {
-  if (edit?.mode === 'copy' || edit?.ownership === 'myCopy') return 'Only you see this version.';
   if (edit?.mode === 'revision' || edit?.ownership === 'myRevision') {
-    return 'Your change goes live for everyone when a campaign using it is sent.';
+    return 'Everyone else sees the published version until you publish your changes.';
   }
-  return 'Only you see it until a campaign using it is sent.';
+  return 'Only you see it until you publish it.';
 }
 
 /** What saving this edit will do, shown in the editor's header while editing. */
@@ -246,7 +313,9 @@ export function editNote(edit) {
   if (edit?.mode === 'copy') {
     return 'Saving adds this as a new scenario with its own ID. The original stays as it is. Only you see the new one.';
   }
-  if (edit?.mode === 'revision') return 'Shared: your edit stays with you until a campaign using it is sent.';
+  if (edit?.mode === 'revision') {
+    return 'Published: your edits stay with you as unpublished changes until you publish them.';
+  }
   return savedAudience(edit);
 }
 
@@ -317,7 +386,7 @@ export function conflictMessage(existingId) {
  * An edit in progress (an edit draft can be days old) checked against the
  * viewer's list as it is now -> { edit, change, existingId }:
  *   same       nothing that matters changed (edit refreshed: mode, ownership)
- *   nowShared  their own scenario was shared since (a sent campaign used it):
+ *   nowShared  their own scenario was published since:
  *              the edit is now saved as a pending revision
  *   mode       the save mode changed otherwise
  *   replaced   they now have their own version of it (existingId): saving
@@ -346,8 +415,8 @@ export function refreshEdit(edit, rows, viewer) {
 export function refreshNotice({ change, existingId } = {}) {
   if (change === 'nowShared') {
     return (
-      'This scenario has been shared since you started (a sent campaign used it), so saving now keeps ' +
-      'your change with you until a campaign using it is sent.'
+      'This scenario has been published since you started, so saving now keeps your changes with you ' +
+      'as unpublished changes until you publish them.'
     );
   }
   if (change === 'replaced') return conflictMessage(existingId);

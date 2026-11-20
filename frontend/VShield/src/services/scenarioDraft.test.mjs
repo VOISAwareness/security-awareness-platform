@@ -228,7 +228,7 @@ test('draftSummary names the scenario and the saved step', () => {
     },
   );
   assert.equal(draftSummary(buildDraft(blankForm, 3)).name, 'Untitled scenario');
-  assert.equal(draftSummary(buildDraft(blankForm, 3)).stepName, 'Review & Publish');
+  assert.equal(draftSummary(buildDraft(blankForm, 3)).stepName, 'Review & Save');
   // Says how the card shows its cover: an upload framed, catalogue art in the corner.
   const uploaded = { ...blankForm, coverImageSource: 'upload', coverImageKey: 'k', coverImageThumbnail: 'data:image/jpeg;base64,AA' };
   assert.deepEqual(
