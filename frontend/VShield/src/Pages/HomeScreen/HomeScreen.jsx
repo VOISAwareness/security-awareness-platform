@@ -455,7 +455,7 @@ const HomeScreen = () => {
 
       <div
         style={{ zoom: VarHomeScreenScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans"
       >
         <div className="flex flex-col lg:flex-row items-stretch gap-4 w-full">
           

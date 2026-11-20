@@ -210,7 +210,7 @@ const AnnouncementsDetailsAndSettings = () => {
       {/* Screen Shell */}
       <div
         style={{ zoom: VarStartCampaignScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP HEADER BAR: "Start New Campaign"                                */}

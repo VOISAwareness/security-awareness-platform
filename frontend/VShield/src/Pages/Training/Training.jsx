@@ -60,7 +60,7 @@ function TrainingDashboardInner() {
     <>
       <div
         style={{ zoom: VarMySpaceScale }}
-        className={`w-full max-w-[1780px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} ${
+        className={`w-full max-w-[2560px] mx-auto ${VarLmsPagePadding} -mt-2 select-none font-sans flex flex-col ${VarLmsPageGap} ${
           currentView === "reports" || currentView === "hub"
             ? "min-h-[calc(100vh-70px)] h-auto overflow-y-auto overflow-x-hidden pb-12"
             : "h-[calc(104vh-3.5px)] overflow-hidden"
