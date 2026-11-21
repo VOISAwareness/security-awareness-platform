@@ -74,7 +74,7 @@ const ApprovalQueueGallery = ({
       setDetailModalIndex(idx);
     }
   };
-
+  
   const processedItems = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
 
@@ -329,10 +329,8 @@ const ApprovalQueueGallery = ({
 
                   {/* Approve / Reject actions */}
 
-                  {(onApprove || onReject) && (
-                    <div
-                      className={`flex items-center gap-1.5 pt-1.5 mt-0.5 justify-end`}
-                    >
+                  {(onApprove || onNotify || onReject) && (
+                    <div className="flex items-center justify-end gap-1.5 pt-1.5 mt-0.5">
                       {onApprove && (
                         <button
                           type="button"
@@ -346,16 +344,19 @@ const ApprovalQueueGallery = ({
                           Approve
                         </button>
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => onNotify && onNotify(camp)}
-                        className="h-5 px-3.5 rounded-md bg-[#0F172A] hover:bg-black text-white text-[8px] font-voda font-bold tracking-tight uppercase transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
-                      >
-                        <AlertCircle className="w-2.5 h-2.5" />
-                        Notify For Changes
-                      </button>
-
+                      {onNotify && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNotify(item);
+                          }}
+                          className="h-5 px-3.5 rounded-md bg-[#0F172A] hover:bg-black text-white text-[8px] font-voda font-bold tracking-tight uppercase transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
+                        >
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          Notify For Changes
+                        </button>
+                      )}
                       {onReject && (
                         <button
                           type="button"
@@ -365,7 +366,7 @@ const ApprovalQueueGallery = ({
                           }}
                           className="h-5 px-3 rounded-md bg-[#F87171] hover:bg-[#EF4444] text-white text-[8.5px] font-voda font-bold uppercase tracking-wider transition-all shadow-2xs hover:scale-[1.02] active:scale-95 cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap"
                         >
-                          <X className="w-2.5 h-2.5 stroke-[3]" />
+                          <X className="w-2.5 h-2.5 stroke-[2.5]" />
                           Reject
                         </button>
                       )}
@@ -501,6 +502,8 @@ const ApprovalQueueGallery = ({
                   </div>
                 )}
               </div>
+
+              
             </div>
           </div>
         )}

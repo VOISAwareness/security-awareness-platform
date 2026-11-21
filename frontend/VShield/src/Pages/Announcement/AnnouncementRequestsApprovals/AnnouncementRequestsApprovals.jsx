@@ -9,6 +9,7 @@ import ApprovalQueueGallery from "./Components/ApprovalQueueGallery";
 import RequestedQueueGallery from "./Components/RequestedQueueGallery";
 import RejectedPathsGallery from "./Components/RejectedPathsGallery";
 import ApprovedPathsGallery from "./Components/ApprovedPathsGallery";
+import NotifyForChangeWindow from "./Components/NotifyForChangeWindow";
 import { ROLE_MANAGER, APPROVER_KEY } from "./Components/announcementHelpers";
 
 // Assets (same as RequestsAndApprovals.jsx)
@@ -100,6 +101,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   const [rejectReason, setRejectReason] = useState("");
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState("");
+  const [notifyingItem, setNotifyingItem] = useState(null);
 
   const showToast = (m) => {
     setToast(m);
@@ -130,6 +132,19 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
       },
       `"${a.AnnouncementTitle}" approved and published.`,
     );
+  };
+
+  const handleNotifySubmit = (a, message) => {
+    if (!isManager) return; // only managers can request changes
+    updateItem(
+      a,
+      {
+        AnnouncementNotifiedBy: userEmail,
+        AnnouncementNotificationMessage: message,
+      },
+      `Change request sent for "${a.AnnouncementTitle}".`,
+    );
+    setNotifyingItem(null);
   };
 
   const handleRejectOpen = (a) => {
@@ -331,6 +346,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
                   minHeight={VarRightGalleryBaseHeight}
                   onApprove={handleApprove}
                   onReject={handleRejectOpen}
+                  onNotify={(a) => setNotifyingItem(a)}
                 />
               ) : (
                 <RequestedQueueGallery
@@ -431,6 +447,13 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
             </div>
           </div>
         )}
+        <NotifyForChangeWindow
+          key={notifyingItem?.announcementId || "closed"}
+          isOpen={Boolean(notifyingItem)}
+          announcement={notifyingItem}
+          onClose={() => setNotifyingItem(null)}
+          onSubmit={handleNotifySubmit}
+        />
 
         {toast && (
           <div
