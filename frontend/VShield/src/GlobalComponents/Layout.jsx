@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 import TopHeaderSection from './TopHeaderSection';
+import useIsWide from './useIsWide';
+import useLayoutScale from './useLayoutScale';
 import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
 import { ANNOUNCEMENT_STEPS } from '../Pages/Announcement/CreateAnnouncement/AnnouncementConstants';
 
@@ -47,8 +49,19 @@ const Layout = () => {
   const { user, logout, hasAccess, isDark } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
   const location = useLocation();
-  const [isHovered, setIsHovered] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  // Wide windows: the docked sidebar, expanded on hover. Narrower (tablets,
+  // phones): a slide-in menu opened from the header, so pages get the width.
+  const isWide = useIsWide();
+  // The whole app's zoom: 0.9 on a laptop-sized window, more on bigger ones (useLayoutScale.js).
+  const layoutScale = useLayoutScale();
+  // The menu is open only on the page it was opened on, and only while narrow:
+  // following a link (or widening the window) closes it.
+  const [menuOpenOn, setMenuOpenOn] = useState(null);
+  const menuOpen = !isWide && menuOpenOn === location.pathname;
+  const setMenuOpen = (open) => setMenuOpenOn(open ? location.pathname : null);
+  const isHovered = isWide ? hovered : menuOpen; // labels shown
 
   const handleLogout = () => {
     logout();
@@ -125,9 +138,9 @@ const Layout = () => {
   return (
     <div 
       style={{ 
-        zoom: VarLayoutScale,
-        width: `${100 / VarLayoutScale}vw`,
-        height: `${100 / VarLayoutScale}vh`
+        zoom: layoutScale,
+        width: `${100 / layoutScale}vw`,
+        height: `${100 / layoutScale}vh`
       }} 
       className="flex overflow-hidden bg-slate-50 dark:bg-[#030403] relative transition-colors duration-500"
     >
@@ -137,13 +150,39 @@ const Layout = () => {
       {/* ========================================== */}
       {/* BORDERLESS DOCKED SIDEBAR                  */}
       {/* ========================================== */}
+      {/* Narrow windows: the open menu dims the page; a tap outside closes it */}
+      <AnimatePresence>
+        {!isWide && menuOpen && (
+          <motion.div
+            key="menu-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+            className="fixed inset-0 z-[55] bg-black/40"
+          />
+        )}
+      </AnimatePresence>
+
       <motion.aside 
-        initial={{ width: 60 }} 
-        animate={{ width: isHovered ? 220 : 60 }} 
+        id="app-menu"
+        initial={false}
+        animate={
+          isWide
+            ? { width: isHovered ? 220 : 60, x: 0 }
+            : { width: 220, x: menuOpen ? 0 : -240 }
+        }
         transition={TRANSITION_CONFIG}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className="h-full flex flex-col justify-between flex-shrink-0 z-50 bg-white/70 dark:bg-[#05070a]/90 backdrop-blur-2xl border-none shadow-none select-none overflow-hidden"
+        onMouseEnter={isWide ? () => setHovered(true) : undefined}
+        onMouseLeave={isWide ? () => setHovered(false) : undefined}
+        aria-hidden={!isWide && !menuOpen ? true : undefined}
+        className={`h-full flex flex-col justify-between flex-shrink-0 select-none overflow-hidden ${
+          isWide
+            ? 'z-50 bg-white/70 dark:bg-[#05070a]/90 backdrop-blur-2xl border-none shadow-none'
+            : 'fixed left-0 top-0 z-[60] bg-white dark:bg-[#05070a] shadow-2xl'
+        }`}
       >
         <div className="flex flex-col flex-1 min-h-0 pt-2">
           
@@ -289,8 +328,10 @@ const Layout = () => {
       {/* ========================================== */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         <TopHeaderSection 
-          isSidebarExpanded={isHovered} 
+          leftOffset={isWide ? (isHovered ? 220 : 60) : 0}
           isScrolled={isScrolled} 
+          onMenu={isWide ? undefined : () => setMenuOpen(!menuOpen)}
+          menuOpen={menuOpen}
         />
         
         <main 

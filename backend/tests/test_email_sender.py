@@ -292,3 +292,49 @@ def test_the_env_list_skips_the_ses_lookup(mod, monkeypatch):
     monkeypatch.setattr(mod, "SES_ALLOWED_SENDERS", frozenset({"it-desk@example.com"}))
     assert mod.sender_for({"senderEmailId": "it-desk@example.com"}) == "it-desk@example.com"
     assert ses.asked == []
+
+
+# --- a campaign that can't be sent is marked SEND_FAILED, never left APPROVED --
+
+
+@pytest.fixture
+def campaigns(mod, monkeypatch):
+    import boto3
+    from moto import mock_aws
+
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.setenv(name, "testing")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    with mock_aws():
+        db = boto3.resource("dynamodb", region_name="ap-south-1")
+        table = db.create_table(
+            TableName="t-campaigns-send",
+            KeySchema=[{"AttributeName": "campaignId", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "campaignId", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        monkeypatch.setattr(mod, "campaigns_table", table)
+        yield table
+
+
+@pytest.mark.parametrize("campaign, says", [
+    ({"emailBody": "<p>Hello {{phishLink}}</p>", "isTestCampaign": True, "testRecipientEmails": []}, "no recipients"),
+    ({"emailBody": "<p>Hello, no link here</p>", "selectedSingleUserEmail": "a@x.example"}, "no link placeholder"),
+    ({"selectedSingleUserEmail": "a@x.example"}, "no email body"),
+])
+def test_an_unsendable_campaign_fails_with_its_reason(mod, campaigns, campaign, says):
+    campaigns.put_item(Item={"campaignId": "C1", "status": "APPROVED", **campaign})
+    res = mod.lambda_handler({"campaignId": "C1", "source": "campaign-scheduler"}, None)
+    assert res["statusCode"] == 400
+    row = campaigns.get_item(Key={"campaignId": "C1"})["Item"]
+    assert row["status"] == "SEND_FAILED" and says in row["failureReason"] and row["failedAt"]
+
+
+def test_a_campaign_no_longer_approved_is_left_alone(mod, campaigns):
+    campaigns.put_item(Item={"campaignId": "C2", "status": "CANCELLED"})
+    assert mod.lambda_handler({"campaignId": "C2"}, None)["statusCode"] == 409
+    assert campaigns.get_item(Key={"campaignId": "C2"})["Item"]["status"] == "CANCELLED"
+    # refusing a campaign that changed meanwhile doesn't overwrite it
+    res = mod.refuse_send("C2", "Campaign has no recipients.")
+    assert res["statusCode"] == 400 and "campaignStatus" not in res["body"]
+    assert campaigns.get_item(Key={"campaignId": "C2"})["Item"]["status"] == "CANCELLED"

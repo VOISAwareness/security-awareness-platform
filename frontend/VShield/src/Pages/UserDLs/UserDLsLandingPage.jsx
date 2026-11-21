@@ -15,6 +15,7 @@ import { usePeople } from "../../services/people";
 import { api } from "../../services/api";
 import { listUsageCounts, timesUsed } from "../../services/listUsage";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & ADJUSTER CONSTANTS
@@ -287,8 +288,8 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
       {/* ── 🌟 LAYER 1: ORIGINAL SCREEN ROOT (LOCKED NON-SCROLLABLE SHEET) ──────── */}
       {/* ========================================================================= */}
       <div
-        style={{ zoom: VarUserDLsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* Top Header Bar: "Recipients Lists" */}
         <div
@@ -349,11 +350,8 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
               }}
               style={{
                 height: `${VarTopCardHeight}px`,
-                width:
-                  typeof VarBulkUploadButtonSectionWidth === "number"
-                    ? `${VarBulkUploadButtonSectionWidth}px`
-                    : VarBulkUploadButtonSectionWidth,
-                flex: `0 0 ${typeof VarBulkUploadButtonSectionWidth === "number" ? `${VarBulkUploadButtonSectionWidth}px` : VarBulkUploadButtonSectionWidth}`,
+                width: 'auto',
+                flex: '1 1 0', // the two cards share the full width equally
                 transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
               }}
               onMouseEnter={(e) => {
@@ -481,9 +479,9 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                   <button
                     type="button"
                     tabIndex={-1}
-                    className="h-5 px-5 rounded-full bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[10.5px] font-voda font-bold tracking-tight flex items-center justify-center cursor-pointer shadow-xs transition-all pointer-events-none"
+                    className="h-7 px-5 rounded-lg bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[11px] font-voda font-bold tracking-tight flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all pointer-events-none flex-shrink-0"
                   >
-                    Go here
+                    Go here <span aria-hidden="true">→</span>
                   </button>
                 </div>
               </div>
@@ -502,11 +500,8 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
               }}
               style={{
                 height: `${VarTopCardHeight}px`,
-                width:
-                  typeof VarDistributionListButtonSectionWidth === "number"
-                    ? `${VarDistributionListButtonSectionWidth}px`
-                    : VarDistributionListButtonSectionWidth,
-                flex: `0 0 ${typeof VarDistributionListButtonSectionWidth === "number" ? `${VarDistributionListButtonSectionWidth}px` : VarDistributionListButtonSectionWidth}`,
+                width: 'auto',
+                flex: '1 1 0', // the two cards share the full width equally
                 transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
               }}
               onMouseEnter={(e) => {
@@ -625,9 +620,9 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                   <button
                     type="button"
                     tabIndex={-1}
-                    className="h-5 px-5 rounded-full bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[10.5px] font-voda font-bold tracking-tight flex items-center justify-center cursor-pointer shadow-xs transition-all pointer-events-none"
+                    className="h-7 px-5 rounded-lg bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[11px] font-voda font-bold tracking-tight flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all pointer-events-none flex-shrink-0"
                   >
-                    Go here
+                    Go here <span aria-hidden="true">→</span>
                   </button>
                 </div>
               </div>

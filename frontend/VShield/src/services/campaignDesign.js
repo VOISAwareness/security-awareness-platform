@@ -99,5 +99,7 @@ export function toDesignCampaign(campaign, now = new Date()) {
     CancelledBy: campaign.cancelledBy || '',
     CancelledDate: campaign.cancelledAt || null,
     ReasonForCancel: campaign.cancellationReason || '',
+    // Why it could not be sent (email-sender or the scheduler set it).
+    FailureReason: campaign.failureReason || '',
   };
 }

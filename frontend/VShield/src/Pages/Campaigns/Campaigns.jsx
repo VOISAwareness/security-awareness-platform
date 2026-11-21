@@ -24,6 +24,7 @@ import { DEMO_USER } from "../../appConfig";
 import PageLoading from "../../GlobalComponents/PageLoading";
 import CampaignGalleryCard from "./CampaignGalleryCard";
 import ViewAnalyticsModal from "./ViewAnalyticsModal";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -97,7 +98,7 @@ const TAB_CONFIG = {
   cancelled: {
     id: "cancelled",
     title: "Cancelled Campaigns",
-    subtitle: "Campaigns that were scheduled and then cancelled",
+    subtitle: "Cancelled before they ran, or could not be sent: reinvoke one to fix it and send it again",
     counterColor: "#EF4444", // Red
     img: CancelledImg,
   },
@@ -207,9 +208,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
-  // Published campaigns split on their schedule (the derived phase). Drafts,
-  // failed sends and campaigns sent back for changes are under Start New
-  // Campaign -> Drafts; pending, rejected and expired requests live on
+  // Published campaigns split on their schedule (the derived phase). A
+  // campaign that could not be sent (no recipients, no link, start missed)
+  // is listed with the cancelled ones, with its reason and Reinvoke, so it is
+  // never stuck. Drafts and campaigns sent back for changes are under Start
+  // New Campaign -> Drafts; pending, rejected and expired requests live on
   // Requests & Approvals.
   const categorizedCampaigns = useMemo(() => {
     const ongoing = [];
@@ -218,7 +221,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
     const cancelled = [];
 
     campaignsList.forEach((c) => {
-      if (c.CampaignStatus === DESIGN_STATUS.CANCELLED) {
+      if (c.CampaignStatus === DESIGN_STATUS.CANCELLED || c.CampaignStatus === DESIGN_STATUS.FAILED) {
         cancelled.push(c);
       } else if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
         if (c.phase === PHASE.COMPLETED) historical.push(c);
@@ -449,8 +452,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
       {/* 🌟 ROOT CONTAINER */}
       <div
-        style={{ zoom: VarCampaignsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 min-h-[calc(108vh-0px)]"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 h-full"
       >
         {/* ── TOP HEADER BAR: "Campaigns" ── */}
         <div
@@ -472,7 +475,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
             it, and is hidden while loading (it has no card behind it). */}
         <div
           style={{ gap: `${VarSectionGap}px` }}
-          className={`relative grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? "invisible" : ""}`}
+          className={`relative grow min-h-0 w-full flex flex-col lg:flex-row items-start lg:items-stretch ${coverLoading ? "invisible" : ""}`}
         >
           {/* The campaigns are on their way from the server. */}
           <PageLoading show={coverLoading} isDark={isDark} surface="page" />
@@ -775,7 +778,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
             <div
               style={{
                 backgroundColor: lCardBg,
-                height: `${VarRightGalleryBaseHeight}px`,
+                flex: '1 1 0', // fills the column to the foot of the page
+                minHeight: 320,
                 borderBottomLeftRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
                 borderBottomRightRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
               }}

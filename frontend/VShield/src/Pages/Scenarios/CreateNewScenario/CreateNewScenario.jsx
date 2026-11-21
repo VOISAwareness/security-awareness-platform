@@ -59,6 +59,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
 import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import {SCENARIO_STEPS} from './ScenarioConstants';
+import { PAGE_SCALE } from '../../../shared/SharedStyles';
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -95,10 +96,10 @@ const stepIndexFromPath = (path) => {
 // NewScenario's main return, so it no longer carries its own
 // border/rounded-corner/background — only a bottom divider.
 // ============================================================
-const ScenarioTabs = ({ activeTab, onTabChange, editing = false }) => {
+const ScenarioTabs = ({ activeTab, onTabChange }) => {
   const steps = SCENARIO_STEPS.map((step) =>
     step.id === 3
-      ? { ...step, titleLine2: editing ? "Save" : "Publish" }
+      ? { ...step, titleLine2: "Save" }
       : step,
   );
 
@@ -333,6 +334,9 @@ const ScenarioEditor = ({ opening }) => {
   const [saveError, setSaveError] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
+  // What was just saved, for the success pop-up's "Publish now":
+  // { id, kind: 'publish' | 'publishChanges', status: 'idle' | 'busy' | 'done', error }.
+  const [savedForPublish, setSavedForPublish] = useState(null);
   // Saved, but the new cover of a copy / revision could not be added after it.
   const [coverWarning, setCoverWarning] = useState("");
 
@@ -896,12 +900,16 @@ const ScenarioEditor = ({ opening }) => {
         coverImageId = catalogueCoverName(chosen?.image);
       }
 
-      // A new scenario is its author's: private to them until a campaign using
-      // it is sent (client-asserted until sign-in exists; see identity.js).
-      await api.scenarios.create({
+      // A new scenario is its author's: a draft only they see until they
+      // publish it (client-asserted until sign-in exists; see identity.js).
+      const created = await api.scenarios.create({
         ...toStoredScenario(formData, { coverImageId, landingPageId }),
         createdBy: viewer,
       });
+      const createdId = String(created?.scenarioId || formData.scenarioId || "");
+      setSavedForPublish(
+        createdId ? { id: createdId, kind: "publish", status: "idle", error: "" } : null,
+      );
       // Published: the saved draft is done with. Cleared now rather than on
       // "Return to Dashboard", so closing the tab here can't offer it back.
       scenarioDraft.clear();
@@ -1029,7 +1037,31 @@ const ScenarioEditor = ({ opening }) => {
         );
       }
     }
+    // Saved as unpublished changes to a published scenario, or as a draft.
+    const changes = target.mode === "revision" || target.ownership === "myRevision";
+    setSavedForPublish(
+      savedId
+        ? { id: savedId, kind: changes ? "publishChanges" : "publish", status: "idle", error: "" }
+        : null,
+    );
     setPublishSuccessModal(true);
+  };
+
+  // "Publish now" in the success pop-up: the draft for everyone, or the
+  // unpublished changes live (the revision's own id).
+  const publishSaved = async () => {
+    if (!savedForPublish || savedForPublish.status === "busy") return;
+    setSavedForPublish((saved) => ({ ...saved, status: "busy", error: "" }));
+    try {
+      await api.scenarios.publish(savedForPublish.id, viewer);
+      setSavedForPublish((saved) => ({ ...saved, status: "done" }));
+    } catch (error) {
+      setSavedForPublish((saved) => ({
+        ...saved,
+        status: "idle",
+        error: `Saved, but not published: ${error?.message || "please try again"}. You can publish it from its card.`,
+      }));
+    }
   };
 
   return (
@@ -1108,7 +1140,7 @@ const ScenarioEditor = ({ opening }) => {
             tracking-tight
           "
                 >
-                  {edit ? "Saved" : "Campaign Launched!"}
+                  {edit ? "Saved" : "Saved as a draft"}
                 </h3>
 
                 {edit?.mode === "copy" ? (
@@ -1159,12 +1191,10 @@ const ScenarioEditor = ({ opening }) => {
             leading-relaxed
           "
                   >
-                    Your phishing simulation campaign
                     <strong>
-                      {" "}
                       "{formData.scenarioName || "New Scenario"}"
                     </strong>{" "}
-                    has been successfully scheduled and published.
+                    is saved. Only you see it until you publish it.
                   </p>
                 )}
                 {editNotice && (
@@ -1181,6 +1211,34 @@ const ScenarioEditor = ({ opening }) => {
                   </p>
                 )}
               </div>
+
+              {/* Publish now: the draft for everyone, or the changes live */}
+              {savedForPublish && savedForPublish.status !== "done" && (
+                <button
+                  type="button"
+                  onClick={publishSaved}
+                  disabled={savedForPublish.status === "busy"}
+                  className="w-full py-2.5 rounded-xl bg-[#17794a] hover:bg-[#1d8f58] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {savedForPublish.status === "busy"
+                    ? "Publishing…"
+                    : savedForPublish.kind === "publishChanges"
+                      ? "Publish changes now"
+                      : "Publish now"}
+                </button>
+              )}
+              {savedForPublish?.status === "done" && (
+                <p role="status" className="text-[11px] font-semibold text-[#17794a] dark:text-[#5ccb90] leading-snug">
+                  {savedForPublish.kind === "publishChanges"
+                    ? "Published: everyone now sees your changes."
+                    : "Published: everyone can now see it and use it in campaigns."}
+                </p>
+              )}
+              {savedForPublish?.error && (
+                <p role="alert" className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-snug">
+                  {savedForPublish.error}
+                </p>
+              )}
 
               {/* Return Button */}
               <button
@@ -1274,7 +1332,7 @@ const ScenarioEditor = ({ opening }) => {
         style={{
           zoom: VarScenarioScale,
         }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ====================================================
             PAGE HEADER
@@ -1383,7 +1441,6 @@ const ScenarioEditor = ({ opening }) => {
               <ScenarioTabs
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
-                editing={Boolean(edit)}
               />
 
               <div
@@ -1428,7 +1485,7 @@ const ScenarioEditor = ({ opening }) => {
                   />
                 )}
 
-                {/* Review & Publish */}
+                {/* Review & Save */}
                 {activeTab === 3 && (
                   <ReviewPublishDashboard
                     formData={formData}
@@ -1528,12 +1585,10 @@ const ScenarioEditor = ({ opening }) => {
                   >
                     {activeTab === 3
                       ? isPublishing
-                        ? edit
-                          ? "SAVING..."
-                          : "PUBLISHING..."
+                        ? "SAVING..."
                         : edit
                           ? "SAVE CHANGES"
-                          : "PUBLISH"
+                          : "SAVE"
                       : "NEXT"}
                   </button>
                 </div>
@@ -1553,8 +1608,8 @@ const ScenarioEditor = ({ opening }) => {
 // The editor's frame while the draft it opens on is read from the server.
 const OpeningLoading = ({ isDark, editing }) => (
   <div
-    style={{ zoom: VarScenarioScale }}
-    className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
+    style={{ zoom: PAGE_SCALE }}
+    className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans flex flex-col gap-3"
   >
     <div
       className={`w-full h-[38px] px-5 rounded-xl border flex items-center shadow-sm ${

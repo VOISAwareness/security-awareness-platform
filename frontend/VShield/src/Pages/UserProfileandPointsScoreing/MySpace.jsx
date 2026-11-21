@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MySpacePart2 from "./MySpacePart2";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
@@ -35,11 +35,12 @@ import {
   riskColor,
   riskPosition,
 } from "../../services/levels";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
+import useIsWide from '../../GlobalComponents/useIsWide';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarMySpaceScale = 0.94;
 
 // 🌟 GLOBAL CORNER RADIUS SCALE (Reduces roundedness universally by ~2-4px)
 const VarOverallMySpaceRoundednessScale = 0.5;
@@ -128,7 +129,7 @@ const DraggableIdBadge = ({
   }, []);
 
   return (
-    <div className="relative w-full h-[524px] flex flex-col items-center justify-start select-none overflow-visible pt-1">
+    <div className="relative w-full h-[524px] lg:h-full lg:min-h-[470px] flex flex-col items-center justify-start select-none overflow-visible pt-1">
       {/* ── Continuous Lanyard Ribbon (SVG Shifted Down 4px) ── */}
       <svg
         className="absolute top-1 left-0 w-full h-[180px] pointer-events-none z-10 overflow-visible"
@@ -435,8 +436,10 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
     },
   ];
 
+  // A fixed height on wide windows; narrower, the open section's cards stack
+  // and the box grows with them.
   return (
-    <div className="flex flex-col gap-2.5 w-full h-[480px] min-w-0 select-none">
+    <div className="flex flex-col gap-2.5 w-full h-auto lg:h-full lg:min-h-[420px] min-w-0 select-none">
       {sections.map((section, index) => {
         const isActive = index === active;
 
@@ -446,6 +449,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
             layout
             transition={{ duration: 0.45, ease: [0.25, 1, 0.5, 1] }}
             onMouseEnter={() => setActive(index)}
+            onClick={() => setActive(index)}
             className={`relative rounded-[8px] border transition-colors duration-300 overflow-hidden cursor-pointer ${
               isActive
                 ? `flex-1 ${
@@ -660,12 +664,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 
                         {/* Bottom L-Foot with Enhanced Styled Metric Tiles */}
                         <div
-                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between gap-1 transition-colors -mt-px relative z-10 ${
+                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between lg:justify-evenly gap-1 lg:gap-2 transition-colors -mt-px relative z-10 ${
                             isDark ? "bg-[#202127]" : "bg-[#f1f3f7]"
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -687,7 +691,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -709,7 +713,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -729,7 +733,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -749,7 +753,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -831,12 +835,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 
                         {/* Bottom L-Foot with Enhanced Styled Metric Tiles */}
                         <div
-                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between gap-1 transition-colors -mt-px relative z-10 ${
+                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between lg:justify-evenly gap-1 lg:gap-2 transition-colors -mt-px relative z-10 ${
                             isDark ? "bg-[#202127]" : "bg-[#f1f3f7]"
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -858,7 +862,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -880,7 +884,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -902,7 +906,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -922,7 +926,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -998,12 +1002,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 
                         {/* Bottom L-Foot with Enhanced Styled Metric Tiles */}
                         <div
-                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between gap-1 transition-colors -mt-px relative z-10 ${
+                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between lg:justify-evenly gap-1 lg:gap-2 transition-colors -mt-px relative z-10 ${
                             isDark ? "bg-[#202127]" : "bg-[#f1f3f7]"
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1025,7 +1029,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1047,7 +1051,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1069,7 +1073,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1089,7 +1093,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors ${
+                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors lg:flex-1 lg:max-h-[76px] ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1164,9 +1168,46 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 // ==========================================
 // 4. MAIN MY SPACE PAGE COMPONENT
 // ==========================================
+// The first screen of My Space (header, activities, risk score, points and
+// badges, the ID card and the Explore bar) is sized to the visible area, so
+// the Explore bar sits at the foot of the window at any display scaling and
+// the videos start below the fold, as on the landing page. Measured live: the
+// visible area changes with the window, the scaling and the page's own zoom.
+function useFirstScreenHeight(enabled) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    if (!enabled) {
+      el.style.height = "";
+      return undefined;
+    }
+    const main = el.closest("main");
+    const fit = () => {
+      if (!main) return;
+      const box = el.getBoundingClientRect();
+      const zoom = el.offsetWidth ? box.width / el.offsetWidth : 1; // visual px per CSS px
+      const top = box.top - main.getBoundingClientRect().top + main.scrollTop;
+      const available = main.clientHeight * (main.getBoundingClientRect().height / (main.offsetHeight || 1)) - top - 10;
+      el.style.height = `${Math.max(560, available / zoom)}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    if (main) ro.observe(main);
+    window.addEventListener("resize", fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", fit);
+    };
+  }, [enabled]);
+  return ref;
+}
+
 const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
+  const isWide = useIsWide();
+  const firstScreenRef = useFirstScreenHeight(isWide);
   const [showBadges, setShowBadges] = useState(false);
   const openBadges = useCallback(() => setShowBadges(true), []);
   const closeBadges = useCallback(() => setShowBadges(false), []);
@@ -1192,9 +1233,11 @@ const MySpace = () => {
       </AnimatePresence>
 
       <div
-        style={{ zoom: VarMySpaceScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
+        {/* First screen: everything down to the Explore bar fills the window */}
+        <div ref={firstScreenRef} className="w-full flex flex-col gap-3 min-h-0">
         {/* ========================================================================= */}
         {/* ── TOP FULL-WIDTH SECTION BAR: "MY SPACE" ─────────────────────────────── */}
         {/* ========================================================================= */}
@@ -1221,7 +1264,7 @@ const MySpace = () => {
         )}
 
         {/* Main 2-Column Dashboard Grid */}
-        <div className="flex flex-col lg:flex-row items-stretch gap-3.5 w-full">
+        <div className="flex flex-col lg:flex-row items-stretch gap-3.5 w-full lg:flex-1 lg:min-h-0">
           {/* ========================================================================= */}
           {/* ── COLUMN 1 (LEFT): VERTICAL ACCORDION GALLERY ────────────────────────── */}
           {/* ========================================================================= */}
@@ -1253,7 +1296,7 @@ const MySpace = () => {
         {/* ── BOTTOM FULL-WIDTH STATIC EXPLORE BAR ───────────────────────────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full h-[40px] px-5 rounded-xl border flex items-center justify-between transition-colors duration-300 shadow-md -mt-8 select-none ${
+          className={`w-full h-[40px] flex-shrink-0 px-5 rounded-xl border flex items-center justify-between transition-colors duration-300 shadow-md select-none ${
             isDark
               ? "bg-white text-[#0B1121] border-slate-200"
               : "bg-[#06080D] text-white border-black/10"
@@ -1278,6 +1321,7 @@ const MySpace = () => {
               <polyline points="7 12 12 17 17 12" />
             </svg>
           </div>
+        </div>
         </div>
 
         {/* ========================================================================= */}

@@ -187,6 +187,9 @@ locals {
     "POST /scenarios",
     "PUT /scenarios/{id}",
     "DELETE /scenarios/{id}",
+    # The creator shares their draft with everyone, or puts their pending
+    # changes onto their published scenario.
+    "POST /scenarios/{id}/publish",
     # Static path, so it never collides with POST /scenarios.
     "POST /scenarios/cover-upload",
     "GET /landing-pages",

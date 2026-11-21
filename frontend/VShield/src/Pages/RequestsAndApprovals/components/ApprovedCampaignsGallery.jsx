@@ -164,7 +164,7 @@ const ApprovedCampaignsGallery = ({
       <style>{VODAFONE_FONT_STYLE}</style>
 
       {/* 🌟 ROOT INLINE L-SHAPE CONTAINER */}
-      <div className="relative flex flex-col w-full select-none font-sans overflow-x-hidden">
+      <div className="relative flex flex-col w-full select-none font-sans overflow-x-hidden h-full min-h-0">
         {/* ========================================================================= */}
         {/* 🌟 1. TRULY ISOLATED CAPSULE HEADER (TOP-LEFT)                            */}
         {/* ========================================================================= */}
@@ -291,7 +291,7 @@ const ApprovedCampaignsGallery = ({
         <div
           style={{
             backgroundColor: lCardBg,
-            height: `${VarGalleryLowerBaseHeightAdjuster}px`,
+            flex: '1 1 0', minHeight: 320, // fills the column to the foot of the page
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,

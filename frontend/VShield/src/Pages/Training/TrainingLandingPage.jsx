@@ -23,9 +23,9 @@ export const TrainingLandingPage = () => {
   } = useTraining();
 
   return (
-    <div className="flex-1 mb-6 pr-2 custom-light-scrollbar flex flex-col justify-start min-h-0 text-left">
+    <div className="flex-1 pr-2 custom-light-scrollbar flex flex-col justify-start min-h-0 text-left">
       {/* 2x2 Grid of horizontal rectangular cards matching User List (DLs) bento cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6 w-full max-w-none">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6 w-full max-w-none flex-1 auto-rows-fr">
         {/* Card 1: Training Path */}
         <HubClayCard
           onClick={() => {

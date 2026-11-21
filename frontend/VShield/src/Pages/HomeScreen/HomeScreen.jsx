@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -13,15 +13,18 @@ import QuoteCardDark from '../../assets/HomeScreenQuoteCard2DarkMode.png';
 import { DEMO_USER } from '../../appConfig';
 import { useHomeDashboard } from '../../services/useHomeDashboard';
 import { longDate, PERIODS, showRate } from '../../services/homeDashboard';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarHomeScreenScale = 0.9;
 const VarSection2HeightAdjuster = 1.3;
 
 // 🌟 FADED CIRCLES STEP DISC SCALE (1.0 = 100%, 0.85 = 85%, 1.2 = 120%, etc.)
 const VarFadedStepDiscScale = 0.85;
+
+// 🌟 RECTANGLE SLICER WIDTH ADJUSTER (1.0 = 100%, 0.9 = 90%, 1.1 = 110%, etc.)
+const VarRectangleSlicerWidthAdjuster = 0.925;
 
 const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
 
@@ -451,10 +454,10 @@ const HomeScreen = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       <div
-        style={{ zoom: VarHomeScreenScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 -mt-3 select-none font-sans lg:h-full flex flex-col"
       >
-        <div className="flex flex-col lg:flex-row items-stretch gap-4 w-full">
+        <div className="flex flex-col lg:flex-row items-stretch gap-4 w-full lg:flex-1 lg:min-h-0">
           
           {/* ========================================================================= */}
           {/* ── COLUMN 1: LEFT GREETING + UIVERSE 3D ACTION BUTTONS ────────────────── */}
@@ -532,14 +535,14 @@ const HomeScreen = () => {
           {/* ── COLUMN 2: BIG OVERLAY CONTAINER WRAPPING BOTH SECTIONS ─────────────── */}
           {/* ========================================================================= */}
           <div
-            className={`flex-1 rounded-2xl p-4 sm:p-5 border transition-all duration-300 flex flex-col gap-4 min-w-0 min-h-[620px] ${
+            className={`flex-1 rounded-2xl p-4 sm:p-5 border transition-all duration-300 flex flex-col gap-4 min-w-0 min-h-[620px] lg:min-h-0 ${
               isDark
                 ? 'bg-[#15161a] border-white/5 shadow-xl'
                 : 'bg-white border-slate-200 text-slate-900 shadow-sm'
             }`}
           >
             {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* SECTION 1: SECURITY HEALTH PULSE                                          */}
+            {/* SECTION 1: SECURITY HEALTH PULSE                                         */}
             {/* ───────────────────────────────────────────────────────────────────────── */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
@@ -634,7 +637,11 @@ const HomeScreen = () => {
 
                     {/* Period slicer */}
                     <div
-                      className={`flex-1 ml-1.5 px-3 py-2 rounded-[10px] flex items-start justify-between relative transition-colors mb-1.5 select-none ${
+                      style={{
+                        transform: `scaleX(${VarRectangleSlicerWidthAdjuster})`,
+                        transformOrigin: 'left center'
+                      }}
+                      className={`flex-1 ml-1.5 mr-3.5 px-3 py-2 rounded-[10px] flex items-start justify-between relative transition-colors mb-1.5 select-none ${
                         isDark ? 'bg-[#202127]' : 'bg-[#f1f3f7]'
                       }`}
                     >
@@ -720,9 +727,9 @@ const HomeScreen = () => {
             </div>
 
             {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* SECTION 2: LATEST CAMPAIGN                                                */}
+            {/* SECTION 2: LATEST CAMPAIGN (takes the rest of the height)               */}
             {/* ───────────────────────────────────────────────────────────────────────── */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2.5 lg:flex-1 lg:min-h-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-4 rounded-full bg-[#E60000]" />
@@ -747,11 +754,11 @@ const HomeScreen = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch lg:flex-1 lg:min-h-0 lg:[grid-template-rows:minmax(0,1fr)]">
                 
                 {/* ── LEFT COLUMN: CAMPAIGN DETAILS + EMAILS SENT (L-SHAPE) ── */}
-                <div className="lg:col-span-6 flex flex-col justify-between gap-2.5 relative">
-                  <div className="flex flex-col w-full relative">
+                <div className="lg:col-span-6 flex flex-col justify-between gap-2.5 relative lg:min-h-0">
+                  <div className="flex flex-col w-full relative lg:flex-1">
                     
                     {/* Header */}
                     <div
@@ -791,7 +798,7 @@ const HomeScreen = () => {
                     </div>
 
                     {/* Row 1 Metrics */}
-                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 items-stretch relative">
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 items-stretch relative lg:flex-1">
                       <div
                         style={{ minHeight: `${Math.round(62 * VarSection2HeightAdjuster)}px` }}
                         className={`p-3 rounded-b-xl flex flex-col justify-between relative transition-colors ${
@@ -852,7 +859,7 @@ const HomeScreen = () => {
                   </div>
 
                   {/* Row 2 Metrics */}
-                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:flex-1">
                     <div
                       style={{ minHeight: `${Math.round(62 * VarSection2HeightAdjuster)}px` }}
                       className={`p-3 rounded-xl border flex flex-col justify-between transition-colors ${
@@ -904,7 +911,7 @@ const HomeScreen = () => {
                 </div>
 
                 {/* ── RIGHT COLUMN: TARGET LOCATIONS + WORLD MAP (ZERO-GAP L-SHAPE) ── */}
-                <div className="lg:col-span-6 w-full relative flex flex-col justify-start">
+                <div className="lg:col-span-6 w-full relative flex flex-col justify-start lg:min-h-0">
                   
                   {/* Standalone Overall Hook Rate Card */}
                   <div
@@ -960,7 +967,7 @@ const HomeScreen = () => {
                   </div>
 
                   {/* L-Shape Continuous Body */}
-                  <div className="flex flex-col gap-0 w-full relative">
+                  <div className="flex flex-col gap-0 w-full relative lg:flex-1 lg:min-h-0">
                     
                     {/* Head */}
                     <div
@@ -1013,7 +1020,7 @@ const HomeScreen = () => {
                     {/* World Map Foot */}
                     <div
                       style={{ height: `${Math.round(120 * VarSection2HeightAdjuster)}px` }}
-                      className={`w-full p-2 rounded-b-xl rounded-tr-xl overflow-hidden [mask-image:linear-gradient(white,white)] relative flex items-center justify-center -mt-px transition-all z-0 ${
+                      className={`w-full p-2 rounded-b-xl rounded-tr-xl overflow-hidden [mask-image:linear-gradient(white,white)] relative flex items-center justify-center -mt-px transition-all z-0 lg:flex-1 lg:min-h-0 [&>svg]:max-h-full ${
                         isDark ? 'bg-[#202127]' : 'bg-[#f1f3f7]'
                       }`}
                     >
@@ -1026,7 +1033,7 @@ const HomeScreen = () => {
                         style={{ 
                           width: "100%", 
                           height: "100%", 
-                          borderRadius: "12px 12px 12px 12px",
+                          borderRadius: "12px 12px 12px 12px", 
                           overflow: "hidden" 
                         }}
                       >

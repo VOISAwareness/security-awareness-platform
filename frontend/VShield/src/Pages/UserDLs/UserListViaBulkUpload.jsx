@@ -18,6 +18,7 @@ import CSVIcon from "../../assets/UserListScreenAssets/CSVIconUserListsScreen.pn
 import { api } from "../../services/api";
 import { DEMO_USER } from "../../appConfig";
 import { usePeople } from "../../services/people";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -499,8 +500,8 @@ const UserListViaBulkUpload = () => {
       {/* ── 🌟 LAYER 1: ORIGINAL SCREEN ROOT (LOCKED NON-SCROLLABLE SHEET) ──────── */}
       {/* ========================================================================= */}
       <div
-        style={{ zoom: VarUserDLsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* Top Header Bar: Clean Title (No Left Arrow) */}
         <div

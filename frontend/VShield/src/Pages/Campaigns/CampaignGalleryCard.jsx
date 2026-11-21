@@ -130,9 +130,9 @@ const CampaignGalleryCard = ({
           {tab === "cancelled" ? (
             <p className="text-[10px] font-medium text-slate-700 dark:text-slate-300 leading-snug mt-1 max-w-xl line-clamp-2">
               <strong className="font-bold text-slate-900 dark:text-white">
-                Reason for cancelling:{" "}
+                {camp.FailureReason && !camp.ReasonForCancel ? "Couldn't be sent: " : "Reason for cancelling: "}
               </strong>
-              {camp.ReasonForCancel || "No reason given"}
+              {(camp.FailureReason && !camp.ReasonForCancel ? camp.FailureReason : camp.ReasonForCancel) || "No reason given"}
             </p>
           ) : (
             camp.CampaignDescription && (

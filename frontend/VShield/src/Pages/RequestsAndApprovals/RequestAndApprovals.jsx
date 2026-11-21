@@ -30,6 +30,7 @@ import MegaphoneImg from "../../assets/RequestAndApprovalsAssets/NotifyForChange
 import ExpiredImg from "../../assets/RequestAndApprovalsAssets/ExpiredCampaignsBeforeApproval.png";
 import MyApprovedImg from "../../assets/RequestAndApprovalsAssets/MyApprovedCampaignsImage.png";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -138,7 +139,14 @@ const RequestAndApprovals = () => {
       await fn();
       return true;
     } catch (e) {
-      setActionError(e?.message || fallbackMessage);
+      // "Campaign is not ready to approve" comes with what is missing:
+      // show it, so the approver can send it back for those changes.
+      const problems = Array.isArray(e?.problems) ? e.problems.filter(Boolean) : [];
+      setActionError(
+        problems.length
+          ? `${e.message}: ${problems.join("; ")}. Send it back with "Reject with notification" so the creator can fix it.`
+          : e?.message || fallbackMessage,
+      );
       return false;
     }
   };
@@ -316,8 +324,8 @@ const RequestAndApprovals = () => {
 
       {/* 🌟 ROOT CONTAINER */}
       <div
-        style={{ zoom: VarRequestsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 h-full"
       >
         {/* ── TOP HEADER STRIP ── */}
         <div
@@ -339,7 +347,7 @@ const RequestAndApprovals = () => {
             it, and is hidden while loading (it has no card behind it). */}
         <div
           style={{ gap: `${VarSectionGap}px` }}
-          className={`relative min-h-0 grow w-full flex flex-col lg:flex-row items-start ${coverLoading ? "invisible" : ""}`}
+          className={`relative min-h-0 grow w-full flex flex-col lg:flex-row items-start lg:items-stretch ${coverLoading ? "invisible" : ""}`}
         >
           {/* The campaigns are on their way from the server. */}
           <PageLoading show={coverLoading} isDark={isDark} surface="page" />

@@ -39,32 +39,33 @@ def sc(sid, by=None, **fields):
 
 
 # A small world for the visibility matrix.
-#   T1, T2 templates;  A1 alice private;  A2 alice shared + her pending revision A2R;
-#   A3 alice shared, revision A3R already published;  B1 bob shared;  B2 bob private
-#   (legacy mixed-case createdBy);  BC1 bob's copy of T1 (sent, still private);
+#   T1, T2 templates;  A1 alice private;  A2 alice published + her pending revision A2R;
+#   A3 alice published, revision A3R already published;  B1 bob published;  B2 bob
+#   private (legacy mixed-case createdBy);  BC1 bob's copy of T1 (sent, still private);
 #   BC2 bob's copy of alice's A2;  CC1 carol's copy of bob's B1.
 WORLD = [
     sc("T1"),
     sc("T2"),
     sc("A1", ALICE),
-    sc("A2", ALICE),
+    sc("A2", ALICE, sharedAt="2026-10-01T00:00:00+00:00", sharedBy=ALICE),
     sc("A2R", ALICE, revisionOf="A2"),
-    sc("A3", ALICE),
+    sc("A3", ALICE, sharedAt="2026-10-01T00:00:00+00:00", sharedBy=ALICE),
     sc("A3R", ALICE, revisionOf="A3", publishedAt="2026-10-01T00:00:00+00:00"),
-    sc("B1", BOB),
+    sc("B1", BOB, sharedAt="2026-10-01T00:00:00+00:00", sharedBy=BOB),
     sc("B2", "Bob@X.com"),
     sc("BC1", BOB, copyOf="T1"),
     sc("BC2", BOB, copyOf="A2"),
     sc("CC1", CAROL, copyOf="B1"),
 ]
-SENT = {"A2", "A3", "A3R", "B1", "BC1"}
+# What campaigns (sent ones among them) used: never what makes a row shared.
+SENT = {"A1", "A2", "A3", "A3R", "B1", "BC1"}
 
 
-def view(mod, viewer, rows=WORLD, sent=SENT):
-    return {r["scenarioId"]: r for r in mod.visible_scenarios(rows, sent, viewer)}
+def view(mod, viewer, rows=WORLD):
+    return {r["scenarioId"]: r for r in mod.visible_scenarios(rows, viewer)}
 
 
-# --- parse_identity / sent_scenario_ids -----------------------------------
+# --- parse_identity / campaign references -------------------------------
 
 
 def test_parse_identity_trims_and_lowercases(mod):
@@ -74,21 +75,6 @@ def test_parse_identity_trims_and_lowercases(mod):
 @pytest.mark.parametrize("value", [None, "", "   ", 42, ["a@x.com"], {"a": 1}])
 def test_parse_identity_is_empty_for_missing_or_odd_values(mod, value):
     assert mod.parse_identity(value) == ""
-
-
-def test_sent_scenario_ids_reads_current_and_legacy_rows(mod):
-    rows = [
-        {"status": "SENT", "scenarioId": "SC-1"},
-        {"status": "sent", "scenarioId": "SC-2"},
-        {"CampaignStatus": "Sent", "ScenarioID": "SC-3"},
-        {"status": "SENDING", "scenarioId": "SC-4"},
-        {"status": "DRAFT", "scenarioId": "SC-5"},
-        {"status": "APPROVED", "ScenarioID": "SC-6"},
-        {"status": "SENT"},
-        {"status": "SENT", "scenarioId": ""},
-        {"scenarioId": "SC-7"},
-    ]
-    assert mod.sent_scenario_ids(rows) == {"SC-1", "SC-2", "SC-3"}
 
 
 def test_scenario_kind(mod):
@@ -171,7 +157,7 @@ def test_viewer_is_compared_case_insensitively(mod):
 
 def test_every_row_is_annotated_and_inputs_are_untouched(mod):
     rows = [dict(r) for r in WORLD]
-    for row in mod.visible_scenarios(rows, SENT, ALICE):
+    for row in mod.visible_scenarios(rows, ALICE):
         assert {"ownership", "isShared", "replaces"} <= set(row)
         if row["ownership"] != "myRevision":
             assert row["replaces"] is None
@@ -181,20 +167,21 @@ def test_every_row_is_annotated_and_inputs_are_untouched(mod):
 def test_copy_of_own_scenario_does_not_hide_it(mod):
     """Bad data (the API refuses such a POST) must not make a row vanish."""
     rows = [sc("A1", ALICE), sc("X", ALICE, copyOf="A1")]
-    assert set(view(mod, ALICE, rows, {"A1"})) == {"A1", "X"}
+    assert set(view(mod, ALICE, rows)) == {"A1", "X"}
 
 
-def test_unshared_scenario_becomes_visible_once_sent(mod):
-    rows = [sc("A1", ALICE)]
-    assert view(mod, BOB, rows, set()) == {}
-    assert view(mod, BOB, rows, {"A1"})["A1"]["ownership"] == "shared"
+def test_a_sent_campaign_never_publishes_a_draft(mod):
+    """A1 and BC1 were used by sent campaigns (SENT): still private."""
+    assert "A1" not in view(mod, BOB) and "BC1" not in view(mod, ALICE)
+    assert view(mod, ALICE)["A1"]["isShared"] is False
+    assert not mod.is_shared(sc("A1", ALICE))
 
 
-# --- publishable_revisions --------------------------------------------------
+# --- merged_revision ------------------------------------------------------
 
 
-def test_sent_revision_by_the_owner_is_publishable(mod):
-    original = sc("A2", ALICE, CreatedOn="1-Jan-26", CoverImageID="uploads/scenario-covers/A2/a.png")
+def test_a_published_revision_brings_its_content_not_its_identity(mod):
+    original = sc("A2", ALICE, CreatedOn="1-Jan-26", CoverImageID="uploads/scenario-covers/A2/a.png", sharedAt="x", sharedBy=ALICE)
     rev = sc(
         "A2R",
         ALICE,
@@ -205,46 +192,16 @@ def test_sent_revision_by_the_owner_is_publishable(mod):
         ownership="myRevision",
         coverImageKey="uploads/x",
     )
-    [(r, o, merged)] = mod.publishable_revisions([original, rev], {"A2R"})
-    assert r is rev and o is original
+    merged = mod.merged_revision(rev, original)
     assert merged["scenarioId"] == "A2"
     assert merged["createdBy"] == ALICE
     assert merged["CreatedOn"] == "1-Jan-26"
+    assert (merged["sharedAt"], merged["sharedBy"]) == ("x", ALICE)
     assert merged["scenarioName"] == "Better name"
     assert merged["emailBody"] == "<p>A2R</p>"
     assert merged["CoverImageID"] == "uploads/scenario-covers/A2R/b.png"
     for field in ("revisionOf", "publishedAt", "copyOf", "ownership", "coverImageKey"):
         assert field not in merged
-
-
-def test_unsent_revision_is_not_published(mod):
-    assert mod.publishable_revisions([sc("A2", ALICE), sc("R", ALICE, revisionOf="A2")], {"A2"}) == []
-
-
-def test_already_published_revision_is_not_picked_again(mod):
-    rows = [sc("A2", ALICE), sc("R", ALICE, revisionOf="A2", publishedAt="2026-10-01")]
-    assert mod.publishable_revisions(rows, {"R"}) == []
-
-
-def test_revision_by_someone_else_is_never_published(mod):
-    rows = [sc("A2", ALICE), sc("R", BOB, revisionOf="A2")]
-    assert mod.publishable_revisions(rows, {"R"}) == []
-
-
-def test_revision_owner_is_compared_case_insensitively(mod):
-    rows = [sc("A2", "Alice@X.com"), sc("R", ALICE, revisionOf="A2")]
-    assert len(mod.publishable_revisions(rows, {"R"})) == 1
-
-
-def test_revision_of_a_missing_or_non_own_row_is_not_published(mod):
-    assert mod.publishable_revisions([sc("R", ALICE, revisionOf="GONE")], {"R"}) == []
-    rows = [sc("T1"), sc("R", ALICE, revisionOf="T1")]
-    assert mod.publishable_revisions(rows, {"R"}) == []
-
-
-def test_copies_are_never_published(mod):
-    rows = [sc("T1"), sc("C", ALICE, copyOf="T1")]
-    assert mod.publishable_revisions(rows, {"C"}) == []
 
 
 # --- cover keys ---------------------------------------------------------------
@@ -372,9 +329,8 @@ def refusal(resp):
     return None if resp is None else (resp["statusCode"], json.loads(resp["body"])["error"])
 
 
-def create(mod, rows=WORLD, sent=SENT, referenced=None, **body):
-    referenced = sent | {"A1"} if referenced is None else referenced
-    return refusal(mod.create_refusal(mod.clean_scenario_input(body), rows, referenced, sent))
+def create(mod, rows=WORLD, referenced=SENT, **body):
+    return refusal(mod.create_refusal(mod.clean_scenario_input(body), rows, referenced))
 
 
 def test_plain_create_without_a_reused_id_is_fine(mod):
@@ -477,21 +433,20 @@ def test_a_published_revision_does_not_block_the_next_one(mod):
     assert create(mod, createdBy=ALICE, revisionOf="A3") is None
 
 
-def test_a_sent_but_unstamped_revision_does_not_block_the_next_one(mod):
-    """No list has run since A2R's campaign was sent: it is frozen (PUT 409)
-    and about to be published, so a new revision must be allowed."""
-    assert create(mod, sent=SENT | {"A2R"}, createdBy=ALICE, revisionOf="A2") is None
+def test_a_revision_a_sent_campaign_used_still_blocks_a_second_one(mod):
+    """Sending a campaign never publishes A2R: it is still the pending one."""
+    status, error = create(mod, referenced=SENT | {"A2R"}, createdBy=ALICE, revisionOf="A2")
+    assert status == 409 and error["existingId"] == "A2R"
 
 
-def test_a_sent_copy_does_not_block_another_either(mod):
-    """BC1 was used by a sent campaign; copies are still never published."""
-    assert create(mod, sent=SENT | {"BC1"}, createdBy=BOB, copyOf="T1") is None
+def test_a_sent_copy_does_not_block_another(mod):
+    assert create(mod, createdBy=BOB, copyOf="T1") is None
 
 
 # --- campaign references / id sequence -----------------------------------------
 
 
-def test_campaign_scenario_refs_splits_referenced_and_sent(mod):
+def test_campaign_scenario_refs_reads_every_status_and_legacy_rows(mod):
     rows = [
         {"status": "SENT", "scenarioId": "SC-1"},
         {"CampaignStatus": "sent", "ScenarioID": "SC-2"},
@@ -501,9 +456,7 @@ def test_campaign_scenario_refs_splits_referenced_and_sent(mod):
         {"scenarioId": "SC-7"},
         {"status": "SENT", "scenarioId": ""},
     ]
-    referenced, sent = mod.campaign_scenario_refs(rows)
-    assert referenced == {"SC-1", "SC-2", "SC-3", "SC-4", "SC-5", "SC-6", "SC-7"}
-    assert sent == {"SC-1", "SC-2"}
+    assert mod.campaign_scenario_refs(rows) == {"SC-1", "SC-2", "SC-3", "SC-4", "SC-5", "SC-6", "SC-7"}
 
 
 def test_next_scenario_id_never_reissues_an_id_a_campaign_used(mod):
@@ -514,32 +467,12 @@ def test_next_scenario_id_never_reissues_an_id_a_campaign_used(mod):
     assert mod.next_scenario_id([], {"SC-009"}) == "SC-010"
 
 
-def test_publish_order_is_oldest_first_past_999(mod):
-    rows = [
-        sc("SC-001", ALICE),
-        sc("SC-1000", ALICE, revisionOf="SC-001"),
-        sc("SC-999", ALICE, revisionOf="SC-001"),
-    ]
-    plan = mod.publishable_revisions(rows, {"SC-999", "SC-1000"})
-    assert [rev["scenarioId"] for rev, _, _ in plan] == ["SC-999", "SC-1000"]
-
-
-def test_only_the_sent_one_of_two_revisions_is_published(mod):
-    rows = [
-        sc("SC-001", ALICE),
-        sc("SC-002", ALICE, revisionOf="SC-001", scenarioName="sent"),
-        sc("SC-003", ALICE, revisionOf="SC-001", scenarioName="pending"),
-    ]
-    [(rev, _, merged)] = mod.publishable_revisions(rows, {"SC-001", "SC-002"})
-    assert rev["scenarioId"] == "SC-002" and merged["scenarioName"] == "sent"
-
-
 # --- modify_refusal (PUT / DELETE) --------------------------------------------
 
 
-def modify(mod, sid, actor, action, rows=WORLD, sent=SENT):
+def modify(mod, sid, actor, action, rows=WORLD):
     row = next(r for r in rows if r["scenarioId"] == sid)
-    return refusal(mod.modify_refusal(row, actor, sent, action))
+    return refusal(mod.modify_refusal(row, actor, action))
 
 
 @pytest.mark.parametrize("action", ["edit", "delete"])
@@ -589,31 +522,26 @@ DELETED_B1 = [
 
 @pytest.mark.parametrize("viewer", [ALICE, BOB, CAROL])
 def test_deleted_scenarios_and_their_pending_revisions_are_hidden(mod, viewer):
-    ids = {r["scenarioId"] for r in mod.visible_scenarios(DELETED_B1, SENT, viewer)}
+    ids = {r["scenarioId"] for r in mod.visible_scenarios(DELETED_B1, viewer)}
     assert "B1" not in ids and "B1R" not in ids
 
 
 def test_copies_of_a_deleted_scenario_stay_with_their_owner(mod):
-    rows = {r["scenarioId"]: r for r in mod.visible_scenarios(DELETED_B1, SENT, CAROL)}
+    rows = {r["scenarioId"]: r for r in mod.visible_scenarios(DELETED_B1, CAROL)}
     assert rows["CC1"]["ownership"] == "myCopy"
-
-
-def test_a_revision_of_a_deleted_scenario_is_never_published(mod):
-    assert mod.publishable_revisions(DELETED_B1, SENT | {"B1R"}) == []
 
 
 @pytest.mark.parametrize("link", ["copyOf", "revisionOf"])
 def test_a_deleted_scenario_cannot_be_copied_or_revised(mod, link):
     item = mod.clean_scenario_input({"scenarioName": "x", "createdBy": CAROL if link == "copyOf" else BOB, link: "B1"})
-    status, _ = refusal(mod.create_refusal(item, DELETED_B1, set(), SENT))
+    status, _ = refusal(mod.create_refusal(item, DELETED_B1, set()))
     assert status == 400
 
 
 def test_revisions_discarded_with_a_deleted_scenario(mod):
-    rows = WORLD + [sc("A2S", ALICE, revisionOf="A2")]
-    ids = [r["scenarioId"] for r in mod.revisions_to_discard(rows, "A2", SENT | {"A2S"})]
-    assert ids == ["A2R"], "the sent one stays for campaign history"
-    assert mod.revisions_to_discard(WORLD, "A3", SENT) == [], "published revisions stay"
+    ids = [r["scenarioId"] for r in mod.revisions_to_discard(WORLD, "A2")]
+    assert ids == ["A2R"]
+    assert mod.revisions_to_discard(WORLD, "A3") == [], "published revisions stay"
 
 
 def test_the_deleted_mark_is_never_taken_from_a_body(mod):
@@ -633,11 +561,6 @@ def test_deleted_scenario_keeps_identity_and_marks_who(mod):
 def test_published_revision_is_409(mod, action):
     status, error = modify(mod, "A3R", ALICE, action)
     assert status == 409 and "campaign history" in error["message"]
-
-
-@pytest.mark.parametrize("action", ["edit", "delete"])
-def test_revision_sent_but_not_yet_published_is_409(mod, action):
-    assert modify(mod, "A2R", ALICE, action, sent=SENT | {"A2R"})[0] == 409
 
 
 # --- handler wiring, with in-memory tables ------------------------------------
@@ -685,9 +608,15 @@ class FakeTable:
 
     def update_item(self, Key, ExpressionAttributeValues, **kwargs):
         _check({**kwargs, "ExpressionAttributeValues": ExpressionAttributeValues}, self.rows.get(Key[self.key]))
-        assert kwargs["UpdateExpression"] == "SET publishedAt = :at"
+        row, vals, expr = self.rows[Key[self.key]], ExpressionAttributeValues, kwargs["UpdateExpression"]
         self.writes.append(("update", Key[self.key]))
-        self.rows[Key[self.key]]["publishedAt"] = ExpressionAttributeValues[":at"]
+        if expr == "SET publishedAt = :at":
+            row["publishedAt"] = vals[":at"]
+            return
+        assert expr in ("SET sharedAt = :at, sharedBy = :by", "SET sharedAt = :at, sharedBy = :by REMOVE copyOf")
+        row.update(sharedAt=vals[":at"], sharedBy=vals[":by"])
+        if expr.endswith("REMOVE copyOf"):
+            row.pop("copyOf", None)
 
     def delete_item(self, Key, **kwargs):
         _check(kwargs, self.rows.get(Key[self.key]))
@@ -748,44 +677,15 @@ def test_list_with_viewer_filters_and_annotates(mod, world):
         "B2": "mine",
     }
     assert body["count"] == 8
-    assert world["campaigns"].scans == 1
+    assert world["campaigns"].scans == 0, "campaigns never make a scenario shared"
 
 
-def test_list_publishes_a_sent_revision_once(mod, world, monkeypatch):
+def test_listing_never_publishes_a_revision_a_sent_campaign_used(mod, world):
     world["campaigns"].rows["c-A2R"] = {"campaignId": "c-A2R", "status": "SENT", "scenarioId": "A2R"}
-    world["scenarios"].rows["A2R"]["scenarioName"] = "Revised"
-
     _, body = call(mod, "GET /scenarios", query={"viewer": ALICE})
     seen = {r["scenarioId"]: r for r in body["data"]}
-    assert "A2R" not in seen, "published revisions are hidden"
-    assert seen["A2"]["scenarioName"] == "Revised"
-    assert (seen["A2"]["ownership"], seen["A2"]["isShared"]) == ("mine", True)
-    assert world["scenarios"].writes == [("put", "A2"), ("update", "A2R")]
-    stored = world["scenarios"].rows
-    assert stored["A2"]["scenarioName"] == "Revised"
-    assert stored["A2"]["scenarioId"] == "A2" and "revisionOf" not in stored["A2"]
-    assert stored["A2R"]["publishedAt"]
-
-    # Idempotent: the next list (by anyone) writes nothing more.
-    _, again = call(mod, "GET /scenarios", query={"viewer": BOB})
-    assert world["scenarios"].writes == [("put", "A2"), ("update", "A2R")]
-    bc2 = {r["scenarioId"]: r for r in again["data"]}["BC2"]
-    assert (bc2["copyOf"], bc2["replaces"]) == ("A2", None)
-
-
-def test_list_survives_a_failed_publish(mod, world):
-    """The original's owner changed under us: skip, and still list."""
-    world["campaigns"].rows["c-A2R"] = {"campaignId": "c-A2R", "status": "SENT", "scenarioId": "A2R"}
-    real_put = world["scenarios"].put_item
-
-    def racing_put(Item, **kwargs):
-        world["scenarios"].rows["A2"]["createdBy"] = "someone@else.com"
-        return real_put(Item, **kwargs)
-
-    world["scenarios"].put_item = racing_put
-    status, body = call(mod, "GET /scenarios", query={"viewer": ALICE})
-    assert status == 200
-    assert "A2R" in {r["scenarioId"] for r in body["data"]}
+    assert seen["A2R"]["ownership"] == "myRevision" and "A2" not in seen
+    assert world["scenarios"].writes == []
     assert "publishedAt" not in world["scenarios"].rows["A2R"]
 
 
@@ -1006,14 +906,14 @@ def test_delete_of_a_missing_row_is_204_and_touches_nothing(mod, world, monkeypa
     assert cleaned == [] and world["scenarios"].writes == []
 
 
-# --- ids are never reissued: "sent" is tracked by id ----------------------------
+# --- ids are never reissued: campaigns name their scenario by id ----------------
 
 
 @pytest.fixture
 def sc_world(mod, monkeypatch):
-    """SC-001 is alice's shared scenario; SC-002 is bob's copy of TPL, sent."""
+    """SC-001 is alice's published scenario; SC-002 is bob's copy of TPL, sent."""
     tables = {
-        "scenarios": FakeTable([sc("TPL"), sc("SC-001", ALICE), sc("SC-002", BOB, copyOf="TPL")]),
+        "scenarios": FakeTable([sc("TPL"), sc("SC-001", ALICE, sharedAt="x", sharedBy=ALICE), sc("SC-002", BOB, copyOf="TPL")]),
         "campaigns": FakeTable(
             [
                 {"campaignId": "c1", "status": "SENT", "scenarioId": "SC-001"},
@@ -1029,8 +929,8 @@ def sc_world(mod, monkeypatch):
 
 def test_deleted_sent_copy_id_is_not_reissued_to_a_revision(mod, sc_world):
     """Tester's repro: "Reset to original" deletes bob's sent copy (allowed --
-    campaigns keep their own content), then alice revises her shared scenario.
-    Reusing SC-002 would publish her unreviewed edit and freeze it."""
+    campaigns keep their own content), then alice revises her published
+    scenario. Reusing SC-002 would attach the old campaign to her edit."""
     assert call(mod, "DELETE /scenarios/{id}", "SC-002", query={"actor": BOB})[0] == 204
 
     status, body = call(
@@ -1066,27 +966,160 @@ def test_typed_id_an_old_campaign_used_is_409(mod, sc_world):
     assert "SC-002" not in sc_world["scenarios"].rows
 
 
-def test_sent_unstamped_revision_does_not_block_the_next_edit(mod, sc_world):
-    """Alice's first revision SC-002 went out in a campaign, but nobody has
-    listed since, so it isn't stamped. Her next edit must still work, and the
-    next list publishes the sent one while the new one stays pending."""
+def test_a_revision_a_sent_campaign_used_stays_pending_and_editable(mod, sc_world):
+    """Alice's revision SC-002 went out in a campaign (c2): that publishes
+    nothing. It is still her pending edit, which she may change; only
+    Publish changes puts it live."""
     rows = sc_world["scenarios"].rows
     rows["SC-002"] = sc("SC-002", ALICE, revisionOf="SC-001", scenarioName="first edit")
 
-    assert call(mod, "PUT /scenarios/{id}", "SC-002", body={"actor": ALICE})[0] == 409
-    status, body = call(
-        mod, "POST /scenarios", body={"scenarioName": "second edit", "createdBy": ALICE, "revisionOf": "SC-001"}
-    )
-    assert status == 201 and body["data"]["scenarioId"] == "SC-003"
-
-    _, listed = call(mod, "GET /scenarios", query={"viewer": ALICE})
-    seen = {r["scenarioId"]: r for r in listed["data"]}
-    assert "SC-001" not in seen and "SC-002" not in seen
-    assert (seen["SC-003"]["ownership"], seen["SC-003"]["replaces"]) == ("myRevision", "SC-001")
-    assert rows["SC-001"]["scenarioName"] == "first edit"
-    assert rows["SC-002"]["publishedAt"] and "publishedAt" not in rows["SC-003"]
-
+    assert call(mod, "PUT /scenarios/{id}", "SC-002", body={"actor": ALICE, "scenarioName": "better"})[0] == 200
     _, others = call(mod, "GET /scenarios", query={"viewer": CAROL})
-    shared = {r["scenarioId"]: r for r in others["data"]}["SC-001"]
-    assert (shared["ownership"], shared["scenarioName"]) == ("shared", "first edit")
-    assert call(mod, "PUT /scenarios/{id}", "SC-003", body={"actor": ALICE, "scenarioName": "x"})[0] == 200
+    assert {r["scenarioId"]: r for r in others["data"]}["SC-001"]["scenarioName"] == "name SC-001"
+    assert "publishedAt" not in rows["SC-002"]
+
+    assert call(mod, "POST /scenarios/{id}/publish", "SC-002", {"actor": ALICE})[0] == 200
+    _, others = call(mod, "GET /scenarios", query={"viewer": CAROL})
+    assert {r["scenarioId"]: r for r in others["data"]}["SC-001"]["scenarioName"] == "better"
+
+
+# --- publishing (POST /scenarios/{id}/publish) --------------------------------
+
+
+def test_a_published_draft_is_shared_with_everyone(mod):
+    rows = [*WORLD[:2], sc("A1", ALICE, sharedAt="2026-11-20T00:00:00+00:00", sharedBy=ALICE), *WORLD[3:]]
+    assert mod.is_shared(rows[2])
+    assert (view(mod, BOB, rows)["A1"]["ownership"], view(mod, BOB, rows)["A1"]["isShared"]) == ("shared", True)
+    assert view(mod, ALICE, rows)["A1"]["isShared"] is True
+
+
+def test_share_mark_only_counts_on_own_rows(mod):
+    assert not mod.is_shared(sc("C", BOB, copyOf="T1", sharedAt="x"))
+    assert not mod.is_shared(sc("T", sharedAt="x"))
+
+
+def test_the_share_mark_is_never_taken_from_a_body(mod):
+    item = mod.clean_scenario_input({"scenarioName": "x", "createdBy": ALICE, "sharedAt": "x", "sharedBy": BOB})
+    assert "sharedAt" not in item and "sharedBy" not in item
+    merged = mod.scenario_update(sc("A1", ALICE), {"sharedAt": "x", "sharedBy": BOB})
+    assert "sharedAt" not in merged and "sharedBy" not in merged
+
+
+def test_a_published_draft_is_edited_through_a_revision(mod):
+    rows = [sc("A1", ALICE, sharedAt="x", sharedBy=ALICE)]
+    assert mod.modify_refusal(rows[0], ALICE, "edit")["statusCode"] == 409
+    assert mod.create_refusal(sc("R", ALICE, revisionOf="A1"), rows, set()) is None
+
+
+def publish_status(mod, sid, actor, rows=WORLD):
+    row = next((r for r in rows if r["scenarioId"] == sid), None)
+    resp = mod.publish_refusal(row, actor, rows)
+    return resp and resp["statusCode"]
+
+
+def test_publish_refusals(mod):
+    deleted = [*WORLD, sc("D1", ALICE, deletedAt="x"), sc("DR", ALICE, revisionOf="D1")]
+    assert publish_status(mod, "A1", "  ") == 400
+    assert publish_status(mod, "NOPE", ALICE) == 404
+    assert publish_status(mod, "D1", ALICE, deleted) == 404
+    assert publish_status(mod, "T1", ALICE) == 409
+    assert publish_status(mod, "A1", BOB) == 403, "only the creator publishes"
+    assert publish_status(mod, "A2R", BOB) == 403
+    assert publish_status(mod, "A3R", ALICE) == 409, "already published"
+    assert publish_status(mod, "DR", ALICE, deleted) == 409, "its original was deleted"
+
+
+@pytest.mark.parametrize("sid, actor", [("A1", "Alice@X.com"), ("B2", BOB), ("BC1", BOB), ("A2R", ALICE)])
+def test_the_creator_may_publish_drafts_copies_and_revisions(mod, sid, actor):
+    assert publish_status(mod, sid, actor) is None
+
+
+def test_post_publish_shares_a_draft_once(mod, world):
+    status, body = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": "Alice@X.com"})
+    assert status == 200
+    stored = world["scenarios"].rows["A1"]
+    assert stored["sharedBy"] == ALICE and stored["sharedAt"]
+    assert (body["data"]["isShared"], body["data"]["sharedBy"]) == (True, ALICE)
+    _, seen = call(mod, "GET /scenarios", query={"viewer": CAROL})
+    assert {r["scenarioId"]: r["ownership"] for r in seen["data"]}["A1"] == "shared"
+
+    writes = list(world["scenarios"].writes)
+    status, _ = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    assert status == 200 and world["scenarios"].writes == writes, "publishing again writes nothing"
+
+
+def test_post_publish_by_someone_else_writes_nothing(mod, world):
+    status, body = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": BOB})
+    assert status == 403 and "creator" in body["error"]["message"]
+    assert world["scenarios"].writes == []
+    assert "sharedAt" not in world["scenarios"].rows["A1"]
+
+
+def test_post_publish_turns_an_old_copy_into_a_scenario_of_its_own(mod, world):
+    status, _ = call(mod, "POST /scenarios/{id}/publish", "BC1", {"actor": BOB})
+    assert status == 200
+    stored = world["scenarios"].rows["BC1"]
+    assert "copyOf" not in stored and stored["sharedBy"] == BOB
+    _, seen = call(mod, "GET /scenarios", query={"viewer": CAROL})
+    ids = {r["scenarioId"]: r["ownership"] for r in seen["data"]}
+    assert ids["BC1"] == "shared" and ids["T1"] == "template"
+
+
+def test_post_publish_puts_a_revision_onto_its_original_now(mod, world):
+    world["scenarios"].rows["A2R"]["scenarioName"] = "Revised"
+    status, body = call(mod, "POST /scenarios/{id}/publish", "A2R", {"actor": ALICE})
+    assert status == 200
+    assert body["data"]["scenarioId"] == "A2" and body["data"]["scenarioName"] == "Revised"
+    assert world["scenarios"].writes == [("put", "A2"), ("update", "A2R")]
+    stored = world["scenarios"].rows
+    assert stored["A2"]["scenarioName"] == "Revised" and "revisionOf" not in stored["A2"]
+    assert stored["A2R"]["publishedAt"]
+    _, seen = call(mod, "GET /scenarios", query={"viewer": BOB})
+    assert {r["scenarioId"]: r["scenarioName"] for r in seen["data"]}["A2"] == "Revised"
+
+
+def test_post_publish_of_a_deleted_draft_meanwhile_is_409(mod, world):
+    real_update = world["scenarios"].update_item
+
+    def racing_update(**kwargs):
+        world["scenarios"].rows["A1"]["deletedAt"] = "x"
+        return real_update(**kwargs)
+
+    world["scenarios"].update_item = racing_update
+    status, _ = call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    assert status == 409
+    assert "sharedAt" not in world["scenarios"].rows["A1"]
+
+
+def test_a_published_draft_is_soft_deleted_so_campaigns_still_resolve_it(mod, world):
+    call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    status, _ = call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    assert status == 204
+    assert world["scenarios"].rows["A1"]["deletedAt"], "kept, marked deleted"
+
+
+def test_duplicates_of_a_published_scenario_survive_its_deletion(mod, world):
+    """Duplicate = a plain POST of the content: a draft of the duplicator's own."""
+    call(mod, "POST /scenarios/{id}/publish", "A1", {"actor": ALICE})
+    copy = {k: v for k, v in world["scenarios"].rows["A1"].items() if k not in ("scenarioId", "createdBy")}
+    status, made = call(mod, "POST /scenarios", body={**copy, "createdBy": BOB})
+    assert status == 201
+    dup = made["data"]
+    assert "sharedAt" not in dup and "copyOf" not in dup and dup["createdBy"] == BOB
+    call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    _, seen = call(mod, "GET /scenarios", query={"viewer": BOB})
+    ids = {r["scenarioId"]: r["ownership"] for r in seen["data"]}
+    assert "A1" not in ids and ids[dup["scenarioId"]] == "mine"
+
+
+def test_a_draft_cover_a_duplicate_still_shows_is_kept(mod, world, monkeypatch):
+    cleaned = []
+    monkeypatch.setattr(mod, "UPLOAD_BUCKET", "bucket")
+    monkeypatch.setattr(mod, "delete_s3_prefix", lambda bucket, prefix: cleaned.append(prefix))
+    world["scenarios"].rows["A1"]["CoverImageID"] = "uploads/scenario-covers/A1/c.png"
+    world["scenarios"].rows["D9"] = sc("D9", BOB, CoverImageID="uploads/scenario-covers/A1/c.png")
+    status, _ = call(mod, "DELETE /scenarios/{id}", "A1", query={"actor": ALICE})
+    assert status == 204 and "A1" not in world["scenarios"].rows
+    assert cleaned == [], "D9 still shows it"
+    status, _ = call(mod, "DELETE /scenarios/{id}", "D9", query={"actor": BOB})
+    assert cleaned == ["uploads/scenario-covers/D9/"], "D9's own folder; A1's is left alone"

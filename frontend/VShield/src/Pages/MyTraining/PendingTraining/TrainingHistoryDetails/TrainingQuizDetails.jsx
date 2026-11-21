@@ -668,14 +668,14 @@ function QuizSession({
 
   return (
     <div
-      className="h-[calc(90dvh-120px)] min-h-[420px] w-full overflow-hidden"
+      className="lg:h-[calc(90dvh-120px)] min-h-[420px] w-full lg:overflow-hidden"
       style={{ color: t.primaryText }}
     >
       <div
-        className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl"
+        className="flex lg:h-full min-h-0 flex-col lg:overflow-hidden rounded-2xl"
         style={{ backgroundColor: t.shellBg }}
       >
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden p-2 sm:p-3 lg:grid-cols-[minmax(0,8fr)_minmax(230px,2fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:overflow-hidden p-2 sm:p-3 lg:grid-cols-[minmax(0,8fr)_minmax(230px,2fr)]">
           {/* Left: question and answers (70%) */}
           <section
             aria-live="polite"

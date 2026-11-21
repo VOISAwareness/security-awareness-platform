@@ -15,3 +15,6 @@ export const VODAFONE_FONT_STYLE = `
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallRoundednessScale)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallRoundednessScale)}px !important; }
 `;
+// One scale for every page of the app, so a size in the code (a 13.5px title,
+// a 10px label) looks the same on every page. Pages used 0.9 to 0.975 before.
+export const PAGE_SCALE = 0.94;

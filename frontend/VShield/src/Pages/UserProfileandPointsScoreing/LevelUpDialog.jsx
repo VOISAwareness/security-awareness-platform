@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
 
 import BadgeMedal from "../../GlobalComponents/BadgeMedal";
-import { VarLayoutScale } from "../../GlobalComponents/Layout";
+import useLayoutScale from "../../GlobalComponents/useLayoutScale";
 import { levelTitle, rangeText } from "../../services/levels";
 
 // Shown on My Space when your level has gone up since you last looked: the
@@ -11,6 +11,7 @@ import { levelTitle, rangeText } from "../../services/levels";
 // differently ("Level up!" / "New grade!"). Closes on the button, Esc or the
 // backdrop. Portalled to <body>, re-applying the app shell's zoom.
 const LevelUpDialog = ({ notice, isDark, onClose }) => {
+  const layoutScale = useLayoutScale(); // the app's zoom, so the overlay matches it
   const reduce = useReducedMotion();
   const buttonRef = useRef(null);
 
@@ -41,9 +42,9 @@ const LevelUpDialog = ({ notice, isDark, onClose }) => {
         top: 0,
         left: 0,
         zIndex: 9000,
-        zoom: VarLayoutScale,
-        width: `${100 / VarLayoutScale}vw`,
-        height: `${100 / VarLayoutScale}vh`,
+        zoom: layoutScale,
+        width: `${100 / layoutScale}vw`,
+        height: `${100 / layoutScale}vh`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

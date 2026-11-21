@@ -41,6 +41,13 @@ resource "aws_iam_role_policy" "campaign_scheduler" {
         Resource = "${aws_dynamodb_table.campaigns.arn}/index/status-index"
       },
       {
+        # Mark a campaign it can no longer send (start missed by over an hour,
+        # or no readable start) SEND_FAILED, only while it is APPROVED.
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = aws_dynamodb_table.campaigns.arn
+      },
+      {
         # Start a send. email-sender owns the APPROVED -> SENDING -> SENT change.
         Effect   = "Allow"
         Action   = "lambda:InvokeFunction"

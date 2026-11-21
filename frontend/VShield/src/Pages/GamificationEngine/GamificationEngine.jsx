@@ -18,11 +18,11 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import gamificationJsonData from "./GamificationData.json";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
 // =========================================================================
-const VarGamificationScale = 0.94;
 
 // 🌟 DEDICATED SCALE CONTROL FOR THE 6 GALLERY ITEMS (0.85 = 85%, 0.88 = 88%, etc.)
 const VarGamificationGalleryItemsScale = 1.15;
@@ -315,8 +315,8 @@ const GamificationEngine = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       <div
-        style={{ zoom: VarGamificationScale }}
-        className="w-full max-w-[1780px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3 h-full"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "GAMIFICATION ENGINE" ───────────────── */}
@@ -360,7 +360,7 @@ const GamificationEngine = () => {
         {/* ── 2. LARGE WRAPPER CONTAINER (WHITE IN LIGHT / BLACK IN DARK) ────────── */}
         {/* ========================================================================= */}
         <div
-          className={`w-full p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${
+          className={`w-full p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex-1 min-h-0 flex flex-col ${
             isDark
               ? "bg-[#15161A] border-white/10 text-white shadow-xl"
               : "bg-white border-slate-200 text-slate-900 shadow-sm"
@@ -369,7 +369,7 @@ const GamificationEngine = () => {
           {/* ── 6 SEAMLESS L-SHAPED BENTO ITEMS (Controlled via VarGamificationGalleryItemsScale) ── */}
           <div
             style={{ zoom: VarGamificationGalleryItemsScale }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-2 gap-4 w-full flex-1 min-h-0"
           >
             {elements.map((item) => {
               const currentPointsDisplay =
@@ -383,11 +383,11 @@ const GamificationEngine = () => {
                   onMouseEnter={() => handleCardMouseEnter(item.id)}
                   className="relative w-full flex flex-col transition-all duration-300"
                 >
-                  {/* ── TOP TIER: [Left Floating Pill] + [Right L-Head] ── */}
-                  <div className="flex items-stretch w-full">
+                  {/* ── TOP TIER: [Left Floating Pill] + [Right L-Head] — grows with the card ── */}
+                  <div className="flex items-stretch w-full flex-1 min-h-0">
                     {/* 1. Left Colored Tag Pill */}
                     <div
-                      className="w-[48%] rounded-lg h-[100px] p-2 sm:p-2.5 mb-2 flex flex-col justify-between flex-shrink-0 mr-2.5 shadow-2xs"
+                      className="w-[48%] rounded-lg min-h-[100px] p-2 sm:p-2.5 mb-2 flex flex-col justify-between flex-shrink-0 mr-2.5 shadow-2xs"
                       style={{ backgroundColor: item.tagBg }}
                     >
                       <div>

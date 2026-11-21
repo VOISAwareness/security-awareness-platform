@@ -13,11 +13,11 @@ import Toast from "../../../../GlobalComponents/Toast";
 
 import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { ANNOUNCEMENT_STEPS } from "../AnnouncementConstants";
+import { PAGE_SCALE } from '../../../../shared/SharedStyles';
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
 // ============================================================
-const VarScenarioScale = 0.94;
 
 const VarOverallScenarioRoundednessScale = 0.5;
 
@@ -933,9 +933,9 @@ const AnnouncementTemplateDetails = () => {
         )}
       <div
         style={{
-          zoom: VarScenarioScale,
+          zoom: PAGE_SCALE,
         }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden        "
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ====================================================
             PAGE HEADER

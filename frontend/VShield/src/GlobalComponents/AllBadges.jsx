@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-
 import { Check, ChevronRight, Lock, LocateFixed, Sparkles, X } from 'lucide-react';
 
 import { BADGE_RATIO, badgeSrc, badgeSrcSet } from './badgeImages';
-import { VarLayoutScale } from './Layout';
+import useLayoutScale from './useLayoutScale';
 import {
   BELOW_LEVELS,
   LEVEL_BY_ID,
@@ -203,6 +203,7 @@ const Corner = ({ state, level, T }) => {
 const stateWord = { current: 'your level', done: 'reached', ahead: 'not reached yet', below: '', open: '' };
 
 const AllBadges = ({ current = null, points = null, rank = null, total = null, selected, subject = null, isDark = false, onClose }) => {
+  const layoutScale = useLayoutScale(); // the app's zoom, so the overlay matches it
   const T = THEMES[isDark ? 'dark' : 'light'];
   const reduce = useReducedMotion();
   const present = useIsPresent(); // false while it fades out
@@ -274,7 +275,7 @@ const AllBadges = ({ current = null, points = null, rank = null, total = null, s
       }}
       style={{
         position: 'fixed', top: 0, left: 0, zIndex: 9100, // over the app's other pop-ups
-        zoom: VarLayoutScale, width: `${100 / VarLayoutScale}vw`, height: `${100 / VarLayoutScale}vh`,
+        zoom: layoutScale, width: `${100 / layoutScale}vw`, height: `${100 / layoutScale}vh`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, boxSizing: 'border-box',
         background: T.backdrop, backdropFilter: 'blur(6px)',
       }}

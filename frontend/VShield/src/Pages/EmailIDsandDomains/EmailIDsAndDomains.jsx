@@ -25,11 +25,11 @@ import {
 //Import Assets
 import EmailIDsDarkIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsDarkModeIcon.png";
 import EmailIDsLightIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsLightModeIcon.png";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
 // =========================================================================
-const VarEmailIDsScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -319,8 +319,8 @@ const EmailIDsAndDomains = () => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       <div
-        style={{ zoom: VarEmailIDsScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ========================================================================= */}
         {/* ── 1. TOP FULL-WIDTH SECTION BAR: "ADD NEW EMAIL ID & DOMAIN" ─────────── */}
@@ -372,7 +372,7 @@ const EmailIDsAndDomains = () => {
         {/* ========================================================================= */}
         {/* ── 2. MAIN 2-COLUMN DASHBOARD (STANDALONE & UNCUT) ────────────────────── */}
         {/* ========================================================================= */}
-        <div className="flex flex-col lg:flex-row gap-3 w-full items-start">
+        <div className="flex flex-col lg:flex-row gap-3 w-full items-start lg:items-stretch flex-1 min-h-0">
           {/* ========================================================================= */}
           {/* ── COLUMN 1 (LEFT 65%): FORM CONTAINER WRAPPER ────────────────────────── */}
           {/* ========================================================================= */}
@@ -506,7 +506,7 @@ const EmailIDsAndDomains = () => {
               <div className="w-full flex flex-col h-full justify-between">
                 {/* 1. Upper Part of L-Container: Description (Full Width) */}
                 <div
-                  className="w-full p-3.5 rounded-t-2xl rounded-br-2xl transition-colors"
+                  className="w-full p-3.5 rounded-t-2xl rounded-br-2xl transition-colors flex-1 min-h-0 flex flex-col"
                   style={{ backgroundColor: cardBg }}
                 >
                   <h3
@@ -516,7 +516,7 @@ const EmailIDsAndDomains = () => {
                   </h3>
 
                   <div
-                    className="w-full px-3.5 py-2 rounded-lg mt-2.5 flex shadow-2xs"
+                    className="w-full px-3.5 py-2 rounded-lg mt-2.5 flex shadow-2xs flex-1 min-h-[72px]"
                     style={{ backgroundColor: inputBg }}
                   >
                     <textarea
@@ -524,7 +524,7 @@ const EmailIDsAndDomains = () => {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Type here.."
                       rows={3}
-                      className={`w-full bg-transparent text-[11px] font-medium outline-none resize-none text-left align-top ${textColor}`}
+                      className={`w-full h-full bg-transparent text-[11px] font-medium outline-none resize-none text-left align-top ${textColor}`}
                     />
                   </div>
                 </div>
@@ -603,7 +603,7 @@ const EmailIDsAndDomains = () => {
           {/* ── COLUMN 2 (RIGHT 35%): DIRECTORY WRAPPER WITH L-SHAPED CONTAINER ─────── */}
           {/* ========================================================================= */}
           <div
-            className={`w-full lg:w-[30%] p-3.5 sm:p-4 rounded-2xl border flex flex-col gap-2.5 shadow-sm transition-all duration-300 ${
+            className={`w-full lg:w-[30%] min-w-0 min-h-0 p-3.5 sm:p-4 rounded-2xl border flex flex-col gap-2.5 shadow-sm transition-all duration-300 ${
               isDark
                 ? "bg-[#15161A] border-white/10"
                 : "bg-white border-slate-200"
@@ -660,9 +660,11 @@ const EmailIDsAndDomains = () => {
               </div>
             </div>
 
-            {/* 🌟 2. Lower Body of L-Container: Search & Email Records Gallery (Full Width) */}
+            {/* 🌟 2. Lower Body of L-Container: Search & Email Records Gallery (Full Width).
+                flex-1 min-h-0: it takes the column's remaining height, so the list
+                scrolls inside it instead of running past the column's bottom. */}
             <div
-              className="w-full p-3.5 rounded-2xl flex flex-col gap-3 -mt-2.5 transition-colors"
+              className="w-full flex-1 min-h-0 p-3.5 rounded-2xl flex flex-col gap-3 -mt-2.5 transition-colors"
               style={{ backgroundColor: cardBg }}
             >
               {/* Search Input Bar with Right-Aligned Search Icon */}
@@ -713,7 +715,7 @@ const EmailIDsAndDomains = () => {
               </div>
 
               {/* 🌟 SCROLLABLE RECORDS LIST CONTAINER */}
-              <div className="max-h-[300px] overflow-y-auto flex flex-col gap-2.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-2.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/10 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredEmails.length === 0 ? (
                   <div
                     className={`p-4 text-center rounded-xl border text-xs font-semibold ${
@@ -732,13 +734,14 @@ const EmailIDsAndDomains = () => {
                       initial={{ opacity: 0, y: 3 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -3 }}
-                      className="p-3.5 rounded-2xl flex flex-col justify-between shadow-2xs transition-all flex-shrink-0 gap-1.5"
+                      className="p-3.5 rounded-2xl flex flex-col justify-between shadow-2xs transition-all flex-shrink-0 gap-1.5 min-w-0"
                       style={{ backgroundColor: inputBg }}
                     >
                       {/* Top Row: Email + Action Icons */}
                       <div className="flex items-center justify-between gap-1.5">
                         <span
-                          className={`text-[12px] font-voda font-bold truncate flex-1 ${textColor}`}
+                          className={`text-[12px] font-voda font-bold truncate flex-1 min-w-0 ${textColor}`}
+                          title={item.email}
                         >
                           {item.email}
                         </span>
@@ -782,9 +785,10 @@ const EmailIDsAndDomains = () => {
                         {item.description}
                       </p>
 
-                      {/* Bottom: SES verification state + Created Date */}
-                      <div className="w-full flex items-center justify-between gap-2 mt-0.5">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                      {/* Bottom: SES verification state + Created Date. Wraps onto a
+                          second line in a narrow column rather than run past the card. */}
+                      <div className="w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           <span
                             data-sender-status={
                               item.verificationStatus || "Not verified"

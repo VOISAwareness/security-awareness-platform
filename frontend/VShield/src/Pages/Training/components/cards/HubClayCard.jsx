@@ -48,7 +48,8 @@ export const HubClayCard = ({
         }
       }}
       style={{
-        height: `${VarTopCardHeight}px`,
+        height: '100%', // grows with its grid row; never shorter than designed
+        minHeight: `${VarTopCardHeight}px`,
         transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
       }}
       onMouseEnter={(e) => {
@@ -132,7 +133,7 @@ export const HubClayCard = ({
         style={{
           backgroundColor: lCardBg,
           top: `${cutoutBottom}px`,
-          height: `${VarTopCardHeight - cutoutBottom}px`,
+          bottom: 0,
           borderBottomLeftRadius: `${containerRadius}px`,
           borderBottomRightRadius: `${containerRadius}px`,
           borderTopLeftRadius: `${containerRadius}px`

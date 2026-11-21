@@ -5,6 +5,8 @@ import {
   SlidersHorizontal,
   Pencil,
   RotateCcw,
+  Copy,
+  Globe,
   Trash2,
   Check,
   X,
@@ -19,7 +21,9 @@ import { api } from "../../services/api";
 import { currentActor } from "../../services/identity";
 import {
   DELETE_KINDS,
+  PUBLISH_KINDS,
   cardActions,
+  clonePayload,
   scenariosForViewer,
 } from "../../services/scenarioOwnership";
 import { DEMO_USER } from "../../appConfig";
@@ -41,9 +45,11 @@ import {
 import { markAsked, markDeferred, wasAsked } from "../../services/resumePrompt";
 import DraftCards from "../../GlobalComponents/DraftCards";
 import draftArt from "../../assets/CreateNewOneStartNewCampaign.png";
+import ScenarioCardBody from "../../GlobalComponents/ScenarioCardBody";
 import ViewTabs from "../../GlobalComponents/ViewTabs";
 import { SCENARIO_DRAFT_DEFAULTS } from "./scenarioDraftDefaults";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 const S3_BUCKET_BASE_URL =
   (typeof import.meta !== "undefined" &&
@@ -118,18 +124,9 @@ const INTENSITY_COLORS = {
   green: "#22c55e",
 };
 
-// The ownership badge's dot (scenarioOwnership.js cardActions().badge).
-const OWNERSHIP_DOT = {
-  shared: "#22C55E",
-  mine: "#64748B",
-  myCopy: "#8B5CF6",
-  myRevision: "#F59E0B",
-};
-
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
-const VarMySpaceScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -904,12 +901,74 @@ const Scenarios = () => {
     }
   };
 
+  // A card's Publish / Clone: one at a time per card, "Working…" meanwhile,
+  // and a failure shown on the card (and in the details pop-up).
+  const runCardAction = async (scenario, action, failure) => {
+    const id = String(scenario.scenarioId);
+    setConfirmId(null);
+    setCardError(null);
+    setBusyIds((busy) => ({ ...busy, [id]: true }));
+    try {
+      await action();
+    } catch (error) {
+      setCardError({ id, message: error?.message || failure });
+    } finally {
+      setBusyIds((busy) => {
+        const rest = { ...busy };
+        delete rest[id];
+        return rest;
+      });
+    }
+  };
+
+  // Publish a draft for everyone, or put unpublished changes live (the
+  // revision's own id). The list is read again to show the result.
+  const handlePublish = (scenario) =>
+    runCardAction(
+      scenario,
+      async () => {
+        await api.scenarios.publish(String(scenario.scenarioId), viewer);
+        setDetailModalItem(null);
+        setListVersion((v) => v + 1);
+      },
+      "Couldn't publish this scenario.",
+    );
+
+  // Clone: the same content and name as a new draft of the viewer's own,
+  // with no link back to the original, opened straight in the editor.
+  const handleClone = (scenario) =>
+    runCardAction(
+      scenario,
+      async () => {
+        const made = await api.scenarios.create(
+          clonePayload(scenario._row, viewer),
+        );
+        const newId = String(made?.scenarioId || "");
+        if (!newId) throw new Error("The clone was not given an ID.");
+        setDetailModalItem(null);
+        navigate(`/new-scenario?edit=${encodeURIComponent(newId)}`, {
+          state: { from: "all" },
+        });
+      },
+      "Couldn't clone this scenario.",
+    );
+
+  // Someone else's scenario (or a template) isn't edited: its card opens its
+  // details, where Clone makes a draft of the viewer's own.
+  const openDetails = (scenario, themeKey, theme, cardIndex) =>
+    setDetailModalItem({
+      ...scenario,
+      _themeKey: themeKey,
+      _theme: theme,
+      _cardIndex: cardIndex,
+    });
+
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
       <div
-        style={{ zoom: VarMySpaceScale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(104vh-0px)] overflow-hidden"
+        style={{ zoom: PAGE_SCALE }}
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
         {/* ================================================= */}
         {/* PAGE HEADER */}
@@ -1108,7 +1167,7 @@ const Scenarios = () => {
                       isDark={isDark}
                       onContinue={(id) => continueDraft(id)}
                       onDelete={deleteDraft}
-                      emptyText="A scenario you start and leave before publishing is kept here."
+                      emptyText="A scenario you start and leave before saving is kept here."
                     />
                   </>
                 ) : filteredScenarios.length === 0 ? (
@@ -1120,7 +1179,7 @@ const Scenarios = () => {
                     No scenarios found.
                   </div>
                 ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                     {filteredScenarios.map((scenario, cardIndex) => {
                       const dotColor =
                         INTENSITY_COLORS[scenario.intensityColor] ||
@@ -1143,7 +1202,16 @@ const Scenarios = () => {
 
                       return (
                         <div
-                          onClick={() => handleEdit(scenario)}
+                          onClick={() =>
+                            actions.canEdit
+                              ? handleEdit(scenario)
+                              : openDetails(scenario, themeKey, theme, cardIndex)
+                          }
+                          title={
+                            actions.canEdit
+                              ? "Click to edit"
+                              : "Click to view. Clone makes a draft of your own."
+                          }
                           key={scenario._key}
                           data-scenario-id={scenario.scenarioId}
                           data-ownership={actions.ownership}
@@ -1164,11 +1232,6 @@ const Scenarios = () => {
       overflow-hidden
       select-none
       w-full
-      sm:w-[calc(50%-8px)]
-      md:w-[calc(33.333%-11px)]
-      lg:w-[calc(25%-12px)]
-      min-w-[230px]
-      max-w-[320px]
       h-[270px]
       shadow-2xs
       hover:shadow-md
@@ -1187,21 +1250,16 @@ const Scenarios = () => {
                                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: dotColor }}
                               />
-                              <span>{scenario.scenarioId}</span>
+                              <span className="whitespace-nowrap">{scenario.scenarioId}</span>
                             </div>
 
                             <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                              <span>Created on: {scenario.CreatedOn}</span>
+                              <span className="whitespace-nowrap">Created on: {scenario.CreatedOn}</span>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setDetailModalItem({
-                                    ...scenario,
-                                    _themeKey: themeKey,
-                                    _theme: theme,
-                                    _cardIndex: cardIndex,
-                                  });
+                                  openDetails(scenario, themeKey, theme, cardIndex);
                                 }}
                                 className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
                                 title="View Full Scenario Details"
@@ -1214,42 +1272,13 @@ const Scenarios = () => {
                           {/* ================================================= */}
                           {/* CONTENT */}
                           {/* ================================================= */}
-                          <div className="flex flex-col gap-1.5 text-left z-10 max-w-[70%]">
-                            {/* Whose it is, for this viewer (none on a template) */}
-                            {actions.badge && (
-                              <span
-                                title={actions.badgeHint}
-                                className="self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wide bg-white/70 dark:bg-black/40 text-slate-700 dark:text-slate-300 cursor-help"
-                              >
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                  style={{
-                                    backgroundColor:
-                                      OWNERSHIP_DOT[actions.ownership] ||
-                                      OWNERSHIP_DOT.mine,
-                                  }}
-                                />
-                                {actions.badge}
-                              </span>
-                            )}
-
-                            {/* Title */}
-                            <h3 className="text-[13.5px] font-black text-slate-950 dark:text-white leading-tight tracking-tight">
-                              {scenario.scenarioName}
-                            </h3>
-
-                            {/* Description */}
-                            {scenario.description && (
-                              <p className="mt-2 text-[9.5px] leading-[1.25] text-slate-700 dark:text-white/70">
-                                <span className="font-bold">Description:</span>{" "}
-                                {scenario.description}
-                              </p>
-                            )}
-
-                            <div className="text-[9.5px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                              Type: {scenario.campaignType}
-                            </div>
-                          </div>
+                          <ScenarioCardBody
+                            name={scenario.scenarioName}
+                            description={scenario.description}
+                            type={scenario.campaignType}
+                            byline={actions.badge}
+                            bylineHint={actions.badgeHint}
+                          />
 
                           {/* ================================================= */}
                           {/* IMAGE — BOTTOM RIGHT */}
@@ -1298,8 +1327,13 @@ const Scenarios = () => {
                               </button>
                             </div>
                           )}
-                          {/* Wraps rather than run past the card on a narrow one (the card clips). */}
-                          <div className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto">
+                          {/* Wraps rather than run past the card on a narrow one (the card clips).
+                              A click on a button here stays here: the card's own click opens the
+                              editor, which Delete (and its Yes / No) must not do. */}
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute left-4 right-4 bottom-4 flex flex-wrap items-center gap-1.5 z-20 text-[9.5px] font-bold pointer-events-none [&>*]:pointer-events-auto"
+                          >
                             {busyIds[scenario.scenarioId] ? (
                               <span className="h-[26px] flex items-center text-slate-700 dark:text-slate-300">
                                 Working…
@@ -1326,36 +1360,31 @@ const Scenarios = () => {
                               </>
                             ) : (
                               <>
-                                {/* Edit */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleEdit(scenario)}
-                                  title={
-                                    actions.editMode === "copy"
-                                      ? "Edit your own copy (only you see it)"
-                                      : undefined
-                                  }
-                                  className={`
-          h-[26px]
-          px-2
-          rounded-lg
-          text-[9.5px]
-          font-bold
-          flex
-          items-center
-          justify-center
-          gap-1
-          border
-          transition-colors
-          cursor-pointer
-          ${theme.btnBg}
-          ${theme.btnBorder}
-          ${theme.btnText}
-        `}
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                  Edit
-                                </button>
+                                {/* Publish / Publish changes — the viewer's drafts and unpublished changes */}
+                                {actions.publishKind && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePublish(scenario)}
+                                    title={PUBLISH_KINDS[actions.publishKind].hint}
+                                    className="h-[26px] px-2 rounded-lg bg-[#17794a] hover:bg-[#1d8f58] text-white text-[9.5px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
+                                  >
+                                    <Globe className="w-3 h-3" />
+                                    {PUBLISH_KINDS[actions.publishKind].label}
+                                  </button>
+                                )}
+
+                                {/* Clone — on someone else's scenario or a template (own ones: in the details pop-up) */}
+                                {!actions.canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleClone(scenario)}
+                                    title="Make a draft of your own with the same content. The original stays as it is."
+                                    className={`h-[26px] px-2 rounded-lg text-[9.5px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer whitespace-nowrap ${theme.btnBg} ${theme.btnBorder} ${theme.btnText}`}
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    Clone
+                                  </button>
+                                )}
 
                                 {/* Delete / Reset to original / Discard changes — own rows only */}
                                 {removal && (
@@ -1527,8 +1556,8 @@ const Scenarios = () => {
                           </div>
                         </div>
 
-                        {/* Preview Email Body Button */}
-                        <div className="pt-1">
+                        {/* Preview Email Body + what this viewer may do with it */}
+                        <div className="pt-1 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() =>
@@ -1542,6 +1571,85 @@ const Scenarios = () => {
                             <span>Preview Email Body</span>
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+                          {(() => {
+                            const item = detailModalItem;
+                            const can = cardActions(item._row, viewer);
+                            const id = String(item.scenarioId);
+                            const busy = Boolean(busyIds[id]);
+                            const button =
+                              "px-3 py-1 rounded-lg text-[10.5px] font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+                            const plain = `${button} bg-white/90 dark:bg-black/60 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-white/15 hover:bg-white`;
+                            return (
+                              <>
+                                {can.canEdit && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setDetailModalItem(null);
+                                      handleEdit(item);
+                                    }}
+                                    className={plain}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+                                )}
+                                {can.canClone && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => handleClone(item)}
+                                    title="Make a draft of your own with the same content. The original stays as it is."
+                                    className={plain}
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Clone</span>
+                                  </button>
+                                )}
+                                {can.publishKind && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => handlePublish(item)}
+                                    title={PUBLISH_KINDS[can.publishKind].hint}
+                                    className={`${button} bg-[#17794a] hover:bg-[#1d8f58] text-white`}
+                                  >
+                                    <Globe className="w-3.5 h-3.5" />
+                                    <span>
+                                      {busy
+                                        ? PUBLISH_KINDS[can.publishKind].busy
+                                        : PUBLISH_KINDS[can.publishKind].label}
+                                    </span>
+                                  </button>
+                                )}
+                                {can.deleteKind && (
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      // Asked on the card, as there.
+                                      setDetailModalItem(null);
+                                      setCardError(null);
+                                      setConfirmId(item.scenarioId);
+                                    }}
+                                    className={`${button} bg-[#e60000] hover:bg-[#ff2020] text-white`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>{DELETE_KINDS[can.deleteKind].label}</span>
+                                  </button>
+                                )}
+                                {cardError?.id === id && (
+                                  <span
+                                    role="alert"
+                                    className="basis-full text-[11px] font-semibold text-[#b00000] dark:text-[#ff8080]"
+                                  >
+                                    {cardError.message}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-import { VarLayoutScale } from './Layout';
+import useLayoutScale from './useLayoutScale';
 
 // A small two-choice dialog for draft decisions: "Continue where you left off /
 // Start a new one", or "Replace your edits with this template? / Keep them".
@@ -25,6 +25,7 @@ const DraftDialog = ({
   tone = 'default', // 'default' | 'warning'
   zIndex = 9500, // raise it to show above a full-screen layer
 }) => {
+  const layoutScale = useLayoutScale(); // the app's zoom, so the overlay matches it
   const primaryRef = useRef(null);
   // The latest onDismiss, read by the Esc listener. Callers may pass a new
   // function every render; the listener (and the focus on the primary button)
@@ -55,7 +56,7 @@ const DraftDialog = ({
       }}
       style={{
         position: 'fixed', top: 0, left: 0, zIndex,
-        zoom: VarLayoutScale, width: `${100 / VarLayoutScale}vw`, height: `${100 / VarLayoutScale}vh`,
+        zoom: layoutScale, width: `${100 / layoutScale}vw`, height: `${100 / layoutScale}vh`,
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
         background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)',
       }}

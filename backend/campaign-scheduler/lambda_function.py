@@ -9,8 +9,12 @@ sent once even if two runs overlap, and a campaign withdrawn, rejected or
 deleted before its start is simply no longer APPROVED, so it is never picked.
 
 A campaign whose start passed more than MAX_LATENESS_MINUTES ago is not sent
-but logged as missed, so turning the scheduler on (or an outage) never sends
-an old campaign at an unexpected time.
+but marked SEND_FAILED with the reason, so turning the scheduler on (or an
+outage) never sends an old campaign at an unexpected time, and the campaign
+doesn't sit APPROVED for ever looking scheduled: its author sees why and can
+reinvoke it to a draft. One with no readable start time is marked the same
+way. (A campaign that can't be sent at all, e.g. with no recipients, is
+marked SEND_FAILED by email-sender.)
 
 The start is startAt (a UTC instant, written by the wizard) or, for campaigns
 saved before that, the local startTime read at DEFAULT_UTC_OFFSET_MINUTES.
@@ -21,6 +25,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import boto3
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 CAMPAIGNS_TABLE = os.environ["CAMPAIGNS_TABLE"]
 EMAIL_SENDER_FUNCTION = os.environ["EMAIL_SENDER_FUNCTION"]
@@ -79,6 +84,31 @@ def decide(campaign, now):
     return "send"
 
 
+MISSED_REASON = (
+    "Its start time passed more than {minutes} minutes ago and it was not sent. "
+    "Reinvoke it, check its recipients and email, and choose new dates."
+)
+NO_START_REASON = "It has no readable start time. Reinvoke it and set its dates."
+
+
+def mark_failed(campaign_id, reason, now):
+    """APPROVED -> SEND_FAILED with the reason; False when it changed meanwhile."""
+    stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        campaigns_table.update_item(
+            Key={"campaignId": campaign_id},
+            UpdateExpression="SET #s = :failed, failureReason = :reason, failedAt = :now, updatedAt = :now",
+            ConditionExpression="#s = :approved",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":failed": "SEND_FAILED", ":approved": "APPROVED", ":reason": reason, ":now": stamp},
+        )
+        return True
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":
+            raise
+        return False
+
+
 def log(context, message, **fields):
     print(json.dumps({"message": message, "requestId": getattr(context, "aws_request_id", None), **fields}))
 
@@ -99,11 +129,13 @@ def lambda_handler(event, context):
             log(context, "Scheduled send started", campaignId=campaign_id)
         elif outcome == "missed":
             missed.append(campaign_id)
-            log(context, "Scheduled start missed; not sent", campaignId=campaign_id,
+            mark_failed(campaign_id, MISSED_REASON.format(minutes=MAX_LATENESS_MINUTES), now)
+            log(context, "Scheduled start missed; not sent, marked failed", campaignId=campaign_id,
                 startAt=start_instant(campaign).isoformat())
         elif outcome == "wait":
             waiting += 1
         else:
-            log(context, "Approved campaign has no readable start time", campaignId=campaign_id)
+            mark_failed(campaign_id, NO_START_REASON, now)
+            log(context, "Approved campaign has no readable start time; marked failed", campaignId=campaign_id)
     log(context, "Scheduler run", sent=len(sent), missed=len(missed), waiting=waiting)
     return {"sent": sent, "missed": missed, "waiting": waiting}

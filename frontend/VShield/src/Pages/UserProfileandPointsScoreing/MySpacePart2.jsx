@@ -1,4 +1,5 @@
 import { useState } from "react";
+import useIsWide from "../../GlobalComponents/useIsWide";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -158,6 +159,9 @@ const MASONRY_MODULES = [
 ];
 
 const MySpacePart2 = () => {
+  // Wide windows: every module card is the same size, in two rows of equal
+  // cards (as many columns as half the modules), so all rows end level.
+  const isWide = useIsWide();
   const { isDark } = useUserType?.() || { isDark: false };
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -211,7 +215,7 @@ const MySpacePart2 = () => {
 
       <div
         style={{ zoom: VarMySpacePart2Scale }}
-        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3 select-none font-sans flex flex-col gap-4"
+        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3 select-none font-sans flex flex-col gap-4"
       >
         {/* ========================================================================= */}
         {/* ── TOP-RIGHT SEARCH & FILTER CONTROLS (NO OUTER TITLE BOX) ────────────── */}
@@ -280,7 +284,10 @@ const MySpacePart2 = () => {
         {/* ========================================================================= */}
         {/* ── RESPONSIVE MASONRY GALLERY LAYOUT (#F1F3F7 Light / #202127 Dark) ──── */}
         {/* ========================================================================= */}
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 [column-fill:_balance]">
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-stretch"
+          style={isWide ? { gridTemplateColumns: `repeat(${Math.max(1, Math.ceil(filteredModules.length / 2))}, minmax(0, 1fr))` } : undefined}
+        >
           <AnimatePresence mode="popLayout">
             {filteredModules.map((item) => {
               const isCompleted = item.status === "COMPLETED";
@@ -294,7 +301,7 @@ const MySpacePart2 = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
                   whileHover={{ y: -3, transition: { duration: 0.15 } }}
-                  className={`group rounded-xl border overflow-hidden transition-all duration-300 hover:-translate-y-1.5 break-inside-avoid mb-4 flex flex-col justify-between ${
+                  className={`group rounded-xl border overflow-hidden transition-all duration-300 hover:-translate-y-1.5 h-full flex flex-col justify-between ${
                     isDark
                       ? "bg-[#2D2E37] border-white/5 hover:border-white/15 shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
                       : "bg-[#F1F3F7] border-black/10 hover:border-slate-300 shadow-[0_6px_20px_rgba(0,0,0,0.03)]"
@@ -303,7 +310,7 @@ const MySpacePart2 = () => {
                   {/* ── 1. INNER MEDIA CONTAINER (THUMBNAIL HOLDER) ── */}
                   <div className="relative overflow-hidden p-3 pb-0">
                     <div
-                      className={`w-full ${item.thumbHeight} rounded-lg relative overflow-hidden flex items-center justify-center border transition-transform duration-500 group-hover:scale-[1.02] ${
+                      className={`w-full h-40 rounded-lg relative overflow-hidden flex items-center justify-center border transition-transform duration-500 group-hover:scale-[1.02] ${
                         isDark
                           ? "bg-gradient-to-br from-[#181920] via-[#15161B] to-[#0D0E13] border-white/5"
                           : "bg-gradient-to-br from-[#FFFFFF] via-[#F8FAFC] to-[#EDF2F7] border-black/5"

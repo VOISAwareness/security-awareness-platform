@@ -172,7 +172,7 @@ const RequestedQueueGallery = ({ campaigns = [], onViewDetails, isDark }) => {
       <style>{VODAFONE_FONT_STYLE}</style>
 
       {/* 🌟 ROOT CONTAINER: Locked strictly to screen viewport without stretching */}
-      <div className="relative flex flex-col w-full select-none font-sans">
+      <div className="relative flex flex-col w-full select-none font-sans h-full min-h-0">
         {/* ========================================================================= */}
         {/* 🌟 1. TRULY ISOLATED CAPSULE HEADER (TOP-LEFT)                            */}
         {/* ========================================================================= */}
@@ -309,10 +309,7 @@ const RequestedQueueGallery = ({ campaigns = [], onViewDetails, isDark }) => {
         <div
           style={{
             backgroundColor: lCardBg,
-            height:
-              typeof VarGalleryLowerBaseHeightAdjuster === "number"
-                ? `${VarGalleryLowerBaseHeightAdjuster}px`
-                : VarGalleryLowerBaseHeightAdjuster,
+            flex: '1 1 0', minHeight: 320, // fills the column to the foot of the page
             borderTopLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomLeftRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
             borderBottomRightRadius: `${Math.round(16 * VarOverallCornerRoundednessAdjuster)}px`,
