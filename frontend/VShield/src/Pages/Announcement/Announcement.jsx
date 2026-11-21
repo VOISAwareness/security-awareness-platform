@@ -114,6 +114,7 @@ const FilterRow = ({
   return (
     <div
       className={`
+        flex-shrink-0
         rounded-md
         overflow-hidden
         border
@@ -331,7 +332,7 @@ const AnnouncementScenarioFilters = ({
   const lCardBg = isDark ? "#1C1E24" : "#F1F5F7";
 
   return (
-    <aside className="flex-shrink-0 w-full lg:w-[250px] xl:w-[270px] flex flex-col min-w-0 justify-between">
+    <aside className="min-h-0 flex-shrink-0 w-full lg:w-[250px] xl:w-[270px] flex flex-col min-w-0 justify-between">
       {/* ================================================= */}
       {/* TOP SECTION — isolated title box + L-head          */}
       {/* ================================================= */}
@@ -413,9 +414,10 @@ const AnnouncementScenarioFilters = ({
       {/* BOTTOM L-FOOT — FILTER OPTIONS                     */}
       {/* ================================================= */}
       <div
-        className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col gap-1.5 transition-colors -mt-px relative z-10 ${
-          isDark ? "bg-[#202127]" : "bg-[#f1f5f7]"
-        }`}
+        className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col gap-1.5 transition-colors -mt-px relative z-10 overflow-y-auto overflow-x-hidden
+    [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md ${
+      isDark ? "bg-[#202127]" : "bg-[#f1f5f7]"
+    }`}
       >
         <FilterRow
           title="Campaign Type"
