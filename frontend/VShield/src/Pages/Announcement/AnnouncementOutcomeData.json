@@ -1,0 +1,61 @@
+{
+  "announcementOutcome": [
+    {
+      "AnnouncementID": "ANC-001",
+      "AnnouncementName": "Q2 Global SSO Synchronization Simulation",
+      "AnnouncementCurrentStatus": "Completed",
+      "AnnouncementLastDataRefreshTime": "08/21/2026 05:30 PM BST",
+      "AnnouncementRecipientListID": "UL-00001",
+      "AnnouncementRecipientListName": "Batch 01 – August Campaign Finance Department",
+      "AnnouncementRecipientListUploadType": "Bulk Upload",
+      "AnnouncementScheduledStartDate": "08/10/2026 09:00 AM",
+      "AnnouncementScheduledEndData": "08/20/2026 05:00 PM",
+      "AnnouncementDetails": [
+        {
+          "EmailIDs": "sarah.jenkins@vodafone.com",
+          "SuccessfullySent": "Yes/No",
+          "TrainingAttached": "No/Yes",
+          "Trained": "Yes/Null/No"
+        }
+      ]
+    },
+    {
+      "AnnouncementID": "ANC-002",
+      "AnnouncementName": "Q2 Global SSO Synchronization Simulation",
+      "AnnouncementCurrentStatus": "Completed",
+      "AnnouncementLastDataRefreshTime": "08/21/2026 05:30 PM BST",
+      "AnnouncementRecipientListID": "UL-00001",
+      "AnnouncementRecipientListName": "Batch 01 – August Campaign Finance Department",
+      "AnnouncementRecipientListUploadType": "Bulk Upload",
+      "AnnouncementScheduledStartDate": "08/10/2026 09:00 AM",
+      "AnnouncementScheduledEndData": "08/20/2026 05:00 PM",
+      "AnnouncementDetails": [
+        {
+          "EmailIDs": "sarah.jenkins@vodafone.com",
+          "SuccessfullySent": "Yes/No",
+          "TrainingAttached": "No/Yes",
+          "Trained": "Yes/Null/No"
+        }
+      ]
+    },
+    {
+      "AnnouncementID": "ANC-003",
+      "AnnouncementName": "Q2 Global SSO Synchronization Simulation",
+      "AnnouncementCurrentStatus": "Completed",
+      "AnnouncementLastDataRefreshTime": "08/21/2026 05:30 PM BST",
+      "AnnouncementRecipientListID": "UL-00001",
+      "AnnouncementRecipientListName": "Batch 01 – August Campaign Finance Department",
+      "AnnouncementRecipientListUploadType": "Bulk Upload",
+      "AnnouncementScheduledStartDate": "08/10/2026 09:00 AM",
+      "AnnouncementScheduledEndData": "08/20/2026 05:00 PM",
+      "AnnouncementDetails": [
+        {
+          "EmailIDs": "sarah.jenkins@vodafone.com",
+          "SuccessfullySent": "Yes/No",
+          "TrainingAttached": "No/Yes",
+          "Trained": "Yes/Null/No"
+        }
+      ]
+    }
+  ]
+}
