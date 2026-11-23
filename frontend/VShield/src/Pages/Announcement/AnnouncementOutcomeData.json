@@ -6,55 +6,91 @@
       "AnnouncementCurrentStatus": "Completed",
       "AnnouncementLastDataRefreshTime": "08/21/2026 05:30 PM BST",
       "AnnouncementRecipientListID": "UL-00001",
-      "AnnouncementRecipientListName": "Batch 01 – August Campaign Finance Department",
+      "AnnouncementRecipientListName": "Batch 01 – August Announcement Finance Department",
       "AnnouncementRecipientListUploadType": "Bulk Upload",
       "AnnouncementScheduledStartDate": "08/10/2026 09:00 AM",
       "AnnouncementScheduledEndData": "08/20/2026 05:00 PM",
       "AnnouncementDetails": [
-        {
-          "EmailIDs": "sarah.jenkins@vodafone.com",
-          "SuccessfullySent": "Yes/No",
-          "TrainingAttached": "No/Yes",
-          "Trained": "Yes/Null/No"
-        }
+        { "EmailIDs": "sarah.jenkins@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"Yes" }
       ]
     },
     {
       "AnnouncementID": "ANC-002",
-      "AnnouncementName": "Q2 Global SSO Synchronization Simulation",
+      "AnnouncementName": "Finance Regulatory Compliance Audit Drill",
       "AnnouncementCurrentStatus": "Completed",
-      "AnnouncementLastDataRefreshTime": "08/21/2026 05:30 PM BST",
+      "AnnouncementLastDataRefreshTime": "06/19/2026 06:15 PM BST",
       "AnnouncementRecipientListID": "UL-00001",
-      "AnnouncementRecipientListName": "Batch 01 – August Campaign Finance Department",
+      "AnnouncementRecipientListName": "Batch 01 – August Announcement Finance Department",
       "AnnouncementRecipientListUploadType": "Bulk Upload",
-      "AnnouncementScheduledStartDate": "08/10/2026 09:00 AM",
-      "AnnouncementScheduledEndData": "08/20/2026 05:00 PM",
+      "AnnouncementScheduledStartDate": "06/08/2026 10:00 AM",
+      "AnnouncementScheduledEndData": "06/18/2026 06:00 PM",
       "AnnouncementDetails": [
-        {
-          "EmailIDs": "sarah.jenkins@vodafone.com",
-          "SuccessfullySent": "Yes/No",
-          "TrainingAttached": "No/Yes",
-          "Trained": "Yes/Null/No"
-        }
+        { "EmailIDs": "irene.benitez@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" }
       ]
     },
     {
-      "AnnouncementID": "ANC-003",
-      "AnnouncementName": "Q2 Global SSO Synchronization Simulation",
+      "AnnouncementID": "ANC-004",
+      "AnnouncementName": "Critical Zero-Day KB504821 Remote Update Test",
       "AnnouncementCurrentStatus": "Completed",
-      "AnnouncementLastDataRefreshTime": "08/21/2026 05:30 PM BST",
-      "AnnouncementRecipientListID": "UL-00001",
-      "AnnouncementRecipientListName": "Batch 01 – August Campaign Finance Department",
+      "AnnouncementLastDataRefreshTime": "02/26/2026 05:45 PM BST",
+      "AnnouncementRecipientListID": "UL-00002",
+      "AnnouncementRecipientListName": "Batch 02 – August Announcement Supply Chain Management",
       "AnnouncementRecipientListUploadType": "Bulk Upload",
-      "AnnouncementScheduledStartDate": "08/10/2026 09:00 AM",
-      "AnnouncementScheduledEndData": "08/20/2026 05:00 PM",
+      "AnnouncementScheduledStartDate": "02/15/2026 11:00 AM",
+      "AnnouncementScheduledEndData": "02/25/2026 05:00 PM",
       "AnnouncementDetails": [
-        {
-          "EmailIDs": "sarah.jenkins@vodafone.com",
-          "SuccessfullySent": "Yes/No",
-          "TrainingAttached": "No/Yes",
-          "Trained": "Yes/Null/No"
-        }
+        { "EmailIDs": "paula.ortiz@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "david.miller@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "maximilian.becker@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "No", "Acknowledge":"No" }
+      ]
+    },
+    {
+      "AnnouncementID": "ANC-005",
+      "AnnouncementName": "Global Leadership Realignment Townhall Broadcast",
+      "AnnouncementCurrentStatus": "Completed",
+      "AnnouncementLastDataRefreshTime": "11/28/2025 06:10 PM BST",
+      "AnnouncementRecipientListID": "UL-00003",
+      "AnnouncementRecipientListName": "VOIS Egypt All Employees DL",
+      "AnnouncementRecipientListUploadType": "Distribution List",
+      "AnnouncementScheduledStartDate": "11/17/2025 01:00 PM",
+      "AnnouncementScheduledEndData": "11/27/2025 06:00 PM",
+      "AnnouncementDetails": [
+        { "EmailIDs": "nour.eldin@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "ahmed.mansour@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "mariam.adel@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "heba.mahmoud@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" }
+      ]
+    },
+    {
+      "AnnouncementID": "ANC-006",
+      "AnnouncementName": "VOIS Spirit Pulse Engagement Survey 2026",
+      "AnnouncementCurrentStatus": "Completed",
+      "AnnouncementLastDataRefreshTime": "09/26/2026 05:15 PM BST",
+      "AnnouncementRecipientListID": "UL-00003",
+      "AnnouncementRecipientListName": "VOIS Egypt All Employees DL",
+      "AnnouncementRecipientListUploadType": "Distribution List",
+      "AnnouncementScheduledStartDate": "09/10/2026 09:30 AM",
+      "AnnouncementScheduledEndData": "09/25/2026 05:00 PM",
+      "AnnouncementDetails": [
+        { "EmailIDs": "nour.eldin@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "ahmed.mansour@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "mariam.adel@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "heba.mahmoud@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "No", "Acknowledge":"No" }
+      ]
+    },
+    {
+      "AnnouncementID": "ANC-008",
+      "AnnouncementName": "Q3 Enterprise Authentication & Identity Check",
+      "AnnouncementCurrentStatus": "Ongoing",
+      "AnnouncementLastDataRefreshTime": "10/19/2026 04:45 PM BST",
+      "AnnouncementRecipientListID": "UL-00002",
+      "AnnouncementRecipientListName": "Batch 02 – August Announcement Supply Chain Management",
+      "AnnouncementRecipientListUploadType": "Bulk Upload",
+      "AnnouncementScheduledStartDate": "10/05/2026 09:00 AM",
+      "AnnouncementScheduledEndData": "Auto End",
+      "AnnouncementDetails": [
+        { "EmailIDs": "paula.ortiz@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "Yes", "Acknowledge":"No" },
+        { "EmailIDs": "david.miller@vodafone.com", "SuccessfullySent": "Yes", "Trapped": "Yes", "Trained": "No", "Acknowledge":"No" }
       ]
     }
   ]

@@ -11,6 +11,7 @@ import {
   Eye,
   ArrowRight,
   NotebookPen,
+  Megaphone,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -732,6 +733,19 @@ const Announcement = () => {
     `}
             >
               ALL ANNOUNCEMENT
+              <span
+                className={`
+                w-[18px]
+                h-[18px]
+                rounded-md
+                flex
+                items-center
+                justify-center
+                ${isDark ? "bg-[#0B1121]/10" : "bg-white/15"}
+              `}
+              >
+                <Megaphone className="w-3 h-3" strokeWidth={3} />
+              </span>
             </button>
             <div className="flex items-center justify-end gap-2.5">
               <Link to="/announcements/approvals">
@@ -1103,7 +1117,7 @@ const Announcement = () => {
           px-2
           rounded-xl
           bg-[#e60000]
-          hover:bg-[#cc0000]
+          hover:bg-[#ff2020]
           text-white
           text-[9.5px]
           font-bold
