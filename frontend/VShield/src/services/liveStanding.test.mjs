@@ -49,3 +49,12 @@ test('a new person, and answers without points', () => {
   assert.equal(standingFromApi(null), null);
   assert.equal(standingFromApi({ points: 'abc' }), null);
 });
+
+test('passes on the counts and achievements a newer API sends, null from an older one', () => {
+  const s = standingFromApi({ points: 10, levelId: 'L1G1', counts: { Reported: 2 }, achievements: ['first-report'] });
+  assert.deepEqual(s.counts, { Reported: 2 });
+  assert.deepEqual(s.achievements, ['first-report']);
+  const old = standingFromApi({ points: 10, levelId: 'L1G1' });
+  assert.equal(old.counts, null);
+  assert.equal(old.achievements, null);
+});
