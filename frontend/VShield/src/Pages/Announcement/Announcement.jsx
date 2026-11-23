@@ -21,7 +21,6 @@ import {
 } from "../../services/announcements";
 import { TYPE_NAMES } from "../../services/campaignTypes";
 import { TARGET_AUDIENCES, namesOf } from "../../services/scenarioOptions";
-import { PAGE_SCALE } from '../../shared/SharedStyles';
 // Templates and user lists from the backend (services/announcements.js),
 // kept in objects shaped like the sample files they replace.
 const AnnouncamentScenariosJsonData = announcementTemplatesLive;
@@ -64,6 +63,7 @@ const INTENSITY_COLORS = {
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
 // =========================================================================
+const VarMySpaceScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE = `
@@ -114,6 +114,7 @@ const FilterRow = ({
   return (
     <div
       className={`
+        flex-shrink-0
         rounded-md
         overflow-hidden
         border
@@ -331,7 +332,7 @@ const AnnouncementScenarioFilters = ({
   const lCardBg = isDark ? "#1C1E24" : "#F1F5F7";
 
   return (
-    <aside className="flex-shrink-0 w-full lg:w-[250px] xl:w-[270px] flex flex-col min-w-0 justify-between">
+    <aside className="min-h-0 flex-shrink-0 w-full lg:w-[250px] xl:w-[270px] flex flex-col min-w-0 justify-between">
       {/* ================================================= */}
       {/* TOP SECTION — isolated title box + L-head          */}
       {/* ================================================= */}
@@ -413,9 +414,10 @@ const AnnouncementScenarioFilters = ({
       {/* BOTTOM L-FOOT — FILTER OPTIONS                     */}
       {/* ================================================= */}
       <div
-        className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col gap-1.5 transition-colors -mt-px relative z-10 ${
-          isDark ? "bg-[#202127]" : "bg-[#f1f5f7]"
-        }`}
+        className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col gap-1.5 transition-colors -mt-px relative z-10 overflow-y-auto overflow-x-hidden
+    [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md ${
+      isDark ? "bg-[#202127]" : "bg-[#f1f5f7]"
+    }`}
       >
         <FilterRow
           title="Campaign Type"
@@ -667,8 +669,8 @@ const Announcement = () => {
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
       <div
-        style={{ zoom: PAGE_SCALE }}
-        className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
+        style={{ zoom: VarMySpaceScale }}
+        className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
         {/* ================================================= */}
         {/* PAGE HEADER */}
@@ -909,7 +911,7 @@ const Announcement = () => {
                     No scenarios found.
                   </div>
                 ) : (
-                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-3 items-start flex flex-wrap gap-4 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
                     {filteredAnnouncements.map((scenario, cardIndex) => {
                       const dotColor =
                         INTENSITY_COLORS[scenario.intensityColor] ||
@@ -975,6 +977,11 @@ const Announcement = () => {
       overflow-hidden
       select-none
       w-full
+      sm:w-[calc(50%-8px)]
+      md:w-[calc(33.333%-11px)]
+      lg:w-[calc(25%-12px)]
+      min-w-[230px]
+      max-w-[320px]
       h-[270px]
       shadow-2xs
       p-4
