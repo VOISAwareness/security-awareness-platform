@@ -93,6 +93,32 @@ export function scenariosForViewer(rows, viewer) {
 }
 
 /**
+ * The scenarios a campaign may be built from (Start New Campaign -> Create
+ * New): only finished, published ones. Templates, other people's published
+ * scenarios and the viewer's own published ones; never a draft (their own
+ * unpublished scenario, an old copy, or their unpublished changes). Where the
+ * viewer has unpublished changes to a scenario they published, the list holds
+ * those changes in its place, so `missing` names the published originals to
+ * read on their own (GET /scenarios/{id}) and add.
+ *   -> { rows, missing }
+ */
+export function campaignChoices(rows, viewer) {
+  const list = scenariosForViewer(rows, viewer);
+  const out = [];
+  const missing = [];
+  for (const row of list) {
+    const ownership = ownershipOf(row, viewer);
+    if (ownership === 'template' || ownership === 'shared') out.push(row);
+    else if (ownership === 'mine' && (row.isShared === true || Boolean(row.sharedAt))) out.push(row);
+    else if (ownership === 'myRevision') {
+      const original = replacedId(row, viewer);
+      if (original) missing.push(original);
+    }
+  }
+  return { rows: out, missing: [...new Set(missing)] };
+}
+
+/**
  * The id this row stands in for, for this viewer (their pending edit of their
  * own shared scenario), else ''. A copy stands in for nothing: it is listed
  * beside what it copies.
