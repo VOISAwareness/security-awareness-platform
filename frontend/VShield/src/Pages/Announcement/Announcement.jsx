@@ -1103,7 +1103,7 @@ const Announcement = () => {
           px-2
           rounded-xl
           bg-[#e60000]
-          hover:bg-[#ff2020]
+          hover:bg-[#cc0000]
           text-white
           text-[9.5px]
           font-bold

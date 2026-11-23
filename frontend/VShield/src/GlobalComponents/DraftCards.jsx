@@ -194,7 +194,7 @@ const DraftCards = ({
                       setConfirmDeleteId(null);
                       onDelete(info.id);
                     }}
-                    className="px-3 py-1 rounded-lg bg-[#E60000] hover:bg-[#ff2020] text-white cursor-pointer shadow-2xs"
+                    className="px-3 py-1 rounded-lg bg-[#E60000] hover:bg-[#cc0000] text-white cursor-pointer shadow-2xs"
                   >
                     Yes, delete
                   </button>
@@ -223,7 +223,7 @@ const DraftCards = ({
                     onClick={() => setConfirmDeleteId(info.id)}
                     aria-label={`Delete draft ${info.title}`}
                     title="Delete draft"
-                    className="h-[26px] px-2 rounded-lg bg-[#e60000] hover:bg-[#ff2020] text-white flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                    className="h-[26px] px-2 rounded-lg bg-[#e60000] hover:bg-[#cc0000] text-white flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >
                     <Trash2 className="w-3 h-3" />
                     Delete

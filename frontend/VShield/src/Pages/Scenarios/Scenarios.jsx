@@ -993,7 +993,7 @@ const Scenarios = () => {
             value={view}
             onChange={setView}
             tabs={[
-              { id: "all", label: "All scenarios" },
+              { id: "all", label: "All Scenarios" },
               { id: "drafts", label: "Drafts", count: drafts.length },
             ]}
           />
@@ -1151,6 +1151,8 @@ const Scenarios = () => {
             {/* ================================================= */}
             <div className="flex-1 min-w-0 flex flex-col">
               <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
+                {/* Keyed by the view: switching tabs fades the new view in. */}
+                <div key={view} className="vs-view-fade flex-1 min-h-0 flex flex-col">
                 {view === "drafts" ? (
                   <>
                     {savedNotice && (
@@ -1346,7 +1348,7 @@ const Scenarios = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleDelete(scenario)}
-                                  className="h-[26px] px-2 rounded-lg bg-[#e60000] hover:bg-[#ff2020] text-white cursor-pointer shadow-2xs whitespace-nowrap"
+                                  className="h-[26px] px-2 rounded-lg bg-[#E60000] hover:bg-[#cc0000] text-white cursor-pointer shadow-2xs whitespace-nowrap"
                                 >
                                   {removal.yes}
                                 </button>
@@ -1366,7 +1368,7 @@ const Scenarios = () => {
                                     type="button"
                                     onClick={() => handlePublish(scenario)}
                                     title={PUBLISH_KINDS[actions.publishKind].hint}
-                                    className="h-[26px] px-2 rounded-lg bg-[#17794a] hover:bg-[#1d8f58] text-white text-[9.5px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
+                                    className="h-[26px] px-2 rounded-lg bg-[#8ED973] hover:bg-[#7DC862] text-white text-[9.5px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer whitespace-nowrap"
                                   >
                                     <Globe className="w-3 h-3" />
                                     {PUBLISH_KINDS[actions.publishKind].label}
@@ -1399,7 +1401,7 @@ const Scenarios = () => {
             px-2
             rounded-lg
             bg-[#e60000]
-            hover:bg-[#ff2020]
+            hover:bg-[#cc0000]
             text-white
             text-[9.5px]
             font-bold
@@ -1429,6 +1431,7 @@ const Scenarios = () => {
                     })}
                   </div>
                 )}
+                </div>
               </main>
             </div>
             {/* ========================================================================= */}
@@ -1613,7 +1616,7 @@ const Scenarios = () => {
                                     disabled={busy}
                                     onClick={() => handlePublish(item)}
                                     title={PUBLISH_KINDS[can.publishKind].hint}
-                                    className={`${button} bg-[#17794a] hover:bg-[#1d8f58] text-white`}
+                                    className={`${button} bg-[#8ED973] hover:bg-[#7DC862] text-white`}
                                   >
                                     <Globe className="w-3.5 h-3.5" />
                                     <span>
@@ -1633,7 +1636,7 @@ const Scenarios = () => {
                                       setCardError(null);
                                       setConfirmId(item.scenarioId);
                                     }}
-                                    className={`${button} bg-[#e60000] hover:bg-[#ff2020] text-white`}
+                                    className={`${button} bg-[#E60000] hover:bg-[#cc0000] text-white`}
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                     <span>{DELETE_KINDS[can.deleteKind].label}</span>

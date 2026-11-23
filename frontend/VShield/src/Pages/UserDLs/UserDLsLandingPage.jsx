@@ -16,6 +16,7 @@ import { api } from "../../services/api";
 import { listUsageCounts, timesUsed } from "../../services/listUsage";
 import PageLoading from "../../GlobalComponents/PageLoading";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
+import ViewTabs from "../../GlobalComponents/ViewTabs";
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & ADJUSTER CONSTANTS
@@ -653,23 +654,18 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
 
               {/* Right: Filter Category Tabs & Live Search */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Category Filter Pills */}
-                <div className="flex items-center bg-white/80 dark:bg-black/50 p-0.5 rounded-xl border border-black/5 dark:border-white/10 shadow-2xs">
-                  {["ALL", "Bulk Upload", "Distribution List"].map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setTypeFilter(tab)}
-                      className={`px-3 py-1 rounded-lg text-[8.5px] font-voda font-bold transition-all cursor-pointer ${
-                        typeFilter === tab
-                          ? "bg-[#181A20] text-white dark:bg-white dark:text-black shadow-2xs"
-                          : "text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white"
-                      }`}
-                    >
-                      {tab === "ALL" ? "All Types" : tab}
-                    </button>
-                  ))}
-                </div>
+                {/* Category filter: the app's switch (sliding highlight) */}
+                <ViewTabs
+                  ariaLabel="List type"
+                  isDark={isDark}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  tabs={[
+                    { id: "ALL", label: "All Types" },
+                    { id: "Bulk Upload", label: "Bulk Upload" },
+                    { id: "Distribution List", label: "Distribution List" },
+                  ]}
+                />
 
                 {/* Search Input */}
                 <div className="relative flex items-center min-w-[220px]">
@@ -694,7 +690,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div key={typeFilter} className="vs-view-fade grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {filteredLists.map((list, idx) => {
                     const cardItemBg = getGalleryCardBg(idx, isDark);
                     const listId = list.UserListsID || list.id;
