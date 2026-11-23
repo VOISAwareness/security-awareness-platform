@@ -35,7 +35,7 @@ export const VarLayoutScale = 0.9;
 export const VarNavPaneButtonHeightAdjuster = 40;
 export const VarNavPaneIconsWieghtAdjuster = 2.2;
 export const VarNavPaneIconsTextWieghtAdjuster = 'font-bold';
-export const VarLeftNavPaneScrollBarWidthAdjuster = 2;
+export const VarLeftNavPaneScrollBarWidthAdjuster = 3;
 
 // Theme-aware color resolvers
 export const VarNavPaneIconColor = (isDark) => (isDark ? '#94a3b8' : '#64748b');
