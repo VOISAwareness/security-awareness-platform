@@ -77,8 +77,9 @@ test('a picked day defaults to 9 AM, or the next 5-minute mark once 9 AM has pas
 });
 
 test('label reads like a person would say it', () => {
-  assert.equal(formatDateTimeLabel('2026-10-12T09:05'), 'Mon, 12 Oct 2026 · 9:05 AM');
-  assert.equal(formatDateTimeLabel('2026-10-12T00:30'), 'Mon, 12 Oct 2026 · 12:30 AM');
+  assert.equal(formatDateTimeLabel('2026-10-12T09:05'), 'Mon, 12 Oct 2026 · 9:05 AM BST');
+  assert.equal(formatDateTimeLabel('2026-10-12T00:30'), 'Mon, 12 Oct 2026 · 12:30 AM BST');
+  assert.equal(formatDateTimeLabel('2026-11-12T00:30'), 'Thu, 12 Nov 2026 · 12:30 AM GMT');
   assert.equal(formatDateTimeLabel(''), '');
 });
 
@@ -89,19 +90,19 @@ test('isAfter: end strictly after start, missing values pass', () => {
   assert.equal(isAfter('', '2026-10-12T09:00'), true);
 });
 
-test('a schedule patch also carries its instants in UTC and the zone it was picked in', () => {
-  const out = withScheduleInstants({ startTime: '2026-11-05T14:30', endTime: '2026-11-06T09:00', campaignTitle: 'x' }, 'Asia/Kolkata');
-  // the instants are the local wall-clock times, whatever zone the tests run in
-  assert.equal(out.startAt, new Date(2026, 10, 5, 14, 30).toISOString());
-  assert.equal(out.endAt, new Date(2026, 10, 6, 9, 0).toISOString());
-  assert.equal(out.timeZone, 'Asia/Kolkata');
+test('a schedule patch also carries its instants in UTC; the times are UK time', () => {
+  const out = withScheduleInstants({ startTime: '2026-11-05T14:30', endTime: '2026-07-06T09:00', campaignTitle: 'x' });
+  // whatever zone the browser (or the tests) run in
+  assert.equal(out.startAt, '2026-11-05T14:30:00.000Z', 'GMT');
+  assert.equal(out.endAt, '2026-07-06T08:00:00.000Z', 'BST');
+  assert.equal(out.timeZone, 'Europe/London');
   assert.equal(out.startTime, '2026-11-05T14:30');
   assert.equal(out.campaignTitle, 'x');
 });
 
 test('a cleared or broken time clears its instant; other patches are left alone', () => {
-  assert.deepEqual(withScheduleInstants({ startTime: '' }, 'UTC'), { startTime: '', startAt: null, timeZone: 'UTC' });
-  assert.equal(withScheduleInstants({ endTime: 'soon' }, 'UTC').endAt, null);
-  assert.deepEqual(withScheduleInstants({ campaignTitle: 'x' }, 'UTC'), { campaignTitle: 'x' });
+  assert.deepEqual(withScheduleInstants({ startTime: '' }), { startTime: '', startAt: null, timeZone: 'Europe/London' });
+  assert.equal(withScheduleInstants({ endTime: 'soon' }).endAt, null);
+  assert.deepEqual(withScheduleInstants({ campaignTitle: 'x' }), { campaignTitle: 'x' });
   assert.equal(withScheduleInstants(null), null);
 });

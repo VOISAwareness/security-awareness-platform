@@ -8,6 +8,7 @@ import { actorFor } from '../services/identity';
 import { openCampaignDraft } from '../services/useCampaignDraft';
 import { IN_WIZARD, routeForStep } from '../services/campaignWizard';
 import { NOTICE_KIND, markNoticesSeen, noticeText, noticesFor, seenNotices } from '../services/campaignNotices';
+import { formatDateTime } from '../shared/dateTime';
 
 // A simple notification bell for campaign creators: their campaigns an
 // approver sent back for changes or rejected, with the approver's message.
@@ -17,12 +18,7 @@ import { NOTICE_KIND, markNoticesSeen, noticeText, noticesFor, seenNotices } fro
 const POLL_MS = 60 * 1000;
 const SHOWN = 20;
 
-const when = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? ''
-    : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-};
+const when = (iso) => formatDateTime(iso);
 
 export default function CampaignNoticesBell() {
   const { user } = useUserType();

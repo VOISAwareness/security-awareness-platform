@@ -23,6 +23,7 @@
  * Screens read the normalized shape so none of them has to know this.
  */
 import { testRecipientEmails, usesTestRecipients } from './testRecipients.js';
+import { formatDateTime as formatAppDateTime, toDate as toAppDate, zonedTimeToUtc } from '../shared/dateTime.js';
 
 export const STATUS = {
   DRAFT: 'DRAFT',
@@ -178,7 +179,8 @@ export function derivePhase(campaign, now = new Date()) {
 /**
  * Dates arrive in several shapes: ISO from the API, the wizard's
  * `datetime-local` value (`2026-10-01T09:00`), and `MM/DD/YYYY hh:mm AM` from
- * the bundled dummy data. Returns null rather than an Invalid Date.
+ * the bundled dummy data. Times without a zone are UK time. Returns null
+ * rather than an Invalid Date.
  */
 export function parseDate(value) {
   if (!value) return null;
@@ -187,8 +189,9 @@ export function parseDate(value) {
   const raw = String(value).trim();
   if (!raw) return null;
 
-  const direct = new Date(raw);
-  if (!Number.isNaN(direct.getTime())) return direct;
+  // ISO from the API, or a wall-clock value, which is UK time (shared/dateTime.js)
+  const direct = toAppDate(raw);
+  if (direct) return direct;
 
   // MM/DD/YYYY hh:mm AM|PM
   const m = raw.match(
@@ -202,23 +205,16 @@ export function parseDate(value) {
       if (upper === 'PM' && hour !== 12) hour += 12;
       if (upper === 'AM' && hour === 12) hour = 0;
     }
-    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), hour, Number(min));
+    const d = zonedTimeToUtc({ year: Number(yyyy), month: Number(mm) - 1, day: Number(dd), hours: hour, minutes: Number(min) });
     return Number.isNaN(d.getTime()) ? null : d;
   }
   return null;
 }
 
-/** Short, stable display format. Returns an em dash when there is no date. */
+/** UK time with its label (shared/dateTime.js); an em dash when there is no date. */
 export function formatDateTime(value) {
   const d = parseDate(value);
-  if (!d) return '—';
-  return d.toLocaleString(undefined, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return d ? formatAppDateTime(d) : '—';
 }
 
 /** "3 hours ago" / "in 2 days" — for the approvals queue's waiting time. */

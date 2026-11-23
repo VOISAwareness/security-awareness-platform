@@ -165,9 +165,9 @@ test('the latest campaign card has counts, percentages and hook rate per country
 });
 
 test('long dates read like the screen shows them', () => {
-  assert.equal(longDate(new Date(2026, 3, 21)), '21st April 2026, Tuesday');
-  assert.equal(longDate(new Date(2026, 3, 11)), '11th April 2026, Saturday');
-  assert.equal(longDate(new Date(2026, 3, 2)), '2nd April 2026, Thursday');
+  assert.equal(longDate(new Date('2026-04-21T12:00:00Z')), '21st April 2026, Tuesday');
+  assert.equal(longDate(new Date('2026-04-11T12:00:00Z')), '11th April 2026, Saturday');
+  assert.equal(longDate(new Date('2026-04-02T12:00:00Z')), '2nd April 2026, Thursday');
   assert.equal(longDate(null), '—');
 });
 

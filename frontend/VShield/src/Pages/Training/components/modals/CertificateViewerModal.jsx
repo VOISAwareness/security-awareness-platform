@@ -7,6 +7,7 @@ import {
 
 import { useIsDarkMode } from "./helpers";
 import { useUserType } from "@/UserTypeContext/UserTypeContext";
+import { nowInAppZone } from '../../../../shared/dateTime';
 
 export const CertificateViewerModal = ({
   certificate,
@@ -39,7 +40,7 @@ export const CertificateViewerModal = ({
   const userName = loggedInName;
 
   const [completionDate] = useState(() => {
-    return new Date().toLocaleDateString("en-GB", {
+    return nowInAppZone().toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric"

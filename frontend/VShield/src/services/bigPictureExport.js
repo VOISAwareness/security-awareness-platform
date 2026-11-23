@@ -20,11 +20,12 @@ import { progress, STEADY } from './bigPictureTrend.js';
 import { TYPE_WORD, healthWord } from './glossary.js';
 import { health, standsOut } from './bigPictureViews.js';
 import { workbook } from './xlsx.js';
+import { nowInAppZone } from '../shared/dateTime.js';
 
 const levelName = (id) => rankName(LEVEL_BY_ID[id]) || '';
 const VERDICT = { improving: 'Improving', steady: 'Steady', slipping: 'Declining' };
 const CHAPTER = { wrong: 'Needs attention', right: 'Going well', next: 'What could happen next' };
-const today = () => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+const today = () => nowInAppZone().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 const share = (n, of) => (of > 0 ? n / of : null);
 const finding = (f) => `${f.value}${f.unit ? ` ${f.unit}` : ''}`;
 

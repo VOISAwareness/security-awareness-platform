@@ -17,6 +17,7 @@ import { listUsageCounts, timesUsed } from "../../services/listUsage";
 import PageLoading from "../../GlobalComponents/PageLoading";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
 import ViewTabs from "../../GlobalComponents/ViewTabs";
+import { formatDateTime } from '../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & ADJUSTER CONSTANTS
@@ -134,13 +135,8 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
     }
   };
 
-  // "09/28/2026 04:20 PM"
-  const formatCreated = (value) => {
-    const d = new Date(value);
-    if (!value || isNaN(d.getTime())) return value || "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(d.getHours() % 12 || 12)}:${pad(d.getMinutes())} ${d.getHours() >= 12 ? "PM" : "AM"}`;
-  };
+  // UK time with BST / GMT (shared/dateTime.js)
+  const formatCreated = (value) => formatDateTime(value) || value || "";
 
   // Normalise a backend user-list row into the shape this screen renders.
   // SAVED lists carry name/type; SYNCED distribution lists carry dlName/dlId.

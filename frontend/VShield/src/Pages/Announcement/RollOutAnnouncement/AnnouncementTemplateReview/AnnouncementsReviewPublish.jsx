@@ -19,6 +19,7 @@ const userDLsJson = userListsLive;
 import initialLandingCatalogues from "../../../LandingPageCatalogue/LandingPageCatalogues.json";
 import gamificationCardLogo from "../../../../assets/GamificationCardLogoStartNewCamapignScreen.png";
 import { PAGE_SCALE } from '../../../../shared/SharedStyles';
+import { formatDateTime as formatAppDateTime } from '../../../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -181,23 +182,8 @@ const AnnouncementsReviewPublish = () => {
     matchedScenario?.announcementAcknowledged ??
     50;
   // Date Settings
-  const formatDateTime = (dtStr, fallback) => {
-    if (!dtStr) return fallback;
-    try {
-      const d = new Date(dtStr);
-      if (isNaN(d.getTime())) return dtStr;
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      const yyyy = d.getFullYear();
-      let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12 || 12;
-      return `${mm}/${dd}/${yyyy} ${hours}:${minutes} ${ampm}`;
-    } catch {
-      return fallback;
-    }
-  };
+  // UK time with BST / GMT (shared/dateTime.js)
+  const formatDateTime = (dtStr, fallback) => (dtStr ? formatAppDateTime(dtStr) || dtStr : fallback);
 
   const startTimeDisplay = formatDateTime(
     draft.announcementStartTime,

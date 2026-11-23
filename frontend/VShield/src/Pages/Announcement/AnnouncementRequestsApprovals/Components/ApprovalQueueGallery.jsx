@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { parseDate } from "./announcementHelpers";
+import { formatShortDate as shortDateUK } from '../../../../shared/dateTime';
 
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardLenghtAdjuster = 1.0;
@@ -39,13 +40,9 @@ const CAPSULE_THEME_COLOR = "#D9D7F9";
 const CAPSULE_COUNTER_COLOR = "#8B8BF5";
 
 // "10/12/2026 09:00 AM" -> "12-Oct-26"
-const formatShortDate = (dateStr) => {
-  if (!dateStr) return "N/A";
-  const d = parseDate(dateStr);
-  if (d.getTime() === 0) return dateStr.split(" ")[0] || "N/A";
-  const month = d.toLocaleString("en-US", { month: "short" });
-  return `${d.getDate()}-${month}-${String(d.getFullYear()).slice(-2)}`;
-};
+// "2-Jan-26", the UK date (shared/dateTime.js)
+const formatShortDate = (dateStr) =>
+  dateStr ? (parseDate(dateStr).getTime() ? shortDateUK(parseDate(dateStr)) : "") || String(dateStr).split(" ")[0] || "N/A" : "N/A";
 
 // Campaign Manager: ALL pending campaigns, with Approve / Reject.
 const ApprovalQueueGallery = ({

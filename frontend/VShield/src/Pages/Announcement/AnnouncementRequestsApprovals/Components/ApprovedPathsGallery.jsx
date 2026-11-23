@@ -9,6 +9,7 @@ import {
   Eye,
 } from "lucide-react";
 import { parseDate, norm, APPROVER_KEY } from "./announcementHelpers";
+import { formatShortDate as shortDateUK } from '../../../../shared/dateTime';
 
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardLenghtAdjuster = 1.0;
@@ -21,13 +22,9 @@ const CAPSULE_THEME_COLOR = "#D9F2D0";
 const CAPSULE_COUNTER_COLOR = "#16A34A";
 
 // "10/12/2026 09:00 AM" -> "12-Oct-26"
-const formatShortDate = (dateStr) => {
-  if (!dateStr) return "N/A";
-  const d = parseDate(dateStr);
-  if (d.getTime() === 0) return dateStr.split(" ")[0] || "N/A";
-  const month = d.toLocaleString("en-US", { month: "short" });
-  return `${d.getDate()}-${month}-${String(d.getFullYear()).slice(-2)}`;
-};
+// "2-Jan-26", the UK date (shared/dateTime.js)
+const formatShortDate = (dateStr) =>
+  dateStr ? (parseDate(dateStr).getTime() ? shortDateUK(parseDate(dateStr)) : "") || String(dateStr).split(" ")[0] || "N/A" : "N/A";
 
 // Approval time = last modified; fall back to creation date if it can't be parsed
 const approvedTime = (a) => {

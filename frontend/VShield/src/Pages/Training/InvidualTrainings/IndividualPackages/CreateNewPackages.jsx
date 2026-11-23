@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { X, UploadCloud } from "lucide-react";
 import { useIsDarkMode } from "../../components/modals/helpers";
 import { checkPackageZip } from "../../../../services/zipEntries";
+import { nowInAppZone } from '../../../../shared/dateTime';
 
 // AddNewPackageScreen (default export: CreateNewPackages)
 export const CreateNewPackages = ({
@@ -73,7 +74,7 @@ export const CreateNewPackages = ({
         PackageName: name,
         Description: description || "SCORM learning module.",
         FileName: selectedFile.name,
-        CreatedOn: new Date().toLocaleDateString("en-GB", {
+        CreatedOn: nowInAppZone().toLocaleDateString("en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric"
@@ -352,7 +353,7 @@ export const ZipUploader = ({
         PackageName: name,
         Description: description || "SCORM compliant standalone interactive threat simulation.",
         FileName: selectedFile.name,
-        CreatedOn: new Date().toLocaleDateString("en-GB", {
+        CreatedOn: nowInAppZone().toLocaleDateString("en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric"

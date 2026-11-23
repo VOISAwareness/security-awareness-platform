@@ -10,7 +10,7 @@ import RequestedQueueGallery from "./Components/RequestedQueueGallery";
 import RejectedPathsGallery from "./Components/RejectedPathsGallery";
 import ApprovedPathsGallery from "./Components/ApprovedPathsGallery";
 import NotifyForChangeWindow from "./Components/NotifyForChangeWindow";
-import { ROLE_MANAGER, APPROVER_KEY } from "./Components/announcementHelpers";
+import { ROLE_MANAGER, APPROVER_KEY, storedDateTime } from "./Components/announcementHelpers";
 
 // Assets (same as RequestsAndApprovals.jsx)
 import ApprovalQueueImg from "@/assets/RequestAndApprovalsAssets/ApprovalQueueImage.png";
@@ -113,7 +113,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
     const updated = {
       ...a,
       ...patch,
-      AnnouncementLastModified: new Date().toLocaleString("en-US"),
+      AnnouncementLastModified: storedDateTime(),
     };
     setAnnouncements((prev) =>
       prev.map((x) => (x.announcementId === a.announcementId ? updated : x)),

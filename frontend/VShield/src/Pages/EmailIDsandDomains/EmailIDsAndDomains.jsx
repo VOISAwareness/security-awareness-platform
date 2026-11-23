@@ -26,6 +26,7 @@ import {
 import EmailIDsDarkIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsDarkModeIcon.png";
 import EmailIDsLightIcon from "../../assets/EmailIDsAndDomainsAssets/EmailIDsAndDomainsLightModeIcon.png";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
+import { nowInAppZone } from '../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & BRAND CONSTANTS
@@ -145,9 +146,10 @@ const EmailIDsAndDomains = () => {
 
   // Formatted Current Date (e.g., July 17th, 2026)
   const getFormattedDate = () => {
-    const today = new Date();
+    // today in the UK (shared/dateTime.js)
+    const today = nowInAppZone();
     const day = today.getDate();
-    const month = today.toLocaleString("default", { month: "long" });
+    const month = today.toLocaleString("en-GB", { month: "long" });
     const year = today.getFullYear();
     const nth = (d) => {
       if (d > 3 && d < 21) return "th";

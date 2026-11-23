@@ -4,6 +4,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
 // Data source: the campaign's results from the backend (one row per recipient).
 import { useCampaignResults } from '../../services/campaignResults';
+import { formatDateTime } from '../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL & ADJUSTER CONSTANTS
@@ -164,14 +165,8 @@ const RechartsPillBar = ({ count, maxCount, rate, colorConfig, barHeight = 20 })
   );
 };
 
-// "10/05/2026 09:00 AM", as the sent date was drawn
-const formatSentDate = (value) => {
-  const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return 'N/A';
-  const pad = (n) => String(n).padStart(2, '0');
-  const hours = d.getHours() % 12 || 12;
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(hours)}:${pad(d.getMinutes())} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
-};
+// UK time, labelled (shared/dateTime.js)
+const formatSentDate = (value) => formatDateTime(value) || 'N/A';
 
 const ViewAnalyticsModal = ({
   campaign = {},

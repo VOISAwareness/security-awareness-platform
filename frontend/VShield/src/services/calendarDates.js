@@ -1,6 +1,9 @@
 /**
  * calendarDates — pure helpers behind the date & time picker (DateTimeField).
  *
+ * The picker's times are UK wall-clock times (shared/dateTime.js APP_TIME_ZONE),
+ * whatever zone the browser is in; they are shown with BST / GMT.
+ *
  * Values are the local "YYYY-MM-DDTHH:mm" string a native
  * <input type="datetime-local"> produces, so campaign drafts saved before the
  * picker existed read back unchanged, and the Review step's formatting still
@@ -15,6 +18,8 @@ const MONTH_SHORT = MONTH_NAMES.map((m) => m.slice(0, 3));
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // Weeks start on Sunday, as in the browser's own picker.
 export const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+import { APP_TIME_ZONE, zoneLabel, zonedTimeToUtc } from '../shared/dateTime.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -100,13 +105,13 @@ export function defaultTimeFor(cell, now) {
   return { hours: next.getHours(), minutes: next.getMinutes() };
 }
 
-/** "Mon, 12 Oct 2026 · 9:05 AM" — '' for an empty or unreadable value. */
+/** "Mon, 12 Oct 2026 · 9:05 AM BST" (UK time, its label) — '' for an empty or unreadable value. */
 export function formatDateTimeLabel(value) {
   const v = parseDateTimeValue(value);
   if (!v) return '';
   const weekday = WEEKDAY_SHORT[new Date(v.year, v.month, v.day).getDay()];
   const { hour, meridiem } = to12h(v.hours);
-  return `${weekday}, ${v.day} ${MONTH_SHORT[v.month]} ${v.year} · ${hour}:${pad(v.minutes)} ${meridiem}`;
+  return `${weekday}, ${v.day} ${MONTH_SHORT[v.month]} ${v.year} · ${hour}:${pad(v.minutes)} ${meridiem} ${zoneLabel(zonedTimeToUtc(v))}`;
 }
 
 /** Is `end` strictly after `start`? Either missing: true (nothing to compare). */
@@ -117,24 +122,15 @@ export function isAfter(end, start) {
   return toDateTimeValue(e) > toDateTimeValue(s);
 }
 
-/** The browser's IANA time zone ("Asia/Kolkata"), or null where it cannot say. */
-export function localTimeZone() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * A campaign patch with its schedule also as instants the server can act on.
- * The picker's startTime / endTime are local wall-clock times with no zone
- * ("2026-11-05T14:30"), which a server in UTC would read hours off. Wherever a
- * patch sets one, this adds startAt / endAt (UTC ISO, null when cleared or not
- * a real date) and the zone they were picked in. The local fields stay as they
- * are, so screens and older campaigns read them unchanged.
+ * The picker's startTime / endTime are UK wall-clock times with no zone
+ * ("2026-11-05T14:30"). Wherever a patch sets one, this adds startAt / endAt
+ * (UTC ISO, null when cleared or not a real date) and the zone they are in
+ * (Europe/London). The wall-clock fields stay as they are, so screens and
+ * older campaigns read them unchanged.
  */
-export function withScheduleInstants(patch, timeZone = localTimeZone()) {
+export function withScheduleInstants(patch) {
   if (!patch || typeof patch !== 'object') return patch;
   const out = { ...patch };
   let touched = false;
@@ -142,8 +138,8 @@ export function withScheduleInstants(patch, timeZone = localTimeZone()) {
     if (!(local in patch)) continue;
     touched = true;
     const p = parseDateTimeValue(patch[local]);
-    out[instant] = p ? new Date(p.year, p.month, p.day, p.hours, p.minutes).toISOString() : null;
+    out[instant] = p ? zonedTimeToUtc(p).toISOString() : null;
   }
-  if (touched && timeZone) out.timeZone = timeZone;
+  if (touched) out.timeZone = APP_TIME_ZONE;
   return out;
 }
