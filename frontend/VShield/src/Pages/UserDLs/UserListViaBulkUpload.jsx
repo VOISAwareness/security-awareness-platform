@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import Toast from "../../GlobalComponents/Toast";
@@ -11,6 +12,9 @@ import {
   Download,
   User as UserIcon,
   Trash2,
+  Pencil,
+  Plus,
+  X,
 } from "lucide-react";
 
 import ExcelIcon from "../../assets/UserListScreenAssets/ExcelIconUserListsScreen.png";
@@ -73,23 +77,20 @@ const UserListViaBulkUpload = () => {
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === "boolean") {
-      setIsDark(userContext.isDark);
-    }
-  }, [userContext.isDark]);
-
-  useEffect(() => {
     const checkDark = () => {
       const hasDarkClass = document.documentElement.classList.contains("dark");
       setIsDark(hasDarkClass || !!userContext.isDark);
     };
-    checkDark();
+    const rafId = requestAnimationFrame(checkDark);
     const observer = new MutationObserver(checkDark);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
     });
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
   }, [userContext.isDark]);
 
   // Background color for upper bento containers matching design
@@ -126,20 +127,131 @@ const UserListViaBulkUpload = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // A recipient row, completed from the people directory (GET /users):
-  // blanks in the file take the directory's values, and people who are not in
-  // the directory are flagged as unregistered.
-  const resolveMember = (row, idx) => {
-    const email = String(row.email || "").trim();
-    const matched = (masterUsersData || []).find(
-      (m) => m.UserEMailID?.toLowerCase() === email.toLowerCase(),
+  // Inline Email Editing State (for existing rows)
+  const [editingEmailKey, setEditingEmailKey] = useState(null);
+  const [editingEmailValue, setEditingEmailValue] = useState("");
+  const isSavingEditRef = useRef(false);
+
+  // New Row Insertion State (at the bottom of the table)
+  const [isAddingRow, setIsAddingRow] = useState(false);
+  const [newEmailValue, setNewEmailValue] = useState("");
+  const isSavingAddRef = useRef(false);
+
+  // Upward Autocomplete Dropdown States (in-memory search against master directory)
+  const [showAddSuggestions, setShowAddSuggestions] = useState(false);
+  const [showEditSuggestions, setShowEditSuggestions] = useState(false);
+  const addInputRef = useRef(null);
+  const editInputRef = useRef(null);
+  const [dropdownCoords, setDropdownCoords] = useState(null);
+
+  // Live matching users for bottom Add Row
+  const addSuggestions = useMemo(() => {
+    const q = (newEmailValue || "").trim().toLowerCase();
+    if (!q) return [];
+    const existing = new Set(
+      loadedMembers.map((m) => (m.email || "").toLowerCase()),
     );
+    return (masterUsersData || [])
+      .filter((u) => {
+        const email = (u.UserEMailID || "").toLowerCase();
+        const name = (u.UserName || "").toLowerCase();
+        const dept = (u.Department || "").toLowerCase();
+        return (
+          !existing.has(email) &&
+          (email.includes(q) || name.includes(q) || dept.includes(q))
+        );
+      })
+      .slice(0, 6);
+  }, [newEmailValue, loadedMembers, masterUsersData]);
+
+  // Live matching users for Edit Row
+  const editSuggestions = useMemo(() => {
+    const q = (editingEmailValue || "").trim().toLowerCase();
+    if (!q) return [];
+    const currentOldEmail = (editingEmailKey || "").toLowerCase();
+    const existing = new Set(
+      loadedMembers
+        .map((m) => (m.email || "").toLowerCase())
+        .filter((e) => e !== currentOldEmail),
+    );
+    return (masterUsersData || [])
+      .filter((u) => {
+        const email = (u.UserEMailID || "").toLowerCase();
+        const name = (u.UserName || "").toLowerCase();
+        const dept = (u.Department || "").toLowerCase();
+        return (
+          !existing.has(email) &&
+          (email.includes(q) || name.includes(q) || dept.includes(q))
+        );
+      })
+      .slice(0, 6);
+  }, [editingEmailValue, editingEmailKey, loadedMembers, masterUsersData]);
+
+  const updateDropdownCoords = (el) => {
+    if (!el || typeof window === "undefined") {
+      setDropdownCoords(null);
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const availableHeightAbove = Math.max(80, rect.top - 16);
+    const maxH = Math.min(200, availableHeightAbove);
+    const left = Math.max(10, Math.min(rect.left, window.innerWidth - 330));
+    const bottom = window.innerHeight - rect.top + 6;
+    setDropdownCoords({
+      left,
+      bottom,
+      maxHeight: maxH,
+    });
+  };
+
+  useEffect(() => {
+    if (!showAddSuggestions && !showEditSuggestions) {
+      return;
+    }
+    const targetEl = showAddSuggestions
+      ? addInputRef.current
+      : editInputRef.current;
+    if (!targetEl) return;
+
+    const onScrollOrResize = () => {
+      updateDropdownCoords(targetEl);
+    };
+
+    const rafId = requestAnimationFrame(onScrollOrResize);
+
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [showAddSuggestions, showEditSuggestions, addSuggestions.length, editSuggestions.length]);
+
+  // Helper to resolve an email against master users directory or fresh API
+  const resolveMemberFromEmail = async (email, idx) => {
+    const trimmed = String(email || "").trim();
+    let matched = (masterUsersData || []).find(
+      (m) => m.UserEMailID?.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (!matched) {
+      try {
+        const freshUsers = await api.users.list();
+        if (Array.isArray(freshUsers)) {
+          matched = freshUsers.find(
+            (m) => m.UserEMailID?.toLowerCase() === trimmed.toLowerCase(),
+          );
+        }
+      } catch (err) {
+        console.warn("Could not query fresh users from API", err);
+      }
+    }
     return {
       srNo: idx + 1,
-      userName: row.userName || matched?.UserName || email.split("@")[0],
-      email,
-      department: row.department || matched?.Department || "Unregistered",
-      location: (row.location || matched?.Country || "N/A").toUpperCase(),
+      userName: matched?.UserName || trimmed.split("@")[0],
+      email: trimmed,
+      department: matched?.Department || "Unregistered",
+      location: (matched?.Country || "N/A").toUpperCase(),
       hookRate:
         matched?.["HookRate%"] !== undefined ? `${matched["HookRate%"]}%` : "—",
       reportRate:
@@ -149,6 +261,203 @@ const UserListViaBulkUpload = () => {
       isUnregistered: !matched,
     };
   };
+
+  // Start editing existing email
+  const handleStartEdit = (user) => {
+    setEditingEmailKey(user.email);
+    setEditingEmailValue(user.email);
+    setIsAddingRow(false);
+  };
+
+  // Cancel editing existing email
+  const handleCancelEdit = () => {
+    setEditingEmailKey(null);
+    setEditingEmailValue("");
+  };
+
+  // Save edited email and autofill user info
+  const handleSaveEdit = async (originalEmail) => {
+    if (isSavingEditRef.current) return;
+    isSavingEditRef.current = true;
+    try {
+      const trimmed = (editingEmailValue || "").trim();
+      if (!trimmed) {
+        showToast("Email address cannot be empty", "warning");
+        setEditingEmailKey(null);
+        return;
+      }
+      if (trimmed.toLowerCase() === originalEmail.toLowerCase()) {
+        setEditingEmailKey(null);
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmed)) {
+        showToast("Please enter a valid email address (e.g. name@vodafone.com)", "warning");
+        setEditingEmailKey(null);
+        return;
+      }
+      if (
+        loadedMembers.some(
+          (m) =>
+            m.email.toLowerCase() === trimmed.toLowerCase() &&
+            m.email.toLowerCase() !== originalEmail.toLowerCase(),
+        )
+      ) {
+        showToast("This email address already exists in the list", "warning");
+        setEditingEmailKey(null);
+        return;
+      }
+
+      const memberIndex = loadedMembers.findIndex(
+        (m) => m.email.toLowerCase() === originalEmail.toLowerCase(),
+      );
+      if (memberIndex === -1) {
+        setEditingEmailKey(null);
+        return;
+      }
+
+      const resolved = await resolveMemberFromEmail(trimmed, memberIndex);
+      const updated = loadedMembers.map((m, idx) =>
+        idx === memberIndex ? { ...resolved, srNo: m.srNo } : m,
+      );
+
+      setLoadedMembers(updated);
+      computeMetrics(updated);
+      setMembersChanged(true);
+      setEditingEmailKey(null);
+      showToast(
+        `Updated to ${resolved.email}${resolved.isUnregistered ? " (Unregistered)" : ""}`,
+        "success",
+      );
+    } finally {
+      isSavingEditRef.current = false;
+    }
+  };
+
+  // Start adding a new row
+  const handleStartAddRow = () => {
+    setIsAddingRow(true);
+    setNewEmailValue("");
+    setEditingEmailKey(null);
+  };
+
+  // Cancel adding a new row
+  const handleCancelAddRow = () => {
+    setIsAddingRow(false);
+    setNewEmailValue("");
+  };
+
+  // Save new row from email input and autofill details
+  const handleSaveAddRow = async () => {
+    if (isSavingAddRef.current) return;
+    isSavingAddRef.current = true;
+    try {
+      const trimmed = (newEmailValue || "").trim();
+      if (!trimmed) {
+        setIsAddingRow(false);
+        setNewEmailValue("");
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmed)) {
+        showToast("Please enter a valid email address (e.g. name@vodafone.com)", "warning");
+        return;
+      }
+      if (
+        loadedMembers.some(
+          (m) => m.email.toLowerCase() === trimmed.toLowerCase(),
+        )
+      ) {
+        showToast("This email address already exists in the list", "warning");
+        return;
+      }
+
+      const resolved = await resolveMemberFromEmail(
+        trimmed,
+        loadedMembers.length,
+      );
+      const updated = [...loadedMembers, resolved];
+
+      setLoadedMembers(updated);
+      computeMetrics(updated);
+      setMembersChanged(true);
+      setIsLoaded(true);
+      setNewEmailValue("");
+      setIsAddingRow(false);
+      setTableSearch("");
+      showToast(
+        `Added ${resolved.userName || resolved.email}${resolved.isUnregistered ? " (Unregistered)" : ""}`,
+        "success",
+      );
+    } finally {
+      isSavingAddRef.current = false;
+    }
+  };
+
+  // Select suggestion from upward autocomplete for Add Row
+  const handleSelectAddSuggestion = async (user) => {
+    setShowAddSuggestions(false);
+    const email = user.UserEMailID;
+    const resolved = await resolveMemberFromEmail(email, loadedMembers.length);
+    const updated = [...loadedMembers, resolved];
+    setLoadedMembers(updated);
+    computeMetrics(updated);
+    setMembersChanged(true);
+    setIsLoaded(true);
+    setNewEmailValue("");
+    setIsAddingRow(false);
+    setTableSearch("");
+    showToast(`Added ${resolved.userName || resolved.email}`, "success");
+  };
+
+  // Select suggestion from upward autocomplete for Edit Row
+  const handleSelectEditSuggestion = async (user, originalEmail) => {
+    setShowEditSuggestions(false);
+    const email = user.UserEMailID;
+    const memberIndex = loadedMembers.findIndex(
+      (m) => m.email.toLowerCase() === originalEmail.toLowerCase(),
+    );
+    if (memberIndex === -1) {
+      setEditingEmailKey(null);
+      return;
+    }
+    const resolved = await resolveMemberFromEmail(email, memberIndex);
+    const updated = loadedMembers.map((m, idx) =>
+      idx === memberIndex ? { ...resolved, srNo: m.srNo } : m,
+    );
+    setLoadedMembers(updated);
+    computeMetrics(updated);
+    setMembersChanged(true);
+    setEditingEmailKey(null);
+    showToast(`Updated to ${resolved.email}`, "success");
+  };
+
+  // A recipient row, completed from the people directory (GET /users):
+  // blanks in the file take the directory's values, and people who are not in
+  // the directory are flagged as unregistered.
+  const resolveMember = useCallback(
+    (row, idx) => {
+      const email = String(row.email || "").trim();
+      const matched = (masterUsersData || []).find(
+        (m) => m.UserEMailID?.toLowerCase() === email.toLowerCase(),
+      );
+      return {
+        srNo: idx + 1,
+        userName: row.userName || matched?.UserName || email.split("@")[0],
+        email,
+        department: row.department || matched?.Department || "Unregistered",
+        location: (row.location || matched?.Country || "N/A").toUpperCase(),
+        hookRate:
+          matched?.["HookRate%"] !== undefined ? `${matched["HookRate%"]}%` : "—",
+        reportRate:
+          matched?.["ReportRate%"] !== undefined
+            ? `${matched["ReportRate%"]}%`
+            : "—",
+        isUnregistered: !matched,
+      };
+    },
+    [masterUsersData],
+  );
 
   // Calculate telemetry metrics and department breakdown from members list
   const computeMetrics = (membersList = []) => {
@@ -207,7 +516,7 @@ const UserListViaBulkUpload = () => {
     return () => {
       active = false;
     };
-  }, [editId, peopleLoading]);
+  }, [editId, peopleLoading, resolveMember]);
 
   // Download Sample Template
   const handleDownloadTemplate = () => {
@@ -320,18 +629,55 @@ const UserListViaBulkUpload = () => {
       return;
     }
 
-    const resolved = parsedRows.map(resolveMember);
-    setLoadedMembers(resolved);
-    computeMetrics(resolved);
+    // Deduplicate against existing loadedMembers and within the uploaded file itself
+    const existingEmails = new Set(
+      loadedMembers.map((m) => (m.email || "").toLowerCase()),
+    );
+    const newUniqueRows = [];
+    let duplicatesSkipped = 0;
+
+    parsedRows.forEach((r) => {
+      const lower = String(r.email || "").trim().toLowerCase();
+      if (!lower) return;
+      if (existingEmails.has(lower)) {
+        duplicatesSkipped += 1;
+      } else {
+        existingEmails.add(lower);
+        newUniqueRows.push(r);
+      }
+    });
+
+    if (newUniqueRows.length === 0 && duplicatesSkipped > 0) {
+      showToast(
+        `All ${duplicatesSkipped} recipient(s) in this file are already staged`,
+        "warning",
+      );
+      setTableSearch("");
+      setIsLoaded(true);
+      return;
+    }
+
+    const newResolved = newUniqueRows.map((r, i) =>
+      resolveMember(r, loadedMembers.length + i),
+    );
+    const combined = [...loadedMembers, ...newResolved].map((m, idx) => ({
+      ...m,
+      srNo: idx + 1,
+    }));
+
+    setLoadedMembers(combined);
+    computeMetrics(combined);
     setMembersChanged(true);
     setIsLoaded(true);
+    setTableSearch("");
 
-    const unregisteredCount = resolved.filter((m) => m.isUnregistered).length;
+    const unregisteredCount = newResolved.filter((m) => m.isUnregistered).length;
     showToast(
-      `Loaded ${resolved.length} recipients` +
+      `Added ${newResolved.length} recipient${newResolved.length === 1 ? "" : "s"}` +
         (unregisteredCount ? ` (${unregisteredCount} unregistered)` : "") +
+        (duplicatesSkipped ? ` — ${duplicatesSkipped} duplicate(s) skipped` : "") +
         (skipped ? ` — ${skipped} row(s) skipped, no email` : ""),
-      "success"
+      "success",
     );
   };
 
@@ -389,6 +735,9 @@ const UserListViaBulkUpload = () => {
 
   // Handle Member Row Deletion with Real-time Recalculations
   const handleDeleteMember = (emailToDelete, userName) => {
+    if (editingEmailKey === emailToDelete) {
+      handleCancelEdit();
+    }
     const updated = loadedMembers
       .filter((m) => m.email !== emailToDelete)
       .map((m, idx) => ({
@@ -406,6 +755,20 @@ const UserListViaBulkUpload = () => {
     setTimeout(() => setDeletedSuccessMsg(""), 3000);
   };
 
+  // Check if at least one staged user entry is invalid (unregistered in directory or invalid email format)
+  const hasInvalidUsers = useMemo(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return loadedMembers.some(
+      (u) =>
+        u.isUnregistered ||
+        !u.email ||
+        !emailRegex.test(String(u.email).trim()),
+    );
+  }, [loadedMembers]);
+
+  const canSave =
+    isLoaded && loadedMembers.length > 0 && !hasInvalidUsers && !isSaving;
+
   // Save Action
   const handleSave = async () => {
     if (!cohortName.trim()) {
@@ -414,6 +777,14 @@ const UserListViaBulkUpload = () => {
     }
     if (!isLoaded || loadedMembers.length === 0) {
       showToast("No user records staged. Click LOAD first!", "warning", "Input Required");
+      return;
+    }
+    if (hasInvalidUsers) {
+      showToast(
+        "Cannot save: please remove or fix any unregistered or invalid user entries",
+        "warning",
+        "Invalid Users",
+      );
       return;
     }
 
@@ -683,11 +1054,20 @@ const UserListViaBulkUpload = () => {
                   <button
                     type="button"
                     onClick={handleSave}
-                    disabled={!isLoaded || isSaving}
-                    className={`h-6 px-6 -mb-1 mt-1 rounded-2xl text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer active:scale-95 ${
-                      isLoaded
-                        ? "bg-[#8ED973] hover:bg-[#7DC862] text-white"
-                        : "bg-[#8ED973]/50 text-white/70 cursor-not-allowed opacity-60"
+                    disabled={!canSave}
+                    title={
+                      !isLoaded || loadedMembers.length === 0
+                        ? "No user records staged"
+                        : hasInvalidUsers
+                          ? "Cannot save: one or more recipients are unregistered or invalid"
+                          : isSaving
+                            ? "Saving..."
+                            : "Save & Submit"
+                    }
+                    className={`h-6 px-6 -mb-1 mt-1 rounded-2xl text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all ${
+                      canSave
+                        ? "bg-[#8ED973] hover:bg-[#7DC862] text-white cursor-pointer active:scale-95"
+                        : "bg-[#8ED973]/40 text-white/60 cursor-not-allowed opacity-50"
                     }`}
                   >
                     Save & Submit
@@ -724,8 +1104,19 @@ const UserListViaBulkUpload = () => {
                       value={tableSearch}
                       onChange={(e) => setTableSearch(e.target.value)}
                       placeholder="Search Email ID, User Name, Department..."
+                      autoComplete="off"
                       className="w-60 bg-transparent text-[9.5px] font-bold text-slate-900 dark:text-white outline-none placeholder-slate-400"
                     />
+                    {tableSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setTableSearch("")}
+                        className="text-slate-400 hover:text-white cursor-pointer p-0.5"
+                        title="Clear search"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Upward Arrow Expand Option */}
@@ -750,110 +1141,370 @@ const UserListViaBulkUpload = () => {
 
               {/* Scrollable Table View with Unregistered "i" Badge & Delete Option */}
               <div className="flex-1 min-h-0 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-                {filteredMembers.length === 0 ? (
-                  <div className="h-full flex items-center justify-center p-6 text-center text-slate-400 text-xs italic">
-                    No user records staged. Choose a spreadsheet file above and
-                    click LOAD.
-                  </div>
-                ) : (
-                  <table className="w-full text-left text-[10.5px]">
-                    <thead>
-                      <tr className="border-b border-white/10 text-[9.5px] uppercase font-voda font-bold text-slate-400 bg-white/[0.02]">
-                        <th className="py-1.5 px-3">SR NO.</th>
-                        <th className="py-1.5 px-3">USER NAME</th>
-                        <th className="py-1.5 px-3">EMAIL ID</th>
-                        <th className="py-1.5 px-3">DEPARTMENT</th>
-                        <th className="py-1.5 px-3">LOCATION</th>
-                        <th className="py-1.5 px-3 text-center">HOOK RATE %</th>
-                        <th className="py-1.5 px-3 text-center">
-                          REPORT RATE %
-                        </th>
-                        <th className="py-1.5 px-3 text-center">DELETE</th>
+                <table className="w-full text-left text-[10.5px]">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[9.5px] uppercase font-voda font-bold text-slate-400 bg-white/[0.02]">
+                      <th className="py-1.5 px-3">SR NO.</th>
+                      <th className="py-1.5 px-3">USER NAME</th>
+                      <th className="py-1.5 px-3">EMAIL ID</th>
+                      <th className="py-1.5 px-3">DEPARTMENT</th>
+                      <th className="py-1.5 px-3">LOCATION</th>
+                      <th className="py-1.5 px-3 text-center">HOOK RATE %</th>
+                      <th className="py-1.5 px-3 text-center">
+                        REPORT RATE %
+                      </th>
+                      <th className="py-1.5 px-3 text-center">DELETE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadedMembers.length === 0 && !isAddingRow && (
+                      <tr className="border-b border-white/5 text-slate-400 text-xs italic">
+                        <td colSpan={8} className="py-6 text-center">
+                          No user records staged yet. Choose a spreadsheet file above and
+                          click LOAD, or click below to add manually.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMembers.map((user) => (
-                        <tr
-                          key={user.email}
-                          className="border-b border-white/5 hover:bg-white/[0.04] transition-colors"
-                        >
-                          <td className="py-1.5 px-3 text-slate-400 font-bold">
-                            {user.srNo}
-                          </td>
-                          <td className="py-1.5 px-3 font-bold flex items-center gap-1.5 text-white">
-                            <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                                user.isUnregistered
-                                  ? "bg-[#E60000]/25 text-[#FF8595]"
-                                  : "bg-white/10 text-slate-300"
-                              }`}
+                    )}
+                    {loadedMembers.length > 0 && filteredMembers.length === 0 && (
+                      <tr className="border-b border-white/5 text-slate-400 text-xs italic">
+                        <td colSpan={8} className="py-4 text-center">
+                          No user records matching &quot;{tableSearch}&quot;.
+                        </td>
+                      </tr>
+                    )}
+                    {filteredMembers.map((user) => (
+                      <tr
+                        key={`${user.srNo}-${user.email}`}
+                        className="border-b border-white/5 hover:bg-white/[0.04] transition-colors"
+                      >
+                        <td className="py-1.5 px-3 text-slate-400 font-bold">
+                          {user.srNo}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold flex items-center gap-1.5 text-white">
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                              user.isUnregistered
+                                ? "bg-[#E60000]/25 text-[#FF8595]"
+                                : "bg-white/10 text-slate-300"
+                            }`}
+                          >
+                            <UserIcon className="w-3 h-3" />
+                          </div>
+                          <span>{user.userName}</span>
+                        </td>
+
+                        {/* EMAIL ID COLUMN: Clickable cell with input when editing & white pencil icon with z-index */}
+                        {editingEmailKey === user.email ? (
+                          <td
+                            className="py-1 px-2 text-slate-300 font-bold relative"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Autocomplete Dropdown Portaled to Body (Escapes parent overflow/clipping) */}
+                            {showEditSuggestions && editSuggestions.length > 0 && dropdownCoords && typeof document !== "undefined" && createPortal(
+                              <div
+                                style={{
+                                  position: "fixed",
+                                  left: `${dropdownCoords.left}px`,
+                                  bottom: `${dropdownCoords.bottom}px`,
+                                  maxHeight: `${dropdownCoords.maxHeight}px`,
+                                  width: "320px",
+                                  zIndex: 99999,
+                                }}
+                              className="overflow-y-auto rounded-xl bg-[#1C1F28] border border-white/20 shadow-2xl p-1.5 flex flex-col gap-0.5 text-left select-none [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/20"
                             >
-                              <UserIcon className="w-3 h-3" />
-                            </div>
-                            <span>{user.userName}</span>
-                          </td>
-                          <td className="py-1.5 px-3 text-slate-300 font-bold">
-                            {user.email}
-                          </td>
-                          <td className="py-1.5 px-3 text-slate-300 font-bold">
-                            <span
-                              className={
-                                user.isUnregistered
-                                  ? "text-amber-400/90 italic"
-                                  : ""
-                              }
-                            >
-                              {user.department}
-                            </span>
-                          </td>
-                          <td className="py-1.5 px-3 font-bold text-slate-200">
-                            {user.location}
-                          </td>
-                          <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">
-                            {user.hookRate}
-                          </td>
-                          <td className="py-1.5 px-3 text-center font-bold text-[#4ADE80]">
-                            {user.reportRate}
-                          </td>
-
-                          {/* Actions Column: Red "i" Mark (If Unregistered) + Trash Delete Button */}
-                          <td className="py-1.5 px-3 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              {user.isUnregistered && (
-                                <div
-                                  className="relative group inline-flex items-center justify-center cursor-help select-none"
-                                  title="This email address is not registered in the Master User Directory and does not currently have access to VOISShield."
-                                >
-                                  <div className="w-4 h-4 rounded-full bg-[#E60000] text-white flex items-center justify-center text-[9px] font-bold shadow-xs">
-                                    i
+                              {editSuggestions.map((sug) => (
+                                  <div
+                                    key={sug.UserEMailID}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      handleSelectEditSuggestion(sug, user.email);
+                                    }}
+                                    className="px-2 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer flex items-center justify-between gap-2 transition-colors group"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-5 h-5 rounded-full bg-white/10 text-slate-300 flex items-center justify-center flex-shrink-0 group-hover:bg-[#E60000] group-hover:text-white transition-colors">
+                                        <UserIcon className="w-3 h-3" />
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-[10px] font-bold text-white truncate">
+                                          {sug.UserName}
+                                        </span>
+                                        <span className="text-[9px] text-slate-400 font-mono-tech truncate">
+                                          {sug.UserEMailID}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="text-[8.5px] px-1.5 py-0.5 rounded bg-white/5 text-slate-300 font-bold flex-shrink-0">
+                                      {sug.Department || "N/A"}
+                                    </span>
                                   </div>
+                                ))}
+                              </div>,
+                              document.body,
+                            )}
 
-                                  {/* Hover Floating Tooltip */}
-                                  <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 hidden group-hover:flex z-50 w-56 p-2 rounded-xl bg-[#1C1F28] text-white text-[9px] font-medium leading-snug shadow-2xl border border-white/20 text-left pointer-events-none">
-                                    This email address is not registered in the
-                                    Master User Directory and does not currently
-                                    have access to VOISShield.
-                                  </div>
-                                </div>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDeleteMember(user.email, user.userName)
+                            <input
+                              ref={editInputRef}
+                              type="email"
+                              autoFocus
+                              value={editingEmailValue}
+                              onChange={(e) => {
+                                setEditingEmailValue(e.target.value);
+                                setShowEditSuggestions(true);
+                              }}
+                              onFocus={(e) => {
+                                updateDropdownCoords(e.currentTarget);
+                                setShowEditSuggestions(true);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  setShowEditSuggestions(false);
+                                  handleSaveEdit(user.email);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  setShowEditSuggestions(false);
+                                  handleCancelEdit();
                                 }
-                                className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-white/10 transition-colors cursor-pointer"
-                                title={`Delete ${user.userName || user.email}`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
-                              </button>
+                              }}
+                              onBlur={() => {
+                                setTimeout(() => setShowEditSuggestions(false), 200);
+                                handleSaveEdit(user.email);
+                              }}
+                              placeholder="Type name or email..."
+                              className="w-full bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/30 focus:border-[#E60000] focus:outline-none placeholder-slate-400"
+                            />
+                          </td>
+                        ) : (
+                          <td
+                            onClick={() => handleStartEdit(user)}
+                            className="py-1.5 px-3 text-slate-300 font-bold relative group cursor-pointer select-none"
+                            title="Click to edit email address"
+                          >
+                            <div className="flex items-center justify-between w-full min-w-0 pr-6">
+                              <span className="truncate block" title={user.email}>
+                                {user.email}
+                              </span>
+                            </div>
+
+                            {/* Pen / Pencil edit icon in far end of email col */}
+                            <div
+                              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center pl-2 bg-black"
+                            >
+                              <Pencil className="w-3 h-3 text-white pointer-events-none" />
                             </div>
                           </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                        )}
+
+                        <td className="py-1.5 px-3 text-slate-300 font-bold">
+                          <span
+                            className={
+                              user.isUnregistered
+                                ? "text-amber-400/90 italic"
+                                : ""
+                            }
+                          >
+                            {user.department}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-200">
+                          {user.location}
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">
+                          {user.hookRate}
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-[#4ADE80]">
+                          {user.reportRate}
+                        </td>
+
+                        {/* Actions Column: Red "i" Mark (If Unregistered) + Trash Delete Button */}
+                        <td className="py-1.5 px-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {user.isUnregistered && (
+                              <div
+                                className="relative group inline-flex items-center justify-center cursor-help select-none"
+                                title="This email address is not registered in the Master User Directory and does not currently have access to VOISShield."
+                              >
+                                <div className="w-4 h-4 rounded-full bg-[#E60000] text-white flex items-center justify-center text-[9px] font-bold shadow-xs">
+                                  i
+                                </div>
+
+                                {/* Hover Floating Tooltip */}
+                                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 hidden group-hover:flex z-50 w-56 p-2 rounded-xl bg-[#1C1F28] text-white text-[9px] font-medium leading-snug shadow-2xl border border-white/20 text-left pointer-events-none">
+                                  This email address is not registered in the
+                                  Master User Directory and does not currently
+                                  have access to VOISShield.
+                                </div>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeleteMember(user.email, user.userName)
+                              }
+                              className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-white/10 transition-colors cursor-pointer"
+                              title={`Delete ${user.userName || user.email}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* ── ADD NEW ROW AT THE BOTTOM OF TABLE ── */}
+                    {isAddingRow ? (
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        <td className="py-1.5 px-3 text-slate-400 font-bold">
+                          {loadedMembers.length + 1}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td
+                          className="py-1 px-2 relative"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/* Autocomplete Dropdown Portaled to Body (Escapes parent overflow/clipping) */}
+                          {showAddSuggestions && addSuggestions.length > 0 && dropdownCoords && typeof document !== "undefined" && createPortal(
+                            <div
+                              style={{
+                                position: "fixed",
+                                left: `${dropdownCoords.left}px`,
+                                bottom: `${dropdownCoords.bottom}px`,
+                                maxHeight: `${dropdownCoords.maxHeight}px`,
+                                width: "320px",
+                                zIndex: 99999,
+                              }}
+                              className="overflow-y-auto rounded-xl bg-[#1C1F28] border border-white/20 shadow-2xl p-1.5 flex flex-col gap-0.5 text-left select-none [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/20"
+                            >
+                              {addSuggestions.map((sug) => (
+                                <div
+                                  key={sug.UserEMailID}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSelectAddSuggestion(sug);
+                                  }}
+                                  className="px-2 py-1.5 rounded-lg hover:bg-white/10 cursor-pointer flex items-center justify-between gap-2 transition-colors group"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-5 h-5 rounded-full bg-white/10 text-slate-300 flex items-center justify-center flex-shrink-0 group-hover:bg-[#E60000] group-hover:text-white transition-colors">
+                                      <UserIcon className="w-3 h-3" />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-[10px] font-bold text-white truncate">
+                                        {sug.UserName}
+                                      </span>
+                                      <span className="text-[9px] text-slate-400 font-mono-tech truncate">
+                                        {sug.UserEMailID}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[8.5px] px-1.5 py-0.5 rounded bg-white/5 text-slate-300 font-bold flex-shrink-0">
+                                    {sug.Department || "N/A"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>,
+                            document.body,
+                          )}
+
+                          <input
+                            ref={addInputRef}
+                            type="email"
+                            autoFocus
+                            value={newEmailValue}
+                            onChange={(e) => {
+                              setNewEmailValue(e.target.value);
+                              setShowAddSuggestions(true);
+                            }}
+                            onFocus={(e) => {
+                              updateDropdownCoords(e.currentTarget);
+                              setShowAddSuggestions(true);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                setShowAddSuggestions(false);
+                                handleSaveAddRow();
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setShowAddSuggestions(false);
+                                handleCancelAddRow();
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => setShowAddSuggestions(false), 200);
+                              handleSaveAddRow();
+                            }}
+                            placeholder="Type name or email..."
+                            className="w-full bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/30 focus:border-[#E60000] focus:outline-none placeholder-slate-400"
+                          />
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center">
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleCancelAddRow();
+                            }}
+                            onClick={handleCancelAddRow}
+                            className="text-slate-400 hover:text-white text-[10px] cursor-pointer"
+                            title="Cancel"
+                          >
+                            Cancel
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr
+                        onClick={handleStartAddRow}
+                        className="border-b border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group text-slate-400 hover:text-white"
+                      >
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          {loadedMembers.length + 1}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 font-bold">
+                          <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-white transition-colors">
+                            <Plus className="w-3.5 h-3.5 text-[#E60000]" />
+                            <span>+ Add new</span>
+                          </div>
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500">
+                          —
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
