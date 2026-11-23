@@ -28,6 +28,7 @@ import LevelBadge from "../../GlobalComponents/LevelBadge";
 import AllBadges from "../../GlobalComponents/AllBadges";
 import PointsAndBadges from "./PointsAndBadges";
 import LevelChangeNotice from "./LevelChangeNotice";
+import MyBadgesCard from "./MyBadgesCard";
 import { useMyStanding } from "../../services/useMyStanding";
 import {
   levelAltText,
@@ -129,7 +130,7 @@ const DraggableIdBadge = ({
   }, []);
 
   return (
-    <div className="relative w-full h-[524px] lg:h-full lg:min-h-[470px] flex flex-col items-center justify-start select-none overflow-visible pt-1">
+    <div className="relative w-full h-[524px] lg:h-[470px] flex-shrink-0 flex flex-col items-center justify-start select-none overflow-visible pt-1">
       {/* ── Continuous Lanyard Ribbon (SVG Shifted Down 4px) ── */}
       <svg
         className="absolute top-1 left-0 w-full h-[180px] pointer-events-none z-10 overflow-visible"
@@ -1287,6 +1288,12 @@ const MySpace = () => {
               tower="AI & Data Analytics Tower (AIDA)"
               level={standing.level}
               onOpenLeaderboard={() => navigate("/leaderboard")}
+              onOpenBadges={openBadges}
+            />
+            {/* The level badges, filling the column under the ID card */}
+            <MyBadgesCard
+              level={standing.level}
+              isDark={isDark}
               onOpenBadges={openBadges}
             />
           </div>
