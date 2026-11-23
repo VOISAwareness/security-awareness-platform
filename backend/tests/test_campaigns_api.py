@@ -358,3 +358,24 @@ def test_reinvoke_takes_new_dates_when_given(mod, env):
     assert call(mod, "POST /campaigns/{campaignId}/reinvoke", "C2", {"actor": "me@x", "startAt": "2000-01-01T09:00:00Z",
                                                                      "startTime": "2000-01-01T09:00"})[0] == 400
     assert env.campaigns.get_item(Key={"campaignId": "C2"})["Item"]["status"] == "CANCELLED"
+
+
+def test_reinvoke_with_a_new_start_drops_an_old_end_that_is_not_after_it(mod, env):
+    """An auto-ending campaign reinvoked with only a start must not keep an
+    end before that start; an end that is still after it stays."""
+    start_only = {"actor": "me@x", "startTime": "2999-01-01T09:00", "startAt": "2999-01-01T09:00:00Z", "timeZone": "Europe/London"}
+    old = {"status": "CANCELLED", "startAt": "2000-01-01T09:00:00Z", "endTime": "2000-01-02T09:00", "endAt": "2000-01-02T09:00:00Z"}
+    env.campaigns.put_item(Item={"campaignId": "C", **old})
+    status, body = call(mod, "POST /campaigns/{campaignId}/reinvoke", "C", start_only)
+    assert status == 200
+    row = env.campaigns.get_item(Key={"campaignId": "C"})["Item"]
+    assert (row["status"], row["startAt"]) == ("DRAFT", "2999-01-01T09:00:00Z")
+    assert "endAt" not in row and "endTime" not in row
+    # an end after the new start is still a valid window: kept
+    env.campaigns.put_item(Item={"campaignId": "C2", **old, "endTime": "2999-01-05T09:00", "endAt": "2999-01-05T09:00:00Z"})
+    assert call(mod, "POST /campaigns/{campaignId}/reinvoke", "C2", start_only)[0] == 200
+    assert env.campaigns.get_item(Key={"campaignId": "C2"})["Item"]["endAt"] == "2999-01-05T09:00:00Z"
+    # no dates in the body: the schedule is left alone
+    env.campaigns.put_item(Item={"campaignId": "C3", **old})
+    assert call(mod, "POST /campaigns/{campaignId}/reinvoke", "C3", {"actor": "me@x"})[0] == 200
+    assert env.campaigns.get_item(Key={"campaignId": "C3"})["Item"]["endAt"] == "2000-01-02T09:00:00Z"

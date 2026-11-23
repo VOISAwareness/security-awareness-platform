@@ -363,6 +363,15 @@ def reinvoke(campaign_id, body):
     fields, problem = schedule_from(body, True, required=False)
     if problem:
         return err(400, problem)
+    remove = ["approvedBy", "approvedAt", "submittedBy", "submittedAt", "failureReason", "failedAt"]
+    if "startAt" in fields and "endAt" not in fields:
+        # A new start with no new end: an end that is not after the new start
+        # belongs to the old schedule (an auto-ending campaign has none to
+        # give), so it goes rather than leave the campaign ending before it
+        # starts.
+        old_end = parse_instant((get_campaign(campaign_id) or {}).get("endAt"))
+        if old_end is not None and old_end <= parse_instant(fields["startAt"]):
+            remove += ["endAt", "endTime"]
     now = now_iso()
     names = {"#status": "status"}
     values = {}
@@ -373,7 +382,7 @@ def reinvoke(campaign_id, body):
             UpdateExpression=(
                 "SET #status = :draft, reinvokedBy = :actor, reinvokedAt = :now, updatedAt = :now"
                 + extra
-                + " REMOVE approvedBy, approvedAt, submittedBy, submittedAt, failureReason, failedAt"
+                + " REMOVE " + ", ".join(remove)
             ),
             # a cancelled campaign, or one that could not be sent, goes back
             # to its author to fix and submit again
