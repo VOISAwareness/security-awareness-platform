@@ -178,3 +178,13 @@ body {
     transition: none;
   }
 }
+
+/* A view or filter change (ViewTabs): the new content fades and rises in. */
+@keyframes vs-view-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.vs-view-fade { animation: vs-view-fade 0.32s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .vs-view-fade { animation: none; }
+}

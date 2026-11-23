@@ -993,7 +993,7 @@ const Scenarios = () => {
             value={view}
             onChange={setView}
             tabs={[
-              { id: "all", label: "All scenarios" },
+              { id: "all", label: "All Scenarios" },
               { id: "drafts", label: "Drafts", count: drafts.length },
             ]}
           />
@@ -1151,6 +1151,8 @@ const Scenarios = () => {
             {/* ================================================= */}
             <div className="flex-1 min-w-0 flex flex-col">
               <main className="relative flex-1 rounded-[8px] overflow-hidden flex flex-col">
+                {/* Keyed by the view: switching tabs fades the new view in. */}
+                <div key={view} className="vs-view-fade flex-1 min-h-0 flex flex-col">
                 {view === "drafts" ? (
                   <>
                     {savedNotice && (
@@ -1429,6 +1431,7 @@ const Scenarios = () => {
                     })}
                   </div>
                 )}
+                </div>
               </main>
             </div>
             {/* ========================================================================= */}
