@@ -501,7 +501,7 @@ const ChooseAScenario = () => {
             value={view}
             onChange={setView}
             tabs={[
-              { id: 'all', label: 'Create new' },
+              { id: 'all', label: 'Create New' },
               { id: 'drafts', label: 'Drafts', count: draftItems.length },
             ]}
           />
@@ -571,7 +571,7 @@ const ChooseAScenario = () => {
           {/* ── 3. GALLERY CARDS: SQUARISH PROPORTIONS & RESOLVED COVER IMAGE ── */}
           {view === 'all' ? (
           <>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
+          <div className="vs-view-fade flex-1 min-h-0 overflow-y-auto p-4 sm:p-3 pr-3 mt-1 mb-3 grid gap-4 content-start [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md">
             
             {/* 🌟 START FRESH CARD (FIRST IN THE GALLERY) */}
             <div
@@ -735,7 +735,7 @@ const ChooseAScenario = () => {
           ) : (
             // No right padding here: the cards' own scroll area adds it, so the
             // drafts are exactly as wide as the template cards.
-            <div className="flex-1 min-h-0 flex flex-col p-4 pr-0 sm:p-3 sm:pr-0 mt-1 mb-3">
+            <div className="vs-view-fade flex-1 min-h-0 flex flex-col p-4 pr-0 sm:p-3 sm:pr-0 mt-1 mb-3">
               {savedNotice && (
                 <span
                   role="status"
