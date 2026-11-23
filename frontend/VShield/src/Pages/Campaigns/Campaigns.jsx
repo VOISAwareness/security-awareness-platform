@@ -22,6 +22,7 @@ import OnGoingImg from "../../assets/CampaignsAssets/OnGoingCampaignsImage.png";
 import ScheduledImg from "../../assets/CampaignsAssets/ScheduledCampaignsImage.png";
 import HistoricalImg from "../../assets/CampaignsAssets/HistoricalCampaignsImage.png";
 import CancelledImg from "../../assets/CampaignsAssets/CancelledCampaignsImage.png";
+import OnHoldImg from "../../assets/clay/campaigns/on-hold-campaigns.webp";
 import { DEMO_USER } from "../../appConfig";
 import PageLoading from "../../GlobalComponents/PageLoading";
 import CampaignGalleryCard from "./CampaignGalleryCard";
@@ -91,6 +92,13 @@ const TAB_CONFIG = {
     subtitle: "Campaigns that are successfully scheduled to run in coming days",
     counterColor: "#8ED973", // Green
     img: ScheduledImg,
+  },
+  onhold: {
+    id: "onhold",
+    title: "On Hold Campaigns",
+    subtitle: "Scheduled, then put on hold: resume one with new dates",
+    counterColor: "#F59E0B", // Amber
+    img: OnHoldImg,
   },
   historical: {
     id: "historical",
@@ -206,6 +214,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
   const categorizedCampaigns = useMemo(() => {
     const ongoing = [];
     const scheduled = [];
+    const onhold = [];
     const historical = [];
     const cancelled = [];
 
@@ -213,8 +222,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
       if (c.CampaignStatus === DESIGN_STATUS.CANCELLED || c.CampaignStatus === DESIGN_STATUS.FAILED) {
         cancelled.push(c);
       } else if (c.CampaignStatus === DESIGN_STATUS.ON_HOLD) {
-        // on hold: still on the Scheduled tab, marked, with Resume
-        scheduled.push(c);
+        // on hold: its own tab, with Resume and Cancel
+        onhold.push(c);
       } else if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
         if (c.phase === PHASE.COMPLETED) historical.push(c);
         else if (c.phase === PHASE.LIVE) ongoing.push(c);
@@ -222,7 +231,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
       }
     });
 
-    return { ongoing, scheduled, historical, cancelled };
+    return { ongoing, scheduled, onhold, historical, cancelled };
   }, [campaignsList]);
 
   // Trigger the real send for an APPROVED campaign. The backend sends to the
@@ -280,7 +289,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
     setSendNotice("");
     try {
       await hold(camp.campaignId);
-      setSendNotice(`${camp.campaignId} is on hold. It will not be sent until you resume it with new dates.`);
+      setSendNotice(`${camp.campaignId} is on hold. It is listed under On Hold Campaigns and will not be sent until you resume it with new dates.`);
     } catch (e) {
       setActionError(e?.message || "Could not put that campaign on hold.");
     } finally {
@@ -634,7 +643,46 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 3. HISTORICAL CAMPAIGNS CAPSULE */}
+            {/* 3. ON HOLD CAMPAIGNS CAPSULE (scheduled, then put on hold) */}
+            <div
+              onClick={() => setActiveTab("onhold")}
+              style={{
+                height: `${VarThreeButtonsHeightAdjuster}px`,
+                borderRadius: `${Math.round(20 * VarOverallCornerRoundednessAdjuster)}px`,
+              }}
+              className={`relative p-3.5 flex flex-col justify-between transition-all cursor-pointer overflow-hidden border ${getTabButtonClasses("onhold")}`}
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <h3 className="text-[14px] font-voda font-bold tracking-tight leading-tight">
+                  On Hold Campaigns
+                </h3>
+              </div>
+              <p
+                className={`text-[9px] font-medium leading-tight relative z-10 max-w-[145px] ${
+                  activeTab === "onhold"
+                    ? isDark
+                      ? "text-slate-700"
+                      : "text-slate-300"
+                    : isDark
+                      ? "text-slate-400"
+                      : "text-slate-500"
+                }`}
+              >
+                {TAB_CONFIG.onhold.subtitle}
+              </p>
+              <div className="absolute -bottom-1 -right-1 w-14 h-14 pointer-events-none select-none z-0">
+                <img
+                  src={TAB_CONFIG.onhold.img}
+                  alt="On Hold"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 4. HISTORICAL CAMPAIGNS CAPSULE */}
             <div
               onClick={() => setActiveTab("historical")}
               style={{
@@ -673,7 +721,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {/* 4. CANCELLED CAMPAIGNS CAPSULE (scheduled, then cancelled) */}
+            {/* 5. CANCELLED CAMPAIGNS CAPSULE (scheduled, then cancelled) */}
             <div
               onClick={() => setActiveTab("cancelled")}
               style={{
@@ -881,7 +929,7 @@ const Campaigns = ({ isDark: propIsDark }) => {
                         })
                       }
                       onAnalytics={
-                        activeTab === "scheduled" || activeTab === "cancelled"
+                        activeTab === "scheduled" || activeTab === "onhold" || activeTab === "cancelled"
                           ? null
                           : () => setAnalyticsItem({ camp, idx })
                       }
