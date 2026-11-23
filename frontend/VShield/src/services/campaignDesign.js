@@ -76,8 +76,11 @@ export function toDesignCampaign(campaign, now = new Date()) {
     CampaignDescription: campaign.campaignDescription,
     CampaignStartType: campaign.scenarioId && campaign.scenarioId !== 'custom' ? 'Scenario' : 'Custom',
     ScenarioID: campaign.scenarioId,
-    StartTime: campaign.startTime,
-    EndTime: campaign.endTime,
+    // The real instant when there is one (startAt, UTC), so a campaign picked in
+    // another zone before the app used UK time still shows when it truly runs;
+    // else the picked wall-clock time, which is UK time.
+    StartTime: campaign.startAt || campaign.startTime,
+    EndTime: campaign.endAt || campaign.endTime,
     CreationDate: campaign.createdAt,
     LastModified: campaign.updatedAt,
     CreatedBy: campaign.createdBy || campaign.submittedBy || '',

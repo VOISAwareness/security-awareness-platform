@@ -6,6 +6,7 @@ import { Mail, Minus, Plus, ShieldCheck, SlidersHorizontal, Timer, X } from 'luc
 import { GLOSSARY } from '../../services/glossary';
 import { TARGETS, UNITS, checkTarget, pairFor, standing, targetsWith } from '../../services/insightsTargets';
 import { EASE, INK, alpha, small, themeVars, TYPE } from './insightsUi';
+import { formatDate } from '../../shared/dateTime';
 
 // Insights' Targets, for admins: where each measure should be. "Set
 // targets" in the page's title bar opens a dialog in three sections (Risk,
@@ -69,10 +70,7 @@ function failure(e) {
   return 'Couldn’t reach the server, so nothing was saved.';
 }
 
-const when = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-};
+const when = (iso) => formatDate(iso) || null;
 
 /** "Set targets", in the page's title bar (black on the light theme, glass on the dark); admins only. */
 export function TargetsButton({ onClick, isDark }) {

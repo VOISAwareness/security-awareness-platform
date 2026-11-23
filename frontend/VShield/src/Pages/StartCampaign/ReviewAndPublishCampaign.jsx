@@ -34,6 +34,7 @@ import { useSaveCampaignAsDraft } from '../../services/useSaveCampaignAsDraft';
 import { testRecipientEmails, usesTestRecipients } from '../../services/testRecipients';
 import Toast from '../../GlobalComponents/Toast';
 import { PAGE_SCALE } from '../../shared/SharedStyles';
+import { formatDateTime as formatAppDateTime } from '../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS (STRICTLY PRESERVED & MATCHED TO CAMPAIGN EMAIL)
@@ -147,23 +148,8 @@ const ReviewAndPublishCampaign = () => {
   const campaignDescription = draft.campaignDescription || matchedScenario?.description || 'HR Pulse engagement check impersonating the internal VOIS Spirit Team inviting staff to participate in quarterly workplace sentiment evaluations.';
 
   // Date Settings
-  const formatDateTime = (dtStr, fallback) => {
-    if (!dtStr) return fallback;
-    try {
-      const d = new Date(dtStr);
-      if (isNaN(d.getTime())) return dtStr;
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12 || 12;
-      return `${mm}/${dd}/${yyyy} ${hours}:${minutes} ${ampm}`;
-    } catch {
-      return fallback;
-    }
-  };
+  // The schedule is UK time; shown with BST / GMT (shared/dateTime.js).
+  const formatDateTime = (dtStr, fallback) => (dtStr ? formatAppDateTime(dtStr) || dtStr : fallback);
 
   const startTimeDisplay = formatDateTime(draft.startTime, '09/08/2026 2:00 PM');
   const endTimeDisplay = formatDateTime(draft.endTime, '09/15/2026 2:00 PM');

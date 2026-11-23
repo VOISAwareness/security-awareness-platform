@@ -3,6 +3,7 @@ import { catalogLive, useMyTraining } from "../../../services/myTraining";
 import "../TrainingTable.css";
 import { FilePlay, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatDate as formatAppDate } from '../../../shared/dateTime';
 
 const ITEMS_PER_PAGE = 6;
 // The path's name from the training catalogue (services/myTraining.js).
@@ -174,20 +175,8 @@ export default function MyTrainingTableData({
     return sortConfig.direction === "asc" ? "↑" : "↓";
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-
-    const date = new Date(dateString);
-
-    if (Number.isNaN(date.getTime())) return dateString;
-
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      timeZone: "UTC",
-    });
-  };
+  // the UK date (shared/dateTime.js)
+  const formatDate = (dateString) => (dateString ? formatAppDate(dateString) || dateString : "—");
 
   return (
     <section className="training-table-card">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User } from "lucide-react";
 import NotifyIllustration from "../../../assets/RequestAndApprovalsAssets/NotifyForChangeImage.png";
+import { formatShortDate as shortDateUK } from '../../../shared/dateTime';
 
 const NotifyForChangeWindow = ({
   isOpen,
@@ -22,19 +23,9 @@ const NotifyForChangeWindow = ({
   };
 
   // Format short date (e.g. 2-Jan-26 or extracted from CreationDate)
-  const formatShortDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
-      const day = d.getDate();
-      const month = d.toLocaleString("en-US", { month: "short" });
-      const year = String(d.getFullYear()).slice(-2);
-      return `${day}-${month}-${year}`;
-    } catch {
-      return dateStr.split(" ")[0] || "N/A";
-    }
-  };
+  // "2-Jan-26", the UK date (shared/dateTime.js)
+  const formatShortDate = (dateStr) =>
+    dateStr ? shortDateUK(dateStr) || String(dateStr).split(" ")[0] || "N/A" : "N/A";
 
   return (
     <AnimatePresence>

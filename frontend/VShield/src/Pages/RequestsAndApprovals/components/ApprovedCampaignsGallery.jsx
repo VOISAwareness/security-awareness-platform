@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useUserType } from "../../../UserTypeContext/UserTypeContext";
 import { Search, ChevronDown, ExternalLink, User, Check } from "lucide-react";
+import { formatDate, formatDateTime } from '../../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS (MATCHING OTHER GALLERIES)
@@ -57,34 +58,9 @@ const ApprovedCampaignsGallery = ({
 
   const lCardBg = getLCardBg(isDark);
 
-  // Standardized Date Formatter: mm/dd/yyyy and optional full time stamp
-  const formatDisplayDate = (dateStr, includeTime = false) => {
-    if (!dateStr) return "N/A";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) {
-        return dateStr;
-      }
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const year = d.getFullYear();
-
-      if (!includeTime) {
-        return `${month}/${day}/${year}`;
-      }
-
-      let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, "0");
-      const seconds = String(d.getSeconds()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12 || 12;
-      const formattedHours = String(hours).padStart(2, "0");
-
-      return `${month}/${day}/${year} ${formattedHours}:${minutes}:${seconds} ${ampm}`;
-    } catch {
-      return dateStr;
-    }
-  };
+  // UK date, or date and time with BST / GMT (shared/dateTime.js)
+  const formatDisplayDate = (dateStr, includeTime = false) =>
+    (includeTime ? formatDateTime(dateStr) : formatDate(dateStr)) || (dateStr ? String(dateStr) : "N/A");
 
   // Resolve normalized active user email
   const activeEmail = useMemo(() => {

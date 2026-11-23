@@ -25,6 +25,7 @@ import PageLoading from "../../GlobalComponents/PageLoading";
 import CampaignGalleryCard from "./CampaignGalleryCard";
 import ViewAnalyticsModal from "./ViewAnalyticsModal";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
+import { formatDate, formatDateTime } from '../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -184,29 +185,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
     [campaigns],
   );
 
-  // Standardized Date Formatters: mm/dd/yyyy
-  const formatDisplayDate = (dateStr, includeTime = false) => {
-    if (!dateStr) return "N/A";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const year = d.getFullYear();
-
-      if (!includeTime) {
-        return `${month}/${day}/${year}`;
-      }
-
-      let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12 || 12;
-      return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
-    } catch {
-      return dateStr;
-    }
-  };
+  // Dates and times in UK time, labelled (shared/dateTime.js)
+  const formatDisplayDate = (dateStr, includeTime = false) =>
+    (includeTime ? formatDateTime(dateStr) : formatDate(dateStr)) || (dateStr ? String(dateStr) : "N/A");
 
   // Published campaigns split on their schedule (the derived phase). A
   // campaign that could not be sent (no recipients, no link, start missed)

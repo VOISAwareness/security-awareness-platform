@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { ArrowRight, Clock3, FilePenLine, Trash2 } from 'lucide-react';
 
 import { NEUTRAL_DRAFT_THEME } from './draftTheme';
+import { formatDate, formatDateTime, formatTime } from '../shared/dateTime';
 
-// "Oct 1, 9:00 AM" on the card (one line, beside the id; on a narrow card just
-// "Oct 1"); full date on hover.
-const savedDay = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '');
-const savedTime = (iso) =>
-  iso ? new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
-const savedFull = (iso) =>
-  iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+// "1 Oct, 9:00 AM BST" on the card (one line, beside the id; on a narrow card
+// just "1 Oct"); full date on hover. UK time (shared/dateTime.js).
+const savedDay = (iso) => formatDate(iso).replace(/ \d{4}$/, '');
+const savedTime = (iso) => formatTime(iso);
+const savedFull = (iso) => formatDateTime(iso);
 
 // The Drafts view shared by Scenarios and Start New Campaign. Each card is laid
 // out like the template cards beside it — same size, same pastel theme, the

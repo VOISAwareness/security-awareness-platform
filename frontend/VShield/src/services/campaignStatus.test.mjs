@@ -102,9 +102,11 @@ test('auto-end-after-sending finishes a campaign the moment it is sent', () => {
 test('parseDate handles all three date shapes in play', () => {
   assert.ok(parseDate('2026-10-01T09:00:00Z') instanceof Date); // API ISO
   assert.ok(parseDate('2026-10-01T09:00') instanceof Date); // datetime-local
-  assert.equal(parseDate('08/10/2026 09:00 AM').getHours(), 9); // bundled data
-  assert.equal(parseDate('08/10/2026 12:00 PM').getHours(), 12);
-  assert.equal(parseDate('08/10/2026 12:00 AM').getHours(), 0);
+  // bundled data, UK time (BST in August)
+  assert.equal(parseDate('08/10/2026 09:00 AM').toISOString(), '2026-08-10T08:00:00.000Z');
+  assert.equal(parseDate('08/10/2026 12:00 PM').toISOString(), '2026-08-10T11:00:00.000Z');
+  assert.equal(parseDate('08/10/2026 12:00 AM').toISOString(), '2026-08-09T23:00:00.000Z');
+  assert.equal(parseDate('2026-12-01T09:00').toISOString(), '2026-12-01T09:00:00.000Z', 'a wall-clock value is UK time');
 });
 
 test('parseDate returns null rather than an Invalid Date', () => {

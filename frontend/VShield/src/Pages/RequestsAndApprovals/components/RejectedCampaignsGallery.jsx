@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { formatDateTime } from "../../../services/campaignStatus";
 import { Search, ChevronDown, ExternalLink, UserX } from "lucide-react";
+import { formatShortDate as shortDateUK } from '../../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -62,19 +63,9 @@ const RejectedCampaignsGallery = ({
       .toLowerCase() === me;
   const busy = (camp) => pendingAction === camp.campaignId;
 
-  const formatShortDate = (dateStr) => {
-    if (!dateStr) return "—";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
-      const day = d.getDate();
-      const month = d.toLocaleString("en-US", { month: "short" });
-      const year = String(d.getFullYear()).slice(-2);
-      return `${day}-${month}-${year}`;
-    } catch {
-      return dateStr.split(" ")[0] || "—";
-    }
-  };
+  // "2-Jan-26", the UK date (shared/dateTime.js)
+  const formatShortDate = (dateStr) =>
+    dateStr ? shortDateUK(dateStr) || String(dateStr).split(" ")[0] || "—" : "—";
 
   const getCleanUserName = (emailStr) => {
     if (!emailStr) return "Unknown";

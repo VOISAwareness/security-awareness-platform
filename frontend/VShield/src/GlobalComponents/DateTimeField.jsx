@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { nowInAppZone } from '../shared/dateTime';
 import { Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 
 import {
@@ -26,6 +27,8 @@ const pad = (n) => String(n).padStart(2, '0');
 const dayOf = (d) => ({ year: d.getFullYear(), month: d.getMonth(), day: d.getDate() });
 const monthIndex = ({ year, month }) => year * 12 + month;
 
+// Times are UK time (shared/dateTime.js): "today" and "now" are the UK's, and
+// the chosen value shows with BST / GMT.
 // A date & time field whose whole box opens a calendar (no separate picker
 // button). The value is the "YYYY-MM-DDTHH:mm" string a native datetime-local
 // input gives, so it drops in where one was. The calendar is portalled to
@@ -62,7 +65,7 @@ const DateTimeField = ({
   const floor = parseDateTimeValue(floorValue);
 
   const openCalendar = () => {
-    const now = new Date();
+    const now = nowInAppZone();
     const anchor = selected || parseDateTimeValue(min) || dayOf(now);
     setOpenedAt(now);
     setView({ year: anchor.year, month: anchor.month });
@@ -120,14 +123,14 @@ const DateTimeField = ({
 
   // The day a time change applies to when no day has been picked yet.
   const fallbackDay = () => {
-    const today = dayOf(openedAt || new Date());
+    const today = dayOf(openedAt || nowInAppZone());
     return floor && dayKey(floor) > dayKey(today) ? { year: floor.year, month: floor.month, day: floor.day } : today;
   };
 
   const pickDay = (cell) => {
     const time = selected
       ? { hours: selected.hours, minutes: selected.minutes }
-      : defaultTimeFor(cell, new Date());
+      : defaultTimeFor(cell, nowInAppZone());
     onChange(toDateTimeValue({ year: cell.year, month: cell.month, day: cell.day, ...time }));
     if (!cell.inMonth) setView({ year: cell.year, month: cell.month });
   };
@@ -138,7 +141,7 @@ const DateTimeField = ({
   };
 
   const pickNow = () => {
-    const now = new Date();
+    const now = nowInAppZone();
     now.setSeconds(0, 0);
     onChange(dateToValue(now));
     setView({ year: now.getFullYear(), month: now.getMonth() });

@@ -1,31 +1,17 @@
 import { ExternalLink, User, BarChart2 } from "lucide-react";
+import { formatDateTime, formatShortDate } from '../../shared/dateTime';
 
 // One campaign on the On Going, Scheduled and Historical tabs: title and
 // description beside its start-to-end timeline, then who created, approved
 // and published it.
 
-// "2-Jan-26"
-const formatShortDate = (value) => {
-  const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return "N/A";
-  return `${d.getDate()}-${d.toLocaleString("en-US", { month: "short" })}-${String(d.getFullYear()).slice(-2)}`;
-};
+// "2-Jan-26" (UK date)
+const shortDate = (value) => formatShortDate(value) || "N/A";
 
-// "Oct-02-2026 2:00PM"
-const formatScheduleTimestamp = (value) => {
-  const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return "N/A";
-  const hours = d.getHours() % 12 || 12;
-  return `${d.toLocaleString("en-US", { month: "short" })}-${String(d.getDate()).padStart(2, "0")}-${d.getFullYear()} ${hours}:${String(d.getMinutes()).padStart(2, "0")}${d.getHours() >= 12 ? "PM" : "AM"}`;
-};
+// "2 Oct 2026, 2:00 PM BST" (UK time, labelled)
+const formatScheduleTimestamp = (value) => formatDateTime(value) || "N/A";
 
-// "09/28/2026 04:20:00 PM"
-const formatPublishedTimestamp = (value) => {
-  const d = new Date(value);
-  if (!value || isNaN(d.getTime())) return "N/A";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(d.getHours() % 12 || 12)}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${d.getHours() >= 12 ? "PM" : "AM"}`;
-};
+const formatPublishedTimestamp = (value) => formatDateTime(value) || "N/A";
 
 const DAY = 1000 * 60 * 60 * 24;
 const daysAgo = (value) => {
@@ -83,7 +69,7 @@ const CampaignGalleryCard = ({
 
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300">
-            Created on: {formatShortDate(camp.CreationDate)}
+            Created on: {shortDate(camp.CreationDate)}
           </span>
 
           {tab === "historical" && (

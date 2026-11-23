@@ -9,6 +9,7 @@ import {
   Calendar,
   ArrowRight,
 } from "lucide-react";
+import { formatShortDate as shortDateUK } from '../../../shared/dateTime';
 
 // =========================================================================
 // 🎛️ ADJUSTER CONSTANTS
@@ -72,37 +73,11 @@ const ExpiredCampaignsGallery = ({
 
   const lCardBg = getLCardBg(isDark);
 
-  const formatShortDate = (dateStr) => {
-    if (!dateStr) return "—";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(" ")[0];
-      const day = d.getDate();
-      const month = d.toLocaleString("en-US", { month: "short" });
-      const year = String(d.getFullYear()).slice(-2);
-      return `${day}-${month}-${year}`;
-    } catch {
-      return dateStr.split(" ")[0] || "—";
-    }
-  };
+  // "2-Jan-26", the UK date (shared/dateTime.js)
+  const formatShortDate = (dateStr) =>
+    dateStr ? shortDateUK(dateStr) || String(dateStr).split(" ")[0] || "—" : "—";
 
-  const formatReadableDateTime = (dateStr) => {
-    if (!dateStr) return "—";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return dateStr;
-    }
-  };
+  const formatReadableDateTime = (dateStr) => (dateStr ? formatDateTime(dateStr) : "—"); // UK time, labelled
 
   const getElapsedString = (dateStr) => {
     if (!dateStr) return "—";

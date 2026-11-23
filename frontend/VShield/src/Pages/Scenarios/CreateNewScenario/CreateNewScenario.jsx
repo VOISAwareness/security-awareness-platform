@@ -60,6 +60,7 @@ import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
 import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import {SCENARIO_STEPS} from './ScenarioConstants';
 import { PAGE_SCALE } from '../../../shared/SharedStyles';
+import { formatDateTime } from '../../../shared/dateTime';
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -624,12 +625,7 @@ const ScenarioEditor = ({ opening }) => {
 
   const draftOffer = scenarioDraft.offer;
   const offeredEdit = draftOffer?.editing || null;
-  const draftSavedAt = draftOffer?.savedAt
-    ? new Date(draftOffer.savedAt).toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : "";
+  const draftSavedAt = draftOffer?.savedAt ? formatDateTime(draftOffer.savedAt) : "";
 
   // ==========================================================
   // COVER IMAGE UPLOAD (as soon as it is chosen)

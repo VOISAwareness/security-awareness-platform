@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 
 import { useIsDarkMode } from "../../components/modals/helpers";
+import { nowInAppZone } from '../../../../shared/dateTime';
 
 export const CreateNewVideos = ({
   onSave,
@@ -69,7 +70,7 @@ export const CreateNewVideos = ({
         TrainingVideoName: name,
         "Thumbnail(CoverImage)": "",
         TrainingVideo: selectedFile ? URL.createObjectURL(selectedFile) : (editingVideo ? editingVideo.TrainingVideo : ""),
-        CreatedOn: editingVideo ? editingVideo.CreatedOn : new Date().toLocaleDateString("en-GB", {
+        CreatedOn: editingVideo ? editingVideo.CreatedOn : nowInAppZone().toLocaleDateString("en-GB", {
           day: "2-digit",
           month: "short",
           year: "numeric"

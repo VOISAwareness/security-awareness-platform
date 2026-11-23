@@ -7,6 +7,7 @@ import {
   Settings,
   UploadCloud
 } from 'lucide-react';
+import { formatShortDate as shortDateUK } from '../../../../shared/dateTime';
 
 export const VarOverallCornerRoundednessAdjuster = 0.6;
 export const VarGallaryCardsScaleAdjuster = 1.0;
@@ -46,19 +47,9 @@ const RejectedPathsGallery = ({
     }
   };
 
-  const formatShortDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr.split(' ')[0];
-      const day = d.getDate();
-      const month = d.toLocaleString('en-US', { month: 'short' });
-      const year = String(d.getFullYear()).slice(-2);
-      return `${day}-${month}-${year}`;
-    } catch { /* ignore */
-      return dateStr.split(' ')[0] || 'N/A';
-    }
-  };
+  // "2-Jan-26", the UK date (shared/dateTime.js)
+  const formatShortDate = (dateStr) =>
+    dateStr ? shortDateUK(dateStr) || String(dateStr).split(' ')[0] || 'N/A' : 'N/A';
 
   const getCleanUserName = (emailStr) => {
     if (!emailStr) return 'Manager';

@@ -23,6 +23,7 @@ import PackageFrame from "../../components/PackageFrame";
 import { TrainingVideoCard } from "../../components/cards/TrainingVideoCard";
 import { TrainingQuizCard } from "../../components/cards/TrainingQuizCard";
 import { TrainingCertificateCard } from "../../components/cards/TrainingCertificateCard";
+import { nowInAppZone } from '../../../../shared/dateTime';
 
 export const CreateNewTrainingPath = ({
   videos,
@@ -107,7 +108,7 @@ export const CreateNewTrainingPath = ({
       TrainingPathName: pathName,
       "Thumbnail(CoverImage)": editingPath ? editingPath["Thumbnail(CoverImage)"] : `CovImg-00${Math.floor(1 + Math.random() * 5)}.png`,
       Description: description || "Custom constructed remediation training program.",
-      CreatedOn: editingPath ? editingPath.CreatedOn : new Date().toLocaleDateString("en-GB", {
+      CreatedOn: editingPath ? editingPath.CreatedOn : nowInAppZone().toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric"

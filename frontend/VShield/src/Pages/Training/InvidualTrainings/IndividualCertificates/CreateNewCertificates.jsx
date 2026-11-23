@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { useIsDarkMode } from "../../components/modals/helpers";
+import { nowInAppZone } from '../../../../shared/dateTime';
 
 // Default HTML template for certificate body
 const DEFAULT_CERTIFICATE_HTML = `<div style="text-align: center; font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; padding-top: 20px; color: #1e293b;">
@@ -467,7 +468,7 @@ export const CreateNewCertificates = ({
       TrainingCertificateID: certId,
       TrainingCertificateName: name,
       "Thumbnail(CoverImage)": "",
-      CreatedOn: editingCert ? editingCert.CreatedOn : new Date().toLocaleDateString("en-GB", {
+      CreatedOn: editingCert ? editingCert.CreatedOn : nowInAppZone().toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric"

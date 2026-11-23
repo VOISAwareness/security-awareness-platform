@@ -66,6 +66,12 @@ test('toDesignCampaign exposes the fields the screens read', () => {
   assert.equal(row.campaignId, 'CMP-1');
 });
 
+test('the schedule shows the real instant when the campaign has one', () => {
+  const row = toDesignCampaign({ campaignId: 'CMP-2', status: 'APPROVED', startTime: '2026-10-09T09:00', startAt: '2026-10-09T03:30:00.000Z', endTime: '2026-10-10T09:00' }, NOW);
+  assert.equal(row.StartTime, '2026-10-09T03:30:00.000Z', 'picked in India before the app used UK time');
+  assert.equal(row.EndTime, '2026-10-10T09:00', 'no instant: the picked time');
+});
+
 test('an approved resubmission does not show its old rejection note', () => {
   const row = toDesignCampaign(
     make({

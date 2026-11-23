@@ -22,6 +22,7 @@
  * calendar quarters (Apr-Jun, Jul-Sep, Oct-Dec, Jan-Mar).
  */
 import { derivePhase, parseDate, PHASE, STATUS } from './campaignStatus.js';
+import { nowInAppZone } from '../shared/dateTime.js';
 
 export const PERIODS = [
   'Current Quarter',
@@ -218,8 +219,9 @@ export function showRate(value, digits = 0) {
 }
 
 /** "21st April 2026, Monday". */
-export function longDate(date) {
-  if (!date) return '—';
+export function longDate(value) {
+  if (!value) return '—';
+  const date = nowInAppZone(value); // the UK day (shared/dateTime.js)
   const day = date.getDate();
   const suffix = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][day % 10] || 'th';
   return `${day}${suffix} ${date.toLocaleString('en-GB', { month: 'long' })} ${date.getFullYear()}, ${date.toLocaleString('en-GB', { weekday: 'long' })}`;
