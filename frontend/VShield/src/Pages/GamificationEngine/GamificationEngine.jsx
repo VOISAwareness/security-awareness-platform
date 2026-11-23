@@ -383,21 +383,29 @@ const GamificationEngine = () => {
                   onMouseEnter={() => handleCardMouseEnter(item.id)}
                   className="relative w-full flex flex-col transition-all duration-300"
                 >
-                  {/* ── TOP TIER: [Left Floating Pill] + [Right L-Head] — grows with the card ── */}
-                  <div className="flex items-stretch w-full flex-1 min-h-0">
+                  {/* ── TOP TIER: [Left Floating Pill] + [Right L-Head]. The card fills its
+                      grid row; the extra height is shared 3:2 between this tier and the
+                      shelf below, and each spreads its content instead of stretching it. ── */}
+                  <div className="flex items-stretch w-full flex-[3] min-h-[100px]">
                     {/* 1. Left Colored Tag Pill */}
                     <div
-                      className="w-[48%] rounded-lg min-h-[100px] p-2 sm:p-2.5 mb-2 flex flex-col justify-between flex-shrink-0 mr-2.5 shadow-2xs"
+                      className="relative overflow-hidden w-[48%] rounded-lg p-2.5 sm:p-3 mb-2 flex flex-col justify-between flex-shrink-0 mr-2.5 shadow-2xs"
                       style={{ backgroundColor: item.tagBg }}
                     >
-                      <div>
+                      <div className="relative z-10">
                         <h3 className="text-[15px] font-bold font-voda uppercase tracking-tight text-black leading-tight">
                           {item.title}
                         </h3>
-                        <p className="text-[8.5px] font-normal text-black/85 leading-snug mt-2 whitespace-pre-line">
+                        <p className="text-[9px] font-normal text-black/85 leading-snug mt-1.5 whitespace-pre-line">
                           {item.description}
                         </p>
                       </div>
+                      {/* The rule's icon, large and faint in the corner, so a tall tag isn't empty */}
+                      <item.icon
+                        aria-hidden="true"
+                        className="absolute -right-2 -bottom-2 w-[46%] max-w-[84px] h-auto aspect-square text-black/10 pointer-events-none"
+                        strokeWidth={1.6}
+                      />
                     </div>
 
                     {/* 2. Right L-Head (Continuous with Bottom Shelf) */}
@@ -409,16 +417,11 @@ const GamificationEngine = () => {
                     >
                       {/* Top Header Row with Title + Toddle Animated Logo */}
                       <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="text-[12.5px] -mt-1 font-bold font-voda uppercase tracking-tight leading-tight">
-                            CURRENT
-                            <br />
-                            POINTS
-                          </h4>
-                          <div className="text-[18px] mt-1 sm:text-[24px] font-bold font-voda leading-none my-1">
-                            {currentPointsDisplay}
-                          </div>
-                        </div>
+                        <h4 className="text-[12.5px] -mt-1 font-bold font-voda uppercase tracking-tight leading-tight">
+                          CURRENT
+                          <br />
+                          POINTS
+                        </h4>
 
                         {/* 🌟 Animated Logo Badge (Runs on mount & on hover) */}
                         <AnimatedLogoBadge
@@ -427,6 +430,13 @@ const GamificationEngine = () => {
                           isDark={isDark}
                           animTriggerKey={hoverKeys[item.id]}
                         />
+                      </div>
+
+                      {/* The points, in the middle of the panel */}
+                      <div className="flex-1 flex items-center">
+                        <div className="text-[24px] sm:text-[30px] font-bold font-voda leading-none">
+                          {currentPointsDisplay}
+                        </div>
                       </div>
 
                       <p
@@ -451,12 +461,12 @@ const GamificationEngine = () => {
 
                   {/* ── BOTTOM TIER: Continuous L-Shelf Underneath ── */}
                   <div
-                    className="w-full p-3 h-[100px] rounded-lg rounded-tl-lg flex flex-col items-center gap-2 -mt-px"
+                    className="w-full p-3 flex-[2] min-h-[100px] rounded-lg rounded-tl-lg flex flex-col items-center justify-center gap-2.5 -mt-px"
                     style={{ backgroundColor: containerBg }}
                   >
                     {/* Compact Input Pill with Steppers [- | +] */}
                     <div
-                      className={`w-full max-w-[220px] mt-2 px-2.5 py-1 rounded-lg border flex items-center justify-between shadow-2xs ${
+                      className={`w-full max-w-[220px] px-2.5 py-1 rounded-lg border flex items-center justify-between shadow-2xs ${
                         isDark
                           ? "bg-[#292B35] border-white/10 text-white"
                           : "bg-white border-slate-200 text-slate-900"
