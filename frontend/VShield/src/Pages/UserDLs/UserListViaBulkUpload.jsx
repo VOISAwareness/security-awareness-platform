@@ -11,6 +11,9 @@ import {
   Download,
   User as UserIcon,
   Trash2,
+  Pencil,
+  Plus,
+  X,
 } from "lucide-react";
 
 import ExcelIcon from "../../assets/UserListScreenAssets/ExcelIconUserListsScreen.png";
@@ -124,6 +127,182 @@ const UserListViaBulkUpload = () => {
   const showToast = (msg, type = "info", title) => {
     setToast({ message: msg, type, title });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  // Inline Email Editing State (for existing rows)
+  const [editingEmailKey, setEditingEmailKey] = useState(null);
+  const [editingEmailValue, setEditingEmailValue] = useState("");
+  const isSavingEditRef = useRef(false);
+
+  // New Row Insertion State (at the bottom of the table)
+  const [isAddingRow, setIsAddingRow] = useState(false);
+  const [newEmailValue, setNewEmailValue] = useState("");
+  const isSavingAddRef = useRef(false);
+
+  // Helper to resolve an email against master users directory or fresh API
+  const resolveMemberFromEmail = async (email, idx) => {
+    const trimmed = String(email || "").trim();
+    let matched = (masterUsersData || []).find(
+      (m) => m.UserEMailID?.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (!matched) {
+      try {
+        const freshUsers = await api.users.list();
+        if (Array.isArray(freshUsers)) {
+          matched = freshUsers.find(
+            (m) => m.UserEMailID?.toLowerCase() === trimmed.toLowerCase(),
+          );
+        }
+      } catch (err) {
+        console.warn("Could not query fresh users from API", err);
+      }
+    }
+    return {
+      srNo: idx + 1,
+      userName: matched?.UserName || trimmed.split("@")[0],
+      email: trimmed,
+      department: matched?.Department || "Unregistered",
+      location: (matched?.Country || "N/A").toUpperCase(),
+      hookRate:
+        matched?.["HookRate%"] !== undefined ? `${matched["HookRate%"]}%` : "—",
+      reportRate:
+        matched?.["ReportRate%"] !== undefined
+          ? `${matched["ReportRate%"]}%`
+          : "—",
+      isUnregistered: !matched,
+    };
+  };
+
+  // Start editing existing email
+  const handleStartEdit = (user) => {
+    setEditingEmailKey(user.email);
+    setEditingEmailValue(user.email);
+    setIsAddingRow(false);
+  };
+
+  // Cancel editing existing email
+  const handleCancelEdit = () => {
+    setEditingEmailKey(null);
+    setEditingEmailValue("");
+  };
+
+  // Save edited email and autofill user info
+  const handleSaveEdit = async (originalEmail) => {
+    if (isSavingEditRef.current) return;
+    isSavingEditRef.current = true;
+    try {
+      const trimmed = (editingEmailValue || "").trim();
+      if (!trimmed) {
+        showToast("Email address cannot be empty", "warning");
+        setEditingEmailKey(null);
+        return;
+      }
+      if (trimmed.toLowerCase() === originalEmail.toLowerCase()) {
+        setEditingEmailKey(null);
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmed)) {
+        showToast("Please enter a valid email address (e.g. name@vodafone.com)", "warning");
+        setEditingEmailKey(null);
+        return;
+      }
+      if (
+        loadedMembers.some(
+          (m) =>
+            m.email.toLowerCase() === trimmed.toLowerCase() &&
+            m.email.toLowerCase() !== originalEmail.toLowerCase(),
+        )
+      ) {
+        showToast("This email address already exists in the list", "warning");
+        setEditingEmailKey(null);
+        return;
+      }
+
+      const memberIndex = loadedMembers.findIndex(
+        (m) => m.email.toLowerCase() === originalEmail.toLowerCase(),
+      );
+      if (memberIndex === -1) {
+        setEditingEmailKey(null);
+        return;
+      }
+
+      const resolved = await resolveMemberFromEmail(trimmed, memberIndex);
+      const updated = loadedMembers.map((m, idx) =>
+        idx === memberIndex ? { ...resolved, srNo: m.srNo } : m,
+      );
+
+      setLoadedMembers(updated);
+      computeMetrics(updated);
+      setMembersChanged(true);
+      setEditingEmailKey(null);
+      showToast(
+        `Updated to ${resolved.email}${resolved.isUnregistered ? " (Unregistered)" : ""}`,
+        "success",
+      );
+    } finally {
+      isSavingEditRef.current = false;
+    }
+  };
+
+  // Start adding a new row
+  const handleStartAddRow = () => {
+    setIsAddingRow(true);
+    setNewEmailValue("");
+    setEditingEmailKey(null);
+  };
+
+  // Cancel adding a new row
+  const handleCancelAddRow = () => {
+    setIsAddingRow(false);
+    setNewEmailValue("");
+  };
+
+  // Save new row from email input and autofill details
+  const handleSaveAddRow = async () => {
+    if (isSavingAddRef.current) return;
+    isSavingAddRef.current = true;
+    try {
+      const trimmed = (newEmailValue || "").trim();
+      if (!trimmed) {
+        setIsAddingRow(false);
+        setNewEmailValue("");
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmed)) {
+        showToast("Please enter a valid email address (e.g. name@vodafone.com)", "warning");
+        return;
+      }
+      if (
+        loadedMembers.some(
+          (m) => m.email.toLowerCase() === trimmed.toLowerCase(),
+        )
+      ) {
+        showToast("This email address already exists in the list", "warning");
+        return;
+      }
+
+      const resolved = await resolveMemberFromEmail(
+        trimmed,
+        loadedMembers.length,
+      );
+      const updated = [...loadedMembers, resolved];
+
+      setLoadedMembers(updated);
+      computeMetrics(updated);
+      setMembersChanged(true);
+      setIsLoaded(true);
+      setNewEmailValue("");
+      setIsAddingRow(false);
+      setTableSearch("");
+      showToast(
+        `Added ${resolved.userName || resolved.email}${resolved.isUnregistered ? " (Unregistered)" : ""}`,
+        "success",
+      );
+    } finally {
+      isSavingAddRef.current = false;
+    }
   };
 
   // A recipient row, completed from the people directory (GET /users):
@@ -320,18 +499,55 @@ const UserListViaBulkUpload = () => {
       return;
     }
 
-    const resolved = parsedRows.map(resolveMember);
-    setLoadedMembers(resolved);
-    computeMetrics(resolved);
+    // Deduplicate against existing loadedMembers and within the uploaded file itself
+    const existingEmails = new Set(
+      loadedMembers.map((m) => (m.email || "").toLowerCase()),
+    );
+    const newUniqueRows = [];
+    let duplicatesSkipped = 0;
+
+    parsedRows.forEach((r) => {
+      const lower = String(r.email || "").trim().toLowerCase();
+      if (!lower) return;
+      if (existingEmails.has(lower)) {
+        duplicatesSkipped += 1;
+      } else {
+        existingEmails.add(lower);
+        newUniqueRows.push(r);
+      }
+    });
+
+    if (newUniqueRows.length === 0 && duplicatesSkipped > 0) {
+      showToast(
+        `All ${duplicatesSkipped} recipient(s) in this file are already staged`,
+        "warning",
+      );
+      setTableSearch("");
+      setIsLoaded(true);
+      return;
+    }
+
+    const newResolved = newUniqueRows.map((r, i) =>
+      resolveMember(r, loadedMembers.length + i),
+    );
+    const combined = [...loadedMembers, ...newResolved].map((m, idx) => ({
+      ...m,
+      srNo: idx + 1,
+    }));
+
+    setLoadedMembers(combined);
+    computeMetrics(combined);
     setMembersChanged(true);
     setIsLoaded(true);
+    setTableSearch("");
 
-    const unregisteredCount = resolved.filter((m) => m.isUnregistered).length;
+    const unregisteredCount = newResolved.filter((m) => m.isUnregistered).length;
     showToast(
-      `Loaded ${resolved.length} recipients` +
+      `Added ${newResolved.length} recipient${newResolved.length === 1 ? "" : "s"}` +
         (unregisteredCount ? ` (${unregisteredCount} unregistered)` : "") +
+        (duplicatesSkipped ? ` — ${duplicatesSkipped} duplicate(s) skipped` : "") +
         (skipped ? ` — ${skipped} row(s) skipped, no email` : ""),
-      "success"
+      "success",
     );
   };
 
@@ -389,6 +605,9 @@ const UserListViaBulkUpload = () => {
 
   // Handle Member Row Deletion with Real-time Recalculations
   const handleDeleteMember = (emailToDelete, userName) => {
+    if (editingEmailKey === emailToDelete) {
+      handleCancelEdit();
+    }
     const updated = loadedMembers
       .filter((m) => m.email !== emailToDelete)
       .map((m, idx) => ({
@@ -724,8 +943,19 @@ const UserListViaBulkUpload = () => {
                       value={tableSearch}
                       onChange={(e) => setTableSearch(e.target.value)}
                       placeholder="Search Email ID, User Name, Department..."
+                      autoComplete="off"
                       className="w-60 bg-transparent text-[9.5px] font-bold text-slate-900 dark:text-white outline-none placeholder-slate-400"
                     />
+                    {tableSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setTableSearch("")}
+                        className="text-slate-400 hover:text-white cursor-pointer p-0.5"
+                        title="Clear search"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Upward Arrow Expand Option */}
@@ -750,110 +980,256 @@ const UserListViaBulkUpload = () => {
 
               {/* Scrollable Table View with Unregistered "i" Badge & Delete Option */}
               <div className="flex-1 min-h-0 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-                {filteredMembers.length === 0 ? (
-                  <div className="h-full flex items-center justify-center p-6 text-center text-slate-400 text-xs italic">
-                    No user records staged. Choose a spreadsheet file above and
-                    click LOAD.
-                  </div>
-                ) : (
-                  <table className="w-full text-left text-[10.5px]">
-                    <thead>
-                      <tr className="border-b border-white/10 text-[9.5px] uppercase font-voda font-bold text-slate-400 bg-white/[0.02]">
-                        <th className="py-1.5 px-3">SR NO.</th>
-                        <th className="py-1.5 px-3">USER NAME</th>
-                        <th className="py-1.5 px-3">EMAIL ID</th>
-                        <th className="py-1.5 px-3">DEPARTMENT</th>
-                        <th className="py-1.5 px-3">LOCATION</th>
-                        <th className="py-1.5 px-3 text-center">HOOK RATE %</th>
-                        <th className="py-1.5 px-3 text-center">
-                          REPORT RATE %
-                        </th>
-                        <th className="py-1.5 px-3 text-center">DELETE</th>
+                <table className="w-full text-left text-[10.5px]">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[9.5px] uppercase font-voda font-bold text-slate-400 bg-white/[0.02]">
+                      <th className="py-1.5 px-3">SR NO.</th>
+                      <th className="py-1.5 px-3">USER NAME</th>
+                      <th className="py-1.5 px-3">EMAIL ID</th>
+                      <th className="py-1.5 px-3">DEPARTMENT</th>
+                      <th className="py-1.5 px-3">LOCATION</th>
+                      <th className="py-1.5 px-3 text-center">HOOK RATE %</th>
+                      <th className="py-1.5 px-3 text-center">
+                        REPORT RATE %
+                      </th>
+                      <th className="py-1.5 px-3 text-center">DELETE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadedMembers.length === 0 && !isAddingRow && (
+                      <tr className="border-b border-white/5 text-slate-400 text-xs italic">
+                        <td colSpan={8} className="py-6 text-center">
+                          No user records staged yet. Choose a spreadsheet file above and
+                          click LOAD, or click below to add manually.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMembers.map((user) => (
-                        <tr
-                          key={user.email}
-                          className="border-b border-white/5 hover:bg-white/[0.04] transition-colors"
-                        >
-                          <td className="py-1.5 px-3 text-slate-400 font-bold">
-                            {user.srNo}
-                          </td>
-                          <td className="py-1.5 px-3 font-bold flex items-center gap-1.5 text-white">
-                            <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                                user.isUnregistered
-                                  ? "bg-[#E60000]/25 text-[#FF8595]"
-                                  : "bg-white/10 text-slate-300"
-                              }`}
-                            >
-                              <UserIcon className="w-3 h-3" />
-                            </div>
-                            <span>{user.userName}</span>
-                          </td>
-                          <td className="py-1.5 px-3 text-slate-300 font-bold">
-                            {user.email}
-                          </td>
-                          <td className="py-1.5 px-3 text-slate-300 font-bold">
-                            <span
-                              className={
-                                user.isUnregistered
-                                  ? "text-amber-400/90 italic"
-                                  : ""
-                              }
-                            >
-                              {user.department}
-                            </span>
-                          </td>
-                          <td className="py-1.5 px-3 font-bold text-slate-200">
-                            {user.location}
-                          </td>
-                          <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">
-                            {user.hookRate}
-                          </td>
-                          <td className="py-1.5 px-3 text-center font-bold text-[#4ADE80]">
-                            {user.reportRate}
-                          </td>
+                    )}
+                    {loadedMembers.length > 0 && filteredMembers.length === 0 && (
+                      <tr className="border-b border-white/5 text-slate-400 text-xs italic">
+                        <td colSpan={8} className="py-4 text-center">
+                          No user records matching &quot;{tableSearch}&quot;.
+                        </td>
+                      </tr>
+                    )}
+                    {filteredMembers.map((user) => (
+                      <tr
+                        key={`${user.srNo}-${user.email}`}
+                        className="border-b border-white/5 hover:bg-white/[0.04] transition-colors"
+                      >
+                        <td className="py-1.5 px-3 text-slate-400 font-bold">
+                          {user.srNo}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold flex items-center gap-1.5 text-white">
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                              user.isUnregistered
+                                ? "bg-[#E60000]/25 text-[#FF8595]"
+                                : "bg-white/10 text-slate-300"
+                            }`}
+                          >
+                            <UserIcon className="w-3 h-3" />
+                          </div>
+                          <span>{user.userName}</span>
+                        </td>
 
-                          {/* Actions Column: Red "i" Mark (If Unregistered) + Trash Delete Button */}
-                          <td className="py-1.5 px-3 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              {user.isUnregistered && (
-                                <div
-                                  className="relative group inline-flex items-center justify-center cursor-help select-none"
-                                  title="This email address is not registered in the Master User Directory and does not currently have access to VOISShield."
-                                >
-                                  <div className="w-4 h-4 rounded-full bg-[#E60000] text-white flex items-center justify-center text-[9px] font-bold shadow-xs">
-                                    i
-                                  </div>
-
-                                  {/* Hover Floating Tooltip */}
-                                  <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 hidden group-hover:flex z-50 w-56 p-2 rounded-xl bg-[#1C1F28] text-white text-[9px] font-medium leading-snug shadow-2xl border border-white/20 text-left pointer-events-none">
-                                    This email address is not registered in the
-                                    Master User Directory and does not currently
-                                    have access to VOISShield.
-                                  </div>
-                                </div>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDeleteMember(user.email, user.userName)
+                        {/* EMAIL ID COLUMN: Clickable cell with input when editing & white pencil icon with z-index */}
+                        {editingEmailKey === user.email ? (
+                          <td
+                            className="py-1 px-2 text-slate-300 font-bold"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="email"
+                              autoFocus
+                              value={editingEmailValue}
+                              onChange={(e) => setEditingEmailValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleSaveEdit(user.email);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  handleCancelEdit();
                                 }
-                                className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-white/10 transition-colors cursor-pointer"
-                                title={`Delete ${user.userName || user.email}`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
-                              </button>
+                              }}
+                              onBlur={() => handleSaveEdit(user.email)}
+                              placeholder="Enter email..."
+                              className="w-full bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/30 focus:border-[#E60000] focus:outline-none placeholder-slate-400"
+                            />
+                          </td>
+                        ) : (
+                          <td
+                            onClick={() => handleStartEdit(user)}
+                            className="py-1.5 px-3 text-slate-300 font-bold relative group cursor-pointer select-none"
+                            title="Click to edit email address"
+                          >
+                            <div className="flex items-center justify-between w-full min-w-0 pr-6">
+                              <span className="truncate block" title={user.email}>
+                                {user.email}
+                              </span>
+                            </div>
+
+                            {/* Pen / Pencil edit icon in far end of email col */}
+                            <div
+                              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center pl-2 bg-black"
+                            >
+                              <Pencil className="w-3 h-3 text-white pointer-events-none" />
                             </div>
                           </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                        )}
+
+                        <td className="py-1.5 px-3 text-slate-300 font-bold">
+                          <span
+                            className={
+                              user.isUnregistered
+                                ? "text-amber-400/90 italic"
+                                : ""
+                            }
+                          >
+                            {user.department}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-200">
+                          {user.location}
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-[#FF4D4D]">
+                          {user.hookRate}
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-[#4ADE80]">
+                          {user.reportRate}
+                        </td>
+
+                        {/* Actions Column: Red "i" Mark (If Unregistered) + Trash Delete Button */}
+                        <td className="py-1.5 px-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {user.isUnregistered && (
+                              <div
+                                className="relative group inline-flex items-center justify-center cursor-help select-none"
+                                title="This email address is not registered in the Master User Directory and does not currently have access to VOISShield."
+                              >
+                                <div className="w-4 h-4 rounded-full bg-[#E60000] text-white flex items-center justify-center text-[9px] font-bold shadow-xs">
+                                  i
+                                </div>
+
+                                {/* Hover Floating Tooltip */}
+                                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 hidden group-hover:flex z-50 w-56 p-2 rounded-xl bg-[#1C1F28] text-white text-[9px] font-medium leading-snug shadow-2xl border border-white/20 text-left pointer-events-none">
+                                  This email address is not registered in the
+                                  Master User Directory and does not currently
+                                  have access to VOISShield.
+                                </div>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeleteMember(user.email, user.userName)
+                              }
+                              className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-white/10 transition-colors cursor-pointer"
+                              title={`Delete ${user.userName || user.email}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* ── ADD NEW ROW AT THE BOTTOM OF TABLE ── */}
+                    {isAddingRow ? (
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        <td className="py-1.5 px-3 text-slate-400 font-bold">
+                          {loadedMembers.length + 1}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td
+                          className="py-1 px-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="email"
+                            autoFocus
+                            value={newEmailValue}
+                            onChange={(e) => setNewEmailValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleSaveAddRow();
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                handleCancelAddRow();
+                              }
+                            }}
+                            onBlur={handleSaveAddRow}
+                            placeholder="Enter email to autofill..."
+                            className="w-full bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/30 focus:border-[#E60000] focus:outline-none placeholder-slate-400"
+                          />
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500 italic">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center">
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleCancelAddRow();
+                            }}
+                            onClick={handleCancelAddRow}
+                            className="text-slate-400 hover:text-white text-[10px] cursor-pointer"
+                            title="Cancel"
+                          >
+                            Cancel
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr
+                        onClick={handleStartAddRow}
+                        className="border-b border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group text-slate-400 hover:text-white"
+                      >
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          {loadedMembers.length + 1}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 font-bold">
+                          <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-white transition-colors">
+                            <Plus className="w-3.5 h-3.5 text-[#E60000]" />
+                            <span>+ Add new</span>
+                          </div>
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500">
+                          —
+                        </td>
+                        <td className="py-1.5 px-3 text-center font-bold text-slate-500">
+                          —
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
