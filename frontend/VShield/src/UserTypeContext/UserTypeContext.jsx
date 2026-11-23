@@ -5,8 +5,7 @@ const UserTypeContext = createContext();
 
 // EXACT STANDARDIZED PERMISSION MATRIX
 // 'home' is restricted to Admin, Campaign Creator, and Campaign Manager only
-// 'leaderboard' is the /leaderboard page, opened from the My Space LEADERBOARD
-// button (it has no nav item); every role has it. 'leaderboard-campaigns' is its
+// 'leaderboard' is the /leaderboard page; every role has it. 'leaderboard-campaigns' is its
 // My Campaigns view (ongoing campaigns and how each is going), for every role
 // except Regular User, who sees the Global Leaderboard only. 'leaderboard-reports'
 // is its The Big Picture view (what the board shows), for the same roles; they
@@ -22,6 +21,7 @@ export const ROLE_PERMISSIONS = {
     'campaigns',
     'training',
     'landing-page-catalogue',
+    'cover-image-catalogue',
     'announcements',
     'user-dls',
     'email-domains',
@@ -43,6 +43,7 @@ export const ROLE_PERMISSIONS = {
     'campaigns',
     'training',
     'landing-page-catalogue',
+    'cover-image-catalogue',
     'announcements',
     'user-dls',
     'email-domains',
@@ -61,6 +62,7 @@ export const ROLE_PERMISSIONS = {
     'campaigns',
     'training',
     'landing-page-catalogue',
+    'cover-image-catalogue',
     'announcements',
     'user-dls',
     'email-domains',
@@ -139,7 +141,7 @@ export const UserTypeProvider = ({ children }) => {
     if (password === '123456') {
       const normalizedRole = role === 'GMT (Leadership)' ? 'GMT' : role;
       const permissions = ROLE_PERMISSIONS[normalizedRole] || [];
-      
+
       const userData = {
         ...(userProfile || {}),
         role: normalizedRole,
