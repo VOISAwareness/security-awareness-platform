@@ -208,7 +208,17 @@ const ChooseAScenario = () => {
   const continueCampaignDraft = (id) => {
     const camp = myDrafts.find((c) => c.campaignId === id);
     openCampaignDraft(id);
-    navigate(routeForStep(savedStep(camp)), IN_WIZARD);
+    const route = routeForStep(savedStep(camp));
+    if (route === location.pathname) {
+      // Saved on this step (Choose a scenario): this page is where it goes on,
+      // so navigating would change nothing. Show the scenarios again, with
+      // the draft's own scenario picked.
+      setSavedNotice('');
+      if (camp?.scenarioId) pickScenario(camp.scenarioId);
+      setView('all');
+      return;
+    }
+    navigate(route, IN_WIZARD);
   };
 
   const deleteCampaignDraft = async (id) => {
