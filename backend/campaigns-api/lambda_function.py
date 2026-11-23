@@ -15,12 +15,18 @@ Deliberate safeguards (see vault note 18, mapped from the frontend):
   editor blobs that can inline base64 images, so oversized writes are rejected
   with a clear message instead of an opaque DynamoDB error.
 - Campaigns can only be edited while DRAFT or REJECTED.
-- Cancel (PENDING_APPROVAL or APPROVED -> CANCELLED) and reinvoke (CANCELLED
+- Cancel (PENDING_APPROVAL, APPROVED or ON_HOLD -> CANCELLED) and reinvoke (CANCELLED
   or SEND_FAILED -> DRAFT) are conditional writes, so a campaign the sender
   has already locked (APPROVED -> SENDING) can never be cancelled. An
   APPROVED campaign whose start has passed but which was never sent (it could
   not be: no recipients, no link...) can still be cancelled, so it is never
   stuck.
+- Hold (APPROVED -> ON_HOLD) takes a scheduled campaign off the schedule
+  before it starts: the scheduler and the sender only act on APPROVED, so a
+  held campaign is never sent. Resume (ON_HOLD -> APPROVED) needs a new start
+  (and end, unless the campaign auto-ends after sending) in the future; the
+  approval stands, as only the dates change. Reinvoke can take new dates too.
+  A held campaign can also be cancelled.
 - GET /campaigns/{id}/results lists each recipient's outcome (opened, clicked,
   gave details, reported, trained). Tracking tokens and URLs never leave the
   table.
@@ -60,7 +66,7 @@ MAX_LIST = 2000
 MAX_LIST_BYTES = 5 * 1024 * 1024
 
 # A campaign can be cancelled while it waits for approval or for its start.
-CANCELLABLE_STATUSES = ("PENDING_APPROVAL", "APPROVED")
+CANCELLABLE_STATUSES = ("PENDING_APPROVAL", "APPROVED", "ON_HOLD")
 MAX_REASON = 500
 
 # The type of email a campaign sends: what it asks the person who gets it
@@ -227,26 +233,155 @@ def cancel(campaign_id, body):
     return ok(updated)
 
 
-def reinvoke(campaign_id, body):
-    """A cancelled campaign back to DRAFT, to edit and submit again."""
+def parse_instant(value):
+    """An ISO instant with its zone ("…Z" / "…+00:00") as an aware datetime, or None."""
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else None
+
+
+def schedule_from(body, auto_end, required):
+    """The new dates in a hold/resume/reinvoke body: (fields to SET, problem).
+    The client sends the picked UK wall-clock times (startTime / endTime) and
+    their instants (startAt / endAt, UTC). Nothing sent and not required: no
+    change. The start must be in the future, the end after the start; the end
+    may be left out only when the campaign auto-ends after sending."""
+    start_at, end_at = parse_instant(body.get("startAt")), parse_instant(body.get("endAt"))
+    if not required and not body.get("startAt") and not body.get("endAt"):
+        return {}, None
+    if start_at is None or not str(body.get("startTime") or "").strip():
+        return None, "A new start date and time is required"
+    if start_at <= datetime.now(UTC):
+        return None, "The new start must be in the future"
+    if end_at is None and not auto_end:
+        return None, "A new end date and time is required"
+    if end_at is not None and end_at <= start_at:
+        return None, "The end must be after the start"
+    fields = {
+        "startTime": str(body["startTime"]).strip()[:16],
+        "startAt": start_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        "timeZone": str(body.get("timeZone") or "Europe/London")[:64],
+    }
+    if end_at is not None:
+        fields["endTime"] = str(body.get("endTime") or "").strip()[:16]
+        fields["endAt"] = end_at.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    return fields, None
+
+
+def set_clause(fields, names, values):
+    """', a = :a, …' for an UpdateExpression from a dict, filling names/values."""
+    parts = []
+    for i, (k, v) in enumerate(fields.items()):
+        names[f"#f{i}"] = k
+        values[f":f{i}"] = v
+        parts.append(f"#f{i} = :f{i}")
+    return "".join(f", {p}" for p in parts)
+
+
+def hold(campaign_id, body):
+    """A scheduled campaign off the schedule (APPROVED -> ON_HOLD), before it starts."""
+    actor = actor_of(body)
+    reason = str(body.get("reason") or "").strip()
+    if not actor:
+        return err(400, "actor is required")
+    if len(reason) > MAX_REASON:
+        return err(400, f"The reason must be at most {MAX_REASON} characters")
+    now = now_iso()
+    values = {":held": "ON_HOLD", ":approved": "APPROVED", ":actor": actor, ":now": now}
+    expr = "SET #status = :held, heldBy = :actor, heldAt = :now, updatedAt = :now"
+    if reason:
+        expr += ", holdReason = :reason"
+        values[":reason"] = reason
+    else:
+        expr += " REMOVE holdReason"
+    try:
+        updated = campaigns.update_item(
+            Key={"campaignId": campaign_id},
+            UpdateExpression=expr,
+            # Still APPROVED means nothing was sent: the sender locks a campaign
+            # (APPROVED -> SENDING) before its first email.
+            ConditionExpression="#status = :approved",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues=values,
+            ReturnValues="ALL_NEW",
+        )["Attributes"]
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            if not get_campaign(campaign_id):
+                return err(404, "Campaign not found")
+            return err(409, "Only a scheduled campaign that hasn't started sending can be put on hold.")
+        raise
+    return ok(updated)
+
+
+def resume(campaign_id, body):
+    """A held campaign back on the schedule (ON_HOLD -> APPROVED) with new dates."""
     actor = actor_of(body)
     if not actor:
         return err(400, "actor is required")
+    existing = get_campaign(campaign_id)
+    if not existing:
+        return err(404, "Campaign not found")
+    if existing.get("status") != "ON_HOLD":
+        return err(409, "Only a campaign on hold can be resumed.")
+    fields, problem = schedule_from(body, bool(existing.get("autoEndPostSending")), required=True)
+    if problem:
+        return err(400, problem)
     now = now_iso()
+    names = {"#status": "status"}
+    values = {":approved": "APPROVED", ":held": "ON_HOLD", ":actor": actor, ":now": now}
+    expr = "SET #status = :approved, resumedBy = :actor, resumedAt = :now, updatedAt = :now" + set_clause(fields, names, values)
+    if "endAt" not in fields:
+        expr += " REMOVE endAt, endTime"
+    try:
+        updated = campaigns.update_item(
+            Key={"campaignId": campaign_id},
+            UpdateExpression=expr,
+            ConditionExpression="#status = :held",
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+            ReturnValues="ALL_NEW",
+        )["Attributes"]
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return err(409, "The campaign changed while you were resuming it. Refresh and try again.")
+        raise
+    return ok(updated)
+
+
+def reinvoke(campaign_id, body):
+    """A cancelled campaign back to DRAFT, to edit and submit again, with new
+    dates when the body carries them."""
+    actor = actor_of(body)
+    if not actor:
+        return err(400, "actor is required")
+    fields, problem = schedule_from(body, True, required=False)
+    if problem:
+        return err(400, problem)
+    now = now_iso()
+    names = {"#status": "status"}
+    values = {}
+    extra = set_clause(fields, names, values)
     try:
         updated = campaigns.update_item(
             Key={"campaignId": campaign_id},
             UpdateExpression=(
-                "SET #status = :draft, reinvokedBy = :actor, reinvokedAt = :now, updatedAt = :now "
-                "REMOVE approvedBy, approvedAt, submittedBy, submittedAt, failureReason, failedAt"
+                "SET #status = :draft, reinvokedBy = :actor, reinvokedAt = :now, updatedAt = :now"
+                + extra
+                + " REMOVE approvedBy, approvedAt, submittedBy, submittedAt, failureReason, failedAt"
             ),
             # a cancelled campaign, or one that could not be sent, goes back
             # to its author to fix and submit again
             ConditionExpression="#status IN (:cancelled, :failed, :failed_old)",
-            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeNames=names,
             ExpressionAttributeValues={
                 ":draft": "DRAFT", ":cancelled": "CANCELLED", ":failed": "SEND_FAILED", ":failed_old": "FAILED",
-                ":actor": actor, ":now": now,
+                ":actor": actor, ":now": now, **values,
             },
             ReturnValues="ALL_NEW",
         )["Attributes"]
@@ -499,6 +634,12 @@ def lambda_handler(event, context):
 
         if route == "POST /campaigns/{campaignId}/reinvoke":
             return reinvoke(params["campaignId"], parse_body(event))
+
+        if route == "POST /campaigns/{campaignId}/hold":
+            return hold(params["campaignId"], parse_body(event))
+
+        if route == "POST /campaigns/{campaignId}/resume":
+            return resume(params["campaignId"], parse_body(event))
 
         if route == "DELETE /campaigns/{campaignId}":
             existing = get_campaign(params["campaignId"])
