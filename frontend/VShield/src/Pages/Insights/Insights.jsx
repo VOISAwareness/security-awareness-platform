@@ -17,6 +17,7 @@ import TabTrainingIcon from '../../assets/InsightsAssets/TabTrainingIcon.png';
 import { Definition, Delta, Explain } from './InsightsBits';
 import { CampaignsPage, DepartmentPage, DepartmentsPage, SummaryPage, TrainingPage } from './InsightsPages';
 import { PeopleList } from './InsightsPeopleList';
+import PageLoading from '../../GlobalComponents/PageLoading';
 import { EASE, INK, change, eyebrow, num, small, swap, TYPE, themeVars } from './insightsUi';
 import { standing, targetText, targetsWith } from '../../services/insightsTargets';
 import { deptTargets } from '../../services/deptTargets';
@@ -305,15 +306,23 @@ const savedOf = (r) => {
   return { targets: ok && r.targets && typeof r.targets === 'object' ? r.targets : {}, version: ok && Number.isInteger(r.version) ? r.version : 0, modifiedBy: ok ? r.modifiedBy ?? null : null, modifiedAt: ok ? r.modifiedAt ?? null : null, failed: false };
 };
 
-// What the page shows while GET /insights answers, or if it cannot.
+// What the page shows while GET /insights answers (the app's own spinner,
+// PageLoading, as on every other page), or if it cannot.
 function Waiting({ status, error, retry, isDark }) {
   const failed = status === 'failed';
+  if (!failed) {
+    return (
+      <div className="ins-page" data-ins-state={status} style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <PageLoading show isDark={isDark} surface="page" />
+      </div>
+    );
+  }
   return (
     <div className="ins-page" data-ins-state={status} style={{ ...themeVars(isDark), width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'transparent', color: 'var(--text)' }}>
-      <div role={failed ? 'alert' : 'status'} style={{ display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center', maxWidth: 360, padding: 16 }}>
-        <strong style={{ fontSize: TYPE.figure, fontWeight: 800 }}>{failed ? 'Insights could not be loaded' : 'Working out Insights…'}</strong>
-        <span style={{ ...small, fontSize: TYPE.body }}>{failed ? (error?.status === 403 ? 'Insights is for admins, campaign creators and campaign managers.' : error?.message || 'Try again in a minute.') : 'From every campaign, recipient and training record.'}</span>
-        {failed && error?.status !== 403 && <button type="button" onClick={retry} style={{ height: 32, padding: '0 14px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}>Try again</button>}
+      <div role="alert" style={{ display: 'grid', justifyItems: 'center', gap: 10, textAlign: 'center', maxWidth: 360, padding: 16 }}>
+        <strong style={{ fontSize: TYPE.figure, fontWeight: 800 }}>Insights could not be loaded</strong>
+        <span style={{ ...small, fontSize: TYPE.body }}>{error?.status === 403 ? 'Insights is for admins, campaign creators and campaign managers.' : error?.message || 'Try again in a minute.'}</span>
+        {error?.status !== 403 && <button type="button" onClick={retry} style={{ height: 32, padding: '0 14px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}>Try again</button>}
       </div>
     </div>
   );
