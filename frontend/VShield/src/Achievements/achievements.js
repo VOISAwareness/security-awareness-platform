@@ -5,7 +5,9 @@
  *
  * Each achievement has a clay picture in assets/clay/achievements/, shown with
  * <ClayImage name={achievement.image} />. Add a new one by drawing its picture
- * under that folder and adding a row to ACHIEVEMENTS with its `earned` rule.
+ * under that folder and adding a row to ACHIEVEMENTS with its `earned` rule:
+ * the My Space card (the first few, earned first) and its "View all" dialog
+ * (every one) pick it up with no other change.
  *
  * The API decides who has earned what: GET /standing returns `achievements`,
  * the ids earned, worked out over the person's whole history (reference-api
@@ -91,6 +93,19 @@ export const ACHIEVEMENTS = Object.freeze(
     },
   ].map((a) => Object.freeze({ ...a, image: a.id }))
 );
+
+/** How many achievements the My Space card shows; the rest are behind "View all". */
+export const PREVIEW_COUNT = 4;
+
+/**
+ * The few to show on the card: the ones earned first (in catalogue order),
+ * then the next ones still to earn, up to `limit`. The full list is the
+ * "View all" dialog's.
+ */
+export function previewOf(list, limit = PREVIEW_COUNT) {
+  const all = Array.isArray(list) ? list : [];
+  return [...all.filter((a) => a.earned), ...all.filter((a) => !a.earned)].slice(0, Math.max(0, limit));
+}
 
 /**
  * Every achievement for this standing, in catalogue order, with `earned`
