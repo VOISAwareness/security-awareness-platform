@@ -36,6 +36,9 @@ export const STATUS = {
   // Cancelled while waiting for approval or its start (campaigns-api cancel);
   // reinvoking it puts it back to DRAFT.
   CANCELLED: 'CANCELLED',
+  // Scheduled, then put on hold before it started (campaigns-api hold): never
+  // sent until it is resumed with new dates (resume -> APPROVED).
+  ON_HOLD: 'ON_HOLD',
 };
 
 // Display metadata. `tone` drives the chip colours below; `blurb` is the plain
@@ -80,6 +83,11 @@ export const STATUS_META = {
     label: 'Cancelled',
     tone: 'red',
     blurb: 'Scheduled, then cancelled before it ran.',
+  },
+  ON_HOLD: {
+    label: 'On Hold',
+    tone: 'amber',
+    blurb: 'Scheduled, then put on hold. It will not be sent until it is resumed with new dates.',
   },
 };
 

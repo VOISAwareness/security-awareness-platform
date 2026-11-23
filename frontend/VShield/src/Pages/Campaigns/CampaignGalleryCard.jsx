@@ -41,10 +41,11 @@ const CampaignGalleryCard = ({
   onAnalytics,
   actions = null,
 }) => {
+  const onHold = camp.status === "ON_HOLD";
   const startNote =
     tab === "ongoing"
       ? daysAgo(camp.StartTime)
-      : tab === "scheduled"
+      : tab === "scheduled" && !onHold
         ? daysUntil(camp.StartTime)
         : null;
   const endNote = tab === "ongoing" ? daysLeft(camp.EndTime) : null;
@@ -75,6 +76,14 @@ const CampaignGalleryCard = ({
           {tab === "historical" && (
             <span className={`${pill} bg-[#F43F5E] text-white`}>
               Campaign Ended
+            </span>
+          )}
+          {onHold && (
+            <span
+              className={`${pill} bg-amber-500 text-white`}
+              title="It will not be sent until it is resumed with new dates"
+            >
+              On Hold
             </span>
           )}
           {tab === "cancelled" && (

@@ -165,7 +165,17 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
   );
 
   const reinvoke = useCallback(
-    (campaignId) => runAction(campaignId, () => api.campaigns.reinvoke(campaignId, actor)),
+    (campaignId, schedule) => runAction(campaignId, () => api.campaigns.reinvoke(campaignId, actor, schedule)),
+    [actor, runAction]
+  );
+
+  const hold = useCallback(
+    (campaignId, reason) => runAction(campaignId, () => api.campaigns.hold(campaignId, actor, reason)),
+    [actor, runAction]
+  );
+
+  const resume = useCallback(
+    (campaignId, schedule) => runAction(campaignId, () => api.campaigns.resume(campaignId, actor, schedule)),
     [actor, runAction]
   );
 
@@ -183,5 +193,7 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
     send,
     cancel,
     reinvoke,
+    hold,
+    resume,
   };
 }

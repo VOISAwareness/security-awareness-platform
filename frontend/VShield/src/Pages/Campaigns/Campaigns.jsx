@@ -7,6 +7,8 @@ import {
   RefreshCw,
   AlertTriangle,
   Send,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { useCampaigns } from "../../services/useCampaigns";
@@ -24,6 +26,7 @@ import { DEMO_USER } from "../../appConfig";
 import PageLoading from "../../GlobalComponents/PageLoading";
 import CampaignGalleryCard from "./CampaignGalleryCard";
 import ViewAnalyticsModal from "./ViewAnalyticsModal";
+import ScheduleDialog from "../../GlobalComponents/ScheduleDialog";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
 import { formatDate, formatDateTime } from '../../shared/dateTime';
 
@@ -108,7 +111,7 @@ const TAB_CONFIG = {
 const Campaigns = ({ isDark: propIsDark }) => {
   const userContext = useUserType?.() || {};
   const actor = actorFor(userContext.user);
-  const { campaigns, loading, error, pendingAction, refresh, send, cancel, reinvoke } =
+  const { campaigns, loading, error, pendingAction, refresh, send, cancel, reinvoke, hold, resume } =
     useCampaigns({ actor });
 
   // Theme check: Reactive Pipeline with HTML class and MutationObserver
@@ -178,6 +181,11 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // Cancelling a scheduled campaign asks for a reason first.
   const [cancelForId, setCancelForId] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
+  // Putting a scheduled campaign on hold asks "are you sure?" on its card.
+  const [holdForId, setHoldForId] = useState(null);
+  // Resuming a held campaign, or reinvoking a cancelled one, asks for new
+  // dates first: { mode: 'resume' | 'reinvoke', camp }.
+  const [scheduleFor, setScheduleFor] = useState(null);
 
   // Live campaigns from the API, in the field names this screen was drawn with.
   const campaignsList = useMemo(
@@ -204,6 +212,9 @@ const Campaigns = ({ isDark: propIsDark }) => {
     campaignsList.forEach((c) => {
       if (c.CampaignStatus === DESIGN_STATUS.CANCELLED || c.CampaignStatus === DESIGN_STATUS.FAILED) {
         cancelled.push(c);
+      } else if (c.CampaignStatus === DESIGN_STATUS.ON_HOLD) {
+        // on hold: still on the Scheduled tab, marked, with Resume
+        scheduled.push(c);
       } else if (c.CampaignStatus === DESIGN_STATUS.PUBLISHED) {
         if (c.phase === PHASE.COMPLETED) historical.push(c);
         else if (c.phase === PHASE.LIVE) ongoing.push(c);
@@ -253,17 +264,37 @@ const Campaigns = ({ isDark: propIsDark }) => {
     }
   };
 
-  const handleReinvoke = async (camp) => {
+  // Reinvoke with the new dates from the dialog; an error stays in the dialog.
+  const handleReinvoke = async (camp, schedule) => {
+    setActionError("");
+    setSendNotice("");
+    await reinvoke(camp.campaignId, schedule);
+    setScheduleFor(null);
+    setSendNotice(
+      `${camp.campaignId} is a draft again with its new dates: open it from Start New Campaign -> Drafts, check it and submit it.`,
+    );
+  };
+
+  const handleHold = async (camp) => {
     setActionError("");
     setSendNotice("");
     try {
-      await reinvoke(camp.campaignId);
-      setSendNotice(
-        `${camp.campaignId} is a draft again: open it from Start New Campaign -> Drafts, check its dates and submit it.`,
-      );
+      await hold(camp.campaignId);
+      setSendNotice(`${camp.campaignId} is on hold. It will not be sent until you resume it with new dates.`);
     } catch (e) {
-      setActionError(e?.message || "Could not reinvoke that campaign.");
+      setActionError(e?.message || "Could not put that campaign on hold.");
+    } finally {
+      setHoldForId(null);
     }
+  };
+
+  // Resume with the new dates from the dialog; an error stays in the dialog.
+  const handleResume = async (camp, schedule) => {
+    setActionError("");
+    setSendNotice("");
+    await resume(camp.campaignId, schedule);
+    setScheduleFor(null);
+    setSendNotice(`${camp.campaignId} is scheduled again with its new dates.`);
   };
 
   // Cancel control for a scheduled card: a button, then a reason and a confirm.
@@ -318,11 +349,65 @@ const Campaigns = ({ isDark: propIsDark }) => {
     );
   };
 
+  // Hold control for a scheduled card: a button, then "are you sure?".
+  const renderHoldAction = (camp) => {
+    const busy = pendingAction === camp.campaignId;
+    if (holdForId === camp.campaignId) {
+      return (
+        <span className="flex items-center gap-1.5 font-bold">
+          <span className="text-slate-700 dark:text-slate-300">Put on hold?</span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => handleHold(camp)}
+            className="px-2 py-0.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white cursor-pointer disabled:opacity-50"
+          >
+            {busy ? "Holding…" : "Yes, hold"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHoldForId(null)}
+            className="px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-black/10 dark:border-white/15 cursor-pointer"
+          >
+            No
+          </button>
+        </span>
+      );
+    }
+    return (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setCancelForId(null);
+          setConfirmSendId(null);
+          setHoldForId(camp.campaignId);
+        }}
+        className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-amber-300 dark:border-amber-400/40 text-amber-700 dark:text-amber-300 font-bold cursor-pointer disabled:opacity-50"
+        title="Stop this campaign from being sent at its start, until you resume it with new dates"
+      >
+        <PauseCircle className="w-3 h-3" /> Hold
+      </button>
+    );
+  };
+
+  const renderResumeAction = (camp) => (
+    <button
+      type="button"
+      disabled={pendingAction === camp.campaignId}
+      onClick={() => setScheduleFor({ mode: "resume", camp })}
+      className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#8ED973] hover:bg-[#7DC862] text-white font-bold cursor-pointer disabled:opacity-50"
+      title="Choose new dates and put this campaign back on the schedule"
+    >
+      <PlayCircle className="w-3 h-3" /> Resume
+    </button>
+  );
+
   const renderReinvokeAction = (camp) => (
     <button
       type="button"
       disabled={pendingAction === camp.campaignId}
-      onClick={() => handleReinvoke(camp)}
+      onClick={() => setScheduleFor({ mode: "reinvoke", camp })}
       className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black text-white dark:bg-white dark:text-black font-bold cursor-pointer disabled:opacity-50"
       title="Put this campaign back to a draft, to edit and submit again"
     >
@@ -803,10 +888,16 @@ const Campaigns = ({ isDark: propIsDark }) => {
                       actions={
                         activeTab === "cancelled" ? (
                           <span className="text-[9px]">{renderReinvokeAction(camp)}</span>
+                        ) : camp.status === "ON_HOLD" ? (
+                          <span className="text-[9px] flex items-center gap-1.5">
+                            {cancelForId !== camp.campaignId && renderResumeAction(camp)}
+                            {renderCancelAction(camp)}
+                          </span>
                         ) : camp.status === "APPROVED" ? (
                           <span className="text-[9px] flex items-center gap-1.5">
-                            {cancelForId !== camp.campaignId && renderSendAction(camp)}
-                            {activeTab === "scheduled" && renderCancelAction(camp)}
+                            {cancelForId !== camp.campaignId && holdForId !== camp.campaignId && renderSendAction(camp)}
+                            {activeTab === "scheduled" && cancelForId !== camp.campaignId && renderHoldAction(camp)}
+                            {activeTab === "scheduled" && holdForId !== camp.campaignId && renderCancelAction(camp)}
                           </span>
                         ) : null
                       }
@@ -949,6 +1040,30 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* New dates before a held campaign is resumed or a cancelled one reinvoked */}
+        {scheduleFor && (
+          <ScheduleDialog
+            key={`${scheduleFor.mode}-${scheduleFor.camp.campaignId}`}
+            title={scheduleFor.mode === "resume" ? "Resume campaign" : "Reinvoke campaign"}
+            intro={
+              scheduleFor.mode === "resume"
+                ? "Choose when it should start and end now. It stays approved and goes back on the schedule."
+                : "Choose its new dates. It goes back to Drafts with them, to check and submit for approval again."
+            }
+            confirmLabel={scheduleFor.mode === "resume" ? "Resume" : "Reinvoke"}
+            busyLabel={scheduleFor.mode === "resume" ? "Resuming…" : "Reinvoking…"}
+            campaign={scheduleFor.camp}
+            requireEnd={!scheduleFor.camp.autoEndPostSending}
+            isDark={isDark}
+            onClose={() => setScheduleFor(null)}
+            onConfirm={(schedule) =>
+              scheduleFor.mode === "resume"
+                ? handleResume(scheduleFor.camp, schedule)
+                : handleReinvoke(scheduleFor.camp, schedule)
+            }
+          />
         )}
 
         {analyticsItem && (

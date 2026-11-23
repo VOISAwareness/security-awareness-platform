@@ -395,10 +395,24 @@ export const api = {
         method: 'POST',
         body: { actor, reason },
       }),
-    reinvoke: (id, actor) =>
+    // `schedule` is { startTime, endTime } as the date & time picker gives
+    // them (UK time); the instants go with them (withScheduleInstants).
+    reinvoke: (id, actor, schedule) =>
       request(`/campaigns/${encodeURIComponent(id)}/reinvoke`, {
         method: 'POST',
-        body: { actor },
+        body: { actor, ...(schedule ? withScheduleInstants(schedule) : {}) },
+      }),
+    // A scheduled campaign off the schedule (APPROVED -> ON_HOLD), before it
+    // starts; resume puts it back (-> APPROVED) with new dates.
+    hold: (id, actor, reason) =>
+      request(`/campaigns/${encodeURIComponent(id)}/hold`, {
+        method: 'POST',
+        body: { actor, ...(reason ? { reason } : {}) },
+      }),
+    resume: (id, actor, schedule) =>
+      request(`/campaigns/${encodeURIComponent(id)}/resume`, {
+        method: 'POST',
+        body: { actor, ...withScheduleInstants(schedule) },
       }),
   },
 };
