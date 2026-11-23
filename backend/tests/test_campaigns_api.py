@@ -286,3 +286,75 @@ def test_the_summary_view_leaves_out_the_html(mod, monkeypatch):
     call = lambda qs: json.loads(mod.lambda_handler({"routeKey": "GET /campaigns", "queryStringParameters": qs}, None)["body"])["data"]  # noqa: E731
     assert call({"view": "summary"}) == [{"campaignId": "C1", "campaignTitle": "T", "createdAt": "2026-11-01"}]
     assert call(None)[0]["emailBody"] == "<p>x</p>"
+
+
+# --- hold and resume ----------------------------------------------------------
+
+FUTURE = {"startTime": "2999-01-01T09:00", "startAt": "2999-01-01T09:00:00Z",
+          "endTime": "2999-01-08T09:00", "endAt": "2999-01-08T09:00:00Z", "timeZone": "Europe/London"}
+
+
+def test_hold_a_scheduled_campaign_and_resume_it_with_new_dates(mod, env):
+    env.campaigns.put_item(Item={"campaignId": "C1", "status": "APPROVED", "startAt": "2998-01-01T09:00:00Z",
+                                 "startTime": "2998-01-01T09:00", "approvedBy": "boss@x"})
+    status, body = call(mod, "POST /campaigns/{campaignId}/hold", "C1", {"actor": "Me@X", "reason": "Office closed"})
+    assert status == 200
+    row = body["data"]
+    assert (row["status"], row["heldBy"], row["holdReason"]) == ("ON_HOLD", "me@x", "Office closed")
+    assert call(mod, "POST /campaigns/{campaignId}/hold", "C1", {"actor": "me@x"})[0] == 409, "already on hold"
+
+    status, body = call(mod, "POST /campaigns/{campaignId}/resume", "C1", {"actor": "me@x", **FUTURE})
+    assert status == 200
+    row = body["data"]
+    assert (row["status"], row["resumedBy"], row["approvedBy"]) == ("APPROVED", "me@x", "boss@x"), "the approval stands"
+    assert (row["startTime"], row["startAt"], row["endAt"], row["timeZone"]) == (
+        "2999-01-01T09:00", "2999-01-01T09:00:00Z", "2999-01-08T09:00:00Z", "Europe/London")
+    assert call(mod, "POST /campaigns/{campaignId}/resume", "C1", {"actor": "me@x", **FUTURE})[0] == 409, "not on hold"
+
+
+def test_resume_needs_a_new_start_in_the_future_and_an_end_after_it(mod, env):
+    env.campaigns.put_item(Item={"campaignId": "H", "status": "ON_HOLD"})
+    ask = lambda **kw: call(mod, "POST /campaigns/{campaignId}/resume", "H", {"actor": "me@x", **FUTURE, **kw})  # noqa: E731
+    assert ask(startAt="", startTime="")[0] == 400
+    assert ask(startAt="2000-01-01T09:00:00Z")[0] == 400, "in the past"
+    assert ask(startAt="2999-01-01T09:00:00")[0] == 400, "no zone"
+    assert ask(endAt="2998-12-31T09:00:00Z")[0] == 400, "end before start"
+    assert ask(endAt="", endTime="")[0] == 400, "an end is needed unless it auto-ends"
+    assert call(mod, "POST /campaigns/{campaignId}/resume", "H", {**FUTURE})[0] == 400, "no actor"
+    assert call(mod, "POST /campaigns/{campaignId}/resume", "nope", {"actor": "me@x", **FUTURE})[0] == 404
+    assert env.campaigns.get_item(Key={"campaignId": "H"})["Item"]["status"] == "ON_HOLD"
+
+
+def test_resume_without_an_end_when_the_campaign_auto_ends(mod, env):
+    env.campaigns.put_item(Item={"campaignId": "A", "status": "ON_HOLD", "autoEndPostSending": True,
+                                 "endAt": "2998-01-08T09:00:00Z", "endTime": "2998-01-08T09:00"})
+    status, body = call(mod, "POST /campaigns/{campaignId}/resume", "A",
+                        {"actor": "me@x", "startTime": FUTURE["startTime"], "startAt": FUTURE["startAt"]})
+    assert status == 200
+    assert body["data"]["status"] == "APPROVED" and "endAt" not in body["data"]
+
+
+def test_what_cannot_be_held(mod, env):
+    for cid, st in (("S", "SENDING"), ("D", "DRAFT"), ("P", "PENDING_APPROVAL"), ("X", "SENT")):
+        env.campaigns.put_item(Item={"campaignId": cid, "status": st})
+        assert call(mod, "POST /campaigns/{campaignId}/hold", cid, {"actor": "me@x"})[0] == 409, st
+    assert call(mod, "POST /campaigns/{campaignId}/hold", "nope", {"actor": "me@x"})[0] == 404
+    assert call(mod, "POST /campaigns/{campaignId}/hold", "S", {})[0] == 400
+
+
+def test_a_held_campaign_can_be_cancelled(mod, env):
+    env.campaigns.put_item(Item={"campaignId": "H", "status": "ON_HOLD"})
+    status, body = call(mod, "POST /campaigns/{campaignId}/cancel", "H", {"actor": "me@x", "reason": "Not needed"})
+    assert status == 200 and (body["data"]["status"], body["data"]["cancelledFrom"]) == ("CANCELLED", "ON_HOLD")
+
+
+def test_reinvoke_takes_new_dates_when_given(mod, env):
+    env.campaigns.put_item(Item={"campaignId": "C", "status": "CANCELLED", "startAt": "2000-01-01T09:00:00Z"})
+    status, body = call(mod, "POST /campaigns/{campaignId}/reinvoke", "C", {"actor": "me@x", **FUTURE})
+    assert status == 200
+    row = body["data"]
+    assert (row["status"], row["startAt"], row["endTime"]) == ("DRAFT", "2999-01-01T09:00:00Z", "2999-01-08T09:00")
+    env.campaigns.put_item(Item={"campaignId": "C2", "status": "CANCELLED"})
+    assert call(mod, "POST /campaigns/{campaignId}/reinvoke", "C2", {"actor": "me@x", "startAt": "2000-01-01T09:00:00Z",
+                                                                     "startTime": "2000-01-01T09:00"})[0] == 400
+    assert env.campaigns.get_item(Key={"campaignId": "C2"})["Item"]["status"] == "CANCELLED"

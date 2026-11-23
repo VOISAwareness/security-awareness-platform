@@ -108,6 +108,10 @@ locals {
     "GET /campaigns/tallies",
     "POST /campaigns/{campaignId}/cancel",
     "POST /campaigns/{campaignId}/reinvoke",
+    # Scheduled campaigns: off the schedule (APPROVED -> ON_HOLD) and back with
+    # new dates (ON_HOLD -> APPROVED)
+    "POST /campaigns/{campaignId}/hold",
+    "POST /campaigns/{campaignId}/resume",
   ]
 }
 
