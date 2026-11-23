@@ -845,6 +845,96 @@ const ScenarioEditor = ({ opening }) => {
   };
 
   // ==========================================================
+// DESIGN NEW LANDING PAGE
+// Preserve the current scenario wizard URL and draft ID.
+// ==========================================================
+const handleDesignNewLandingPage = () => {
+  const returnTo = `${location.pathname}${location.search}`;
+
+  navigate("/landing-page-catalogue", {
+    state: {
+      createNew: true,
+      returnToScenario: true,
+      returnTo
+    }
+  });
+};
+
+  // ==========================================================
+// ATTACH LANDING PAGE CREATED FROM CATALOGUE
+// ==========================================================
+useEffect(() => {
+  const createdLandingPage = location.state?.createdLandingPage;
+
+  if (
+    !location.state?.landingPageCreatedFromScenario ||
+    !createdLandingPage
+  ) {
+    return;
+  }
+
+  const landingPageId =
+    createdLandingPage?.LandingPageID ||
+    createdLandingPage?.landingPageId ||
+    createdLandingPage?.id ||
+    "";
+
+  const landingPageName =
+    createdLandingPage?.LandingPageName ||
+    createdLandingPage?.landingPageName ||
+    createdLandingPage?.name ||
+    "";
+
+  const landingPageContent =
+    createdLandingPage?.LandingPageContent ||
+    createdLandingPage?.landingPageContent ||
+    createdLandingPage?.content ||
+    "";
+
+  if (!landingPageId || !landingPageContent) {
+    console.error(
+      "Created landing page is missing its ID or content:",
+      createdLandingPage
+    );
+    return;
+  }
+
+  setFormData((previous) => ({
+    ...previous,
+
+    landingPageSource: "catalogue",
+
+    landingPageContent,
+
+    selectedLandingCatalogueImageId: landingPageId,
+
+    landingPageId,
+
+    outcomeSource: "",
+
+    outcomeRichText: "",
+
+    coverLandingImageName: landingPageName,
+
+    coverLandingPagePreview: "",
+
+    landingPagePreviewImage: ""
+  }));
+
+  // Consume the navigation state so the same landing page
+  // is not attached again after a subsequent render or reload.
+  navigate(`${location.pathname}${location.search}`, {
+    replace: true,
+    state: null
+  });
+}, [
+  location.state,
+  location.pathname,
+  location.search,
+  navigate
+]);
+
+  // ==========================================================
   // PUBLISH
   // ==========================================================
   // ==========================================================
@@ -1214,7 +1304,7 @@ const ScenarioEditor = ({ opening }) => {
                   type="button"
                   onClick={publishSaved}
                   disabled={savedForPublish.status === "busy"}
-                  className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7DC862] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 rounded-xl bg-[#17794a] hover:bg-[#1d8f58] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {savedForPublish.status === "busy"
                     ? "Publishing…"
@@ -1473,12 +1563,13 @@ const ScenarioEditor = ({ opening }) => {
                 {/* Attach Outcomes */}
                 {activeTab === 2 && (
                   <AttachOutcomesTab
-                    formData={formData}
-                    setFormData={setFormData}
-                    goNext={goNext}
-                    goBack={goBack}
-                    onCoverFileChosen={handleCoverFileChosen}
-                  />
+  formData={formData}
+  setFormData={setFormData}
+  goNext={goNext}
+  goBack={goBack}
+  onCoverFileChosen={handleCoverFileChosen}
+  onDesignNewLandingPage={handleDesignNewLandingPage}
+/>
                 )}
 
                 {/* Review & Save */}
