@@ -12,8 +12,7 @@ import { api } from '../../services/api';
 import { openCampaignDraft, parkCampaignDraft, useCampaignDraft } from '../../services/useCampaignDraft';
 import { useCampaigns } from '../../services/useCampaigns';
 import { currentActor } from '../../services/identity';
-import { cardActions, scenariosForViewer } from '../../services/scenarioOwnership';
-import { editedScenarioIds, readScenarioDraftItems } from '../../services/scenarioDraftSync';
+import { campaignChoices, cardActions } from '../../services/scenarioOwnership';
 import { campaignContentVersions, markAsked, wasAsked } from '../../services/resumePrompt';
 import {
   BACK_TO_STEP_1,
@@ -208,7 +207,21 @@ const ChooseAScenario = () => {
   const continueCampaignDraft = (id) => {
     const camp = myDrafts.find((c) => c.campaignId === id);
     openCampaignDraft(id);
-    navigate(routeForStep(savedStep(camp)), IN_WIZARD);
+    let route = routeForStep(savedStep(camp));
+    if (route === location.pathname) {
+      // Saved on this step (Choose a scenario), which is this page, so going
+      // "there" would change nothing. With its scenario already chosen it goes
+      // on at Details & settings; a draft stays out of Create New, which lists
+      // only published scenarios. Without one, its scenario is still to pick.
+      if (camp?.scenarioId) {
+        route = routeForStep(2);
+      } else {
+        setSavedNotice('');
+        setView('all');
+        return;
+      }
+    }
+    navigate(route, IN_WIZARD);
   };
 
   const deleteCampaignDraft = async (id) => {
@@ -290,30 +303,33 @@ const ChooseAScenario = () => {
   useEffect(() => {
     let active = true;
     const viewer = currentActor();
-    const apply = (rows, editing) => {
+    const apply = (rows, originals = []) => {
       if (!active) return;
       setScenariosLoading(false);
-      // An older API sends every row, unannotated: keep what this person may see,
-      // less what they are editing (under Scenarios -> Drafts) until it is saved.
-      const list = normaliseScenarios(scenariosForViewer(rows, viewer)).filter(
-        (s) => !editing.has(String(s.scenarioId))
-      );
+      // Only finished, published scenarios (campaignChoices); drafts stay under
+      // Scenarios -> Drafts until they are published.
+      const { rows: published } = campaignChoices(rows, viewer);
+      const list = normaliseScenarios([...published, ...originals]);
       setScenariosList(list);
       setSelectedScenarioId((prev) => prev || list[0]?.scenarioId || '');
     };
-    // What this person may use: the templates, their own scenarios and their
-    // saved edited versions (a pending edit of a shared one stands in for it).
-    // A scenario of theirs with an unfinished edit is a draft for now, and
-    // drafts are never picked; a template always can be.
-    const editing = readScenarioDraftItems(api, viewer)
-      .then(editedScenarioIds)
-      .catch(() => new Set());
+    // Where the person has unpublished changes to a scenario they published,
+    // the list holds the changes; the published version is read on its own.
+    const originalsOf = (rows) =>
+      Promise.all(
+        campaignChoices(rows, viewer).missing.map((id) =>
+          api.scenarios
+            .get(id)
+            .then((row) => (row && !row.deletedAt ? { ...row, ownership: 'mine', isShared: true } : null))
+            .catch(() => null)
+        )
+      ).then((found) => found.filter(Boolean));
     api.scenarios
       .list({ viewer })
-      .then(async (rows) => apply(rows, await editing))
+      .then(async (rows) => apply(rows, await originalsOf(rows)))
       .catch(async (e) => {
         console.error('Failed to load scenarios', e);
-        apply(scenariosJsonData?.scenarios || [], await editing);
+        apply(scenariosJsonData?.scenarios || []);
       });
     return () => {
       active = false;

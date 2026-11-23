@@ -23,6 +23,7 @@ import {
   visibleForViewer,
   PUBLISH_KINDS,
   clonePayload,
+  campaignChoices,
   personName,
   publisherLine,
 } from './scenarioOwnership.js';
@@ -443,4 +444,23 @@ test('Published by: the person\'s name, "you" on your own, the template line whe
   for (const ownership of ['template', 'shared', 'mine', 'myCopy', 'myRevision']) {
     assert.ok(cardActions({ ownership, createdBy: BOB }, ALICE).badge, `${ownership} always has a line`);
   }
+});
+
+test('campaign choices: only published scenarios, never a draft', () => {
+  const rows = [
+    { scenarioId: 'T1', ownership: 'template' },
+    { scenarioId: 'S1', ownership: 'shared', createdBy: BOB, isShared: true },
+    { scenarioId: 'M1', ownership: 'mine', createdBy: ALICE, isShared: true },
+    { scenarioId: 'M2', ownership: 'mine', createdBy: ALICE, isShared: false },
+    { scenarioId: 'C1', ownership: 'myCopy', createdBy: ALICE, copyOf: 'T1' },
+    { scenarioId: 'R1', ownership: 'myRevision', createdBy: ALICE, revisionOf: 'M3', replaces: 'M3' },
+  ];
+  const { rows: out, missing } = campaignChoices(rows, ALICE);
+  assert.deepEqual(out.map((r) => r.scenarioId), ['T1', 'S1', 'M1']);
+  assert.deepEqual(missing, ['M3'], 'the published original of unpublished changes is read on its own');
+});
+
+test('campaign choices from an older API: own scenarios count as published when they carry sharedAt', () => {
+  const rows = [{ scenarioId: 'T1' }, { scenarioId: 'M1', createdBy: ALICE, sharedAt: 't' }, { scenarioId: 'M2', createdBy: ALICE }];
+  assert.deepEqual(campaignChoices(rows, ALICE).rows.map((r) => r.scenarioId), ['T1', 'M1']);
 });
