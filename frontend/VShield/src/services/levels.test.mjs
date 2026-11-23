@@ -7,7 +7,6 @@ import {
   LEVELS,
   LEVEL_BY_ID,
   LEVEL_FAMILIES,
-  badgeShelf,
   ROMAN,
   canSeeBadge,
   canSeeRisk,
@@ -228,17 +227,4 @@ test('visibleLevel hides a level below zero from everyone but its owner and admi
   assert.equal(visibleLevel('L3G1', { viewerRole: 'Regular User' }).id, 'L3G1');
   assert.equal(visibleLevel(null, { viewerRole: 'Admin' }), null);
   assert.equal(visibleLevel('nope', { viewerRole: 'Admin' }), null);
-});
-
-test('badge shelf: seven badges, earned up to the current level, its own grade shown', () => {
-  const at = (id) => badgeShelf(LEVEL_BY_ID[id]);
-  const shelf = at('L3G2');
-  assert.equal(shelf.length, 7);
-  assert.deepEqual(shelf.map((b) => b.earned), [true, true, true, false, false, false, false]);
-  assert.deepEqual(shelf.map((b) => b.id), ['L1G3', 'L2G3', 'L3G2', 'L4G1', 'L5G1', 'L6G1', 'L7G1']);
-  assert.deepEqual(shelf.map((b) => b.current), [false, false, true, false, false, false, false]);
-  assert.equal(shelf[2].name, 'Safe Handler');
-  assert.ok(at('LN1').every((b) => !b.earned && !b.current), 'below Level 1 nothing is earned');
-  assert.ok(badgeShelf(undefined).every((b) => !b.earned), 'no level yet');
-  assert.ok(at('L7G3').every((b) => b.earned));
 });

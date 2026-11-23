@@ -5,7 +5,8 @@
  * time and named by its file name without the extension: assets/clay/
  * icons/shield-check.webp is "shield-check". The level badges, which come at
  * four widths in assets/badges/, are reached as "badge:<level id>"
- * (badgeImages.js). See assets/clay/README.md for how to add one.
+ * (badgeImages.js). The achievement badges are in assets/clay/achievements/
+ * (Achievements/achievements.js). See assets/clay/README.md for how to add one.
  */
 import { badgeSrc, badgeSrcSet } from './badgeImages';
 

@@ -134,23 +134,6 @@ export const LEVEL_FAMILIES = Object.freeze(
   [1, 2, 3, 4, 5, 6, 7].map((n) => Object.freeze(LEVELS.filter((l) => l.level === n))),
 );
 
-/**
- * The seven level badges for the My Space shelf, Level 1 first:
- * { id, name, level, earned, current }. A level the person has reached shows
- * the badge of the grade they reached in it (Grade 3 for levels passed, their
- * own grade in the current one); a level not reached shows its Grade 1 badge,
- * locked. Below Level 1 nothing is earned.
- */
-export function badgeShelf(current) {
-  const at = current && typeof current.level === 'number' ? current.level : 0;
-  return LEVEL_FAMILIES.map((grades) => {
-    const first = grades[0];
-    const isCurrent = at === first.level;
-    const reached = isCurrent ? current : at > first.level ? grades.at(-1) : first;
-    return { id: reached.id, name: first.name, level: first.level, earned: at >= first.level, current: isCurrent };
-  });
-}
-
 /** The levels below Level 1, highest first: 0, -1, -2. */
 export const BELOW_LEVELS = Object.freeze(LEVELS.filter((l) => l.level <= 0).reverse());
 

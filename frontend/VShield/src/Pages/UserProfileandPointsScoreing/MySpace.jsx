@@ -28,7 +28,7 @@ import LevelBadge from "../../GlobalComponents/LevelBadge";
 import AllBadges from "../../GlobalComponents/AllBadges";
 import PointsAndBadges from "./PointsAndBadges";
 import LevelChangeNotice from "./LevelChangeNotice";
-import MyBadgesCard from "./MyBadgesCard";
+import AchievementsCard from "../../Achievements/AchievementsCard";
 import { useMyStanding } from "../../services/useMyStanding";
 import {
   levelAltText,
@@ -1290,11 +1290,11 @@ const MySpace = () => {
               onOpenLeaderboard={() => navigate("/leaderboard")}
               onOpenBadges={openBadges}
             />
-            {/* The level badges, filling the column under the ID card */}
-            <MyBadgesCard
-              level={standing.level}
+            {/* What they have achieved, filling the column under the ID card */}
+            <AchievementsCard
+              standing={standing}
               isDark={isDark}
-              onOpenBadges={openBadges}
+              className="flex-1 min-h-[150px] mt-3"
             />
           </div>
         </div>
