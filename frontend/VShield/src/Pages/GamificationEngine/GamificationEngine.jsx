@@ -384,28 +384,22 @@ const GamificationEngine = () => {
                   className="relative w-full flex flex-col transition-all duration-300"
                 >
                   {/* ── TOP TIER: [Left Floating Pill] + [Right L-Head]. The card fills its
-                      grid row; the extra height is shared 3:2 between this tier and the
+                      grid row; the extra height is shared 4:3 between this tier and the
                       shelf below, and each spreads its content instead of stretching it. ── */}
-                  <div className="flex items-stretch w-full flex-[3] min-h-[100px]">
+                  <div className="flex items-stretch w-full flex-[4] min-h-[100px]">
                     {/* 1. Left Colored Tag Pill */}
                     <div
-                      className="relative overflow-hidden w-[48%] rounded-lg p-2.5 sm:p-3 mb-2 flex flex-col justify-between flex-shrink-0 mr-2.5 shadow-2xs"
+                      className="relative overflow-hidden w-[40%] rounded-lg p-2.5 sm:p-3 mb-2 flex flex-col justify-start flex-shrink-0 mr-2.5 shadow-2xs"
                       style={{ backgroundColor: item.tagBg }}
                     >
                       <div className="relative z-10">
-                        <h3 className="text-[15px] font-bold font-voda uppercase tracking-tight text-black leading-tight">
+                        <h3 className="text-[13.5px] font-bold font-voda uppercase tracking-tight text-black leading-tight">
                           {item.title}
                         </h3>
                         <p className="text-[9px] font-normal text-black/85 leading-snug mt-1.5 whitespace-pre-line">
                           {item.description}
                         </p>
                       </div>
-                      {/* The rule's icon, large and faint in the corner, so a tall tag isn't empty */}
-                      <item.icon
-                        aria-hidden="true"
-                        className="absolute -right-2 -bottom-2 w-[46%] max-w-[84px] h-auto aspect-square text-black/10 pointer-events-none"
-                        strokeWidth={1.6}
-                      />
                     </div>
 
                     {/* 2. Right L-Head (Continuous with Bottom Shelf) */}
@@ -461,7 +455,7 @@ const GamificationEngine = () => {
 
                   {/* ── BOTTOM TIER: Continuous L-Shelf Underneath ── */}
                   <div
-                    className="w-full p-3 flex-[2] min-h-[100px] rounded-lg rounded-tl-lg flex flex-col items-center justify-center gap-2.5 -mt-px"
+                    className="w-full p-3 flex-[3] min-h-[100px] rounded-lg rounded-tl-lg flex flex-col items-center justify-center gap-2.5 -mt-px"
                     style={{ backgroundColor: containerBg }}
                   >
                     {/* Compact Input Pill with Steppers [- | +] */}
