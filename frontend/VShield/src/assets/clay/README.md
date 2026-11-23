@@ -15,7 +15,10 @@ are made and show them with `GlobalComponents/ClayImage.jsx`:
   `"badge:L3G2"`.
 
 - **Achievements** (`achievements/`): one picture per achievement, named by
-  its id in `src/Achievements/achievements.js` (`first-report.webp` …). A new
-  achievement needs a picture here and a row in that file.
+  its id in `src/Achievements/achievements.js` (`first-report.webp` …). To add
+  one, put its picture here and add one row to that file (id, name, how to
+  earn it, and its rule). Nothing else changes: My Space shows the first 4
+  (the earned ones first), and "View all" shows every one. A test checks that
+  every row has a picture and every picture a row.
 
 Nothing here holds personal data or anything secret: these are design assets.

@@ -54,3 +54,22 @@ test("the API's list wins over the local rules; unknown ids are ignored", () => 
   assert.deepEqual(earned({ history, achievements: [] }), [], 'an empty list from the API means none, not "work it out"');
   assert.deepEqual(earned({ history, achievements: null }), ['first-report', 'sharp-eye'], 'no list: the local rules');
 });
+
+test('the card shows 4: the earned ones first, then the next to earn', async () => {
+  const { previewOf, PREVIEW_COUNT } = await import('./achievements.js');
+  assert.equal(PREVIEW_COUNT, 4);
+  const list = achievementsFor({ achievements: ['quiz-ace', 'top-10'] });
+  assert.deepEqual(previewOf(list).map((a) => a.id), ['quiz-ace', 'top-10', 'first-report', 'sharp-eye']);
+  assert.deepEqual(previewOf(achievementsFor({})).map((a) => a.id), ['first-report', 'sharp-eye', 'quick-reporter', 'safe-handler']);
+  const allEarned = achievementsFor({ achievements: ACHIEVEMENTS.map((a) => a.id) });
+  assert.equal(previewOf(allEarned).length, 4);
+  assert.equal(previewOf(list, 0).length, 0);
+  assert.deepEqual(previewOf(undefined), []);
+});
+
+test('every achievement has a picture in assets/clay/achievements, and every picture has a row', async () => {
+  const { readdirSync } = await import('node:fs');
+  const dir = new URL('../assets/clay/achievements/', import.meta.url);
+  const pictures = readdirSync(dir).filter((f) => /\.(webp|png)$/i.test(f)).map((f) => f.replace(/\.(webp|png)$/i, ''));
+  assert.deepEqual([...pictures].sort(), ACHIEVEMENTS.map((a) => a.image).sort());
+});
