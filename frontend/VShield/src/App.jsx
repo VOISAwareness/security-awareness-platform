@@ -23,6 +23,9 @@ import EmailIDsAndDomains from './Pages/EmailIDsandDomains/EmailIDsAndDomains';
 // 🌟 Import Landing Page Catalogue Page
 import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalogue';
 
+// 🌟 Import Cover Image Catalogue Page
+import CoverImageCatalogueModal from './Pages/CoverImageCatalogue/CoverImageCatalogueModal';
+
 // 🌟 Insights (the analytics page)
 import Insights from './Pages/Insights/Insights';
 
@@ -38,7 +41,7 @@ import AnnouncementsTemplateEmail from './Pages/Announcement/RollOutAnnouncement
 import AnnouncementsReviewPublish from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateReview/AnnouncementsReviewPublish';
 import AnnouncementTemplateDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementTemplateDetails/AnnouncementTemplateDetails';
 
-// 🌟 Leaderboard (opened from My Space)
+// 🌟 Leaderboard
 import Leaderboard from './Pages/Leaderboard/Leaderboard';
 
 // 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
@@ -61,7 +64,6 @@ import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
 import MyTraining from './Pages/MyTraining/MyTraining';
 import TrainingDetails from './Pages/MyTraining/PendingTraining/StartNewTraining';
 import AnnouncementHistory from './Pages/Announcement/AnnouncementHistory/AnnouncementHistory';
-
 
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
@@ -110,13 +112,13 @@ function App() {
             }
           >
             {/* Dashboard / Home (Protected: restricted to Admin, Campaign Creator & Manager) */}
-            <Route 
-              path="/home" 
+            <Route
+              path="/home"
               element={
                 <ProtectedRoute requiredScreen="home">
                   <HomeScreen />
                 </ProtectedRoute>
-              } 
+              }
             />
 
             {/* 🌟 My Space Route */}
@@ -127,9 +129,12 @@ function App() {
 
             {/* 🌟 Email IDs & Domains Route */}
             <Route path="/email-domains" element={<EmailIDsAndDomains />} />
-            
+
             {/* 🌟 Landing Page Catalogue Route */}
             <Route path="/landing-page-catalogue" element={<LandingPageCatalogue />} />
+
+            {/* 🌟 Cover Image Catalogue Route */}
+            <Route path="/cover-image-catalogue" element={<CoverImageCatalogueModal />} />
 
             {/* 🌟 Campaign lifecycle (wired to the backend) */}
             <Route path="/campaigns" element={<Campaigns />} />
@@ -138,7 +143,7 @@ function App() {
             {/* 🌟 Insights Route */}
             <Route path="/analytics" element={<Insights />} />
 
-            {/* 🌟 Leaderboard Route — opened from the My Space LEADERBOARD button (no nav item) */}
+            {/* 🌟 Leaderboard Route */}
             <Route
               path="/leaderboard"
               element={
@@ -147,7 +152,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+
             {/* 🌟 Start New Campaign Page Route */}
             <Route path="/start-campaign" element={<ChooseAScenario />} />
             <Route path="/start-campaign/details" element={<DetailsAndSettings />} />
@@ -162,9 +167,9 @@ function App() {
             <Route path="/user-lists/bulk-upload" element={<UserListViaBulkUpload />} />
 
             {/* Campaign Management Routes */}
-            <Route path="/create-scenario" element={<Scenarios/>} />
-            <Route path="/new-scenario" element={<NewScenario/>} />
-            <Route path="/new-scenario/:step" element={<NewScenario/>} />
+            <Route path="/create-scenario" element={<Scenarios />} />
+            <Route path="/new-scenario" element={<NewScenario />} />
+            <Route path="/new-scenario/:step" element={<NewScenario />} />
 
             {/* Training & Learning Routes */}
             <Route path="/training" element={<Training />} />
