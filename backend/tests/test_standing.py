@@ -18,6 +18,7 @@ from moto import mock_aws
 REPO = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO / "backend" / "reference-api" / "lambda_function.py"
 FRONT_LEVELS = REPO / "frontend" / "VShield" / "src" / "services" / "levels.js"
+FRONT_ACHIEVEMENTS = REPO / "frontend" / "VShield" / "src" / "Achievements" / "achievements.js"
 ANA = "ana@example.test"
 
 
@@ -303,3 +304,66 @@ def test_a_throttled_board_answers_busy(api, monkeypatch):
 def test_name_from_email(mod):
     assert mod.name_from_email("ana.lopez@x.test") == "Ana Lopez"
     assert mod.name_from_email("j_doe-2@x.test") == "J Doe 2"
+
+
+# --- achievements ---------------------------------------------------------------
+
+
+def test_standing_counts_every_entry_and_names_the_achievements(api):
+    # 14 reports (more than the ten the history shows), 3 trainings, an evaluation
+    for i in range(14):
+        api.ledger.put_item(Item=entry(ANA, f"CMP-{i:02d}", "Reported", 80, f"2026-10-{i + 1:02d}T09:00:00Z"))
+    for i in range(3):
+        api.ledger.put_item(Item=entry(ANA, f"TP-{i}", "Trained", 30, f"2026-09-0{i + 1}T09:00:00Z"))
+    api.ledger.put_item(Item=entry(ANA, "TP-0", "Evaluated", 50, "2026-09-05T09:00:00Z"))
+    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": 1260, "entries": 18, "updatedAt": "u", "board": "GLOBAL"})
+    d = call(api.mod, "GET /standing", viewer=ANA)[1]["data"]
+    assert d["rank"] == 1
+    assert d["counts"] == {"Reported": 14, "Trained": 3, "Evaluated": 1, "Clicked": 0, "Compromised": 0}
+    assert d["achievements"] == [
+        "first-report", "sharp-eye", "quick-reporter", "safe-handler", "trained", "quiz-ace",
+        "top-10", "point-collector", "lifelong-learner",
+    ]
+    assert len(d["history"]) == 10, "the history stays the latest ten"
+
+
+def test_someone_new_has_no_achievements(api):
+    d = call(api.mod, "GET /standing", viewer=ANA)[1]["data"]
+    assert d["achievements"] == []
+    assert set(d["counts"].values()) == {0}
+
+
+def test_a_click_ends_safe_handler_and_a_later_report_is_a_comeback(mod):
+    def run(rules):
+        entries = [{"rule": r} for r in rules]
+        return mod.achievements_for(entries, mod.rule_counts(entries), 0, None)
+
+    assert "safe-handler" in run(["Reported"] * 3)
+    assert "safe-handler" not in run(["Reported", "Clicked", "Reported", "Reported"])
+    assert "comeback" in run(["Clicked", "Reported"])
+    assert "comeback" not in run(["Reported", "Clicked"])
+    assert "comeback" not in run(["Reported"])
+
+
+def test_top_10_follows_the_rank(mod):
+    def top(rank):
+        return "top-10" in mod.achievements_for([], mod.rule_counts([]), 0, rank)
+
+    assert (top(1), top(10), top(11), top(None)) == (True, True, False, False)
+
+
+def test_point_collector_at_500(mod):
+    def has(points):
+        return "point-collector" in mod.achievements_for([], mod.rule_counts([]), points, None)
+
+    assert (has(499), has(500)) == (False, True)
+
+
+def test_achievement_ids_match_the_front_end(mod):
+    """The ids here and in the front end's catalogue must be the same, in order."""
+    if not FRONT_ACHIEVEMENTS.exists():
+        pytest.skip("front-end catalogue not on this branch yet")
+    front = re.findall(r"id: '([a-z0-9-]+)'", FRONT_ACHIEVEMENTS.read_text())
+    entries = [{"rule": "Clicked"}] + [{"rule": r} for r in ["Reported"] * 5 + ["Trained"] * 3 + ["Evaluated"]]
+    every = mod.achievements_for(entries, {"Reported": 5, "Trained": 3, "Evaluated": 1, "Clicked": 0, "Compromised": 0}, 500, 1)
+    assert every == front

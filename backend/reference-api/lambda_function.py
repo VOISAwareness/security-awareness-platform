@@ -1085,6 +1085,48 @@ def standing_view(email, rows):
     }
 
 
+# --- achievements ---------------------------------------------------------------
+#
+# The badges a person earns for what they do, worked out from the ledger rows
+# GET /standing has already read (every entry, not just the latest ten) and
+# their rank, so they cost no extra reads. Count-based ones never go away,
+# since entries are never removed; Safe Handler ends at the first click and
+# Top 10 follows the live rank. Names, how-to text and pictures live in the
+# front end (src/Achievements/achievements.js), keyed by these ids.
+
+COUNTED_RULES = ("Reported", "Trained", "Evaluated", "Clicked", "Compromised")
+FELL_FOR = ("Clicked", "Compromised")
+
+
+def rule_counts(entries):
+    """How many entries of each scored rule a person has: {rule: n}."""
+    counts = dict.fromkeys(COUNTED_RULES, 0)
+    for e in entries:
+        if e.get("rule") in counts:
+            counts[e["rule"]] += 1
+    return counts
+
+
+def achievements_for(entries, counts, points, rank):
+    """The ids of the achievements earned, in the front end's order.
+    `entries` are oldest first (for Comeback: a report after a first slip)."""
+    slipped = counts["Clicked"] + counts["Compromised"] > 0
+    first_slip = next((i for i, e in enumerate(entries) if e.get("rule") in FELL_FOR), None)
+    rules = (
+        ("first-report", counts["Reported"] >= 1),
+        ("sharp-eye", counts["Reported"] >= 3),
+        ("quick-reporter", counts["Reported"] >= 5),
+        ("safe-handler", counts["Reported"] >= 3 and not slipped),
+        ("trained", counts["Trained"] >= 1),
+        ("quiz-ace", counts["Evaluated"] >= 1),
+        ("top-10", isinstance(rank, int) and 1 <= rank <= 10),
+        ("point-collector", points >= 500),
+        ("comeback", first_slip is not None and any(e.get("rule") == "Reported" for e in entries[first_slip + 1:])),
+        ("lifelong-learner", counts["Trained"] >= 3),
+    )
+    return [aid for aid, earned in rules if earned]
+
+
 # --- the global leaderboard ---------------------------------------------------
 #
 # Every person's TOTAL row carries board = "GLOBAL", so the ledger's sparse
@@ -1211,7 +1253,18 @@ def standing(route, event, context):
             kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
         view = standing_view(viewer, rows)
         rank, total = rank_of(board_totals(), viewer)
-        return ok({**view, "rank": rank, "total": total})
+        entries = sorted(
+            (r for r in rows if str(r.get("entryId", "")).startswith("E#")),
+            key=lambda r: (str(r.get("at", "")), str(r.get("entryId", ""))),
+        )
+        counts = rule_counts(entries)
+        return ok({
+            **view,
+            "rank": rank,
+            "total": total,
+            "counts": counts,
+            "achievements": achievements_for(entries, counts, view["points"], rank),
+        })
     except ClientError as e:
         return busy(context, "Standing" if route == "GET /standing" else "Leaderboard", e)
 
