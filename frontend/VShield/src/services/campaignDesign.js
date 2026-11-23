@@ -16,6 +16,8 @@
  *   REJECTED with changesRequested         -> Notified (rejected with notification)
  *   REJECTED                               -> Rejected
  *   FAILED                                 -> Failed
+ *   CANCELLED                              -> Cancelled
+ *   ON_HOLD                                -> On Hold (a scheduled campaign on hold)
  */
 import { STATUS, parseDate } from './campaignStatus.js';
 
@@ -30,6 +32,8 @@ export const DESIGN_STATUS = {
   // Cancelled before it ran (campaigns-api POST /campaigns/{id}/cancel writes
   // cancelledBy, cancelledAt and cancellationReason).
   CANCELLED: 'Cancelled',
+  // A scheduled campaign put on hold (campaigns-api hold); resumed with new dates.
+  ON_HOLD: 'On Hold',
 };
 
 export function designStatus(campaign, now = new Date()) {
@@ -48,6 +52,8 @@ export function designStatus(campaign, now = new Date()) {
       return DESIGN_STATUS.FAILED;
     case STATUS.CANCELLED:
       return DESIGN_STATUS.CANCELLED;
+    case STATUS.ON_HOLD:
+      return DESIGN_STATUS.ON_HOLD;
     default:
       return DESIGN_STATUS.DRAFTED;
   }
