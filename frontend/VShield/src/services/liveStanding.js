@@ -46,5 +46,9 @@ export function standingFromApi(data, profile = {}) {
       at: h.at,
     })),
     known: Boolean(data.known),
+    // From the newer API: counts of every scored action, and the ids of the
+    // achievements earned (Achievements/achievements.js). Absent on an older one.
+    counts: data.counts && typeof data.counts === 'object' ? data.counts : null,
+    achievements: Array.isArray(data.achievements) ? data.achievements.map(String) : null,
   };
 }

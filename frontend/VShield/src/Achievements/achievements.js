@@ -7,7 +7,11 @@
  * <ClayImage name={achievement.image} />. Add a new one by drawing its picture
  * under that folder and adding a row to ACHIEVEMENTS with its `earned` rule.
  *
- * The rules read the person's standing (useMyStanding): points, rank and
+ * The API decides who has earned what: GET /standing returns `achievements`,
+ * the ids earned, worked out over the person's whole history (reference-api
+ * achievements_for). The rules below are the same ones, kept as a fallback
+ * for an API that doesn't send the list yet; they read the standing
+ * (useMyStanding): points, rank and
  * `history`, their latest point changes, each with the rule that scored it
  * (Opened, Clicked, Compromised, Reported, Trained, Evaluated) and the
  * campaign. Both shapes are read: the API's ({ rule, campaignId, at }) and
@@ -90,10 +94,15 @@ export const ACHIEVEMENTS = Object.freeze(
 
 /**
  * Every achievement for this standing, in catalogue order, with `earned`
- * worked out: [{ id, name, how, image, earned }]. A missing or partial
- * standing earns nothing rather than failing.
+ * set: [{ id, name, how, image, earned }]. From the API's list when the
+ * standing has one, else from the rules here. A missing or partial standing
+ * earns nothing rather than failing.
  */
 export function achievementsFor(standing) {
+  if (Array.isArray(standing?.achievements)) {
+    const earned = new Set(standing.achievements);
+    return ACHIEVEMENTS.map((a) => ({ id: a.id, name: a.name, how: a.how, image: a.image, earned: earned.has(a.id) }));
+  }
   const s = {
     points: Number(standing?.points) || 0,
     rank: standing?.rank ?? null,

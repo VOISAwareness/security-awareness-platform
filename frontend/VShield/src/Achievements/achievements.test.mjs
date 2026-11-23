@@ -47,3 +47,10 @@ test('reads the history as useMyStanding shapes it too ({ event, where })', () =
   const history = [{ event: 'Reported', where: 'Payroll update' }, { event: 'Trained', where: 'Path A' }];
   assert.deepEqual(earned({ history }), ['first-report', 'trained']);
 });
+
+test("the API's list wins over the local rules; unknown ids are ignored", () => {
+  const history = [{ rule: 'Reported' }, { rule: 'Reported' }, { rule: 'Reported' }];
+  assert.deepEqual(earned({ history, achievements: ['trained', 'not-a-badge'] }), ['trained']);
+  assert.deepEqual(earned({ history, achievements: [] }), [], 'an empty list from the API means none, not "work it out"');
+  assert.deepEqual(earned({ history, achievements: null }), ['first-report', 'sharp-eye'], 'no list: the local rules');
+});
