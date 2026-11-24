@@ -1304,7 +1304,7 @@ useEffect(() => {
                   type="button"
                   onClick={publishSaved}
                   disabled={savedForPublish.status === "busy"}
-                  className="w-full py-2.5 rounded-xl bg-[#17794a] hover:bg-[#1d8f58] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7DC862] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {savedForPublish.status === "busy"
                     ? "Publishing…"
