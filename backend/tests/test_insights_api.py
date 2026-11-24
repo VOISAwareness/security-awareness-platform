@@ -197,3 +197,20 @@ def test_insights_may_be_kept_by_a_shared_cache_but_not_a_forced_rebuild(mod):
 
 def test_a_warm_ping_returns_at_once(mod):
     assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
+
+
+def test_board_lists_recipients_who_are_not_users(mod):
+    """A campaign sent to an address that isn't in the users table still ranks it."""
+    sent_at = dt.datetime(2026, 11, 23, 9, tzinfo=dt.UTC)
+    row = {"email": "jane.doe-smith@example.com", "department": "Finance", "sentAt": sent_at, "delivered": True,
+           "clickedAt": None, "reportedAt": sent_at, "gaveAt": None, "campaignId": "CMP-1"}
+    ctx = {"now": sent_at, "sent": [{"campaignId": "CMP-1", "status": "SENT"}],
+           "items": [{"campaign": {"id": "CMP-1", "name": "Demo", "type": "Data Entry", "started": "2026-11-23", "total": 1}}],
+           "people": {}, "received": {row["email"]: [row]}}
+    board = mod.board_of(ctx, {row["email"]: 80})
+    [p] = board["people"]
+    assert p["name"] == "Jane Doe Smith" and p["dept"] == "Finance" and p["points"] == 80
+    assert p["key"].startswith("R") and "@" not in p["key"] and p["key"] == mod.recipient_key(row["email"])
+    assert p["events"] == [[0, int(sent_at.timestamp() * 1000), 0, 1, 0]]
+    assert "@" not in json.dumps(mod.board_for(board, row["email"]))
+    assert mod.board_for(board, row["email"])["you"] == p["key"]

@@ -38,9 +38,11 @@ Insights is for the roles that have the Analytics page; the role is
 client-asserted until SSO (as everywhere else for now).
 """
 import decimal
+import hashlib
 import json
 import logging
 import os
+import re
 import statistics
 import time
 from collections import defaultdict
@@ -547,6 +549,17 @@ def ledger_totals():
             return totals
 
 
+def name_from_address(email):
+    """'jane.doe-smith@x' -> 'Jane Doe Smith', for someone not in the users table."""
+    local = email.split("@")[0]
+    return " ".join(w.capitalize() for w in re.split(r"[._\-+]+", local) if w) or local
+
+
+def recipient_key(email):
+    """A stable display id for someone not in the users table; not the address."""
+    return "R" + hashlib.sha256(email.encode()).hexdigest()[:10]
+
+
 def board_of(ctx, totals):
     """Every sent campaign, and everyone with their points today and what
     they did with each email: [campaign index, when (epoch ms: when they
@@ -559,8 +572,16 @@ def board_of(ctx, totals):
         ends = when(raw.get("endAt") or raw.get("endTime"))
         campaigns.append({**c, "status": raw.get("status"), "endsAt": ms(ends) if ends else None})
     index = {c["id"]: i for i, c in enumerate(campaigns)}
+    # everyone in the users table, and anyone a campaign went to who isn't
+    # (an address added straight to a campaign's list), named from the
+    # address, with the department their recipient row gave
+    everyone = dict(ctx["people"])
+    for email, got in ctx["received"].items():
+        if email and email not in everyone:
+            dept = next((x["department"] for x in sorted(got, key=lambda x: x["sentAt"], reverse=True) if x["department"]), "")
+            everyone[email] = {"id": recipient_key(email), "name": name_from_address(email), "department": dept or "Unassigned"}
     people = []
-    for email, p in sorted(ctx["people"].items(), key=lambda e: (e[1]["name"], e[0])):
+    for email, p in sorted(everyone.items(), key=lambda e: (e[1]["name"], e[0])):
         events = []
         for x in sorted(ctx["received"].get(email, ()), key=lambda x: x["sentAt"]):
             if not x["delivered"] or x["campaignId"] not in index:
