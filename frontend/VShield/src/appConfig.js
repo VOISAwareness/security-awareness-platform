@@ -15,3 +15,14 @@ export const DEMO_USER = {
   name: 'VOIS Demo User',
   email: 'vois.demo.user@vodafone.com',
 };
+
+/**
+ * APP_URL — where this app is served, used for links that leave the app and
+ * must come back to it: the landing page's "Go to My Training" buttons are
+ * shown on the tracking domain, so they need the app's absolute address.
+ *   Set VITE_APP_URL when the app is reached at a different address from the
+ *   one admins edit landing pages on; otherwise the current origin is used.
+ */
+export const APP_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_URL) ||
+  (typeof window !== 'undefined' ? window.location.origin : '');

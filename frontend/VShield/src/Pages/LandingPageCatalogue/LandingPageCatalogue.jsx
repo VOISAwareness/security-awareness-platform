@@ -17,6 +17,13 @@ import { api } from '../../services/api';
 import LandingPageDesigner from './LandingPageDesigner';
 import LandingPageRichTextEditor from './LandingPageRichTextEditor';
 import { PAGE_SCALE } from '../../shared/SharedStyles';
+import { APP_URL } from '../../appConfig';
+import {
+  MAX_LANDING_BYTES,
+  exportLandingHtml,
+  landingBytes,
+  splitCanvasBg
+} from '../../services/landingHtml';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS
@@ -50,12 +57,6 @@ const LandingPageCatalogue = () => {
   });
 
   useEffect(() => {
-    if (typeof userContext.isDark === 'boolean') {
-      setIsDark(userContext.isDark);
-    }
-  }, [userContext.isDark]);
-
-  useEffect(() => {
     const checkDark = () => {
       const hasDarkClass = document.documentElement.classList.contains('dark');
       setIsDark(hasDarkClass || !!userContext.isDark);
@@ -68,6 +69,17 @@ const LandingPageCatalogue = () => {
 
   // Backed by the API (bundled JSON is only a fallback if it is unreachable).
   const [catalogues, setCatalogues] = useState([]);
+  const [isLoadingCatalogues, setIsLoadingCatalogues] = useState(true);
+
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+  const showToast = (msg, type = 'info', title) => {
+    setToast({ message: msg, type, title });
+    // A newer toast restarts the timer, so an older one can't hide it early.
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  };
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   useEffect(() => {
     let active = true;
@@ -78,7 +90,19 @@ const LandingPageCatalogue = () => {
       })
       .catch((e) => {
         console.error('Failed to load landing pages', e);
-        if (active) setCatalogues(LandingPageCatalogues?.landingPages || []);
+        if (!active) return;
+        setCatalogues(LandingPageCatalogues?.landingPages || []);
+        // Say so: these are bundled samples, and changes to them won't save.
+        setToast({
+          message: 'Could not reach the server. Showing sample landing pages; changes may not save.',
+          type: 'warning',
+          title: 'Offline'
+        });
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 6000);
+      })
+      .finally(() => {
+        if (active) setIsLoadingCatalogues(false);
       });
     return () => {
       active = false;
@@ -92,7 +116,6 @@ const LandingPageCatalogue = () => {
   const [searchFilter, setSearchFilter] = useState('Name'); // 'Name' or 'ID'
   const [previewModalItem, setPreviewModalItem] = useState(null);
   const [deleteConfirmationItem, setDeleteConfirmationItem] = useState(null);
-  const [toast, setToast] = useState(null);
 
   // Editor States
   const [editorId, setEditorId] = useState(null);
@@ -102,6 +125,10 @@ const LandingPageCatalogue = () => {
 
   // Persistent HTML Ref ensuring canvas content survives portal unmounts / expand toggles
   const activeHtmlRef = useRef('');
+  // The page as it was opened, to tell whether leaving would lose changes.
+  const editorBaselineRef = useRef({ name: '', description: '', html: '' });
+  // One save at a time (a double click must not create two pages).
+  const savingRef = useRef(false);
   const [editorHtml, setEditorHtml] = useState('');
 
   // Save Modal & Fullscreen Preview States
@@ -122,11 +149,6 @@ const LandingPageCatalogue = () => {
       };
     }
   }, [isFullScreenLivePreview, isEditorExpanded, previewModalItem]);
-
-  const showToast = (msg, type = 'info', title) => {
-    setToast({ message: msg, type, title });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   // Safe Property Extractors
   const getItemId = (item) => item?.LandingPageID || item?.landingPageId || item?.id || '';
@@ -157,6 +179,7 @@ const LandingPageCatalogue = () => {
     setIsEditorExpanded(false);
     activeHtmlRef.current = '';
     setEditorHtml('');
+    editorBaselineRef.current = { name: '', description: '', html: '' };
     setCurrentView(VIEW_EDITOR);
   };
 
@@ -169,7 +192,32 @@ const LandingPageCatalogue = () => {
     setIsEditorExpanded(false);
     activeHtmlRef.current = content;
     setEditorHtml(content);
+    editorBaselineRef.current = {
+      name: getItemName(item),
+      description: getItemDesc(item),
+      html: content
+    };
     setCurrentView(VIEW_EDITOR);
+  };
+
+  const hasUnsavedChanges = () => {
+    const base = editorBaselineRef.current;
+    if (pageName !== base.name || pageDescription !== base.description) return true;
+    // Compared as saved: the editor hands back its editable form of the
+    // same page (on blur, expand), which must not count as a change.
+    const asSaved = (html) => exportLandingHtml(html || '', { appUrl: APP_URL });
+    return asSaved(activeHtmlRef.current) !== asSaved(base.html);
+  };
+
+  // Back to the gallery, but never silently throw away unsaved work.
+  const handleBackToGallery = () => {
+    if (
+      hasUnsavedChanges() &&
+      !window.confirm('You have unsaved changes to this landing page. Leave without saving?')
+    ) {
+      return;
+    }
+    setCurrentView(VIEW_GALLERY);
   };
 
   // Delete Action
@@ -215,74 +263,97 @@ const LandingPageCatalogue = () => {
       return;
     }
 
+    // What is saved and previewed is the page as a phished person gets it.
+    const exportedHtml = exportLandingHtml(htmlContent, { appUrl: APP_URL });
+    const bytes = landingBytes(exportedHtml);
+    if (bytes > MAX_LANDING_BYTES) {
+      showToast(
+        'This landing page is ' + Math.ceil(bytes / 1024) + ' KB; the limit is ' +
+          Math.round(MAX_LANDING_BYTES / 1024) + ' KB. Use smaller images.',
+        'warning',
+        'Too Large'
+      );
+      return;
+    }
+
     activeHtmlRef.current = htmlContent;
-    setStagedHtmlForPreview(htmlContent);
+    setStagedHtmlForPreview(exportedHtml);
     setShowSaveChoiceModal(true);
   };
 
-  // Commit Save Action
+  // Commit Save Action. The editor stays open until the server confirms the
+  // save, so a failed save never loses the page.
   const handleCommitSubmit = () => {
-    const htmlContent = stagedHtmlForPreview || activeHtmlRef.current || editorHtml || '';
+    if (savingRef.current) return;
+    const htmlContent =
+      stagedHtmlForPreview ||
+      exportLandingHtml(activeHtmlRef.current || editorHtml || '', { appUrl: APP_URL });
+    const savedName = pageName.trim();
 
-    if (editorId) {
-      api.landingPages
-        .update(editorId, {
-          LandingPageName: pageName.trim() || undefined,
+    const request = editorId
+      ? api.landingPages.update(editorId, {
+          LandingPageName: savedName || undefined,
           LandingPageDescription: pageDescription.trim(),
           LandingPageContent: htmlContent
         })
-        .then((saved) => {
-          setCatalogues((prev) =>
-            prev.map((item) => (getItemId(item) === editorId ? saved : item))
-          );
-          showToast("Updated '" + pageName.trim() + "'", 'success');
-        })
-        .catch((e) => {
-          console.error(e);
-          showToast('Could not save landing page. Please try again.', 'error');
-        });
-    } else {
-      // The backend assigns the next LP-00N id.
-      api.landingPages
-        .create({
-          LandingPageName: pageName.trim() || 'Untitled Landing Page',
+      : // The backend assigns the next LP-00N id.
+        api.landingPages.create({
+          LandingPageName: savedName || 'Untitled Landing Page',
           LandingPageDescription:
             pageDescription.trim() || 'Custom created security awareness landing page.',
           LandingPageContent: htmlContent
-        })
-        .then((created) => {
-          setCatalogues((prev) => [created, ...prev]);
-          showToast("Created '" + (created?.LandingPageID || '') + "' successfully!", 'success');
-
-          // Back to the scenario wizard, with the new page attached, when this
-          // page was designed from there ("Design a new one").
-          const returnToScenario = location.state?.returnToScenario;
-          const returnTo = location.state?.returnTo;
-          if (returnToScenario && returnTo) {
-            navigate(returnTo, {
-              replace: true,
-              state: {
-                landingPageCreatedFromScenario: true,
-                createdLandingPage: created
-              }
-            });
-          }
-        })
-        .catch((e) => {
-          console.error(e);
-          showToast('Could not create landing page. Please try again.', 'error');
         });
-    }
 
+    savingRef.current = true;
     setShowSaveChoiceModal(false);
     setIsFullScreenLivePreview(false);
-    setIsEditorExpanded(false);
-    setPageName('');
-    setPageDescription('');
-    setEditorId(null);
-    activeHtmlRef.current = '';
-    setEditorHtml('');
-    setCurrentView(VIEW_GALLERY);
+
+    request
+      .then((saved) => {
+        if (editorId) {
+          setCatalogues((prev) =>
+            prev.map((item) => (getItemId(item) === editorId ? saved : item))
+          );
+          showToast("Updated '" + savedName + "'", 'success');
+        } else {
+          setCatalogues((prev) => [saved, ...prev]);
+          showToast("Created '" + (saved?.LandingPageID || '') + "' successfully!", 'success');
+        }
+        setIsEditorExpanded(false);
+        setPageName('');
+        setPageDescription('');
+        setEditorId(null);
+        activeHtmlRef.current = '';
+        setEditorHtml('');
+        editorBaselineRef.current = { name: '', description: '', html: '' };
+        setCurrentView(VIEW_GALLERY);
+
+        // Back to the scenario wizard, with the new page attached, when this
+        // page was designed from there ("Design a new one").
+        const returnToScenario = location.state?.returnToScenario;
+        const returnTo = location.state?.returnTo;
+        if (!editorId && returnToScenario && returnTo) {
+          navigate(returnTo, {
+            replace: true,
+            state: {
+              landingPageCreatedFromScenario: true,
+              createdLandingPage: saved
+            }
+          });
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        // The server's reason when it has one (e.g. the page is too large).
+        const reason = e?.status && e.status < 500 && e.message ? e.message : 'Please try again.';
+        showToast(
+          (editorId ? 'Could not save landing page. ' : 'Could not create landing page. ') + reason,
+          'error'
+        );
+      })
+      .finally(() => {
+        savingRef.current = false;
+      });
   };
 
   // 🌟 Full Browser Screen Preview (Takes full browser viewport without OS native fullscreen)
@@ -457,7 +528,7 @@ const LandingPageCatalogue = () => {
             {currentView === VIEW_EDITOR && (
               <button
                 type="button"
-                onClick={() => setCurrentView(VIEW_GALLERY)}
+                onClick={() => handleBackToGallery()}
                 className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"
                 title="Back to Catalogue"
               >
@@ -505,7 +576,7 @@ const LandingPageCatalogue = () => {
                         (isDark ? 'text-black/70' : 'text-white/90')
                       }
                     >
-                      <option value="Name" className={isDark ? 'bg-[#15161A] text-black' : 'bg-white text-slate-900'}>
+                      <option value="Name" className={isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'}>
                         SEARCH BY NAME
                       </option>
                       <option value="ID" className={isDark ? 'bg-[#15161A] text-white' : 'bg-white text-slate-900'}>
@@ -526,7 +597,7 @@ const LandingPageCatalogue = () => {
                 </div>
 
                 <div className={'text-[11px] ' + (isDark ? 'text-slate-400' : 'text-slate-600')}>
-                  Total Templates: <strong>{filteredCatalogues.length}</strong>
+                  Total Templates: <strong>{isLoadingCatalogues ? '…' : filteredCatalogues.length}</strong>
                 </div>
               </div>
 
@@ -550,8 +621,13 @@ const LandingPageCatalogue = () => {
                           'html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }' +
                           'body { display: flex; align-items: center; justify-content: center; background: transparent; }' +
                           'body > * { width: 100% !important; height: 100% !important; min-height: 100% !important; margin: 0 auto !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; text-align: center !important; padding: 16px 24px !important; }' +
+                          // A saved canvas colour goes on the body, so the
+                          // centring rule below still applies to the page's own blocks.
+                          (splitCanvasBg(getItemContent(item)).bg
+                            ? 'body { background: ' + splitCanvasBg(getItemContent(item)).bg + ' !important; }'
+                            : '') +
                           '</style></head><body>' +
-                          getItemContent(item) +
+                          splitCanvasBg(getItemContent(item)).html +
                           '</body></html>'
                         }
                         className="w-[200%] h-[200%] border-none pointer-events-none select-none"
@@ -757,6 +833,8 @@ const LandingPageCatalogue = () => {
               {/* 100% Full Browser Viewport Preview */}
               <iframe
                 title="Landing Page Preview"
+                // No script from the page may run in the app's origin.
+                sandbox=""
                 srcDoc={
                   '<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>html,body{margin:0;padding:0;width:100%;min-height:100vh;}</style></head><body>' +
                   getItemContent(previewModalItem) +

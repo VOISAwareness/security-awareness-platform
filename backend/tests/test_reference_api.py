@@ -821,3 +821,73 @@ def test_warm_pings_return_at_once_and_clients_wait_for_first_use(mod, monkeypat
     assert made == []
     assert lazy.ping() == "pong" and lazy.ping() == "pong"
     assert made == ["ses"]
+
+
+# --- landing-pages POST / PUT ---------------------------------------------
+
+
+class _FakeLandingPages:
+    """Stands in for the landing-pages table: conditional puts fail on a taken id."""
+
+    def __init__(self, rows=()):
+        self.rows = {r["LandingPageID"]: r for r in rows}
+
+    def scan(self, **kwargs):
+        return {"Items": list(self.rows.values())}
+
+    def get_item(self, Key):
+        row = self.rows.get(Key["LandingPageID"])
+        return {"Item": row} if row else {}
+
+    def put_item(self, Item, ConditionExpression=None):
+        from botocore.exceptions import ClientError
+
+        if ConditionExpression and Item["LandingPageID"] in self.rows:
+            raise ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "PutItem")
+        self.rows[Item["LandingPageID"]] = dict(Item)
+
+
+def _landing(mod, monkeypatch, fake, route, body, page_id=None):
+    import json
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(mod, "table", lambda name: fake)
+    event = {"routeKey": route, "body": json.dumps(body)}
+    if page_id:
+        event["pathParameters"] = {"id": page_id}
+    resp = mod.lambda_handler(event, SimpleNamespace(aws_request_id="test"))
+    return resp["statusCode"], json.loads(resp["body"]) if resp.get("body") else None
+
+
+def test_landing_page_create_takes_the_next_free_id(mod, monkeypatch):
+    fake = _FakeLandingPages([{"LandingPageID": "LP-001"}])
+    status, body = _landing(mod, monkeypatch, fake, "POST /landing-pages", {"LandingPageName": "A"})
+    assert status == 201 and body["data"]["LandingPageID"] == "LP-002"
+
+
+def test_landing_page_create_never_overwrites_a_page_taken_in_a_race(mod, monkeypatch):
+    fake = _FakeLandingPages([{"LandingPageID": "LP-001"}])
+    real_scan = fake.scan
+    calls = {"n": 0}
+
+    def stale_scan(**kwargs):
+        # The first scan misses LP-002, which someone else has just written.
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"Items": [{"LandingPageID": "LP-001"}]}
+        return real_scan(**kwargs)
+
+    fake.rows["LP-002"] = {"LandingPageID": "LP-002", "LandingPageName": "Theirs"}
+    fake.scan = stale_scan
+    status, body = _landing(mod, monkeypatch, fake, "POST /landing-pages", {"LandingPageName": "Mine"})
+    assert status == 201 and body["data"]["LandingPageID"] == "LP-003"
+    assert fake.rows["LP-002"]["LandingPageName"] == "Theirs"
+
+
+def test_landing_page_over_the_served_size_is_refused(mod, monkeypatch):
+    fake = _FakeLandingPages([{"LandingPageID": "LP-001", "LandingPageName": "A"}])
+    big = "x" * (mod.MAX_LANDING_BYTES + 1)
+    status, body = _landing(mod, monkeypatch, fake, "POST /landing-pages", {"LandingPageName": "B", "LandingPageContent": big})
+    assert status == 413 and "too large" in body["error"]["message"].lower()
+    status, _ = _landing(mod, monkeypatch, fake, "PUT /landing-pages/{id}", {"LandingPageContent": big}, "LP-001")
+    assert status == 413 and "LandingPageContent" not in fake.rows["LP-001"]

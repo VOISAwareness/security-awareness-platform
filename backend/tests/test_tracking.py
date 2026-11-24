@@ -171,3 +171,23 @@ def test_an_assignment_failure_never_loses_the_click(mod, monkeypatch, capsys):
     out, _, _ = _assign(mod, monkeypatch, {"trainingId": "TP-1"}, fail="AccessDeniedException")
     assert out is None
     assert "Training not assigned" in capsys.readouterr().out
+
+
+def test_dynamic_fields_are_filled_from_the_recipient_and_escaped(mod):
+    page = "<p>Hi @UserName ({{email}}) from @UserDepartment, @UserCountry. @ManagerName|{{employeeId}}|</p>"
+    out = mod.personalize_landing(page, {
+        "recipientName": "<b>Asha</b>", "recipientEmail": "a@x.com",
+        "department": "Ops", "country": "IN",
+    })
+    assert "Hi &lt;b&gt;Asha&lt;/b&gt; (a@x.com) from Ops, IN." in out
+    assert "@" not in out.replace("a@x.com", "") and "{{" not in out
+
+
+def test_the_served_page_is_personalised(mod, monkeypatch):
+    page = {"LandingPageContent": "<h1>Oops @UserName</h1>"}
+    monkeypatch.setattr(mod, "recipients_table", _Table({"r": {"campaignId": "CMP-1", "recipientId": "R-1", "recipientName": "Ravi"}}))
+    monkeypatch.setattr(mod, "events_table", _Table())
+    monkeypatch.setattr(mod, "campaigns_table", _Table({"CMP-1": {"landingPageId": "LP-001"}}, "campaignId"))
+    monkeypatch.setattr(mod, "landing_pages_table", _Table({"LP-001": page}, "LandingPageID"))
+    resp = mod.lambda_handler({"pathParameters": {"trackingToken": "tok"}}, SimpleNamespace(aws_request_id="t"))
+    assert "<h1>Oops Ravi</h1>" in resp["body"]

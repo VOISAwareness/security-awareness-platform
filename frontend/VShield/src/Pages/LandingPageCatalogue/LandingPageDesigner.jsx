@@ -1,34 +1,5 @@
 import { createPortal } from "react-dom";
 import { ArrowLeft, Check, Monitor, X } from "lucide-react";
-import LandingPageRichTextEditor from "./LandingPageRichTextEditor";
-
-// =========================================================================
-// 🌟 BRIDGE EXPORT: Delegates to LandingPageRichTextEditor.jsx
-// =========================================================================
-export const LandingPageCanvasEditor = ({
-  value = "",
-  onChange,
-  placeholder = "Design your 'Oops! You Have Been Phished' landing page here...",
-  disabled = false,
-  className = "",
-  isExpanded = false,
-  setIsExpanded,
-}) => {
-  return (
-    <LandingPageRichTextEditor
-      value={String(value)}
-      onChange={(html) => onChange?.(html)}
-      placeholder={String(placeholder)}
-      disabled={Boolean(disabled)}
-      className={String(className)}
-      fullHeight
-      isExpanded={Boolean(isExpanded)}
-      onToggleExpand={
-        setIsExpanded ? () => setIsExpanded(!isExpanded) : undefined
-      }
-    />
-  );
-};
 
 // =========================================================================
 // 🌟 WRAPPER CONTAINER: ORIGINAL SHELL RESTORED UNTOUCHED
@@ -200,6 +171,8 @@ const LandingPageDesigner = ({
             {/* 100% Full-Viewport Interactive Simulation Preview */}
             <iframe
               title="Full Screen Live Landing Page"
+              // No script from the page may run in the app's origin.
+              sandbox=""
               srcDoc={
                 '<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>html,body{margin:0;padding:0;width:100%;min-height:100vh;}</style></head><body>' +
                 (stagedHtmlForPreview || "") +
