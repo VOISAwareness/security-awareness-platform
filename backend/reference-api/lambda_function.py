@@ -1108,23 +1108,51 @@ def rule_counts(entries):
 
 
 def achievements_for(entries, counts, points, rank):
-    """The ids of the achievements earned, in the front end's order.
-    `entries` are oldest first (for Comeback: a report after a first slip)."""
+    """The ids of the achievements earned, in the front end's order (easiest
+    first, so the last is the hardest one earned). `entries` are oldest first.
+    They are meant to be hard to get:
+      first-report      the person's very first scored action is a report
+      sharp-eye         10 reports
+      quick-reporter    25 reports
+      safe-handler      10 reports, never clicked or gave details
+      trained           3 training paths finished
+      quiz-ace          5 evaluations passed
+      top-10            in the top 10 with at least 1,000 points
+      point-collector   2,000 points
+      comeback          after their first click (or given details), 5 reports
+                        in a row with no new slip
+      lifelong-learner  10 training paths finished
+    """
     slipped = counts["Clicked"] + counts["Compromised"] > 0
-    first_slip = next((i for i, e in enumerate(entries) if e.get("rule") in FELL_FOR), None)
+    scored = [e for e in entries if e.get("rule") in COUNTED_RULES]
+    first_slip = next((i for i, e in enumerate(scored) if e.get("rule") in FELL_FOR), None)
     rules = (
-        ("first-report", counts["Reported"] >= 1),
-        ("sharp-eye", counts["Reported"] >= 3),
-        ("quick-reporter", counts["Reported"] >= 5),
-        ("safe-handler", counts["Reported"] >= 3 and not slipped),
-        ("trained", counts["Trained"] >= 1),
-        ("quiz-ace", counts["Evaluated"] >= 1),
-        ("top-10", isinstance(rank, int) and 1 <= rank <= 10),
-        ("point-collector", points >= 500),
-        ("comeback", first_slip is not None and any(e.get("rule") == "Reported" for e in entries[first_slip + 1:])),
-        ("lifelong-learner", counts["Trained"] >= 3),
+        ("first-report", bool(scored) and scored[0].get("rule") == "Reported"),
+        ("sharp-eye", counts["Reported"] >= 10),
+        ("quick-reporter", counts["Reported"] >= 25),
+        ("safe-handler", counts["Reported"] >= 10 and not slipped),
+        ("trained", counts["Trained"] >= 3),
+        ("quiz-ace", counts["Evaluated"] >= 5),
+        ("top-10", isinstance(rank, int) and 1 <= rank <= 10 and points >= 1000),
+        ("point-collector", points >= 2000),
+        ("comeback", first_slip is not None and longest_report_run(scored[first_slip + 1:]) >= 5),
+        ("lifelong-learner", counts["Trained"] >= 10),
     )
     return [aid for aid, earned in rules if earned]
+
+
+def longest_report_run(entries):
+    """The most reports in a row with no click or given details between them
+    (trainings and evaluations don't break a run)."""
+    best = run = 0
+    for e in entries:
+        rule = e.get("rule")
+        if rule == "Reported":
+            run += 1
+            best = max(best, run)
+        elif rule in FELL_FOR:
+            run = 0
+    return best
 
 
 # --- the global leaderboard ---------------------------------------------------
