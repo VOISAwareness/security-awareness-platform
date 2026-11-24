@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACHIEVEMENTS, achievementsFor } from './achievements.js';
+import { ACHIEVEMENTS, achievementsFor, latestEarned } from './achievements.js';
 
 const ev = (rule, campaignId, at) => ({ rule, campaignId, at, delta: 0 });
 const earned = (standing) => achievementsFor(standing).filter((a) => a.earned).map((a) => a.id);
@@ -16,43 +16,62 @@ test('nothing earned with no standing, or a broken one', () => {
   assert.deepEqual(earned({ history: 'x', points: 'y' }), []);
 });
 
-test('reports: first, 3 and 5', () => {
-  const reports = (n) => ({ history: Array.from({ length: n }, (_, i) => ev('Reported', `C${i}`, `2026-0${i + 1}-01`)) });
-  assert.deepEqual(earned(reports(1)), ['first-report']);
-  assert.deepEqual(earned(reports(3)), ['first-report', 'sharp-eye', 'safe-handler']);
-  assert.ok(earned(reports(5)).includes('quick-reporter'));
+// a history in time order: rules[0] first
+const hist = (rules) => rules.map((r, i) => ev(r, `C${i}`, `2026-01-01T00:${String(i).padStart(2, '0')}:00Z`));
+
+test('the report badges are hard to get', () => {
+  assert.deepEqual(earned({ history: hist(Array(9).fill('Reported')) }), ['first-report']);
+  assert.deepEqual(earned({ history: hist(Array(10).fill('Reported')) }), ['first-report', 'sharp-eye', 'safe-handler']);
+  assert.ok(!earned({ history: hist(Array(24).fill('Reported')) }).includes('quick-reporter'));
+  assert.ok(earned({ history: hist(Array(25).fill('Reported')) }).includes('quick-reporter'));
 });
 
-test('safe handler needs 3 campaigns and no click or given details', () => {
-  const clean = [ev('Opened', 'A'), ev('Opened', 'B'), ev('Reported', 'C')];
-  assert.ok(earned({ history: clean }).includes('safe-handler'));
-  assert.ok(!earned({ history: [...clean, ev('Clicked', 'D')] }).includes('safe-handler'));
+test('first report only when the very first action is a report', () => {
+  assert.ok(earned({ history: hist(['Reported', 'Clicked']) }).includes('first-report'));
+  assert.ok(!earned({ history: hist(['Clicked', 'Reported']) }).includes('first-report'));
+  // read in time order, whatever order the list comes in
+  assert.ok(!earned({ history: hist(['Clicked', 'Reported']).reverse() }).includes('first-report'));
 });
 
-test('training, evaluation, rank and points', () => {
-  assert.deepEqual(earned({ history: [ev('Trained', 'A')] }), ['trained']);
-  assert.ok(earned({ history: [ev('Trained', 'A'), ev('Trained', 'B'), ev('Trained', 'C')] }).includes('lifelong-learner'));
-  assert.deepEqual(earned({ history: [ev('Evaluated', 'A')] }), ['quiz-ace']);
-  assert.deepEqual(earned({ rank: 10 }), ['top-10']);
-  assert.deepEqual(earned({ rank: 11 }), []);
-  assert.deepEqual(earned({ points: 500 }), ['point-collector']);
+test('a click ends safe handler', () => {
+  assert.ok(!earned({ history: hist([...Array(5).fill('Reported'), 'Clicked', ...Array(10).fill('Reported')]) }).includes('safe-handler'));
 });
 
-test('comeback: a report after a click, not before', () => {
-  assert.ok(earned({ history: [ev('Clicked', 'A', '2026-01-01'), ev('Reported', 'B', '2026-02-01')] }).includes('comeback'));
-  assert.ok(!earned({ history: [ev('Reported', 'A', '2026-01-01'), ev('Clicked', 'B', '2026-02-01')] }).includes('comeback'));
+test('training, evaluations, rank and points', () => {
+  assert.deepEqual(earned({ history: hist(['Trained', 'Trained']) }), []);
+  assert.deepEqual(earned({ history: hist(['Trained', 'Trained', 'Trained']) }), ['trained']);
+  assert.ok(earned({ history: hist(Array(10).fill('Trained')) }).includes('lifelong-learner'));
+  assert.deepEqual(earned({ history: hist(Array(4).fill('Evaluated')) }), []);
+  assert.deepEqual(earned({ history: hist(Array(5).fill('Evaluated')) }), ['quiz-ace']);
+  assert.deepEqual(earned({ rank: 10, points: 1000 }), ['top-10']);
+  assert.deepEqual(earned({ rank: 10, points: 999 }), []);
+  assert.deepEqual(earned({ rank: 11, points: 5000 }), ['point-collector']);
+  assert.deepEqual(earned({ points: 1999 }), []);
+});
+
+test('comeback: 5 reports in a row after a slip', () => {
+  assert.ok(earned({ history: hist(['Clicked', ...Array(5).fill('Reported')]) }).includes('comeback'));
+  assert.ok(!earned({ history: hist(['Clicked', ...Array(4).fill('Reported')]) }).includes('comeback'));
+  assert.ok(!earned({ history: hist(['Clicked', 'Reported', 'Reported', 'Clicked', 'Reported', 'Reported', 'Reported']) }).includes('comeback'));
+  assert.ok(earned({ history: hist(['Clicked', 'Reported', 'Trained', 'Reported', 'Reported', 'Reported', 'Reported']) }).includes('comeback'));
 });
 
 test('reads the history as useMyStanding shapes it too ({ event, where })', () => {
-  const history = [{ event: 'Reported', where: 'Payroll update' }, { event: 'Trained', where: 'Path A' }];
-  assert.deepEqual(earned({ history }), ['first-report', 'trained']);
+  const history = [{ event: 'Reported', where: 'Payroll update', at: '2026-01-01T00:00:00Z' }, { event: 'Trained', where: 'Path A', at: '2026-01-02T00:00:00Z' }];
+  assert.deepEqual(earned({ history }), ['first-report']);
 });
 
 test("the API's list wins over the local rules; unknown ids are ignored", () => {
-  const history = [{ rule: 'Reported' }, { rule: 'Reported' }, { rule: 'Reported' }];
+  const history = hist(Array(12).fill('Reported'));
   assert.deepEqual(earned({ history, achievements: ['trained', 'not-a-badge'] }), ['trained']);
   assert.deepEqual(earned({ history, achievements: [] }), [], 'an empty list from the API means none, not "work it out"');
-  assert.deepEqual(earned({ history, achievements: null }), ['first-report', 'sharp-eye'], 'no list: the local rules');
+  assert.deepEqual(earned({ history, achievements: null }), ['first-report', 'sharp-eye', 'safe-handler'], 'no list: the local rules');
+});
+
+test('the ID card shows the hardest one earned, or none', () => {
+  assert.equal(latestEarned(achievementsFor({ achievements: ['first-report', 'quick-reporter', 'sharp-eye'] })).id, 'quick-reporter');
+  assert.equal(latestEarned(achievementsFor({ achievements: [] })), null);
+  assert.equal(latestEarned(undefined), null);
 });
 
 test('the card shows 4: the earned ones first, then the next to earn', async () => {
