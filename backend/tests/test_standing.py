@@ -310,19 +310,20 @@ def test_name_from_email(mod):
 
 
 def test_standing_counts_every_entry_and_names_the_achievements(api):
-    # 14 reports (more than the ten the history shows), 3 trainings, an evaluation
-    for i in range(14):
+    # 26 reports (more than the ten the history shows), 3 trainings, 5 evaluations
+    for i in range(26):
         api.ledger.put_item(Item=entry(ANA, f"CMP-{i:02d}", "Reported", 80, f"2026-10-{i + 1:02d}T09:00:00Z"))
     for i in range(3):
-        api.ledger.put_item(Item=entry(ANA, f"TP-{i}", "Trained", 30, f"2026-09-0{i + 1}T09:00:00Z"))
-    api.ledger.put_item(Item=entry(ANA, "TP-0", "Evaluated", 50, "2026-09-05T09:00:00Z"))
-    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": 1260, "entries": 18, "updatedAt": "u", "board": "GLOBAL"})
+        api.ledger.put_item(Item=entry(ANA, f"TP-{i}", "Trained", 30, f"2026-11-0{i + 1}T09:00:00Z"))
+    for i in range(5):
+        api.ledger.put_item(Item=entry(ANA, f"EV-{i}", "Evaluated", 50, f"2026-11-1{i}T09:00:00Z"))
+    api.ledger.put_item(Item={"owner": ANA, "entryId": "TOTAL", "points": 2420, "entries": 34, "updatedAt": "u", "board": "GLOBAL"})
     d = call(api.mod, "GET /standing", viewer=ANA)[1]["data"]
     assert d["rank"] == 1
-    assert d["counts"] == {"Reported": 14, "Trained": 3, "Evaluated": 1, "Clicked": 0, "Compromised": 0}
+    assert d["counts"] == {"Reported": 26, "Trained": 3, "Evaluated": 5, "Clicked": 0, "Compromised": 0}
     assert d["achievements"] == [
         "first-report", "sharp-eye", "quick-reporter", "safe-handler", "trained", "quiz-ace",
-        "top-10", "point-collector", "lifelong-learner",
+        "top-10", "point-collector",
     ]
     assert len(d["history"]) == 10, "the history stays the latest ten"
 
@@ -333,30 +334,54 @@ def test_someone_new_has_no_achievements(api):
     assert set(d["counts"].values()) == {0}
 
 
-def test_a_click_ends_safe_handler_and_a_later_report_is_a_comeback(mod):
-    def run(rules):
-        entries = [{"rule": r} for r in rules]
-        return mod.achievements_for(entries, mod.rule_counts(entries), 0, None)
-
-    assert "safe-handler" in run(["Reported"] * 3)
-    assert "safe-handler" not in run(["Reported", "Clicked", "Reported", "Reported"])
-    assert "comeback" in run(["Clicked", "Reported"])
-    assert "comeback" not in run(["Reported", "Clicked"])
-    assert "comeback" not in run(["Reported"])
+def earned(mod, rules, points=0, rank=None):
+    entries = [{"rule": r} for r in rules]
+    return mod.achievements_for(entries, mod.rule_counts(entries), points, rank)
 
 
-def test_top_10_follows_the_rank(mod):
-    def top(rank):
-        return "top-10" in mod.achievements_for([], mod.rule_counts([]), 0, rank)
+def test_the_report_badges_are_hard_to_get(mod):
+    assert earned(mod, ["Reported"] * 9) == ["first-report"]
+    assert earned(mod, ["Reported"] * 10) == ["first-report", "sharp-eye", "safe-handler"]
+    assert "quick-reporter" not in earned(mod, ["Reported"] * 24)
+    assert "quick-reporter" in earned(mod, ["Reported"] * 25)
 
-    assert (top(1), top(10), top(11), top(None)) == (True, True, False, False)
+
+def test_first_report_only_when_the_very_first_action_is_a_report(mod):
+    assert "first-report" in earned(mod, ["Reported", "Clicked"])
+    assert "first-report" not in earned(mod, ["Clicked", "Reported"])
+    assert "first-report" not in earned(mod, ["Opened", "Trained", "Reported"])  # Trained came first
 
 
-def test_point_collector_at_500(mod):
-    def has(points):
-        return "point-collector" in mod.achievements_for([], mod.rule_counts([]), points, None)
+def test_a_click_ends_safe_handler(mod):
+    assert "safe-handler" not in earned(mod, ["Reported"] * 5 + ["Clicked"] + ["Reported"] * 10)
+    assert "safe-handler" not in earned(mod, ["Reported"] * 12 + ["Compromised"])
 
-    assert (has(499), has(500)) == (False, True)
+
+def test_comeback_needs_five_reports_in_a_row_after_a_slip(mod):
+    assert "comeback" in earned(mod, ["Clicked"] + ["Reported"] * 5)
+    assert "comeback" not in earned(mod, ["Clicked"] + ["Reported"] * 4)
+    assert "comeback" not in earned(mod, ["Clicked", "Reported", "Reported", "Clicked", "Reported", "Reported", "Reported"])
+    assert "comeback" in earned(mod, ["Clicked", "Reported", "Trained", "Reported", "Evaluated", "Reported", "Reported", "Reported"])
+    assert "comeback" not in earned(mod, ["Reported"] * 6)
+
+
+def test_training_and_evaluations(mod):
+    assert "trained" not in earned(mod, ["Trained"] * 2)
+    assert "trained" in earned(mod, ["Trained"] * 3)
+    assert "lifelong-learner" in earned(mod, ["Trained"] * 10)
+    assert "quiz-ace" not in earned(mod, ["Evaluated"] * 4)
+    assert "quiz-ace" in earned(mod, ["Evaluated"] * 5)
+
+
+def test_top_10_needs_the_rank_and_1000_points(mod):
+    def top(rank, points):
+        return "top-10" in earned(mod, [], points, rank)
+
+    assert (top(1, 1000), top(10, 5000), top(11, 5000), top(None, 5000), top(3, 999)) == (True, True, False, False, False)
+
+
+def test_point_collector_at_2000(mod):
+    assert ("point-collector" in earned(mod, [], 1999), "point-collector" in earned(mod, [], 2000)) == (False, True)
 
 
 def test_achievement_ids_match_the_front_end(mod):
@@ -364,6 +389,6 @@ def test_achievement_ids_match_the_front_end(mod):
     if not FRONT_ACHIEVEMENTS.exists():
         pytest.skip("front-end catalogue not on this branch yet")
     front = re.findall(r"id: '([a-z0-9-]+)'", FRONT_ACHIEVEMENTS.read_text())
-    entries = [{"rule": "Clicked"}] + [{"rule": r} for r in ["Reported"] * 5 + ["Trained"] * 3 + ["Evaluated"]]
-    every = mod.achievements_for(entries, {"Reported": 5, "Trained": 3, "Evaluated": 1, "Clicked": 0, "Compromised": 0}, 500, 1)
+    entries = [{"rule": r} for r in ["Reported", "Clicked"] + ["Reported"] * 5]
+    every = mod.achievements_for(entries, {"Reported": 25, "Trained": 10, "Evaluated": 5, "Clicked": 0, "Compromised": 0}, 2000, 1)
     assert every == front
