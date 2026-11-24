@@ -218,18 +218,17 @@ const DraggableIdBadge = ({
             <div className="w-full h-px bg-black/10 dark:bg-white/10 shadow-xs" />
           </div>
 
-          {/* Your rank plate: badge, level and risk (from your level until a
-              measured risk score exists). Opens All badges. */}
+          {/* Your rank plate: badge and level (the risk is on the Risk Score
+              row). Opens All badges. Same shape as the achievements row below,
+              so the two badges line up. */}
           {level && (
             <button
               type="button"
               data-id-card-badge={level.id}
-              data-id-card-risk
               onClick={onOpenBadges}
               onPointerDownCapture={(e) => e.stopPropagation()} // a press here is a click, not a drag of the card
-              aria-label={`${levelAltText(level)}. Risk: ${level.risk === "Unknown" ? "not known yet" : level.risk}. See all badges`}
-              title="Your risk category comes from your level: report suspicious emails and finish training to lower it."
-              className={`w-full flex items-center gap-2 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+              aria-label={`${levelAltText(level)}. See all badges`}
+              className={`w-full min-h-[76px] flex items-center gap-3 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
                 isDark
                   ? "border-white/10 hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
                   : "border-black/[0.07] hover:shadow-[0_8px_18px_rgba(15,23,42,0.12)]"
@@ -240,51 +239,26 @@ const DraggableIdBadge = ({
                   : `linear-gradient(135deg, ${level.light}4D 0%, #ffffff 100%)`,
               }}
             >
-              <LevelBadge
-                level={level}
-                size={60}
-                glow={isDark ? "dark" : true}
-                tilt={false}
-                decorative
-              />
-              <span className="flex flex-col min-w-0 flex-1 gap-0.5">
+              <span className="w-[56px] h-[56px] flex-shrink-0 flex items-center justify-center">
+                <LevelBadge
+                  level={level}
+                  size={56}
+                  glow={isDark ? "dark" : true}
+                  tilt={false}
+                  decorative
+                />
+              </span>
+              <span className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
                 <span
                   className={`vs-rank text-[13.5px] font-black uppercase leading-tight tracking-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}
                 >
                   {rankName(level)}
                 </span>
                 <span
-                  className="text-[9.5px] font-bold"
+                  className="text-[10px] font-bold"
                   style={{ color: isDark ? level.light : level.color }}
                 >
                   Level {level.level}
-                </span>
-                <span className="flex items-center justify-between gap-2 mt-1">
-                  <span
-                    className={`text-[8.5px] font-bold font-voda uppercase tracking-[0.12em] ${isDark ? "text-slate-400" : "text-slate-500"}`}
-                  >
-                    Risk
-                  </span>
-                  <span
-                    className="text-[10.5px] font-bold font-voda uppercase leading-none whitespace-nowrap"
-                    style={{ color: riskColor(riskPosition(level)) }}
-                  >
-                    {level.risk === "Unknown" ? "Not known yet" : level.risk}
-                  </span>
-                </span>
-                <span
-                  aria-hidden
-                  className="relative h-1 rounded-full mt-1 bg-gradient-to-r from-[#22c55e] via-[#eab308] to-[#ef4444]"
-                >
-                  {riskPosition(level) !== null && (
-                    <span
-                      className="absolute top-1/2 w-2.5 h-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
-                      style={{
-                        left: `${riskPosition(level)}%`,
-                        background: riskColor(riskPosition(level)),
-                      }}
-                    />
-                  )}
                 </span>
               </span>
             </button>
@@ -302,13 +276,13 @@ const DraggableIdBadge = ({
                 ? `My achievements. Latest: ${achievement.name}. See all achievements`
                 : "My achievements: none yet. See how to earn them"
             }
-            className={`group w-full flex items-center gap-3 mt-2 p-2 pr-2.5 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+            className={`group w-full min-h-[76px] flex items-center gap-3 mt-2 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
               isDark
                 ? "border-white/10 bg-gradient-to-br from-amber-400/15 to-white/[0.03] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
                 : "border-black/[0.07] bg-gradient-to-br from-amber-100/70 to-white hover:shadow-[0_8px_18px_rgba(15,23,42,0.12)]"
             }`}
           >
-            <span className="relative w-[52px] h-[52px] flex-shrink-0 flex items-center justify-center">
+            <span className="relative w-[56px] h-[56px] flex-shrink-0 flex items-center justify-center">
               <ClayImage
                 name={achievement ? achievement.image : "first-report"}
                 alt=""
@@ -323,15 +297,10 @@ const DraggableIdBadge = ({
                 {achievement ? achievement.how : "Report a simulated phishing email before ever clicking one to earn your first."}
               </span>
             </span>
-            <span className="flex flex-col min-w-0 flex-1 gap-0.5">
-              <span
-                className={`text-[13px] font-black uppercase leading-tight tracking-tight whitespace-nowrap ${isDark ? "text-white" : "text-slate-900"}`}
-              >
-                My Achievements
-              </span>
-              <span className={`text-[10px] font-bold ${isDark ? "text-amber-300" : "text-amber-700"}`}>
-                View all badges
-              </span>
+            <span
+              className={`flex-1 min-w-0 text-[13.5px] font-black uppercase leading-tight tracking-tight whitespace-nowrap ${isDark ? "text-white" : "text-slate-900"}`}
+            >
+              My Achievements
             </span>
             <span
               aria-hidden
