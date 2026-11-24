@@ -786,7 +786,8 @@ const Leaderboard = () => {
     const b = campaignBoard(sent, campaign.id, rules.points);
     return {
       board: b, youRank: b.youRank,
-      counter: b.total.toLocaleString(), counterLabel: 'recipients', title: campaign.name,
+      // the people the campaign was sent to, as the list on the left shows
+      counter: (campaign.total ?? b.total).toLocaleString(), counterLabel: 'recipients', title: campaign.name,
       sub: `${campaign.type} · started ${campaign.startedText}`, live: open.some((c) => c.id === campaign.id),
     };
   }, [view, campaign, globalBoard, sent, rules.points, open]);
@@ -1082,6 +1083,16 @@ const Leaderboard = () => {
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: isWide ? 22 : 8 }}
                   >
+                    {!podium.board.first && (
+                      // nobody to rank yet: hold the podium's place so the
+                      // column header below stays clear of the capsule
+                      <div role="status" style={{ height: 150, paddingTop: STAGE_RAISE, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text)' }}>Nobody to rank yet</span>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', maxWidth: 260, lineHeight: 1.4 }}>
+                          {view === 'global' ? 'People appear here once they earn points.' : 'Recipients appear here once the campaign\'s emails are delivered.'}
+                        </span>
+                      </div>
+                    )}
                     {podium.board.second && <Pedestal person={podium.board.second} place="second" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.second, podium.board.second.rank === list.youRank)} hidden={hiddenOf(podium.board.second, podium.board.second.rank === list.youRank)} />}
                     {podium.board.first && <Pedestal person={podium.board.first} place="first" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.first, podium.board.first.rank === list.youRank)} hidden={hiddenOf(podium.board.first, podium.board.first.rank === list.youRank)} />}
                     {podium.board.third && <Pedestal person={podium.board.third} place="third" reduce={reduce} dept={podium.id === 'depts'} isDark={isDark} onBadge={openBadge} level={levelOf(podium.board.third, podium.board.third.rank === list.youRank)} hidden={hiddenOf(podium.board.third, podium.board.third.rank === list.youRank)} />}
