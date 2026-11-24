@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import MySpacePart2 from "./MySpacePart2";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
@@ -31,7 +31,6 @@ import LevelChangeNotice from "./LevelChangeNotice";
 import AchievementsDialog from "../../Achievements/AchievementsDialog";
 import ClayImage from "../../GlobalComponents/ClayImage";
 import { achievementsFor, latestEarned } from "../../Achievements/achievements";
-import { mySpaceGrowth } from "./mySpaceFit";
 import { useMyStanding } from "../../services/useMyStanding";
 import {
   levelAltText,
@@ -40,7 +39,6 @@ import {
   riskPosition,
 } from "../../services/levels";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
-import useIsWide from '../../GlobalComponents/useIsWide';
 
 // =========================================================================
 // 🎛️ SCALE CONTROL VARIABLES
@@ -228,16 +226,16 @@ const DraggableIdBadge = ({
               onClick={onOpenBadges}
               onPointerDownCapture={(e) => e.stopPropagation()} // a press here is a click, not a drag of the card
               aria-label={`${levelAltText(level)}. See all badges`}
-              className={`w-full min-h-[76px] flex items-center gap-3 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+              className={`w-full min-h-[80px] flex items-center gap-3 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
                 isDark
                   ? "border-white/10 bg-white/[0.04] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
                   : "border-slate-200 bg-white hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
               }`}
             >
-              <span className="w-[56px] h-[56px] flex-shrink-0 flex items-center justify-center">
+              <span className="w-[64px] h-[64px] flex-shrink-0 flex items-center justify-center">
                 <LevelBadge
                   level={level}
-                  size={56}
+                  size={64}
                   glow={isDark ? "dark" : true}
                   tilt={false}
                   decorative
@@ -266,17 +264,17 @@ const DraggableIdBadge = ({
                 ? `My achievements. Latest: ${achievement.name}. See all achievements`
                 : "My achievements: none yet. See how to earn them"
             }
-            className={`group w-full min-h-[76px] flex items-center gap-3 mt-2 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+            className={`group w-full min-h-[60px] flex items-center gap-3 mt-2 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
               isDark
                 ? "border-white/10 bg-white/[0.04] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
                 : "border-slate-200 bg-white hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
             }`}
           >
-            <span className="relative w-[56px] h-[56px] flex-shrink-0 flex items-center justify-center">
+            <span className="relative w-[64px] h-[44px] flex-shrink-0 flex items-center justify-center">
               <ClayImage
                 name={achievement ? achievement.image : "first-report"}
                 alt=""
-                className={`w-full h-full object-contain ${achievement ? "" : "grayscale opacity-40"}`}
+                className={`w-[44px] h-[44px] object-contain ${achievement ? "" : "grayscale opacity-40"}`}
               />
               {/* what it is, on hover */}
               <span
@@ -447,8 +445,6 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
         return (
           <motion.div
             key={section.id}
-            layout
-            transition={{ duration: 0.45, ease: [0.25, 1, 0.5, 1] }}
             onMouseEnter={() => setActive(index)}
             onClick={() => setActive(index)}
             className={`relative rounded-[8px] border transition-colors duration-300 overflow-hidden cursor-pointer ${
@@ -665,12 +661,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 
                         {/* Bottom L-Foot with Enhanced Styled Metric Tiles */}
                         <div
-                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between lg:justify-evenly gap-1 lg:gap-2 transition-colors -mt-px relative z-10 ${
+                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-start gap-1.5 transition-colors -mt-px relative z-10 ${
                             isDark ? "bg-[#202127]" : "bg-[#f1f3f7]"
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -692,7 +688,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -714,7 +710,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -734,7 +730,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -754,7 +750,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -836,12 +832,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 
                         {/* Bottom L-Foot with Enhanced Styled Metric Tiles */}
                         <div
-                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between lg:justify-evenly gap-1 lg:gap-2 transition-colors -mt-px relative z-10 ${
+                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-start gap-1.5 transition-colors -mt-px relative z-10 ${
                             isDark ? "bg-[#202127]" : "bg-[#f1f3f7]"
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -863,7 +859,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -885,7 +881,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -907,7 +903,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -927,7 +923,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1003,12 +999,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 
                         {/* Bottom L-Foot with Enhanced Styled Metric Tiles */}
                         <div
-                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-between lg:justify-evenly gap-1 lg:gap-2 transition-colors -mt-px relative z-10 ${
+                          className={`flex-1 w-full p-2.5 rounded-b-xl rounded-tl-xl flex flex-col justify-start gap-1.5 transition-colors -mt-px relative z-10 ${
                             isDark ? "bg-[#202127]" : "bg-[#f1f3f7]"
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1030,7 +1026,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1052,7 +1048,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1074,7 +1070,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1094,7 +1090,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           </div>
 
                           <div
-                            className={`flex justify-between items-center py-1 px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-7 flex-shrink-0 px-2.5 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1169,68 +1165,9 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 // ==========================================
 // 4. MAIN MY SPACE PAGE COMPONENT
 // ==========================================
-// The first screen of My Space (header, activities, risk score, points and
-// badges, the ID card and the Explore bar) fills the visible area, so the
-// Explore bar sits at the foot of the window and the videos start below the
-// fold, as on the landing page.
-//
-// It fills it by growing, not by stretching: it is drawn as on a 14-inch
-// laptop with the taskbar showing (FIRST_SCREEN_HEIGHT CSS px tall), and any
-// extra height (the taskbar hidden, a bigger screen, a monitor) makes the
-// whole page bigger by the same factor, text and all, instead of making the
-// rows taller. The width keeps it in check, so the page never gets narrower
-// than MIN_LAYOUT_WIDTH CSS px; the growth is at most MAX_GROWTH (all in
-// mySpaceFit.js). Measured live, as the visible area changes with the window,
-// the scaling and zoom.
-function useFirstScreenFit(enabled) {
-  const ref = useRef(null);
-  const [growth, setGrowth] = useState(1);
-  const growthRef = useRef(1);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    if (!enabled) {
-      // growth and growthRef keep their value, so they still agree when the
-      // window is widened again
-      el.style.height = "";
-      return undefined;
-    }
-    const main = el.closest("main");
-    const root = el.parentElement; // the page's zoomed box
-    const fit = () => {
-      if (!main || !root) return;
-      const box = el.getBoundingClientRect();
-      const zoom = el.offsetWidth ? box.width / el.offsetWidth : 1; // visual px per CSS px, growth included
-      const base = zoom / growthRef.current; // ... at growth 1
-      const top = box.top - main.getBoundingClientRect().top + main.scrollTop;
-      const available = main.clientHeight * (main.getBoundingClientRect().height / (main.offsetHeight || 1)) - top - 10;
-      const height = available / base;
-      const width = root.getBoundingClientRect().width / base;
-      const g = mySpaceGrowth(height, width);
-      if (Math.abs(g - growthRef.current) > 0.004) {
-        growthRef.current = g;
-        setGrowth(g);
-      }
-      el.style.height = `${Math.max(560, height / growthRef.current)}px`;
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    if (main) ro.observe(main);
-    window.addEventListener("resize", fit);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", fit);
-    };
-  }, [enabled]);
-  // narrow screens (phones) keep the scrolling layout at its usual size
-  return [ref, enabled ? growth : 1];
-}
-
 const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
-  const isWide = useIsWide();
-  const [firstScreenRef, growth] = useFirstScreenFit(isWide);
   const [showBadges, setShowBadges] = useState(false);
   const openBadges = useCallback(() => setShowBadges(true), []);
   const closeBadges = useCallback(() => setShowBadges(false), []);
@@ -1263,11 +1200,13 @@ const MySpace = () => {
       </AnimatePresence>
 
       <div
-        style={{ zoom: PAGE_SCALE * growth }}
+        style={{ zoom: PAGE_SCALE }}
         className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
-        {/* First screen: everything down to the Explore bar fills the window */}
-        <div ref={firstScreenRef} className="w-full flex flex-col gap-3 min-h-0">
+        {/* First screen, down to the Explore bar: the same size on every
+            screen, as on a 14-inch laptop; a taller window leaves room below,
+            as on every other page */}
+        <div className="w-full flex flex-col gap-3 min-h-0 lg:h-[584px]">
         {/* ========================================================================= */}
         {/* ── TOP FULL-WIDTH SECTION BAR: "MY SPACE" ─────────────────────────────── */}
         {/* ========================================================================= */}
