@@ -28,7 +28,10 @@ import LevelBadge from "../../GlobalComponents/LevelBadge";
 import AllBadges from "../../GlobalComponents/AllBadges";
 import PointsAndBadges from "./PointsAndBadges";
 import LevelChangeNotice from "./LevelChangeNotice";
-import AchievementsCard from "../../Achievements/AchievementsCard";
+import AchievementsDialog from "../../Achievements/AchievementsDialog";
+import ClayImage from "../../GlobalComponents/ClayImage";
+import { achievementsFor, latestEarned } from "../../Achievements/achievements";
+import { mySpaceGrowth } from "./mySpaceFit";
 import { useMyStanding } from "../../services/useMyStanding";
 import {
   levelAltText,
@@ -87,8 +90,10 @@ const DraggableIdBadge = ({
   email,
   tower,
   level,
+  achievement,
   onOpenLeaderboard,
   onOpenBadges,
+  onOpenAchievements,
 }) => {
   const cardBgImage = isDark ? MySpaceCardBgDark : MySpaceCardBgLight;
 
@@ -130,7 +135,7 @@ const DraggableIdBadge = ({
   }, []);
 
   return (
-    <div className="relative w-full h-[524px] lg:h-[470px] flex-shrink-0 flex flex-col items-center justify-start select-none overflow-visible pt-1">
+    <div className="relative w-full flex-shrink-0 flex flex-col items-center justify-start select-none overflow-visible pt-1 pb-2">
       {/* ── Continuous Lanyard Ribbon (SVG Shifted Down 4px) ── */}
       <svg
         className="absolute top-1 left-0 w-full h-[180px] pointer-events-none z-10 overflow-visible"
@@ -171,7 +176,7 @@ const DraggableIdBadge = ({
         className="relative z-20 mt-[58px] w-[290px] cursor-grab active:cursor-grabbing"
       >
         <div
-          className={`w-full rounded-2xl p-4 sm:p-5 flex flex-col justify-between items-center text-center relative overflow-hidden border shadow-xl transition-all duration-300 min-h-[415px] ${
+          className={`w-full rounded-2xl p-4 flex flex-col justify-between items-center text-center relative overflow-hidden border shadow-xl transition-all duration-300 ${
             isDark
               ? "bg-[#15161a] border-white/10 text-white shadow-[0_20px_45px_rgba(0,0,0,0.85)]"
               : "bg-white border-slate-200/90 text-slate-900 shadow-[0_16px_38px_rgba(0,0,0,0.08)]"
@@ -188,27 +193,28 @@ const DraggableIdBadge = ({
 
           {/* User Photo & Info */}
           <div className="flex flex-col items-center w-full z-10">
-            <div className="w-16 h-16 rounded-full bg-[#1e2026] dark:bg-[#111216] border-2 border-white/80 dark:border-white/10 shadow-md flex items-center justify-center mb-2 text-white">
-              <UserIcon className="w-9 h-9 text-slate-200" strokeWidth={1.5} />
+            <div className="w-14 h-14 rounded-full bg-[#1e2026] dark:bg-[#111216] border-2 border-white/80 dark:border-white/10 shadow-md flex items-center justify-center mb-1.5 text-white">
+              <UserIcon className="w-8 h-8 text-slate-200" strokeWidth={1.5} />
             </div>
 
             <h2 className="font-bold font-voda text-[17px] uppercase tracking-tight text-inherit leading-tight">
               {userName}
             </h2>
             <span
-              className={`text-[9.5px] font-semibold mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}
+              className={`text-[11px] font-semibold mt-0.5 max-w-full truncate ${isDark ? "text-slate-300" : "text-slate-600"}`}
+              title={email}
             >
               {email}
             </span>
             <span
-              className={`text-[9.5px] font-bold mt-0.5 ${isDark ? "text-slate-300" : "text-slate-800"}`}
+              className={`text-[11.5px] font-bold mt-0.5 leading-tight ${isDark ? "text-white" : "text-slate-900"}`}
             >
               {tower}
             </span>
           </div>
 
           {/* Divider */}
-          <div className="w-full my-2 z-10">
+          <div className="w-full my-1.5 z-10">
             <div className="w-full h-px bg-black/10 dark:bg-white/10 shadow-xs" />
           </div>
 
@@ -284,10 +290,63 @@ const DraggableIdBadge = ({
             </button>
           )}
 
+          {/* My achievements: the hardest badge earned (its name and what it
+              was earned for on hover). Opens every achievement. */}
+          <button
+            type="button"
+            data-id-card-achievement={achievement?.id || "none"}
+            onClick={onOpenAchievements}
+            onPointerDownCapture={(e) => e.stopPropagation()} // a press here is a click, not a drag of the card
+            aria-label={
+              achievement
+                ? `My achievements. Latest: ${achievement.name}. See all achievements`
+                : "My achievements: none yet. See how to earn them"
+            }
+            className={`group w-full flex items-center gap-3 mt-2 p-2 pr-2.5 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
+              isDark
+                ? "border-white/10 bg-gradient-to-br from-amber-400/15 to-white/[0.03] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
+                : "border-black/[0.07] bg-gradient-to-br from-amber-100/70 to-white hover:shadow-[0_8px_18px_rgba(15,23,42,0.12)]"
+            }`}
+          >
+            <span className="relative w-[52px] h-[52px] flex-shrink-0 flex items-center justify-center">
+              <ClayImage
+                name={achievement ? achievement.image : "first-report"}
+                alt=""
+                className={`w-full h-full object-contain ${achievement ? "" : "grayscale opacity-40"}`}
+              />
+              {/* what it is, on hover */}
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute left-0 bottom-full mb-2 w-max max-w-[230px] px-2.5 py-1.5 rounded-lg bg-[#0b1121] text-white text-[10px] leading-snug font-medium text-left shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 z-30"
+              >
+                <span className="block font-bold">{achievement ? achievement.name : "No achievements yet"}</span>
+                {achievement ? achievement.how : "Report a simulated phishing email before ever clicking one to earn your first."}
+              </span>
+            </span>
+            <span className="flex flex-col min-w-0 flex-1 gap-0.5">
+              <span
+                className={`text-[13px] font-black uppercase leading-tight tracking-tight whitespace-nowrap ${isDark ? "text-white" : "text-slate-900"}`}
+              >
+                My Achievements
+              </span>
+              <span className={`text-[10px] font-bold ${isDark ? "text-amber-300" : "text-amber-700"}`}>
+                View all badges
+              </span>
+            </span>
+            <span
+              aria-hidden
+              className={`w-6 h-6 rounded-lg flex items-center justify-center text-[14px] font-black flex-shrink-0 ${
+                isDark ? "bg-white text-black" : "bg-[#0b1121] text-white"
+              }`}
+            >
+              ›
+            </span>
+          </button>
+
           {/* Metrics Row: Campaigns Involved & Certificates Earned */}
           <div className="w-full grid grid-cols-2 gap-2 mt-2 z-10 text-center">
             {/* 1. Campaigns Involved */}
-            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5">
+            <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5">
               <div className="flex items-center justify-center gap-1">
                 <span
                   className={`text-[8.5px] font-bold uppercase tracking-tight leading-tight text-center ${isDark ? "text-slate-400" : "text-slate-600"}`}
@@ -304,7 +363,7 @@ const DraggableIdBadge = ({
             </div>
 
             {/* 2. Certificates Earned */}
-            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5">
+            <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5">
               <div className="flex items-center justify-center gap-1">
                 <span
                   className={`text-[8.5px] font-bold uppercase tracking-tight leading-tight text-center ${isDark ? "text-slate-400" : "text-slate-600"}`}
@@ -322,7 +381,7 @@ const DraggableIdBadge = ({
           </div>
 
           {/* Outlined LEADERBOARD Button */}
-          <div className="w-full mt-2.5 z-10">
+          <div className="w-full mt-2 z-10">
             <button
               type="button"
               onClick={onOpenLeaderboard}
@@ -616,12 +675,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                         <div className="flex items-end justify-between w-full relative">
                           {/* Top-Left Isolated Box */}
                           <div
-                            className={`w-[calc(50%-4px)] h-[120px] p-2.5 rounded-xl flex flex-col justify-start items-start text-left transition-colors mb-2 ${
+                            className={`w-[calc(50%-4px)] h-[120px] p-2.5 rounded-xl [container-type:inline-size] flex flex-col justify-start items-start text-left transition-colors mb-2 ${
                               isDark ? "bg-[#202127]" : "bg-[#9b9dff]/20"
                             }`}
                           >
                             <h4
-                              className={`text-[14.5px] font-voda font-bold uppercase leading-tight tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[min(14.5px,10.6cqw)] font-voda font-bold uppercase leading-tight tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               PHISHING
                               <br />
@@ -781,12 +840,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                         <div className="flex items-end justify-between w-full relative">
                           {/* Top-Left Isolated Box */}
                           <div
-                            className={`w-[calc(50%-4px)] h-[120px] p-2.5 rounded-xl flex flex-col justify-start items-start text-left transition-colors mb-2 ${
+                            className={`w-[calc(50%-4px)] h-[120px] p-2.5 rounded-xl [container-type:inline-size] flex flex-col justify-start items-start text-left transition-colors mb-2 ${
                               isDark ? "bg-[#202127]" : "bg-[#9b9dff]/20"
                             }`}
                           >
                             <h4
-                              className={`text-[14.5px] font-bold font-voda uppercase leading-tight tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[min(14.5px,10.6cqw)] font-bold font-voda uppercase leading-tight tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               ANNOUNCEMENTS
                               <br />
@@ -954,12 +1013,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                         <div className="flex items-end justify-between w-full relative">
                           {/* Top-Left Isolated Box */}
                           <div
-                            className={`w-[calc(50%-4px)] h-[120px] p-2.5 rounded-xl flex flex-col justify-start items-start text-left transition-colors mb-2 ${
+                            className={`w-[calc(50%-4px)] h-[120px] p-2.5 rounded-xl [container-type:inline-size] flex flex-col justify-start items-start text-left transition-colors mb-2 ${
                               isDark ? "bg-[#202127]" : "bg-[#9b9dff]/20"
                             }`}
                           >
                             <h4
-                              className={`text-[14.5px] font-bold font-voda uppercase leading-tight tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[min(14.5px,10.6cqw)] font-bold font-voda uppercase leading-tight tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               TRAININGS
                               <br />
@@ -1170,27 +1229,48 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
 // 4. MAIN MY SPACE PAGE COMPONENT
 // ==========================================
 // The first screen of My Space (header, activities, risk score, points and
-// badges, the ID card and the Explore bar) is sized to the visible area, so
-// the Explore bar sits at the foot of the window at any display scaling and
-// the videos start below the fold, as on the landing page. Measured live: the
-// visible area changes with the window, the scaling and the page's own zoom.
-function useFirstScreenHeight(enabled) {
+// badges, the ID card and the Explore bar) fills the visible area, so the
+// Explore bar sits at the foot of the window and the videos start below the
+// fold, as on the landing page.
+//
+// It fills it by growing, not by stretching: it is drawn as on a 14-inch
+// laptop with the taskbar showing (FIRST_SCREEN_HEIGHT CSS px tall), and any
+// extra height (the taskbar hidden, a bigger screen, a monitor) makes the
+// whole page bigger by the same factor, text and all, instead of making the
+// rows taller. The width keeps it in check, so the page never gets narrower
+// than MIN_LAYOUT_WIDTH CSS px; the growth is at most MAX_GROWTH (all in
+// mySpaceFit.js). Measured live, as the visible area changes with the window,
+// the scaling and zoom.
+function useFirstScreenFit(enabled) {
   const ref = useRef(null);
+  const [growth, setGrowth] = useState(1);
+  const growthRef = useRef(1);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
     if (!enabled) {
+      // growth and growthRef keep their value, so they still agree when the
+      // window is widened again
       el.style.height = "";
       return undefined;
     }
     const main = el.closest("main");
+    const root = el.parentElement; // the page's zoomed box
     const fit = () => {
-      if (!main) return;
+      if (!main || !root) return;
       const box = el.getBoundingClientRect();
-      const zoom = el.offsetWidth ? box.width / el.offsetWidth : 1; // visual px per CSS px
+      const zoom = el.offsetWidth ? box.width / el.offsetWidth : 1; // visual px per CSS px, growth included
+      const base = zoom / growthRef.current; // ... at growth 1
       const top = box.top - main.getBoundingClientRect().top + main.scrollTop;
       const available = main.clientHeight * (main.getBoundingClientRect().height / (main.offsetHeight || 1)) - top - 10;
-      el.style.height = `${Math.max(560, available / zoom)}px`;
+      const height = available / base;
+      const width = root.getBoundingClientRect().width / base;
+      const g = mySpaceGrowth(height, width);
+      if (Math.abs(g - growthRef.current) > 0.004) {
+        growthRef.current = g;
+        setGrowth(g);
+      }
+      el.style.height = `${Math.max(560, height / growthRef.current)}px`;
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -1201,22 +1281,30 @@ function useFirstScreenHeight(enabled) {
       window.removeEventListener("resize", fit);
     };
   }, [enabled]);
-  return ref;
+  // narrow screens (phones) keep the scrolling layout at its usual size
+  return [ref, enabled ? growth : 1];
 }
 
 const MySpace = () => {
   const { isDark, user } = useUserType?.() || { isDark: false };
   const navigate = useNavigate();
   const isWide = useIsWide();
-  const firstScreenRef = useFirstScreenHeight(isWide);
+  const [firstScreenRef, growth] = useFirstScreenFit(isWide);
   const [showBadges, setShowBadges] = useState(false);
   const openBadges = useCallback(() => setShowBadges(true), []);
   const closeBadges = useCallback(() => setShowBadges(false), []);
   const standing = useMyStanding();
+  const achievements = achievementsFor(standing);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
+
+      {/* My achievements on the ID card opens every achievement */}
+      {showAchievements && (
+        <AchievementsDialog list={achievements} isDark={isDark} onClose={() => setShowAchievements(false)} />
+      )}
 
       {/* your badge (Points & Badges, or the ID card) opens every level and grade */}
       <AnimatePresence>
@@ -1234,7 +1322,7 @@ const MySpace = () => {
       </AnimatePresence>
 
       <div
-        style={{ zoom: PAGE_SCALE }}
+        style={{ zoom: PAGE_SCALE * growth }}
         className="w-full max-w-[2560px] mx-auto p-3.5 -mt-2 select-none font-sans flex flex-col gap-3"
       >
         {/* First screen: everything down to the Explore bar fills the window */}
@@ -1287,14 +1375,10 @@ const MySpace = () => {
               email={user?.UserEMailID || DEMO_USER.email}
               tower="AI & Data Analytics Tower (AIDA)"
               level={standing.level}
+              achievement={latestEarned(achievements)}
               onOpenLeaderboard={() => navigate("/leaderboard")}
               onOpenBadges={openBadges}
-            />
-            {/* What they have achieved, filling the column under the ID card */}
-            <AchievementsCard
-              standing={standing}
-              isDark={isDark}
-              className="flex-1 min-h-[150px] mt-3"
+              onOpenAchievements={() => setShowAchievements(true)}
             />
           </div>
         </div>

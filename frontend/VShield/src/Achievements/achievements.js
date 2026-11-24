@@ -6,8 +6,8 @@
  * Each achievement has a clay picture in assets/clay/achievements/, shown with
  * <ClayImage name={achievement.image} />. Add a new one by drawing its picture
  * under that folder and adding a row to ACHIEVEMENTS with its `earned` rule:
- * the My Space card (the first few, earned first) and its "View all" dialog
- * (every one) pick it up with no other change.
+ * the My Space ID card (the hardest one earned) and the dialog with every
+ * one pick it up with no other change.
  *
  * The API decides who has earned what: GET /standing returns `achievements`,
  * the ids earned, worked out over the person's whole history (reference-api
@@ -23,76 +23,98 @@
 
 const count = (history, rule) => history.filter((h) => h.rule === rule).length;
 const FELL_FOR = new Set(['Clicked', 'Compromised']);
+const SCORED = new Set(['Reported', 'Trained', 'Evaluated', 'Clicked', 'Compromised']);
 
+/** The most reports in a row with no click or given details between them. */
+function longestReportRun(entries) {
+  let best = 0;
+  let run = 0;
+  for (const e of entries) {
+    if (e.rule === 'Reported') best = Math.max(best, (run += 1));
+    else if (FELL_FOR.has(e.rule)) run = 0;
+  }
+  return best;
+}
+
+// Easiest first: the last one earned is the person's hardest, shown on the
+// ID card. The same rules as reference-api achievements_for; they are meant
+// to be hard to get.
 export const ACHIEVEMENTS = Object.freeze(
   [
     {
       id: 'first-report',
       name: 'First Report',
-      how: 'Report a simulated phishing email.',
-      earned: ({ history }) => count(history, 'Reported') >= 1,
+      how: 'Make your very first action a report: spot and report a simulated phishing email before ever clicking one.',
+      earned: ({ scored }) => scored.length > 0 && scored[0].rule === 'Reported',
     },
     {
       id: 'sharp-eye',
       name: 'Sharp Eye',
-      how: 'Report 3 simulated phishing emails.',
-      earned: ({ history }) => count(history, 'Reported') >= 3,
+      how: 'Report 10 simulated phishing emails.',
+      earned: ({ history }) => count(history, 'Reported') >= 10,
     },
     {
       id: 'quick-reporter',
       name: 'Quick Reporter',
-      how: 'Report 5 simulated phishing emails.',
-      earned: ({ history }) => count(history, 'Reported') >= 5,
+      how: 'Report 25 simulated phishing emails.',
+      earned: ({ history }) => count(history, 'Reported') >= 25,
     },
     {
       id: 'safe-handler',
       name: 'Safe Handler',
-      how: 'Take part in 3 campaigns without clicking or giving details.',
-      earned: ({ history }) =>
-        new Set(history.map((h) => h.campaignId).filter(Boolean)).size >= 3 && !history.some((h) => FELL_FOR.has(h.rule)),
+      how: 'Report 10 simulated phishing emails without ever clicking a link or giving your details.',
+      earned: ({ history }) => count(history, 'Reported') >= 10 && !history.some((h) => FELL_FOR.has(h.rule)),
     },
     {
       id: 'trained',
       name: 'Trained',
-      how: 'Finish a training path.',
-      earned: ({ history }) => count(history, 'Trained') >= 1,
+      how: 'Finish 3 training paths.',
+      earned: ({ history }) => count(history, 'Trained') >= 3,
     },
     {
       id: 'quiz-ace',
       name: 'Quiz Ace',
-      how: 'Pass a training evaluation.',
-      earned: ({ history }) => count(history, 'Evaluated') >= 1,
+      how: 'Pass 5 training evaluations.',
+      earned: ({ history }) => count(history, 'Evaluated') >= 5,
     },
     {
       id: 'top-10',
       name: 'Top 10',
-      how: 'Reach the top 10 of the leaderboard.',
-      earned: ({ rank }) => Number.isInteger(rank) && rank >= 1 && rank <= 10,
+      how: 'Reach the top 10 of the leaderboard with at least 1,000 points.',
+      earned: ({ rank, points }) => Number.isInteger(rank) && rank >= 1 && rank <= 10 && points >= 1000,
     },
     {
       id: 'point-collector',
       name: 'Point Collector',
-      how: 'Reach 500 points.',
-      earned: ({ points }) => points >= 500,
+      how: 'Reach 2,000 points.',
+      earned: ({ points }) => points >= 2000,
     },
     {
       id: 'comeback',
       name: 'Comeback',
-      how: 'Report a phishing email after having clicked one before.',
-      earned: ({ history }) => {
-        const byTime = [...history].sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')));
-        const firstSlip = byTime.findIndex((h) => FELL_FOR.has(h.rule));
-        return firstSlip !== -1 && byTime.slice(firstSlip + 1).some((h) => h.rule === 'Reported');
+      how: 'After clicking a simulated phishing link, report the next 5 in a row without clicking again.',
+      earned: ({ scored }) => {
+        const slip = scored.findIndex((h) => FELL_FOR.has(h.rule));
+        return slip !== -1 && longestReportRun(scored.slice(slip + 1)) >= 5;
       },
     },
     {
       id: 'lifelong-learner',
       name: 'Lifelong Learner',
-      how: 'Finish 3 training paths.',
-      earned: ({ history }) => count(history, 'Trained') >= 3,
+      how: 'Finish 10 training paths.',
+      earned: ({ history }) => count(history, 'Trained') >= 10,
     },
   ].map((a) => Object.freeze({ ...a, image: a.id }))
 );
+
+/**
+ * The achievement shown on the My Space ID card: the hardest one earned
+ * (the last earned in catalogue order), or null when none is.
+ */
+export function latestEarned(list) {
+  const earned = (Array.isArray(list) ? list : []).filter((a) => a.earned);
+  return earned.length ? earned[earned.length - 1] : null;
+}
 
 /** How many achievements the My Space card shows; the rest are behind "View all". */
 export const PREVIEW_COUNT = 4;
@@ -123,7 +145,9 @@ export function achievementsFor(standing) {
     rank: standing?.rank ?? null,
     history: (Array.isArray(standing?.history) ? standing.history : [])
       .filter((h) => h && typeof h === 'object')
-      .map((h) => ({ rule: h.rule ?? h.event, campaignId: h.campaignId ?? h.where, at: h.at })),
+      .map((h) => ({ rule: h.rule ?? h.event, campaignId: h.campaignId ?? h.where, at: h.at }))
+      .sort((a, b) => String(a.at || '').localeCompare(String(b.at || ''))),
   };
+  s.scored = s.history.filter((h) => SCORED.has(h.rule));
   return ACHIEVEMENTS.map(({ earned, ...a }) => ({ ...a, earned: Boolean(earned(s)) }));
 }
