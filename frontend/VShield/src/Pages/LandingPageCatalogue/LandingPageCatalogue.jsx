@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import Toast from '../../GlobalComponents/Toast';
 import {
@@ -16,11 +16,11 @@ import LandingPageCatalogues from './LandingPageCatalogues.json';
 import { api } from '../../services/api';
 import LandingPageDesigner from './LandingPageDesigner';
 import LandingPageRichTextEditor from './LandingPageRichTextEditor';
+import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
 // 🎛️ SCALE & THEME CONSTANTS
 // =========================================================================
-const VarUserDLsScale = 0.94;
 const VarOverallRoundednessScale = 0.5;
 
 const VODAFONE_FONT_STYLE =
@@ -38,6 +38,7 @@ const VIEW_EDITOR = 'VIEW_EDITOR';
 
 const LandingPageCatalogue = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 
   // Theme check
@@ -252,6 +253,20 @@ const LandingPageCatalogue = () => {
         .then((created) => {
           setCatalogues((prev) => [created, ...prev]);
           showToast("Created '" + (created?.LandingPageID || '') + "' successfully!", 'success');
+
+          // Back to the scenario wizard, with the new page attached, when this
+          // page was designed from there ("Design a new one").
+          const returnToScenario = location.state?.returnToScenario;
+          const returnTo = location.state?.returnTo;
+          if (returnToScenario && returnTo) {
+            navigate(returnTo, {
+              replace: true,
+              state: {
+                landingPageCreatedFromScenario: true,
+                createdLandingPage: created
+              }
+            });
+          }
         })
         .catch((e) => {
           console.error(e);
@@ -426,7 +441,7 @@ const LandingPageCatalogue = () => {
       <style>{String(VODAFONE_FONT_STYLE)}</style>
 
       <div
-        style={{ zoom: VarUserDLsScale }}
+        style={{ zoom: PAGE_SCALE }}
         className="w-full max-w-[1780px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-[calc(108vh-0px)] overflow-hidden"
       >
         {/* ========================================================================= */}
