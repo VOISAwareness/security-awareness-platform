@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import Toast from '../../GlobalComponents/Toast';
 import {
@@ -67,6 +67,7 @@ const VIEW_EDITOR = 'VIEW_EDITOR';
 
 const LandingPageCatalogue = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 
   // Theme check
@@ -362,57 +363,79 @@ const LandingPageCatalogue = () => {
   };
 
   // Commit Save Action
-  const handleCommitSubmit = () => {
-    const htmlContent =
-      stagedHtmlForPreview ||
-      activeHtmlRef.current ||
-      (rawHtmlMode ? rawHtmlCode : editorCanvasRef.current?.innerHTML || '');
+  // Commit Save Action
+const handleCommitSubmit = () => {
+  const htmlContent =
+    stagedHtmlForPreview ||
+    activeHtmlRef.current ||
+    (rawHtmlMode ? rawHtmlCode : editorCanvasRef.current?.innerHTML || '');
 
-    if (editorId) {
-      api.landingPages
-        .update(editorId, {
-          LandingPageName: pageName.trim() || undefined,
-          LandingPageDescription: pageDescription.trim(),
-          LandingPageContent: htmlContent
-        })
-        .then((saved) => {
-          setCatalogues((prev) =>
-            prev.map((item) => (getItemId(item) === editorId ? saved : item))
-          );
-          showToast(`Updated '${pageName.trim()}'`, "success");
-        })
-        .catch((e) => {
-          console.error(e);
-          showToast('Could not save landing page. Please try again.', "error");
-        });
-    } else {
-      // The backend assigns the next LP-00N id.
-      api.landingPages
-        .create({
-          LandingPageName: pageName.trim() || 'Untitled Landing Page',
-          LandingPageDescription:
-            pageDescription.trim() || 'Custom created security awareness landing page.',
-          LandingPageContent: htmlContent
-        })
-        .then((created) => {
-          setCatalogues((prev) => [created, ...prev]);
-          showToast(`Created '${created?.LandingPageID || ''}' successfully!`, "success");
-        })
-        .catch((e) => {
-          console.error(e);
-          showToast('Could not create landing page. Please try again.', "error");
-        });
-    }
+  if (editorId) {
+    // Existing landing page update behaviour remains unchanged.
+    api.landingPages
+      .update(editorId, {
+        LandingPageName: pageName.trim() || undefined,
+        LandingPageDescription: pageDescription.trim(),
+        LandingPageContent: htmlContent
+      })
+      .then((saved) => {
+        setCatalogues((prev) =>
+          prev.map((item) => (getItemId(item) === editorId ? saved : item))
+        );
 
-    setShowSaveChoiceModal(false);
-    setIsFullScreenLivePreview(false);
-    setIsEditorExpanded(false);
-    setPageName('');
-    setPageDescription('');
-    setEditorId(null);
-    activeHtmlRef.current = '';
-    setCurrentView(VIEW_GALLERY);
-  };
+        showToast(`Updated '${pageName.trim()}'`, "success");
+      })
+      .catch((e) => {
+        console.error(e);
+        showToast('Could not save landing page. Please try again.', "error");
+      });
+  } else {
+    // Create a new landing page.
+    api.landingPages
+      .create({
+        LandingPageName: pageName.trim() || 'Untitled Landing Page',
+        LandingPageDescription:
+          pageDescription.trim() || 'Custom created security awareness landing page.',
+        LandingPageContent: htmlContent
+      })
+      .then((created) => {
+        setCatalogues((prev) => [created, ...prev]);
+
+        showToast(
+          `Created '${created?.LandingPageID || ''}' successfully!`,
+          "success"
+        );
+
+        // Return to the scenario wizard only when this page
+        // was created from the scenario wizard.
+        const returnToScenario = location.state?.returnToScenario;
+        const returnTo = location.state?.returnTo;
+
+        if (returnToScenario && returnTo) {
+          navigate(returnTo, {
+            replace: true,
+            state: {
+              landingPageCreatedFromScenario: true,
+              createdLandingPage: created
+            }
+          });
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        showToast('Could not create landing page. Please try again.', "error");
+      });
+  }
+
+  setShowSaveChoiceModal(false);
+  setIsFullScreenLivePreview(false);
+  setIsEditorExpanded(false);
+  setPageName('');
+  setPageDescription('');
+  setEditorId(null);
+  activeHtmlRef.current = '';
+  setCurrentView(VIEW_GALLERY);
+};
 
   // 🌟 Full Browser Screen Preview (Takes full browser viewport without OS native fullscreen)
   const handleLaunchFullScreenPreview = () => {

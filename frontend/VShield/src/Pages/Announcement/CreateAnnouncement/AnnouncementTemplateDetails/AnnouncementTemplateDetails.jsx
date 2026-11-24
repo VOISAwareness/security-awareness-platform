@@ -1,19 +1,27 @@
 import { useState, useEffect } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import AnnouncementReviewPublishDashboard from "../AnnouncementReviewPublishDashboard/AnnouncementReviewPublishDashboard";
-import { announcementTemplatesLive, publishTemplate, useAnnouncementData } from "../../../../services/announcements";
+import {
+  announcementTemplatesLive,
+  publishTemplate,
+  useAnnouncementData,
+} from "../../../../services/announcements";
 // Templates and user lists from the backend (services/announcements.js),
 // kept in objects shaped like the sample files they replace.
 const announcamentScenariosJsonData = announcementTemplatesLive;
 import AnnouncementEmailDetailsTab from "../AnnouncementEmailDetailsTab/AnnouncementEmailDetailsTab";
 import { createPortal } from "react-dom";
-import { EMAIL_TYPES, TARGET_AUDIENCES, nameOptions } from "../../../../services/scenarioOptions";
+import {
+  EMAIL_TYPES,
+  TARGET_AUDIENCES,
+  nameOptions,
+} from "../../../../services/scenarioOptions";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Toast from "../../../../GlobalComponents/Toast";
 
-import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Check, CheckCircle2, ArrowLeft } from "lucide-react";
 import { ANNOUNCEMENT_STEPS } from "../AnnouncementConstants";
-import { PAGE_SCALE } from '../../../../shared/SharedStyles';
+import { PAGE_SCALE } from "../../../../shared/SharedStyles";
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -276,18 +284,6 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
   const [customTargetAudience, setCustomTargetAudience] = useState(false);
   const [customAnnouncementType, setCustomAnnouncementType] = useState(false);
 
-  const [draft] = useState(() => {
-    try {
-      const stored = localStorage.getItem(
-        "voisshield_active_announcement_draft",
-      );
-
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  });
-
   // =========================================================
   // UPDATE FORM FIELD
   // =========================================================
@@ -457,7 +453,10 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                       onChange={(e) =>
                         updateField("announcementCampaignType", e.target.value)
                       }
-                      options={nameOptions(EMAIL_TYPES, formData.announcementCampaignType)}
+                      options={nameOptions(
+                        EMAIL_TYPES,
+                        formData.announcementCampaignType,
+                      )}
                     />
                   )}
                 </div>
@@ -526,7 +525,10 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                           e.target.value,
                         )
                       }
-                      options={nameOptions(TARGET_AUDIENCES, formData.announcementTargetAudience)}
+                      options={nameOptions(
+                        TARGET_AUDIENCES,
+                        formData.announcementTargetAudience,
+                      )}
                     />
                   )}
                 </div>
@@ -924,13 +926,13 @@ const AnnouncementTemplateDetails = () => {
     TOP-RIGHT VALIDATION TOAST
 ==================================================== */}
       {errorMsg && (
-          <Toast
+        <Toast
           message={errorMsg}
           type="error"
           title="Input Required"
           onClose={() => setErrorMsg("")}
         />
-        )}
+      )}
       <div
         style={{
           zoom: PAGE_SCALE,
@@ -947,9 +949,19 @@ const AnnouncementTemplateDetails = () => {
               : "bg-[#000000] text-white border-black/10"
           }`}
         >
-          <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
-            CREATE NEW ANNOUNCEMENT TEMPLATE
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/announcements")}
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer transition-colors"
+              title="Back to Catalogue"
+            >
+              <ArrowLeft className="w-4 h-4 stroke-[2.5] rounded-md text-white dark:text-black" />
+            </button>
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
+              CREATE NEW ANNOUNCEMENT TEMPLATE
+            </h1>
+          </div>
 
           <span className="text-[9px] font-bold opacity-60 uppercase">
             Template Creation

@@ -704,9 +704,8 @@ const LandingPageSelectedPreview = ({
 const AttachOutcomesTab = ({
   formData,
   setFormData,
-  // Called with a newly chosen cover File so the wizard can upload it at once
-  // (a File can't be kept in the saved draft; its storage key can).
   onCoverFileChosen,
+  onDesignNewLandingPage,
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
 
@@ -2413,12 +2412,12 @@ const AttachOutcomesTab = ({
                 <OrDivider isDark={isDark} />
 
                 <AttachButton
-                  icon={() => <span className="text-[11px]">✎</span>}
-                  label="Design a new one"
-                  onClick={() => setIsOutcomeEditorOpen(true)}
-                  variant="secondary"
-                  isDark={isDark}
-                />
+  icon={() => <span className="text-[11px]">✎</span>}
+  label="Design a new one"
+  onClick={onDesignNewLandingPage}
+  variant="secondary"
+  isDark={isDark}
+/>
               </>
             )}
           </div>
