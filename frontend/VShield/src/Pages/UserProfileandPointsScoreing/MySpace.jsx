@@ -197,17 +197,17 @@ const DraggableIdBadge = ({
               <UserIcon className="w-8 h-8 text-slate-200" strokeWidth={1.5} />
             </div>
 
-            <h2 className="font-bold font-voda text-[17px] uppercase tracking-tight text-inherit leading-tight">
+            <h2 className="font-semibold font-voda text-[15.5px] uppercase tracking-tight text-inherit leading-tight">
               {userName}
             </h2>
             <span
-              className={`text-[11px] font-semibold mt-0.5 max-w-full truncate ${isDark ? "text-slate-300" : "text-slate-600"}`}
+              className={`text-[10.5px] font-medium mt-0.5 max-w-full truncate ${isDark ? "text-slate-300" : "text-slate-600"}`}
               title={email}
             >
               {email}
             </span>
             <span
-              className={`text-[11.5px] font-bold mt-0.5 leading-tight ${isDark ? "text-white" : "text-slate-900"}`}
+              className={`text-[11px] font-semibold mt-0.5 leading-tight ${isDark ? "text-slate-100" : "text-slate-800"}`}
             >
               {tower}
             </span>
@@ -248,18 +248,10 @@ const DraggableIdBadge = ({
                   decorative
                 />
               </span>
-              <span className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
-                <span
-                  className={`vs-rank text-[13.5px] font-black uppercase leading-tight tracking-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}
-                >
-                  {rankName(level)}
-                </span>
-                <span
-                  className="text-[10px] font-bold"
-                  style={{ color: isDark ? level.light : level.color }}
-                >
-                  Level {level.level}
-                </span>
+              <span
+                className={`flex-1 min-w-0 text-[11.5px] font-bold uppercase leading-tight tracking-wide truncate ${isDark ? "text-white" : "text-slate-800"}`}
+              >
+                {rankName(level)}
               </span>
             </button>
           )}
@@ -298,17 +290,9 @@ const DraggableIdBadge = ({
               </span>
             </span>
             <span
-              className={`flex-1 min-w-0 text-[13.5px] font-black uppercase leading-tight tracking-tight whitespace-nowrap ${isDark ? "text-white" : "text-slate-900"}`}
+              className={`flex-1 min-w-0 text-[11.5px] font-bold uppercase leading-tight tracking-wide whitespace-nowrap ${isDark ? "text-white" : "text-slate-800"}`}
             >
               My Achievements
-            </span>
-            <span
-              aria-hidden
-              className={`w-6 h-6 rounded-lg flex items-center justify-center text-[14px] font-black flex-shrink-0 ${
-                isDark ? "bg-white text-black" : "bg-[#0b1121] text-white"
-              }`}
-            >
-              ›
             </span>
           </button>
 
@@ -326,7 +310,7 @@ const DraggableIdBadge = ({
                 </span>
                 <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" />
               </div>
-              <span className="text-[16px] font-bold font-voda mt-0.5 text-inherit leading-none">
+              <span className="text-[15px] font-semibold font-voda mt-0.5 text-inherit leading-none">
                 07
               </span>
             </div>
@@ -343,7 +327,7 @@ const DraggableIdBadge = ({
                 </span>
                 <Award className="w-3 h-3 text-purple-400 flex-shrink-0" />
               </div>
-              <span className="text-[16px] font-bold font-voda mt-0.5 text-inherit leading-none">
+              <span className="text-[15px] font-semibold font-voda mt-0.5 text-inherit leading-none">
                 04
               </span>
             </div>
@@ -354,7 +338,7 @@ const DraggableIdBadge = ({
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className={`w-full py-1.5 px-3 rounded-lg border text-[10px] font-bold font-voda uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`w-full py-1.5 px-3 rounded-lg border text-[10px] font-semibold font-voda uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 isDark
                   ? "bg-white/20 border-white/20 text-white hover:bg-white/15"
                   : "bg-black/5 border-slate-300 text-slate-800 hover:bg-black/15"
