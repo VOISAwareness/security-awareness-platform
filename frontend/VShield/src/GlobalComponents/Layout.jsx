@@ -10,7 +10,6 @@ import {
   Megaphone,
   Laptop,
   LayoutTemplate,
-  Image,
   MessageSquare,
   Users,
   AtSign,
@@ -432,7 +431,6 @@ const Layout = () => {
             <NavLink to="/campaigns" label="CAMPAIGNS" icon={Megaphone} perm="campaigns" />
             <NavLink to="/training" label="TRAINING (LMS)" icon={Laptop} perm="training" />
             <NavLink to="/landing-page-catalogue" label="LANDING PAGE CATALOGUE" icon={LayoutTemplate} perm="landing-page-catalogue" />
-            <NavLink to="/cover-image-catalogue" label="COVER IMAGE CATALOGUE" icon={Image} perm="cover-image-catalogue" />
             <NavLink
               to="/announcements"
               label="ANNOUNCEMENT"
