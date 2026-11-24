@@ -53,6 +53,17 @@ import {
 import { createPortal } from "react-dom";
 import HtmlCodeEditor from "../../GlobalComponents/HtmlCodeEditor";
 import LandingPageCatalogues from "./LandingPageCatalogues.json";
+import { APP_URL } from "../../appConfig";
+import {
+  MAX_LANDING_BYTES,
+  exportLandingHtml,
+  isScriptUrl,
+  isTrainingHref,
+  prepareForEditor,
+  sanitizeLandingHtml,
+  splitCanvasBg,
+  wrapCanvasBg,
+} from "../../services/landingHtml";
 
 // =========================================================================
 // 🎛️ SCALE, ROUTE & BROWSER SAFE ZONE CONTROL VARIABLES
@@ -73,7 +84,25 @@ const SAFE_ZONE_HEIGHT_PX = 580 + VarBrowserSafeZoneBottomAdjuster;
 // Route to frontend\VShield\src\Pages\MyTraining\MyTraining.jsx
 const MY_TRAINING_ROUTE = "/my-training";
 
-const MAX_HISTORY_STEPS = 25;
+const MAX_HISTORY_STEPS = 60;
+// Keystrokes this close together are one undo step, so undo goes back a
+// word or phrase at a time instead of one character.
+const TYPING_HISTORY_MERGE_MS = 1000;
+
+// Largest image that can be embedded and still leave the page under the
+// saved-page limit (embedded images grow by about a third as base64).
+const MAX_EMBEDDED_IMAGE_BYTES = 200 * 1024;
+
+// Unique element ids for inserted items (Date.now alone repeats within a millisecond).
+let canvasIdSequence = 0;
+const newCanvasId = (prefix) => {
+  canvasIdSequence += 1;
+  return prefix + "-" + Date.now().toString(36) + "-" + canvasIdSequence;
+};
+
+// Saved HTML on its way into the editor: script stripped and the editor-only
+// bits that saving parked away put back (see services/landingHtml.js).
+const loadIntoEditor = (html) => prepareForEditor(html || "");
 
 const CANVAS_SCROLL_CSS = [
   ".vshield-canvas-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }",
@@ -669,33 +698,26 @@ const componentizeTemplateHtml = (htmlString) => {
           parent.tagName === "DIV" &&
           (parent.style.textAlign === "center" || parent.style.margin));
 
-      if (
+      const wrapper =
         parent &&
         isButtonLike &&
         parent.children.length === 1 &&
         parent.tagName === "DIV" &&
         parent !== body
-      ) {
-        markElement(parent, "button");
-        parent.classList.add("vshield-custom-btn");
-        parent.setAttribute("data-action", "training");
-        parent.setAttribute("data-url", MY_TRAINING_ROUTE);
+          ? parent
+          : a;
+      markElement(wrapper, "button");
+      wrapper.classList.add("vshield-custom-btn");
+      // Only a training-shaped link (none, "#", "#training", /my-training)
+      // becomes a My Training button; any other link keeps its destination.
+      if (isTrainingHref(a.getAttribute("href"))) {
+        wrapper.setAttribute("data-action", "training");
+        wrapper.setAttribute("data-url", MY_TRAINING_ROUTE);
         a.setAttribute("href", MY_TRAINING_ROUTE);
         a.setAttribute("target", "_top");
-        a.setAttribute("onclick", "return false;");
-        a.setAttribute("contenteditable", "true");
-        a.style.cursor = "pointer";
-      } else {
-        markElement(a, "button");
-        a.classList.add("vshield-custom-btn");
-        a.setAttribute("data-action", "training");
-        a.setAttribute("data-url", MY_TRAINING_ROUTE);
-        a.setAttribute("href", MY_TRAINING_ROUTE);
-        a.setAttribute("target", "_top");
-        a.setAttribute("onclick", "return false;");
-        a.setAttribute("contenteditable", "true");
-        a.style.cursor = "pointer";
       }
+      a.setAttribute("contenteditable", "true");
+      a.style.cursor = "pointer";
     });
 
     const imgs = body.querySelectorAll("img");
@@ -770,12 +792,24 @@ const LandingPageRichTextEditor = ({
   const workspaceRef = useRef(null);
   const imageInputRef = useRef(null);
   const savedSelectionRef = useRef(null);
-  const internalHtmlRef = useRef(value || "");
+  // The value as it arrived: the canvas background split off (it is saved as
+  // a wrapper round the page) and the HTML made safe and editable.
+  const [initialContent] = useState(() => {
+    const { bg, html } = splitCanvasBg(value || "");
+    return { bg: bg || "#FFFFFF", html: loadIntoEditor(html) };
+  });
+  const internalHtmlRef = useRef(initialContent.html);
+  // What this editor last handed to onChange, so its own echo coming back
+  // as `value` is not mistaken for a new page.
+  const lastEmittedRef = useRef(value || "");
+  const canvasBgColorRef = useRef(initialContent.bg);
   const itemCounterRef = useRef(1);
   const marqueeActiveRef = useRef(false);
+  const lastTypingPushRef = useRef(0);
+  const toastTimerRef = useRef(null);
 
   const [rawHtmlMode, setRawHtmlMode] = useState(false);
-  const [rawHtmlCode, setRawHtmlCode] = useState(value || "");
+  const [rawHtmlCode, setRawHtmlCode] = useState(initialContent.html);
   const [internalExpanded, setInternalExpanded] = useState(false);
   const isControlledExpand =
     typeof controlledExpanded === "boolean" && typeof onToggleExpand === "function";
@@ -808,7 +842,7 @@ const LandingPageRichTextEditor = ({
   const [showShadowMenu, setShowShadowMenu] = useState(false);
   const [showRoundedMenu, setShowRoundedMenu] = useState(false);
   const [showBorderMenu, setShowBorderMenu] = useState(false);
-  const [canvasBgColor, setCanvasBgColor] = useState("#FFFFFF");
+  const [canvasBgColor, setCanvasBgColor] = useState(initialContent.bg);
   const [activeElement, setActiveElement] = useState(null);
   const [selectedElements, setSelectedElements] = useState([]);
   const [aspectRatioText, setAspectRatioText] = useState("");
@@ -822,7 +856,7 @@ const LandingPageRichTextEditor = ({
   const [draggedLayerId, setDraggedLayerId] = useState(null);
   const [dragOverLayerId, setDragOverLayerId] = useState(null);
 
-  const historyRef = useRef([value || ""]);
+  const historyRef = useRef([initialContent.html]);
   const historyIndexRef = useRef(0);
   const [historyMeta, setHistoryMeta] = useState({ index: 0, length: 1 });
   const isHistoryActionRef = useRef(false);
@@ -848,10 +882,14 @@ const LandingPageRichTextEditor = ({
 
   const showToast = useCallback((message) => {
     setToastMessage(message);
-    window.setTimeout(() => {
+    // A newer toast restarts the timer, so an older one can't hide it early.
+    window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => {
       setToastMessage("");
     }, 2500);
   }, []);
+
+  useEffect(() => () => window.clearTimeout(toastTimerRef.current), []);
 
   // =========================================================================
   // 🌟 BROWSER SAFE ZONE BOTTOM CHECKER (Scale-Aware — Visual Only)
@@ -893,10 +931,14 @@ const LandingPageRichTextEditor = ({
       }
     );
 
-    const items = allNodes.map((el, idx) => {
-      if (!el.id) {
-        el.id = "vshield-item-" + Date.now() + "-" + idx;
+    // Ids key the list and drive select/rename/reorder, so a repeated id
+    // (a copied block, pasted HTML) is replaced with a fresh one.
+    const seenIds = new Set();
+    const items = allNodes.map((el) => {
+      if (!el.id || seenIds.has(el.id)) {
+        el.id = newCanvasId("vshield-item");
       }
+      seenIds.add(el.id);
       let itemName = el.getAttribute("data-item-name");
       if (!itemName) {
         itemName = "Item " + itemCounterRef.current;
@@ -907,7 +949,6 @@ const LandingPageRichTextEditor = ({
         id: el.id,
         name: itemName,
         type: el.getAttribute("data-type") || "element",
-        domOrder: idx,
         element: el,
       };
     });
@@ -915,15 +956,36 @@ const LandingPageRichTextEditor = ({
     setUsedItems(items);
   }, []);
 
-  const emitChange = useCallback(
+  // Hands the page to the parent: the editor's HTML wrapped with the canvas
+  // background so the colour is saved with it.
+  const notifyParent = useCallback(
     (html) => {
+      const outgoing = wrapCanvasBg(html || "", canvasBgColorRef.current);
+      lastEmittedRef.current = outgoing;
+      onChange?.(outgoing);
+    },
+    [onChange]
+  );
+
+  const emitChange = useCallback(
+    (html, { typing = false } = {}) => {
       const updatedHtml = html || "";
       internalHtmlRef.current = updatedHtml;
-      onChange?.(updatedHtml);
+      notifyParent(updatedHtml);
 
       if (!isHistoryActionRef.current) {
         const currentStack = historyRef.current.slice(0, historyIndexRef.current + 1);
-        if (currentStack[currentStack.length - 1] !== updatedHtml) {
+        const now = Date.now();
+        const mergeWithLast =
+          typing &&
+          currentStack.length > 1 &&
+          now - lastTypingPushRef.current < TYPING_HISTORY_MERGE_MS;
+        lastTypingPushRef.current = typing ? now : 0;
+        if (mergeWithLast && currentStack[currentStack.length - 1] !== updatedHtml) {
+          // Still typing: replace the last step instead of adding one.
+          currentStack[currentStack.length - 1] = updatedHtml;
+          historyRef.current = currentStack;
+        } else if (currentStack[currentStack.length - 1] !== updatedHtml) {
           currentStack.push(updatedHtml);
           if (currentStack.length > MAX_HISTORY_STEPS) {
             currentStack.shift();
@@ -941,20 +1003,22 @@ const LandingPageRichTextEditor = ({
       checkSafeZoneOverflow();
       bumpOverlay();
     },
-    [onChange, syncUsedItemsList, checkSafeZoneOverflow, bumpOverlay]
+    [notifyParent, syncUsedItemsList, checkSafeZoneOverflow, bumpOverlay]
   );
 
   const handleUndo = useCallback(() => {
     if (historyIndexRef.current > 0) {
       isHistoryActionRef.current = true;
       const newIndex = historyIndexRef.current - 1;
-      const restored = historyRef.current[newIndex];
+      // A step may have come from HTML mode, so it is cleaned before it
+      // goes back into the live editor.
+      const restored = sanitizeLandingHtml(historyRef.current[newIndex]);
       historyIndexRef.current = newIndex;
       setHistoryMeta({ index: newIndex, length: historyRef.current.length });
       internalHtmlRef.current = restored;
       if (editorRef.current) editorRef.current.innerHTML = restored;
       setRawHtmlCode(restored);
-      onChange?.(restored);
+      notifyParent(restored);
       setActiveElement(null);
       setSelectedElements([]);
       syncUsedItemsList();
@@ -964,19 +1028,21 @@ const LandingPageRichTextEditor = ({
       }, 50);
       showToast("Undo");
     }
-  }, [onChange, showToast, syncUsedItemsList, checkSafeZoneOverflow]);
+  }, [notifyParent, showToast, syncUsedItemsList, checkSafeZoneOverflow]);
 
   const handleRedo = useCallback(() => {
     if (historyIndexRef.current < historyRef.current.length - 1) {
       isHistoryActionRef.current = true;
       const newIndex = historyIndexRef.current + 1;
-      const restored = historyRef.current[newIndex];
+      // A step may have come from HTML mode, so it is cleaned before it
+      // goes back into the live editor.
+      const restored = sanitizeLandingHtml(historyRef.current[newIndex]);
       historyIndexRef.current = newIndex;
       setHistoryMeta({ index: newIndex, length: historyRef.current.length });
       internalHtmlRef.current = restored;
       if (editorRef.current) editorRef.current.innerHTML = restored;
       setRawHtmlCode(restored);
-      onChange?.(restored);
+      notifyParent(restored);
       setActiveElement(null);
       setSelectedElements([]);
       syncUsedItemsList();
@@ -986,7 +1052,7 @@ const LandingPageRichTextEditor = ({
       }, 50);
       showToast("Redo");
     }
-  }, [onChange, showToast, syncUsedItemsList, checkSafeZoneOverflow]);
+  }, [notifyParent, showToast, syncUsedItemsList, checkSafeZoneOverflow]);
 
   // Landing Page Templates: 10 Full-Screen Templates + LandingPageCatalogues.json
   const landingPageTemplates = useMemo(() => {
@@ -1088,12 +1154,15 @@ const LandingPageRichTextEditor = ({
     placeCaretAtEnd();
   }, [isEditorSelection, placeCaretAtEnd]);
 
-  const synchroniseEditorValue = useCallback(() => {
-    if (!editorRef.current) return;
-    const updatedHtml = editorRef.current.innerHTML;
-    emitChange(updatedHtml);
-    saveSelection();
-  }, [emitChange, saveSelection]);
+  const synchroniseEditorValue = useCallback(
+    (options) => {
+      if (!editorRef.current) return;
+      const updatedHtml = editorRef.current.innerHTML;
+      emitChange(updatedHtml, options);
+      saveSelection();
+    },
+    [emitChange, saveSelection]
+  );
 
   const cleanupEmptyGridBoxes = useCallback((keepNode = null) => {
     if (!editorRef.current) return;
@@ -1148,7 +1217,8 @@ const LandingPageRichTextEditor = ({
 
   useLayoutEffect(() => {
     if (rawHtmlMode || !editorRef.current) return;
-    let htmlToSync = internalHtmlRef.current;
+    // Cleaned here too: this is also the way back in from HTML mode.
+    let htmlToSync = sanitizeLandingHtml(internalHtmlRef.current || "");
     if (
       htmlToSync &&
       !htmlToSync.includes("vshield-canvas-item") &&
@@ -1161,6 +1231,11 @@ const LandingPageRichTextEditor = ({
     }
     internalHtmlRef.current = htmlToSync;
     setRawHtmlCode(htmlToSync);
+    // Before any edit, undo's first step is the page as it is shown, not as
+    // it arrived (which may not have been componentised yet).
+    if (historyRef.current.length === 1 && historyIndexRef.current === 0) {
+      historyRef.current = [htmlToSync];
+    }
     // Clear stale DOM reference across expand/portal transitions so blue overlay never points at a detached node
     setActiveElement(null);
     setSelectedElements([]);
@@ -1169,23 +1244,37 @@ const LandingPageRichTextEditor = ({
   }, [rawHtmlMode, isExpanded, syncUsedItemsList, checkSafeZoneOverflow]);
 
   useEffect(() => {
-    if (value !== undefined && value !== internalHtmlRef.current) {
-      let finalVal = value;
-      if (
-        finalVal &&
-        !finalVal.includes("vshield-canvas-item") &&
-        !EMPTY_HTML_VALUES.includes(finalVal.trim().toLowerCase())
-      ) {
-        finalVal = componentizeTemplateHtml(finalVal);
-      }
-      internalHtmlRef.current = finalVal;
-      if (editorRef.current && !rawHtmlMode) {
-        editorRef.current.innerHTML = finalVal;
-      }
-      setRawHtmlCode(finalVal);
-      syncUsedItemsList();
-      checkSafeZoneOverflow();
+    if (
+      value === undefined ||
+      value === lastEmittedRef.current ||
+      value === internalHtmlRef.current
+    ) {
+      return;
     }
+    // A different page arrived from the parent: load it fresh.
+    const { bg, html } = splitCanvasBg(value);
+    let finalVal = loadIntoEditor(html);
+    if (
+      finalVal &&
+      !finalVal.includes("vshield-canvas-item") &&
+      !EMPTY_HTML_VALUES.includes(finalVal.trim().toLowerCase())
+    ) {
+      finalVal = componentizeTemplateHtml(finalVal);
+    }
+    lastEmittedRef.current = value;
+    canvasBgColorRef.current = bg || "#FFFFFF";
+    setCanvasBgColor(canvasBgColorRef.current);
+    internalHtmlRef.current = finalVal;
+    if (editorRef.current && !rawHtmlMode) {
+      editorRef.current.innerHTML = finalVal;
+    }
+    setRawHtmlCode(finalVal);
+    // Undo must not step back into the previous page.
+    historyRef.current = [finalVal];
+    historyIndexRef.current = 0;
+    setHistoryMeta({ index: 0, length: 1 });
+    syncUsedItemsList();
+    checkSafeZoneOverflow();
   }, [value, rawHtmlMode, syncUsedItemsList, checkSafeZoneOverflow]);
 
   // Keep blue dotted selection box synced on window resize
@@ -1307,6 +1396,13 @@ const LandingPageRichTextEditor = ({
     showToast("Canvas cleared.");
   };
 
+  // The canvas colour is part of the page: it goes to the parent with it.
+  const applyCanvasBgColor = (color) => {
+    canvasBgColorRef.current = color;
+    setCanvasBgColor(color);
+    notifyParent(editorRef.current?.innerHTML ?? internalHtmlRef.current ?? "");
+  };
+
   const chooseLandingPageTemplate = (option) => {
     setShowBodyMenu(false);
     if (!option?.html) return;
@@ -1330,7 +1426,8 @@ const LandingPageRichTextEditor = ({
     const liveHtml = rawHtmlMode
       ? rawHtmlCode
       : editorRef.current?.innerHTML ?? internalHtmlRef.current ?? "";
-    setPreviewHtmlSnapshot(liveHtml);
+    // Previewed exactly as a phished person will get it.
+    setPreviewHtmlSnapshot(exportLandingHtml(liveHtml, { appUrl: APP_URL }));
     setShowFullScreenPreview(true);
   };
 
@@ -1546,7 +1643,7 @@ const LandingPageRichTextEditor = ({
   };
 
   const handleEditorInput = () => {
-    synchroniseEditorValue();
+    synchroniseEditorValue({ typing: true });
   };
 
   const handleEditorBlur = () => {
@@ -1602,6 +1699,11 @@ const LandingPageRichTextEditor = ({
       MY_TRAINING_ROUTE
     );
     if (url) {
+      // A script URL would run in the app when the page is edited or previewed.
+      if (isScriptUrl(url)) {
+        showToast("That link type is not allowed. Use a web address.");
+        return;
+      }
       runCommand("createLink", url);
     }
   };
@@ -1611,7 +1713,7 @@ const LandingPageRichTextEditor = ({
     if (disabled || rawHtmlMode) return;
     restoreSelection();
     const spanHtml =
-      '<span style="background-color: rgba(153,0,153,0.12); color: #990099; font-weight: bold; padding: 1px 5px; border-radius: 4px; font-family: monospace;">' +
+      '<span data-vshield-fx="true" style="background-color: rgba(153,0,153,0.12); color: #990099; font-weight: bold; padding: 1px 5px; border-radius: 4px; font-family: monospace;">' +
       param.label +
       "</span>&nbsp;";
     document.execCommand("insertHTML", false, spanHtml);
@@ -1620,7 +1722,7 @@ const LandingPageRichTextEditor = ({
 
   const insertTextBox = () => {
     if (disabled || rawHtmlMode) return;
-    const textId = "txt-" + Date.now();
+    const textId = newCanvasId("txt");
     const itemName = "Item " + itemCounterRef.current;
     itemCounterRef.current += 1;
     const textHtml =
@@ -1637,10 +1739,10 @@ const LandingPageRichTextEditor = ({
     setShowShapeMenu(false);
     if (disabled || rawHtmlMode) return;
 
-    const shapeId = "shape-" + Date.now();
+    const shapeId = newCanvasId("shape");
     const itemName = "Item " + itemCounterRef.current;
     itemCounterRef.current += 1;
-    let shapeHtml = "";
+    let shapeHtml;
 
     switch (shapeType) {
       case "circle":
@@ -1702,7 +1804,7 @@ const LandingPageRichTextEditor = ({
     setShowButtonMenu(false);
     if (disabled || rawHtmlMode) return;
 
-    const buttonId = "btn-" + Date.now();
+    const buttonId = newCanvasId("btn");
     const itemName = "Item " + itemCounterRef.current;
     itemCounterRef.current += 1;
     let borderRadius = "6px";
@@ -1732,10 +1834,10 @@ const LandingPageRichTextEditor = ({
     setShowElementsMenu(false);
     if (disabled || rawHtmlMode) return;
 
-    const elemId = "elem-" + Date.now();
+    const elemId = newCanvasId("elem");
     const itemName = "Item " + itemCounterRef.current;
     itemCounterRef.current += 1;
-    let elemHtml = "";
+    let elemHtml;
 
     switch (elementId) {
       case "oops-hero":
@@ -1808,9 +1910,14 @@ const LandingPageRichTextEditor = ({
       return;
     }
 
-    const maximumFileSize = 5 * 1024 * 1024;
-    if (file.size > maximumFileSize) {
-      showToast("Image size must be less than 5 MB.");
+    // Embedded images are saved inside the page, which must stay under
+    // MAX_LANDING_BYTES to be saved and shown.
+    if (file.size > MAX_EMBEDDED_IMAGE_BYTES) {
+      showToast(
+        "Image must be under " + Math.round(MAX_EMBEDDED_IMAGE_BYTES / 1024) +
+          " KB so the landing page stays within the " +
+          Math.round(MAX_LANDING_BYTES / 1024) + " KB limit."
+      );
       event.target.value = "";
       return;
     }
@@ -1823,7 +1930,7 @@ const LandingPageRichTextEditor = ({
         return;
       }
 
-      const imageId = "img-" + Date.now();
+      const imageId = newCanvasId("img");
       const itemName = "Item " + itemCounterRef.current;
       itemCounterRef.current += 1;
       const imgHtml =
@@ -1908,7 +2015,7 @@ const LandingPageRichTextEditor = ({
     const parent = firstEl.parentNode || editorRef.current;
 
     const groupDiv = document.createElement("div");
-    groupDiv.id = "grp-" + Date.now();
+    groupDiv.id = newCanvasId("grp");
     groupDiv.className = "vshield-canvas-item vshield-group-item";
     groupDiv.setAttribute("data-type", "group");
     const groupName = "Group " + itemCounterRef.current;
@@ -2180,7 +2287,7 @@ const LandingPageRichTextEditor = ({
       const snappedY = Math.max(0, Math.floor(rawY / GRID_SIZE_PX) * GRID_SIZE_PX);
 
       const box = document.createElement("div");
-      box.id = "grid-txt-" + Date.now();
+      box.id = newCanvasId("grid-txt");
       box.className = "vshield-canvas-item vshield-grid-cursor-box";
       box.setAttribute("data-type", "text");
       const itemName = "Item " + itemCounterRef.current;
@@ -2324,6 +2431,8 @@ const LandingPageRichTextEditor = ({
   };
 
   const handleCanvasClick = (e) => {
+    // Links on the canvas are for editing, never for following.
+    if (e.target.closest?.("a")) e.preventDefault();
     if (rawHtmlMode || disabled || marqueeActiveRef.current) return;
     const target = e.target;
     if (target.closest("[data-floating-control]")) {
@@ -2347,22 +2456,25 @@ const LandingPageRichTextEditor = ({
       e.stopPropagation();
 
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        setSelectedElements((prev) => {
-          const exists = prev.includes(canvasItem);
-          const next = exists
-            ? prev.filter((el) => el !== canvasItem)
-            : [...prev, canvasItem];
-          if (next.length === 1) {
-            selectSingleCanvasItem(next[0]);
-          } else {
-            setActiveElement(null);
-          }
-          return next;
-        });
+        const next = selectedElements.includes(canvasItem)
+          ? selectedElements.filter((el) => el !== canvasItem)
+          : [...selectedElements, canvasItem];
+        if (next.length === 1) {
+          selectSingleCanvasItem(next[0]);
+        } else {
+          setSelectedElements(next);
+          setActiveElement(null);
+        }
         return;
       }
 
       selectSingleCanvasItem(canvasItem);
+      // Clicking an item itself (not its text) selects it as an object:
+      // take the caret out so Delete, arrow keys and Ctrl+D act on it.
+      if (target === canvasItem || target.tagName === "IMG") {
+        window.getSelection()?.removeAllRanges();
+        editorRef.current?.blur();
+      }
     } else {
       setActiveElement(null);
       setSelectedElements([]);
@@ -2674,7 +2786,13 @@ const LandingPageRichTextEditor = ({
   const duplicateActiveItem = useCallback(() => {
     if (!activeElement?.element) return;
     const clone = activeElement.element.cloneNode(true);
-    clone.id = "dup-" + Date.now();
+    // Inner items get fresh ids and names too, or the copy and the original
+    // would share them and select/rename the wrong one.
+    clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+    clone
+      .querySelectorAll(".vshield-canvas-item[data-item-name]")
+      .forEach((n) => n.removeAttribute("data-item-name"));
+    clone.id = newCanvasId("dup");
     const dupName = "Item " + itemCounterRef.current;
     itemCounterRef.current += 1;
     clone.setAttribute("data-item-name", dupName);
@@ -2737,7 +2855,7 @@ const LandingPageRichTextEditor = ({
     const handleKeyDown = (e) => {
       // Never hijack typing inside external form fields (Page Name, Description, Rename input, etc.)
       const tag = e.target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+      if (rawHtmlMode || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
         return;
       }
 
@@ -2799,6 +2917,7 @@ const LandingPageRichTextEditor = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    rawHtmlMode,
     activeElement,
     handleUndo,
     handleRedo,
@@ -2826,14 +2945,26 @@ const LandingPageRichTextEditor = ({
     targetEl.setAttribute("data-action", "training");
     targetEl.setAttribute("data-url", finalUrl);
 
+    // A plain link, never an onclick: inline script would navigate the app
+    // away while editing, and the served page blocks script anyway.
     const innerA = targetEl.querySelector("a");
     if (innerA) {
       innerA.setAttribute("href", finalUrl);
       innerA.setAttribute("target", "_top");
       innerA.setAttribute("data-action", "training");
-      innerA.setAttribute("onclick", "window.top.location.href='" + finalUrl + "'; return false;");
+      innerA.removeAttribute("onclick");
     } else {
-      targetEl.setAttribute("onclick", "window.top.location.href='" + finalUrl + "';");
+      const link = document.createElement("a");
+      link.setAttribute("href", finalUrl);
+      link.setAttribute("target", "_top");
+      link.setAttribute("data-action", "training");
+      link.style.color = "inherit";
+      link.style.textDecoration = "none";
+      // display: contents keeps the item's own layout exactly as it was.
+      link.style.display = "contents";
+      while (targetEl.firstChild) link.appendChild(targetEl.firstChild);
+      targetEl.appendChild(link);
+      targetEl.removeAttribute("onclick");
       targetEl.style.cursor = "pointer";
     }
 
@@ -3298,7 +3429,7 @@ const LandingPageRichTextEditor = ({
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setCanvasBgColor(c);
+                    applyCanvasBgColor(c);
                     setShowCanvasBgMenu(false);
                   }}
                   style={{ backgroundColor: c }}
@@ -3313,7 +3444,7 @@ const LandingPageRichTextEditor = ({
                 value={String(canvasBgColor)}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setCanvasBgColor(e.target.value)}
+                onChange={(e) => applyCanvasBgColor(e.target.value)}
                 className="h-4.5 w-6 cursor-pointer rounded border border-white/20 bg-transparent"
               />
             </div>
@@ -4393,6 +4524,8 @@ const LandingPageRichTextEditor = ({
 
         <iframe
           title="Full Screen Canvas Preview"
+          // No script from the page may run in the app's origin.
+          sandbox=""
           srcDoc={
             '<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>*{box-sizing:border-box;}html,body{margin:0;padding:0;width:100%;min-height:100vh;overflow-x:hidden;background:' +
             (canvasBgColor || "#ffffff") +

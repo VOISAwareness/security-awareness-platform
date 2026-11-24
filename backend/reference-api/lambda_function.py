@@ -131,6 +131,28 @@ def too_large(item):
     return size if size > MAX_ITEM_BYTES else 0
 
 
+# The tracking page refuses a landing page larger than this (it shows the
+# standard page instead), so a bigger one must never be saved.
+MAX_LANDING_BYTES = 350 * 1024
+
+
+def landing_too_large(content):
+    """Return the offending size in bytes if a landing page's HTML is over the cap."""
+    size = len(str(content or "").encode("utf-8"))
+    return size if size > MAX_LANDING_BYTES else 0
+
+
+def landing_size_error(size):
+    return err(
+        413,
+        (
+            f"Landing page is too large to save ({size // 1024} KB; limit "
+            f"{MAX_LANDING_BYTES // 1024} KB). This usually means images were "
+            "embedded in the page. Use smaller images, or link to them instead."
+        ),
+    )
+
+
 def size_error(size):
     return err(
         413,
@@ -2808,19 +2830,36 @@ def handle(event, context):
             body = parse_body(event)
             if not body.get("LandingPageName"):
                 return err(400, "LandingPageName is required")
+            oversize = landing_too_large(body.get("LandingPageContent"))
+            if oversize:
+                return landing_size_error(oversize)
             item = dict(body)
-            if not item.get("LandingPageID"):
-                # Continue the LP-00N sequence the catalogue already uses.
-                item["LandingPageID"] = next_sequence_id(
-                    scan_all("landing-pages"), "LandingPageID", "LP"
-                )
             item.setdefault(
                 "CreatedDate", datetime.now(UTC).strftime("%d/%m/%Y %I:%M %p")
             )
             item.setdefault("LandingPageDescription", "")
             item.setdefault("LandingPageContent", "")
-            table("landing-pages").put_item(Item=item)
-            return respond(201, {"data": item})
+            chosen_id = bool(item.get("LandingPageID"))
+            # Continue the LP-00N sequence the catalogue already uses. The
+            # write is conditional so two people creating at once never
+            # overwrite each other's page; a lost race takes the next number.
+            for _attempt in range(5):
+                if not chosen_id:
+                    item["LandingPageID"] = next_sequence_id(
+                        scan_all("landing-pages"), "LandingPageID", "LP"
+                    )
+                try:
+                    table("landing-pages").put_item(
+                        Item=item,
+                        ConditionExpression="attribute_not_exists(LandingPageID)",
+                    )
+                    return respond(201, {"data": item})
+                except ClientError as e:
+                    if not conditional_failed(e):
+                        raise
+                    if chosen_id:
+                        return err(409, "A landing page with that id already exists")
+            return err(409, "Could not assign a landing page id; please try again")
 
         if route == "PUT /landing-pages/{id}":
             body = parse_body(event)
@@ -2828,6 +2867,9 @@ def handle(event, context):
             if not existing:
                 return err(404, "Landing page not found")
             merged = {**existing, **body, "LandingPageID": params["id"]}
+            oversize = landing_too_large(merged.get("LandingPageContent"))
+            if oversize:
+                return landing_size_error(oversize)
             table("landing-pages").put_item(Item=merged)
             return ok(merged)
 

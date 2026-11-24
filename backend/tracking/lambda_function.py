@@ -1,3 +1,4 @@
+import html
 import json
 import os
 import uuid
@@ -376,7 +377,35 @@ def build_success_page(campaign_id):
     )
 
 
-def landing_html(campaign_id):
+# The landing page editor's dynamic fields, both spellings it has used
+# ("@UserName" chips and "{{userName}}" codes). Fields the click cannot know
+# are blanked so no raw placeholder ever reaches the page.
+LANDING_PLACEHOLDERS = (
+    (("@UserEmailID", "{{email}}", "{{userEmail}}"), "recipientEmail"),
+    (("@UserDepartment", "{{department}}"), "department"),
+    (("@UserCountry", "{{country}}"), "country"),
+    (("@UserName", "@userName", "{{userName}}", "{{USER_NAME}}", "{{UserName}}"), "recipientName"),
+    (("@ManagerName", "{{managerName}}"), None),
+    (("@EmployeeID", "{{employeeId}}"), None),
+)
+LANDING_DATE_PLACEHOLDERS = ("@CurrentDate", "{{currentDate}}")
+
+
+def personalize_landing(content, recipient):
+    """Fill the landing page's dynamic fields from the clicked recipient,
+    HTML-escaped so a name can never become markup."""
+    recipient = recipient or {}
+    for placeholders, field in LANDING_PLACEHOLDERS:
+        value = html.escape(str(recipient.get(field) or "")) if field else ""
+        for placeholder in placeholders:
+            content = content.replace(placeholder, value)
+    today = datetime.now(UTC).strftime("%d %b %Y")
+    for placeholder in LANDING_DATE_PLACEHOLDERS:
+        content = content.replace(placeholder, today)
+    return content
+
+
+def landing_html(campaign_id, recipient=None):
     """
     The landing page chosen for the campaign: its own edited copy
     (landingPageContent) when it has one, else the catalogue page it names
@@ -402,8 +431,13 @@ def landing_html(campaign_id):
     if not (isinstance(content, str) and content.strip()):
         return None
     if len(content.encode("utf-8")) > MAX_LANDING_BYTES:
+        print(json.dumps({
+            "message": "Landing page too large; showing the standard page",
+            "campaignId": campaign_id,
+            "bytes": len(content.encode("utf-8")),
+        }))
         return None
-    return build_landing_page(content)
+    return build_landing_page(personalize_landing(content, recipient))
 
 
 def build_landing_page(content):
@@ -573,7 +607,7 @@ def lambda_handler(event, context):
         # who click, or the standard awareness page.
         return html_response(
             200,
-            landing_html(campaign_id) or build_success_page(campaign_id)
+            landing_html(campaign_id, recipient) or build_success_page(campaign_id)
         )
 
     except ClientError as error:
