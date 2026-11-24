@@ -297,40 +297,28 @@ const DraggableIdBadge = ({
           </button>
 
           {/* Metrics Row: Campaigns Involved & Certificates Earned */}
-          <div className="w-full grid grid-cols-2 gap-2 mt-2 z-10 text-center">
-            {/* 1. Campaigns Involved */}
-            <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5">
-              <div className="flex items-center justify-center gap-1">
+          <div className="w-full grid grid-cols-2 gap-2 mt-2 z-10">
+            {/* Like the campaign cards: the label top left, the number
+                centred below it, the icon in the bottom-right corner */}
+            {[
+              { label: "Campaigns Involved", value: "07", Icon: Sparkles, tone: "text-amber-500" },
+              { label: "Certificates Earned", value: "04", Icon: Award, tone: "text-purple-400" },
+            ].map(({ label, value, Icon, tone }) => (
+              <div
+                key={label}
+                className="relative overflow-hidden flex flex-col gap-1 px-2 pt-1.5 pb-2 rounded-xl text-left bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5"
+              >
                 <span
-                  className={`text-[8.5px] font-bold uppercase tracking-tight leading-tight text-center ${isDark ? "text-slate-400" : "text-slate-600"}`}
+                  className={`relative z-10 text-[8.5px] font-bold uppercase tracking-tight leading-tight pr-4 ${isDark ? "text-slate-400" : "text-slate-600"}`}
                 >
-                  Campaigns
-                  <br />
-                  Involved
+                  {label}
                 </span>
-                <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" />
-              </div>
-              <span className="text-[15px] font-semibold font-voda mt-0.5 text-inherit leading-none">
-                07
-              </span>
-            </div>
-
-            {/* 2. Certificates Earned */}
-            <div className="flex flex-col items-center justify-center p-1.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5">
-              <div className="flex items-center justify-center gap-1">
-                <span
-                  className={`text-[8.5px] font-bold uppercase tracking-tight leading-tight text-center ${isDark ? "text-slate-400" : "text-slate-600"}`}
-                >
-                  Certificates
-                  <br />
-                  Earned
+                <span className="relative z-10 text-center text-[15px] font-semibold font-voda leading-none text-inherit">
+                  {value}
                 </span>
-                <Award className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                <Icon aria-hidden="true" className={`absolute bottom-1 right-1 w-3.5 h-3.5 ${tone}`} />
               </div>
-              <span className="text-[15px] font-semibold font-voda mt-0.5 text-inherit leading-none">
-                04
-              </span>
-            </div>
+            ))}
           </div>
 
           {/* Outlined LEADERBOARD Button */}
