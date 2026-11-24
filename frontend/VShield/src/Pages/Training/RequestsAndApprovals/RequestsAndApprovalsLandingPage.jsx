@@ -142,7 +142,7 @@ const RequestsAndApprovals = ({
   const navTabs = [
     {
       id: 'queue',
-      title: isCampaignCreator ? 'My Requests' : 'My Approvals',
+      title: 'My Training',
       subtitle: isCampaignCreator
         ? 'Learning paths submitted and awaiting manager review'
         : "Learning paths submitted that haven't been reviewed yet",
@@ -151,14 +151,14 @@ const RequestsAndApprovals = ({
     },
     {
       id: 'rejected',
-      title: 'Rejected Paths',
+      title: 'Rejected Training',
       subtitle: 'Learning paths that were reviewed and rejected after review',
       activeTitleColor: 'text-[#F43F5E]',
       img: RejectedImg
     },
     {
       id: 'approved',
-      title: 'My Approved Paths',
+      title: 'My Approved Training',
       subtitle: isCampaignCreator
         ? 'Learning paths you created that have been approved and published'
         : 'Learning paths you reviewed, approved, and cleared for launch',
@@ -211,18 +211,18 @@ const RequestsAndApprovals = ({
   return (
     <>
       {/*  ROOT CONTAINER */}
-      <div 
+      <div
         className="requests-and-approvals-wrapper w-full select-none font-sans flex flex-col gap-3.5 text-left"
       >
         {/* ── 2-COLUMN MAIN WORKSPACE ── */}
-        <div 
+        <div
           style={{ gap: `${VarSectionGap}px` }}
           className="w-full flex flex-col lg:flex-row items-start"
         >
           {/* ========================================================================= */}
           {/* LEFT COLUMN: 4 SWITCHER CAPSULES            */}
           {/* ========================================================================= */}
-          <div 
+          <div
             style={{ width: VarLeftSectionWidth, flex: `0 0 ${VarLeftSectionWidth}` }}
             className="flex flex-col gap-2.5 min-w-[270px]"
           >
@@ -253,9 +253,9 @@ const RequestsAndApprovals = ({
                   </p>
 
                   <div className="absolute -bottom-2 -right-2 w-14 h-14 pointer-events-none select-none z-0">
-                    <img 
-                      src={tab.img} 
-                      alt={tab.title} 
+                    <img
+                      src={tab.img}
+                      alt={tab.title}
                       className="w-full h-full object-contain"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
@@ -281,17 +281,17 @@ const RequestsAndApprovals = ({
                 <span className="text-white dark:text-black">Creators</span>
                 <span className="text-white dark:text-black">Approvers</span>
               </div>
-              <div 
+              <div
                 style={{ transform: `scale(${VarAppToCreRatioVisualBarScale})` }}
                 className="w-full h-7 mb-2 rounded-full p-[1px] bg-white dark:bg-black/15 flex items-center overflow-hidden border border-white/40 dark:border-black/30 shadow-2xs"
               >
-                <div 
+                <div
                   style={{ width: `${creatorsPct}%` }}
                   className="h-full rounded-l-full bg-[#93A5EC] border-r-2 border-white flex items-center justify-center text-white text-[11px] font-black font-voda tracking-wide transition-all"
                 >
                   {creatorsCount}
                 </div>
-                <div 
+                <div
                   style={{ width: `${approversPct}%` }}
                   className="h-full rounded-r-full bg-[#A7DB98] flex items-center justify-center text-white text-[11px] font-black font-voda tracking-wide transition-all"
                 >
@@ -305,7 +305,7 @@ const RequestsAndApprovals = ({
           {/* ========================================================================= */}
           {/* RIGHT COLUMN: GALLERY VIEW                                     */}
           {/* ========================================================================= */}
-          <div 
+          <div
             style={{ width: VarRightSectionWidth, flex: `0 0 ${VarRightSectionWidth}` }}
             className="flex flex-col min-w-0 h-full"
           >
