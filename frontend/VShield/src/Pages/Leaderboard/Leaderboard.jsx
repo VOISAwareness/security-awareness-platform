@@ -1100,14 +1100,6 @@ const Leaderboard = () => {
                 </AnimatePresence>
               </div>
 
-              {/* column header */}
-              <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: `8px ${SIDE + 1 + ROW_PAD}px 8px`, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 800 }}>
-                <div>Rank</div>
-                <div style={{ textAlign: 'center' }}>{podium.id === 'depts' ? '' : 'Level'}</div>
-                <div>{podium.id === 'depts' ? 'Department' : 'Person'}</div>
-                <div style={{ textAlign: 'right' }}>{podium.id === 'depts' ? 'Avg. points' : 'Points'}</div>
-              </div>
-
               {/* ranked list — one page at a time, sized to fit */}
               {/* Narrower windows: a fixed page of 8 rows, as the page itself scrolls */}
               <div ref={listRef} style={{ flex: isWide ? 1 : 'none', height: isWide ? undefined : 8 * ROW_H + 7 * ROW_GAP, minHeight: 0, overflow: 'hidden', margin: `0 ${SIDE}px` }}>
