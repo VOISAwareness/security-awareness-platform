@@ -54,6 +54,9 @@ export const HubClayCard = ({
         }
       }}
       style={{
+        // one inset for every edge (capsule, heading, description, bottom
+        // row), so their left and right edges and tops line up
+        "--hub-pad": "clamp(12px, 2.4cqw, 20px)",
         height: '100%', // grows with its grid row; never shorter than designed
         minHeight: `${VarTopCardHeight}px`,
         transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
@@ -73,14 +76,14 @@ export const HubClayCard = ({
           height: capH,
           borderRadius: `${capsuleRadius}px`
         }}
-        className={`absolute top-0 left-0 p-3 ${squareBgClass} text-slate-950 flex flex-col shadow-2xs z-20 overflow-hidden`}
+        className={`absolute top-0 left-0 p-[var(--hub-pad)] ${squareBgClass} text-slate-950 flex flex-col shadow-2xs z-20 overflow-hidden`}
       >
         {/* Title at top, description pinned at bottom via justify-between h-full */}
         <div className="z-10 leading-tight flex flex-col justify-between h-full">
-          <h3 className="text-[clamp(14px,2.6cqw,19px)] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-tight">
+          <h3 className="text-[clamp(14px,2.6cqw,20px)] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-[1.2]">
             {squareTitle}
           </h3>
-          <p className="text-[clamp(8.5px,1.45cqw,11px)] font-medium text-slate-700 dark:text-slate-300 leading-tight max-w-[60%]">
+          <p className="text-[clamp(8.5px,1.45cqw,11px)] font-medium text-slate-700 dark:text-slate-300 leading-tight max-w-[60%] line-clamp-3">
             {squareSubtitle}
           </p>
         </div>
@@ -124,9 +127,9 @@ export const HubClayCard = ({
           borderTopLeftRadius: `${containerRadius}px`,
           borderTopRightRadius: `${containerRadius}px`
         }}
-        className="absolute top-0 right-0 px-5 py-3 flex flex-col justify-center z-10 transition-colors"
+        className="absolute top-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-2 flex flex-col justify-start z-10 transition-colors"
       >
-        <h2 className="text-[clamp(14px,2.7cqw,21px)] font-voda font-bold text-slate-900 dark:text-white leading-snug line-clamp-3">
+        <h2 className="text-[clamp(14px,2.6cqw,20px)] font-voda font-bold tracking-tight text-slate-900 dark:text-white leading-[1.2] line-clamp-3">
           {title}
         </h2>
       </div>
@@ -141,10 +144,10 @@ export const HubClayCard = ({
           borderBottomRightRadius: `${containerRadius}px`,
           borderTopLeftRadius: `${containerRadius}px`
         }}
-        className="absolute left-0 right-0 px-5 pt-4 pb-3 flex flex-col justify-between gap-3 z-10 transition-colors"
+        className="absolute left-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-[var(--hub-pad)] flex flex-col justify-between gap-3 z-10 transition-colors"
       >
         {/* what the section is for, in the space under the capsule */}
-        <p className="min-h-0 overflow-hidden text-[clamp(10px,1.75cqw,13.5px)] text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-[80ch] line-clamp-3 2xl:line-clamp-5">
+        <p className="min-h-0 overflow-hidden text-[clamp(10px,1.75cqw,13.5px)] text-slate-600 dark:text-slate-300 font-medium leading-relaxed line-clamp-3 2xl:line-clamp-5">
           {description}
         </p>
         {/* Bottom Row: Icons + Label (Left) and ONE "Go here" Button (Right) */}
