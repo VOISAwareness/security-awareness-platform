@@ -83,10 +83,12 @@ const DraftDialog = ({
             <X className="w-4 h-4" strokeWidth={2.5} />
           </button>
         )}
-        <div className={danger ? 'flex items-start gap-3' : ''}>
+        {/* danger is centred: icon, title and text on one axis, the detail
+            and two equal buttons full width beneath, edge to edge */}
+        <div className={danger ? 'flex flex-col items-center text-center' : ''}>
           {danger && (
-            <span className="mt-0.5 w-10 h-10 rounded-xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
-              <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.2} />
+            <span className="mb-3 w-12 h-12 rounded-2xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-5 h-5" strokeWidth={2.2} />
             </span>
           )}
           <div className="min-w-0">
@@ -94,7 +96,7 @@ const DraftDialog = ({
               {title}
             </h2>
             {body && (
-              <p className={`mt-1.5 text-[12px] font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p className={`mt-1.5 text-[12px] font-medium leading-relaxed ${danger ? '[text-wrap:balance]' : ''} ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                 {body}
               </p>
             )}
@@ -111,7 +113,7 @@ const DraftDialog = ({
             {detail}
           </div>
         )}
-        <div className="mt-5 flex items-center justify-end gap-2">
+        <div className={`mt-5 gap-2 ${danger ? 'grid grid-cols-2' : 'flex items-center justify-end'}`}>
           <button
             type="button"
             onClick={onSecondary}
@@ -125,7 +127,7 @@ const DraftDialog = ({
             ref={primaryRef}
             type="button"
             onClick={onPrimary}
-            className={`h-9 px-4 rounded-lg text-[12px] font-bold cursor-pointer text-white inline-flex items-center gap-1.5 ${
+            className={`h-9 px-4 rounded-lg text-[12px] font-bold cursor-pointer text-white inline-flex items-center justify-center gap-1.5 ${
               warn ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#E60000] hover:bg-[#cc0000]'
             }`}
           >
