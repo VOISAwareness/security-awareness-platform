@@ -66,7 +66,7 @@ const DraftDialog = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="draft-dialog-title"
-        className={`relative w-full max-w-[440px] rounded-2xl border p-6 shadow-2xl font-sans ${
+        className={`relative w-full ${danger ? 'max-w-[380px] p-5' : 'max-w-[440px] p-6'} rounded-2xl border shadow-2xl font-sans ${
           isDark ? 'bg-[#1C1E24] border-white/10 text-white' : 'bg-white border-black/10 text-slate-900'
         }`}
       >
@@ -83,20 +83,20 @@ const DraftDialog = ({
             <X className="w-4 h-4" strokeWidth={2.5} />
           </button>
         )}
-        {/* danger is centred: icon, title and text on one axis, the detail
-            and two equal buttons full width beneath, edge to edge */}
-        <div className={danger ? 'flex flex-col items-center text-center' : ''}>
+        {/* danger is compact: the icon, then the title and text beside it;
+            the detail and two equal buttons beneath share the same edges */}
+        <div className={danger ? 'flex items-center gap-3' : ''}>
           {danger && (
-            <span className="mb-3 w-12 h-12 rounded-2xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
-              <Trash2 className="w-5 h-5" strokeWidth={2.2} />
+            <span className="w-10 h-10 rounded-xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.2} />
             </span>
           )}
           <div className="min-w-0">
-            <h2 id="draft-dialog-title" className={`text-[16px] font-extrabold tracking-tight ${onClose ? 'pr-8' : ''}`}>
+            <h2 id="draft-dialog-title" className={`${danger ? 'text-[14.5px]' : 'text-[16px]'} font-extrabold tracking-tight ${onClose ? 'pr-8' : ''}`}>
               {title}
             </h2>
             {body && (
-              <p className={`mt-1.5 text-[12px] font-medium leading-relaxed ${danger ? '[text-wrap:balance]' : ''} ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p className={`${danger ? 'mt-0.5 text-[11px] leading-snug' : 'mt-1.5 text-[12px] leading-relaxed'} font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                 {body}
               </p>
             )}
@@ -104,7 +104,7 @@ const DraftDialog = ({
         </div>
         {detail && (
           <div
-            className={`mt-4 rounded-xl px-3 py-2.5 text-[12px] font-bold ${
+            className={`${danger ? 'mt-3.5' : 'mt-4'} rounded-xl px-3 py-2.5 text-[12px] font-bold ${
               warn
                 ? (isDark ? 'bg-amber-500/10 text-amber-200' : 'bg-amber-50 text-amber-800')
                 : (isDark ? 'bg-white/5 text-slate-100' : 'bg-slate-50 text-slate-800')
@@ -113,7 +113,7 @@ const DraftDialog = ({
             {detail}
           </div>
         )}
-        <div className={`mt-5 gap-2 ${danger ? 'grid grid-cols-2' : 'flex items-center justify-end'}`}>
+        <div className={`gap-2 ${danger ? 'mt-4 grid grid-cols-2' : 'mt-5 flex items-center justify-end'}`}>
           <button
             type="button"
             onClick={onSecondary}
