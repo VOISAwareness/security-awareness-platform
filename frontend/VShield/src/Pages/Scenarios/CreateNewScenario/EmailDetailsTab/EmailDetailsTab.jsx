@@ -4,6 +4,8 @@ import { ChevronDown } from "lucide-react";
 
 import EmailBodyRichTextEditor from "./EmailBodyRichTextEditor";
 import scenariosJsonData from "../../ScenariosData.json";
+import { api } from "../../../../services/api";
+import { noVerifiedSender, senderChoices } from "../../../../services/campaignSenders";
 
 const FX_PARAMETERS = [
   {
@@ -92,13 +94,31 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
     (scenario) => scenario.scenarioId === formData?.scenarioId,
   );
 
-  const availableSenderEmails = Array.from(
-    new Set(
-      (scenariosJsonData?.scenarios || [])
-        .map((scenario) => scenario.senderEmailId)
-        .filter(Boolean),
-    ),
-  );
+  // Sender Email ID choices: the whitelisted addresses on Email IDs & Domains
+  // (GET /sender-identities), as in the campaign wizard: verified ones can be
+  // chosen, the rest are listed greyed with their state, and a sender the
+  // scenario already has stays even if it is no longer on the list. If the API
+  // cannot be reached, the bundled scenarios' senders stand in.
+  const [senderRows, setSenderRows] = useState(null);
+  useEffect(() => {
+    let active = true;
+    api.senderIdentities
+      .list()
+      .then((rows) => {
+        if (active) setSenderRows(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        const bundled = Array.from(
+          new Set((scenariosJsonData?.scenarios || []).map((scenario) => scenario.senderEmailId).filter(Boolean)),
+        );
+        setSenderRows(bundled.map((email) => ({ email })));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const senderOptions = senderChoices(senderRows || [], formData?.emailId);
 
   const emailSubject = formData?.emailSubject ?? "";
 
@@ -372,10 +392,22 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                   >
                     <option value="">Select Email</option>
 
-                    {availableSenderEmails.map((email) => (
+                    {senderRows === null && (
+                      <option value="__loading" disabled>
+                        Loading Email IDs…
+                      </option>
+                    )}
+                    {senderRows !== null && noVerifiedSender(senderOptions) && (
+                      <option value="__none" disabled>
+                        No verified Email IDs yet: add one on Email IDs &amp; Domains
+                      </option>
+                    )}
+                    {senderOptions.map((choice) => (
                       <option
-                        key={email}
-                        value={email || ""}
+                        key={choice.email}
+                        value={choice.email}
+                        disabled={!choice.selectable}
+                        data-sender-choice={choice.selectable ? "verified" : "unverified"}
                         className="
                             bg-white
                             text-slate-900
@@ -383,7 +415,7 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                             dark:text-white
                           "
                       >
-                        {email}
+                        {choice.label}
                       </option>
                     ))}
                   </select>
