@@ -67,7 +67,7 @@ const TONES = {
 export const BELL_STYLE = 'count';
 
 export default function NotificationBell() {
-  const { user, isDark } = useUserType();
+  const { user } = useUserType();
   const actor = useMemo(() => (user ? actorFor(user) : ''), [user]);
   const role = user?.role || '';
   const navigate = useNavigate();
