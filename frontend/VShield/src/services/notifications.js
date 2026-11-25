@@ -47,9 +47,6 @@ export const TYPES = {
   'announcement.rejected': { category: 'general', tone: 'rose', icon: 'CircleX' },
   'achievement.badge': { category: 'achievements', tone: 'amber', icon: 'Medal' },
   'achievement.level_up': { category: 'achievements', tone: 'mint', icon: 'TrendingUp' },
-  'setup.sender_verified': { category: 'general', tone: 'teal', icon: 'MailCheck' },
-  'setup.list_ready': { category: 'general', tone: 'teal', icon: 'Users' },
-  'setup.list_failed': { category: 'general', tone: 'rose', icon: 'TriangleAlert' },
 };
 const FALLBACK = { category: 'general', tone: 'slate', icon: 'Bell' };
 

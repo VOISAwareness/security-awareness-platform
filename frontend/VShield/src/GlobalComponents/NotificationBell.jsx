@@ -23,7 +23,6 @@ import {
   Send,
   TrendingUp,
   TriangleAlert,
-  Users,
 } from 'lucide-react';
 
 import { useUserType } from '../UserTypeContext/UserTypeContext';
@@ -47,7 +46,7 @@ const POLL_MS = 60 * 1000;
 const ICONS = {
   Award, Ban, Bell, CalendarClock, CircleAlert, CircleCheck, CirclePause, CirclePlay, CircleX,
   ClipboardCheck, Clock, GraduationCap, Hourglass, MailCheck, Medal, Megaphone, PencilLine, Send,
-  TrendingUp, TriangleAlert, Users,
+  TrendingUp, TriangleAlert,
 };
 
 // the app's pastel capsule colours, with a matching ink
