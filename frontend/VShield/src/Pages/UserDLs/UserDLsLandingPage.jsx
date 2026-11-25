@@ -15,6 +15,8 @@ import { usePeople } from "../../services/people";
 import { api } from "../../services/api";
 import { listUsageCounts, timesUsed } from "../../services/listUsage";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import DraftDialog from "../../GlobalComponents/DraftDialog";
+import { Toast } from "../../GlobalComponents/Toast";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
 import ViewTabs from "../../GlobalComponents/ViewTabs";
 import { formatDateTime } from '../../shared/dateTime';
@@ -201,13 +203,23 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
   const [typeFilter, setTypeFilter] = useState("ALL"); // 'ALL' | 'Bulk Upload' | 'Distribution List'
   const [selectedListForModal, setSelectedListForModal] = useState(null);
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Are you sure you want to delete this User List?"))
-      return;
+  // Delete asks first in the app's own dialog (not the browser's confirm box,
+  // which opens at the top of the window), then says how it went in a toast.
+  const [deleting, setDeleting] = useState(null); // { id, name, people, used }
+  const [toast, setToast] = useState(null);
+  const confirmDelete = () => {
+    const { id, name } = deleting;
+    setDeleting(null);
     api.userLists
       .remove(id)
-      .then(() => setUserLists((prev) => prev.filter((item) => item.id !== id)))
-      .catch((err) => console.error("Failed to delete user list", err));
+      .then(() => {
+        setUserLists((prev) => prev.filter((item) => (item.UserListsID || item.id) !== id));
+        setToast({ type: "success", title: "List deleted", message: `"${name}" was deleted.` });
+      })
+      .catch((err) => {
+        console.error("Failed to delete user list", err);
+        setToast({ type: "error", title: "Couldn't delete the list", message: err?.message || "Please try again." });
+      });
   };
 
   // Members of the list open in the pop-up, from the backend
@@ -752,7 +764,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                             {/* Delete */}
                             <button
                               type="button"
-                              onClick={() => handleDelete(listId)}
+                              onClick={() => setDeleting({ id: listId, name: listName || listId, people: userCount, used: usedTimes })}
                               className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
                               title="Delete List"
                             >
@@ -938,6 +950,23 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
             </div>
           </div>
         </div>
+      )}
+
+      <DraftDialog
+        open={Boolean(deleting)}
+        isDark={isDark}
+        tone="warning"
+        title="Delete this recipient list?"
+        body={deleting ? `"${deleting.name}" and its ${deleting.people} ${deleting.people === 1 ? "person" : "people"} will be removed from your recipient lists. This can't be undone.` : ""}
+        detail={deleting?.used ? `It has been used in ${deleting.used} ${deleting.used === 1 ? "campaign" : "campaigns"}.` : undefined}
+        primaryLabel="Delete"
+        onPrimary={confirmDelete}
+        secondaryLabel="Cancel"
+        onSecondary={() => setDeleting(null)}
+      />
+
+      {toast && (
+        <Toast message={toast.message} type={toast.type} title={toast.title} duration={3500} onClose={() => setToast(null)} />
       )}
     </>
   );
