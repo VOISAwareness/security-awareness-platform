@@ -102,16 +102,16 @@ export const TrainingLandingPage = () => {
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
                 <div className="flex items-center gap-1.5">
-                  <img src={approvalQueueImg} alt="Approval Queue" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
-                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Approval Queue</span>
+                  <img src={approvalQueueImg} alt="Approval Queue" className="w-[clamp(20px,3cqw,24px)] h-[clamp(20px,3cqw,24px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.4cqw,10.5px)] font-bold text-slate-700 dark:text-slate-300">Approval Queue</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <img src={myApprovedCampaignsImg} alt="Approved" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
-                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Approved</span>
+                  <img src={myApprovedCampaignsImg} alt="Approved" className="w-[clamp(20px,3cqw,24px)] h-[clamp(20px,3cqw,24px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.4cqw,10.5px)] font-bold text-slate-700 dark:text-slate-300">Approved</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <img src={rejectedCampaignsImg} alt="Rejected" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
-                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Rejected</span>
+                  <img src={rejectedCampaignsImg} alt="Rejected" className="w-[clamp(20px,3cqw,24px)] h-[clamp(20px,3cqw,24px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.4cqw,10.5px)] font-bold text-slate-700 dark:text-slate-300">Rejected</span>
                 </div>
               </div>
             </div>

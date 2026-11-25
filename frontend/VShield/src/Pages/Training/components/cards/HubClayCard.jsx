@@ -80,10 +80,10 @@ export const HubClayCard = ({
       >
         {/* Title at top, description pinned at bottom via justify-between h-full */}
         <div className="z-10 leading-tight flex flex-col justify-between h-full">
-          <h3 className="text-[clamp(14px,2.6cqw,20px)] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-[1.2]">
+          <h3 className="text-[clamp(14px,2.2cqw,15px)] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-[1.2]">
             {squareTitle}
           </h3>
-          <p className="text-[clamp(8.5px,1.45cqw,11px)] font-medium text-slate-700 dark:text-slate-300 leading-snug max-w-[57%] [text-wrap:balance] line-clamp-3">
+          <p className="text-[clamp(8.5px,1.3cqw,10px)] font-medium text-slate-700 dark:text-slate-300 leading-snug max-w-[57%] [text-wrap:balance] line-clamp-3">
             {squareSubtitle}
           </p>
         </div>
@@ -129,7 +129,7 @@ export const HubClayCard = ({
         }}
         className="absolute top-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-2 flex flex-col justify-start z-10 transition-colors"
       >
-        <h2 className="text-[clamp(14px,2.6cqw,20px)] font-voda font-bold tracking-tight text-slate-900 dark:text-white leading-[1.2] line-clamp-3">
+        <h2 className="text-[clamp(14px,2.2cqw,15px)] font-voda font-bold tracking-tight text-slate-900 dark:text-white leading-[1.2] line-clamp-3">
           {title}
         </h2>
       </div>
@@ -147,7 +147,7 @@ export const HubClayCard = ({
         className="absolute left-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-[var(--hub-pad)] flex flex-col justify-between gap-3 z-10 transition-colors"
       >
         {/* what the section is for, in the space under the capsule */}
-        <p className="min-h-0 overflow-hidden text-[clamp(10px,1.75cqw,13.5px)] text-slate-600 dark:text-slate-300 font-medium leading-relaxed line-clamp-3 2xl:line-clamp-5">
+        <p className="min-h-0 overflow-hidden text-[clamp(9.5px,1.5cqw,11.5px)] text-slate-600 dark:text-slate-300 font-medium leading-relaxed line-clamp-3 2xl:line-clamp-5">
           {description}
         </p>
         {/* Bottom Row: Icons + Label (Left) and ONE "Go here" Button (Right) */}
@@ -163,7 +163,7 @@ export const HubClayCard = ({
                       key={index}
                       src={src}
                       alt="Badge icon"
-                      className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain"
+                      className="w-[clamp(20px,3cqw,24px)] h-[clamp(20px,3cqw,24px)] object-contain"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
@@ -172,7 +172,7 @@ export const HubClayCard = ({
                 </div>
               )}
               {badgeText && (
-                <span className="min-w-0 text-[clamp(9.5px,1.55cqw,12px)] font-bold leading-snug text-slate-700 dark:text-slate-300">
+                <span className="min-w-0 text-[clamp(9.5px,1.4cqw,10.5px)] font-bold leading-snug text-slate-700 dark:text-slate-300">
                   {badgeText}
                 </span>
               )}
@@ -190,7 +190,7 @@ export const HubClayCard = ({
                 onClick();
               }
             }}
-            className="flex-shrink-0 h-[clamp(20px,3.8cqw,30px)] px-[clamp(16px,3cqw,24px)] rounded-full bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[clamp(10.5px,1.7cqw,13px)] font-voda font-bold tracking-tight flex items-center justify-center cursor-pointer shadow-xs transition-all pointer-events-none"
+            className="flex-shrink-0 h-[clamp(20px,3.2cqw,26px)] px-[clamp(16px,2.6cqw,20px)] rounded-full bg-[#181A20] dark:bg-white group-hover:bg-black dark:group-hover:bg-slate-100 text-white dark:text-black text-[clamp(10.5px,1.5cqw,11.5px)] font-voda font-bold tracking-tight flex items-center justify-center cursor-pointer shadow-xs transition-all pointer-events-none"
           >
             {buttonText}
           </button>
