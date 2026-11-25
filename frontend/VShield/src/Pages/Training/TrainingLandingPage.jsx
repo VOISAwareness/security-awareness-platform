@@ -35,7 +35,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#E5E6FF] dark:bg-[#1E1F45]"
           squareTitle={<>Training<br />Path</>}
-          squareSubtitle="All about Training Paths required to run any campaign"
+          squareSubtitle="Training Paths needed to run campaigns"
           squareImage={tiltedPathIcon}
           title="Create New / Track Created Training Paths"
           description="Here you can Create new Training Path using stored individual elements as complete end to end path which will be available to attach as training path for any new campaign. You can also Check, Track, Edit or Delete those Created Training Paths."
@@ -58,7 +58,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#FFE5EC] dark:bg-[#451E28]"
           squareTitle={<>Storage<br />Room</>}
-          squareSubtitle="It's the storage space for your all training elements"
+          squareSubtitle="Storage space for all training elements"
           squareImage={tiltedStorageIcon}
           title="Add New / Track Individual Training Materials"
           description="Here you can 'Add New and Track' Individual Training Video, Quiz, Certificate and Packages and use these space as storage room. Storing elements individually helps in structuring pathways."
@@ -76,7 +76,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#E5F7EB] dark:bg-[#1E4528]"
           squareTitle={<>Reports &<br />Dashboard</>}
-          squareSubtitle="Training progress and tracking updates"
+          squareSubtitle="Progress and tracking of all training"
           squareImage={tiltedReportIcon}
           title="View Reports of Overall / By Campaign Training Progress"
           description="Here you can view detailed training progress reports for all users, with both overall and campaign-wise tracking capabilities. Monitor completion status, certifications achieve and pending activities."
@@ -94,7 +94,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#E5F5F7] dark:bg-[#1E3F45]"
           squareTitle={<>Requests &<br />Approvals</>}
-          squareSubtitle="Approvals and requests for new Training Paths"
+          squareSubtitle="Approvals and requests for new paths"
           squareImage={tiltedApprovalIcon}
           title="Content Creators can Request & Content Managers can Approve those Requests."
           description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."

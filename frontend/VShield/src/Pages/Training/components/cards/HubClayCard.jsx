@@ -83,7 +83,7 @@ export const HubClayCard = ({
           <h3 className="text-[clamp(14px,2.6cqw,20px)] font-voda font-bold tracking-tight text-slate-950 dark:text-white leading-[1.2]">
             {squareTitle}
           </h3>
-          <p className="text-[clamp(8.5px,1.45cqw,11px)] font-medium text-slate-700 dark:text-slate-300 leading-tight max-w-[60%] line-clamp-3">
+          <p className="text-[clamp(8.5px,1.45cqw,11px)] font-medium text-slate-700 dark:text-slate-300 leading-snug max-w-[57%] [text-wrap:balance] line-clamp-3">
             {squareSubtitle}
           </p>
         </div>
