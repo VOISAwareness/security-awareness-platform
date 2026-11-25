@@ -68,6 +68,7 @@ def env(mod, monkeypatch):
         t.campaigns.put_item(Item={"campaignId": "CMP-1", "campaignTitle": "Payroll update"})
         monkeypatch.setattr(mod, "dynamodb", db)
         monkeypatch.setattr(mod, "_people_cache", {"at": 0.0, "people": None})
+        monkeypatch.setattr(mod, "_users_cache", {"at": 0.0, "rows": None})
         yield t
 
 
