@@ -3099,9 +3099,18 @@ const EmailBodyRichTextEditor = ({
   const renderToolbar = () => (
     <div className="relative z-30 flex w-full min-h-[34px] flex-shrink-0 flex-wrap items-start gap-x-1 gap-y-1 rounded-t-2xl border-b border-white/10 dark:border-black/10 bg-[#202127] dark:bg-white px-1.5 py-1 text-white select-none">
       {/* Each row of tools is one button high (h-6); the page controls on
-          the right sit on the first row, level with the tools beside them. */}
+          the right sit on the first row, level with the tools beside them.
+          In HTML view the formatting tools do nothing, so they are hidden
+          and only a label is shown in their place. */}
       <div className="flex min-w-0 flex-1 flex-wrap content-start items-center gap-[3px]">
-        {renderSharedTools()}
+        {rawHtmlMode ? (
+          <span className="flex h-6 items-center gap-1 px-1 text-[8.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <Code className="h-3 w-3" />
+            Editing HTML source
+          </span>
+        ) : (
+          renderSharedTools()
+        )}
       </div>
 
       <div className="ml-auto flex h-6 flex-shrink-0 items-center gap-[3px] self-start">
