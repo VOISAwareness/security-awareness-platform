@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
+import Toast from "../../../../GlobalComponents/Toast";
 import {
   Check,
   Calendar,
@@ -326,9 +327,12 @@ const AnnouncementsReviewPublish = () => {
     <>
       <style dangerouslySetInnerHTML={{ __html: VODAFONE_FONT_STYLE }} />
       {publishError && (
-        <div role="alert" className="fixed top-4 right-4 z-[300] px-4 py-2 rounded-lg bg-[#B91C1C] text-white text-xs font-bold shadow-lg">
-          {publishError}
-        </div>
+        <Toast
+          message={publishError}
+          type="error"
+          title="Publish Failed"
+          onClose={() => setPublishError("")}
+        />
       )}
 
       {/* Screen Shell */}

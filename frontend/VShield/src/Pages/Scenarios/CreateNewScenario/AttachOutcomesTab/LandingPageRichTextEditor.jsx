@@ -93,10 +93,6 @@ const LandingPageRichTextEditor = ({
 
   const showToast = useCallback((message, type = "info", title) => {
     setToast({ message, type, title });
-
-    window.setTimeout(() => {
-      setToast(null);
-    }, 2500);
   }, []);
 
   const emitChange = useCallback(
@@ -1317,6 +1313,7 @@ const LandingPageRichTextEditor = ({
           message={toast.message}
           type={toast.type}
           title={toast.title}
+          duration={2500}
           onClose={() => setToast(null)}
         />
       )}

@@ -124,7 +124,6 @@ const UserListViaBulkUpload = () => {
 
   const showToast = (msg, type = "info", title) => {
     setToast({ message: msg, type, title });
-    setTimeout(() => setToast(null), 3000);
   };
 
   // Inline Email Editing State (for existing rows)
@@ -745,7 +744,6 @@ const UserListViaBulkUpload = () => {
     setDeletedSuccessMsg(
       `Recipient ${userName || emailToDelete} removed successfully`,
     );
-    setTimeout(() => setDeletedSuccessMsg(""), 3000);
   };
 
   // Check if at least one staged user entry is invalid (unregistered in directory or invalid email format)
@@ -867,7 +865,7 @@ const UserListViaBulkUpload = () => {
         style={{ zoom: PAGE_SCALE }}
         className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
       >
-        {/* Top Header Bar: Clean Title (No Left Arrow) */}
+        {/* Top Header Bar */}
         <div
           className={`w-full h-[40px] py-2.5 px-6 -mt-2 rounded-2xl border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm ${
             isDark
@@ -881,10 +879,17 @@ const UserListViaBulkUpload = () => {
             </h1>
           </div>
 
-          <div className="text-[12px] font-voda font-bold opacity-85">
-            --{" "}
-            {editId ? "Edit Bulk Upload" : "Bulk Upload via Excel / CSV Roster"}
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/user-dls")}
+            className={`h-6 px-3.5 rounded-lg text-[9px] font-voda font-black uppercase tracking-wider ${
+              isDark
+                ? "bg-black hover:bg-black/85 text-white border border-black/10"
+                : "bg-white hover:bg-gray-200 text-black"
+            } cursor-pointer transition-all scale-100 active:scale-98`}
+          >
+            Back
+          </button>
         </div>
 
         {/* ========================================================================= */}
@@ -1034,16 +1039,8 @@ const UserListViaBulkUpload = () => {
                   />
                 </div>
 
-                {/* Bottom Action Buttons: Go Back (Dark Gray) & Save & Submit (Sage Green) */}
+                {/* Bottom Action Button: Save & Submit (Sage Green) */}
                 <div className="flex items-center justify-end gap-2.5 pt-2 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/user-dls")}
-                    className="h-6 px-6 -mb-1 mt-1 rounded-2xl bg-[#3D3F45] hover:bg-[#2C2E34] text-white text-[10px] font-voda font-bold tracking-tight shadow-xs transition-all cursor-pointer active:scale-95"
-                  >
-                    Go Back
-                  </button>
-
                   <button
                     type="button"
                     onClick={handleSave}
@@ -1597,6 +1594,7 @@ const UserListViaBulkUpload = () => {
             message={toast.message}
             type={toast.type}
             title={toast.title}
+            duration={3000}
             onClose={() => setToast(null)}
           />
         )}
@@ -1606,6 +1604,7 @@ const UserListViaBulkUpload = () => {
             message={deletedSuccessMsg}
             type="success"
             title="Success"
+            duration={3000}
             onClose={() => setDeletedSuccessMsg("")}
           />
         )}

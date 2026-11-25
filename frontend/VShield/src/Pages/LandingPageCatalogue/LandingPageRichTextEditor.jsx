@@ -53,6 +53,7 @@ import {
 import { createPortal } from "react-dom";
 import HtmlCodeEditor from "../../GlobalComponents/HtmlCodeEditor";
 import LandingPageCatalogues from "./LandingPageCatalogues.json";
+import Toast from "../../GlobalComponents/Toast";
 import { APP_URL } from "../../appConfig";
 import {
   MAX_LANDING_BYTES,
@@ -806,7 +807,6 @@ const LandingPageRichTextEditor = ({
   const itemCounterRef = useRef(1);
   const marqueeActiveRef = useRef(false);
   const lastTypingPushRef = useRef(0);
-  const toastTimerRef = useRef(null);
 
   const [rawHtmlMode, setRawHtmlMode] = useState(false);
   const [rawHtmlCode, setRawHtmlCode] = useState(initialContent.html);
@@ -882,14 +882,7 @@ const LandingPageRichTextEditor = ({
 
   const showToast = useCallback((message) => {
     setToastMessage(message);
-    // A newer toast restarts the timer, so an older one can't hide it early.
-    window.clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = window.setTimeout(() => {
-      setToastMessage("");
-    }, 2500);
   }, []);
-
-  useEffect(() => () => window.clearTimeout(toastTimerRef.current), []);
 
   // =========================================================================
   // 🌟 BROWSER SAFE ZONE BOTTOM CHECKER (Scale-Aware — Visual Only)
@@ -4769,9 +4762,13 @@ const LandingPageRichTextEditor = ({
       {renderFullScreenPreviewModal()}
 
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-[2147483647] rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-xl">
-          {String(toastMessage)}
-        </div>
+        <Toast
+          message={String(toastMessage)}
+          type="success"
+          duration={2500}
+          className="z-[2147483647]"
+          onClose={() => setToastMessage("")}
+        />
       )}
     </>
   );

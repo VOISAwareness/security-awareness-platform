@@ -72,14 +72,9 @@ const LandingPageCatalogue = () => {
   const [isLoadingCatalogues, setIsLoadingCatalogues] = useState(true);
 
   const [toast, setToast] = useState(null);
-  const toastTimerRef = useRef(null);
   const showToast = (msg, type = 'info', title) => {
-    setToast({ message: msg, type, title });
-    // A newer toast restarts the timer, so an older one can't hide it early.
-    clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+    setToast({ message: msg, type, title, duration: 3000 });
   };
-  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   useEffect(() => {
     let active = true;
@@ -96,10 +91,9 @@ const LandingPageCatalogue = () => {
         setToast({
           message: 'Could not reach the server. Showing sample landing pages; changes may not save.',
           type: 'warning',
-          title: 'Offline'
+          title: 'Offline',
+          duration: 6000,
         });
-        clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => setToast(null), 6000);
       })
       .finally(() => {
         if (active) setIsLoadingCatalogues(false);
@@ -862,6 +856,7 @@ const LandingPageCatalogue = () => {
             message={toast.message}
             type={toast.type}
             title={toast.title}
+            duration={toast.duration}
             onClose={() => setToast(null)}
           />
         )}

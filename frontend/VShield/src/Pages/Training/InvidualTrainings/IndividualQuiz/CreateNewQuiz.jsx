@@ -142,7 +142,6 @@ export const CreateNewQuiz = ({
       });
     } else {
       setLocalToast({ title, message, isError });
-      setTimeout(() => setLocalToast(null), isError ? 6000 : 4000);
     }
   };
 
@@ -1443,6 +1442,7 @@ export const CreateNewQuiz = ({
       message={localToast.message}
       title={localToast.title}
       type={localToast.isError ? "error" : "success"}
+      duration={localToast.isError ? 6000 : 4000}
       onClose={() => setLocalToast(null)}
     />
   );
