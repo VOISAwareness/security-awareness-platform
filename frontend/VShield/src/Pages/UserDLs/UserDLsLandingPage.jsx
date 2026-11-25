@@ -15,6 +15,8 @@ import { usePeople } from "../../services/people";
 import { api } from "../../services/api";
 import { listUsageCounts, timesUsed } from "../../services/listUsage";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import DraftDialog from "../../GlobalComponents/DraftDialog";
+import { Toast } from "../../GlobalComponents/Toast";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
 import ViewTabs from "../../GlobalComponents/ViewTabs";
 import { formatDateTime } from '../../shared/dateTime';
@@ -201,13 +203,23 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
   const [typeFilter, setTypeFilter] = useState("ALL"); // 'ALL' | 'Bulk Upload' | 'Distribution List'
   const [selectedListForModal, setSelectedListForModal] = useState(null);
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Are you sure you want to delete this User List?"))
-      return;
+  // Delete asks first in the app's own dialog (not the browser's confirm box,
+  // which opens at the top of the window), then says how it went in a toast.
+  const [deleting, setDeleting] = useState(null); // { id, name, people, used }
+  const [toast, setToast] = useState(null);
+  const confirmDelete = () => {
+    const { id, name } = deleting;
+    setDeleting(null);
     api.userLists
       .remove(id)
-      .then(() => setUserLists((prev) => prev.filter((item) => item.id !== id)))
-      .catch((err) => console.error("Failed to delete user list", err));
+      .then(() => {
+        setUserLists((prev) => prev.filter((item) => (item.UserListsID || item.id) !== id));
+        setToast({ type: "success", title: "List deleted", message: `"${name}" was deleted.` });
+      })
+      .catch((err) => {
+        console.error("Failed to delete user list", err);
+        setToast({ type: "error", title: "Couldn't delete the list", message: err?.message || "Please try again." });
+      });
   };
 
   // Members of the list open in the pop-up, from the backend
@@ -752,7 +764,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                             {/* Delete */}
                             <button
                               type="button"
-                              onClick={() => handleDelete(listId)}
+                              onClick={() => setDeleting({ id: listId, name: listName || listId, type: listType, people: userCount, used: usedTimes })}
                               className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
                               title="Delete List"
                             >
@@ -938,6 +950,50 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
             </div>
           </div>
         </div>
+      )}
+
+      <DraftDialog
+        open={Boolean(deleting)}
+        isDark={isDark}
+        tone="danger"
+        title="Delete this recipient list?"
+        // worded so its first line nearly fills the width: justified, it then
+        // ends at the right edge with almost no extra space between words
+        body="Everyone will lose access to this list, and this action can't be undone."
+        detail={
+          deleting && (
+            <div className="flex flex-col items-center gap-2 font-normal text-center">
+              {/* the list on one line: its id, its name, its type */}
+              <div className="w-full flex items-center justify-center gap-2 min-w-0">
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-white dark:bg-black/40 border border-black/5 dark:border-white/10 text-[9.5px] font-bold font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
+                  {deleting.id}
+                </span>
+                <span className="min-w-0 truncate text-[13px] font-bold font-voda leading-snug" title={deleting.name}>{deleting.name}</span>
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300 text-[9.5px] font-bold">
+                  {deleting.type}
+                </span>
+              </div>
+              <div className="w-full grid grid-cols-2 pt-2 mt-0.5 border-t border-black/5 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                <span className="flex items-center justify-center gap-1.5 border-r border-black/5 dark:border-white/10">
+                  <Users className="w-3.5 h-3.5 text-[#E60000]" />
+                  {deleting.people} {deleting.people === 1 ? "recipient" : "recipients"}
+                </span>
+                <span className={`flex items-center justify-center ${deleting.used ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                  Used {deleting.used} {deleting.used === 1 ? "time" : "times"}
+                </span>
+              </div>
+            </div>
+          )
+        }
+        primaryLabel="Delete"
+        onPrimary={confirmDelete}
+        secondaryLabel="Cancel"
+        onSecondary={() => setDeleting(null)}
+      />
+
+      {toast && (
+        <Toast message={toast.message} type={toast.type} title={toast.title} duration={3500} onClose={() => setToast(null)} />
       )}
     </>
   );
