@@ -6,6 +6,8 @@ import {
   dropBrowserLinks,
   emailHasTrap,
   emailOpensBrowserPage,
+  previewDocument,
+  previewHtml,
   simulationProblem,
   toBrowserPageHtml,
 } from './simulationPages.js';
@@ -62,4 +64,16 @@ test('what stops a save', () => {
   assert.match(simulationProblem({ emailBody: BROWSER, browserPageHtml: '<p>Hi</p>' }), /needs a button/);
   assert.match(simulationProblem({ emailBody: LANDING, browserPageHtml: PAGE2 }), /never opened/);
   assert.equal(simulationProblem({ emailBody: LANDING + BROWSER, browserPageHtml: PAGE2 }), '');
+});
+
+test('a preview reads as the recipient would see it', () => {
+  const html =
+    '<p contenteditable="true" style="cursor: move">Dear {{userName}} (@UserDepartment), {{currentDate}}</p>' +
+    '<a href="{{phishLink}}?next=browser">Sign in</a><a href="{{compromiseLink}}">Go</a>';
+  const out = previewHtml(html, { recipient: { name: '<Ana>', department: 'Ops' }, date: new Date('2026-11-25T10:00:00Z') });
+  assert.equal(out.includes('contenteditable') || out.includes('cursor: move'), false);
+  assert.match(out, /Dear &lt;Ana&gt; \(Ops\), 25 Nov 2026/);
+  assert.match(out, /href="https:\/\/track\.example\.com\/t\/preview\?next=browser"/);
+  assert.match(out, /href="#">Go/);
+  assert.match(previewDocument('<p>x</p>'), /^<!DOCTYPE html>.*<p>x<\/p><\/body><\/html>$/);
 });
