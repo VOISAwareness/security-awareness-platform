@@ -4,6 +4,8 @@ import { ChevronDown } from "lucide-react";
 
 import EmailBodyRichTextEditor from "../../../Scenarios/CreateNewScenario/EmailDetailsTab/EmailBodyRichTextEditor";
 import { announcementTemplatesLive, useAnnouncementData } from "../../../../services/announcements";
+import { api } from "../../../../services/api";
+import { noVerifiedSender, senderChoices } from "../../../../services/campaignSenders";
 // Templates and user lists from the backend (services/announcements.js),
 // kept in objects shaped like the sample files they replace.
 const announcamentScenariosJsonData = announcementTemplatesLive;
@@ -115,13 +117,35 @@ const AnnouncementEmailDetailsTab = ({
       (formData?.announcementScenarioId || draft.announcementScenarioId),
   );
 
-  const availableSenderEmails = Array.from(
-    new Set(
-      (announcamentScenariosJsonData?.announcement || [])
-        .map((scenario) => scenario.announcementSenderEmailId)
-        .filter(Boolean),
-    ),
-  );
+  // Sender Email ID choices: the whitelisted addresses on Email IDs & Domains
+  // (GET /sender-identities), as in the campaign wizard and the scenario
+  // editor: verified ones can be chosen, the rest are listed greyed with
+  // their state, and a sender already saved stays. If the API cannot be
+  // reached, the templates' senders stand in.
+  const [senderRows, setSenderRows] = useState(null);
+  useEffect(() => {
+    let active = true;
+    api.senderIdentities
+      .list()
+      .then((rows) => {
+        if (active) setSenderRows(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        const fromTemplates = Array.from(
+          new Set(
+            (announcamentScenariosJsonData?.announcement || [])
+              .map((scenario) => scenario.announcementSenderEmailId)
+              .filter(Boolean),
+          ),
+        );
+        setSenderRows(fromTemplates.map((email) => ({ email })));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const senderOptions = senderChoices(senderRows || [], formData?.announcementSenderEmailId);
 
   const announcementEmailSubject = formData?.announcementEmailSubject ?? "";
 
@@ -432,17 +456,29 @@ const AnnouncementEmailDetailsTab = ({
                       Select Email
                     </option>
 
-                    {availableSenderEmails.map((email) => (
+                    {senderRows === null && (
+                      <option value="__loading" disabled>
+                        Loading Email IDs…
+                      </option>
+                    )}
+                    {senderRows !== null && noVerifiedSender(senderOptions) && (
+                      <option value="__none" disabled>
+                        No verified Email IDs yet: add one on Email IDs &amp; Domains
+                      </option>
+                    )}
+                    {senderOptions.map((choice) => (
                       <option
-                        key={email}
-                        value={email || ""}
+                        key={choice.email}
+                        value={choice.email}
+                        disabled={!choice.selectable}
+                        data-sender-choice={choice.selectable ? "verified" : "unverified"}
                         className={
                           isDark
                             ? "bg-[#15161A] text-white"
                             : "bg-white text-slate-900"
                         }
                       >
-                        {email}
+                        {choice.label}
                       </option>
                     ))}
                   </select>
