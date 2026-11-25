@@ -281,7 +281,7 @@ def test_tallies_route(mod, monkeypatch):
 
 def test_the_summary_view_leaves_out_the_html(mod, monkeypatch):
     items = [{"campaignId": "C1", "campaignTitle": "T", "emailBody": "<p>x</p>", "landingPageContent": "<div/>",
-              "CoverImageID": "k", "createdAt": "2026-11-01"}]
+              "browserPageHtml": "<form/>", "CoverImageID": "k", "createdAt": "2026-11-01"}]
     monkeypatch.setattr(mod, "read_all", lambda *a, **k: ([dict(i) for i in items], False))
     call = lambda qs: json.loads(mod.lambda_handler({"routeKey": "GET /campaigns", "queryStringParameters": qs}, None)["body"])["data"]  # noqa: E731
     assert call({"view": "summary"}) == [{"campaignId": "C1", "campaignTitle": "T", "createdAt": "2026-11-01"}]

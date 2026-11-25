@@ -1,8 +1,10 @@
 import html
 import json
 import os
+import re
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import quote
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -27,6 +29,10 @@ ASSIGNMENTS_TABLE = os.environ.get("ASSIGNMENTS_TABLE") or _sibling_table("train
 USERS_TABLE = os.environ.get("USERS_TABLE") or _sibling_table("users")
 TRAINING_DUE_DAYS = 14
 MAX_LANDING_BYTES = 350 * 1024
+# Where the app runs (e.g. https://vshield.example.com), so the landing page's
+# "My Training" link can leave the API's domain. Optional: a campaign saved
+# from the app carries its own (appBaseUrl), used when this is not set.
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "")
 
 dynamodb = boto3.resource("dynamodb")
 
@@ -36,6 +42,9 @@ campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
 landing_pages_table = dynamodb.Table(LANDING_PAGES_TABLE)
 assignments_table = dynamodb.Table(ASSIGNMENTS_TABLE)
 users_table = dynamodb.Table(USERS_TABLE)
+
+
+html_escape = html.escape
 
 
 def utc_timestamp():
@@ -55,8 +64,10 @@ def json_response(status_code, body):
     }
 
 
-def html_response(status_code, html):
-    """Return an HTML API Gateway response."""
+def html_response(status_code, html, form_action="'none'"):
+    """Return an HTML API Gateway response. `form_action` is the CSP
+    form-action source: 'none' for every page except the browser page,
+    whose one form may post only back to this API ('self')."""
     return {
         "statusCode": status_code,
         "headers": {
@@ -72,10 +83,11 @@ def html_response(status_code, html):
                 "style-src 'unsafe-inline' https:; "
                 "img-src https: data:; "
                 "font-src https: data:; "
-                "form-action 'none'; "
+                f"form-action {form_action}; "
                 "base-uri 'none'; "
                 "frame-ancestors 'none'"
-            )
+            ),
+            "Referrer-Policy": "no-referrer"
         },
         "body": html,
         "isBase64Encoded": False
@@ -163,9 +175,10 @@ def build_invalid_link_page():
 """
 
 
-def build_success_page(campaign_id):
+def build_success_page(campaign_id, training_url=None):
     """
-    Build the successful click-tracking page.
+    Build the successful click-tracking page. With `training_url` (the
+    app's My Training page) its button links there.
 
     This is deliberately a normal string rather than an f-string.
     A placeholder is replaced afterward so CSS braces remain unchanged.
@@ -352,9 +365,7 @@ def build_success_page(campaign_id):
         </p>
 
         <div>
-            <span class="training-button">
-                Training content will be connected in a later phase
-            </span>
+            __TRAINING__
         </div>
 
         <p class="privacy-note">
@@ -371,10 +382,17 @@ def build_success_page(campaign_id):
 </html>
 """
 
+    training = (
+        '<a class="training-button" target="_top" href="'
+        + html_escape(training_url)
+        + '">Start your security training</a>'
+        if training_url
+        else '<span class="training-button">Your security training has been assigned</span>'
+    )
     return html.replace(
         "__CAMPAIGN_ID__",
-        campaign_id
-    )
+        html_escape(campaign_id)
+    ).replace("__TRAINING__", training)
 
 
 # The landing page editor's dynamic fields, both spellings it has used
@@ -405,15 +423,60 @@ def personalize_landing(content, recipient):
     return content
 
 
-def landing_html(campaign_id, recipient=None):
+def read_campaign(campaign_id):
+    """The clicked campaign's row, or None when it cannot be read."""
+    try:
+        return campaigns_table.get_item(Key={"campaignId": campaign_id}).get("Item") or {}
+    except ClientError as error:
+        print(json.dumps({
+            "message": "Campaign unavailable; showing the standard page",
+            "campaignId": campaign_id,
+            "errorCode": error.response.get("Error", {}).get("Code", ""),
+        }))
+        return None
+
+
+_ORIGIN = re.compile(r"^https?://[A-Za-z0-9.-]+(?::\d{1,5})?$")
+
+
+def training_url(campaign):
+    """The app's My Training page: APP_BASE_URL, else the origin the campaign
+    was saved from. None when neither is a plain http(s) origin."""
+    for base in (APP_BASE_URL, (campaign or {}).get("appBaseUrl")):
+        base = str(base or "").strip().rstrip("/")
+        if _ORIGIN.match(base):
+            return base + MY_TRAINING_PATH
+    return None
+
+
+MY_TRAINING_PATH = "/my-training"
+# The landing page editor links its training button to /my-training (or a
+# bare "#training"), which on the API's own domain would be a dead link.
+_TRAINING_HREF = re.compile(
+    r"""href\s*=\s*(["'])\s*(?:/my-training|#training|\{\{\s*trainingLink\s*\}\})\s*\1""",
+    re.IGNORECASE,
+)
+
+
+def link_training(content, url):
+    """Point the page's training links at the app's My Training page."""
+    if not url:
+        return content
+    return _TRAINING_HREF.sub(lambda m: 'href="' + html_escape(url) + '"', content)
+
+
+def landing_html(campaign_id, recipient=None, campaign=None):
     """
     The landing page chosen for the campaign: its own edited copy
     (landingPageContent) when it has one, else the catalogue page it names
     (landingPageId). None when there is none, or it cannot be read; the
     caller then shows the standard awareness page.
     """
+    if campaign is None:
+        campaign = read_campaign(campaign_id)
+    if campaign is None:
+        return None
     try:
-        campaign = campaigns_table.get_item(Key={"campaignId": campaign_id}).get("Item") or {}
         content = campaign.get("landingPageContent")
         if not (isinstance(content, str) and content.strip()):
             page_id = campaign.get("landingPageId")
@@ -437,7 +500,115 @@ def landing_html(campaign_id, recipient=None):
             "bytes": len(content.encode("utf-8")),
         }))
         return None
-    return build_landing_page(personalize_landing(content, recipient))
+    content = link_training(personalize_landing(content, recipient), training_url(campaign))
+    return build_landing_page(content)
+
+
+def oops_page(campaign_id, recipient, campaign):
+    """The campaign's landing page, else the standard awareness page."""
+    page = landing_html(campaign_id, recipient, campaign) if campaign is not None else None
+    return page or build_success_page(campaign_id, training_url(campaign))
+
+
+# --- the browser page (stage 2) ---------------------------------------------
+#
+# A scenario can carry a second page, `browserPageHtml`: a fake sign-in or
+# code screen. An email link to it (the phishing link with ?next=browser)
+# records the click and shows that page instead of the landing page. Any
+# button or link on it, or Enter in a field, posts the page's one form back to
+# POST /track/{token}/compromise, which marks the person compromised and
+# shows the landing page. Nothing typed is ever sent: the fields lose their
+# names (an unnamed field is never part of a form's submission), the page can
+# run no script, and the compromise handler never reads the request body.
+
+BROWSER_NEXT = "browser"
+_SCRIPT_BLOCK = re.compile(r"<script\b[^>]*>.*?</script\s*>", re.IGNORECASE | re.DOTALL)
+_FORM_TAG = re.compile(r"</?form\b[^>]*>", re.IGNORECASE)
+# A form control is read attribute by attribute (a quoted value is one unit),
+# so `<input type="text"/name="x">` or a tab or newline before `name` cannot
+# slip past, and a value that merely contains "/name=" is left alone.
+_CONTROL_TAG = re.compile(r"<(input|select|textarea|button)\b([^>]*)>", re.IGNORECASE)
+_ANY_ATTR = re.compile(r"""([^\s"'<>/=]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'<>`=]+))?""")
+_UNSENDABLE_ATTRS = frozenset({"name", "form", "formaction", "formmethod", "formenctype", "formtarget"})
+
+
+def _strip_unsendable(match):
+    kept = [
+        a.group(0)
+        for a in _ANY_ATTR.finditer(match.group(2))
+        if a.group(1).lower() not in _UNSENDABLE_ATTRS
+    ]
+    return "<" + match.group(1) + ("".join(" " + k for k in kept)) + ">"
+
+
+_EDITABLE_ATTR = re.compile(r"""\s+contenteditable\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""", re.IGNORECASE)
+_EVENT_ATTR = re.compile(r"""\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""", re.IGNORECASE)
+_ANCHOR = re.compile(r"<a\b([^>]*)>(.*?)</a\s*>", re.IGNORECASE | re.DOTALL)
+_ATTR = re.compile(r"""([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*("[^"]*"|'[^']*')""")
+_BUTTON_RESET = (
+    "border:none;background:none;padding:0;margin:0;font:inherit;color:inherit;"
+    "text-align:inherit;cursor:pointer;"
+)
+
+
+def _anchor_to_submit(match):
+    """A link on the browser page becomes a submit button with its look."""
+    attrs = {k.lower(): v[1:-1] for k, v in _ATTR.findall(match.group(1))}
+    own = attrs.get("style", "")
+    # A block link fills its row; a button only does when told to.
+    block = "display:block" in own.replace(" ", "").lower()
+    style = _BUTTON_RESET + ("width:100%;" if block else "") + own
+    keep = "".join(
+        f' {k}="{html_escape(html.unescape(attrs[k]))}"'
+        for k in ("class", "id", "title", "data-action")
+        if k in attrs
+    )
+    return f'<button type="submit"{keep} style="{html_escape(html.unescape(style))}">{match.group(2)}</button>'
+
+
+def browser_page_content(content):
+    """The authored page with every way to send data taken out, and every
+    link turned into a button that submits the (empty) form."""
+    content = _SCRIPT_BLOCK.sub("", content)
+    content = _FORM_TAG.sub("", content)
+    content = _EVENT_ATTR.sub("", content)
+    # The editor's own marks: nothing on the served page is editable or draggable.
+    content = _EDITABLE_ATTR.sub("", content)
+    content = re.sub(r"cursor\s*:\s*move", "cursor:default", content, flags=re.IGNORECASE)
+    content = _CONTROL_TAG.sub(_strip_unsendable, content)
+    return _ANCHOR.sub(_anchor_to_submit, content)
+
+
+def browser_html(campaign, recipient, tracking_token):
+    """The campaign's browser page as a whole document, or None when it has none."""
+    content = (campaign or {}).get("browserPageHtml")
+    if not (isinstance(content, str) and content.strip()):
+        return None
+    if len(content.encode("utf-8")) > MAX_LANDING_BYTES:
+        print(json.dumps({
+            "message": "Browser page too large; showing the landing page",
+            "campaignId": (campaign or {}).get("campaignId", ""),
+            "bytes": len(content.encode("utf-8")),
+        }))
+        return None
+    content = browser_page_content(personalize_landing(content, recipient))
+    # Relative to /track/{token}, so it holds whatever stage or domain serves it.
+    action = quote(str(tracking_token), safe="") + "/compromise"
+    title = html_escape(str((campaign or {}).get("browserPageTitle") or "Sign in"))
+    return (
+        "<!DOCTYPE html>\n"
+        '<html lang="en"><head><meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        '<meta name="robots" content="noindex, nofollow">'
+        f"<title>{title}</title>"
+        "<style>html,body{margin:0;padding:0;}"
+        "body{min-height:100vh;font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6;}"
+        "form{margin:0;min-height:100vh;}</style>"
+        "</head><body>"
+        f'<form method="post" action="{html_escape(action)}" autocomplete="off" novalidate>'
+        + content
+        + "</form></body></html>"
+    )
 
 
 def build_landing_page(content):
@@ -514,8 +685,111 @@ def assign_training(campaign_id, recipient, clicked_at):
         return None
 
 
+def is_compromise(event):
+    """POST /track/{trackingToken}/compromise: the browser page was submitted."""
+    route = str(event.get("routeKey") or "")
+    method = ((event.get("requestContext") or {}).get("http") or {}).get("method", "")
+    return route.endswith("/compromise") or (method == "POST" and str(event.get("rawPath", "")).endswith("/compromise"))
+
+
+def wants_browser_page(event):
+    """The email link asked for the browser page (?next=browser)."""
+    query = event.get("queryStringParameters") or {}
+    return str(query.get("next") or "").strip().lower() == BROWSER_NEXT
+
+
+def record_click(campaign_id, recipient_id, tracking_token, event_timestamp, stage, context):
+    """One CLICK event and the recipient's click summary."""
+    event_id = f"EVT-{uuid.uuid4().hex}"
+    events_table.put_item(
+        Item={
+            "campaignId": campaign_id,
+            "eventId": event_id,
+            "recipientId": recipient_id,
+            "eventType": "CLICK",
+            "eventTimestamp": event_timestamp,
+            "eventSource": "EMAIL_TRACKING_LINK",
+            "stage": stage,
+            "trackingToken": tracking_token
+        }
+    )
+    recipients_table.update_item(
+        Key={
+            "campaignId": campaign_id,
+            "recipientId": recipient_id
+        },
+        UpdateExpression=(
+            "SET clickedAt = "
+            "if_not_exists(clickedAt, :clickedAt), "
+            "lastClickedAt = :clickedAt, "
+            "updatedAt = :clickedAt "
+            "ADD clickCount :increment"
+        ),
+        ExpressionAttributeValues={
+            ":clickedAt": event_timestamp,
+            ":increment": 1
+        }
+    )
+    print(json.dumps({
+        "message": "Click event recorded",
+        "campaignId": campaign_id,
+        "recipientId": recipient_id,
+        "eventId": event_id,
+        "stage": stage,
+        "requestId": context.aws_request_id
+    }))
+
+
+def record_compromise(campaign_id, recipient_id, tracking_token, event_timestamp, context):
+    """
+    One COMPROMISE event and the recipient's compromise summary. Only that
+    the browser page was submitted is stored: never anything typed into it.
+    A compromise is also a click, so clickedAt is set if it is missing.
+    """
+    event_id = f"EVT-{uuid.uuid4().hex}"
+    events_table.put_item(
+        Item={
+            "campaignId": campaign_id,
+            "eventId": event_id,
+            "recipientId": recipient_id,
+            "eventType": "COMPROMISE",
+            "eventTimestamp": event_timestamp,
+            "eventSource": "BROWSER_PAGE",
+            "trackingToken": tracking_token
+        }
+    )
+    recipients_table.update_item(
+        Key={
+            "campaignId": campaign_id,
+            "recipientId": recipient_id
+        },
+        UpdateExpression=(
+            "SET compromisedAt = if_not_exists(compromisedAt, :at), "
+            "clickedAt = if_not_exists(clickedAt, :at), "
+            "lastCompromisedAt = :at, "
+            "updatedAt = :at "
+            "ADD compromiseCount :increment"
+        ),
+        ExpressionAttributeValues={
+            ":at": event_timestamp,
+            ":increment": 1
+        }
+    )
+    print(json.dumps({
+        "message": "Compromise event recorded",
+        "campaignId": campaign_id,
+        "recipientId": recipient_id,
+        "eventId": event_id,
+        "requestId": context.aws_request_id
+    }))
+
+
 def lambda_handler(event, context):
-    """Record a recipient click event and return the awareness page."""
+    """
+    GET  /track/{token}                record a click, show the landing page
+    GET  /track/{token}?next=browser   record a click, show the browser page
+    POST /track/{token}/compromise     record a compromise, show the landing page
+    """
     tracking_token = get_tracking_token(event)
 
     if not tracking_token:
@@ -550,65 +824,31 @@ def lambda_handler(event, context):
 
         campaign_id = recipient["campaignId"]
         recipient_id = recipient["recipientId"]
-
-        event_id = (
-            f"EVT-{uuid.uuid4().hex}"
-        )
-
         event_timestamp = utc_timestamp()
 
-        # Store the individual CLICK event.
-        events_table.put_item(
-            Item={
-                "campaignId": campaign_id,
-                "eventId": event_id,
-                "recipientId": recipient_id,
-                "eventType": "CLICK",
-                "eventTimestamp": event_timestamp,
-                "eventSource": "EMAIL_TRACKING_LINK",
-                "trackingToken": tracking_token
-            }
-        )
+        if is_compromise(event):
+            # The request body (whatever the form carried) is never read.
+            record_compromise(campaign_id, recipient_id, tracking_token, event_timestamp, context)
+            assign_training(campaign_id, recipient, event_timestamp)
+            return html_response(200, oops_page(campaign_id, recipient, read_campaign(campaign_id)))
 
-        # Update recipient-level click summary.
-        recipients_table.update_item(
-            Key={
-                "campaignId": campaign_id,
-                "recipientId": recipient_id
-            },
-            UpdateExpression=(
-                "SET clickedAt = "
-                "if_not_exists(clickedAt, :clickedAt), "
-                "lastClickedAt = :clickedAt, "
-                "updatedAt = :clickedAt "
-                "ADD clickCount :increment"
-            ),
-            ExpressionAttributeValues={
-                ":clickedAt": event_timestamp,
-                ":increment": 1
-            }
-        )
-
-        print(
-            json.dumps(
-                {
-                    "message": "Click event recorded",
-                    "campaignId": campaign_id,
-                    "recipientId": recipient_id,
-                    "eventId": event_id,
-                    "requestId": context.aws_request_id
-                }
-            )
+        browser = wants_browser_page(event)
+        record_click(
+            campaign_id, recipient_id, tracking_token, event_timestamp,
+            "BROWSER_PAGE" if browser else "LANDING_PAGE", context,
         )
 
         assign_training(campaign_id, recipient, event_timestamp)
 
-        # The click is recorded; now the page the campaign chose for people
-        # who click, or the standard awareness page.
-        return html_response(
-            200,
-            landing_html(campaign_id, recipient) or build_success_page(campaign_id)
-        )
+        # The click is recorded; now the browser page when the link asked for
+        # it, else the page the campaign chose for people who click, or the
+        # standard awareness page.
+        campaign = read_campaign(campaign_id)
+        if browser:
+            page = browser_html(campaign, recipient, tracking_token)
+            if page:
+                return html_response(200, page, form_action="'self'")
+        return html_response(200, oops_page(campaign_id, recipient, campaign))
 
     except ClientError as error:
         error_details = error.response.get(

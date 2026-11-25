@@ -214,7 +214,7 @@ test('Start fresh blanks the template content but never the user’s title / des
   assert.equal('campaignDescription' in patch, false);
   assert.equal(patch.emailBody, '');
   assert.deepEqual(scenarioContent(null), {
-    senderEmailId: '', senderName: '', emailSubject: '', emailBody: '', landingPageId: '', trainingId: '',
+    senderEmailId: '', senderName: '', emailSubject: '', emailBody: '', browserPageHtml: '', landingPageId: '', trainingId: '',
   });
   // Only the previous template's own wording is cleared.
   const auto = templatePatch(null, fromTemplate(PHISH), PHISH);

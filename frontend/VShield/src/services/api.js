@@ -96,6 +96,18 @@ async function fetchWithResult(path, body) {
   return { data: payload?.data ?? null, result: payload?.result ?? null };
 }
 
+// The origin this app is served from (e.g. https://vshield.example.com), or
+// nothing outside a browser.
+const appOrigin = () =>
+  typeof window !== 'undefined' && /^https?:$/.test(window.location?.protocol || '')
+    ? window.location.origin
+    : '';
+
+const withAppBase = (fields) => {
+  const origin = appOrigin();
+  return origin && fields && typeof fields === 'object' ? { ...fields, appBaseUrl: origin } : fields;
+};
+
 export const api = {
   senderIdentities: {
     list: () => request('/sender-identities'),
@@ -360,9 +372,11 @@ export const api = {
     // Every write of a start / end time also sends it as a UTC instant and the
     // zone it was picked in (calendarDates.withScheduleInstants), which is what
     // the scheduler sends on.
-    create: (fields) => request('/campaigns', { method: 'POST', body: withScheduleInstants(fields) }),
+    // Each write also stamps the app's origin (appBaseUrl), so the tracking
+    // page a phished person lands on can link back to My Training here.
+    create: (fields) => request('/campaigns', { method: 'POST', body: withAppBase(withScheduleInstants(fields)) }),
     update: (id, patch) =>
-      request(`/campaigns/${encodeURIComponent(id)}`, { method: 'PUT', body: withScheduleInstants(patch) }),
+      request(`/campaigns/${encodeURIComponent(id)}`, { method: 'PUT', body: withAppBase(withScheduleInstants(patch)) }),
     remove: (id) =>
       request(`/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 

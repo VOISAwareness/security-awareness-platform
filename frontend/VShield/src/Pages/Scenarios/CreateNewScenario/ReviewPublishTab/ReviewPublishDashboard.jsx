@@ -17,6 +17,7 @@ import {
 import { createPortal } from "react-dom";
 import { DEMO_USER } from "../../../../appConfig";
 import { EMAIL_TYPES, MOTIVATORS, TARGET_AUDIENCES, labelFor } from "../../../../services/scenarioOptions";
+import { isBlankHtml } from "../../../../services/simulationPages";
 // ============================================================
 // REVIEW CARD THEMES
 // ============================================================
@@ -1064,6 +1065,21 @@ const ReviewPublishDashboard = ({ formData }) => {
             `,
                 }}
               />
+
+              {/* Page 2: the browser page an email element opens. Links and
+                  fields are inert here, as on the served page nothing typed
+                  is ever sent. */}
+              {!isBlankHtml(formData.browserPageHtml) && (
+                <div className="mt-4">
+                  <span className="block mb-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Page 2 · Browser page (submitting it marks the employee compromised, then shows the landing page)
+                  </span>
+                  <div
+                    className="pointer-events-none select-none bg-white rounded-xl shadow-xs border border-slate-200 dark:border-white/10 p-5 text-[10px] text-slate-900 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: formData.browserPageHtml }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

