@@ -957,7 +957,9 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
         isDark={isDark}
         tone="danger"
         title="Delete this recipient list?"
-        body="It will be removed from your recipient lists for everyone. This can't be undone."
+        // worded so its first line nearly fills the width: justified, it then
+        // ends at the right edge with almost no extra space between words
+        body="Everyone will lose access to this list, and this action can't be undone."
         detail={
           deleting && (
             <div className="flex flex-col items-center gap-2 font-normal text-center">
