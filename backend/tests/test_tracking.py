@@ -253,6 +253,25 @@ def test_the_browser_page_can_send_nothing_typed(mod, monkeypatch):
     assert "contenteditable" not in _track(mod, monkeypatch, {"browserPageHtml": '<p contenteditable="true" style="cursor: move">Hi</p>'}, BROWSER_LINK)[0]["body"]
 
 
+def test_a_field_name_cannot_slip_past_the_cleaning(mod):
+    """Any separator before `name` (a slash, a tab, a newline, upper case) is
+    still removed, and a value that merely contains "/name=" is left alone."""
+    clean = mod.browser_page_content
+    for tag in (
+        '<input type="text"/name="pw">',
+        '<input\tname="pw">',
+        "<input\nNAME='pw'>",
+        '<INPUT type=password/ name=pw>',
+        '<button/formaction="https://evil.example">Go</button>',
+        '<textarea form="f" name="x"></textarea>',
+        '<select/name=x></select>',
+    ):
+        out = clean(tag)
+        assert "name=" not in out.lower() and "formaction" not in out.lower() and "form=" not in out.lower(), (tag, out)
+    assert 'data-x="http://a/name=1"' in clean('<input data-x="http://a/name=1" name="n">')
+    assert clean('<input type="password" name="pw">') == '<input type="password">'
+
+
 def test_no_browser_page_means_the_landing_page(mod, monkeypatch):
     resp, events, _ = _track(mod, monkeypatch, {"landingPageId": "LP-001"}, BROWSER_LINK, {"LP-001": {"LandingPageContent": LP}})
     assert "Oops! You have been phished" in resp["body"]

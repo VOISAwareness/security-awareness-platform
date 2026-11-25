@@ -524,10 +524,23 @@ def oops_page(campaign_id, recipient, campaign):
 BROWSER_NEXT = "browser"
 _SCRIPT_BLOCK = re.compile(r"<script\b[^>]*>.*?</script\s*>", re.IGNORECASE | re.DOTALL)
 _FORM_TAG = re.compile(r"</?form\b[^>]*>", re.IGNORECASE)
-_FIELD_NAME = re.compile(
-    r"""(<(?:input|select|textarea|button)\b[^>]*?)\s+(?:name|form|formaction|formmethod)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""",
-    re.IGNORECASE,
-)
+# A form control is read attribute by attribute (a quoted value is one unit),
+# so `<input type="text"/name="x">` or a tab or newline before `name` cannot
+# slip past, and a value that merely contains "/name=" is left alone.
+_CONTROL_TAG = re.compile(r"<(input|select|textarea|button)\b([^>]*)>", re.IGNORECASE)
+_ANY_ATTR = re.compile(r"""([^\s"'<>/=]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'<>`=]+))?""")
+_UNSENDABLE_ATTRS = frozenset({"name", "form", "formaction", "formmethod", "formenctype", "formtarget"})
+
+
+def _strip_unsendable(match):
+    kept = [
+        a.group(0)
+        for a in _ANY_ATTR.finditer(match.group(2))
+        if a.group(1).lower() not in _UNSENDABLE_ATTRS
+    ]
+    return "<" + match.group(1) + ("".join(" " + k for k in kept)) + ">"
+
+
 _EDITABLE_ATTR = re.compile(r"""\s+contenteditable\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""", re.IGNORECASE)
 _EVENT_ATTR = re.compile(r"""\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""", re.IGNORECASE)
 _ANCHOR = re.compile(r"<a\b([^>]*)>(.*?)</a\s*>", re.IGNORECASE | re.DOTALL)
@@ -562,10 +575,7 @@ def browser_page_content(content):
     # The editor's own marks: nothing on the served page is editable or draggable.
     content = _EDITABLE_ATTR.sub("", content)
     content = re.sub(r"cursor\s*:\s*move", "cursor:default", content, flags=re.IGNORECASE)
-    previous = None
-    while previous != content:  # a tag can carry several of these
-        previous = content
-        content = _FIELD_NAME.sub(r"\1", content)
+    content = _CONTROL_TAG.sub(_strip_unsendable, content)
     return _ANCHOR.sub(_anchor_to_submit, content)
 
 
