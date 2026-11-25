@@ -102,10 +102,11 @@ const EmailIDsAndDomains = () => {
     };
   }, []);
 
+  const [toastDuration, setToastDuration] = useState(2500);
   const showToast = (msg, tone = "good", ms = 2500) => {
     setToastMessage(msg);
     setToastTone(tone);
-    setTimeout(() => setToastMessage(""), ms);
+    setToastDuration(ms);
   };
 
   // Re-read every address's state from SES (after someone clicks a link).
@@ -938,6 +939,7 @@ const EmailIDsAndDomains = () => {
           <Toast
             message={toastMessage}
             type={toastTone === "bad" ? "error" : "success"}
+            duration={toastDuration}
             data-sender-toast={toastTone}
             onClose={() => setToastMessage("")}
           />

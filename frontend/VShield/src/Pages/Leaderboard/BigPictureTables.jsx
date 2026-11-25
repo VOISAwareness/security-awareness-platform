@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, ListChecks, MousePointerClick, Search, X } from 'lucide-react';
+import { ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, Building2, CheckCircle2, ChevronLeft, ChevronRight, ListChecks, Search, X } from 'lucide-react';
 
 import LevelBadge from '../../GlobalComponents/LevelBadge';
+import Toast from '../../GlobalComponents/Toast';
 import { LEVEL_BY_ID, rankName } from '../../services/levels';
 import { GROUPS, PEOPLE_FILTERS } from '../../services/bigPicture';
 import { count, share } from '../../services/bigPictureFindings';
@@ -39,48 +40,23 @@ const control = (isDark) => ({ height: 30, borderRadius: 9, border: '1px solid v
 const action = (primary = false) => ({ height: 28, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0 11px', borderRadius: 9, border: primary ? 'none' : '1px solid var(--hair)', background: primary ? 'var(--ink)' : 'var(--base)', color: primary ? 'var(--ink-on)' : 'var(--text)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' });
 
 // A tip that slides in when a list opens, says how it works, and goes by
-// itself after a few seconds (it waits while the pointer is on it; its ×
-// closes it), so it never sits on the page for good. Each shows once per
-// visit (`id`). `caret` points it up at the button above its right end.
+// itself after a few seconds (Toast holds while hovered and closes via ×),
+// so it never sits on the page for good. Each shows once per visit (`id`).
 const tipsSeen = new Set();
 const TIP_MS = 4500;
-function Tip({ id, title, sub, caret = false }) {
-  const reduce = useReducedMotion();
+function Tip({ id, title, sub }) {
   const [open, setOpen] = useState(() => !tipsSeen.has(id));
-  const [hold, setHold] = useState(false);
   useEffect(() => { tipsSeen.add(id); }, [id]);
-  useEffect(() => {
-    if (!open || hold) return undefined;
-    const t = setTimeout(() => setOpen(false), TIP_MS);
-    return () => clearTimeout(t);
-  }, [open, hold]);
+  if (!open) return null;
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          key={id}
-          role="status"
-          data-bp-tip={id}
-          onMouseEnter={() => setHold(true)}
-          onMouseLeave={() => setHold(false)}
-          initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }}
-          transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1], delay: reduce ? 0 : 0.3 }}
-          style={{ position: 'absolute', top: 40, right: 0, zIndex: 6, width: 290, boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', gap: 9, padding: '10px 8px 13px 11px', borderRadius: 12, background: 'var(--ink)', color: 'var(--ink-on)', boxShadow: '0 12px 28px rgba(15,23,42,0.24)', transformOrigin: 'top right' }}
-        >
-          {caret && <span aria-hidden style={{ position: 'absolute', top: -5, right: 40, width: 10, height: 10, borderRadius: 2, background: 'var(--ink)', transform: 'rotate(45deg)' }} />}
-          <span aria-hidden style={{ flexShrink: 0, width: 26, height: 26, display: 'grid', placeItems: 'center', borderRadius: 8, background: 'color-mix(in srgb, var(--ink-on) 14%, transparent)' }}><MousePointerClick size={14} strokeWidth={2.4} /></span>
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 11, fontWeight: 800, lineHeight: 1.3 }}>{title}</span>
-            <span style={{ display: 'block', marginTop: 2, fontSize: 9.5, fontWeight: 600, lineHeight: 1.4, opacity: 0.75 }}>{sub}</span>
-          </span>
-          <button type="button" aria-label="Close the tip" onClick={() => setOpen(false)} style={{ flexShrink: 0, width: 22, height: 22, display: 'grid', placeItems: 'center', padding: 0, border: 'none', borderRadius: 6, background: 'transparent', color: 'inherit', opacity: 0.7, cursor: 'pointer' }}><X size={13} strokeWidth={2.6} /></button>
-          {/* how long it stays: a thin line that runs down, and holds while hovered */}
-          <motion.span aria-hidden key={hold ? 'hold' : 'run'} initial={{ scaleX: 1 }} animate={{ scaleX: hold ? 1 : 0 }} transition={{ duration: hold ? 0 : TIP_MS / 1000, ease: 'linear', delay: hold || reduce ? 0 : 0.3 }} style={{ position: 'absolute', left: 12, right: 12, bottom: 5, height: 2, borderRadius: 2, background: 'var(--bp-accent)', transformOrigin: 'left', opacity: 0.9 }} />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <Toast
+      type="info"
+      title="Tip"
+      message={`${title}. ${sub}`}
+      duration={TIP_MS}
+      onClose={() => setOpen(false)}
+      data-bp-tip={id}
+    />
   );
 }
 
@@ -355,8 +331,8 @@ export function DepartmentTable({ r, view, onView, selected, onSelected, onOpen,
   return (
     <div data-bp-departments data-bp-selecting={picking ? 'true' : undefined} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!onOpen && <Tip id="departments-pick" title="Click departments to select them for export" sub="With none selected, Export takes every department shown." />}
-      {onOpen && !selecting && <Tip id="departments" caret title="Click a department to see its people" sub="To export several, use Select departments, then click the ones you want." />}
-      {onOpen && selecting && <Tip id="departments-select" caret title="Click departments to select them" sub="Then take them from Export at the top. Done when you're finished." />}
+      {onOpen && !selecting && <Tip id="departments" title="Click a department to see its people" sub="To export several, use Select departments, then click the ones you want." />}
+      {onOpen && selecting && <Tip id="departments-select" title="Click departments to select them" sub="Then take them from Export at the top. Done when you're finished." />}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
         <label style={{ position: 'relative', width: 200 }}>
           <span className="sr-only">Search departments</span>

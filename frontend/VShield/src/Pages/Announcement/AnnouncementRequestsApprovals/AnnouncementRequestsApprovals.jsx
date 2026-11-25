@@ -11,6 +11,7 @@ import RejectedPathsGallery from "./Components/RejectedPathsGallery";
 import ApprovedPathsGallery from "./Components/ApprovedPathsGallery";
 import NotifyForChangeWindow from "./Components/NotifyForChangeWindow";
 import { ROLE_MANAGER, APPROVER_KEY, storedDateTime } from "./Components/announcementHelpers";
+import Toast from "../../../GlobalComponents/Toast";
 
 // Assets (same as RequestsAndApprovals.jsx)
 import ApprovalQueueImg from "@/assets/RequestAndApprovalsAssets/ApprovalQueueImage.png";
@@ -105,7 +106,6 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
 
   const showToast = (m) => {
     setToast(m);
-    setTimeout(() => setToast(""), 3000);
   };
 
   // In-memory update. When the DB is ready, call your API here before setAnnouncements.
@@ -456,12 +456,12 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
         />
 
         {toast && (
-          <div
-            role="status"
-            className="fixed bottom-6 right-6 z-[130] rounded-xl bg-black px-4 py-3 text-[12px] font-medium text-white shadow-xl"
-          >
-            {toast}
-          </div>
+          <Toast
+            message={toast}
+            type="success"
+            duration={3000}
+            onClose={() => setToast("")}
+          />
         )}
       </div>
     </>

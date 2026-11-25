@@ -183,14 +183,6 @@ const AnnouncementsDetailsAndSettings = () => {
   );
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Auto-dismiss top right toaster after 4 seconds
-  useEffect(() => {
-    if (errorMsg) {
-      const timer = setTimeout(() => setErrorMsg(""), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [errorMsg]);
-
   // Gamification Card Flip State
   const isGamificationFlipped = false;
 

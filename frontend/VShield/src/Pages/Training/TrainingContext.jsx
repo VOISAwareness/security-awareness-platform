@@ -40,7 +40,6 @@ export const TrainingProvider = ({ children }) => {
     } else {
       setToastMessage({ message: msg, type, title });
     }
-    setTimeout(() => setToastMessage(null), 4000);
   };
 
   // Theme check

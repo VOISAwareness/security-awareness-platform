@@ -515,14 +515,6 @@ const CampaignEmail = () => {
  const testEmailsPatch = () =>
   testMode || testEmails.length ? { testRecipientEmails: testEmails } : {};
 
- // Auto-dismiss top right toaster after 4 seconds
- useEffect(() => {
-  if (errorMsg) {
-   const timer = setTimeout(() => setErrorMsg(''), 4000);
-   return () => clearTimeout(timer);
-  }
- }, [errorMsg]);
-
  const currentSelectedList = availableLists.find((l) => l.id === selectedListId);
 
  // Restored as loaded only when the saved list still exists in the catalogue.

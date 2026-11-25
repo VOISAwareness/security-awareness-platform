@@ -207,3 +207,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .vs-bell-ring, .vs-pop-in { animation: none; }
 }
+
+/* Global Toast countdown bar along the bottom border; pauses cleanly via animation-play-state. */
+@keyframes vs-toast-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}

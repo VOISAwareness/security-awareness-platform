@@ -225,7 +225,6 @@ const GamificationEngine = () => {
   const showToast = (message, isError = false) => {
     setToastIsError(isError);
     setToastMessage(message);
-    setTimeout(() => setToastMessage(""), isError ? 4000 : 2500);
   };
 
   // Replace the bundled defaults with the saved rules once they load. Runs
@@ -531,6 +530,7 @@ const GamificationEngine = () => {
           <Toast
             message={toastMessage}
             type={toastIsError ? "error" : "success"}
+            duration={toastIsError ? 4000 : 2500}
             onClose={() => setToastMessage("")}
           />
         )}
