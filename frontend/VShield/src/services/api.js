@@ -109,7 +109,13 @@ export const api = {
       request(`/sender-identities/${encodeURIComponent(id)}/verify`, { method: 'POST' }),
   },
   // Read-only reference data (used by later screens).
-  users: { list: () => request('/users') },
+  // The people directory (services/people.js). `fresh` skips the 5-minute
+  // memory cache (a retry); `forRole` is the login picker's list: who can
+  // sign in with one role, with just their profile.
+  users: {
+    list: ({ fresh = false } = {}) => request('/users', { fresh }),
+    forRole: (role) => request(`/users?role=${encodeURIComponent(role || '')}`),
+  },
   // Ownership (scenarioOwnership.js): `viewer` asks for what that person may
   // see, each row annotated with its `ownership`; `actor` says who is changing
   // a row. Both are client-asserted until sign-in exists (identity.js), so they

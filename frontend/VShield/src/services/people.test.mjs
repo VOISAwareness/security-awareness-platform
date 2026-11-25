@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
 
-import { PEOPLE_TTL_MS, ROLES, forgetPeople, loadPeople, peopleByRole, personByEmail, tidyPeople } from './people.js';
+import { PEOPLE_TTL_MS, ROLES, emailIndex, findPerson, forgetPeople, loadPeople, loadRolePeople, peopleByRole, personByEmail, tidyPeople } from './people.js';
 
 const ROWS = [
   { UserID: 'U3', UserName: 'Zoe Weber', UserEMailID: 'zoe@x.example', role: 'Regular User' },
@@ -62,4 +62,50 @@ test('personByEmail ignores letter case and blanks', () => {
   assert.equal(personByEmail(people, ' ANA@x.example ').UserID, 'U1');
   assert.equal(personByEmail(people, ''), undefined);
   assert.equal(personByEmail(people, 'nobody@x.example'), undefined);
+});
+
+test('loadPeople: force asks the API for a fresh read', async () => {
+  const asked = [];
+  const list = async (opts) => {
+    asked.push(opts);
+    return ROWS;
+  };
+  await loadPeople({ list, now: 1 });
+  await loadPeople({ list, now: 2, force: true });
+  assert.deepEqual(asked, [{ fresh: false }, { fresh: true }]);
+});
+
+test('emailIndex: one lower-case map per list, built once', () => {
+  const people = tidyPeople(ROWS);
+  const index = emailIndex(people);
+  assert.equal(index.get('ana@x.example').UserID, 'U1');
+  assert.equal(emailIndex(people), index); // the same map for the same list
+  assert.equal(personByEmail(people, '  ANA@x.example '), people[0]);
+  assert.equal(personByEmail(people, 'nobody@x.example'), undefined);
+  assert.equal(emailIndex(null).size, 0);
+});
+
+test('findPerson: reads again once a minute for someone not in the list yet', async () => {
+  const added = [...ROWS, { UserID: 'U9', UserName: 'New Hire', UserEMailID: 'new@x.example' }];
+  const calls = [];
+  const load = async (opts = {}) => {
+    calls.push(Boolean(opts.force));
+    return tidyPeople(opts.force ? added : ROWS);
+  };
+  assert.equal((await findPerson('ben@x.example', { load, now: 1_000_000 })).UserID, 'U2');
+  assert.deepEqual(calls, [false]); // found: no second read
+  assert.equal((await findPerson('NEW@x.example', { load, now: 2_000_000 })).UserID, 'U9');
+  assert.deepEqual(calls, [false, false, true]);
+  assert.equal(await findPerson('ghost@x.example', { load, now: 2_030_000 }), undefined);
+  assert.deepEqual(calls, [false, false, true, false]); // within the minute: no forced read
+});
+
+test('loadRolePeople: a role\'s people from GET /users?role=, tidied', async () => {
+  const asked = [];
+  const got = await loadRolePeople('Admin', { list: async (r) => (asked.push(r), ROWS) });
+  assert.deepEqual(asked, ['Admin']);
+  assert.deepEqual(got.map((p) => p.UserID), ['U1']); // only Admins, even from an API that sends everyone
+  const everyone = await loadRolePeople('Regular User', { list: async () => ROWS });
+  assert.deepEqual(everyone.map((p) => p.UserID), ['U1', 'U2', 'U3']);
+  assert.deepEqual(await loadRolePeople('', { list: async () => ROWS }), []);
 });

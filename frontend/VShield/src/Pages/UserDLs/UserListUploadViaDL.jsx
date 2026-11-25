@@ -52,7 +52,7 @@ const VODAFONE_FONT_STYLE = `
 
 const UserListUploadViaDL = () => {
   // The people directory, from the backend (services/people.js).
-  const { people: masterUsersData, loading: peopleLoading } = usePeople();
+  const { byEmail: peopleByEmail, loading: peopleLoading } = usePeople();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
@@ -165,9 +165,7 @@ const UserListUploadViaDL = () => {
     return emailList.map((item, idx) => {
       const email =
         typeof item === "string" ? item : item.email || item.UserEMailID || "";
-      const matched = (masterUsersData || []).find(
-        (m) => m.UserEMailID?.toLowerCase() === email?.toLowerCase(),
-      );
+      const matched = peopleByEmail.get(String(email || "").toLowerCase());
       return {
         srNo: idx + 1,
         userName:

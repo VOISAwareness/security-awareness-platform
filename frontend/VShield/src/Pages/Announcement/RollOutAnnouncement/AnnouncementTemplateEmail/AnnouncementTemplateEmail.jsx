@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
@@ -270,11 +270,11 @@ const AnnouncementsCampaignEmail = () => {
   ];
 
   // Master Users sorted by Hook Rate % in descending order
-  const sortedMasterUsers = [...(masterUsersData || [])].sort((a, b) => {
+  const sortedMasterUsers = useMemo(() => [...(masterUsersData || [])].sort((a, b) => {
     const rateA = parseFloat(a["HookRate%"] ?? a.HookRate) || 0;
     const rateB = parseFloat(b["HookRate%"] ?? b.HookRate) || 0;
     return rateB - rateA;
-  });
+  }), [masterUsersData]);
 
   // Form Fields Initialization
   const [announcementSenderEmailId, setAnnouncementSenderEmailId] = useState(
@@ -720,12 +720,12 @@ const AnnouncementsCampaignEmail = () => {
   const maxLocCount = Math.max(...locationList.map((l) => l.count), 1);
 
   // Filter master users by search
-  const filteredMasterUsers = sortedMasterUsers.filter(
-    (u) =>
-      u.UserEMailID?.toLowerCase().includes(singleUserSearch.toLowerCase()) ||
-      u.UserName?.toLowerCase().includes(singleUserSearch.toLowerCase()) ||
-      u.Department?.toLowerCase().includes(singleUserSearch.toLowerCase()),
-  );
+  const filteredMasterUsers = useMemo(() => {
+    const q = singleUserSearch.toLowerCase();
+    return sortedMasterUsers.filter(
+      (u) => u.UserEMailID?.toLowerCase().includes(q) || u.UserName?.toLowerCase().includes(q) || u.Department?.toLowerCase().includes(q),
+    );
+  }, [sortedMasterUsers, singleUserSearch]);
 
   // =========================================================================
   // 🌟 RICH TEXT EDITOR COMPONENT (SEAMLESS CORNERS & RELIABLE FORMATTING)

@@ -76,7 +76,7 @@ const getGalleryCardBg = (index, isDark) => {
 
 const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
   // The people directory, from the backend (services/people.js).
-  const { people: masterUsersData } = usePeople();
+  const { byEmail: peopleByEmail } = usePeople();
   const navigate = useNavigate();
   const userContext = useUserType?.() || {};
 
@@ -256,9 +256,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
   const modalMembers = useMemo(() => {
     return listMembers.map((member, idx) => {
       const email = member.email || "";
-      const matched = (masterUsersData || []).find(
-        (m) => m.UserEMailID?.toLowerCase() === email.toLowerCase(),
-      );
+      const matched = peopleByEmail.get(email.toLowerCase());
       return {
         srNo: member.srNo || idx + 1,
         email,
@@ -275,7 +273,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
             : "—",
       };
     });
-  }, [listMembers, masterUsersData]);
+  }, [listMembers, peopleByEmail]);
 
   return (
     <>
