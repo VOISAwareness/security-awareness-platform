@@ -12,6 +12,8 @@
  *  My Training. Nothing typed into it is ever sent or stored.
  */
 
+import { missingPictures, picturesLabel } from './pictures.js';
+
 export const PHISH_LINK = '{{phishLink}}';
 export const BROWSER_PAGE_LINK = '{{phishLink}}?next=browser';
 export const COMPROMISE_LINK = '{{compromiseLink}}';
@@ -73,7 +75,9 @@ export function dropBrowserLinks(html) {
  * What stops these pages being saved, as a message, or '' when they are fine:
  *  - the email needs at least one trap (a phishing link);
  *  - an email element that opens the browser page needs that page;
- *  - a browser page needs something to click, and an email element to open it.
+ *  - a browser page needs something to click, and an email element to open it;
+ *  - no page may have a picture employees could not see (a file name or path,
+ *    file:, blob:, localhost...): upload it where the editor marks it.
  */
 export function simulationProblem({ emailBody, browserPageHtml } = {}) {
   if (!emailHasTrap(emailBody)) {
@@ -88,6 +92,14 @@ export function simulationProblem({ emailBody, browserPageHtml } = {}) {
   }
   if (hasBrowserPage && !emailOpensBrowserPage(emailBody)) {
     return 'The browser page (page 2) is never opened. Set an email element\'s On-Click action to "Add one more page for compromised part", or delete page 2.';
+  }
+  const emailMissing = missingPictures(emailBody).length;
+  if (emailMissing) {
+    return `${picturesLabel(emailMissing)} in the email can't be shown to employees. Upload ${emailMissing === 1 ? 'it' : 'each one'} where it's marked in the editor, or remove ${emailMissing === 1 ? 'it' : 'them'}.`;
+  }
+  const pageMissing = hasBrowserPage ? missingPictures(browserPageHtml).length : 0;
+  if (pageMissing) {
+    return `${picturesLabel(pageMissing)} on the browser page can't be shown to employees. Upload ${pageMissing === 1 ? 'it' : 'each one'} where it's marked in the editor, or remove ${pageMissing === 1 ? 'it' : 'them'}.`;
   }
   return '';
 }

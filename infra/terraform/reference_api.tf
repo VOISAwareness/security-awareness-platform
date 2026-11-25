@@ -70,6 +70,8 @@ resource "aws_lambda_function" "reference_api" {
       UPLOAD_BUCKET    = aws_s3_bucket.assets.bucket
       INGEST_FUNCTION  = aws_lambda_function.recipient_ingest.function_name
       EXTRACT_FUNCTION = aws_lambda_function.package_extract.function_name
+      # Hosted pictures for emails and browser pages (scorm_cdn.tf: /media/*).
+      MEDIA_BASE_URL = "https://${aws_cloudfront_distribution.scorm.domain_name}/media"
     }
   }
 }
@@ -89,6 +91,9 @@ resource "aws_iam_role_policy" "reference_api_s3" {
           "${aws_s3_bucket.assets.arn}/uploads/scenario-covers/*",
           "${aws_s3_bucket.assets.arn}/uploads/training-packages/*",
           "${aws_s3_bucket.assets.arn}/uploads/training-media/*",
+          # Pictures for emails and browser pages: presigned POSTs only
+          # (POST /media/images/upload); CloudFront serves them.
+          "${aws_s3_bucket.assets.arn}/public-media/*",
         ]
       },
       {
@@ -220,6 +225,8 @@ locals {
     "PUT /training/certificates/{id}",
     "DELETE /training/certificates/{id}",
     "POST /training/media/upload",
+    # Pictures for emails and browser pages, served by CloudFront at /media/*.
+    "POST /media/images/upload",
     # My Training and the Training report (tables.tf / schema_tables.tf:
     # training_assignments).
     "GET /my-training",

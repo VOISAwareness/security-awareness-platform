@@ -77,3 +77,13 @@ test('a preview reads as the recipient would see it', () => {
   assert.match(out, /href="#">Go/);
   assert.match(previewDocument('<p>x</p>'), /^<!DOCTYPE html>.*<p>x<\/p><\/body><\/html>$/);
 });
+
+test('a picture employees could not see stops a save, on either page', () => {
+  const hosted = '<img src="https://d1.cloudfront.net/media/0123456789abcdef0123456789abcdef/a.png">';
+  assert.equal(simulationProblem({ emailBody: LANDING + hosted }), '');
+  assert.match(simulationProblem({ emailBody: LANDING + '<img src="logo.png">' }), /^1 picture in the email/);
+  assert.match(
+    simulationProblem({ emailBody: LANDING + BROWSER, browserPageHtml: PAGE2 + '<img src="a.png"><div style="background:url(b.jpg)"></div>' }),
+    /^2 pictures on the browser page/,
+  );
+});

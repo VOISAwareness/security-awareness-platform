@@ -347,6 +347,31 @@ export const api = {
         body: { actor, decision, comments },
       }),
   },
+  // Pictures for emails and browser pages. The API signs a form that lets the
+  // browser post one picture (PNG, JPEG, GIF or WebP, up to 2 MB) straight to
+  // S3; CloudFront then serves it for good at the `url` returned here, which
+  // is what the email or page uses. `file` is a File or a Blob.
+  media: {
+    async uploadImage(file, fileName = file?.name || 'picture') {
+      const signed = await request('/media/images/upload', {
+        method: 'POST',
+        body: { fileName, contentType: file.type },
+      });
+      const form = new FormData();
+      Object.entries(signed.fields || {}).forEach(([k, v]) => form.append(k, v));
+      form.append('file', file, fileName); // the file goes last in an S3 form
+      const res = await fetch(uploadTarget(signed.uploadUrl), { method: 'POST', body: form });
+      if (!res.ok) {
+        throw new Error(
+          res.status === 400 && file.size > (signed.maxBytes || Infinity)
+            ? 'The picture is larger than 2 MB.'
+            : `Picture upload failed (${res.status})`,
+        );
+      }
+      return signed.url;
+    },
+  },
+
   campaignsCatalog: { list: () => request('/campaigns-catalog') },
 
   // The bell in the top bar (services/notifications.js). `role` is

@@ -48,7 +48,10 @@ const s3UploadProxy = () => ({
       req.on('end', async () => {
         try {
           const put = await fetch(upstream, {
-            method: 'PUT',
+            // PUT for presigned uploads; POST for a presigned form (pictures
+            // for emails and browser pages), whose multipart type and
+            // boundary pass through in content-type.
+            method: req.method === 'POST' ? 'POST' : 'PUT',
             // The browser always sets this; the fallback must stay neutral so a
             // non-CSV upload (a scenario cover) can't be signed as text/csv.
             headers: {

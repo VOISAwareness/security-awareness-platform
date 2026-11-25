@@ -3136,6 +3136,70 @@ def is_warm_ping(event):
     return isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event
 
 
+# --- hosted pictures for emails and browser pages ----------------------------
+#
+#   POST /media/images/upload {fileName, contentType}
+#     -> {url, uploadUrl, fields, maxBytes}
+# A picture put in an email or a browser page has to be reachable by the
+# recipient's mail app and browser, so it is not kept inside the HTML (a data:
+# image breaks the 400 KB row limit and Gmail does not show it). The browser
+# POSTs the file straight to S3 under public-media/<32 hex>/<name> with the
+# presigned form (`fields`), which allows only that key, that type and at most
+# MEDIA_IMAGE_MAX_BYTES; CloudFront then serves it for good at `url`
+# (MEDIA_BASE_URL/<32 hex>/<name>). The bucket stays private: only CloudFront
+# reads public-media/, and the 32-hex folder cannot be guessed.
+MEDIA_IMAGE_ROUTES = frozenset({"POST /media/images/upload"})
+MEDIA_IMAGE_PREFIX = "public-media/"
+MEDIA_IMAGE_MAX_BYTES = 2 * 1024 * 1024
+# No SVG: it can carry script.
+MEDIA_IMAGE_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+MEDIA_BASE_URL = os.environ.get("MEDIA_BASE_URL", "").rstrip("/")
+
+
+def media_image_name(file_name, content_type):
+    """A safe file name for the key, ending in the type's own extension."""
+    stem = safe_name(re.sub(r"\.[A-Za-z0-9]{1,5}$", "", str(file_name or "").strip()))[:80].strip("._-")
+    return (stem or "image") + MEDIA_IMAGE_TYPES[content_type]
+
+
+def media_images(route, event, context):
+    if not UPLOAD_BUCKET or not MEDIA_BASE_URL:
+        return err(503, "Picture hosting is not configured yet")
+    try:
+        body = parse_body(event)
+    except ValueError:
+        body = None
+    body = body if isinstance(body, dict) else {}
+    content_type = body.get("contentType")
+    if content_type not in MEDIA_IMAGE_TYPES:
+        return err(400, "Only PNG, JPEG, GIF or WebP pictures can be uploaded")
+    key = f"{MEDIA_IMAGE_PREFIX}{uuid.uuid4().hex}/{media_image_name(body.get('fileName'), content_type)}"
+    cache = "public, max-age=31536000, immutable"
+    post = s3_client.generate_presigned_post(
+        Bucket=UPLOAD_BUCKET,
+        Key=key,
+        Fields={"Content-Type": content_type, "Cache-Control": cache},
+        Conditions=[
+            {"Content-Type": content_type},
+            {"Cache-Control": cache},
+            ["content-length-range", 1, MEDIA_IMAGE_MAX_BYTES],
+        ],
+        ExpiresIn=900,
+    )
+    log(context, "Picture upload signed", contentType=content_type)
+    return respond(201, {"data": {
+        "url": f"{MEDIA_BASE_URL}/{key[len(MEDIA_IMAGE_PREFIX):]}",
+        "uploadUrl": post["url"],
+        "fields": post["fields"],
+        "maxBytes": MEDIA_IMAGE_MAX_BYTES,
+    }})
+
+
 def lambda_handler(event, context):
     if is_warm_ping(event):
         return {"warm": True}
@@ -3149,6 +3213,9 @@ def handle(event, context):
     try:
         if route in DRAFT_ROUTES:
             return scenario_drafts(route, event, params, context)
+
+        if route in MEDIA_IMAGE_ROUTES:
+            return media_images(route, event, context)
 
         if route in STANDING_ROUTES:
             return standing(route, event, context)
