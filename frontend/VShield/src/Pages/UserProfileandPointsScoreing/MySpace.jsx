@@ -449,18 +449,21 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
         const isActive = index === active;
 
         return (
+          // Opening a section eases its height (flex-grow) open while the
+          // others close, as the old layout animation did; only flex-grow is
+          // animated, so a width change (the navigation bar opening) is not.
           <motion.div
             key={section.id}
             onMouseEnter={() => setActive(index)}
             onClick={() => setActive(index)}
-            className={`relative rounded-[8px] border transition-colors duration-300 overflow-hidden cursor-pointer ${
+            className={`relative rounded-[8px] border transition-[flex-grow,background-color,border-color] duration-[450ms] ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none overflow-hidden cursor-pointer ${
               isActive
-                ? `flex-1 ${
+                ? `flex-1 lg:flex-[1_0_calc(42px_+_var(--ms-extra,0)_*_16px)] ${
                     isDark
                       ? "bg-[#15161a] border-white/10 shadow-xl"
                       : "bg-white border-slate-200 shadow-sm"
                   } p-4 sm:p-5 flex flex-col justify-between`
-                : `h-[42px] lg:h-[calc(42px_+_var(--ms-extra,0)_*_16px)] flex-shrink-0 ${
+                : `h-[42px] lg:h-auto lg:flex-[0_0_calc(42px_+_var(--ms-extra,0)_*_16px)] flex-shrink-0 ${
                     isDark
                       ? "bg-[#18191f] border-white/5 hover:border-white/15"
                       : "bg-white border-slate-200 hover:border-slate-300"
