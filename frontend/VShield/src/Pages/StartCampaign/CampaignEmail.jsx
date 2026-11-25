@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
@@ -138,7 +138,7 @@ const isSameBody = (a, b) => sameBody(asInEditor(a), asInEditor(b));
 
 const CampaignEmail = () => {
  // The people directory, from the backend (services/people.js).
- const { people: masterUsersData } = usePeople();
+ const { people: masterUsersData, byEmail: peopleByEmail } = usePeople();
  const navigate = useNavigate();
  const userContext = useUserType?.() || {};
 
@@ -317,12 +317,13 @@ const CampaignEmail = () => {
 
  const availableLists = mappedServerLists.length ? mappedServerLists : bundledAvailableLists;
 
- // Master Users sorted by Hook Rate % in descending order
- const sortedMasterUsers = [...(masterUsersData || [])].sort((a, b) => {
+ // Master Users sorted by Hook Rate % in descending order (once per list,
+ // not on every render: this screen re-renders on each keystroke)
+ const sortedMasterUsers = useMemo(() => [...(masterUsersData || [])].sort((a, b) => {
   const rateA = parseFloat(a['HookRate%'] ?? a.HookRate) || 0;
   const rateB = parseFloat(b['HookRate%'] ?? b.HookRate) || 0;
   return rateB - rateA;
- });
+ }), [masterUsersData]);
 
  // Form Fields Initialization
  //
@@ -858,7 +859,7 @@ const CampaignEmail = () => {
  const directoryMembers = (activeData?.users || [])
   .map((u) => {
    const email = String(u.email || u.UserEMailID || '').toLowerCase();
-   return (masterUsersData || []).find((m) => m.UserEMailID?.toLowerCase() === email);
+   return peopleByEmail.get(email);
   })
   .filter(Boolean);
 
@@ -902,7 +903,7 @@ const CampaignEmail = () => {
    const counts = {};
    userList.forEach((u) => {
     const email = String(u.email || u.UserEMailID || '').toLowerCase();
-    const listed = (masterUsersData || []).find((m) => m.UserEMailID?.toLowerCase() === email);
+    const listed = peopleByEmail.get(email);
     const loc = (u.location || u.country || listed?.Country || 'OTHER').toUpperCase();
     counts[loc] = (counts[loc] || 0) + 1;
    });
@@ -915,11 +916,14 @@ const CampaignEmail = () => {
  const maxLocCount = Math.max(...locationList.map((l) => l.count), 1);
 
  // Filter master users by search
- const filteredMasterUsers = sortedMasterUsers.filter((u) =>
-  (u.UserEMailID?.toLowerCase().includes(singleUserSearch.toLowerCase())) ||
-  (u.UserName?.toLowerCase().includes(singleUserSearch.toLowerCase())) ||
-  (u.Department?.toLowerCase().includes(singleUserSearch.toLowerCase()))
- );
+ const filteredMasterUsers = useMemo(() => {
+  const q = singleUserSearch.toLowerCase();
+  return sortedMasterUsers.filter((u) =>
+   (u.UserEMailID?.toLowerCase().includes(q)) ||
+   (u.UserName?.toLowerCase().includes(q)) ||
+   (u.Department?.toLowerCase().includes(q))
+  );
+ }, [sortedMasterUsers, singleUserSearch]);
 
  // =========================================================================
  // 🌟 RICH TEXT EDITOR COMPONENT (SEAMLESS CORNERS & RELIABLE FORMATTING)
@@ -1872,7 +1876,7 @@ const CampaignEmail = () => {
             ) : (
              <ul aria-label="Test recipients" className="w-full flex-1 min-h-[220px] mt-3 flex flex-wrap gap-2 content-start">
               {testEmails.map((email) => {
-               const person = masterUsersData.find((u) => String(u.UserEMailID).toLowerCase() === email.toLowerCase());
+               const person = peopleByEmail.get(email.toLowerCase());
                return (
                 <li
                  key={email}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useUserType,
@@ -20,7 +20,7 @@ import {
 
 import HeroImage from "../../LandingPageImage.png";
 import AnimatedShackleGif from "../../assets/v-shield-animated-shackle.gif";
-import { peopleByRole, usePeople } from "../../services/people";
+import { useRolePeople } from "../../services/people";
 // IMPORT PART 2 SECTION
 import LandingPagePart2 from "./LandingPagePart2";
 import { SUPPORT_EMAIL } from "../../appConfig";
@@ -43,9 +43,9 @@ const LandingPage = () => {
 
   const { login, isDark, setIsDark } = useUserType();
 
-  // Who can sign in with each role: the people directory, from the backend.
-  const { people, loading: peopleLoading, error: peopleError, reload: reloadPeople } = usePeople();
-  const ROLE_USERS = useMemo(() => peopleByRole(people), [people]);
+  // Who can sign in with the chosen role (GET /users?role=): read only while
+  // the sign-in window is open, so the landing page itself loads no one.
+  const { people: roleUsers, loading: peopleLoading, error: peopleError, reload: reloadPeople } = useRolePeople(role, showLoginModal);
   const navigate = useNavigate();
   const { scrollYProgress, scrollY } = useScroll();
 
@@ -86,13 +86,13 @@ const LandingPage = () => {
 
   // Automatically update selected user when role changes
   useEffect(() => {
-    const list = ROLE_USERS[role] || [];
+    const list = roleUsers;
     if (list.length > 0) {
       setSelectedUserId(list[0].UserID);
     } else {
       setSelectedUserId("");
     }
-  }, [role, ROLE_USERS]);
+  }, [roleUsers]);
 
   // Step 1: Initialize Session and reveal User Profile dropdown
   const handleInitializeSession = (e) => {
@@ -100,7 +100,7 @@ const LandingPage = () => {
     if (password === "123456") {
       setError("");
       setIsSessionInitialized(true);
-      const list = ROLE_USERS[role] || [];
+      const list = roleUsers;
       if (list.length > 0) {
         setSelectedUserId(list[0].UserID);
       }
@@ -112,7 +112,7 @@ const LandingPage = () => {
   // Step 2: Finalize login and direct user to their respective default landing page
   const handleLoginAsUser = (e) => {
     if (e) e.preventDefault();
-    const list = ROLE_USERS[role] || [];
+    const list = roleUsers;
     const chosenUser = list.find((u) => u.UserID === selectedUserId) || list[0];
 
     if (chosenUser) {
@@ -151,7 +151,7 @@ const LandingPage = () => {
     "Regular User",
     "GMT",
   ];
-  const currentRoleUsers = ROLE_USERS[role] || [];
+  const currentRoleUsers = roleUsers;
   const activeUserObj =
     currentRoleUsers.find((u) => u.UserID === selectedUserId) ||
     currentRoleUsers[0];

@@ -10,7 +10,7 @@
  * Department, Country, role). When SSO arrives, the same table is filled
  * from Active Directory and nothing here changes.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { api } from './api.js';
 
@@ -37,13 +37,14 @@ export function tidyPeople(rows) {
 
 /**
  * Everyone, read at most once per PEOPLE_TTL_MS; callers at the same moment
- * share one request. `list` and `now` are for tests.
+ * share one request. `force` reads the server again, past every cache.
+ * `list` and `now` are for tests.
  */
-export function loadPeople({ force = false, list = () => api.users.list(), now = Date.now() } = {}) {
+export function loadPeople({ force = false, list = (opts) => api.users.list(opts), now = Date.now() } = {}) {
   if (!force && cache.people && now - cache.at < PEOPLE_TTL_MS) return Promise.resolve(cache.people);
   if (!pending) {
     pending = Promise.resolve()
-      .then(list)
+      .then(() => list({ fresh: force }))
       .then((rows) => {
         cache = { at: now, people: tidyPeople(rows) };
         return cache.people;
@@ -59,6 +60,7 @@ export function loadPeople({ force = false, list = () => api.users.list(), now =
 export function forgetPeople() {
   cache = { at: 0, people: null };
   pending = null;
+  lastMissRefresh = 0;
 }
 
 /**
@@ -74,11 +76,88 @@ export function peopleByRole(people) {
   return out;
 }
 
+const indexes = new WeakMap();
+
+/**
+ * email (lower case) -> person, built once per list. Screens that match many
+ * emails (a bulk upload, a list's members) look each one up here instead of
+ * searching the whole directory every time.
+ */
+export function emailIndex(people) {
+  if (!Array.isArray(people)) return new Map();
+  let index = indexes.get(people);
+  if (!index) {
+    index = new Map();
+    for (const p of people) {
+      const email = String(p?.UserEMailID || '').trim().toLowerCase();
+      if (email && !index.has(email)) index.set(email, p);
+    }
+    indexes.set(people, index);
+  }
+  return index;
+}
+
 /** Find one person by email, whatever its letter case. */
 export function personByEmail(people, email) {
   const wanted = String(email || '').trim().toLowerCase();
   if (!wanted) return undefined;
-  return (people || []).find((p) => String(p.UserEMailID || '').toLowerCase() === wanted);
+  return emailIndex(people).get(wanted);
+}
+
+const REFRESH_GAP_MS = 60 * 1000;
+const NOBODY = Object.freeze([]);
+let lastMissRefresh = 0;
+
+/**
+ * A person by email, reading the directory again (at most once a minute) if
+ * they aren't in it yet: someone added since it was read.
+ */
+export async function findPerson(email, { now = Date.now(), load = loadPeople } = {}) {
+  const found = personByEmail(await load(), email);
+  if (found || now - lastMissRefresh < REFRESH_GAP_MS) return found;
+  lastMissRefresh = now;
+  return personByEmail(await load({ force: true }), email);
+}
+
+/**
+ * Who can sign in with `role` (GET /users?role=): their profile only, by
+ * name. Filtered here too, so an API that ignores ?role= (before the backend
+ * that answers it is deployed) still gives the right people.
+ */
+export function loadRolePeople(role, { list = (r) => api.users.forRole(r) } = {}) {
+  if (!role) return Promise.resolve([]);
+  return Promise.resolve(list(role)).then((rows) =>
+    tidyPeople(rows).filter((p) => role === EVERYONE || p.role === role),
+  );
+}
+
+/**
+ * The login picker's people for one role, read only while `enabled` (the
+ * sign-in window is open), so the landing page never downloads the directory.
+ */
+export function useRolePeople(role, enabled = true) {
+  const [state, setState] = useState({ key: '', people: [], error: null });
+  const [attempt, setAttempt] = useState(0);
+  const key = enabled && role ? `${role}#${attempt}` : '';
+
+  useEffect(() => {
+    if (!key) return undefined;
+    let active = true;
+    loadRolePeople(role)
+      .then((people) => active && setState({ key, people, error: null }))
+      .catch((error) => active && setState({ key, people: [], error }));
+    return () => {
+      active = false;
+    };
+  }, [key, role]);
+
+  const ready = state.key === key;
+  return {
+    people: ready ? state.people : NOBODY,
+    loading: Boolean(key) && !ready,
+    error: ready ? state.error : null,
+    reload: () => setAttempt((n) => n + 1),
+  };
 }
 
 /**
@@ -104,8 +183,10 @@ export function usePeople() {
     };
   }, [attempt]);
 
+  const byEmail = useMemo(() => emailIndex(state.people), [state.people]);
   return {
     ...state,
+    byEmail,
     reload: () => {
       setState((s) => ({ ...s, loading: true, error: null }));
       setAttempt((n) => n + 1);

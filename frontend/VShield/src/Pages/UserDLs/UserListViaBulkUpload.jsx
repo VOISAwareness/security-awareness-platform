@@ -21,7 +21,7 @@ import ExcelIcon from "../../assets/UserListScreenAssets/ExcelIconUserListsScree
 import CSVIcon from "../../assets/UserListScreenAssets/CSVIconUserListsScreen.png";
 import { api } from "../../services/api";
 import { DEMO_USER } from "../../appConfig";
-import { usePeople } from "../../services/people";
+import { findPerson, usePeople } from "../../services/people";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 // =========================================================================
@@ -58,7 +58,7 @@ const VODAFONE_FONT_STYLE = `
 
 const UserListViaBulkUpload = () => {
   // The people directory, from the backend (services/people.js).
-  const { people: masterUsersData, loading: peopleLoading } = usePeople();
+  const { people: masterUsersData, byEmail: peopleByEmail, loading: peopleLoading } = usePeople();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
@@ -228,20 +228,15 @@ const UserListViaBulkUpload = () => {
     };
   }, [showAddSuggestions, showEditSuggestions, addSuggestions.length, editSuggestions.length]);
 
-  // Helper to resolve an email against master users directory or fresh API
+  // Resolve an email against the people directory; someone not in it yet
+  // (added since it was read) is looked for once more, at most once a minute,
+  // rather than downloading the whole directory for every unknown email.
   const resolveMemberFromEmail = async (email, idx) => {
     const trimmed = String(email || "").trim();
-    let matched = (masterUsersData || []).find(
-      (m) => m.UserEMailID?.toLowerCase() === trimmed.toLowerCase(),
-    );
+    let matched = peopleByEmail.get(trimmed.toLowerCase());
     if (!matched) {
       try {
-        const freshUsers = await api.users.list();
-        if (Array.isArray(freshUsers)) {
-          matched = freshUsers.find(
-            (m) => m.UserEMailID?.toLowerCase() === trimmed.toLowerCase(),
-          );
-        }
+        matched = await findPerson(trimmed);
       } catch (err) {
         console.warn("Could not query fresh users from API", err);
       }
@@ -438,9 +433,7 @@ const UserListViaBulkUpload = () => {
   const resolveMember = useCallback(
     (row, idx) => {
       const email = String(row.email || "").trim();
-      const matched = (masterUsersData || []).find(
-        (m) => m.UserEMailID?.toLowerCase() === email.toLowerCase(),
-      );
+      const matched = peopleByEmail.get(email.toLowerCase());
       return {
         srNo: idx + 1,
         userName: row.userName || matched?.UserName || email.split("@")[0],
@@ -456,7 +449,7 @@ const UserListViaBulkUpload = () => {
         isUnregistered: !matched,
       };
     },
-    [masterUsersData],
+    [peopleByEmail],
   );
 
   // Calculate telemetry metrics and department breakdown from members list
