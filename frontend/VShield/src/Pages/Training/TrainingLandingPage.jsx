@@ -100,18 +100,18 @@ export const TrainingLandingPage = () => {
           description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."
           customBadgeRow={
             <div className="flex items-center gap-2">
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex items-center gap-1">
-                  <img src={approvalQueueImg} alt="Approval Queue" className="w-5 h-5 object-contain" />
-                  <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">Approval Queue</span>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
+                <div className="flex items-center gap-1.5">
+                  <img src={approvalQueueImg} alt="Approval Queue" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Approval Queue</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <img src={myApprovedCampaignsImg} alt="Approved" className="w-5 h-5 object-contain" />
-                  <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">Approved</span>
+                <div className="flex items-center gap-1.5">
+                  <img src={myApprovedCampaignsImg} alt="Approved" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Approved</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <img src={rejectedCampaignsImg} alt="Rejected" className="w-5 h-5 object-contain" />
-                  <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">Rejected</span>
+                <div className="flex items-center gap-1.5">
+                  <img src={rejectedCampaignsImg} alt="Rejected" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Rejected</span>
                 </div>
               </div>
             </div>
