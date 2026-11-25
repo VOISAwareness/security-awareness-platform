@@ -11,7 +11,8 @@ Deliberate safeguards (see vault note 18, mapped from the frontend):
 - `loadedData` (a full copy of the recipient list, including every user row) is
   never persisted; only selectedListId/selectedListName are kept and members are
   resolved server-side at send time.
-- DynamoDB items are capped at 400 KB. `emailBody` / `landingPageContent` are
+- DynamoDB items are capped at 400 KB. `emailBody` / `landingPageContent` /
+  `browserPageHtml` (the optional stage-2 page the tracking Lambda serves) are
   editor blobs that can inline base64 images, so oversized writes are rejected
   with a clear message instead of an opaque DynamoDB error.
 - Campaigns can only be edited while DRAFT or REJECTED.
@@ -90,7 +91,7 @@ CAMPAIGN_TYPES = frozenset(EMAIL_TYPES + LEGACY_TYPES)
 # tracking token, its URL or fingerprint.
 # What ?view=summary leaves out of the campaigns list: the email and landing
 # page HTML and the cover (about two thirds of the list's bytes).
-HEAVY_FIELDS = frozenset({"emailBody", "landingPageContent", "CoverImageID"})
+HEAVY_FIELDS = frozenset({"emailBody", "landingPageContent", "browserPageHtml", "CoverImageID"})
 
 RESULT_FIELDS = (
     "recipientId", "recipientName", "recipientEmail", "department", "country", "sendStatus",

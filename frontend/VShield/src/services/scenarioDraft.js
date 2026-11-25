@@ -51,6 +51,7 @@ const MEANINGFUL_FIELDS = [
   'senderName',
   'emailSubject',
   'emailBody',
+  'browserPageHtml',
   'coverImageSource',
   'coverImageKey',
   'coverImageReattach',

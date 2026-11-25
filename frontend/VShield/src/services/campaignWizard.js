@@ -170,6 +170,8 @@ export const TEMPLATE_CONTENT_FIELDS = [
   'senderName',
   'emailSubject',
   'emailBody',
+  // The optional browser page (stage 2) the scenario's email can open.
+  'browserPageHtml',
   'landingPageId',
   'trainingId',
 ];
@@ -182,6 +184,7 @@ export function scenarioContent(scenario) {
       senderName: '',
       emailSubject: '',
       emailBody: '',
+      browserPageHtml: '',
       landingPageId: '',
       trainingId: '',
     };
@@ -191,6 +194,7 @@ export function scenarioContent(scenario) {
     senderName: scenario.senderName || '',
     emailSubject: scenario.emailSubject || '',
     emailBody: scenario.emailBody || '',
+    browserPageHtml: scenario.browserPageHtml || '',
     landingPageId: scenario.landingPageId || 'LP-001',
     trainingId: scenario.trainingId || 'TP-001',
   };

@@ -61,6 +61,7 @@ import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import {SCENARIO_STEPS} from './ScenarioConstants';
 import { PAGE_SCALE } from '../../../shared/SharedStyles';
 import { formatDateTime } from '../../../shared/dateTime';
+import { simulationProblem } from '../../../services/simulationPages';
 
 // ============================================================
 // SCALE / DESIGN VARIABLES
@@ -249,6 +250,7 @@ const needsOwnId = (edit, form) => {
   return !id || id === String(edit.scenarioId);
 };
 
+
 // Opened by address (a reload before the first change, or a link): the row as
 // this person's list holds it, annotated with its ownership. When their
 // pending edit stands in for it, that is what they edit, never the original
@@ -378,6 +380,8 @@ const ScenarioEditor = ({ opening }) => {
     senderName: "",
     emailSubject: "",
     emailBody: DEFAULT_EMAIL_BODY,
+    // Optional page 2: the fake browser page an email element can open.
+    browserPageHtml: "",
     // --------------------------------------------------------
     // Cover Image
     // --------------------------------------------------------
@@ -732,6 +736,12 @@ const ScenarioEditor = ({ opening }) => {
   // ==========================================================
   // TAB NAVIGATION + VALIDATION
   // ==========================================================
+  // A phishing email is useless without a trap, and a browser page (page 2)
+  // must be reachable from the email and have something to submit. Whatever
+  // is wrong gates the NEXT button on the Email step and SAVE/PUBLISH.
+  const simulationHint = simulationProblem(formData);
+  const emailActionConfigured = !simulationHint;
+
   const goNext = () => {
     // ========================================================
     // TAB 0 - SCENARIO DETAILS VALIDATION
@@ -801,6 +811,11 @@ const ScenarioEditor = ({ opening }) => {
         setErrorMsg("Please specify an Email Body");
         return;
       }
+
+      if (!emailActionConfigured) {
+        setErrorMsg(simulationHint);
+        return;
+      }
     }
 
     // Clear any previous validation error
@@ -811,6 +826,10 @@ const ScenarioEditor = ({ opening }) => {
     // first saved the scenario and the second came back 409 as a duplicate id,
     // so a successful publish reported itself as a failure.
     if (activeTab >= 3) {
+      if (!emailActionConfigured) {
+        setErrorMsg(simulationHint);
+        return;
+      }
       handlePublishScenario();
       return;
     }
@@ -1645,7 +1664,17 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={goNext}
-                    disabled={activeTab === 3 && isPublishing}
+                    disabled={
+                      (activeTab === 3 && isPublishing) ||
+                      ((activeTab === 1 || activeTab === 3) &&
+                        !emailActionConfigured)
+                    }
+                    title={
+                      (activeTab === 1 || activeTab === 3) &&
+                      !emailActionConfigured
+                        ? simulationHint
+                        : undefined
+                    }
                     className={`
     ${edit && activeTab === 3 ? "min-w-[90px] px-3" : "w-[90px]"}
     h-[24px]

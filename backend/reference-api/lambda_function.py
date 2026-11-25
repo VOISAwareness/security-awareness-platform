@@ -3329,6 +3329,7 @@ def handle(event, context):
             for field in (
                 "description",
                 "emailBody",
+                "browserPageHtml",
                 "CoverImageID",
                 "landingPageId",
                 "trainingId",

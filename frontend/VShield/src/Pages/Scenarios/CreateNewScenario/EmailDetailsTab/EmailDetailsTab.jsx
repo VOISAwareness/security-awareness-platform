@@ -711,6 +711,10 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                 onChange={(updatedHtml) => {
                   updateField("emailBody", updatedHtml);
                 }}
+                browserPage={formData?.browserPageHtml || ""}
+                onBrowserPageChange={(updatedHtml) => {
+                  updateField("browserPageHtml", updatedHtml);
+                }}
                 placeholder="Type your email body here..."
                 minHeight={200}
               />

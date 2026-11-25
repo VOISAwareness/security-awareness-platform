@@ -43,6 +43,15 @@ def test_inline_body_replaces_phish_link_with_tracking_url(mod):
     assert TRACKING_URL in out
 
 
+def test_a_browser_page_link_keeps_its_stage(mod):
+    # An element that opens the scenario's browser page links to the same
+    # tracking URL with ?next=browser; the tracking Lambda reads it.
+    body = '<a href="{{phishLink}}">Oops</a><a href="{{phishLink}}?next=browser">Sign in</a>'
+    out = mod.render_inline_body(body, "POC User", TRACKING_URL)
+    assert f'href="{TRACKING_URL}"' in out
+    assert f'href="{TRACKING_URL}?next=browser"' in out
+
+
 def test_inline_body_replaces_name_placeholder(mod):
     body = "<p>Dear {{userName}},</p><a href=\"{{phishLink}}\">Go</a>"
     out = mod.render_inline_body(body, "POC User", TRACKING_URL)
