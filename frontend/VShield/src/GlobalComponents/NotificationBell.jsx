@@ -64,7 +64,7 @@ const TONES = {
 // How the bell shows there is something new:
 //   'count': a red number on a neutral bell (none when all is read)
 //   'color': the whole bell red while anything is unread, a soft green when not
-export const BELL_STYLE = 'count';
+export const BELL_STYLE = 'color';
 
 export default function NotificationBell() {
   const { user } = useUserType();
@@ -204,11 +204,6 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100 dark:border-white/5">
             <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-[14px] font-voda font-bold text-slate-900 dark:text-white">Notifications</h2>
-              {unread > 0 && (
-                <span className="px-1.5 py-0.5 rounded-md bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] text-[9.5px] font-bold">
-                  {unread} new
-                </span>
-              )}
             </div>
             {unread > 0 && (
               <button
@@ -249,12 +244,14 @@ export default function NotificationBell() {
                             onClick={() => follow(n)}
                             data-notice={n.type}
                             title={formatDateTime(n.at)}
-                            className={`w-full flex items-start gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                            className={`relative w-full flex items-start gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
                               n.read
                                 ? 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'
-                                : 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]'
+                                : 'bg-[#E60000]/[0.05] hover:bg-[#E60000]/[0.08] dark:bg-[#E60000]/[0.12] dark:hover:bg-[#E60000]/[0.18]'
                             }`}
                           >
+                            {/* new: a red bar down the left edge, on a soft red row */}
+                            {!n.read && <span aria-hidden="true" className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full bg-[#E60000]" />}
                             <span className={`w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0 ${TONES[t.tone] || TONES.slate}`}>
                               <Icon className="w-4 h-4" strokeWidth={2} />
                             </span>
