@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 
 import useLayoutScale from './useLayoutScale';
 
@@ -22,7 +22,7 @@ const DraftDialog = ({
   onSecondary,
   onDismiss = onSecondary, // Esc / backdrop
   onClose, // the ✕ button; none without it
-  tone = 'default', // 'default' | 'warning'
+  tone = 'default', // 'default' | 'warning' | 'danger' (a delete: red trash icon and button)
   zIndex = 9500, // raise it to show above a full-screen layer
 }) => {
   const layoutScale = useLayoutScale(); // the app's zoom, so the overlay matches it
@@ -48,6 +48,7 @@ const DraftDialog = ({
   if (!open || typeof document === 'undefined') return null;
 
   const warn = tone === 'warning';
+  const danger = tone === 'danger';
 
   return createPortal(
     <div
@@ -82,17 +83,26 @@ const DraftDialog = ({
             <X className="w-4 h-4" strokeWidth={2.5} />
           </button>
         )}
-        <h2 id="draft-dialog-title" className={`text-[16px] font-extrabold tracking-tight ${onClose ? 'pr-8' : ''}`}>
-          {title}
-        </h2>
-        {body && (
-          <p className={`mt-2 text-[12px] font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-            {body}
-          </p>
-        )}
+        <div className={danger ? 'flex items-start gap-3' : ''}>
+          {danger && (
+            <span className="mt-0.5 w-10 h-10 rounded-xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.2} />
+            </span>
+          )}
+          <div className="min-w-0">
+            <h2 id="draft-dialog-title" className={`text-[16px] font-extrabold tracking-tight ${onClose ? 'pr-8' : ''}`}>
+              {title}
+            </h2>
+            {body && (
+              <p className={`mt-1.5 text-[12px] font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                {body}
+              </p>
+            )}
+          </div>
+        </div>
         {detail && (
           <div
-            className={`mt-3 rounded-xl px-3 py-2.5 text-[12px] font-bold ${
+            className={`mt-4 rounded-xl px-3 py-2.5 text-[12px] font-bold ${
               warn
                 ? (isDark ? 'bg-amber-500/10 text-amber-200' : 'bg-amber-50 text-amber-800')
                 : (isDark ? 'bg-white/5 text-slate-100' : 'bg-slate-50 text-slate-800')
@@ -115,10 +125,11 @@ const DraftDialog = ({
             ref={primaryRef}
             type="button"
             onClick={onPrimary}
-            className={`h-9 px-4 rounded-lg text-[12px] font-bold cursor-pointer text-white ${
-              warn ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#E60000] hover:bg-[#c50000]'
+            className={`h-9 px-4 rounded-lg text-[12px] font-bold cursor-pointer text-white inline-flex items-center gap-1.5 ${
+              warn ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#E60000] hover:bg-[#cc0000]'
             }`}
           >
+            {danger && <Trash2 className="w-3.5 h-3.5" strokeWidth={2.4} />}
             {primaryLabel}
           </button>
         </div>

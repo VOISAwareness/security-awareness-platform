@@ -764,7 +764,7 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
                             {/* Delete */}
                             <button
                               type="button"
-                              onClick={() => setDeleting({ id: listId, name: listName || listId, people: userCount, used: usedTimes })}
+                              onClick={() => setDeleting({ id: listId, name: listName || listId, type: listType, people: userCount, used: usedTimes })}
                               className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
                               title="Delete List"
                             >
@@ -955,10 +955,34 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
       <DraftDialog
         open={Boolean(deleting)}
         isDark={isDark}
-        tone="warning"
+        tone="danger"
         title="Delete this recipient list?"
-        body={deleting ? `"${deleting.name}" and its ${deleting.people} ${deleting.people === 1 ? "person" : "people"} will be removed from your recipient lists. This can't be undone.` : ""}
-        detail={deleting?.used ? `It has been used in ${deleting.used} ${deleting.used === 1 ? "campaign" : "campaigns"}.` : undefined}
+        body="It will be removed from your recipient lists for everyone. This can't be undone."
+        detail={
+          deleting && (
+            <div className="flex flex-col gap-2 font-normal">
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full bg-white dark:bg-black/40 border border-black/5 dark:border-white/10 text-[9.5px] font-bold font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
+                  {deleting.id}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300 text-[9.5px] font-bold">
+                  {deleting.type}
+                </span>
+              </div>
+              <span className="text-[13px] font-bold font-voda leading-snug">{deleting.name}</span>
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-[#E60000]" />
+                  {deleting.people} {deleting.people === 1 ? "recipient" : "recipients"}
+                </span>
+                <span className={deleting.used ? "text-amber-700 dark:text-amber-300" : ""}>
+                  Used {deleting.used} {deleting.used === 1 ? "time" : "times"}
+                </span>
+              </div>
+            </div>
+          )
+        }
         primaryLabel="Delete"
         onPrimary={confirmDelete}
         secondaryLabel="Cancel"
