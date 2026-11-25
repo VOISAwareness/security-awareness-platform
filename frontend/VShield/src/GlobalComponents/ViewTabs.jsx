@@ -24,7 +24,9 @@ const STYLES = {
 
 const SLIDE = { type: 'spring', stiffness: 520, damping: 40, mass: 0.8 };
 
-const ViewTabs = ({ tabs, value, onChange, isDark = false, variant = 'toolbar', ariaLabel = 'View', className = '' }) => {
+// fill: the options share the box's full width equally (the notification panel).
+// tab.dot: a small red dot after the label (something unread there).
+const ViewTabs = ({ tabs, value, onChange, isDark = false, variant = 'toolbar', ariaLabel = 'View', className = '', fill = false }) => {
   const group = useId();
   const reduce = useReducedMotion();
   const tone = (STYLES[variant] || STYLES.toolbar)[isDark ? 'dark' : 'light'];
@@ -43,7 +45,7 @@ const ViewTabs = ({ tabs, value, onChange, isDark = false, variant = 'toolbar', 
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            className={`relative px-3 py-1 rounded-lg text-[9px] font-voda font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-colors duration-200 ${
+            className={`relative ${fill ? 'flex-1 justify-center px-2' : 'px-3'} py-1 rounded-lg text-[9px] font-voda font-bold whitespace-nowrap flex items-center gap-1.5 cursor-pointer transition-colors duration-200 ${
               selected ? tone.on : tone.off
             }`}
           >
@@ -56,6 +58,7 @@ const ViewTabs = ({ tabs, value, onChange, isDark = false, variant = 'toolbar', 
               />
             )}
             <span className="relative">{tab.label}</span>
+            {tab.dot && <span className="relative w-1.5 h-1.5 rounded-full bg-[#E60000]" aria-label="new" />}
             {tab.count !== undefined && (
               <span
                 className={`relative min-w-[16px] h-[16px] px-1 rounded-full text-[8.5px] flex items-center justify-center ${
