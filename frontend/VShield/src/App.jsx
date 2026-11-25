@@ -23,9 +23,6 @@ import EmailIDsAndDomains from './Pages/EmailIDsandDomains/EmailIDsAndDomains';
 // 🌟 Import Landing Page Catalogue Page
 import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalogue';
 
-// 🌟 Import Cover Image Catalogue Page
-import CoverImageCatalogueModal from './Pages/CoverImageCatalogue/CoverImageCatalogueModal';
-
 // 🌟 Insights (the analytics page)
 import Insights from './Pages/Insights/Insights';
 
@@ -132,9 +129,6 @@ function App() {
 
             {/* 🌟 Landing Page Catalogue Route */}
             <Route path="/landing-page-catalogue" element={<LandingPageCatalogue />} />
-
-            {/* 🌟 Cover Image Catalogue Route */}
-            <Route path="/cover-image-catalogue" element={<CoverImageCatalogueModal />} />
 
             {/* 🌟 Campaign lifecycle (wired to the backend) */}
             <Route path="/campaigns" element={<Campaigns />} />
