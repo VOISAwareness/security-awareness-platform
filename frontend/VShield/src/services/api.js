@@ -331,6 +331,15 @@ export const api = {
   },
   campaignsCatalog: { list: () => request('/campaigns-catalog') },
 
+  // The bell in the top bar (services/notifications.js). `role` is
+  // client-asserted, as elsewhere, until sign-in exists.
+  notifications: {
+    list: (viewer, role) =>
+      request(`/notifications?viewer=${encodeURIComponent(viewer || '')}&role=${encodeURIComponent(role || '')}`, { fresh: true }),
+    // ids: the notifications read; 'all' marks every one read
+    read: (viewer, ids) => request('/notifications/read', { method: 'POST', body: { viewer, ids } }),
+  },
+
   campaigns: {
     // status is the backend enum: DRAFT | PENDING_APPROVAL | APPROVED |
     // REJECTED | SENDING | SENT | FAILED

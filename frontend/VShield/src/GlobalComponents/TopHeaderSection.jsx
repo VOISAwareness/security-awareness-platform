@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Sun, Moon, Menu, X } from 'lucide-react';
 import { TRANSITION_CONFIG } from './Layout';
 import { SUPPORT_EMAIL } from '../appConfig';
-import CampaignNoticesBell from './CampaignNoticesBell';
+import NotificationBell from './NotificationBell';
 
 // =========================================================================
 // 🎛️ TOP HEADER SCALE CONTROL VARIABLE (0.9 = 90%, 1.0 = 100%, etc.)
@@ -67,8 +67,8 @@ const TopHeaderSection = ({ leftOffset = 60, isScrolled = false, onMenu, menuOpe
           </a>
         </span>
 
-        {/* Campaign notifications for creators: sent back for changes, or rejected */}
-        <CampaignNoticesBell />
+        {/* Notifications: approvals, campaigns, training, announcements, achievements */}
+        <NotificationBell />
 
         {/* Theme Toggle */}
         <div
