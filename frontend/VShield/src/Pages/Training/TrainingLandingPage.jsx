@@ -23,7 +23,7 @@ export const TrainingLandingPage = () => {
   } = useTraining();
 
   return (
-    <div className="flex-1 pr-2 custom-light-scrollbar flex flex-col justify-start min-h-0 text-left">
+    <div className="flex-1 custom-light-scrollbar flex flex-col justify-start min-h-0 text-left">
       {/* 2x2 Grid of horizontal rectangular cards matching User List (DLs) bento cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6 w-full max-w-none flex-1 auto-rows-fr">
         {/* Card 1: Training Path */}
@@ -35,7 +35,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#E5E6FF] dark:bg-[#1E1F45]"
           squareTitle={<>Training<br />Path</>}
-          squareSubtitle="All about Training Paths required to run any campaign"
+          squareSubtitle="Training Paths needed to run campaigns"
           squareImage={tiltedPathIcon}
           title="Create New / Track Created Training Paths"
           description="Here you can Create new Training Path using stored individual elements as complete end to end path which will be available to attach as training path for any new campaign. You can also Check, Track, Edit or Delete those Created Training Paths."
@@ -58,7 +58,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#FFE5EC] dark:bg-[#451E28]"
           squareTitle={<>Storage<br />Room</>}
-          squareSubtitle="It's the storage space for your all training elements"
+          squareSubtitle="Storage space for all training elements"
           squareImage={tiltedStorageIcon}
           title="Add New / Track Individual Training Materials"
           description="Here you can 'Add New and Track' Individual Training Video, Quiz, Certificate and Packages and use these space as storage room. Storing elements individually helps in structuring pathways."
@@ -76,7 +76,7 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#E5F7EB] dark:bg-[#1E4528]"
           squareTitle={<>Reports &<br />Dashboard</>}
-          squareSubtitle="All about Training progress and Tracking updates on Training"
+          squareSubtitle="Progress and tracking of all training"
           squareImage={tiltedReportIcon}
           title="View Reports of Overall / By Campaign Training Progress"
           description="Here you can view detailed training progress reports for all users, with both overall and campaign-wise tracking capabilities. Monitor completion status, certifications achieve and pending activities."
@@ -94,24 +94,24 @@ export const TrainingLandingPage = () => {
           }}
           squareBgClass="bg-[#E5F5F7] dark:bg-[#1E3F45]"
           squareTitle={<>Requests &<br />Approvals</>}
-          squareSubtitle="All about approvals and request for newly created Traning Paths."
+          squareSubtitle="Approvals and requests for new paths"
           squareImage={tiltedApprovalIcon}
           title="Content Creators can Request & Content Managers can Approve those Requests."
           description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."
           customBadgeRow={
             <div className="flex items-center gap-2">
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex items-center gap-1">
-                  <img src={approvalQueueImg} alt="Approval Queue" className="w-5 h-5 object-contain" />
-                  <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">Approval Queue</span>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
+                <div className="flex items-center gap-1.5">
+                  <img src={approvalQueueImg} alt="Approval Queue" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Approval Queue</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <img src={myApprovedCampaignsImg} alt="Approved" className="w-5 h-5 object-contain" />
-                  <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">Approved</span>
+                <div className="flex items-center gap-1.5">
+                  <img src={myApprovedCampaignsImg} alt="Approved" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Approved</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <img src={rejectedCampaignsImg} alt="Rejected" className="w-5 h-5 object-contain" />
-                  <span className="text-[9.5px] font-bold text-slate-700 dark:text-slate-300">Rejected</span>
+                <div className="flex items-center gap-1.5">
+                  <img src={rejectedCampaignsImg} alt="Rejected" className="w-[clamp(20px,3.6cqw,28px)] h-[clamp(20px,3.6cqw,28px)] object-contain" />
+                  <span className="text-[clamp(9.5px,1.55cqw,12px)] font-bold text-slate-700 dark:text-slate-300">Rejected</span>
                 </div>
               </div>
             </div>
