@@ -961,16 +961,17 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
         detail={
           deleting && (
             <div className="flex flex-col items-center gap-2 font-normal text-center">
-              <div className="flex items-center justify-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-full bg-white dark:bg-black/40 border border-black/5 dark:border-white/10 text-[9.5px] font-bold font-mono flex items-center gap-1">
+              {/* the list on one line: its id, its name, its type */}
+              <div className="w-full flex items-center justify-center gap-2 min-w-0">
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-white dark:bg-black/40 border border-black/5 dark:border-white/10 text-[9.5px] font-bold font-mono flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
                   {deleting.id}
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300 text-[9.5px] font-bold">
+                <span className="min-w-0 truncate text-[13px] font-bold font-voda leading-snug" title={deleting.name}>{deleting.name}</span>
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300 text-[9.5px] font-bold">
                   {deleting.type}
                 </span>
               </div>
-              <span className="text-[13px] font-bold font-voda leading-snug">{deleting.name}</span>
               <div className="w-full grid grid-cols-2 pt-2 mt-0.5 border-t border-black/5 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 <span className="flex items-center justify-center gap-1.5 border-r border-black/5 dark:border-white/10">
                   <Users className="w-3.5 h-3.5 text-[#E60000]" />
