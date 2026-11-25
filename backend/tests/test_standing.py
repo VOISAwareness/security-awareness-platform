@@ -73,6 +73,7 @@ def api(mod, monkeypatch):
         monkeypatch.setattr(mod, "dynamodb", db)
         monkeypatch.setattr(mod, "_board_cache", {"at": 0.0, "totals": None})
         monkeypatch.setattr(mod, "_people_cache", {"at": 0.0, "people": None})
+        monkeypatch.setattr(mod, "_users_cache", {"at": 0.0, "rows": None})
         yield SimpleNamespace(mod=mod, ledger=ledger, users=users)
 
 

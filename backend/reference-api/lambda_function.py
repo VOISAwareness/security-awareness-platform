@@ -1220,13 +1220,51 @@ def board_totals():
     return totals
 
 
+# --- the people directory (GET /users) ---------------------------------------
+#
+# The users table read at most once every PEOPLE_TTL_SECONDS per instance, and
+# only the columns the app uses (the rest, e.g. managerEmail, jobTitle and the
+# old seed stats, never leave the server). Nothing in the app writes the
+# table, so five minutes stale is the same as CloudFront's shared copy.
+#   GET /users             -> everyone, USER_FIELDS
+#   GET /users?role=<role> -> who can sign in with a role (the login picker:
+#                             their own role, or everyone for Regular User),
+#                             LOGIN_FIELDS only, active people only
+USER_FIELDS = ("UserID", "UserName", "UserEMailID", "Department", "Country", "role", "active", "HookRate%", "ReportRate%")
+LOGIN_FIELDS = ("UserID", "UserName", "UserEMailID", "Department", "Country", "role")
+EVERYONE_ROLE = "Regular User"
+_users_cache = {"at": 0.0, "rows": None}
+
+
+def user_rows():
+    """Every users row, USER_FIELDS only; cached."""
+    now = time.monotonic()
+    if _users_cache["rows"] is not None and now - _users_cache["at"] < PEOPLE_TTL_SECONDS:
+        return _users_cache["rows"]
+    names = {f"#u{i}": f for i, f in enumerate(USER_FIELDS)}
+    rows = scan_all("users", ProjectionExpression=", ".join(names), ExpressionAttributeNames=names)
+    _users_cache.update(at=now, rows=rows)
+    return rows
+
+
+def users_view(rows, role=None):
+    """GET /users's rows: everyone, or the people who can sign in with `role`."""
+    if not role:
+        return rows
+    return [
+        {k: u[k] for k in LOGIN_FIELDS if k in u}
+        for u in rows
+        if u.get("active") is not False and (role == EVERYONE_ROLE or u.get("role") == role)
+    ]
+
+
 def people_by_email():
     """email -> (name, department) from the users table; cached."""
     now = time.monotonic()
     if _people_cache["people"] is not None and now - _people_cache["at"] < PEOPLE_TTL_SECONDS:
         return _people_cache["people"]
     people = {}
-    for u in scan_all("users"):
+    for u in user_rows():
         email = parse_identity(u.get("UserEMailID"))
         if email:
             people[email] = (str(u.get("UserName") or ""), str(u.get("Department") or ""))
@@ -3040,7 +3078,6 @@ def notifications(route, event, context):
 
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
-    "GET /users": "users",
     "GET /landing-pages": "landing-pages",
     "GET /user-lists": "user-lists",
     "GET /gamification-rules": "gamification-rules",
@@ -3144,6 +3181,11 @@ def handle(event, context):
             else:
                 items = [i for i in items if not is_deleted(i)]
             items = [sign_cover(i) for i in items]
+            return ok(items, count=len(items))
+
+        if route == "GET /users":
+            role = str((event.get("queryStringParameters") or {}).get("role") or "").strip()
+            items = users_view(user_rows(), role)
             return ok(items, count=len(items))
 
         if route in LIST_ROUTES:
