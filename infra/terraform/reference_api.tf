@@ -255,6 +255,9 @@ locals {
     # Insights' targets, set by an admin (tables.tf: settings).
     "GET /insights-targets",
     "PUT /insights-targets",
+    # The notification bell (tables.tf: notification_reads keeps what was read).
+    "GET /notifications",
+    "POST /notifications/read",
   ]
 }
 

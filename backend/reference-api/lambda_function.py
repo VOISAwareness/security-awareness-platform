@@ -1274,12 +1274,12 @@ def rank_of(totals, viewer):
     return rank, len(totals)
 
 
-def busy(context, what, e):
+def busy(context, what, e, message="Points are busy right now; try again shortly"):
     code = e.response.get("Error", {}).get("Code", "")
     if code not in THROTTLED_CODES:
         raise e
     log(context, f"{what} throttled", code=code)
-    return err(503, "Points are busy right now; try again shortly", code="BUSY")
+    return err(503, message, code="BUSY")
 
 
 def standing(route, event, context):
@@ -2034,6 +2034,14 @@ def training_content(route, event, params, context):
                     return err(*problem)
             if old and "CreatedOn" in old and "CreatedOn" not in row:
                 row["CreatedOn"] = old["CreatedOn"]
+            if kind == "paths":
+                # when a path was sent for approval, approved or rejected (the
+                # notification bell); kept by the server, never the client's
+                row["statusChangedAt"] = (
+                    iso_now() if row.get("status") != old.get("status") else old.get("statusChangedAt")
+                )
+                if not row["statusChangedAt"]:
+                    row.pop("statusChangedAt")
             tbl.put_item(Item=to_dynamo(row))
             old_key = old.get(media_field) if media_field else None
             if is_media_key(old_key) and old_key != new_key and UPLOAD_BUCKET:
@@ -2664,6 +2672,372 @@ def announcements(route, event, params, context):
     return ok(updated)
 
 
+# --- notifications (the bell in the top bar) -------------------------------
+#
+#   GET  /notifications?viewer=<email>&role=<role>
+#        -> {items: [{id, type, title, detail, at, read, link}], unread}
+#   POST /notifications/read {viewer, ids: [id, ...] | "all"}
+#
+# Nothing is written when something happens: each person's notifications are
+# worked out on read from the rows the app already keeps, so no Lambda that
+# changes a campaign, a training or an announcement has to know about them.
+#   - campaigns: for their creator, approved / changes requested / rejected /
+#     sending / sent / failed / starts or ends within a day / put on hold /
+#     resumed / cancelled (by someone else); for approvers, waiting approval
+#   - training assignments (their own rows): assigned by a campaign, due in
+#     three days, overdue, certificate issued
+#   - training paths: for approvers, waiting approval; for their creator,
+#     approved / rejected
+#   - announcement roll-outs: for approvers, waiting approval; for their
+#     creator, approved / rejected; for each person it was sent to, a new
+#     announcement (read from recipients by email, roll-outs only: a phishing
+#     simulation is never announced)
+#   - the points ledger (their own rows): each badge earned and each level up
+# The shared tables (campaigns, training paths, announcements) are read at most
+# once a minute per Lambda instance; the person's own rows are queried by key.
+# What has been read is one small row per person in notification-reads: the
+# ids marked read, and readAllAt ("Mark all read": everything up to then).
+# `viewer` and `role` are client-asserted, as elsewhere, until sign-in exists.
+
+NOTIFY_ROUTES = frozenset({"GET /notifications", "POST /notifications/read"})
+APPROVER_ROLES = frozenset({"Admin", "Campaign Manager"})
+NOTIFY_WINDOW_DAYS = 30  # older ones are left out
+NOTIFY_MAX = 50
+NOTIFY_SHARED_TTL_SECONDS = 60
+DUE_SOON_DAYS = 3
+SOON_SECONDS = 24 * 3600
+MAX_READ_IDS = 100  # per POST
+MAX_NOTIFY_ID = 200
+_notify_cache = {}
+
+CAMPAIGN_NOTIFY_FIELDS = (
+    "campaignId", "campaignTitle", "status", "createdBy", "submittedBy", "submittedAt",
+    "approvedAt", "approvedBy", "approvalComments", "rejectedAt", "rejectedBy", "rejectionComments",
+    "changesRequested", "sendingStartedAt", "sentAt", "recipientCount", "failedCount", "failedAt",
+    "failureReason", "heldAt", "heldBy", "resumedAt", "resumedBy", "cancelledAt", "cancelledBy",
+    "cancellationReason", "startAt", "endAt", "wizardStep",
+)
+# The front end's names (src/Achievements/achievements.js), keyed by the ids
+# achievements_for returns.
+ACHIEVEMENT_NAMES = {
+    "first-report": "First Report", "sharp-eye": "Sharp Eye", "quick-reporter": "Quick Reporter",
+    "safe-handler": "Safe Handler", "trained": "Trained", "quiz-ace": "Quiz Ace", "top-10": "Top 10",
+    "point-collector": "Point Collector", "comeback": "Comeback", "lifelong-learner": "Lifelong Learner",
+}
+ROMAN = {1: "I", 2: "II", 3: "III"}
+
+
+def shared_rows(name, **scan_kwargs):
+    """A shared table's rows, read at most once a minute per instance."""
+    now = time.monotonic()
+    hit = _notify_cache.get(name)
+    if hit and now - hit[0] < NOTIFY_SHARED_TTL_SECONDS:
+        return hit[1]
+    rows = scan_all(name, **scan_kwargs)
+    _notify_cache[name] = (now, rows)
+    return rows
+
+
+def campaign_rows():
+    names = {f"#f{i}": f for i, f in enumerate(CAMPAIGN_NOTIFY_FIELDS)}
+    return shared_rows("campaigns", ProjectionExpression=", ".join(names), ExpressionAttributeNames=names)
+
+
+def instant(value):
+    """Epoch seconds of an ISO time (or epoch ms), else None."""
+    if isinstance(value, int | float | decimal.Decimal) and not isinstance(value, bool):
+        return float(value) / 1000
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (dt if dt.tzinfo else dt.replace(tzinfo=UTC)).timestamp()
+
+
+def iso_at(seconds):
+    return datetime.fromtimestamp(seconds, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def note(ntype, ref, at, title, detail="", link=None):
+    """One notification; None when it has no time. Its id is stable, so a
+    read one stays read: the type, what it is about and when."""
+    t = instant(at)
+    if t is None:
+        return None
+    return {"id": f"{ntype}:{ref}:{int(t)}"[:MAX_NOTIFY_ID], "type": ntype, "title": title,
+            "detail": detail or "", "at": iso_at(t), "link": link}
+
+
+def who(email, people):
+    email = parse_identity(email)
+    if not email:
+        return ""
+    name = (people.get(email) or ("", ""))[0]
+    return name or name_from_email(email)
+
+
+def quoted(message, by=""):
+    message = str(message or "").strip()
+    if not message:
+        return by
+    return f"“{message[:200]}”" + (f" · {by}" if by else "")
+
+
+def plural(n, one, many=None):
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def campaign_notes(rows, viewer, role, now, people):
+    out = []
+    approver = role in APPROVER_ROLES
+    for c in rows:
+        cid = c.get("campaignId")
+        if not cid:
+            continue
+        title = str(c.get("campaignTitle") or cid)
+        status = c.get("status")
+        owner = parse_identity(c.get("createdBy") or c.get("submittedBy"))
+        if approver and status == "PENDING_APPROVAL" and owner != viewer:
+            out.append(note("campaign.pending_approval", cid, c.get("submittedAt"), f"{title} needs your approval",
+                            f"Submitted by {who(owner, people)}" if owner else "",
+                            {"to": "/requests-approvals", "state": {"tab": "queue"}}))
+        if owner != viewer:
+            continue
+        campaigns_link = {"to": "/campaigns"}
+        if c.get("approvedAt") and parse_identity(c.get("approvedBy")) != viewer:
+            out.append(note("campaign.approved", cid, c["approvedAt"], f"{title} was approved",
+                            quoted(c.get("approvalComments"), who(c.get("approvedBy"), people)), campaigns_link))
+        if c.get("rejectedAt"):
+            by = who(c.get("rejectedBy"), people)
+            if c.get("changesRequested") is True:
+                out.append(note("campaign.changes_requested", cid, c["rejectedAt"], f"{title} needs changes",
+                                quoted(c.get("rejectionComments"), by),
+                                {"to": "draft", "campaignId": cid, "wizardStep": c.get("wizardStep")}
+                                if status == "REJECTED" else campaigns_link))
+            else:
+                out.append(note("campaign.rejected", cid, c["rejectedAt"], f"{title} was rejected",
+                                quoted(c.get("rejectionComments"), by),
+                                {"to": "/requests-approvals", "state": {"tab": "rejected"}}))
+        if status == "SENDING" and c.get("sendingStartedAt"):
+            out.append(note("campaign.sending", cid, c["sendingStartedAt"], f"{title} is being sent",
+                            "Emails are going out now", campaigns_link))
+        if c.get("sentAt"):
+            sent, failed = int(c.get("recipientCount") or 0), int(c.get("failedCount") or 0)
+            detail = (f"Sent to {plural(sent, 'person', 'people')}" if sent else "") + (f", {failed} failed" if failed else "")
+            out.append(note("campaign.sent", cid, c["sentAt"], f"{title} was sent", detail, campaigns_link))
+        if status == "SEND_FAILED" and c.get("failedAt"):
+            out.append(note("campaign.failed", cid, c["failedAt"], f"{title} could not be sent",
+                            str(c.get("failureReason") or "")[:200], campaigns_link))
+        start, end = instant(c.get("startAt")), instant(c.get("endAt"))
+        if status == "APPROVED" and start and now < start <= now + SOON_SECONDS:
+            out.append(note("campaign.starts_soon", cid, iso_at(max(start - SOON_SECONDS, instant(c.get("approvedAt")) or 0)),
+                            f"{title} starts within a day", "It is scheduled and ready to go", campaigns_link))
+        if status in ("SENDING", "SENT") and end and now < end <= now + SOON_SECONDS:
+            out.append(note("campaign.ends_soon", cid, iso_at(end - SOON_SECONDS), f"{title} ends within a day",
+                            "Results stop counting when it ends", campaigns_link))
+        if c.get("heldAt") and parse_identity(c.get("heldBy")) != viewer and status == "ON_HOLD":
+            out.append(note("campaign.on_hold", cid, c["heldAt"], f"{title} was put on hold",
+                            f"By {who(c.get('heldBy'), people)}", campaigns_link))
+        if c.get("resumedAt") and parse_identity(c.get("resumedBy")) != viewer:
+            out.append(note("campaign.resumed", cid, c["resumedAt"], f"{title} is back on the schedule",
+                            f"By {who(c.get('resumedBy'), people)}", campaigns_link))
+        if c.get("cancelledAt") and parse_identity(c.get("cancelledBy")) != viewer:
+            out.append(note("campaign.cancelled", cid, c["cancelledAt"], f"{title} was cancelled",
+                            quoted(c.get("cancellationReason"), who(c.get("cancelledBy"), people)), campaigns_link))
+    return out
+
+
+def training_notes(assignments, path_names, now):
+    out = []
+    link = {"to": "/my-training"}
+    for a in assignments:
+        pid = a.get("TrainingPathID")
+        name = path_names.get(pid) or pid or "Training"
+        ref = a.get("assignmentId") or pid
+        done = a.get("status") == "COMPLETED"
+        due = instant(a.get("dueAt"))
+        if a.get("source") == "ASSIGNED":
+            days = int((due - now) // 86400) if due else None
+            out.append(note("training.assigned", ref, a.get("assignedAt"), f"New training: {name}",
+                            f"Due in {plural(days, 'day')}" if days is not None and days > 0 and not done else "", link))
+        if not done and due:
+            if now < due <= now + DUE_SOON_DAYS * 86400:
+                days = max(1, int(-(-(due - now) // 86400)))
+                out.append(note("training.due_soon", ref, iso_at(due - DUE_SOON_DAYS * 86400), f"{name} is due in {plural(days, 'day')}",
+                                "Finish it to keep your points", link))
+            elif due <= now:
+                out.append(note("training.overdue", ref, iso_at(due), f"{name} is overdue",
+                                "Finish it as soon as you can", link))
+        if a.get("certificateIssuedAt"):
+            out.append(note("training.certificate", ref, a["certificateIssuedAt"], f"You earned a certificate for {name}",
+                            "Well done on passing", link))
+    return out
+
+
+def path_notes(paths, viewer, role, people):
+    out = []
+    approver = role in APPROVER_ROLES
+    for p in paths:
+        pid, at = p.get("TrainingPathID"), p.get("statusChangedAt")
+        if not pid or not at:
+            continue  # older rows say nothing about when their status changed
+        name = str(p.get("TrainingPathName") or pid)
+        owner, status = parse_identity(p.get("createdBy")), p.get("status")
+        if approver and status == "Pending" and owner != viewer:
+            out.append(note("training_path.pending_approval", pid, at, f"Training path {name} needs your approval",
+                            f"Submitted by {who(owner, people)}" if owner else "", {"to": "/training"}))
+        if owner == viewer and parse_identity(p.get("approvedBy")) != viewer:
+            if status == "Published":
+                out.append(note("training_path.approved", pid, at, f"Training path {name} was approved",
+                                f"By {who(p.get('approvedBy'), people)}" if p.get("approvedBy") else "", {"to": "/training"}))
+            elif status == "Rejected":
+                out.append(note("training_path.rejected", pid, at, f"Training path {name} was rejected",
+                                quoted(p.get("rejectionMessage"), who(p.get("approvedBy"), people)), {"to": "/training"}))
+    return out
+
+
+def announcement_name(a):
+    return str(a.get("announcementScenarioName") or a.get("announcementCampaignTitle") or a.get("announcementId"))
+
+
+def announcement_notes(rows, received, viewer, role, people):
+    out = []
+    approver = role in APPROVER_ROLES
+    by_id = {a.get("announcementId"): a for a in rows}
+    for a in rows:
+        aid = a.get("announcementId")
+        if not aid or a.get("kind") != "ROLLOUT":
+            continue
+        name, owner, status = announcement_name(a), parse_identity(a.get("createdBy")), a.get("status")
+        if approver and status == "PENDING_APPROVAL" and owner != viewer:
+            out.append(note("announcement.pending_approval", aid, a.get("updatedAt") or a.get("createdAt"),
+                            f"Announcement {name} needs your approval", f"From {who(owner, people)}" if owner else "",
+                            {"to": "/announcements/approvals"}))
+        if owner == viewer and a.get("approvedAt"):
+            out.append(note("announcement.approved", aid, a["approvedAt"], f"Announcement {name} was approved",
+                            quoted(a.get("decisionComments"), who(a.get("approvedBy"), people)), {"to": "/announcements/history"}))
+        if owner == viewer and a.get("rejectedAt") and status == "REJECTED":
+            out.append(note("announcement.rejected", aid, a["rejectedAt"], f"Announcement {name} was rejected",
+                            quoted(a.get("decisionComments"), who(a.get("rejectedBy"), people)), {"to": "/announcements/history"}))
+    for r in received:
+        a = by_id.get(r.get("campaignId"))
+        if a and a.get("kind") == "ROLLOUT":
+            out.append(note("announcement.published", a["announcementId"], r.get("sentAt") or r.get("createdAt"),
+                            f"New announcement: {announcement_name(a)}", "Sent to your inbox", None))
+    return out
+
+
+def achievement_notes(rows, rank):
+    """Each badge as it was earned and each new level reached, from the
+    person's ledger rows (oldest first)."""
+    entries = sorted(
+        (r for r in rows if str(r.get("entryId", "")).startswith("E#")),
+        key=lambda r: (str(r.get("at", "")), str(r.get("entryId", ""))),
+    )
+    out, earned, running, best = [], set(), 0, level_for(0)["rank"]
+    counts = dict.fromkeys(COUNTED_RULES, 0)
+    link = {"to": "/my-space"}
+    for i, e in enumerate(entries):
+        running += int(e.get("delta", 0))
+        if e.get("rule") in counts:
+            counts[e["rule"]] += 1
+        for aid in achievements_for(entries[: i + 1], counts, running, None):
+            if aid not in earned:
+                earned.add(aid)
+                out.append(note("achievement.badge", aid, e.get("at"), f"You earned the {ACHIEVEMENT_NAMES.get(aid, aid)} badge",
+                                "See all your badges in My Space", link))
+        lvl = level_for(running)
+        if lvl["rank"] > best:
+            best = lvl["rank"]
+            grade = f" {ROMAN[lvl['grade']]}" if lvl.get("grade") in ROMAN else ""
+            out.append(note("achievement.level_up", lvl["id"], e.get("at"), f"You reached {lvl['name']}{grade}",
+                            f"{running:,} points", link))
+    total = next((r for r in rows if r.get("entryId") == LEDGER_TOTAL), None)
+    points = int(total["points"]) if total and "points" in total else running
+    if "top-10" not in earned and "top-10" in achievements_for(entries, counts, points, rank):
+        out.append(note("achievement.badge", "top-10", (total or {}).get("updatedAt"), "You earned the Top 10 badge",
+                        "You are in the top 10 of the leaderboard", link))
+    return out
+
+
+def notifications_view(items, reads, now):
+    """Newest first, the last NOTIFY_WINDOW_DAYS only, each marked read or not."""
+    read_ids = set(reads.get("readIds") or ())
+    read_all = instant(reads.get("readAllAt")) or 0
+    cutoff = now - NOTIFY_WINDOW_DAYS * 86400
+    seen, out = set(), []
+    for n in sorted((n for n in items if n), key=lambda n: (n["at"], n["id"]), reverse=True):
+        t = instant(n["at"])
+        if n["id"] in seen or t < cutoff or t > now + 60:
+            continue
+        seen.add(n["id"])
+        out.append({**n, "read": n["id"] in read_ids or t <= read_all})
+        if len(out) >= NOTIFY_MAX:
+            break
+    return {"items": out, "unread": sum(1 for n in out if not n["read"])}
+
+
+def query_all(name, **kwargs):
+    rows, tbl = [], table(name)
+    while True:
+        resp = tbl.query(**kwargs)
+        rows.extend(resp.get("Items", []))
+        if not resp.get("LastEvaluatedKey"):
+            return rows
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+
+
+def notifications(route, event, context):
+    try:
+        if route == "POST /notifications/read":
+            try:
+                body = parse_body(event)
+            except ValueError:
+                body = None
+            body = body if isinstance(body, dict) else {}
+            viewer, ids = parse_identity(body.get("viewer")), body.get("ids")
+            if not viewer:
+                return err(400, "viewer is required")
+            tbl = table("notification-reads")
+            if ids == "all":
+                tbl.update_item(Key={"owner": viewer}, UpdateExpression="SET readAllAt = :now REMOVE readIds",
+                                ExpressionAttributeValues={":now": iso_now()})
+                return ok({"read": "all"})
+            if (not isinstance(ids, list) or not ids or len(ids) > MAX_READ_IDS
+                    or not all(isinstance(i, str) and 0 < len(i) <= MAX_NOTIFY_ID for i in ids)):
+                return err(400, f'ids must be "all" or a list of 1 to {MAX_READ_IDS} notification ids')
+            tbl.update_item(Key={"owner": viewer}, UpdateExpression="ADD readIds :ids",
+                            ExpressionAttributeValues={":ids": set(ids)})
+            return ok({"read": len(set(ids))})
+
+        query = event.get("queryStringParameters") or {}
+        viewer, role = parse_identity(query.get("viewer")), str(query.get("role") or "")
+        if not viewer:
+            return err(400, "viewer is required")
+        now = time.time()
+        people = people_by_email()
+        paths = shared_rows("training-paths")
+        ledger = query_all("points-ledger", KeyConditionExpression=Key("owner").eq(viewer))
+        received = query_all("recipients", IndexName="recipientEmail-index",
+                             KeyConditionExpression=Key("recipientEmail").eq(viewer))
+        rank, _ = rank_of(board_totals(), viewer)
+        items = (
+            campaign_notes(campaign_rows(), viewer, role, now, people)
+            + training_notes(owner_assignments(viewer), {p.get("TrainingPathID"): p.get("TrainingPathName") for p in paths}, now)
+            + path_notes(paths, viewer, role, people)
+            + announcement_notes(shared_rows("announcements"), received, viewer, role, people)
+            + achievement_notes(ledger, rank)
+        )
+        reads = table("notification-reads").get_item(Key={"owner": viewer}).get("Item") or {}
+        view = notifications_view(items, reads, now)
+        log(context, "notifications", count=len(view["items"]), unread=view["unread"])
+        return ok(view)
+    except ClientError as e:
+        return busy(context, "Notifications", e, "Notifications are busy right now; try again shortly")
+
+
 # routeKey -> table name for simple "list all" GETs
 LIST_ROUTES = {
     "GET /users": "users",
@@ -2741,6 +3115,9 @@ def handle(event, context):
 
         if route in STANDING_ROUTES:
             return standing(route, event, context)
+
+        if route in NOTIFY_ROUTES:
+            return notifications(route, event, context)
 
         if route in TARGET_ROUTES:
             return insights_targets(route, event, context)
