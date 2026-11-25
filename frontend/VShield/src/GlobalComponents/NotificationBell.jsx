@@ -32,13 +32,12 @@ import { actorFor } from '../services/identity';
 import { openCampaignDraft } from '../services/useCampaignDraft';
 import { IN_WIZARD, routeForStep } from '../services/campaignWizard';
 import { markNoticesSeen, noticesFor, seenNotices } from '../services/campaignNotices';
-import { TABS, fromApi, fromCampaignNotices, groupByDay, inTab, shortTime, typeOf, unreadCounts } from '../services/notifications';
+import { fromApi, fromCampaignNotices, groupByDay, shortTime, typeOf, unreadCount } from '../services/notifications';
 import { formatDateTime } from '../shared/dateTime';
-import ViewTabs from './ViewTabs';
 
-// The bell in the top bar and its panel: everything that needs the person's
-// attention across the app (approvals, campaigns, training, announcements,
-// achievements), grouped by day, with a tab for each area. Read from
+// The bell in the top bar and its panel: the person's recent activity across
+// the app (approvals, campaigns, training, announcements, badges) in one list,
+// newest first and grouped by day; each item's icon and colour say what it is. Read from
 // GET /notifications; until that is deployed, the campaign notices it has
 // always shown. Checked when the app opens, on each page change, every minute
 // and when the tab comes back into view.
@@ -62,13 +61,10 @@ const TONES = {
   slate: 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-300',
 };
 
-const EMPTY = {
-  all: 'New approvals, campaign updates, training and badges show here.',
-  approvals: 'Nothing is waiting for your approval.',
-  campaigns: 'Updates on your campaigns show here.',
-  training: 'New and due training shows here.',
-  achievements: 'Badges, levels and certificates you earn show here.',
-};
+// How the bell shows there is something new:
+//   'count': a red number on a neutral bell (none when all is read)
+//   'color': the whole bell red while anything is unread, a soft green when not
+export const BELL_STYLE = 'count';
 
 export default function NotificationBell() {
   const { user, isDark } = useUserType();
@@ -79,7 +75,6 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
   const [source, setSource] = useState('api'); // 'api' or 'local' (the fallback)
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState('all');
   const [ring, setRing] = useState(false);
   const lastUnread = useRef(0);
   const boxRef = useRef(null);
@@ -119,19 +114,19 @@ export default function NotificationBell() {
     };
   }, [load]);
 
-  const counts = useMemo(() => unreadCounts(items), [items]);
+  const unread = useMemo(() => unreadCount(items), [items]);
 
   // a short ring of the bell when something new arrives
   useEffect(() => {
-    if (counts.all > lastUnread.current) {
+    if (unread > lastUnread.current) {
       setRing(true);
       const t = setTimeout(() => setRing(false), 900);
-      lastUnread.current = counts.all;
+      lastUnread.current = unread;
       return () => clearTimeout(t);
     }
-    lastUnread.current = counts.all;
+    lastUnread.current = unread;
     return undefined;
-  }, [counts.all]);
+  }, [unread]);
 
   // close on a click elsewhere or Escape
   useEffect(() => {
@@ -168,29 +163,32 @@ export default function NotificationBell() {
     }
   };
 
-  const shown = inTab(items, tab);
-  const groups = groupByDay(shown);
-  const tabs = TABS.map((t) => ({ ...t, dot: t.id !== 'all' && counts[t.id] > 0 }));
+  const groups = groupByDay(items);
+  const byColor = BELL_STYLE === 'color';
+  const bellTone = open
+    ? 'bg-[#181A20] text-white dark:bg-white dark:text-black'
+    : byColor
+      ? unread
+        ? 'bg-[#E60000] text-white hover:bg-[#C70000] shadow-[0_4px_12px_rgba(230,0,0,0.35)]'
+        : 'bg-[#E5F7EB] text-[#2F9E57] hover:bg-[#D3F0DD] dark:bg-emerald-400/10 dark:text-emerald-300'
+      : 'bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-200 hover:bg-black/10 dark:hover:bg-white/10';
 
   return (
     <div className="relative" ref={boxRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={counts.all ? `Notifications, ${counts.all} new` : 'Notifications'}
+        aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}
         aria-expanded={open}
         aria-haspopup="dialog"
-        data-notice-bell={counts.all}
-        className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-          open
-            ? 'bg-[#181A20] text-white dark:bg-white dark:text-black'
-            : 'bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-200 hover:bg-black/10 dark:hover:bg-white/10'
-        }`}
+        data-notice-bell={unread}
+        data-bell-style={BELL_STYLE}
+        className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${bellTone}`}
       >
         <Bell className={`w-4 h-4 ${ring ? 'vs-bell-ring' : ''}`} />
-        {counts.all > 0 && (
+        {!byColor && unread > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E60000] text-white text-[9px] font-bold leading-4 text-center ring-2 ring-white dark:ring-[#030403]">
-            {counts.all > 9 ? '9+' : counts.all}
+            {unread > 9 ? '9+' : unread}
           </span>
         )}
       </button>
@@ -203,16 +201,16 @@ export default function NotificationBell() {
           className="vs-pop-in absolute right-0 top-11 w-[380px] max-w-[calc(100vw-24px)] rounded-2xl border overflow-hidden z-50 bg-white border-slate-200 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.25)] dark:bg-[#15161A] dark:border-white/10 dark:shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8)]"
         >
           {/* header */}
-          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100 dark:border-white/5">
             <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-[14px] font-voda font-bold text-slate-900 dark:text-white">Notifications</h2>
-              {counts.all > 0 && (
+              {unread > 0 && (
                 <span className="px-1.5 py-0.5 rounded-md bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] text-[9.5px] font-bold">
-                  {counts.all} new
+                  {unread} new
                 </span>
               )}
             </div>
-            {counts.all > 0 && (
+            {unread > 0 && (
               <button
                 type="button"
                 onClick={() => markRead(items.filter((n) => !n.read).map((n) => n.id))}
@@ -224,11 +222,6 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* tabs */}
-          <div className="px-4 pb-3 border-b border-slate-100 dark:border-white/5">
-            <ViewTabs tabs={tabs} value={tab} onChange={setTab} isDark={isDark} ariaLabel="Notification type" fill className="w-full" />
-          </div>
-
           {/* list */}
           <div className="max-h-[420px] overflow-y-auto vs-scroll py-1.5">
             {groups.length === 0 ? (
@@ -237,13 +230,15 @@ export default function NotificationBell() {
                   <BellOff className="w-[18px] h-[18px]" />
                 </span>
                 <p className="text-[12px] font-semibold text-slate-900 dark:text-white">You&apos;re all caught up</p>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{EMPTY[tab]}</p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Approvals, campaign updates, training and badges show here as they happen.
+                </p>
               </div>
             ) : (
               groups.map((g) => (
                 <section key={g.id} aria-label={g.label}>
                   <h3 className="px-4 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{g.label}</h3>
-                  <ul className="px-1.5">
+                  <ul className="px-1.5 flex flex-col gap-0.5">
                     {g.items.map((n) => {
                       const t = typeOf(n);
                       const Icon = ICONS[t.icon] || Bell;
@@ -254,7 +249,11 @@ export default function NotificationBell() {
                             onClick={() => follow(n)}
                             data-notice={n.type}
                             title={formatDateTime(n.at)}
-                            className="w-full flex items-start gap-3 px-2.5 py-2.5 rounded-xl text-left hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+                            className={`w-full flex items-start gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                              n.read
+                                ? 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'
+                                : 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]'
+                            }`}
                           >
                             <span className={`w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0 ${TONES[t.tone] || TONES.slate}`}>
                               <Icon className="w-4 h-4" strokeWidth={2} />
@@ -271,9 +270,9 @@ export default function NotificationBell() {
                                 <span className="block mt-0.5 text-[10.5px] leading-snug text-slate-500 dark:text-slate-400 line-clamp-2">{n.detail}</span>
                               )}
                             </span>
-                            <span className="flex flex-col items-end gap-1.5 flex-shrink-0 pt-0.5">
-                              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{shortTime(n.at)}</span>
-                              {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" aria-label="Unread" />}
+                            <span className="flex-shrink-0 pt-0.5 text-[9.5px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                              {shortTime(n.at)}
+                              {!n.read && <span className="sr-only">, unread</span>}
                             </span>
                           </button>
                         </li>

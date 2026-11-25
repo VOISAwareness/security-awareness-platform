@@ -16,48 +16,42 @@
 import { NOTICE_KIND } from './campaignNotices.js';
 import { wallClockOf } from '../shared/dateTime.js';
 
-// tabs, in order; "all" holds everything
-export const TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'approvals', label: 'Approvals' },
-  { id: 'campaigns', label: 'Campaigns' },
-  { id: 'training', label: 'Training' },
-  { id: 'achievements', label: 'Badges' },
-];
-
+// category: what area it is about (approvals, campaigns, training,
+//   achievements, general); the panel shows one list, so this only groups
+//   the types and picks sensible tones
 // tone: the pastel tile behind the icon (the app's capsule colours)
 // icon: a lucide icon name (the bell maps it)
 export const TYPES = {
-  'campaign.pending_approval': { tab: 'approvals', tone: 'amber', icon: 'ClipboardCheck' },
-  'campaign.approved': { tab: 'campaigns', tone: 'mint', icon: 'CircleCheck' },
-  'campaign.changes_requested': { tab: 'campaigns', tone: 'amber', icon: 'PencilLine' },
-  'campaign.rejected': { tab: 'campaigns', tone: 'rose', icon: 'CircleX' },
-  'campaign.sending': { tab: 'campaigns', tone: 'sky', icon: 'Send' },
-  'campaign.sent': { tab: 'campaigns', tone: 'mint', icon: 'MailCheck' },
-  'campaign.failed': { tab: 'campaigns', tone: 'rose', icon: 'TriangleAlert' },
-  'campaign.starts_soon': { tab: 'campaigns', tone: 'lilac', icon: 'CalendarClock' },
-  'campaign.ends_soon': { tab: 'campaigns', tone: 'lilac', icon: 'Hourglass' },
-  'campaign.on_hold': { tab: 'campaigns', tone: 'slate', icon: 'CirclePause' },
-  'campaign.resumed': { tab: 'campaigns', tone: 'mint', icon: 'CirclePlay' },
-  'campaign.cancelled': { tab: 'campaigns', tone: 'slate', icon: 'Ban' },
-  'training.assigned': { tab: 'training', tone: 'lilac', icon: 'GraduationCap' },
-  'training.due_soon': { tab: 'training', tone: 'amber', icon: 'Clock' },
-  'training.overdue': { tab: 'training', tone: 'rose', icon: 'CircleAlert' },
-  'training.certificate': { tab: 'achievements', tone: 'lilac', icon: 'Award' },
-  'training_path.pending_approval': { tab: 'approvals', tone: 'amber', icon: 'ClipboardCheck' },
-  'training_path.approved': { tab: 'training', tone: 'mint', icon: 'CircleCheck' },
-  'training_path.rejected': { tab: 'training', tone: 'rose', icon: 'CircleX' },
-  'announcement.published': { tab: 'all', tone: 'teal', icon: 'Megaphone' },
-  'announcement.pending_approval': { tab: 'approvals', tone: 'amber', icon: 'ClipboardCheck' },
-  'announcement.approved': { tab: 'all', tone: 'mint', icon: 'CircleCheck' },
-  'announcement.rejected': { tab: 'all', tone: 'rose', icon: 'CircleX' },
-  'achievement.badge': { tab: 'achievements', tone: 'amber', icon: 'Medal' },
-  'achievement.level_up': { tab: 'achievements', tone: 'mint', icon: 'TrendingUp' },
-  'setup.sender_verified': { tab: 'all', tone: 'teal', icon: 'MailCheck' },
-  'setup.list_ready': { tab: 'all', tone: 'teal', icon: 'Users' },
-  'setup.list_failed': { tab: 'all', tone: 'rose', icon: 'TriangleAlert' },
+  'campaign.pending_approval': { category: 'approvals', tone: 'amber', icon: 'ClipboardCheck' },
+  'campaign.approved': { category: 'campaigns', tone: 'mint', icon: 'CircleCheck' },
+  'campaign.changes_requested': { category: 'campaigns', tone: 'amber', icon: 'PencilLine' },
+  'campaign.rejected': { category: 'campaigns', tone: 'rose', icon: 'CircleX' },
+  'campaign.sending': { category: 'campaigns', tone: 'sky', icon: 'Send' },
+  'campaign.sent': { category: 'campaigns', tone: 'mint', icon: 'MailCheck' },
+  'campaign.failed': { category: 'campaigns', tone: 'rose', icon: 'TriangleAlert' },
+  'campaign.starts_soon': { category: 'campaigns', tone: 'lilac', icon: 'CalendarClock' },
+  'campaign.ends_soon': { category: 'campaigns', tone: 'lilac', icon: 'Hourglass' },
+  'campaign.on_hold': { category: 'campaigns', tone: 'slate', icon: 'CirclePause' },
+  'campaign.resumed': { category: 'campaigns', tone: 'mint', icon: 'CirclePlay' },
+  'campaign.cancelled': { category: 'campaigns', tone: 'slate', icon: 'Ban' },
+  'training.assigned': { category: 'training', tone: 'lilac', icon: 'GraduationCap' },
+  'training.due_soon': { category: 'training', tone: 'amber', icon: 'Clock' },
+  'training.overdue': { category: 'training', tone: 'rose', icon: 'CircleAlert' },
+  'training.certificate': { category: 'achievements', tone: 'lilac', icon: 'Award' },
+  'training_path.pending_approval': { category: 'approvals', tone: 'amber', icon: 'ClipboardCheck' },
+  'training_path.approved': { category: 'training', tone: 'mint', icon: 'CircleCheck' },
+  'training_path.rejected': { category: 'training', tone: 'rose', icon: 'CircleX' },
+  'announcement.published': { category: 'general', tone: 'teal', icon: 'Megaphone' },
+  'announcement.pending_approval': { category: 'approvals', tone: 'amber', icon: 'ClipboardCheck' },
+  'announcement.approved': { category: 'general', tone: 'mint', icon: 'CircleCheck' },
+  'announcement.rejected': { category: 'general', tone: 'rose', icon: 'CircleX' },
+  'achievement.badge': { category: 'achievements', tone: 'amber', icon: 'Medal' },
+  'achievement.level_up': { category: 'achievements', tone: 'mint', icon: 'TrendingUp' },
+  'setup.sender_verified': { category: 'general', tone: 'teal', icon: 'MailCheck' },
+  'setup.list_ready': { category: 'general', tone: 'teal', icon: 'Users' },
+  'setup.list_failed': { category: 'general', tone: 'rose', icon: 'TriangleAlert' },
 };
-const FALLBACK = { tab: 'all', tone: 'slate', icon: 'Bell' };
+const FALLBACK = { category: 'general', tone: 'slate', icon: 'Bell' };
 
 export const typeOf = (n) => TYPES[n?.type] || FALLBACK;
 
@@ -89,24 +83,13 @@ export function fromCampaignNotices(notices, seen = new Set()) {
       read: seen.has(n.key),
       link: changes
         ? { to: 'draft', campaignId: n.campaignId, wizardStep: n.wizardStep }
-        : { to: '/requests-approvals', state: { tab: 'rejected' } },
+        : { to: '/requests-approvals', state: { category: 'rejected' } },
     };
   });
 }
 
-/** How many unread notifications each tab holds: { all, approvals, ... }. */
-export function unreadCounts(items) {
-  const counts = Object.fromEntries(TABS.map((t) => [t.id, 0]));
-  for (const n of items) {
-    if (n.read) continue;
-    counts.all += 1;
-    const tab = typeOf(n).tab;
-    if (tab !== 'all') counts[tab] += 1;
-  }
-  return counts;
-}
-
-export const inTab = (items, tab) => (tab === 'all' ? items : items.filter((n) => typeOf(n).tab === tab));
+/** How many are unread. */
+export const unreadCount = (items) => items.reduce((n, x) => n + (x.read ? 0 : 1), 0);
 
 const dayKey = (t) => {
   const w = wallClockOf(new Date(t));

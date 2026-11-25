@@ -2,17 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { NOTICE_KIND } from './campaignNotices.js';
-import { TABS, TYPES, fromApi, fromCampaignNotices, groupByDay, inTab, shortTime, typeOf, unreadCounts } from './notifications.js';
+import { TYPES, fromApi, fromCampaignNotices, groupByDay, shortTime, typeOf, unreadCount } from './notifications.js';
 
 const NOW = Date.parse('2026-11-25T15:00:00Z'); // 15:00 GMT
 
-test('every type names a known tab and tone', () => {
-  const tabs = new Set(TABS.map((t) => t.id));
+test('every type names a known category and tone', () => {
+  const categories = new Set(['approvals', 'campaigns', 'training', 'achievements', 'general']);
   for (const [type, t] of Object.entries(TYPES)) {
-    assert.ok(tabs.has(t.tab), type);
+    assert.ok(categories.has(t.category), type);
     assert.ok(['amber', 'mint', 'rose', 'lilac', 'sky', 'teal', 'slate'].includes(t.tone), type);
   }
-  assert.equal(typeOf({ type: 'nope' }).tab, 'all');
+  assert.equal(typeOf({ type: 'nope' }).category, 'general');
 });
 
 test('fromApi drops broken rows and sorts newest first', () => {
@@ -41,17 +41,9 @@ test('campaign notices become notifications, with what was already seen read', (
   assert.equal(got[1].read, true);
 });
 
-test('unread counts per tab; announcements count only in All', () => {
-  const items = [
-    { id: '1', type: 'campaign.pending_approval' },
-    { id: '2', type: 'campaign.sent' },
-    { id: '3', type: 'campaign.sent', read: true },
-    { id: '4', type: 'announcement.published' },
-    { id: '5', type: 'achievement.badge' },
-  ];
-  assert.deepEqual(unreadCounts(items), { all: 4, approvals: 1, campaigns: 1, training: 0, achievements: 1 });
-  assert.deepEqual(inTab(items, 'campaigns').map((n) => n.id), ['2', '3']);
-  assert.equal(inTab(items, 'all').length, 5);
+test('unread count', () => {
+  assert.equal(unreadCount([{ id: '1' }, { id: '2', read: true }, { id: '3' }]), 2);
+  assert.equal(unreadCount([]), 0);
 });
 
 test('grouped by UK day, empty groups left out', () => {
