@@ -18,7 +18,7 @@ import { savePath } from "./components/utility/db";
 import { PAGE_SCALE } from '../../shared/SharedStyles';
 
 export const VarLmsHeaderClass = (isDark) =>
-  `w-full h-[44px] py-2.5 px-6 -mt-1 rounded-[10px] border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
+  `w-full h-[40px] py-2.5 px-6 -mt-1 rounded-[10px] border flex items-center justify-between flex-shrink-0 transition-colors duration-300 shadow-sm select-none ${
     isDark ? 'bg-[#141824] text-white border-white/10 shadow-md' : 'bg-[#000000] text-white border-black/10'
   }`;
 
@@ -69,7 +69,7 @@ function TrainingDashboardInner() {
         {/* PAGE HEADER TOOLBAR */}
         <div className={VarLmsHeaderClass(isDark)}>
           <div className="flex items-center gap-3 w-full">
-            <h1 className="text-[16px] font-bold tracking-tight uppercase flex items-center justify-between w-full">
+            <h1 className="text-[13.5px] font-bold tracking-tight uppercase flex items-center justify-between w-full">
               <span>
                 LMS {
                   activeInteractivePath ? "– Training Path" :
