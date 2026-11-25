@@ -302,3 +302,28 @@ resource "aws_dynamodb_table" "settings" {
     type = "S"
   }
 }
+
+# notification-reads — what each person has read in the notification bell:
+# one row per person (PK owner, their email) with the ids marked read
+# (readIds, a string set) and readAllAt ("Mark all read": everything up to
+# then). reference-api reads it on GET /notifications and writes it on
+# POST /notifications/read; the notifications themselves are worked out from
+# the other tables on read, never stored.
+#
+# PROVISIONED 2 + 1 like settings: inside DynamoDB's always-free 25 + 25 (this
+# brings the project to 19 + 18). The bell reads one small row about once a
+# minute per open app (2 units serve about four reads a second); a write is
+# someone opening a notification or marking all read. A burst beyond it is
+# answered 503 and the bell keeps what it showed.
+resource "aws_dynamodb_table" "notification_reads" {
+  name           = "${var.name_prefix}-notification-reads"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 2
+  write_capacity = 1
+  hash_key       = "owner"
+
+  attribute {
+    name = "owner"
+    type = "S"
+  }
+}
