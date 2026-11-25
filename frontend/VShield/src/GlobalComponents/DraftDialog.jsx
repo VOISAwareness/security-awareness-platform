@@ -85,18 +85,25 @@ const DraftDialog = ({
         )}
         {/* danger is compact: the icon, then the title and text beside it;
             the detail and two equal buttons beneath share the same edges */}
-        <div className={danger ? 'flex items-center gap-3' : ''}>
+        {/* the icon is as tall as the title and text together (square) */}
+        <div className={danger ? 'flex items-stretch gap-3' : ''}>
           {danger && (
-            <span className="w-10 h-10 rounded-xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
-              <Trash2 className="w-[18px] h-[18px]" strokeWidth={2.2} />
+            <span className="self-stretch w-[52px] rounded-xl bg-[#E60000]/10 text-[#E60000] dark:text-[#FF8A8A] flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-[22px] h-[22px]" strokeWidth={2.2} />
             </span>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 id="draft-dialog-title" className={`${danger ? 'text-[14.5px]' : 'text-[16px]'} font-extrabold tracking-tight ${onClose ? 'pr-8' : ''}`}>
               {title}
             </h2>
             {body && (
-              <p className={`${danger ? 'mt-0.5 text-[11px] leading-snug' : 'mt-1.5 text-[12px] leading-relaxed'} font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p
+                className={`${
+                  // a full line runs to the right edge, where the detail and the
+                  // Delete button end; the last line stays as it is
+                  danger ? 'mt-0.5 text-[11px] leading-snug text-justify [hyphens:none]' : 'mt-1.5 text-[12px] leading-relaxed'
+                } font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+              >
                 {body}
               </p>
             )}
