@@ -197,3 +197,29 @@ def test_no_id_or_not_a_rollout(mod, aws):
     assert mod.lambda_handler({}, ctx()) == {"error": "announcementId is required"}
     aws.ann.put_item(Item={"announcementId": "ANC-001", "kind": "TEMPLATE", "status": "ACTIVE"})
     assert mod.lambda_handler({"announcementId": "ANC-001"}, ctx()) == {"error": "No roll-out with that id"}
+
+
+def test_each_email_has_its_own_ive_read_this_button(mod, aws, monkeypatch):
+    monkeypatch.setattr(mod, "API_BASE_URL", "https://api.x.example")
+    sent = []
+    real = mod.ses_client.send_email
+    monkeypatch.setattr(mod.ses_client, "send_email", lambda **kw: (sent.append(kw), real(**kw))[1])
+    rollout(aws, announcementEmailBody="<html><body><p>Hello {{USER_NAME}}</p></body></html>")
+    mod.lambda_handler({"announcementId": "ANR-001"}, ctx())
+    tokens = {r["recipientEmail"]: r["trackingToken"] for r in rows(aws)}
+    for kw in sent:
+        email = kw["Destination"]["ToAddresses"][0]
+        html = kw["Message"]["Body"]["Html"]["Data"]
+        text = kw["Message"]["Body"]["Text"]["Data"]
+        url = f"https://api.x.example/ack/{tokens[email]}"
+        assert f'href="{url}"' in html and html.index(url) < html.index("</body>")  # inside the body
+        assert "read this" in html and text.endswith(f"I've read this: {url}") and text.count("read this") == 1
+    assert len(sent) == 2  # the outside-domain address was never sent
+
+
+def test_no_button_without_an_https_api_address(mod, monkeypatch):
+    for base in ("", "http://api.x.example"):
+        monkeypatch.setattr(mod, "API_BASE_URL", base)
+        assert mod.ack_url("t") == ""
+    assert mod.with_ack_button("<p>Hi</p>", "") == "<p>Hi</p>"
+    assert mod.with_ack_button("<p>Hi</p>", "https://a/ack/t").startswith("<p>Hi</p><table")

@@ -784,11 +784,85 @@ def record_compromise(campaign_id, recipient_id, tracking_token, event_timestamp
     }))
 
 
+def is_acknowledge(event):
+    """GET /ack/{token}: the "I've read this" button in an announcement email."""
+    route = str(event.get("routeKey") or "")
+    return route.startswith("GET /ack/") or str(event.get("rawPath", "")).startswith("/ack/")
+
+
+def is_announcement(recipient):
+    """A row announcement-sender wrote (a roll-out's person), not a phishing campaign's."""
+    return recipient.get("kind") == "ANNOUNCEMENT"
+
+
+def record_acknowledgement(recipient, event_timestamp, context):
+    """
+    The person has read the announcement: acknowledgedAt on their row, and one
+    ACKNOWLEDGED event, both only the first time. Only that and when is kept.
+    True the first time, False when it was already acknowledged.
+    """
+    campaign_id, recipient_id = recipient["campaignId"], recipient["recipientId"]
+    try:
+        recipients_table.update_item(
+            Key={"campaignId": campaign_id, "recipientId": recipient_id},
+            UpdateExpression="SET acknowledgedAt = :at, updatedAt = :at",
+            ConditionExpression="attribute_not_exists(acknowledgedAt)",
+            ExpressionAttributeValues={":at": event_timestamp},
+        )
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":
+            raise
+        return False
+    item = {
+        "campaignId": campaign_id,
+        "eventId": f"EVT-{uuid.uuid4().hex}",
+        "recipientId": recipient_id,
+        "eventType": "ACKNOWLEDGED",
+        "eventTimestamp": event_timestamp,
+        "eventSource": "ANNOUNCEMENT_EMAIL",
+    }
+    if recipient.get("expiresAt") is not None:
+        item["expiresAt"] = recipient["expiresAt"]  # the roll-out's retention
+    events_table.put_item(Item=item)
+    print(json.dumps({"message": "Announcement acknowledged", "campaignId": campaign_id,
+                      "recipientId": recipient_id, "requestId": context.aws_request_id}))
+    return True
+
+
+def build_acknowledged_page(first_time):
+    """The page the "I've read this" button opens: a thank-you, and the way to the app."""
+    heading = "Thanks for reading" if first_time else "Already noted"
+    line = ("We've noted that you've read this announcement. You can close this page."
+            if first_time else "You'd already told us you've read this announcement. You can close this page.")
+    app = html.escape(APP_BASE_URL.rstrip("/")) if APP_BASE_URL.startswith("https://") else ""
+    link = f'<p style="margin-top:20px"><a href="{app}/my-space" style="color:#e60000;font-weight:bold">Go to VOIS Shield</a></p>' if app else ""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{heading}</title>
+<style>
+body {{ margin: 0; padding: 24px; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: #f4f4f4; color: #333; font-family: Arial, Helvetica, sans-serif; box-sizing: border-box; }}
+main {{ width: 100%; max-width: 520px; padding: 32px; background: #fff; border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.12); text-align: center; }}
+.tick {{ width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: #e5f7eb; color: #2f9e57;
+  font-size: 30px; line-height: 56px; }}
+h1 {{ margin: 0 0 10px; font-size: 24px; color: #111; }}
+p {{ margin: 0; font-size: 15px; line-height: 24px; color: #555; }}
+</style></head>
+<body><main><div class="tick">&#10003;</div><h1>{heading}</h1><p>{line}</p>{link}</main></body>
+</html>"""
+
+
 def lambda_handler(event, context):
     """
     GET  /track/{token}                record a click, show the landing page
     GET  /track/{token}?next=browser   record a click, show the browser page
     POST /track/{token}/compromise     record a compromise, show the landing page
+    GET  /ack/{token}                  an announcement was read: record it, say thanks
+
+    A token works only on its own kind of route: an announcement's token is
+    never a phishing click, and a phishing token never acknowledges.
     """
     tracking_token = get_tracking_token(event)
 
@@ -821,6 +895,12 @@ def lambda_handler(event, context):
             )
 
         recipient = recipients[0]
+
+        if is_acknowledge(event) or is_announcement(recipient):
+            if not (is_acknowledge(event) and is_announcement(recipient)):
+                return html_response(404, build_invalid_link_page())
+            first = record_acknowledgement(recipient, utc_timestamp(), context)
+            return html_response(200, build_acknowledged_page(first))
 
         campaign_id = recipient["campaignId"]
         recipient_id = recipient["recipientId"]
