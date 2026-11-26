@@ -7,6 +7,10 @@ import { useNavigate } from "react-router-dom";
 // 👇 Adjust these two paths to where your JSON files live
 import { useRollouts } from "../../../services/announcements";
 import PageLoading from "../../../GlobalComponents/PageLoading";
+import DraftDialog from "../../../GlobalComponents/DraftDialog";
+import Toast from "../../../GlobalComponents/Toast";
+import { api } from "../../../services/api";
+import { currentActor } from "../../../services/identity";
 import outcomeData from "../AnnouncementOutcomeData.json";
 
 import AnnouncementGalleryCard, {
@@ -130,6 +134,38 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
   // shape the cards were written for. A roll-out past its retention (a year
   // after it ends) is no longer returned, so it leaves Historical by itself.
   const rollouts = useRollouts();
+
+  // Cancel: an approved roll-out that has not ended (On Going or Scheduled),
+  // by its creator, an Admin or a Campaign Manager, with a reason; it then
+  // shows on the Cancelled tab.
+  const role = userContext.user?.role || "";
+  const me = currentActor();
+  const canCancel = (camp) =>
+    role === "Admin" || role === "Campaign Manager" || (Boolean(me) && camp.AnnouncementCreatorEmail === me.toLowerCase());
+  const [cancelling, setCancelling] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState("");
+  const [toast, setToast] = useState(null);
+  const openCancel = (camp) => {
+    setCancelReason("");
+    setCancelError("");
+    setCancelling(camp);
+  };
+  const confirmCancel = () => {
+    if (!cancelReason.trim()) {
+      setCancelError("Please give a reason; it shows on the Cancelled tab.");
+      return;
+    }
+    const camp = cancelling;
+    setCancelling(null);
+    api.announcements
+      .cancel(camp.announcementId, me, cancelReason.trim(), role)
+      .then((row) => {
+        if (row?.announcementId) rollouts.replace(row);
+        setToast({ type: "success", title: "Announcement cancelled", message: `"${camp.AnnouncementTitle}" was cancelled.` });
+      })
+      .catch((err) => setToast({ type: "error", title: "Couldn't cancel the announcement", message: err?.message || "Please try again." }));
+  };
 
   // Everyone sees every announcement. Published ones split on their schedule;
   // a cancelled one goes to the Cancelled tab. Pending and rejected requests
@@ -427,6 +463,18 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
                       key={camp.announcementId}
                       camp={camp}
                       tab={activeTab}
+                      actions={
+                        (activeTab === "ongoing" || activeTab === "scheduled") && canCancel(camp) ? (
+                          <button
+                            type="button"
+                            data-ins-cancel={camp.announcementId}
+                            onClick={() => openCancel(camp)}
+                            className="h-6 px-3 rounded-full text-[9px] font-voda font-bold tracking-tight shadow-2xs flex items-center gap-1.5 bg-white/90 text-[#E60000] border border-[#E60000]/30 hover:bg-[#E60000] hover:text-white transition-colors cursor-pointer dark:bg-black/40"
+                          >
+                            Cancel
+                          </button>
+                        ) : null
+                      }
                       background={getCardBgColor(idx, isDark)}
                       roundness={VarOverallCornerRoundednessAdjuster}
                       onDetails={(c) =>
@@ -652,6 +700,46 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
           </div>
         )}
       </div>
+
+      <DraftDialog
+        open={Boolean(cancelling)}
+        isDark={isDark}
+        tone="warning"
+        title="Cancel this announcement?"
+        body="It stops here and moves to Cancelled Announcements. This can't be undone."
+        detail={
+          cancelling && (
+            <label className="flex flex-col gap-1.5 text-left font-normal">
+              <span className="text-[11px] font-bold">
+                {cancelling.announcementId} · {cancelling.AnnouncementTitle}
+              </span>
+              <span className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                Reason for cancelling <span className="text-[#E60000]">*</span>
+              </span>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  setCancelError("");
+                }}
+                rows={3}
+                maxLength={500}
+                placeholder="Shown on the Cancelled tab"
+                className="w-full rounded-lg px-2.5 py-2 text-[11px] bg-white dark:bg-black/40 border border-black/10 dark:border-white/10 outline-none focus:border-[#E60000]/50"
+              />
+              {cancelError && <span className="text-[10.5px] font-semibold text-[#E60000]">{cancelError}</span>}
+            </label>
+          )
+        }
+        primaryLabel="Cancel announcement"
+        onPrimary={confirmCancel}
+        secondaryLabel="Keep it"
+        onSecondary={() => setCancelling(null)}
+      />
+
+      {toast && (
+        <Toast message={toast.message} type={toast.type} title={toast.title} duration={3500} onClose={() => setToast(null)} />
+      )}
     </>
   );
 };
