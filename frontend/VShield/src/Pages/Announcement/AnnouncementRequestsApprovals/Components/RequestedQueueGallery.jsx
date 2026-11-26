@@ -72,8 +72,9 @@ const RequestedQueueGallery = ({
     const q = searchTerm.trim().toLowerCase();
 
     const list = announcements.filter((a) => {
-      // My Requests = pending campaigns that I created
-      const isPending = a.AnnouncementStatus === "Pending";
+      // My Requests = pending announcements that I created
+      const isPending =
+        a.AnnouncementStatus === "Pending" && norm(a.AnnouncementCreatedBy) === me;
       const matchesSearch =
         q === "" ||
         (a.announcementId && a.announcementId.toLowerCase().includes(q)) ||
