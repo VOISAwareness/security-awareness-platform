@@ -2905,21 +2905,6 @@ const EmailBodyRichTextEditor = ({
         <span>Erase</span>
       </button>
 
-      <input
-        type="file"
-        ref={imageInputRef}
-        accept="image/png, image/jpeg, image/gif, image/webp"
-        onChange={handleImageUpload}
-        className="hidden"
-      />
-      <input
-        type="file"
-        ref={replaceInputRef}
-        accept="image/png, image/jpeg, image/gif, image/webp"
-        onChange={handlePictureReplaceFile}
-        className="hidden"
-      />
-
       <button
         type="button"
         disabled={disabled || rawHtmlMode}
@@ -3098,6 +3083,24 @@ const EmailBodyRichTextEditor = ({
   // align to the top, so the controls on the right stay level with row one.
   const renderToolbar = () => (
     <div className="relative z-30 flex w-full min-h-[34px] flex-shrink-0 flex-wrap items-start gap-x-1 gap-y-1 rounded-t-2xl border-b border-white/10 dark:border-black/10 bg-[#202127] dark:bg-white px-1.5 py-1 text-white select-none">
+      {/* The picture pickers live here, not with the formatting tools, because
+          those are hidden in HTML view and its "Upload picture" buttons need
+          the replace picker to exist. */}
+      <input
+        type="file"
+        ref={imageInputRef}
+        accept="image/png, image/jpeg, image/gif, image/webp"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={replaceInputRef}
+        accept="image/png, image/jpeg, image/gif, image/webp"
+        onChange={handlePictureReplaceFile}
+        className="hidden"
+      />
+
       {/* Each row of tools is one button high (h-6); the page controls on
           the right sit on the first row, level with the tools beside them.
           In HTML view the formatting tools do nothing, so they are hidden
