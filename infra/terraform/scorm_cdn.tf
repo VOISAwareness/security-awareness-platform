@@ -87,14 +87,14 @@ resource "aws_cloudfront_origin_access_control" "assets" {
 resource "aws_cloudfront_function" "scorm_path" {
   name    = "${var.name_prefix}-scorm-path"
   runtime = "cloudfront-js-2.0"
-  comment = "/scorm/<uploadId>/<path> -> training-content/<uploadId>/<path>; 404 otherwise"
+  comment = "/scorm/<id>/<path> -> training-content/, /media/<id>/<name> -> public-media/; 404 otherwise"
   publish = true
   code    = file("${path.module}/functions/scorm_path.js")
 }
 
 resource "aws_cloudfront_distribution" "scorm" {
   enabled         = true
-  comment         = "${var.name_prefix} training packages (/scorm/*) and the API (/api/*)"
+  comment         = "${var.name_prefix} training packages (/scorm/*), pictures (/media/*) and the API (/api/*)"
   price_class     = "PriceClass_200" # includes India
   http_version    = "http2and3"
   is_ipv6_enabled = true
@@ -133,7 +133,8 @@ resource "aws_cloudfront_distribution" "scorm" {
     }
   }
 
-  # Every other path goes through the function: /scorm/... is served, the rest is 404.
+  # Every other path goes through the function: /scorm/... and /media/... are
+  # served, the rest is 404.
   default_cache_behavior {
     target_origin_id           = local.scorm_origin_id
     viewer_protocol_policy     = "redirect-to-https"
@@ -166,14 +167,26 @@ resource "aws_s3_bucket_policy" "assets" {
   bucket = aws_s3_bucket.assets.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Sid       = "CloudFrontReadsTrainingContent"
-      Effect    = "Allow"
-      Principal = { Service = "cloudfront.amazonaws.com" }
-      Action    = "s3:GetObject"
-      Resource  = "${aws_s3_bucket.assets.arn}/training-content/*"
-      Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.scorm.arn } }
-    }]
+    Statement = [
+      {
+        Sid       = "CloudFrontReadsTrainingContent"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.assets.arn}/training-content/*"
+        Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.scorm.arn } }
+      },
+      {
+        # Pictures in emails and browser pages (POST /media/images/upload):
+        # mail apps and browsers load them from /media/<id>/<name>.
+        Sid       = "CloudFrontReadsPublicMedia"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.assets.arn}/public-media/*"
+        Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.scorm.arn } }
+      },
+    ]
   })
 }
 

@@ -26,6 +26,7 @@ import {
   FileText,
   Grid,
   Image as ImageIcon,
+  Upload,
   Italic,
   Layers,
   Maximize2,
@@ -55,6 +56,17 @@ import HtmlCodeEditor from "../../../../GlobalComponents/HtmlCodeEditor";
 import Toast from "../../../../GlobalComponents/Toast";
 import EmailPreviewModal from "./EmailPreviewModal";
 import { canRedo, canUndo, moveTo, newHistory, recordStep } from "../../../../services/pageHistory";
+import { api } from "../../../../services/api";
+import {
+  classifyPicture,
+  dataUrlToBlob,
+  embeddedPictures,
+  findPictures,
+  missingPictures,
+  pictureFileProblem,
+  picturesLabel,
+  replacePicture,
+} from "../../../../services/pictures";
 import scenariosJsonData from "../../ScenariosData.json";
 import {
   BROWSER_PAGE_ID,
@@ -801,6 +813,20 @@ const EmailBodyRichTextEditor = ({
   const [showBrowserPreview, setShowBrowserPreview] = useState(false);
   // Does the page run below its safe-zone line?
   const [safeZoneOverflow, setSafeZoneOverflow] = useState(false);
+
+  // Pictures employees could not see (see services/pictures.js): the page's
+  // missing addresses, and where each one sits on the canvas.
+  const [pictureIssues, setPictureIssues] = useState({ missing: [], marks: [] });
+  // Other websites' pictures that failed to load in the editor.
+  const [failedPictures, setFailedPictures] = useState(() => new Set());
+  // The picture being uploaded (its old address), for "Uploading..." labels.
+  const [pictureBusy, setPictureBusy] = useState(null);
+  const replaceInputRef = useRef(null);
+  const replaceTargetRef = useRef(null);
+  // data: pictures already sent to hosting (or tried), so each goes once.
+  const movedPicturesRef = useRef(new Set());
+  const missingCountRef = useRef(0);
+  const missingToastRef = useRef(null);
   const [emailPreview, setEmailPreview] = useState({ open: false, html: "" });
 
   const pagesRef = useRef(pages);
@@ -975,6 +1001,200 @@ const EmailBodyRichTextEditor = ({
     window.addEventListener("resize", checkSafeZone);
     return () => window.removeEventListener("resize", checkSafeZone);
   }, [checkSafeZone]);
+  // ---------------------------------------------------------------
+  // Pictures: find the ones employees could not see, mark them where they
+  // are, and upload replacements to our picture hosting.
+  // ---------------------------------------------------------------
+  const isMissingPicture = useCallback(
+    (src) => classifyPicture(src) === "missing" || failedPictures.has(src),
+    [failedPictures],
+  );
+
+  // Where an element sits inside the canvas's scroll area, in layout pixels.
+  const offsetInCanvas = (el, container) => {
+    let x = 0;
+    let y = 0;
+    let node = el;
+    while (node && node !== container) {
+      x += node.offsetLeft;
+      y += node.offsetTop;
+      node = node.offsetParent;
+    }
+    return node === container ? { x, y } : null;
+  };
+
+  const scanPictures = useCallback(() => {
+    const html = rawHtmlMode ? rawHtmlCode : editorRef.current?.innerHTML ?? "";
+    const missing = [
+      ...new Set([
+        ...missingPictures(html),
+        ...findPictures(html).map((p) => p.src).filter((src) => failedPictures.has(src)),
+      ]),
+    ];
+
+    const marks = [];
+    const editor = editorRef.current;
+    const container = editor?.offsetParent;
+    if (!rawHtmlMode && editor && container) {
+      const mark = (el, src, kind) => {
+        const at = offsetInCanvas(el, container);
+        if (!at) return;
+        marks.push({
+          key: `${marks.length}-${src}`,
+          src,
+          kind,
+          left: at.x,
+          top: at.y,
+          width: Math.max(el.offsetWidth, 140),
+          height: Math.max(el.offsetHeight, 64),
+        });
+      };
+      editor.querySelectorAll("img").forEach((img) => {
+        const src = img.getAttribute("src") || "";
+        if (src && isMissingPicture(src)) mark(img, src, "img");
+      });
+      editor.querySelectorAll('[style*="url("]').forEach((el) => {
+        findPictures(`<i style="${el.getAttribute("style") || ""}">`)
+          .filter((p) => p.kind === "background" && isMissingPicture(p.src))
+          .slice(0, 1)
+          .forEach((p) => mark(el, p.src, "background"));
+      });
+    }
+
+    setPictureIssues((prev) =>
+      JSON.stringify(prev) === JSON.stringify({ missing, marks }) ? prev : { missing, marks },
+    );
+
+    // A short heads-up when pictures go missing (the banner and the marks then
+    // say the rest). It waits for a pause, so typing an address in the HTML
+    // view does not warn about every half-typed one.
+    if (missing.length !== missingCountRef.current) clearTimeout(missingToastRef.current);
+    if (missing.length > missingCountRef.current) {
+      const count = missing.length;
+      missingToastRef.current = setTimeout(() => {
+        showToast(
+          `${picturesLabel(count)} can't be shown to employees. Upload ${count === 1 ? "it" : "each one"} where it's marked.`,
+          "warning",
+        );
+      }, 900);
+    }
+    missingCountRef.current = missing.length;
+    return html;
+  }, [rawHtmlMode, rawHtmlCode, failedPictures, isMissingPicture, showToast]);
+
+  // A broken picture from another website shows up as a failed load.
+  useEffect(() => {
+    const onError = (event) => {
+      const img = event.target;
+      if (img?.tagName !== "IMG" || !editorRef.current?.contains(img)) return;
+      const src = img.getAttribute("src") || "";
+      if (classifyPicture(src) !== "external") return;
+      setFailedPictures((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
+    };
+    document.addEventListener("error", onError, true);
+    return () => document.removeEventListener("error", onError, true);
+  }, []);
+
+  // Every use of picture `from` on this page pointed at `to` (one undo step).
+  const replacePictureOnPage = useCallback(
+    (from, to) => {
+      if (rawHtmlMode) {
+        const next = replacePicture(rawHtmlCode, from, to);
+        if (next === rawHtmlCode) return false;
+        setRawHtmlCode(next);
+        emitChange(next);
+        return true;
+      }
+      const editor = editorRef.current;
+      if (!editor) return false;
+      const next = replacePicture(editor.innerHTML, from, to);
+      if (next === editor.innerHTML) return false;
+      editor.innerHTML = next;
+      internalHtmlRef.current = next;
+      setActiveElement(null);
+      emitChange(next);
+      return true;
+    },
+    [rawHtmlMode, rawHtmlCode, emitChange],
+  );
+
+  const uploadPicture = useCallback(async (file, name) => {
+    const problem = pictureFileProblem(file);
+    if (problem) throw new Error(problem);
+    return api.media.uploadImage(file, name);
+  }, []);
+
+  // A picture inside the HTML (data:) goes to hosting on its own, once.
+  const moveEmbeddedPictures = useCallback(
+    async (html) => {
+      const pending = embeddedPictures(html).filter((src) => !movedPicturesRef.current.has(src));
+      if (!pending.length) return;
+      pending.forEach((src) => movedPicturesRef.current.add(src));
+      let moved = 0;
+      let failure = "";
+      for (const src of pending) {
+        try {
+          const blob = dataUrlToBlob(src);
+          const ext = (blob?.type || "").split("/")[1] || "png";
+          const url = await uploadPicture(blob, `picture.${ext}`);
+          if (replacePictureOnPage(src, url)) moved += 1;
+        } catch (error) {
+          failure = error?.message || "Upload failed";
+        }
+      }
+      if (moved) showToast(`${picturesLabel(moved)} pasted into the design moved to picture storage.`, "success");
+      if (failure) {
+        showToast(`A picture inside the design couldn't be moved to picture storage: ${failure}`, "warning");
+      }
+    },
+    [uploadPicture, replacePictureOnPage, showToast],
+  );
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const html = scanPictures();
+      moveEmbeddedPictures(html);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pages, currentPageId, rawHtmlMode, isExpanded, rawHtmlCode, scanPictures, moveEmbeddedPictures]);
+  useEffect(() => {
+    window.addEventListener("resize", scanPictures);
+    return () => window.removeEventListener("resize", scanPictures);
+  }, [scanPictures]);
+
+  const startPictureReplace = (src) => {
+    replaceTargetRef.current = src;
+    replaceInputRef.current?.click();
+  };
+
+  const handlePictureReplaceFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const from = replaceTargetRef.current;
+    replaceTargetRef.current = null;
+    if (!file || from == null) return;
+    setPictureBusy(from);
+    try {
+      const url = await uploadPicture(file);
+      replacePictureOnPage(from, url);
+      setFailedPictures((prev) => {
+        if (!prev.has(from)) return prev;
+        const next = new Set(prev);
+        next.delete(from);
+        return next;
+      });
+      const left = pictureIssues.missing.filter((src) => src !== from).length;
+      showToast(
+        left ? `Picture uploaded. ${picturesLabel(left)} still to go.` : "All pictures are ready.",
+        "success",
+      );
+    } catch (error) {
+      showToast(error?.message || "The picture couldn't be uploaded.", "error");
+    } finally {
+      setPictureBusy(null);
+    }
+  };
+
   // Only an editor given somewhere to save page 2 (the scenario wizard) offers
   // it; elsewhere (announcements) it is a plain one-page email editor.
   const supportsBrowserPage = typeof onBrowserPageChange === "function";
@@ -1776,57 +1996,37 @@ const EmailBodyRichTextEditor = ({
     showToast("Phishing element inserted. Sub-items are fully modular.", "success");
   };
 
-  const handleImageUpload = (event) => {
+  // The toolbar's picture button: the file goes to picture hosting and the
+  // email or page links to it (never a copy inside the HTML, which breaks
+  // the size limit and is not shown by Gmail).
+  const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file || !editorRef.current) return;
 
-    const allowedImageTypes = [
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-      "image/gif",
-      "image/webp",
-      "image/svg+xml",
-    ];
-
-    if (!allowedImageTypes.includes(file.type)) {
-      showToast("Please select a valid image file.", "warning", "Input Required");
-      event.target.value = "";
+    const problem = pictureFileProblem(file);
+    if (problem) {
+      showToast(problem, "warning", "Input Required");
       return;
     }
 
-    const maximumFileSize = 5 * 1024 * 1024;
-    if (file.size > maximumFileSize) {
-      showToast("Image size must be less than 5 MB.", "warning", "Input Required");
-      event.target.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (readerEvent) => {
-      const imageSource = readerEvent.target?.result;
-      if (typeof imageSource !== "string") {
-        showToast("Unable to read the selected image.", "error");
-        return;
-      }
-
+    setPictureBusy("toolbar");
+    showToast("Uploading picture...", "info");
+    try {
+      const url = await uploadPicture(file);
+      const alt = String(file.name || "Picture").replace(/[&<>"]/g, "");
       const imageId = `img-${Date.now()}`;
-      const imgHtml = `
+      insertCanvasItem(`
         <div id="${imageId}" class="vshield-canvas-item" data-type="image" style="position: relative; display: inline-block; max-width: 100%; margin: 12px 0; cursor: move; text-align: center; box-shadow: none;">
-          <img src="${imageSource}" alt="${file.name || 'Image'}" style="display: block; width: 240px; height: auto; border-radius: 8px; pointer-events: none; box-shadow: none;" />
+          <img src="${url}" alt="${alt}" style="display: block; width: 240px; height: auto; border-radius: 8px; pointer-events: none; box-shadow: none;" />
         </div><p><br></p>
-      `;
-
-      insertCanvasItem(imgHtml);
-      showToast("Image inserted. Click to resize or move.", "success");
-    };
-
-    reader.onerror = () => {
-      showToast("Unable to read the selected image.", "error");
-    };
-
-    reader.readAsDataURL(file);
-    event.target.value = "";
+      `);
+      showToast("Picture added. Click it to resize or move.", "success");
+    } catch (error) {
+      showToast(error?.message || "The picture couldn't be uploaded.", "error");
+    } finally {
+      setPictureBusy(null);
+    }
   };
 
   const handleCanvasClick = (e) => {
@@ -2705,20 +2905,12 @@ const EmailBodyRichTextEditor = ({
         <span>Erase</span>
       </button>
 
-      <input
-        type="file"
-        ref={imageInputRef}
-        accept="image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml"
-        onChange={handleImageUpload}
-        className="hidden"
-      />
-
       <button
         type="button"
         disabled={disabled || rawHtmlMode}
         onClick={() => imageInputRef.current?.click()}
-        className="h-6 w-6 flex items-center justify-center rounded text-blue-400 hover:bg-white/10 flex-shrink-0 cursor-pointer"
-        title="Upload & Embed Local Image"
+        className={`h-6 w-6 flex items-center justify-center rounded text-blue-400 hover:bg-white/10 flex-shrink-0 cursor-pointer ${pictureBusy === "toolbar" ? "animate-pulse" : ""}`}
+        title="Upload a picture (PNG, JPEG, GIF or WebP, up to 2 MB)"
       >
         <ImageIcon className="h-3 w-3" />
       </button>
@@ -2891,10 +3083,37 @@ const EmailBodyRichTextEditor = ({
   // align to the top, so the controls on the right stay level with row one.
   const renderToolbar = () => (
     <div className="relative z-30 flex w-full min-h-[34px] flex-shrink-0 flex-wrap items-start gap-x-1 gap-y-1 rounded-t-2xl border-b border-white/10 dark:border-black/10 bg-[#202127] dark:bg-white px-1.5 py-1 text-white select-none">
+      {/* The picture pickers live here, not with the formatting tools, because
+          those are hidden in HTML view and its "Upload picture" buttons need
+          the replace picker to exist. */}
+      <input
+        type="file"
+        ref={imageInputRef}
+        accept="image/png, image/jpeg, image/gif, image/webp"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={replaceInputRef}
+        accept="image/png, image/jpeg, image/gif, image/webp"
+        onChange={handlePictureReplaceFile}
+        className="hidden"
+      />
+
       {/* Each row of tools is one button high (h-6); the page controls on
-          the right sit on the first row, level with the tools beside them. */}
+          the right sit on the first row, level with the tools beside them.
+          In HTML view the formatting tools do nothing, so they are hidden
+          and only a label is shown in their place. */}
       <div className="flex min-w-0 flex-1 flex-wrap content-start items-center gap-[3px]">
-        {renderSharedTools()}
+        {rawHtmlMode ? (
+          <span className="flex h-6 items-center gap-1 px-1 text-[8.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <Code className="h-3 w-3" />
+            Editing HTML source
+          </span>
+        ) : (
+          renderSharedTools()
+        )}
       </div>
 
       <div className="ml-auto flex h-6 flex-shrink-0 items-center gap-[3px] self-start">
@@ -3644,6 +3863,21 @@ const EmailBodyRichTextEditor = ({
       >
         {renderToolbar()}
 
+        {pictureIssues.missing.length > 0 && (
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1 text-[10px] text-amber-900 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200">
+            <ImageIcon className="h-3 w-3 flex-shrink-0" />
+            <span className="min-w-0 truncate">
+              <strong>{picturesLabel(pictureIssues.missing.length)}</strong> can't be shown to employees.{" "}
+              {rawHtmlMode
+                ? "Upload each one from the button above its highlighted code."
+                : "Upload each one where it's marked on the canvas."}
+            </span>
+            {pictureBusy && pictureBusy !== "toolbar" && (
+              <span className="ml-auto flex-shrink-0 font-semibold">Uploading...</span>
+            )}
+          </div>
+        )}
+
         <div
           ref={workspaceRef}
           onClick={handleCanvasClick}
@@ -3676,6 +3910,11 @@ const EmailBodyRichTextEditor = ({
                 disabled={disabled}
                 onChange={handleRawHtmlCode}
                 ariaLabel={currentPageId === BROWSER_PAGE_ID ? "Browser page HTML" : "Email body HTML"}
+                pictureFix={{
+                  isMissing: isMissingPicture,
+                  onUpload: startPictureReplace,
+                  busySrc: pictureBusy,
+                }}
                 placeholder="Write email HTML code here..."
               />
             ) : (
@@ -3708,6 +3947,7 @@ const EmailBodyRichTextEditor = ({
                   onPaste={handlePaste}
                   style={{ backgroundColor: canvasBgColor }}
                   className={`
+                    vshield-editor-canvas
                     w-full h-full outline-none
                     text-slate-900 dark:text-slate-100 p-2 leading-normal text-xs
                     [&_a]:text-blue-600 [&_a]:underline
@@ -3719,6 +3959,43 @@ const EmailBodyRichTextEditor = ({
                     ${disabled ? "cursor-not-allowed bg-slate-100 opacity-70" : "cursor-text"}
                   `}
                 />
+
+                {/* Missing pictures: a light dashed outline where each one is, with an
+                    Upload button (never saved: outside the editable canvas) */}
+                {pictureIssues.marks.map((m) => (
+                  <div
+                    key={m.key}
+                    data-floating-control="true"
+                    style={{
+                      position: "absolute",
+                      left: m.left,
+                      top: m.top,
+                      width: m.width,
+                      height: m.height,
+                      zIndex: 6,
+                      pointerEvents: "none",
+                    }}
+                    className="flex flex-col items-center justify-center gap-1 rounded-md border-[1.5px] border-dashed border-slate-400/80 bg-slate-100/40 dark:bg-white/5"
+                  >
+                    <button
+                      type="button"
+                      disabled={pictureBusy === m.src}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => startPictureReplace(m.src)}
+                      title={`Upload the picture for ${m.src.length > 60 ? `${m.src.slice(0, 57)}...` : m.src}`}
+                      style={{ pointerEvents: "auto" }}
+                      className="flex items-center gap-1 rounded-md border border-slate-300 bg-slate-200 px-2 py-1 text-[9.5px] font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+                    >
+                      <Upload className="h-3 w-3" />
+                      {pictureBusy === m.src ? "Uploading..." : "Upload picture"}
+                    </button>
+                    {m.height >= 80 && (
+                      <span className="max-w-[90%] truncate text-[8.5px] font-medium text-slate-500">
+                        {m.kind === "background" ? "Background picture missing" : "Picture missing"}
+                      </span>
+                    )}
+                  </div>
+                ))}
 
                 {/* Browser safe-zone guide: where the employee has to start scrolling (never saved) */}
                 {currentPageId === BROWSER_PAGE_ID && (
@@ -3763,6 +4040,12 @@ const EmailBodyRichTextEditor = ({
   return (
     <>
       <style>{`
+        /* A picture that can't load keeps a box's room, for its Upload mark. */
+        .vshield-editor-canvas img:not([src^="https:"]):not([src^="data:"]) {
+          display: inline-block;
+          min-width: 140px;
+          min-height: 64px;
+        }
         .vshield-canvas-scroll {
           scrollbar-width: thin;
           scrollbar-color: #cbd5e1 transparent;
