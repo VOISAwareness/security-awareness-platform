@@ -156,6 +156,16 @@ def test_what_never_scores(engine):
     assert rows(engine) == {}
 
 
+def test_announcement_reads_and_ttl_removals_never_score(engine):
+    """The events table's TTL deletes announcement rows a year on (dynamodb.tf):
+    those deletions reach the stream as REMOVE records, and an "I've read this"
+    is an ACKNOWLEDGED event; neither is ever scored."""
+    removed = record("CLICK", name="REMOVE")
+    removed["dynamodb"].pop("NewImage")  # NEW_IMAGE streams carry no image on a removal
+    run(engine, record("ACKNOWLEDGED", campaign="ANR-001"), removed, record("CLICK", name="REMOVE"))
+    assert rows(engine) == {}
+
+
 def test_seeded_events_are_never_scored(engine):
     seeded = record("CLICK")
     seeded["dynamodb"]["NewImage"]["seed"] = _ser.serialize(True)

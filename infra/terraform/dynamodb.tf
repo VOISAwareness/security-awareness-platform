@@ -1,5 +1,6 @@
 # Existing POC tables (imported). All PAY_PER_REQUEST, AWS-owned-key SSE,
-# PITR/TTL disabled, no deletion protection — matching live state as of import.
+# PITR disabled, no deletion protection — matching live state as of import.
+# recipients and events have TTL on expiresAt for announcement rows (below).
 
 resource "aws_dynamodb_table" "campaigns" {
   name         = "${var.name_prefix}-campaigns"
@@ -77,6 +78,15 @@ resource "aws_dynamodb_table" "recipients" {
     projection_type    = "INCLUDE"
     non_key_attributes = ["sendStatus", "department", "sentAt", "openedAt", "clickedAt", "compromisedAt", "reportedAt", "trainingAssignmentId"]
   }
+
+  # Retention for announcement roll-outs: announcement-sender stamps each
+  # person's row with the roll-out's expiresAt (a year after it ends) and
+  # DynamoDB deletes it after that, at no cost. Phishing campaign rows carry
+  # no expiresAt, so TTL never touches them.
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
 }
 
 resource "aws_dynamodb_table" "events" {
@@ -98,5 +108,14 @@ resource "aws_dynamodb_table" "events" {
   attribute {
     name = "eventId"
     type = "S"
+  }
+
+  # Retention for announcement roll-outs: an "I've read this" event carries
+  # the roll-out's expiresAt and DynamoDB deletes it after that. Phishing
+  # events carry none. Deletions reach the stream as REMOVE records, which
+  # points-engine ignores (it scores INSERTs only).
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
   }
 }
