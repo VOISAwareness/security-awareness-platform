@@ -2581,6 +2581,7 @@ ANNOUNCEMENT_SERVER_OWNED = frozenset({
     "announcementId", "kind", "status", "createdAt", "createdBy", "updatedAt",
     "approvedBy", "approvedAt", "rejectedBy", "rejectedAt", "decisionComments",
     "actor", "submit", "role", "expiresAt", "cancelledBy", "cancelledAt", "cancelReason",
+    "startAt", "endAt",
 })
 MAX_ANNOUNCEMENT_BYTES = 380 * 1024
 MAX_ANNOUNCEMENT_NAME = 200
@@ -2589,19 +2590,68 @@ MAX_ANNOUNCEMENT_NAME = 200
 ANNOUNCEMENT_DELETER_ROLES = frozenset({"Admin", "Campaign Manager"})
 # Who approves or rejects a roll-out (client-asserted); never their own.
 ANNOUNCEMENT_APPROVER_ROLES = frozenset({"Admin", "Campaign Manager"})
-# Retention: a roll-out is kept this many days after it ends (its end time,
-# else its start time, else when it was saved); then DynamoDB's TTL deletes
+# Retention: a roll-out is kept this many days after it ends (its end, else
+# its start, else when it was saved); then DynamoDB's TTL deletes
 # it (expiresAt, epoch seconds: schema_tables.tf). TTL works within a day or
 # two, so reads also leave out a roll-out already past it.
 ANNOUNCEMENT_RETENTION_DAYS = int(os.environ.get("ANNOUNCEMENT_RETENTION_DAYS") or 365)
+
+
+# A roll-out's start and end are picked as UK wall-clock times with no zone
+# ("2026-10-12T09:00", the app's Europe/London, as campaigns are). The server
+# keeps the real instants beside them (startAt / endAt, UTC ISO), worked out
+# on every save, and acts on those: scheduling, cancelling, retention.
+def _last_sunday(year, month):
+    """The day of the month of `month`'s last Sunday."""
+    nxt = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC)
+    last = datetime.fromtimestamp(nxt.timestamp() - 86400, UTC)
+    return last.day - (last.weekday() + 1) % 7
+
+
+def uk_instant(value):
+    """Epoch seconds of a UK wall-clock time (or of an ISO time with a zone), else None.
+
+    British Summer Time (UTC+1) runs from 01:00 UTC on the last Sunday of March
+    to 01:00 UTC on the last Sunday of October; GMT (UTC+0) otherwise.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo:
+        return dt.timestamp()
+    as_utc = dt.replace(tzinfo=UTC).timestamp()
+    bst_from = datetime(dt.year, 3, _last_sunday(dt.year, 3), 1, tzinfo=UTC).timestamp()
+    bst_to = datetime(dt.year, 10, _last_sunday(dt.year, 10), 1, tzinfo=UTC).timestamp()
+    in_bst = bst_from <= as_utc - 3600 < bst_to
+    return as_utc - (3600 if in_bst else 0)
+
+
+def rollout_times(row):
+    """(start, end) of a roll-out in epoch seconds (None when unknown): its
+    instants, else its UK wall-clock times (rows saved before the instants).
+    One that ends when sent has no end: it ends at its start."""
+    start = instant(row.get("startAt")) or uk_instant(row.get("announcementStartTime"))
+    end = instant(row.get("endAt")) or uk_instant(row.get("announcementEndTime")) or start
+    return start, end
+
+
+def with_instants(item):
+    """A roll-out with startAt / endAt worked out from its wall-clock times."""
+    start = uk_instant(item.get("announcementStartTime"))
+    end = uk_instant(item.get("announcementEndTime"))
+    item["startAt"] = iso_at(start) if start is not None else None
+    item["endAt"] = iso_at(end) if end is not None else None
+    return item
 
 
 def rollout_expiry(row):
     """When a roll-out's retention ends, in epoch seconds; None for a template."""
     if row.get("kind") != "ROLLOUT":
         return None
-    ended = (instant(row.get("announcementEndTime")) or instant(row.get("announcementStartTime"))
-             or instant(row.get("createdAt")))
+    ended = rollout_times(row)[1] or instant(row.get("createdAt"))
     return int(ended + ANNOUNCEMENT_RETENTION_DAYS * 86400) if ended else None
 
 
@@ -2618,7 +2668,7 @@ def rollout_sent(row, now_s):
     if status in ("SENDING", "SENT"):
         return True
     if status == "APPROVED":
-        start = instant(row.get("announcementStartTime"))
+        start = rollout_times(row)[0]
         return start is None or start <= now_s
     return False
 
@@ -2679,6 +2729,8 @@ def announcements(route, event, params, context):
         item = {**fields, "kind": kind, "status": status, "createdBy": actor, "createdAt": now, "updatedAt": now}
         if status == "APPROVED":
             item.update(approvedBy=actor, approvedAt=now)
+        if kind == "ROLLOUT":
+            with_instants(item)
         if (expires := rollout_expiry(item)) is not None:
             item["expiresAt"] = expires
         prefix = ANNOUNCEMENT_KINDS[kind]
@@ -2713,8 +2765,10 @@ def announcements(route, event, params, context):
         merged = {**row, **fields, "updatedAt": now}
         if row.get("kind") == "ROLLOUT" and row.get("status") == "REJECTED":
             merged["status"] = "PENDING_APPROVAL"  # changed and sent again
+        if merged.get("kind") == "ROLLOUT":
+            with_instants(merged)  # its times may have changed
         if (expires := rollout_expiry(merged)) is not None:
-            merged["expiresAt"] = expires  # its times may have changed
+            merged["expiresAt"] = expires
         tbl.put_item(Item=to_dynamo(merged))
         return ok(merged)
 
@@ -2727,7 +2781,7 @@ def announcements(route, event, params, context):
         reason = str(body.get("reason") or "").strip()[:500]
         if not reason:
             return err(400, "A reason is required to cancel")
-        ends = instant(row.get("announcementEndTime")) or instant(row.get("announcementStartTime"))
+        ends = rollout_times(row)[1]
         if ends is not None and ends <= time.time():
             return err(409, "This announcement has already ended")
         try:

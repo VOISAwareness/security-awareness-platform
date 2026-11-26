@@ -109,3 +109,10 @@ test('a cancelled roll-out reads as Cancelled, with its reason', () => {
   assert.equal(row.AnnouncementReasonForCancel, 'Wrong week');
   assert.equal(fromRollout({ announcementId: 'ANR-8', status: 'APPROVED' }).AnnouncementReasonForCancel, 'NA');
 });
+
+test('fromRollout carries the server\'s instants for scheduling', () => {
+  const row = fromRollout({ announcementId: 'ANR-9', status: 'APPROVED', startAt: '2026-07-01T08:00:00Z', endAt: null });
+  assert.equal(row.startMs, Date.parse('2026-07-01T08:00:00Z'));
+  assert.equal(row.endMs, row.startMs); // ends when sent
+  assert.equal(fromRollout({ announcementId: 'ANR-10' }).startMs, null);
+});

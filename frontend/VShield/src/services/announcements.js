@@ -123,6 +123,9 @@ export function fromRollout(r, { emails = false } = {}) {
     AnnouncementStartType: 'Scenario',
     AnnouncementStartTime: start,
     AnnouncementEndTime: historyTime(r.announcementEndTime) || start,
+    // the real instants (epoch ms) the server keeps, for when it starts and ends
+    startMs: r.startAt ? Date.parse(r.startAt) : null,
+    endMs: r.endAt ? Date.parse(r.endAt) : r.startAt ? Date.parse(r.startAt) : null,
     AnnouncementAutoEndPostCompletion: r.autoEndPostSending ? 'Yes' : 'No',
     TestAnnouncement: r.isAnnouncementTestCampaign ? 'Yes' : 'No',
     AnnouncementReasonForCancel: r.status === 'CANCELLED' ? r.cancelReason || 'Cancelled' : 'NA',

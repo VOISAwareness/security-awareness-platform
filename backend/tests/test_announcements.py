@@ -138,6 +138,30 @@ def test_cancelling_an_approved_rollout_before_it_ends(mod, table):
     assert cancel(ANA, "Admin")[0] == 409
 
 
+def test_wall_clock_times_are_uk_time_and_the_server_keeps_the_instants(mod, table):
+    utc = lambda s: mod.instant(s + "Z")  # noqa: E731
+    assert mod.uk_instant("2026-01-15T09:00") == utc("2026-01-15T09:00")  # GMT
+    assert mod.uk_instant("2026-07-15T09:00") == utc("2026-07-15T08:00")  # BST, an hour ahead
+    # the changes: last Sunday of March (29 Mar 2026) and of October (25 Oct 2026), at 01:00 UTC
+    assert mod.uk_instant("2026-03-29T00:30") == utc("2026-03-29T00:30")
+    assert mod.uk_instant("2026-03-29T03:00") == utc("2026-03-29T02:00")
+    assert mod.uk_instant("2026-10-24T12:00") == utc("2026-10-24T11:00")
+    assert mod.uk_instant("2026-10-25T12:00") == utc("2026-10-25T12:00")
+    assert mod.uk_instant("2026-07-15T09:00+05:30") == utc("2026-07-15T03:30")  # a zone given is used
+    assert mod.uk_instant("") is None and mod.uk_instant("soon") is None
+    body = {"kind": "ROLLOUT", "actor": ANA, "submit": "request", "announcementCampaignTitle": "R",
+            "announcementStartTime": "2998-07-01T09:00", "announcementEndTime": "2998-07-02T17:30",
+            "startAt": "1999-01-01T00:00:00Z"}  # not the client's to set
+    row = call(mod, "POST /announcements", body)[1]["data"]
+    assert row["startAt"] == "2998-07-01T08:00:00Z" and row["endAt"] == "2998-07-02T16:30:00Z"
+    row = call(mod, "PUT /announcements/{id}", {"actor": ANA, "announcementStartTime": "2998-12-01T09:00"},
+               row["announcementId"])[1]["data"]
+    assert row["startAt"] == "2998-12-01T09:00:00Z"  # GMT in December
+    # ends when sent (no end): it ends at its start
+    row = call(mod, "POST /announcements", {**body, "announcementEndTime": ""})[1]["data"]
+    assert row["endAt"] is None and mod.rollout_times(row) == (mod.instant(row["startAt"]),) * 2
+
+
 def test_what_is_refused(mod, table):
     assert call(mod, "POST /announcements", {**TEMPLATE, "actor": ""})[0] == 400
     assert call(mod, "POST /announcements", {**TEMPLATE, "kind": "EMAIL"})[0] == 400
@@ -176,13 +200,13 @@ def test_a_rollout_expires_a_year_after_it_ends(mod, table):
     body = {"kind": "ROLLOUT", "actor": ANA, "submit": "request", "announcementCampaignTitle": "R",
             "announcementStartTime": "2998-03-01T09:00", "announcementEndTime": "2998-03-10T17:00", "expiresAt": 1}
     row = call(mod, "POST /announcements", body)[1]["data"]
-    ends = mod.instant("2998-03-10T17:00")
+    ends = mod.uk_instant("2998-03-10T17:00")
     assert row["expiresAt"] == int(ends + 365 * 86400)  # set by the server, not the body
     template = call(mod, "POST /announcements", TEMPLATE)[1]["data"]
     assert "expiresAt" not in template  # templates are kept
     # a new end time moves it
     row = call(mod, "PUT /announcements/{id}", {"actor": ANA, "announcementEndTime": "2998-04-10T17:00"}, row["announcementId"])[1]["data"]
-    assert row["expiresAt"] == int(mod.instant("2998-04-10T17:00") + 365 * 86400)
+    assert row["expiresAt"] == int(mod.uk_instant("2998-04-10T17:00") + 365 * 86400)
     # past its retention (TTL has not run yet, or the row predates expiresAt): not listed
     table.put_item(Item={"announcementId": "ANR-090", "kind": "ROLLOUT", "status": "SENT", "expiresAt": 1000})
     table.put_item(Item={"announcementId": "ANR-091", "kind": "ROLLOUT", "status": "SENT", "announcementEndTime": "2020-01-01T09:00"})
@@ -209,6 +233,8 @@ def test_the_backfill_sets_the_same_expiry_as_the_api(mod):
         {"announcementId": "ANR-002", "kind": "ROLLOUT", "createdAt": "2026-01-05T08:00:00Z"},
         {"announcementId": "ANR-003", "kind": "ROLLOUT", "expiresAt": 5, "announcementEndTime": "2026-02-01T10:00"},  # has one
         {"announcementId": "ANC-001", "kind": "TEMPLATE", "createdAt": "2026-01-02T00:00:00Z"},  # kept
+        {"announcementId": "ANR-004", "kind": "ROLLOUT", "announcementStartTime": "2026-07-01T09:00"},  # BST
     ]
     assert backfill.RETENTION_DAYS == mod.ANNOUNCEMENT_RETENTION_DAYS
-    assert backfill.missing(rows) == [("ANR-001", mod.rollout_expiry(rows[0])), ("ANR-002", mod.rollout_expiry(rows[1]))]
+    assert backfill.missing(rows) == [("ANR-001", mod.rollout_expiry(rows[0])), ("ANR-002", mod.rollout_expiry(rows[1])),
+                                      ("ANR-004", mod.rollout_expiry(rows[4]))]

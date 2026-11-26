@@ -181,8 +181,10 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
       if (isCancelled(a)) {
         cancelled.push(a);
       } else if (a.AnnouncementStatus === "Published") {
-        const start = parseDate(a.AnnouncementStartTime).getTime();
-        const end = parseDate(a.AnnouncementEndTime).getTime();
+        // the server's instants when it has them (its times are UK time),
+        // else the times as written
+        const start = a.startMs ?? parseDate(a.AnnouncementStartTime).getTime();
+        const end = a.endMs ?? parseDate(a.AnnouncementEndTime).getTime();
         if (end < now) historical.push(a);
         else if (start <= now) ongoing.push(a);
         else scheduled.push(a);
