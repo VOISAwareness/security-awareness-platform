@@ -235,7 +235,7 @@ const DraggableIdBadge = ({
               className={`w-full min-h-[80px] flex items-center gap-3 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
                 isDark
                   ? "border-white/10 bg-white/[0.04] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
-                  : "border-slate-200 bg-white hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
+                  : "border-white/80 bg-white/50 backdrop-blur-[2px] hover:bg-white/70 hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
               }`}
             >
               <span className="w-[64px] h-[64px] flex-shrink-0 flex items-center justify-center">
@@ -273,7 +273,7 @@ const DraggableIdBadge = ({
             className={`group w-full min-h-[60px] flex items-center gap-3 mt-2 lg:mt-[calc(8px_+_var(--ms-extra,0)_*_22px)] p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
               isDark
                 ? "border-white/10 bg-white/[0.04] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
-                : "border-slate-200 bg-white hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
+                : "border-white/80 bg-white/50 backdrop-blur-[2px] hover:bg-white/70 hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
             }`}
           >
             <span className="relative w-[64px] h-[44px] flex-shrink-0 flex items-center justify-center">
@@ -305,8 +305,8 @@ const DraggableIdBadge = ({
           <div className="w-full grid grid-cols-2 gap-2 mt-2 lg:mt-[calc(8px_+_var(--ms-extra,0)_*_22px)] z-10">
             {/* Centred: the number with its icon, the label under it */}
             {[
-              { label: "Campaigns Involved", value: "07", Icon: Sparkles, tone: "text-amber-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-slate-200 bg-white" },
-              { label: "Certificates Earned", value: "04", Icon: Award, tone: "text-purple-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-slate-200 bg-white" },
+              { label: "Campaigns Involved", value: "07", Icon: Sparkles, tone: "text-amber-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-white/80 bg-white/50 backdrop-blur-[2px]" },
+              { label: "Certificates Earned", value: "04", Icon: Award, tone: "text-purple-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-white/80 bg-white/50 backdrop-blur-[2px]" },
             ].map(({ label, value, Icon, tone, tint }) => (
               <div
                 key={label}
@@ -675,7 +675,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -684,20 +684,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Received
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[12.5px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               10
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -706,20 +706,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Opened
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[12.5px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               2
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -728,18 +728,18 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Clicked
                               </span>
                             </div>
-                            <strong className="text-[11px] font-semibold font-voda text-amber-500">
+                            <strong className="text-[12.5px] font-semibold font-voda text-amber-500">
                               2
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -748,18 +748,18 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#fb7185]" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Compromised
                               </span>
                             </div>
-                            <strong className="text-[11px] font-semibold font-voda text-[#fb7185]">
+                            <strong className="text-[12.5px] font-semibold font-voda text-[#fb7185]">
                               2
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -768,12 +768,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Reported
                               </span>
                             </div>
-                            <strong className="text-[11px] font-semibold font-voda text-[#22c55e]">
+                            <strong className="text-[12.5px] font-semibold font-voda text-[#22c55e]">
                               0
                             </strong>
                           </div>
@@ -846,7 +846,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -855,20 +855,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Received
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[12.5px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               10
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -877,20 +877,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Opened
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[12.5px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               10
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -899,20 +899,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Acknowledged
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda text-[#22c55e]`}
+                              className={`text-[12.5px] font-semibold font-voda text-[#22c55e]`}
                             >
                               9
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -921,18 +921,18 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Pending
                               </span>
                             </div>
-                            <strong className="text-[11px] font-semibold font-voda text-amber-500">
+                            <strong className="text-[12.5px] font-semibold font-voda text-amber-500">
                               1
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -941,7 +941,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Response Status
                               </span>
@@ -1013,7 +1013,7 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                           }`}
                         >
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1022,20 +1022,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Assigned
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[12.5px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               10
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1044,20 +1044,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Trained
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
+                              className={`text-[12.5px] font-semibold font-voda ${isDark ? "text-white" : "text-slate-900"}`}
                             >
                               2
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1066,20 +1066,20 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Evaluated
                               </span>
                             </div>
                             <strong
-                              className={`text-[11px] font-semibold font-voda text-[#22c55e]`}
+                              className={`text-[12.5px] font-semibold font-voda text-[#22c55e]`}
                             >
                               2
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1088,18 +1088,18 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Pending
                               </span>
                             </div>
-                            <strong className="text-[11px] font-semibold font-voda text-amber-500">
+                            <strong className="text-[12.5px] font-semibold font-voda text-amber-500">
                               0
                             </strong>
                           </div>
 
                           <div
-                            className={`flex justify-between items-center h-7 lg:h-auto lg:flex-1 lg:max-h-[calc(28px_+_var(--ms-extra,0)_*_24px)] min-h-[22px] px-2.5 rounded-md border transition-colors  ${
+                            className={`flex justify-between items-center h-8 lg:h-auto lg:flex-1 lg:max-h-[calc(32px_+_var(--ms-extra,0)_*_24px)] min-h-[24px] px-3 rounded-md border transition-colors  ${
                               isDark
                                 ? "bg-[#15161a]/60 border-white/5"
                                 : "bg-white/80 border-black/5 shadow-2xs"
@@ -1108,12 +1108,12 @@ const VerticalAccordionContainer = ({ isDark, standing, onOpenBadges }) => {
                             <div className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                               <span
-                                className={`text-[9.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                                className={`text-[10.5px] font-medium ${isDark ? "text-slate-300" : "text-slate-600"}`}
                               >
                                 Expired
                               </span>
                             </div>
-                            <strong className="text-[11px] font-semibold font-voda text-slate-400">
+                            <strong className="text-[12.5px] font-semibold font-voda text-slate-400">
                               0
                             </strong>
                           </div>
