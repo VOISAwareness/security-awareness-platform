@@ -6,8 +6,8 @@ import { motion } from 'framer-motion';
 import { Rocket, Wand2, Trophy } from 'lucide-react';
 
 // Card Background Texture Assets
-import CardBgLight from '../../assets/HomeScreenCardLightMode.png';
-import CardBgDark from '../../assets/HomeScreenCardDarkMode.png';
+import CardBgLight from '../../assets/HomeScreenCardLightMode.webp';
+import CardBgDark from '../../assets/HomeScreenCardDarkMode.webp';
 import QuoteCardLight from '../../assets/HomeScreenQuoteCard2LightMode.png';
 import QuoteCardDark from '../../assets/HomeScreenQuoteCard2DarkMode.png';
 import { DEMO_USER } from '../../appConfig';

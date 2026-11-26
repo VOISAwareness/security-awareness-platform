@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import HeroImage from "../../LandingPageImage.png";
-import AnimatedShackleGif from "../../assets/v-shield-animated-shackle.gif";
+import AnimatedShackleGif from "../../assets/v-shield-animated-shackle.webp";
 import { useRolePeople } from "../../services/people";
 // IMPORT PART 2 SECTION
 import LandingPagePart2 from "./LandingPagePart2";
@@ -404,6 +404,8 @@ const LandingPage = () => {
                       <img
                         src={AnimatedShackleGif}
                         alt="VOIS Shield Secure Lock"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-auto max-h-[240px] lg:max-h-[270px] xl:max-h-[300px] object-contain drop-shadow-[0_20px_45px_rgba(230,0,0,0.35)] dark:drop-shadow-[0_20px_40px_rgba(0,0,0,0.2)]"
                         onError={(e) => {
                           e.target.style.display = "none";
