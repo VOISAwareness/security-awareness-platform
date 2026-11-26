@@ -659,10 +659,15 @@ const Announcement = () => {
   // ---------------------------------------------------
   // Card actions — wire these up to your real edit/clone/delete flows
   // ---------------------------------------------------
+  // Edit opens the template form filled in with this template (the stored
+  // row, not the card's display defaults); saving there updates it.
   const handleEdit = (scenario) => {
-    // TODO: navigate to your scenario editor, e.g.
-    // navigate(`/scenarios/${scenario.id}/edit`);
-    console.log("Edit", scenario);
+    const id = scenario.announcementId || scenario.announcementScenarioId;
+    const row =
+      AnnouncamentScenariosJsonData.announcement.find(
+        (a) => (a.announcementId || a.announcementScenarioId) === id,
+      ) || scenario;
+    navigate("/new-announcement", { state: { editTemplate: row } });
   };
 
   // Delete asks first in the app's own dialog (as the recipient lists do),
@@ -1107,7 +1112,12 @@ const Announcement = () => {
                             {/* Edit */}
                             <button
                               type="button"
-                              onClick={() => handleEdit(scenario)}
+                              aria-label={`Edit ${scenario.announcementScenarioName || "announcement"}`}
+                              title="Edit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(scenario);
+                              }}
                               className={`
     h-[26px]
     px-2

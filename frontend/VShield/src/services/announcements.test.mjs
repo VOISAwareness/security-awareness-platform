@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { announcementTemplatesLive, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, userListsLive } from './announcements.js';
+import { announcementTemplatesLive, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
 
 const client = (calls = []) => ({
   calls,
   announcements: {
     list: async (kind) => (calls.push(['list', kind]), [{ announcementId: 'ANC-001', announcementScenarioId: 'ANC-001' }]),
     create: async (fields) => (calls.push(['create', fields]), { ...fields, announcementId: fields.kind === 'TEMPLATE' ? 'ANC-007' : 'ANR-001' }),
+    update: async (id, fields) => (calls.push(['update', id, fields]), { announcementId: id, announcementScenarioId: id, ...fields }),
   },
   userLists: { list: async () => [
     { userListId: 'UL-1', name: 'Finance', listType: 'SAVED', totalUsers: 40 },
@@ -30,6 +31,17 @@ test('publishTemplate saves the form as a TEMPLATE and adds it to the gallery', 
   assert.deepEqual(sent, { announcementScenarioName: 'New', kind: 'TEMPLATE', actor: 'a@x' });
   assert.equal(row.announcementId, 'ANC-007');
   assert.equal(announcementTemplatesLive.announcement[0].announcementId, 'ANC-007');
+});
+
+test('updateTemplate changes the template in place, never its id or kind', async () => {
+  const c = client();
+  await loadAnnouncementData({ client: c });
+  await updateTemplate('ANC-001', { announcementScenarioId: 'ANC-999', announcementId: 'X', kind: 'ROLLOUT', announcementScenarioName: 'Renamed', status: 'SENT' }, { actor: 'a@x', client: c });
+  const [, id, sent] = c.calls.find((x) => x[0] === 'update');
+  assert.equal(id, 'ANC-001');
+  assert.deepEqual(sent, { announcementScenarioName: 'Renamed', actor: 'a@x' });
+  assert.equal(announcementTemplatesLive.announcement.length, 1);
+  assert.equal(announcementTemplatesLive.announcement[0].announcementScenarioName, 'Renamed');
 });
 
 test('saveRollout keeps the list by id and name, never its members', async () => {

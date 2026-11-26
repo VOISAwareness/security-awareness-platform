@@ -55,6 +55,20 @@ export async function publishTemplate(formData, { actor = currentActor(), client
 }
 
 /**
+ * Changes to an existing template (the card's Edit). Its id and kind stay as
+ * they are; the API lets only its creator change it.
+ */
+export async function updateTemplate(id, formData, { actor = currentActor(), client = api } = {}) {
+  const KEEP_OUT = new Set([...NOT_STORED, 'announcementId', 'announcementScenarioId', 'kind', 'createdBy', 'createdAt', 'updatedAt']);
+  const fields = Object.fromEntries(Object.entries(formData || {}).filter(([k]) => !KEEP_OUT.has(k)));
+  const row = await client.announcements.update(id, { ...fields, actor });
+  const live = announcementTemplatesLive.announcement;
+  const at = live.findIndex((a) => (a.announcementId || a.announcementScenarioId) === id);
+  if (row && at >= 0) live.splice(at, 1, row);
+  return row;
+}
+
+/**
  * A roll-out from the Roll Out wizard: published (`submit` 'approve') or sent
  * for approval ('request'). Only the chosen list's id and name are kept.
  */
