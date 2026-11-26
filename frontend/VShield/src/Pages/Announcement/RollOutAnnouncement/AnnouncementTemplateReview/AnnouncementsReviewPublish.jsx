@@ -12,7 +12,7 @@ import {
   Users,
   CheckCircle2,
 } from "lucide-react";
-import { announcementTemplatesLive, saveRollout, useAnnouncementData, userListsLive } from "../../../../services/announcements";
+import { announcementTemplatesLive, saveRollout, updateRollout, useAnnouncementData, userListsLive } from "../../../../services/announcements";
 // Templates and user lists from the backend (services/announcements.js),
 // kept in objects shaped like the sample files they replace.
 const announcamentScenariosJsonData = announcementTemplatesLive;
@@ -148,6 +148,9 @@ const AnnouncementsReviewPublish = () => {
       return {};
     }
   });
+
+  // Changing a rejected roll-out (from Requests & Approvals' Edit), not a new one
+  const editingId = draft.editingRolloutId || "";
 
   // Base background for L-shapes
   const lCardBg = isDark ? "#1C1E24" : "#F1F5F7";
@@ -306,8 +309,11 @@ const AnnouncementsReviewPublish = () => {
     setIsPublishing(true);
     setPublishError("");
     try {
-      await saveRollout(draft, submit, activeUserList);
-      if (submit === "approve") setPublishSuccessModal(true);
+      // a rejected roll-out being changed is saved in place, which sends it
+      // for approval again; anything else is a new roll-out
+      if (editingId) await updateRollout(editingId, draft, activeUserList);
+      else await saveRollout(draft, submit, activeUserList);
+      if (submit === "approve" && !editingId) setPublishSuccessModal(true);
       else setSaveSuccessModal(true);
     } catch (error) {
       console.error("Failed to save the announcement:", error);
@@ -866,14 +872,14 @@ const AnnouncementsReviewPublish = () => {
             <button
               type="button"
               disabled={isPublishing}
-              onClick={canPublish ? handlePublishCampaign : handleSaveCampaign}
+              onClick={canPublish && !editingId ? handlePublishCampaign : handleSaveCampaign}
               className="px-5 h-[24px] rounded-3xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <Send className="w-3 h-3 stroke-[2.5]" />
               <span>
                 {isPublishing
                   ? "PROCESSING..."
-                  : canPublish
+                  : canPublish && !editingId
                     ? "PUBLISH ANNOUNCEMENT"
                     : "SEND FOR APPROVAL"}
               </span>
@@ -1049,11 +1055,11 @@ const AnnouncementsReviewPublish = () => {
                     localStorage.removeItem(
                       "voisshield_active_announcement_draft",
                     );
-                    navigate("/campaigns");
+                    navigate(editingId ? "/announcements/approvals" : "/campaigns");
                   }}
                   className="w-full py-2.5 rounded-xl bg-[#8ED973] hover:bg-[#7ec963] text-white font-voda font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                 >
-                  Return to Campaigns History
+                  {editingId ? "Return to Requests & Approvals" : "Return to Campaigns History"}
                 </button>
               </div>
             </div>,

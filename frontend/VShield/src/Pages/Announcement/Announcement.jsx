@@ -625,6 +625,7 @@ const Announcement = () => {
 
       const updatedDraft = {
         ...draftObj,
+        editingRolloutId: undefined, // a new roll-out, never a left-over edit
         isStartFresh: false,
         announcementScenarioId: scenario.announcementScenarioId,
         announcementScenarioName: scenario.announcementScenarioName,
