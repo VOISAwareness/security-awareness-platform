@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { announcementTemplatesLive, draftFromRollout, fromRollout, updateRollout, historyTime, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
+import { announcementTemplatesLive, draftFromRollout, fromRollout, toAnalyticsOutcome, updateRollout, historyTime, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
 
 const client = (calls = []) => ({
   calls,
@@ -115,4 +115,20 @@ test('fromRollout carries the server\'s instants for scheduling', () => {
   assert.equal(row.startMs, Date.parse('2026-07-01T08:00:00Z'));
   assert.equal(row.endMs, row.startMs); // ends when sent
   assert.equal(fromRollout({ announcementId: 'ANR-10' }).startMs, null);
+});
+
+test('toAnalyticsOutcome gives View Analytics one row per person, unknowns as N/A', () => {
+  const out = toAnalyticsOutcome({ announcementId: 'ANR-1', title: 'VPN change', status: 'SENT', listId: 'UL-1', listName: 'Finance',
+    refreshedAt: '2026-11-26T10:00:00Z', rows: [
+      { email: 'ana@x', sent: 'yes', acknowledged: 'yes', trained: 'unknown' },
+      { email: 'cy@x', sent: 'no', acknowledged: 'unknown', trained: 'unknown' },
+    ] });
+  assert.equal(out.AnnouncementCurrentStatus, 'Sent');
+  assert.equal(out.AnnouncementRecipientListName, 'Finance');
+  assert.ok(out.AnnouncementLastDataRefreshTime.includes('2026'));
+  assert.deepEqual(out.AnnouncementDetails, [
+    { EmailIDs: 'ana@x', SuccessfullySent: 'Yes', Acknowledge: 'Yes', Trained: 'N/A' },
+    { EmailIDs: 'cy@x', SuccessfullySent: 'No', Acknowledge: 'N/A', Trained: 'N/A' },
+  ]);
+  assert.equal(toAnalyticsOutcome(null), null);
 });

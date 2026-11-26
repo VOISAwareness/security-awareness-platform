@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { api } from './api.js';
 import { currentActor } from './identity.js';
+import { formatDateTime } from '../shared/dateTime.js';
 
 export const announcementTemplatesLive = { announcement: [] };
 export const userListsLive = { savedUserLists: [], syncedDistributionLists: [] };
@@ -143,6 +144,33 @@ export function fromRollout(r, { emails = false } = {}) {
     AnnouncementUserListID: r.selectedListName || r.selectedListId || '',
     AnnouncementRecipientGroupType: r.selectedListName ? 'User List' : '',
     AnnouncementTrainingPathID: r.trainingPathId || 'NA',
+  };
+}
+
+const OUTCOME_STATUS = { APPROVED: 'Scheduled', SENDING: 'Sending', SENT: 'Sent', FAILED: 'Failed', CANCELLED: 'Cancelled' };
+const ANSWER = { yes: 'Yes', no: 'No' };
+
+/**
+ * GET /announcements/{id}/outcome in the shape View Analytics was written
+ * against (AnnouncementOutcomeData.json): one row per person, each answer
+ * "Yes", "No" or "N/A" (not known: acknowledged before it was sent to them,
+ * trained when the roll-out links no training).
+ */
+export function toAnalyticsOutcome(o) {
+  if (!o || !Array.isArray(o.rows)) return null;
+  return {
+    AnnouncementID: o.announcementId,
+    AnnouncementName: o.title || o.announcementId,
+    AnnouncementCurrentStatus: OUTCOME_STATUS[o.status] || o.status || '',
+    AnnouncementLastDataRefreshTime: o.refreshedAt ? formatDateTime(o.refreshedAt) : '',
+    AnnouncementRecipientListID: o.listId || '',
+    AnnouncementRecipientListName: o.listName || '',
+    AnnouncementDetails: o.rows.map((r) => ({
+      EmailIDs: r.email,
+      SuccessfullySent: ANSWER[r.sent] || 'N/A',
+      Acknowledge: ANSWER[r.acknowledged] || 'N/A',
+      Trained: ANSWER[r.trained] || 'N/A',
+    })),
   };
 }
 

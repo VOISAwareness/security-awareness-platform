@@ -243,6 +243,7 @@ locals {
     "DELETE /announcements/{id}",
     "POST /announcements/{id}/decision",
     "POST /announcements/{id}/cancel",
+    "GET /announcements/{id}/outcome",
     # Training packages: zips in S3, a row each (tables.tf: training_packages).
     # The upload path is static, so it never collides with POST /training/packages.
     "GET /training/packages",

@@ -2564,6 +2564,8 @@ def my_training(route, event, context):
 #          Campaign Manager; never a roll-out that has been sent)
 #   POST   /announcements/{id}/decision {actor, role, decision: "approve"|"reject", comments}
 #          (an Admin or a Campaign Manager, never on their own roll-out)
+#   GET    /announcements/{id}/outcome?actor=&role=  who it reached, read it and
+#          finished its training (its creator, an Admin or a Campaign Manager)
 #   POST   /announcements/{id}/cancel {actor, role, reason}  (its creator, an
 #          Admin or a Campaign Manager; an approved or sending roll-out that has
 #          not ended: announcement-sender stops between batches)
@@ -2576,6 +2578,7 @@ ANNOUNCEMENT_ROUTES = frozenset({
     "DELETE /announcements/{id}",
     "POST /announcements/{id}/decision",
     "POST /announcements/{id}/cancel",
+    "GET /announcements/{id}/outcome",
 })
 ANNOUNCEMENT_KINDS = {"TEMPLATE": "ANC", "ROLLOUT": "ANR"}
 ANNOUNCEMENT_SERVER_OWNED = frozenset({
@@ -2674,6 +2677,51 @@ def rollout_sent(row, now_s):
     return False
 
 
+def announcement_outcome(row, now):
+    """
+    Who a roll-out reached (announcement-sender's rows in recipients), who
+    pressed "I've read this" (acknowledgedAt) and, when it links a training
+    path, who has completed that path. Each answer is "yes", "no" or
+    "unknown": acknowledged is unknown until it was sent to them, trained is
+    unknown when the roll-out links no training.
+    """
+    people = query_all("recipients", KeyConditionExpression=Key("campaignId").eq(row["announcementId"]))
+    path = str(row.get("trainingPathId") or row.get("announcementTrainingPathId") or "").strip()
+    done = set()
+    if path:
+        done = {str(a.get("owner", "")).lower() for a in query_all(
+            "training-assignments", IndexName="path-assignedAt-index",
+            KeyConditionExpression=Key("TrainingPathID").eq(path)) if a.get("status") == "COMPLETED"}
+    rows = []
+    for p in sorted(people, key=lambda x: str(x.get("recipientEmail", "")).lower()):
+        email = str(p.get("recipientEmail", ""))
+        sent = p.get("sendStatus") == "SENT"
+        rows.append({
+            "email": email,
+            "name": p.get("recipientName") or "",
+            "sent": "yes" if sent else "no",
+            "failureReason": p.get("failureReason") or None,
+            "acknowledged": "yes" if p.get("acknowledgedAt") else "no" if sent else "unknown",
+            "acknowledgedAt": p.get("acknowledgedAt"),
+            "trained": ("yes" if email.lower() in done else "no") if path else "unknown",
+        })
+    count = lambda field, value="yes": sum(1 for r in rows if r[field] == value)  # noqa: E731
+    return {
+        "announcementId": row["announcementId"],
+        "title": row.get("announcementCampaignTitle") or row.get("announcementScenarioName") or row["announcementId"],
+        "status": row.get("status"),
+        "listId": row.get("selectedListId"),
+        "listName": row.get("selectedListName"),
+        "startAt": row.get("startAt"),
+        "endAt": row.get("endAt"),
+        "trainingPathId": path or None,
+        "refreshedAt": now,
+        "rows": rows,
+        "totals": {"recipients": len(rows), "sent": count("sent"), "failed": count("sent", "no"),
+                   "acknowledged": count("acknowledged"), "trained": count("trained") if path else None},
+    }
+
+
 def announcement_fields(body):
     """The row's own fields from a body: (fields, None) or (None, why)."""
     if not isinstance(body, dict):
@@ -2754,6 +2802,14 @@ def announcements(route, event, params, context):
     row = tbl.get_item(Key={"announcementId": params["id"]}).get("Item")
     if not row:
         return err(404, "No announcement with that id")
+
+    if route == "GET /announcements/{id}/outcome":
+        role = str(query.get("role") or "")
+        if parse_identity(row.get("createdBy")) != actor and role not in ANNOUNCEMENT_DELETER_ROLES:
+            return err(403, "Only its creator, an Admin or a Campaign Manager can see who it reached")
+        if row.get("kind") != "ROLLOUT":
+            return err(409, "Only a roll-out has an outcome")
+        return ok(announcement_outcome(row, now))
 
     if route == "PUT /announcements/{id}":
         if row.get("kind") == "ROLLOUT" and row.get("status") not in ("PENDING_APPROVAL", "REJECTED"):

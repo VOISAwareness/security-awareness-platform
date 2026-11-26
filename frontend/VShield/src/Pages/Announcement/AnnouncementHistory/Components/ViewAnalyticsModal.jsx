@@ -112,7 +112,8 @@ const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
 const ViewAnalyticsModal = ({
   announcement = {},
-  outcome = null, // the matching entry of AnnouncementOutcomeData.json, or null
+  outcome = null, // from GET /announcements/{id}/outcome (toAnalyticsOutcome), or null
+  note = "", // shown in place of the figures' line while there is no outcome (loading, refused)
   campaignIndex = 0,
   isDark = false,
   ended = false,
@@ -179,7 +180,7 @@ const ViewAnalyticsModal = ({
             <span role="status" className="text-[11px] font-voda font-bold text-slate-700 dark:text-slate-300">
               {outcome
                 ? `${analytics.total} ${analytics.total === 1 ? "recipient" : "recipients"} • Refreshed ${outcome.AnnouncementLastDataRefreshTime || "N/A"}`
-                : "No outcome data yet"}
+                : note || "No outcome data yet"}
             </span>
 
             {ended ? (

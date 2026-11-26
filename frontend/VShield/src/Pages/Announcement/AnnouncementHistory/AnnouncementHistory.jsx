@@ -5,13 +5,12 @@ import { PAGE_SCALE } from "../../../shared/SharedStyles";
 import { useNavigate } from "react-router-dom";
 
 // 👇 Adjust these two paths to where your JSON files live
-import { useRollouts } from "../../../services/announcements";
+import { toAnalyticsOutcome, useRollouts } from "../../../services/announcements";
 import PageLoading from "../../../GlobalComponents/PageLoading";
 import DraftDialog from "../../../GlobalComponents/DraftDialog";
 import Toast from "../../../GlobalComponents/Toast";
 import { api } from "../../../services/api";
 import { currentActor } from "../../../services/identity";
-import outcomeData from "../AnnouncementOutcomeData.json";
 
 import AnnouncementGalleryCard, {
   parseDate,
@@ -127,6 +126,16 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
   const [detailModalItem, setDetailModalItem] = useState(null);
   const [previewEmail, setPreviewEmail] = useState(null); // { item, cardIdx }
   const [analyticsItem, setAnalyticsItem] = useState(null); // { camp, idx }
+  // View Analytics' figures, read when it opens: { id, outcome, note }
+  const [analytics, setAnalytics] = useState(null);
+  const openAnalytics = (camp, idx) => {
+    setAnalyticsItem({ camp, idx });
+    setAnalytics(null);
+    api.announcements
+      .outcome(camp.announcementId, currentActor(), userContext.user?.role || "")
+      .then((o) => setAnalytics({ id: camp.announcementId, outcome: toAnalyticsOutcome(o), note: "" }))
+      .catch((err) => setAnalytics({ id: camp.announcementId, outcome: null, note: err?.message || "Couldn't load the figures" }));
+  };
 
   const lCardBg = getLCardBg(isDark);
 
@@ -485,7 +494,7 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
                       onAnalytics={
                         activeTab === "scheduled" || activeTab === "cancelled"
                           ? null
-                          : () => setAnalyticsItem({ camp, idx })
+                          : () => openAnalytics(camp, idx)
                       }
                     />
                   ))}
@@ -649,11 +658,8 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
         {analyticsItem && (
           <ViewAnalyticsModal
             announcement={analyticsItem.camp}
-            outcome={
-              (outcomeData.announcementOutcome || []).find(
-                (o) => o.AnnouncementID === analyticsItem.camp.announcementId,
-              ) || null
-            }
+            outcome={analytics?.id === analyticsItem.camp.announcementId ? analytics.outcome : null}
+            note={analytics?.id === analyticsItem.camp.announcementId ? analytics.note : "Loading…"}
             campaignIndex={analyticsItem.idx}
             isDark={isDark}
             ended={activeTab === "historical"}

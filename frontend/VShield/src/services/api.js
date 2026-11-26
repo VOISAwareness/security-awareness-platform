@@ -342,6 +342,9 @@ export const api = {
     // `role` lets an Admin or Campaign Manager delete anyone's (not a sent roll-out).
     remove: (id, actor, role) =>
       request(`/announcements/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}&role=${encodeURIComponent(role || '')}`, { method: 'DELETE' }),
+    // Who a roll-out reached, read it and finished its training (its creator, an Admin or a Campaign Manager).
+    outcome: (id, actor, role) =>
+      request(`/announcements/${encodeURIComponent(id)}/outcome?actor=${encodeURIComponent(actor || '')}&role=${encodeURIComponent(role || '')}`),
     // Stops an approved roll-out that has not ended: its creator, an Admin or a Campaign Manager.
     cancel: (id, actor, reason, role) =>
       request(`/announcements/${encodeURIComponent(id)}/cancel`, {
