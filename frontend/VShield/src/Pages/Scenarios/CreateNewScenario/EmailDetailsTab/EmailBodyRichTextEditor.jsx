@@ -9,7 +9,9 @@ import {
 
 import {
   AlignCenter,
+  AlignEndVertical,
   AlignHorizontalJustifyCenter,
+  AlignStartVertical,
   AlignJustify,
   AlignLeft,
   AlignRight,
@@ -24,16 +26,20 @@ import {
   Eye,
   Globe,
   FileText,
+  GripVertical,
   Grid,
+  Group,
   Image as ImageIcon,
   Upload,
   Italic,
   Layers,
   Maximize2,
+  Menu,
   Minimize2,
   MousePointerClick,
   Move,
   Palette,
+  Pencil,
   Pipette,
   Plus,
   RemoveFormatting,
@@ -49,6 +55,7 @@ import {
   Trash2,
   Type,
   Underline,
+  Ungroup,
   X,
 } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -56,6 +63,17 @@ import HtmlCodeEditor from "../../../../GlobalComponents/HtmlCodeEditor";
 import Toast from "../../../../GlobalComponents/Toast";
 import EmailPreviewModal from "./EmailPreviewModal";
 import { canRedo, canUndo, moveTo, newHistory, recordStep } from "../../../../services/pageHistory";
+import {
+  DRAG_START_PX,
+  clampMove,
+  groupPlan,
+  marginForGap,
+  rectsIntersect,
+  rememberPlaces,
+  snapToGuides,
+  toggleBlock,
+  visibleBounds,
+} from "../../../../services/canvasGroups";
 import { api } from "../../../../services/api";
 import {
   classifyPicture,
@@ -87,6 +105,19 @@ import {
 // =========================================================================
 const VarEditorOuterFrameThickness = 4; // Thickness of outer frame in pixels
 const PX_PER_CM = 37.7952755906; // 96 DPI standard conversion
+
+// The canvas is never laid out narrower than this (layout px, inside its
+// padding): the widest template cards and elements are 580px, and squeezed
+// below their real width they would all look alike, unlike the preview.
+// A narrower editor scrolls sideways instead.
+const CANVAS_MIN_CONTENT_WIDTH = 600;
+// The canvas's text looks as the preview (and the employee) shows it:
+// previewDocument() in simulationPages.js.
+const CANVAS_TEXT_STYLE = {
+  fontFamily: "'Segoe UI', Calibri, Arial, sans-serif",
+  fontSize: "14px",
+  lineHeight: "normal",
+};
 
 const FX_PARAMETERS = [
   { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
@@ -799,6 +830,28 @@ const EmailBodyRichTextEditor = ({
   const [canvasBgColor, setCanvasBgColor] = useState("#FFFFFF");
   const [activeElement, setActiveElement] = useState(null);
   const [aspectRatioText, setAspectRatioText] = useState("");
+  // Grouping (canvasGroups.js): the top-level blocks picked to group, the
+  // drag-select box being drawn, and the guide line (x, layout px from the
+  // canvas's left edge) of the edge or centre a dragged item snapped to.
+  const [pickedBlocks, setPickedBlocks] = useState([]);
+  const [selectBox, setSelectBox] = useState(null);
+  const [snapGuide, setSnapGuide] = useState(null);
+  // Bumped while dragging so the selection frame follows the item.
+  const [, setDragFrame] = useState(0);
+  // A press that became a drag or a box-select is not also a click.
+  const swallowClickRef = useRef(false);
+  // A blank line added for the caret by a click on empty canvas, taken away
+  // again if it is still empty when another is needed.
+  const spareLineRef = useRef(null);
+  // The Items pane (hamburger button): every item on the page, to select,
+  // reorder, group, rename and delete.
+  const [showItemsPane, setShowItemsPane] = useState(false);
+  const [renamingItem, setRenamingItem] = useState(null); // { el, name }
+  const [dropTargetEl, setDropTargetEl] = useState(null);
+  const draggedItemRef = useRef(null);
+  // Stable React keys for page elements, without writing ids into the HTML.
+  const itemKeysRef = useRef(new WeakMap());
+  const itemKeyCountRef = useRef(0);
 
   // Page 1 is the email (value / onChange); page 2, when there is one, the
   // browser page (browserPage / onBrowserPageChange).
@@ -1209,6 +1262,7 @@ const EmailBodyRichTextEditor = ({
   const showPage = (pageId, html) => {
     currentPageIdRef.current = pageId;
     setCurrentPageId(pageId);
+    setPickedBlocks([]);
     internalHtmlRef.current = html;
     if (editorRef.current && !rawHtmlMode) {
       editorRef.current.innerHTML = html;
@@ -1296,6 +1350,8 @@ const EmailBodyRichTextEditor = ({
         if (showBrowserPreview) setShowBrowserPreview(false);
         else if (actionConfigModal.open) setActionConfigModal(CLOSED_ACTION_MODAL);
         else if (showNewPageModal) setShowNewPageModal(false);
+        else if (pickedBlocks.length) setPickedBlocks([]);
+        else if (activeElement?.element) setActiveElement(null);
         else if (isExpanded) setIsExpanded(false);
         return;
       }
@@ -1317,34 +1373,39 @@ const EmailBodyRichTextEditor = ({
         return;
       }
 
-      if (activeElement?.element && document.activeElement !== editorRef.current) {
+      // A selected group is moved with the arrow keys even while the editor
+      // has focus; any other item only once the caret has left the text.
+      const groupSelected = activeElement?.element?.classList.contains("vshield-group-item");
+      if (!rawHtmlMode && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g" && (inEditor || pickedBlocks.length)) {
+        e.preventDefault();
+        if (e.shiftKey) ungroupActiveItem();
+        else groupPickedBlocks();
+        return;
+      }
+
+      if (activeElement?.element && (groupSelected || document.activeElement !== editorRef.current)) {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
           e.preventDefault();
           duplicateActiveItem();
           return;
         }
 
-        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        // Arrows move the caret while typing (a template's heading or
+        // paragraph has the focus); they move the item only when not, or
+        // when a whole group is selected.
+        const typing =
+          document.activeElement?.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
+        if (
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) &&
+          (groupSelected || !typing)
+        ) {
           e.preventDefault();
           const step = e.shiftKey ? 10 : 1;
-          const targetEl = activeElement.element;
-          const currentLeft = parseFloat(targetEl.style.left) || 0;
-          const currentTop = parseFloat(targetEl.style.top) || 0;
-
-          let deltaX = 0;
-          let deltaY = 0;
-          if (e.key === "ArrowLeft") deltaX = -step;
-          if (e.key === "ArrowRight") deltaX = step;
-          if (e.key === "ArrowUp") deltaY = -step;
-          if (e.key === "ArrowDown") deltaY = step;
-
-          const newLeft = currentLeft + deltaX;
-          const newTop = Math.max(4, currentTop + deltaY);
-
-          targetEl.style.position = "relative";
-          targetEl.style.left = `${newLeft}px`;
-          targetEl.style.top = `${newTop}px`;
-          synchroniseEditorValue();
+          nudgeActiveItem(
+            e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
+            e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0,
+          );
           return;
         }
 
@@ -1358,7 +1419,7 @@ const EmailBodyRichTextEditor = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeElement, rawHtmlMode, handleUndo, handleRedo, showBrowserPreview, emailPreview.open, actionConfigModal.open, showNewPageModal, isExpanded]);
+  }, [activeElement, pickedBlocks, rawHtmlMode, handleUndo, handleRedo, showBrowserPreview, emailPreview.open, actionConfigModal.open, showNewPageModal, isExpanded]);
 
   // The full-screen editor keeps the page behind it from scrolling.
   useEffect(() => {
@@ -1467,6 +1528,8 @@ const EmailBodyRichTextEditor = ({
     const updatedHtml = editorRef.current.innerHTML;
     emitChange(updatedHtml);
     saveSelection();
+    // The Items pane and selection frames are read from the page.
+    setDragFrame((n) => n + 1);
   }, [emitChange, saveSelection]);
 
   const insertCanvasItem = useCallback(
@@ -1480,20 +1543,46 @@ const EmailBodyRichTextEditor = ({
       const selection = window.getSelection();
       let inserted = false;
 
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      // No blank line after the item: it would show as empty space in the
+      // preview. A click below the item gives a line to type on when wanted.
+      const isBlank = (node) =>
+        (node.nodeType === 3 && !node.textContent.trim()) ||
+        (node.nodeType === 1 && node.tagName === "P" && !node.textContent.trim() && !node.querySelector("img, input"));
+      while (temp.lastChild && isBlank(temp.lastChild)) temp.lastChild.remove();
+      while (temp.firstChild && isBlank(temp.firstChild)) temp.firstChild.remove();
+      const frag = document.createDocumentFragment();
+      let node;
+      while ((node = temp.firstChild)) {
+        frag.appendChild(node);
+      }
+
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         if (editor.contains(range.commonAncestorContainer)) {
           try {
-            const temp = document.createElement("div");
-            temp.innerHTML = html;
-            const frag = document.createDocumentFragment();
-            let node;
-            while ((node = temp.firstChild)) {
-              frag.appendChild(node);
+            // A design item is a box, and a box can't sit inside a line of
+            // text (a paragraph, heading, link or a template's text part): the
+            // saved page would be read back differently, moving things in the
+            // preview. Then it goes just after that text instead.
+            let textHolder = null;
+            let at = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+            while (at && at !== editor) {
+              const textLevel =
+                /^(P|H[1-6]|SPAN|A|B|STRONG|EM|I|U|FONT|LABEL|SMALL|CODE)$/.test(at.tagName) ||
+                at.getAttribute("contenteditable") === "true" ||
+                ["text", "button", "input", "shape"].includes(at.getAttribute("data-type"));
+              if (textLevel) textHolder = at;
+              at = at.parentElement;
             }
-            range.deleteContents();
-            range.insertNode(frag);
-            range.collapse(false);
+            if (textHolder) {
+              textHolder.after(frag);
+            } else {
+              range.deleteContents();
+              range.insertNode(frag);
+              range.collapse(false);
+            }
             inserted = true;
           } catch {
             inserted = false;
@@ -1502,7 +1591,7 @@ const EmailBodyRichTextEditor = ({
       }
 
       if (!inserted) {
-        editor.insertAdjacentHTML("beforeend", html);
+        editor.appendChild(frag);
       }
 
       synchroniseEditorValue();
@@ -1568,6 +1657,7 @@ const EmailBodyRichTextEditor = ({
         const email = pagesRef.current.find((p) => p.id === EMAIL_PAGE_ID)?.html || "";
         currentPageIdRef.current = EMAIL_PAGE_ID;
         setCurrentPageId(EMAIL_PAGE_ID);
+        setPickedBlocks([]);
         internalHtmlRef.current = email;
         if (editorRef.current && !rawHtmlMode) editorRef.current.innerHTML = email;
         setRawHtmlCode(email);
@@ -1786,6 +1876,7 @@ const EmailBodyRichTextEditor = ({
       internalHtmlRef.current = currentHtml;
       setRawHtmlCode(currentHtml);
       setRawHtmlMode(true);
+      setPickedBlocks([]);
       return;
     }
 
@@ -2029,45 +2120,87 @@ const EmailBodyRichTextEditor = ({
     }
   };
 
+  // Select one item on the canvas: its frame, size readout and tools.
+  const selectCanvasItem = (canvasItem) => {
+    const isGroup = canvasItem.classList.contains("vshield-group-item");
+    // Real (layout) size, as saved and previewed, not the zoomed screen size.
+    const rect = { width: canvasItem.offsetWidth, height: canvasItem.offsetHeight };
+    // A group's colour and corners are its own, never its first link's.
+    const innerA = isGroup ? null : canvasItem.querySelector("a");
+    const innerImg = isGroup ? null : canvasItem.querySelector("img");
+    const currentBg = innerA
+      ? innerA.style.backgroundColor
+      : canvasItem.style.backgroundColor ||
+        window.getComputedStyle(canvasItem).backgroundColor;
+
+    const elForRadius = innerA || innerImg || canvasItem;
+    const currentRadius =
+      elForRadius.style.borderRadius ||
+      window.getComputedStyle(elForRadius).borderRadius ||
+      "0px";
+
+    setActiveElement({
+      element: canvasItem,
+      type: canvasItem.getAttribute("data-type") || "shape",
+      width: rect.width,
+      height: rect.height,
+      color: currentBg,
+      borderRadius: currentRadius,
+    });
+
+    setAspectRatioText(calculateAspectRatio(rect.width, rect.height));
+    setShowShadowMenu(false);
+    setShowRoundedMenu(false);
+    setShowBorderMenu(false);
+  };
+
+  // The outermost group holding `node` on the canvas (null when none).
+  const outermostGroup = (node) => {
+    let found = null;
+    let group = node?.closest?.(".vshield-group-item");
+    while (group && editorRef.current?.contains(group)) {
+      found = group;
+      group = group.parentElement?.closest(".vshield-group-item");
+    }
+    return found;
+  };
+
   const handleCanvasClick = (e) => {
     const target = e.target;
     if (target.closest("[data-floating-control]")) {
       return;
     }
+    // The press was a drag, a box-select or a Ctrl/Shift pick: already handled.
+    if (swallowClickRef.current) {
+      swallowClickRef.current = false;
+      return;
+    }
+    setPickedBlocks([]);
 
-    const canvasItem =
+    let canvasItem =
       target.closest(".vshield-canvas-item") ||
       (target.tagName === "IMG" ? target.parentElement : null);
 
+    // A click inside a group picks the whole group; once it is picked, a
+    // click picks the part under the mouse (as in PowerPoint).
+    const group = outermostGroup(target);
+    const active = activeElement?.element;
+    if (group && !(active && group.contains(active))) {
+      canvasItem = group;
+    } else if (group && active === group) {
+      // Going into the selected group. Its press was held back in case it
+      // became a drag, so put the caret where it was clicked; plain text in
+      // the group is then edited like anywhere else.
+      placeCaretAt(e.clientX, e.clientY);
+      if (canvasItem === group) {
+        setActiveElement(null);
+        return;
+      }
+    }
+
     if (canvasItem && editorRef.current?.contains(canvasItem)) {
       e.stopPropagation();
-      const rect = canvasItem.getBoundingClientRect();
-      const innerA = canvasItem.querySelector("a");
-      const innerImg = canvasItem.querySelector("img");
-      const currentBg = innerA
-        ? innerA.style.backgroundColor
-        : canvasItem.style.backgroundColor ||
-          window.getComputedStyle(canvasItem).backgroundColor;
-
-      const elForRadius = innerA || innerImg || canvasItem;
-      const currentRadius =
-        elForRadius.style.borderRadius ||
-        window.getComputedStyle(elForRadius).borderRadius ||
-        "0px";
-
-      setActiveElement({
-        element: canvasItem,
-        type: canvasItem.getAttribute("data-type") || "shape",
-        width: rect.width,
-        height: rect.height,
-        color: currentBg,
-        borderRadius: currentRadius,
-      });
-
-      setAspectRatioText(calculateAspectRatio(rect.width, rect.height));
-      setShowShadowMenu(false);
-      setShowRoundedMenu(false);
-      setShowBorderMenu(false);
+      selectCanvasItem(canvasItem);
     } else {
       setActiveElement(null);
       setShowShadowMenu(false);
@@ -2076,49 +2209,488 @@ const EmailBodyRichTextEditor = ({
     }
   };
 
-  const startDragItem = (e) => {
+  // Screen pixels per layout pixel: the scenario page is drawn with CSS zoom,
+  // and mouse positions and getBoundingClientRect() are in screen pixels.
+  const canvasScale = () => {
+    const el = editorRef.current;
+    if (!el || !el.offsetWidth) return 1;
+    const ratio = el.getBoundingClientRect().width / el.offsetWidth;
+    return ratio > 0.1 && Number.isFinite(ratio) ? ratio : 1;
+  };
+
+  // How far an item may be moved: sideways, its style left (layout px) stays
+  // inside the canvas; up, `rise` is how far it can go before the canvas top.
+  // Positions are in layout px from the canvas's left edge.
+  const moveLimits = (targetEl) => {
+    const container = editorRef.current || workspaceRef.current;
+    const scale = canvasScale();
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+    const currentLeft = parseFloat(targetEl.style.left) || 0;
+    // Where the item would sit with no sideways offset, from the canvas's edge.
+    const baseLeft = (targetRect.left - containerRect.left) / scale - currentLeft;
+    const width = targetRect.width / scale;
+    return {
+      baseLeft,
+      width,
+      minLeft: -baseLeft + 4,
+      maxLeft: container.clientWidth - baseLeft - width - 4,
+      minTop: -Infinity,
+      rise: Math.max(0, (targetRect.top - containerRect.top) / scale - 4),
+    };
+  };
+
+  // The left edge, centre and right edge of the box holding `el` (its parent's
+  // content area), in the same canvas coordinates: what a drag snaps to.
+  const containerGuides = (el) => {
+    const container = editorRef.current;
+    const parent = el.parentElement || container;
+    const scale = canvasScale();
+    const cs = window.getComputedStyle(parent);
+    const padLeft = parseFloat(cs.paddingLeft) || 0;
+    const padRight = parseFloat(cs.paddingRight) || 0;
+    const left =
+      (parent.getBoundingClientRect().left - container.getBoundingClientRect().left) / scale +
+      parent.clientLeft +
+      padLeft;
+    const right = left + parent.clientWidth - padLeft - padRight;
+    return [
+      { x: left, kind: "start" },
+      { x: (left + right) / 2, kind: "centre" },
+      { x: right, kind: "end" },
+    ];
+  };
+
+  // Sideways, positions are kept relative to the item's container, not as a
+  // distance from the canvas's left edge: the preview is wider than the
+  // canvas (a browser page fills the screen), and a pixel distance from the
+  // left would put the item somewhere else there. An item is anchored to the
+  // left, centre or right of its container with its side margins, and a
+  // dragged item keeps its offset from that anchor.
+  const canAnchor = (el) => {
+    const cs = window.getComputedStyle(el);
+    if (cs.display === "inline" || cs.position === "absolute" || cs.position === "fixed" || cs.float !== "none") {
+      return false;
+    }
+    // In a row (flex/grid), side margins mean something else; keep the slot.
+    const parentDisplay = el.parentElement ? window.getComputedStyle(el.parentElement).display : "";
+    return !/flex|grid/.test(parentDisplay);
+  };
+
+  const horizontalAnchor = (el) => {
+    const { marginLeft, marginRight } = el.style;
+    if (marginLeft === "auto" && marginRight === "auto") return "centre";
+    if (marginLeft === "auto") return "end";
+    if (marginRight === "auto") return "start";
+    return null;
+  };
+
+  // Anchor `el` to the left (`start`), centre or right (`end`) of its
+  // container. With `keepPlace` it stays where it is seen (its offset is
+  // adjusted); without, it goes to that anchor exactly.
+  const anchorItem = (el, anchor, { keepPlace = true } = {}) => {
+    if (!canAnchor(el)) return false;
+    const scale = canvasScale();
+    const before = el.getBoundingClientRect();
+    const cs = window.getComputedStyle(el);
+    if (cs.display.startsWith("inline")) {
+      el.style.display =
+        cs.display === "inline-flex" ? "flex" : cs.display === "inline-grid" ? "grid" : cs.display === "inline-table" ? "table" : "block";
+    }
+    // A width of its own (as seen), so side margins can place it, never wider
+    // than its container.
+    const seenWidth = before.width / scale;
+    if (el.offsetWidth > seenWidth + 1) {
+      el.style.boxSizing = "border-box";
+      el.style.width = `${Math.round(seenWidth)}px`;
+    }
+    if (!el.style.maxWidth) el.style.maxWidth = "100%";
+    el.style.marginLeft = anchor === "start" ? "0px" : "auto";
+    el.style.marginRight = anchor === "end" ? "0px" : "auto";
+    if (!el.style.position || el.style.position === "static") el.style.position = "relative";
+    if (keepPlace) {
+      const after = el.getBoundingClientRect();
+      el.style.left = `${Math.round((parseFloat(el.style.left) || 0) + (before.left - after.left) / scale)}px`;
+    } else {
+      el.style.left = "0px";
+    }
+    return true;
+  };
+
+  // Ready an item to move sideways: anchored to its container's centre
+  // unless it already has an anchor (so a left- or right-aligned item stays so).
+  const readyHorizontalMove = (el) => {
+    if (!horizontalAnchor(el)) anchorItem(el, "centre");
+  };
+
+  // Up and down, an item moves by its top margin, so the page keeps flowing:
+  // what is below follows it and no empty hole is left where it was (a `top`
+  // offset leaves one, and the preview shows it). Only inline text, which
+  // has no top margin, still moves by `top`.
+  const blockAbove = (el) => {
+    let above = el.previousSibling;
+    while (above && above.nodeType === 3 && !above.textContent.trim()) above = above.previousSibling;
+    if (!above || above.nodeType !== 1) return null;
+    const cs = window.getComputedStyle(above);
+    if (
+      cs.display === "none" ||
+      cs.display.startsWith("inline") ||
+      cs.position === "absolute" ||
+      cs.position === "fixed" ||
+      cs.float !== "none"
+    ) {
+      return null;
+    }
+    return above;
+  };
+
+  // Ready an item to move up or down. An old `top` offset is folded into its
+  // margin first (it stays where it is seen, and its hole closes).
+  const startVerticalMove = (el, scale) => {
+    const cs = window.getComputedStyle(el);
+    if (cs.display === "inline" || cs.position === "absolute" || cs.position === "fixed") {
+      return { byTop: true, start: parseFloat(el.style.top) || 0 };
+    }
+    const oldTop = parseFloat(el.style.top) || 0;
+    if (oldTop) el.style.top = "0px";
+    const above = cs.display.startsWith("inline") ? null : blockAbove(el);
+    if (!above) {
+      return { byTop: false, gap: (parseFloat(cs.marginTop) || 0) + oldTop, aboveMargin: null };
+    }
+    const aboveBottom =
+      above.getBoundingClientRect().bottom / scale - (parseFloat(above.style.top) || 0);
+    return {
+      byTop: false,
+      gap: el.getBoundingClientRect().top / scale - aboveBottom + oldTop,
+      aboveMargin: parseFloat(window.getComputedStyle(above).marginBottom) || 0,
+    };
+  };
+
+  const applyVerticalMove = (el, move, dy) => {
+    if (move.byTop) el.style.top = `${Math.round(move.start + dy)}px`;
+    else el.style.marginTop = `${Math.round(marginForGap(move.gap + dy, move.aboveMargin))}px`;
+  };
+
+  // Moves the selected item with the mouse. Called from the Move handle, or
+  // from a press anywhere on a selected group (`fromBody`), which waits for
+  // a few pixels of travel so a plain click still goes into the group.
+  // It snaps to its container's left edge, centre and right edge (hold Alt
+  // to place freely), with a guide line where it snapped.
+  const startDragItem = (e, { fromBody = false } = {}) => {
     if (!activeElement?.element || !workspaceRef.current) return;
     e.preventDefault();
     e.stopPropagation();
 
     const targetEl = activeElement.element;
+    const scale = canvasScale();
     const initialX = e.clientX;
     const initialY = e.clientY;
-
-    const currentLeft = parseFloat(targetEl.style.left) || 0;
-    const currentTop = parseFloat(targetEl.style.top) || 0;
-
-    const container = editorRef.current || workspaceRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const targetRect = targetEl.getBoundingClientRect();
-
-    const baseLeft = (targetRect.left - currentLeft) - containerRect.left;
-    const baseTop = (targetRect.top - currentTop) - containerRect.top;
-
-    const minLeft = -baseLeft + 4;
-    const maxLeft = container.clientWidth - baseLeft - targetRect.width - 8;
-    const minTop = -baseTop + 4;
+    let currentLeft = 0;
+    let vertical = null;
+    let limits = null;
+    let guides = [];
+    let frame = 0;
 
     const onMouseMove = (moveEvent) => {
-      const deltaX = moveEvent.clientX - initialX;
-      const deltaY = moveEvent.clientY - initialY;
+      const deltaX = (moveEvent.clientX - initialX) / scale;
+      const deltaY = (moveEvent.clientY - initialY) / scale;
+      if (!vertical) {
+        if (fromBody && Math.hypot(deltaX, deltaY) < DRAG_START_PX) return;
+        readyHorizontalMove(targetEl);
+        vertical = startVerticalMove(targetEl, scale);
+        currentLeft = parseFloat(targetEl.style.left) || 0;
+        limits = moveLimits(targetEl);
+        guides = containerGuides(targetEl);
+      }
 
-      const clampedLeft = Math.max(minLeft, Math.min(maxLeft, currentLeft + deltaX));
-      const clampedTop = Math.max(minTop, currentTop + deltaY);
+      let { left } = clampMove({ left: currentLeft + deltaX, top: 0 }, limits);
+      let guide = null;
+      if (!moveEvent.altKey) {
+        const snap = snapToGuides({ left: limits.baseLeft + left, width: limits.width, guides });
+        guide = snap.guide;
+        if (guide) left = snap.left - limits.baseLeft;
+      }
+      setSnapGuide(guide ? guide.x : null);
 
       targetEl.style.position = "relative";
-      targetEl.style.left = `${clampedLeft}px`;
-      targetEl.style.top = `${clampedTop}px`;
+      targetEl.style.left = `${Math.round(left)}px`;
+      applyVerticalMove(targetEl, vertical, Math.max(-limits.rise, deltaY));
+
+      // Redraw the selection frame once per screen frame, not per mouse event.
+      if (!frame) {
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          setDragFrame((n) => n + 1);
+        });
+      }
     };
 
     const onMouseUp = () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      if (frame) cancelAnimationFrame(frame);
+      setSnapGuide(null);
+      if (!vertical) return;
+      if (fromBody) swallowClickRef.current = true;
+      setActiveElement((prev) =>
+        prev?.element === targetEl
+          ? { ...prev, width: targetEl.offsetWidth, height: targetEl.offsetHeight }
+          : prev,
+      );
       synchroniseEditorValue();
     };
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+  };
+
+  // A screen rectangle in the canvas's scroll area, in layout px (where the
+  // selection outlines and the drag-select box are drawn).
+  const toScrollArea = (rect) => {
+    const scroller = editorRef.current?.offsetParent;
+    if (!rect || !scroller) return null;
+    const scale = canvasScale();
+    const area = scroller.getBoundingClientRect();
+    return {
+      left: (rect.left - area.left) / scale + scroller.scrollLeft,
+      top: (rect.top - area.top) / scale + scroller.scrollTop,
+      width: rect.width / scale,
+      height: rect.height / scale,
+    };
+  };
+
+  // Put the caret at `range`, focusing whichever editable part holds it: a
+  // template's heading or paragraph is editable on its own, and typing only
+  // reaches it while it has the focus.
+  const focusCaret = (range) => {
+    const editor = editorRef.current;
+    if (!editor || !range || !editor.contains(range.startContainer)) return false;
+    const node = range.startContainer;
+    const host =
+      (node.nodeType === 1 ? node : node.parentElement)?.closest('[contenteditable="true"]') || editor;
+    (editor.contains(host) ? host : editor).focus({ preventScroll: true });
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    saveSelection();
+    return true;
+  };
+
+  const caretRangeAt = (x, y) => {
+    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(x, y);
+      if (!pos) return null;
+      const range = document.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.collapse(true);
+      return range;
+    }
+    return null;
+  };
+
+  // Put the caret at the text under the mouse (used when a press inside a
+  // selected group was held back in case it became a drag).
+  const placeCaretAt = (x, y) => {
+    if (!focusCaret(caretRangeAt(x, y))) editorRef.current?.focus({ preventScroll: true });
+  };
+
+  // An empty line of the canvas's own (not part of a design element).
+  const isBlankLine = (node) =>
+    node?.nodeType === 1 &&
+    (node.tagName === "P" || node.tagName === "DIV") &&
+    !node.classList.contains("vshield-canvas-item") &&
+    !node.textContent.trim() &&
+    !node.querySelector("img, input, table, .vshield-canvas-item");
+
+  // The next or previous top-level node, skipping the blank text between tags.
+  const siblingBlock = (node, direction) => {
+    let next = direction === "after" ? node.nextSibling : node.previousSibling;
+    while (next && next.nodeType === 3 && !next.textContent.trim()) {
+      next = direction === "after" ? next.nextSibling : next.previousSibling;
+    }
+    return next;
+  };
+
+  // A design element (a template card, picture, button...) rather than a
+  // plain line of text: the caret cannot sit beside it, only next to it.
+  const isDesignBlock = (node) =>
+    node.nodeType === 1 &&
+    (node.classList.contains("vshield-canvas-item") ||
+      Boolean(node.querySelector('.vshield-canvas-item, [contenteditable="true"], img, input, table')));
+
+  // A blank line beside `block` (before or after it) to type on: an existing
+  // one is reused, else one is added. A line added earlier and left empty is
+  // taken away again, so clicking around does not pile up empty lines.
+  const lineBeside = (block, direction) => {
+    const editor = editorRef.current;
+    const existing = block ? siblingBlock(block, direction) : null;
+    if (isBlankLine(existing)) return existing;
+    const earlier = spareLineRef.current;
+    if (earlier && earlier.isConnected && isBlankLine(earlier) && earlier !== block) {
+      earlier.remove();
+    }
+    const line = document.createElement("p");
+    line.appendChild(document.createElement("br"));
+    if (!block) editor.appendChild(line);
+    else if (direction === "after") block.after(line);
+    else block.before(line);
+    spareLineRef.current = line;
+    return line;
+  };
+
+  // A click on empty canvas puts the caret there: on a text line, at that
+  // point of the line; beside, between, above or below design elements, on a
+  // blank line at that spot (so there is always a way out of a template).
+  const placeCaretOnCanvas = (x, y) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const blocks = Array.from(editor.childNodes)
+      .map((node) => ({
+        node,
+        rect: node.nodeType === 1 ? node.getBoundingClientRect() : visibleBounds([node]),
+      }))
+      .filter(({ node, rect }) => rect && (node.nodeType === 1 || node.textContent.trim()) && rect.height > 0);
+
+    const toLine = (line) => {
+      const range = document.createRange();
+      range.setStart(line, 0);
+      range.collapse(true);
+      focusCaret(range);
+      synchroniseEditorValue();
+    };
+
+    if (!blocks.length) {
+      toLine(lineBeside(null, "after"));
+      return;
+    }
+    const hit = blocks.find(({ rect }) => y >= rect.top && y <= rect.top + rect.height);
+    if (hit) {
+      if (!isDesignBlock(hit.node)) {
+        // A text line: the nearest point on it, even clicked off to the side.
+        const r = hit.rect;
+        const range = caretRangeAt(Math.max(r.left + 1, Math.min(r.left + r.width - 1, x)), y);
+        if (!focusCaret(range)) toLine(lineBeside(hit.node, "after"));
+        return;
+      }
+      toLine(isBlankLine(hit.node) ? hit.node : lineBeside(hit.node, "after"));
+      return;
+    }
+    const first = blocks[0];
+    if (y < first.rect.top) {
+      toLine(isBlankLine(first.node) ? first.node : lineBeside(first.node, "before"));
+      return;
+    }
+    // Between two blocks, or below the last: just after the one above.
+    const above = blocks.filter(({ rect }) => rect.top + rect.height < y).pop() || blocks[blocks.length - 1];
+    toLine(isBlankLine(above.node) ? above.node : lineBeside(above.node, "after"));
+  };
+
+  // The canvas's top-level blocks that show something (not blank lines).
+  const visibleBlocks = () =>
+    Array.from(editorRef.current?.childNodes || []).filter((node) => visibleBounds([node]));
+
+  // A press on the canvas: drags a selected group from anywhere on it, draws a
+  // drag-select box from empty canvas, and Ctrl+click picks items. Anything
+  // else is left to ordinary editing.
+  const handleWorkspaceMouseDown = (e) => {
+    swallowClickRef.current = false;
+    if (rawHtmlMode || disabled || e.button !== 0) return;
+    const target = e.target;
+    if (target.closest?.("[data-floating-control]")) return;
+    const editor = editorRef.current;
+    const scroller = editor?.offsetParent;
+    if (!editor || !scroller) return;
+
+    const active = activeElement?.element;
+    // Ctrl/Cmd+click picks items. Shift+click does too once items are picked
+    // or one is selected; otherwise it keeps extending a text selection.
+    const additive =
+      e.ctrlKey || e.metaKey || (e.shiftKey && (pickedBlocks.length > 0 || Boolean(active)));
+    if (!additive && active?.classList.contains("vshield-group-item") && active.contains(target)) {
+      startDragItem(e, { fromBody: true });
+      return;
+    }
+    const onEmptyCanvas = target === editor || !editor.contains(target);
+    if (!additive && !onEmptyCanvas) return;
+    // No caret or text highlight while picking; a plain click on empty
+    // canvas gets its caret back on release.
+    e.preventDefault();
+
+    const scale = canvasScale();
+    const toArea = (x, y) => {
+      const area = scroller.getBoundingClientRect();
+      return {
+        x: (x - area.left) / scale + scroller.scrollLeft,
+        y: (y - area.top) / scale + scroller.scrollTop,
+      };
+    };
+    const start = toArea(e.clientX, e.clientY);
+    let box = null;
+
+    const onMouseMove = (moveEvent) => {
+      const at = toArea(moveEvent.clientX, moveEvent.clientY);
+      if (!box && Math.hypot(at.x - start.x, at.y - start.y) < DRAG_START_PX + 1) return;
+      if (!box) setActiveElement(null);
+      box = {
+        left: Math.min(start.x, at.x),
+        top: Math.min(start.y, at.y),
+        width: Math.abs(at.x - start.x),
+        height: Math.abs(at.y - start.y),
+      };
+      setSelectBox(box);
+    };
+
+    const onMouseUp = (upEvent) => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      setSelectBox(null);
+
+      // The items already picked, or the selected item, to add to.
+      const startingSet = () => {
+        if (pickedBlocks.length) return pickedBlocks;
+        return active ? [active] : [];
+      };
+
+      if (box) {
+        swallowClickRef.current = true;
+        const hits = visibleBlocks().filter((node) =>
+          rectsIntersect(box, toScrollArea(visibleBounds([node]))),
+        );
+        setActiveElement(null);
+        setPickedBlocks(additive ? [...new Set([...startingSet(), ...hits])] : hits);
+        return;
+      }
+      if (additive) {
+        const item = pickableAt(target);
+        if (item) {
+          swallowClickRef.current = true;
+          setActiveElement(null);
+          setPickedBlocks(toggleBlock(startingSet(), item));
+        }
+        return;
+      }
+      placeCaretOnCanvas(upEvent.clientX, upEvent.clientY);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  // Arrow keys: move the selected item by `dx`, `dy` layout px, within the canvas.
+  const nudgeActiveItem = (dx, dy) => {
+    const targetEl = activeElement?.element;
+    if (!targetEl) return;
+    const scale = canvasScale();
+    if (dx) readyHorizontalMove(targetEl);
+    const vertical = startVerticalMove(targetEl, scale);
+    const limits = moveLimits(targetEl);
+    const { left } = clampMove({ left: (parseFloat(targetEl.style.left) || 0) + dx, top: 0 }, limits);
+    targetEl.style.position = "relative";
+    targetEl.style.left = `${Math.round(left)}px`;
+    if (dy) applyVerticalMove(targetEl, vertical, Math.max(-limits.rise, dy));
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
   };
 
   const startResizeItem = (e, corner) => {
@@ -2130,6 +2702,8 @@ const EmailBodyRichTextEditor = ({
     const container = editorRef.current || workspaceRef.current;
     const containerRect = container.getBoundingClientRect();
     const elemRect = targetEl.getBoundingClientRect();
+    // Mouse travel is in screen px; sizes are layout px (the page is zoomed).
+    const scale = canvasScale();
     const isImage =
       targetEl.getAttribute("data-type") === "image" ||
       targetEl.querySelector("img");
@@ -2140,15 +2714,17 @@ const EmailBodyRichTextEditor = ({
 
     const startWidth = targetEl.offsetWidth;
     const startHeight = targetEl.offsetHeight;
+    // The edge opposite the corner being dragged stays where it is.
+    const fixedEdge = corner.includes("left") ? elemRect.right : elemRect.left;
     const startX = e.clientX;
     const startY = e.clientY;
 
-    const offsetFromLeft = elemRect.left - containerRect.left;
+    const offsetFromLeft = (elemRect.left - containerRect.left) / scale;
     const maxAvailableWidth = Math.max(40, container.clientWidth - Math.max(0, offsetFromLeft) - 16);
 
     const onMouseMove = (moveEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
+      const deltaX = (moveEvent.clientX - startX) / scale;
+      const deltaY = (moveEvent.clientY - startY) / scale;
 
       let newWidth = Math.max(
         40,
@@ -2164,6 +2740,14 @@ const EmailBodyRichTextEditor = ({
       targetEl.style.width = `${newWidth}px`;
       targetEl.style.maxWidth = "100%";
       targetEl.style.boxSizing = "border-box";
+      const nowRect = targetEl.getBoundingClientRect();
+      const drift = (fixedEdge - (corner.includes("left") ? nowRect.right : nowRect.left)) / scale;
+      if (Math.abs(drift) >= 0.5) {
+        if (!targetEl.style.position || targetEl.style.position === "static") {
+          targetEl.style.position = "relative";
+        }
+        targetEl.style.left = `${Math.round((parseFloat(targetEl.style.left) || 0) + drift)}px`;
+      }
       if (innerA) {
         innerA.style.width = "100%";
         innerA.style.boxSizing = "border-box";
@@ -2331,42 +2915,212 @@ const EmailBodyRichTextEditor = ({
     const newId = `dup-${Date.now()}`;
     clone.id = newId;
 
-    const currentLeft = parseFloat(activeElement.element.style.left) || 0;
-    const currentTop = parseFloat(activeElement.element.style.top) || 0;
-    clone.style.position = "relative";
-    clone.style.left = `${currentLeft + 16}px`;
-    clone.style.top = `${currentTop + 16}px`;
-
+    // The copy follows the original on the page, in the same place sideways.
+    clone.querySelectorAll("[id]").forEach((el, i) => {
+      el.id = `${newId}-${i}`;
+    });
     activeElement.element.parentNode.insertBefore(clone, activeElement.element.nextSibling);
     synchroniseEditorValue();
 
-    const rect = clone.getBoundingClientRect();
     setActiveElement({
       element: clone,
       type: clone.getAttribute("data-type") || "shape",
-      width: rect.width,
-      height: rect.height,
+      width: clone.offsetWidth,
+      height: clone.offsetHeight,
       color: clone.style.backgroundColor,
       borderRadius: clone.style.borderRadius,
     });
     showToast("Element duplicated.", "success");
   };
 
+  // Align the selected item in its container: left, centre or right (kept
+  // so at any width, so the preview matches), or centred top to bottom.
+  // Up and down, the browser page centres in what is seen before scrolling.
+  const ALIGN_LABELS = {
+    left: "Aligned left.",
+    "center-h": "Centred left to right.",
+    right: "Aligned right.",
+    "center-v": "Centred top to bottom.",
+  };
+
   const alignElement = (direction) => {
     if (!activeElement?.element || !workspaceRef.current) return;
     const target = activeElement.element;
     const container = editorRef.current || workspaceRef.current;
-    target.style.position = "relative";
+    const scale = canvasScale();
 
-    if (direction === "center-h") {
-      const centerLeft = Math.max(0, (container.clientWidth - target.offsetWidth) / 2);
-      target.style.left = `${Math.round(centerLeft)}px`;
-    } else if (direction === "center-v") {
-      const centerTop = Math.max(10, (container.clientHeight - target.offsetHeight) / 2);
-      target.style.top = `${Math.round(centerTop)}px`;
+    if (direction === "center-v") {
+      const vertical = startVerticalMove(target, scale);
+      const box = container.getBoundingClientRect();
+      const at = target.getBoundingClientRect();
+      const visibleHeight =
+        currentPageIdRef.current === BROWSER_PAGE_ID
+          ? Math.min(BROWSER_SAFE_ZONE_PX, container.clientHeight)
+          : container.clientHeight;
+      const dy = (box.top + (visibleHeight * scale) / 2 - (at.top + at.height / 2)) / scale;
+      applyVerticalMove(target, vertical, Math.max(-moveLimits(target).rise, dy));
+    } else {
+      const anchor = direction === "left" ? "start" : direction === "right" ? "end" : "centre";
+      if (!anchorItem(target, anchor, { keepPlace: false })) {
+        // Inline text or an item in a row: shift it to that spot in its box.
+        const guide = containerGuides(target).find((g) => g.kind === anchor);
+        const limits = moveLimits(target);
+        const wantedEdge =
+          anchor === "centre" ? guide.x - limits.width / 2 : anchor === "end" ? guide.x - limits.width : guide.x;
+        target.style.position = "relative";
+        target.style.left = `${Math.round(wantedEdge - limits.baseLeft)}px`;
+      }
     }
     synchroniseEditorValue();
-    showToast("Aligned to center.", "success");
+    setDragFrame((n) => n + 1);
+    showToast(ALIGN_LABELS[direction] || "Aligned.", "success");
+  };
+
+  // ---------------------------------------------------------------
+  // Grouping (canvasGroups.js): pick top-level blocks, wrap them in one box
+  // that moves as a whole, and unwrap it again.
+  // ---------------------------------------------------------------
+
+  // The canvas's top-level block holding `node` (null for the canvas itself).
+  const topLevelBlock = (node) => {
+    const editor = editorRef.current;
+    let block = node;
+    while (block && block.parentNode !== editor) block = block.parentNode;
+    return block && block !== editor ? block : null;
+  };
+
+
+  // What a Ctrl+click picks: the item under the mouse, at any depth (a
+  // template's heading, field or button too); a closed group as a whole;
+  // plain text as its line.
+  const pickableAt = (target) => {
+    const editor = editorRef.current;
+    if (!editor || target === editor || !editor.contains(target)) return null;
+    let item =
+      target.closest?.(".vshield-canvas-item") || (target.tagName === "IMG" ? target.parentElement : null);
+    if (item && !editor.contains(item)) item = null;
+    const group = outermostGroup(target);
+    const active = activeElement?.element;
+    if (group && !(active && group.contains(active))) item = group;
+    return item || topLevelBlock(target);
+  };
+
+  // Put each remembered element back where it was seen sideways, anchored to
+  // its container (so the place holds in the wider preview too).
+  const restoreSideways = (places, scale) => {
+    for (const [el, was] of places) {
+      let now = visibleBounds([el]);
+      if (!now || Math.abs(now.left - was.left) < 0.5) continue;
+      readyHorizontalMove(el);
+      now = visibleBounds([el]);
+      if (!now) continue;
+      if (!el.style.position || el.style.position === "static") el.style.position = "relative";
+      el.style.left = `${Math.round((parseFloat(el.style.left) || 0) + (was.left - now.left) / scale)}px`;
+    }
+  };
+
+  const groupPickedBlocks = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    let picked = pickedBlocks.filter((node) => node.isConnected && editor.contains(node));
+    // With nothing picked, group the selected item on its own, so a line of
+    // text or a picture can be moved as one too.
+    if (!picked.length && activeElement?.element) picked = [activeElement.element];
+    const plan = groupPlan(editor, picked);
+    if (!plan) {
+      showToast(
+        "Select what to group first: Ctrl+click each item, drag a box on empty canvas, or tick items in the Items pane.",
+        "warning",
+        "Nothing Selected",
+      );
+      return;
+    }
+    const { parent, anchors } = plan;
+    if (anchors.length === 1 && anchors[0].classList?.contains("vshield-group-item")) {
+      showToast("That is already a group. Drag it to move it.", "info", "Already Grouped");
+      return;
+    }
+
+    const scale = canvasScale();
+    const places = rememberPlaces(anchors);
+    const seen = visibleBounds(anchors);
+
+    // The blank lines between the grouped items go: a group is one tight
+    // block, with no empty space inside it (the preview would show it).
+    const first = anchors[0];
+    const last = anchors[anchors.length - 1];
+    let node = first.nextSibling;
+    while (node && node !== last) {
+      const next = node.nextSibling;
+      const blank =
+        (node.nodeType === 3 && !node.textContent.trim()) ||
+        (node.nodeType === 1 && (node.tagName === "BR" || isBlankLine(node)));
+      if (blank && !anchors.includes(node)) node.remove();
+      node = next;
+    }
+
+    const group = document.createElement("div");
+    group.id = `grp-${Date.now()}`;
+    group.className = "vshield-canvas-item vshield-group-item";
+    group.setAttribute("data-type", "group");
+    Object.assign(group.style, {
+      position: "relative",
+      display: "block",
+      boxSizing: "border-box",
+      margin: "0px auto",
+      padding: "0px",
+      maxWidth: "100%",
+      left: "0px",
+      cursor: "move",
+    });
+    // As wide as what can be seen of the parts (a little slack so text does
+    // not re-wrap), anchored to its container's centre so it keeps its place
+    // beside centred templates at any preview width.
+    if (seen) group.style.width = `${Math.ceil(seen.width / scale) + 2}px`;
+
+    parent.insertBefore(group, first);
+    anchors.forEach((anchor) => {
+      // Stacked tightly: an old up/down offset would leave a hole.
+      if (parseFloat(anchor.style?.top)) anchor.style.top = "0px";
+      group.appendChild(anchor);
+    });
+    // The parts are seen where they were: the group is shifted by the
+    // difference, then each part inside it.
+    const nowSeen = visibleBounds([group]);
+    if (seen && nowSeen && Math.abs(nowSeen.left - seen.left) >= 0.5) {
+      group.style.left = `${Math.round((seen.left - nowSeen.left) / scale)}px`;
+    }
+    restoreSideways(places, scale);
+
+    setPickedBlocks([]);
+    synchroniseEditorValue();
+    selectCanvasItem(group);
+    showToast(
+      "Grouped. Drag it from anywhere on it, or use the arrow keys. It snaps to the centre.",
+      "success",
+      "Group Made",
+    );
+  };
+
+  const ungroupActiveItem = (groupEl = activeElement?.element) => {
+    const group = groupEl;
+    if (!group?.classList?.contains("vshield-group-item") || !group.parentNode) return;
+    const scale = canvasScale();
+    const parts = Array.from(group.childNodes);
+    const places = rememberPlaces(parts);
+    const firstPart = parts.find((n) => n.nodeType === 1);
+    const firstTop = firstPart ? firstPart.getBoundingClientRect().top : 0;
+    parts.forEach((part) => group.parentNode.insertBefore(part, group));
+    group.remove();
+    restoreSideways(places, scale);
+    // The group's own up/down move passes to its first part, so nothing jumps.
+    if (firstPart) {
+      const dy = (firstTop - firstPart.getBoundingClientRect().top) / scale;
+      if (Math.abs(dy) >= 0.5) applyVerticalMove(firstPart, startVerticalMove(firstPart, scale), dy);
+    }
+    if (activeElement?.element === group) setActiveElement(null);
+    synchroniseEditorValue();
+    showToast("Ungrouped. Each part stays where it was.", "success", "Ungrouped");
   };
 
   const getCurrentRadius = () => {
@@ -3158,6 +3912,22 @@ const EmailBodyRichTextEditor = ({
             <X className="h-3 w-3" />
           </button>
         )}
+
+        {/* Items pane: every item on the page, to select, reorder and group. */}
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onClick={() => setShowItemsPane((open) => !open)}
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+            showItemsPane
+              ? "border-blue-500 bg-blue-600 text-white"
+              : "border-white/15 dark:border-black/15 bg-[#181A20] dark:bg-white text-slate-200 dark:text-slate-800 hover:bg-white/15 dark:hover:bg-slate-100"
+          }`}
+          title={showItemsPane ? "Close the Items pane" : "Open the Items pane: reorder, select and group items"}
+          aria-pressed={showItemsPane}
+        >
+          <Menu className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -3220,19 +3990,420 @@ const EmailBodyRichTextEditor = ({
     );
   };
 
+  // ---------------------------------------------------------------
+  // Items pane: the page's items in order, nested as on the page.
+  // ---------------------------------------------------------------
+  const ITEM_TYPE_LABELS = {
+    group: "Group",
+    card: "Card",
+    text: "Text",
+    button: "Button",
+    input: "Field",
+    image: "Picture",
+    shape: "Shape",
+    element: "Element",
+  };
+
+  const itemKey = (el) => {
+    if (!itemKeysRef.current.has(el)) {
+      itemKeyCountRef.current += 1;
+      itemKeysRef.current.set(el, `item-${itemKeyCountRef.current}`);
+    }
+    return itemKeysRef.current.get(el);
+  };
+
+  // Every design item, and each plain line of text on the page itself.
+  const listPageItems = () => {
+    const editor = editorRef.current;
+    if (!editor) return [];
+    const items = [];
+    const walk = (parent, depth) => {
+      for (const el of parent.children) {
+        const isItem = el.classList.contains("vshield-canvas-item");
+        const isTextLine =
+          parent === editor && !isItem && !isBlankLine(el) && Boolean(el.textContent.trim());
+        if (isItem || isTextLine) {
+          items.push({ el, depth });
+          walk(el, depth + 1);
+        } else {
+          walk(el, depth);
+        }
+      }
+    };
+    walk(editor, 0);
+    return items;
+  };
+
+  const itemType = (el) =>
+    el.classList.contains("vshield-canvas-item")
+      ? ITEM_TYPE_LABELS[el.getAttribute("data-type")] || "Element"
+      : "Text";
+
+  const itemName = (el) => {
+    const named = el.getAttribute("data-item-name");
+    if (named) return named;
+    const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    const alt = el.querySelector?.("img")?.getAttribute("alt") || "";
+    const label = text || alt;
+    return label ? (label.length > 32 ? `${label.slice(0, 30)}...` : label) : itemType(el);
+  };
+
+  const togglePickedItem = (el) => {
+    setActiveElement(null);
+    setPickedBlocks((prev) => toggleBlock(prev.length ? prev : activeElement?.element ? [activeElement.element] : [], el));
+  };
+
+  const selectItemFromPane = (el) => {
+    setPickedBlocks([]);
+    selectCanvasItem(el);
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
+  const saveItemName = () => {
+    if (!renamingItem) return;
+    const name = renamingItem.name.trim();
+    if (name) renamingItem.el.setAttribute("data-item-name", name);
+    else renamingItem.el.removeAttribute("data-item-name");
+    setRenamingItem(null);
+    synchroniseEditorValue();
+  };
+
+  const deletePageItem = (el) => {
+    const name = itemName(el);
+    if (activeElement?.element && el.contains(activeElement.element)) setActiveElement(null);
+    setPickedBlocks((prev) => prev.filter((node) => !el.contains(node)));
+    el.remove();
+    synchroniseEditorValue();
+    showToast(`Deleted ${name}.`, "success");
+  };
+
+  // Drag a row onto another: the item moves just above it (when dragged up)
+  // or just below it (when dragged down), in that item's place on the page.
+  const dropPageItem = (target) => {
+    const moved = draggedItemRef.current;
+    draggedItemRef.current = null;
+    setDropTargetEl(null);
+    if (!moved || !target || moved === target) return;
+    if (moved.contains(target) || target.contains(moved)) {
+      showToast("An item can't be moved into itself.", "warning", "Not Moved");
+      return;
+    }
+    const movingDown = Boolean(moved.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING);
+    target.parentNode.insertBefore(moved, movingDown ? target.nextSibling : target);
+    synchroniseEditorValue();
+    if (activeElement?.element === moved) selectCanvasItem(moved);
+    showToast(
+      `Moved ${itemName(moved)} ${movingDown ? "below" : "above"} ${itemName(target)}.`,
+      "success",
+    );
+  };
+
+  const renderItemsPane = () => {
+    if (!showItemsPane || rawHtmlMode) return null;
+    const items = listPageItems();
+    const picked = pickedBlocks.filter((node) => node.isConnected && editorRef.current?.contains(node));
+
+    return (
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-56 flex-shrink-0 flex-col rounded-br-2xl border-l border-t border-white/15 bg-[#181A20] text-white select-none dark:border-black/10"
+      >
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#1F2128] px-2.5 py-1.5">
+          <span className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider">
+            <Layers className="h-3.5 w-3.5 text-blue-400" />
+            Items ({items.length})
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowItemsPane(false)}
+            className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+            title="Close the Items pane"
+            aria-label="Close the Items pane"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-black/20 px-2.5 py-1">
+          <span className="text-[8px] leading-tight text-slate-400">
+            Drag to reorder · tick or Ctrl+click to select
+          </span>
+          {picked.length > 0 && (
+            <button
+              type="button"
+              onClick={groupPickedBlocks}
+              className="flex flex-shrink-0 items-center gap-1 rounded bg-[#2563EB] px-1.5 py-0.5 text-[8.5px] font-bold text-white hover:bg-blue-700 cursor-pointer"
+              title="Group the selected items so they move together (Ctrl+G)"
+            >
+              <Group className="h-2.5 w-2.5" />
+              Group selected ({picked.length})
+            </button>
+          )}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1.5 vshield-canvas-scroll">
+          {items.length === 0 ? (
+            <p className="px-2 py-6 text-center text-[9.5px] text-slate-400">
+              Nothing on this page yet. Add a template, element, shape, button or text.
+            </p>
+          ) : (
+            items.map(({ el, depth }) => {
+              const key = itemKey(el);
+              const isPicked = picked.includes(el);
+              const isSelected = activeElement?.element === el || isPicked;
+              const isGroup = el.classList.contains("vshield-group-item");
+              const isDropTarget = dropTargetEl === el && draggedItemRef.current !== el;
+              const name = itemName(el);
+
+              return (
+                <div
+                  key={key}
+                  draggable={!renamingItem}
+                  onDragStart={(e) => {
+                    draggedItemRef.current = el;
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dropTargetEl !== el) setDropTargetEl(el);
+                  }}
+                  onDragLeave={() => {
+                    if (dropTargetEl === el) setDropTargetEl(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropPageItem(el);
+                  }}
+                  onDragEnd={() => {
+                    draggedItemRef.current = null;
+                    setDropTargetEl(null);
+                  }}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey || e.shiftKey) togglePickedItem(el);
+                    else selectItemFromPane(el);
+                  }}
+                  style={{ marginLeft: `${Math.min(depth, 6) * 10}px` }}
+                  className={`flex items-center gap-1 rounded-md border px-1.5 py-1 text-[9.5px] transition-colors cursor-pointer ${
+                    isDropTarget
+                      ? "border-emerald-400 bg-emerald-500/15"
+                      : isSelected
+                        ? "border-blue-500 bg-blue-600/20"
+                        : "border-white/10 bg-white/5 hover:bg-white/10"
+                  }`}
+                >
+                  <GripVertical className="h-3 w-3 flex-shrink-0 cursor-grab text-slate-500" aria-hidden="true" />
+                  <input
+                    type="checkbox"
+                    checked={isPicked}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => togglePickedItem(el)}
+                    className="h-3 w-3 flex-shrink-0 cursor-pointer accent-blue-500"
+                    title="Select for grouping"
+                    aria-label={`Select ${name} for grouping`}
+                  />
+
+                  {renamingItem?.el === el ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={renamingItem.name}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => setRenamingItem({ el, name: e.target.value })}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") saveItemName();
+                        if (e.key === "Escape") setRenamingItem(null);
+                      }}
+                      onBlur={saveItemName}
+                      className="min-w-0 flex-1 rounded border border-white/30 bg-black/60 px-1 py-0.5 text-[9px] font-semibold text-white outline-none"
+                    />
+                  ) : (
+                    <span
+                      className="flex min-w-0 flex-1 flex-col leading-tight"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setRenamingItem({ el, name: el.getAttribute("data-item-name") || name });
+                      }}
+                      title={`${name} (double-click to rename)`}
+                    >
+                      <span className="truncate font-bold">{name}</span>
+                      <span className="font-mono-tech text-[7px] uppercase text-slate-400">{itemType(el)}</span>
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingItem({ el, name: el.getAttribute("data-item-name") || name });
+                    }}
+                    className="flex-shrink-0 rounded p-0.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+                    title="Rename"
+                    aria-label={`Rename ${name}`}
+                  >
+                    <Pencil className="h-2.5 w-2.5" />
+                  </button>
+                  {isGroup && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        ungroupActiveItem(el);
+                      }}
+                      className="flex-shrink-0 rounded p-0.5 text-cyan-400 hover:bg-white/10 hover:text-cyan-300 cursor-pointer"
+                      title="Ungroup: each part stays where it is"
+                      aria-label={`Ungroup ${name}`}
+                    >
+                      <Ungroup className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePageItem(el);
+                    }}
+                    className="flex-shrink-0 rounded p-0.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 cursor-pointer"
+                    title={`Delete ${name}`}
+                    aria-label={`Delete ${name}`}
+                  >
+                    <Trash2 className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Grouping aids drawn over the canvas, never saved: an outline on each
+  // picked part with a Group bar, the drag-select box, and the centre line
+  // line of the edge or centre a dragged item is snapped to.
+  const renderGroupingOverlays = () => {
+    const editor = editorRef.current;
+    if (!editor) return null;
+    // An item's own box; a plain line of text by its text.
+    const picked = pickedBlocks
+      .filter((node) => node.isConnected && editor.contains(node))
+      .map((node) =>
+        toScrollArea(
+          node.nodeType === 1 && node.classList.contains("vshield-canvas-item")
+            ? node.getBoundingClientRect()
+            : visibleBounds([node]),
+        ),
+      )
+      .filter(Boolean);
+    const top = picked.length ? Math.min(...picked.map((b) => b.top)) : 0;
+    const left = picked.length ? Math.min(...picked.map((b) => b.left)) : 0;
+
+    return (
+      <>
+        {picked.map((b, i) => (
+          <div
+            key={`picked-${i}`}
+            data-floating-control="true"
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: b.left - 3,
+              top: b.top - 3,
+              width: b.width + 6,
+              height: b.height + 6,
+              pointerEvents: "none",
+              zIndex: 7,
+            }}
+            className="rounded border-2 border-dashed border-[#2563EB] bg-[#2563EB]/5"
+          />
+        ))}
+
+        {picked.length > 0 && (
+          <div
+            data-floating-control="true"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "absolute", left: Math.max(0, left - 3), top: Math.max(0, top - 32), zIndex: 41 }}
+            className="flex items-center gap-1 rounded-lg border border-white/20 bg-[#1A1C23] p-1 text-white shadow-2xl select-none"
+          >
+            <span className="px-1 text-[8.5px] font-bold text-slate-300">
+              {picked.length} selected
+            </span>
+            <button
+              type="button"
+              onClick={groupPickedBlocks}
+              className="flex items-center gap-1 rounded bg-[#2563EB] px-1.5 py-0.5 text-[9px] font-bold text-white hover:bg-blue-700 cursor-pointer"
+              title="Group the selected items so they move together (Ctrl+G)"
+            >
+              <Group className="h-3 w-3" />
+              Group selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickedBlocks([])}
+              className="rounded p-0.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+              title="Clear the selection (Esc)"
+              aria-label="Clear the selection"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
+        {selectBox && (
+          <div
+            data-floating-control="true"
+            aria-hidden="true"
+            style={{ position: "absolute", ...selectBox, pointerEvents: "none", zIndex: 42 }}
+            className="rounded-sm border border-[#2563EB] bg-[#2563EB]/10"
+          />
+        )}
+
+        {snapGuide !== null && (
+          <div
+            data-floating-control="true"
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: editor.offsetLeft + snapGuide,
+              top: 0,
+              height: Math.max(editor.scrollHeight, editor.offsetHeight),
+              pointerEvents: "none",
+              zIndex: 8,
+            }}
+            className="w-0 border-l border-dashed border-fuchsia-500"
+          />
+        )}
+      </>
+    );
+  };
+
   // Universal Floating Controller for Selected Elements (PowerPoint style)
   const renderFloatingObjectControls = () => {
     if (!activeElement?.element) return null;
 
-    const targetRect = activeElement.element.getBoundingClientRect();
-    const workspaceRect = workspaceRef.current?.getBoundingClientRect();
-    if (!workspaceRect) return null;
+    const isGroup = activeElement.element.classList.contains("vshield-group-item");
+    const workspace = workspaceRef.current;
+    const workspaceRect = workspace?.getBoundingClientRect();
+    if (!workspaceRect || !workspace.offsetWidth) return null;
+    // The frame is drawn in layout px inside the zoomed page, so screen
+    // measurements are divided by the zoom to line up with the item.
+    const scale = workspaceRect.width / workspace.offsetWidth || 1;
+    const screenRect = activeElement.element.getBoundingClientRect();
+    const targetRect = {
+      width: screenRect.width / scale,
+      height: screenRect.height / scale,
+    };
 
-    const top = targetRect.top - workspaceRect.top;
-    const left = targetRect.left - workspaceRect.left;
+    const top = (screenRect.top - workspaceRect.top) / scale;
+    const left = (screenRect.left - workspaceRect.left) / scale;
 
     const spaceAbove = top;
-    const spaceBelow = workspaceRect.height - (top + targetRect.height);
+    const spaceBelow = workspace.offsetHeight - (top + targetRect.height);
 
     const isActionBarAbove = spaceBelow < 45 && spaceAbove > 45;
     const openMenuUpward = isActionBarAbove
@@ -3256,40 +4427,50 @@ const EmailBodyRichTextEditor = ({
           zIndex: 40,
         }}
       >
-        <div
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            top: top < 26 ? "4px" : "-26px",
-            left: "2px",
-          }}
-          className="absolute bg-[#1A1C23] text-white px-2 py-0.5 rounded text-[8.5px] font-mono-tech whitespace-nowrap shadow-lg pointer-events-auto flex items-center gap-1.5 border border-white/20 select-none"
-        >
-          <div className="flex items-center gap-0.5">
-            <span className="text-slate-400">W:</span>
-            <input
-              type="number"
-              step="0.05"
-              value={widthCm}
-              onChange={(e) => setDimensionsCm("width", e.target.value)}
-              className="w-11 px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none"
-            />
-            <span className="text-slate-400">cm</span>
+        {isGroup ? (
+          <div
+            style={{ top: top < 26 ? "4px" : "-26px", left: "2px" }}
+            className="absolute flex items-center gap-1 rounded border border-white/20 bg-[#1A1C23] px-2 py-0.5 text-[8.5px] font-bold text-white shadow-lg select-none"
+          >
+            <Group className="h-3 w-3 text-blue-400" />
+            Group: drag anywhere on it to move
           </div>
-          <span className="text-slate-600">|</span>
-          <div className="flex items-center gap-0.5">
-            <span className="text-slate-400">H:</span>
-            <input
-              type="number"
-              step="0.05"
-              value={heightCm}
-              onChange={(e) => setDimensionsCm("height", e.target.value)}
-              className="w-11 px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none"
-            />
-            <span className="text-slate-400">cm</span>
+        ) : (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              top: top < 26 ? "4px" : "-26px",
+              left: "2px",
+            }}
+            className="absolute bg-[#1A1C23] text-white px-2 py-0.5 rounded text-[8.5px] font-mono-tech whitespace-nowrap shadow-lg pointer-events-auto flex items-center gap-1.5 border border-white/20 select-none"
+          >
+            <div className="flex items-center gap-0.5">
+              <span className="text-slate-400">W:</span>
+              <input
+                type="number"
+                step="0.05"
+                value={widthCm}
+                onChange={(e) => setDimensionsCm("width", e.target.value)}
+                className="w-11 px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none"
+              />
+              <span className="text-slate-400">cm</span>
+            </div>
+            <span className="text-slate-600">|</span>
+            <div className="flex items-center gap-0.5">
+              <span className="text-slate-400">H:</span>
+              <input
+                type="number"
+                step="0.05"
+                value={heightCm}
+                onChange={(e) => setDimensionsCm("height", e.target.value)}
+                className="w-11 px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none"
+              />
+              <span className="text-slate-400">cm</span>
+            </div>
+            <span className="text-emerald-400 font-bold ml-1">({aspectRatioText})</span>
           </div>
-          <span className="text-emerald-400 font-bold ml-1">({aspectRatioText})</span>
-        </div>
+        )}
 
         <div
           onMouseDown={startDragItem}
@@ -3305,27 +4486,111 @@ const EmailBodyRichTextEditor = ({
           <span className="text-[7.5px] font-bold uppercase">Move</span>
         </div>
 
-        <div
-          onMouseDown={(e) => startResizeItem(e, "top-left")}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize pointer-events-auto"
-        />
-        <div
-          onMouseDown={(e) => startResizeItem(e, "top-right")}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize pointer-events-auto"
-        />
-        <div
-          onMouseDown={(e) => startResizeItem(e, "bottom-left")}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize pointer-events-auto"
-        />
-        <div
-          onMouseDown={(e) => startResizeItem(e, "bottom-right")}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize pointer-events-auto"
-        />
+        {/* A group sizes itself to its parts, so it has no resize corners. */}
+        {!isGroup && (
+          <>
+            <div
+              onMouseDown={(e) => startResizeItem(e, "top-left")}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize pointer-events-auto"
+            />
+            <div
+              onMouseDown={(e) => startResizeItem(e, "top-right")}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize pointer-events-auto"
+            />
+            <div
+              onMouseDown={(e) => startResizeItem(e, "bottom-left")}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize pointer-events-auto"
+            />
+            <div
+              onMouseDown={(e) => startResizeItem(e, "bottom-right")}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize pointer-events-auto"
+            />
+          </>
+        )}
 
+        {isGroup && (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              bottom: isActionBarAbove ? "auto" : "-38px",
+              top: isActionBarAbove ? "-38px" : "auto",
+              left: "0px",
+            }}
+            className="absolute bg-[#1A1C23] border border-white/20 rounded-lg p-1 flex items-center gap-1.5 shadow-2xl pointer-events-auto select-none"
+          >
+            <button
+              type="button"
+              onClick={() => alignElement("left")}
+              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+              title="Align left in its container (stays left at any width)"
+            >
+              <AlignStartVertical className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => alignElement("center-h")}
+              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+              title="Centre left to right in its container (stays centred at any width)"
+            >
+              <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => alignElement("right")}
+              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+              title="Align right in its container (stays right at any width)"
+            >
+              <AlignEndVertical className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => alignElement("center-v")}
+              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+              title={
+                currentPageId === BROWSER_PAGE_ID
+                  ? "Centre top to bottom in the browser safe zone"
+                  : "Centre top to bottom"
+              }
+            >
+              <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={ungroupActiveItem}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] font-bold cursor-pointer"
+              title="Ungroup: each part stays where it is (Ctrl+Shift+G)"
+            >
+              <Ungroup className="w-3 h-3 text-cyan-400" />
+              <span>Ungroup</span>
+            </button>
+            <button
+              type="button"
+              onClick={duplicateActiveItem}
+              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+              title="Duplicate (Ctrl+D)"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteActiveItem();
+              }}
+              className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 cursor-pointer"
+              title="Delete the group and everything in it (Delete key)"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
+        {!isGroup && (
         <div
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
@@ -3535,11 +4800,27 @@ const EmailBodyRichTextEditor = ({
           {/* Alignment */}
           <button
             type="button"
+            onClick={() => alignElement("left")}
+            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+            title="Align left in its container (stays left at any width)"
+          >
+            <AlignStartVertical className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
             onClick={() => alignElement("center-h")}
             className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Align Center Horizontally"
+            title="Centre left to right in its container (stays centred at any width)"
           >
             <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => alignElement("right")}
+            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
+            title="Align right in its container (stays right at any width)"
+          >
+            <AlignEndVertical className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
@@ -3602,6 +4883,7 @@ const EmailBodyRichTextEditor = ({
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
+        )}
       </div>
     );
   };
@@ -3878,13 +5160,16 @@ const EmailBodyRichTextEditor = ({
           </div>
         )}
 
+        <div className="flex min-h-0 w-full flex-1">
         <div
           ref={workspaceRef}
+          onMouseDown={handleWorkspaceMouseDown}
           onClick={handleCanvasClick}
           style={{ backgroundColor: canvasBgColor }}
           className={`
             relative min-w-0 w-full flex-1 p-2
-            rounded-b-2xl border-t border-slate-200 dark:border-white/10
+            ${showItemsPane && !rawHtmlMode ? "rounded-bl-2xl" : "rounded-b-2xl"}
+            border-t border-slate-200 dark:border-white/10
             overflow-hidden transition-colors duration-200
             ${expanded ? "min-h-0" : ""}
           `}
@@ -3945,17 +5230,26 @@ const EmailBodyRichTextEditor = ({
                   onFocus={saveSelection}
                   onBlur={handleEditorBlur}
                   onPaste={handlePaste}
-                  style={{ backgroundColor: canvasBgColor }}
+                  style={{
+                    backgroundColor: canvasBgColor,
+                    // Real widths: content keeps at least the reading width
+                    // (plus this p-2 padding), and the canvas scrolls sideways.
+                    minWidth: `${CANVAS_MIN_CONTENT_WIDTH + 16}px`,
+                    ...CANVAS_TEXT_STYLE,
+                  }}
                   className={`
                     vshield-editor-canvas
                     w-full h-full outline-none
-                    text-slate-900 dark:text-slate-100 p-2 leading-normal text-xs
+                    text-[#242424] dark:text-slate-100 p-2
                     [&_a]:text-blue-600 [&_a]:underline
-                    [&_blockquote]:border-l-4 [&_blockquote]:border-slate-300 [&_blockquote]:pl-4
-                    [&_h1]:my-2 [&_h1]:text-2xl [&_h1]:font-bold
-                    [&_h2]:my-2 [&_h2]:text-xl [&_h2]:font-bold
-                    [&_h3]:my-1.5 [&_h3]:text-lg [&_h3]:font-bold
-                    [&_p]:my-1
+                    [&_blockquote]:mx-10 [&_blockquote]:my-[1em]
+                    [&_h1]:my-[0.67em] [&_h1]:text-[2em] [&_h1]:font-bold
+                    [&_h2]:my-[0.83em] [&_h2]:text-[1.5em] [&_h2]:font-bold
+                    [&_h3]:my-[1em] [&_h3]:text-[1.17em] [&_h3]:font-bold
+                    [&_p]:my-[1em]
+                    [&_ul]:my-[1em] [&_ul]:list-disc [&_ul]:pl-10
+                    [&_ol]:my-[1em] [&_ol]:list-decimal [&_ol]:pl-10
+                    [&_img]:inline [&_img]:align-baseline
                     ${disabled ? "cursor-not-allowed bg-slate-100 opacity-70" : "cursor-text"}
                   `}
                 />
@@ -3997,6 +5291,8 @@ const EmailBodyRichTextEditor = ({
                   </div>
                 ))}
 
+                {renderGroupingOverlays()}
+
                 {/* Browser safe-zone guide: where the employee has to start scrolling (never saved) */}
                 {currentPageId === BROWSER_PAGE_ID && (
                 <div
@@ -4032,6 +5328,8 @@ const EmailBodyRichTextEditor = ({
               </>
             )}
           </div>
+        </div>
+        {renderItemsPane()}
         </div>
       </div>
     );
