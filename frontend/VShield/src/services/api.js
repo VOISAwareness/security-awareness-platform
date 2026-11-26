@@ -342,10 +342,11 @@ export const api = {
     // `role` lets an Admin or Campaign Manager delete anyone's (not a sent roll-out).
     remove: (id, actor, role) =>
       request(`/announcements/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}&role=${encodeURIComponent(role || '')}`, { method: 'DELETE' }),
-    decide: (id, actor, decision, comments) =>
+    // `role`: only an Admin or a Campaign Manager decides (never on their own).
+    decide: (id, actor, decision, comments, role) =>
       request(`/announcements/${encodeURIComponent(id)}/decision`, {
         method: 'POST',
-        body: { actor, decision, comments },
+        body: { actor, decision, comments, role },
       }),
   },
   // Pictures for emails and browser pages. The API signs a form that lets the

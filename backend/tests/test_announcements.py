@@ -78,19 +78,35 @@ def test_a_rollout_is_published_or_sent_for_approval(mod, table):
 def test_approval_rules(mod, table):
     body = call(mod, "POST /announcements", {"kind": "ROLLOUT", "actor": ANA, "announcementCampaignTitle": "R", "submit": "request"})[1]
     rid = body["data"]["announcementId"]
-    assert call(mod, "POST /announcements/{id}/decision", {"actor": ANA, "decision": "approve"}, rid)[0] == 403  # own
+    assert call(mod, "POST /announcements/{id}/decision", {"actor": ANA, "role": "Admin", "decision": "approve"}, rid)[0] == 403  # own
     assert call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "decision": "reject"}, rid)[0] == 400  # no reason
-    status, body = call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "decision": "reject", "comments": "Fix the date"}, rid)
+    status, body = call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "role": "Campaign Manager", "decision": "reject", "comments": "Fix the date"}, rid)
     assert status == 200 and body["data"]["status"] == "REJECTED" and body["data"]["rejectedBy"] == BEN
     # the creator changes it, which sends it again
     status, body = call(mod, "PUT /announcements/{id}", {"actor": ANA, "announcementCampaignTitle": "R2"}, rid)
     assert status == 200 and body["data"]["status"] == "PENDING_APPROVAL"
     assert call(mod, "PUT /announcements/{id}", {"actor": BEN, "announcementCampaignTitle": "x"}, rid)[0] == 403
-    status, body = call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "decision": "approve"}, rid)
+    status, body = call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "role": "Campaign Manager", "decision": "approve"}, rid)
     assert status == 200 and body["data"]["status"] == "APPROVED"
-    assert call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "decision": "approve"}, rid)[0] == 409  # done
+    assert call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "role": "Campaign Manager", "decision": "approve"}, rid)[0] == 409  # done
     assert call(mod, "PUT /announcements/{id}", {"actor": ANA, "announcementCampaignTitle": "late"}, rid)[0] == 409
     assert call(mod, "DELETE /announcements/{id}", query={"actor": ANA}, row_id=rid)[0] == 409
+
+
+def test_admins_approve_too_and_no_one_else(mod, table):
+    req = {"kind": "ROLLOUT", "announcementCampaignTitle": "R", "submit": "request"}
+    rid = call(mod, "POST /announcements", {**req, "actor": ANA})[1]["data"]["announcementId"]
+    for role in (None, "Campaign Creator", "Regular User"):
+        status, body = call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "role": role, "decision": "approve"}, rid)
+        assert status == 403 and "Admin or a Campaign Manager" in body["error"]["message"]
+    status, body = call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "role": "Admin", "decision": "approve"}, rid)
+    assert status == 200 and body["data"]["status"] == "APPROVED" and body["data"]["approvedBy"] == BEN
+    # an Admin's own roll-out still needs someone else
+    rid = call(mod, "POST /announcements", {**req, "actor": BEN})[1]["data"]["announcementId"]
+    assert call(mod, "POST /announcements/{id}/decision", {"actor": BEN, "role": "Admin", "decision": "approve"}, rid)[0] == 403
+    status, body = call(mod, "POST /announcements/{id}/decision",
+                        {"actor": ANA, "role": "Admin", "decision": "reject", "comments": "Wrong list"}, rid)
+    assert status == 200 and body["data"]["status"] == "REJECTED"
 
 
 def test_what_is_refused(mod, table):

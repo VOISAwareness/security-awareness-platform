@@ -44,7 +44,7 @@ const CAPSULE_COUNTER_COLOR = "#8B8BF5";
 const formatShortDate = (dateStr) =>
   dateStr ? (parseDate(dateStr).getTime() ? shortDateUK(parseDate(dateStr)) : "") || String(dateStr).split(" ")[0] || "N/A" : "N/A";
 
-// Campaign Manager: ALL pending campaigns, with Approve / Reject.
+// Admin or Campaign Manager: ALL pending campaigns, with Approve / Reject.
 const ApprovalQueueGallery = ({
   announcements = [],
   isDark,

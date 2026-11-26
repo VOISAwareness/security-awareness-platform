@@ -10,7 +10,7 @@ import RequestedQueueGallery from "./Components/RequestedQueueGallery";
 import RejectedPathsGallery from "./Components/RejectedPathsGallery";
 import ApprovedPathsGallery from "./Components/ApprovedPathsGallery";
 import NotifyForChangeWindow from "./Components/NotifyForChangeWindow";
-import { ROLE_MANAGER, APPROVER_KEY, storedDateTime } from "./Components/announcementHelpers";
+import { APPROVER_KEY, canApprove, storedDateTime } from "./Components/announcementHelpers";
 import Toast from "../../../GlobalComponents/Toast";
 
 // Assets (same as RequestsAndApprovals.jsx)
@@ -93,7 +93,9 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   )
     .trim()
     .toLowerCase();
-  const isManager = user.role === ROLE_MANAGER;
+  // Admins and Campaign Managers approve; the API refuses anyone else, and
+  // nobody approves their own.
+  const isManager = canApprove(user.role);
 
   // ---- State: starts from your JSON; changes live in memory until the DB is added ----
   const [announcements, setAnnouncements] = useState(data.announcement);
@@ -122,7 +124,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   };
 
   const handleApprove = (a) => {
-    if (!isManager) return; // creators can never approve
+    if (!isManager) return; // only Admins and Campaign Managers approve
     updateItem(
       a,
       {
@@ -135,7 +137,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   };
 
   const handleNotifySubmit = (a, message) => {
-    if (!isManager) return; // only managers can request changes
+    if (!isManager) return; // only approvers can request changes
     updateItem(
       a,
       {

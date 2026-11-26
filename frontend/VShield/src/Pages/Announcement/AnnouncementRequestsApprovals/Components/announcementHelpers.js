@@ -1,6 +1,9 @@
 // Pure helper functions (no server or data access). Dates are UK time (shared/dateTime.js).
 import { formatShortDate, wallClockOf, zonedTimeToUtc } from '../../../../shared/dateTime';
 export const ROLE_MANAGER = 'Campaign Manager';
+// who approves, rejects or asks for changes on an announcement roll-out
+export const APPROVER_ROLES = Object.freeze(['Admin', ROLE_MANAGER]);
+export const canApprove = (role) => APPROVER_ROLES.includes(role);
 export const APPROVER_KEY = 'AnnouncementApproved/RejectedBy'; // field name contains a slash
 
 export const norm = (e) => (e || '').trim().toLowerCase();
