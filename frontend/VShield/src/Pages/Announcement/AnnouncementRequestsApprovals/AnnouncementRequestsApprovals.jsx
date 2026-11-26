@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useUserType } from "../../../UserTypeContext/UserTypeContext";
 import { api } from "../../../services/api";
 import { currentActor } from "../../../services/identity";
-import { fromRollout } from "../../../services/announcements";
+import { draftFromRollout, fromRollout } from "../../../services/announcements";
 import PageLoading from "../../../GlobalComponents/PageLoading";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -12,7 +12,7 @@ import RequestedQueueGallery from "./Components/RequestedQueueGallery";
 import RejectedPathsGallery from "./Components/RejectedPathsGallery";
 import ApprovedPathsGallery from "./Components/ApprovedPathsGallery";
 import NotifyForChangeWindow from "./Components/NotifyForChangeWindow";
-import { canApprove } from "./Components/announcementHelpers";
+import { canApprove, norm } from "./Components/announcementHelpers";
 import Toast from "../../../GlobalComponents/Toast";
 
 // Assets (same as RequestsAndApprovals.jsx)
@@ -105,6 +105,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   // ---- The roll-outs from the backend (GET /announcements?kind=ROLLOUT), in
   // the shape the galleries were written for, people as their addresses ----
   const [announcements, setAnnouncements] = useState([]);
+  const [rows, setRows] = useState({}); // the stored roll-outs by id (Edit starts from these)
   const [loadState, setLoadState] = useState("loading"); // loading | ready | failed
   const [activeTab, setActiveTab] = useState("queue");
   const [rejectingItem, setRejectingItem] = useState(null);
@@ -119,7 +120,9 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
       .list("ROLLOUT")
       .then((rows) => {
         if (!active) return;
-        setAnnouncements((Array.isArray(rows) ? rows : []).map(asItem));
+        const list = Array.isArray(rows) ? rows : [];
+        setRows(Object.fromEntries(list.map((r) => [r.announcementId, r])));
+        setAnnouncements(list.map(asItem));
         setLoadState("ready");
       })
       .catch((err) => {
@@ -140,6 +143,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
     call
       .then((row) => {
         if (row?.announcementId) {
+          setRows((prev) => ({ ...prev, [row.announcementId]: row }));
           const item = asItem(row);
           setAnnouncements((prev) => prev.map((x) => (x.announcementId === item.announcementId ? item : x)));
         }
@@ -183,6 +187,23 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
     decide(rejectingItem, "reject", rejectReason.trim(), `"${rejectingItem.AnnouncementTitle}" has been rejected.`);
     setRejectingItem(null);
     setRejectReason("");
+  };
+
+  // The creator changes a rejected roll-out in the Roll Out wizard, which
+  // saves it in place and sends it for approval again.
+  const handleEdit = (a) => {
+    const row = rows[a.announcementId];
+    if (!row) return;
+    if (norm(a.AnnouncementCreatedBy) !== userEmail) {
+      showToast("Only the person who created it can change it.", "error");
+      return;
+    }
+    try {
+      localStorage.setItem("voisshield_active_announcement_draft", JSON.stringify(draftFromRollout(row)));
+    } catch (e) {
+      console.error(e);
+    }
+    navigate("/announcements/details");
   };
 
   // The creator resends a rejected roll-out: saving it puts it back in the queue.
@@ -379,7 +400,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
                 minHeight={VarRightGalleryBaseHeight}
                 userEmail={userEmail}
                 isManager={isManager}
-                onEdit={onEdit}
+                onEdit={onEdit || handleEdit}
                 onSendForApproval={handleSendForApproval}
               />
             )}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { announcementTemplatesLive, fromRollout, historyTime, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
+import { announcementTemplatesLive, draftFromRollout, fromRollout, updateRollout, historyTime, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
 
 const client = (calls = []) => ({
   calls,
@@ -89,4 +89,16 @@ test('fromRollout can give people as addresses, and carries the decision comment
   assert.equal(row.AnnouncementCreatedBy, 'ana@x.example');
   assert.equal(row['AnnouncementApproved/RejectedBy'], 'ben@x.example');
   assert.equal(row.AnnouncementNotificationMessage, 'Wrong list');
+});
+
+test('a rejected roll-out becomes a draft and is saved back in place', async () => {
+  const row = { announcementId: 'ANR-3', kind: 'ROLLOUT', status: 'REJECTED', createdBy: 'a@x', rejectedBy: 'b@x', decisionComments: 'Fix it',
+    expiresAt: 9, announcementCampaignTitle: 'T', selectedListId: 'UL-1', selectedListName: 'Finance', recipientCount: 40 };
+  const draft = draftFromRollout(row);
+  assert.deepEqual(draft, { announcementCampaignTitle: 'T', selectedListId: 'UL-1', selectedListName: 'Finance', recipientCount: 40, editingRolloutId: 'ANR-3' });
+  const c = client();
+  await updateRollout('ANR-3', { ...draft, announcementCampaignTitle: 'T2', loadedData: { members: ['x'] }, status: 'APPROVED' }, null, { actor: 'a@x', client: c });
+  const [, id, sent] = c.calls.find((x) => x[0] === 'update');
+  assert.equal(id, 'ANR-3');
+  assert.deepEqual(sent, { announcementCampaignTitle: 'T2', selectedListId: 'UL-1', selectedListName: 'Finance', recipientCount: 40, actor: 'a@x' });
 });
