@@ -672,7 +672,7 @@ const Announcement = () => {
 
   // Delete asks first in the app's own dialog (as the recipient lists do),
   // then removes the template and says how it went in a toast. The API lets
-  // only the person who created a template delete it, and says so otherwise.
+  // its creator, an Admin or a Campaign Manager delete it, and says so otherwise.
   const [deleting, setDeleting] = useState(null); // the template asked about
   const [toast, setToast] = useState(null);
   const [, setRemoved] = useState(0); // re-render once the live list changes
@@ -683,7 +683,7 @@ const Announcement = () => {
     const name = target.announcementScenarioName || id;
     setDeleting(null);
     api.announcements
-      .remove(id, currentActor())
+      .remove(id, currentActor(), userContext.user?.role)
       .then(() => {
         const live = AnnouncamentScenariosJsonData.announcement;
         const at = live.findIndex((a) => (a.announcementId || a.announcementScenarioId || a.id) === id);

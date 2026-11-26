@@ -339,8 +339,9 @@ export const api = {
     create: (fields) => request('/announcements', { method: 'POST', body: fields }),
     update: (id, fields) =>
       request(`/announcements/${encodeURIComponent(id)}`, { method: 'PUT', body: fields }),
-    remove: (id, actor) =>
-      request(`/announcements/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}`, { method: 'DELETE' }),
+    // `role` lets an Admin or Campaign Manager delete anyone's (not a sent roll-out).
+    remove: (id, actor, role) =>
+      request(`/announcements/${encodeURIComponent(id)}?actor=${encodeURIComponent(actor || '')}&role=${encodeURIComponent(role || '')}`, { method: 'DELETE' }),
     decide: (id, actor, decision, comments) =>
       request(`/announcements/${encodeURIComponent(id)}/decision`, {
         method: 'POST',
