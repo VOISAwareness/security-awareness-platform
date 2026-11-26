@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import {
   Plus,
   ChevronDown,
@@ -16,6 +16,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
+import Toast from "../../GlobalComponents/Toast";
 import scenarioData from "./ScenariosData.json";
 import { api } from "../../services/api";
 import { currentActor } from "../../services/identity";
@@ -558,11 +559,7 @@ const Scenarios = () => {
   ); // 'all' | 'drafts'
   // "Save as draft" in the editor lands here on Drafts, saying so.
   const [savedNotice, setSavedNotice] = useState(arrival.savedDraft || "");
-  useEffect(() => {
-    if (!savedNotice) return undefined;
-    const timer = setTimeout(() => setSavedNotice(""), 6000);
-    return () => clearTimeout(timer);
-  }, [savedNotice]);
+  const clearSavedNotice = useCallback(() => setSavedNotice(""), []);
   // Used once: a reload of this page is an ordinary visit again.
   useEffect(() => {
     if (location.state)
@@ -966,6 +963,16 @@ const Scenarios = () => {
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
+      {/* "Save as draft" in the editor lands here on Drafts, saying so. */}
+      {savedNotice && (
+        <Toast
+          message={`${savedNotice}. Continue it any time from its card.`}
+          type="success"
+          title="Saved to Drafts"
+          duration={6000}
+          onClose={clearSavedNotice}
+        />
+      )}
       <div
         style={{ zoom: PAGE_SCALE }}
         className="w-full max-w-[2560px] mx-auto p-3 sm:p-3.5 -mt-2 select-none font-sans flex flex-col gap-2.5 h-full overflow-hidden"
@@ -1155,15 +1162,6 @@ const Scenarios = () => {
                 <div key={view} className="vs-view-fade flex-1 min-h-0 flex flex-col">
                 {view === "drafts" ? (
                   <>
-                    {savedNotice && (
-                      <span
-                        role="status"
-                        className="mx-4 mt-3 self-start px-3 py-1.5 rounded-lg text-[10.5px] font-bold bg-[#8ED973]/15 text-[#2F7A17] dark:text-[#A6E88E]"
-                      >
-                        Saved to Drafts: {savedNotice}. Continue it any time
-                        from its card.
-                      </span>
-                    )}
                     <DraftCards
                       items={visibleDrafts}
                       isDark={isDark}

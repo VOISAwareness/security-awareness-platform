@@ -57,7 +57,7 @@ import EmailDetailsTab from "./EmailDetailsTab/EmailDetailsTab";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
-import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Check, CheckCircle2, AlertTriangle } from "lucide-react";
 import {SCENARIO_STEPS} from './ScenarioConstants';
 import { PAGE_SCALE } from '../../../shared/SharedStyles';
 import { formatDateTime } from '../../../shared/dateTime';
@@ -1433,6 +1433,18 @@ useEffect(() => {
           }}
         />
       )}
+      {/* This work was kept as a draft of its own: someone else's save of the
+          same draft (another window or device) reached the server first.
+          Waits while an error toast is showing, as both sit in the same spot. */}
+      {scenarioDraft.conflictNotice && !(saveError || errorMsg) && (
+        <Toast
+          message={scenarioDraft.conflictNotice}
+          type="warning"
+          title="Saved as a separate draft"
+          duration={8000}
+          onClose={scenarioDraft.dismissConflictNotice}
+        />
+      )}
       <div
         style={{
           zoom: VarScenarioScale,
@@ -1453,25 +1465,6 @@ useEffect(() => {
             {edit || editRequest ? "EDIT SCENARIO" : "CREATE NEW SCENARIO"}
           </h1>
         </div>
-
-        {/* This work was kept as a draft of its own: someone else's save of the
-            same draft (another window or device) reached the server first. */}
-        {scenarioDraft.conflictNotice && (
-          <div
-            role="status"
-            className="w-full flex items-center justify-between gap-3 px-4 py-2 rounded-xl border text-[11px] font-semibold leading-snug bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/25"
-          >
-            <span>{scenarioDraft.conflictNotice}</span>
-            <button
-              type="button"
-              onClick={scenarioDraft.dismissConflictNotice}
-              aria-label="Dismiss"
-              className="p-0.5 rounded opacity-70 hover:opacity-100 cursor-pointer flex-shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         {/* What changed about the scenario since this edit began. */}
         {edit && editNotice && (

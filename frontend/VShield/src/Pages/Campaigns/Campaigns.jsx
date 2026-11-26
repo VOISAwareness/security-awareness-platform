@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   ChevronDown,
@@ -25,6 +25,7 @@ import CancelledImg from "../../assets/CampaignsAssets/CancelledCampaignsImage.p
 import OnHoldImg from "../../assets/clay/campaigns/on-hold-campaigns.webp";
 import { DEMO_USER } from "../../appConfig";
 import PageLoading from "../../GlobalComponents/PageLoading";
+import Toast from "../../GlobalComponents/Toast";
 import CampaignGalleryCard from "./CampaignGalleryCard";
 import ViewAnalyticsModal from "./ViewAnalyticsModal";
 import ScheduleDialog from "../../GlobalComponents/ScheduleDialog";
@@ -186,6 +187,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
   // Send-test flow: which card is awaiting confirmation, and the success note.
   const [confirmSendId, setConfirmSendId] = useState(null);
   const [sendNotice, setSendNotice] = useState("");
+  const clearActionError = useCallback(() => setActionError(""), []);
+  const clearSendNotice = useCallback(() => setSendNotice(""), []);
   // Cancelling a scheduled campaign asks for a reason first.
   const [cancelForId, setCancelForId] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -525,6 +528,27 @@ const Campaigns = ({ isDark: propIsDark }) => {
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
 
+      {/* The outcome of a card action (send, cancel, hold, new dates). */}
+      {actionError && (
+        <Toast
+          message={actionError}
+          type="error"
+          title="Campaign Not Updated"
+          duration={6000}
+          onClose={clearActionError}
+        />
+      )}
+      {sendNotice && !actionError && (
+        <Toast
+          message={sendNotice}
+          type="success"
+          title="Campaign Updated"
+          // The longer notes say what to do next, so they stay a little longer.
+          duration={sendNotice.length > 100 ? 10000 : 6000}
+          onClose={clearSendNotice}
+        />
+      )}
+
       {/* 🌟 ROOT CONTAINER */}
       <div
         style={{ zoom: PAGE_SCALE }}
@@ -850,40 +874,21 @@ const Campaigns = ({ isDark: propIsDark }) => {
               </div>
             </div>
 
-            {(error || actionError) && (
+            {error && (
               <div className="w-full px-6 py-2 flex items-center justify-between gap-3 bg-rose-50 dark:bg-rose-500/10 border-l border-r border-rose-200 dark:border-rose-400/20 text-rose-700 dark:text-rose-300 text-[10px] font-bold relative z-20">
                 <span className="flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  {actionError || `Could not load campaigns: ${error.message}`}
+                  {`Could not load campaigns: ${error.message}`}
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setActionError("");
-                    refresh();
-                  }}
+                  onClick={() => refresh()}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-rose-200 dark:border-rose-400/30 cursor-pointer"
                 >
                   <RefreshCw
                     className={`w-3 h-3 ${loading ? "animate-spin" : ""}`}
                   />{" "}
                   Retry
-                </button>
-              </div>
-            )}
-
-            {sendNotice && (
-              <div className="w-full px-6 py-2 flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-500/10 border-l border-r border-emerald-200 dark:border-emerald-400/20 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold relative z-20">
-                <span className="flex items-center gap-1.5">
-                  <Send className="w-3.5 h-3.5" />
-                  {sendNotice}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSendNotice("")}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-black/40 border border-emerald-200 dark:border-emerald-400/30 cursor-pointer"
-                >
-                  Dismiss
                 </button>
               </div>
             )}

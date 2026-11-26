@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
+import Toast from "../../../../GlobalComponents/Toast";
 import OutcomeRichTextEditorModal from "./OutcomeRichTextEditorModal";
 import imageCatalogue from "../../imageCatalogue.json";
 import initialLandingCatalogues from "../../../LandingPageCatalogue/LandingPageCatalogues.json";
@@ -722,6 +723,10 @@ const AttachOutcomesTab = ({
     useState(false);
 
   const [isOutcomeEditorOpen, setIsOutcomeEditorOpen] = useState(false);
+
+  // Why a chosen cover picture was not used.
+  const [coverFileProblem, setCoverFileProblem] = useState("");
+  const clearCoverFileProblem = useCallback(() => setCoverFileProblem(""), []);
 
   /* ==========================================================
      SHARED DESIGN
@@ -1989,13 +1994,13 @@ const AttachOutcomesTab = ({
     const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
 
     if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a PNG, JPEG or JPG image.");
+      setCoverFileProblem("Please upload a PNG, JPEG or JPG image.");
 
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should not exceed 5MB.");
+      setCoverFileProblem("Image size should not exceed 5MB.");
 
       return;
     }
@@ -2028,6 +2033,15 @@ const AttachOutcomesTab = ({
 
   return (
     <div className="w-full">
+      {coverFileProblem && (
+        <Toast
+          message={coverFileProblem}
+          type="warning"
+          title="Picture Not Added"
+          duration={5000}
+          onClose={clearCoverFileProblem}
+        />
+      )}
       <div
         className="
           grid
