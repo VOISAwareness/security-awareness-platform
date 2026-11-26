@@ -33,8 +33,13 @@ export const HubClayCard = ({
   // The capsule, the type and the icons follow the card's width (it is a
   // size container), within set limits: never smaller than the original
   // design, and roomier on a wide screen, so the card is not mostly empty.
-  const capW = `clamp(${VarCapsuleWidth}px, 26cqw, 210px)`;
-  const capH = `calc(${capW} * ${VarCapsuleHeight / VarCapsuleWidth})`;
+  // Roomier than the first design so the heading and its 3–4 line
+  // description fit in the arm beside it.
+  const capW = `clamp(${VarCapsuleWidth + 20}px, 31cqw, 260px)`;
+  // The capsule (and the arm beside it) also grows with the card's height,
+  // towards the bottom row, but no taller than 0.85 of its width, so it stays a tile.
+  const bottomRow = "calc(var(--hub-pad) * 2 + clamp(20px, 3.2cqw, 26px))";
+  const capH = `clamp(calc(${capW} * ${VarCapsuleHeight / VarCapsuleWidth}), calc(100cqh - ${bottomRow} - ${VarCutoutGap}px), calc(${capW} * 0.85))`;
   const cutoutRight = `calc(${capW} + ${VarCutoutGap}px)`;
   const cutoutBottom = `calc(${capH} + ${VarCutoutGap}px)`;
 
@@ -67,7 +72,7 @@ export const HubClayCard = ({
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0px)";
       }}
-      className="relative flex flex-col select-none cursor-pointer group outline-none focus:outline-none w-full"
+      className="relative flex flex-col select-none cursor-pointer group outline-none focus:outline-none w-full [container-type:size]"
     >
       {/* 🌟 1. Truly Isolated Capsule / Square Card */}
       <div
@@ -129,9 +134,13 @@ export const HubClayCard = ({
         }}
         className="absolute top-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-2 flex flex-col justify-start z-10 transition-colors"
       >
-        <h2 className="text-[clamp(14px,2.2cqw,15px)] font-voda font-bold tracking-tight text-slate-900 dark:text-white leading-[1.2] line-clamp-3">
+        <h2 className="text-[clamp(14px,2.3cqw,17px)] font-voda font-bold tracking-tight text-slate-900 dark:text-white leading-[1.2]">
           {title}
         </h2>
+        {/* what the section is for, right under its heading */}
+        <p className="mt-[clamp(6px,1.2cqw,10px)] text-[clamp(10px,1.7cqw,13px)] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+          {description}
+        </p>
       </div>
 
       {/* 🌟 4. Continuous Bottom Base */}
@@ -144,12 +153,8 @@ export const HubClayCard = ({
           borderBottomRightRadius: `${containerRadius}px`,
           borderTopLeftRadius: `${containerRadius}px`
         }}
-        className="absolute left-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-[var(--hub-pad)] flex flex-col justify-between gap-3 z-10 transition-colors"
+        className="absolute left-0 right-0 px-[var(--hub-pad)] pt-[var(--hub-pad)] pb-[var(--hub-pad)] flex flex-col justify-end z-10 transition-colors"
       >
-        {/* what the section is for, in the space under the capsule */}
-        <p className="min-h-0 overflow-hidden text-[clamp(9.5px,1.5cqw,11.5px)] text-slate-600 dark:text-slate-300 font-medium leading-relaxed line-clamp-3 2xl:line-clamp-5">
-          {description}
-        </p>
         {/* Bottom Row: Icons + Label (Left) and ONE "Go here" Button (Right) */}
         <div className="flex items-center justify-between gap-3 w-full">
           {customBadgeRow ? (
