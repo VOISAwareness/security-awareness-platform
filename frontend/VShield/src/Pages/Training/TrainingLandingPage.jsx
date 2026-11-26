@@ -38,14 +38,14 @@ export const TrainingLandingPage = () => {
           squareSubtitle="Training Paths needed to run campaigns"
           squareImage={tiltedPathIcon}
           title="Create New / Track Created Training Paths"
-          description="Here you can Create new Training Path using stored individual elements as complete end to end path which will be available to attach as training path for any new campaign. You can also Check, Track, Edit or Delete those Created Training Paths."
+          description="Build end-to-end Training Paths from the elements in your Storage Room, ready to attach to any new campaign. You can also check, track, edit or delete the paths you have already created."
           badgeImages={[
             videoIcon,
             quizIcon,
             certificateIcon,
             packageIcon
           ]}
-          badgeText="Use these Individual Elements to create a Training Path"
+          badgeText="Use these elements to build a Training Path"
           buttonText="Go here"
         />
 
@@ -61,11 +61,11 @@ export const TrainingLandingPage = () => {
           squareSubtitle="Storage space for all training elements"
           squareImage={tiltedStorageIcon}
           title="Add New / Track Individual Training Materials"
-          description="Here you can 'Add New and Track' Individual Training Video, Quiz, Certificate and Packages and use these space as storage room. Storing elements individually helps in structuring pathways."
+          description="Add and track individual training videos, quizzes, certificates and packages. Keeping each element stored on its own makes it easy to reuse when structuring new Training Paths."
           badgeImages={[
             tiltedPathIcon
           ]}
-          badgeText="Storing individual elements helps you in creating Training Paths in future"
+          badgeText="Stored elements help you build Training Paths later"
           buttonText="Go here"
         />
 
@@ -79,11 +79,11 @@ export const TrainingLandingPage = () => {
           squareSubtitle="Progress and tracking of all training"
           squareImage={tiltedReportIcon}
           title="View Reports of Overall / By Campaign Training Progress"
-          description="Here you can view detailed training progress reports for all users, with both overall and campaign-wise tracking capabilities. Monitor completion status, certifications achieve and pending activities."
+          description="See detailed training progress for every user, overall or campaign by campaign. Monitor completion status, certificates earned and any activities still pending, so you can follow up early."
           badgeImages={[
             reportsIcon
           ]}
-          badgeText="Track Individual Campaigns Training Completion Rate for Each User"
+          badgeText="Track each user's completion rate, campaign by campaign"
           buttonText="Go here"
         />
 
@@ -96,8 +96,8 @@ export const TrainingLandingPage = () => {
           squareTitle={<>Requests &<br />Approvals</>}
           squareSubtitle="Approvals and requests for new paths"
           squareImage={tiltedApprovalIcon}
-          title="Content Creators can Request & Content Managers can Approve those Requests."
-          description="Here Campaign Creators can view and submit created Training Paths for approval before they are made available for campaign assignment. Campaign Managers can review pending requests, approve or reject submitted trainings, and monitor approval status. Users can also access dedicated sections to track their Approved Trainings, Rejected Trainings, and Pending Approval Requests, ensuring complete visibility of the training approval lifecycle."
+          title="Request / Approve New Training Paths"
+          description="Campaign Creators submit Training Paths for approval before they can be assigned to campaigns. Campaign Managers review, approve or reject them, and everyone can track their requests."
           customBadgeRow={
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
