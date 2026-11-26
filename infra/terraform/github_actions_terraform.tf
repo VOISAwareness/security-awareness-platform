@@ -19,6 +19,8 @@ locals {
   project_tables    = "arn:aws:dynamodb:${local.region}:${local.account_id}:table/${var.name_prefix}-*"
   project_functions = "arn:aws:lambda:${local.region}:${local.account_id}:function:${var.name_prefix}-*"
   project_rules     = "arn:aws:events:${local.region}:${local.account_id}:rule/${var.name_prefix}-*"
+  project_topics    = "arn:aws:sns:${local.region}:${local.account_id}:${var.name_prefix}-*"
+  project_ses_sets  = "arn:aws:ses:${local.region}:${local.account_id}:configuration-set/${var.name_prefix}-*"
   event_mappings    = "arn:aws:lambda:${local.region}:${local.account_id}:event-source-mapping:*"
   api_arn           = "arn:aws:apigateway:${local.region}::/apis/${aws_apigatewayv2_api.main.id}"
 }
@@ -190,6 +192,41 @@ resource "aws_iam_role_policy" "github_terraform" {
           "events:UntagResource",
         ]
         Resource = local.project_rules
+      },
+      {
+        # The announcement feedback topic (announcement_feedback.tf) and its
+        # Lambda subscription.
+        Sid    = "FeedbackTopics"
+        Effect = "Allow"
+        Action = [
+          "sns:CreateTopic",
+          "sns:DeleteTopic",
+          "sns:GetTopicAttributes",
+          "sns:SetTopicAttributes",
+          "sns:ListTagsForResource",
+          "sns:TagResource",
+          "sns:UntagResource",
+          "sns:Subscribe",
+          "sns:Unsubscribe",
+          "sns:GetSubscriptionAttributes",
+          "sns:SetSubscriptionAttributes",
+          "sns:ListSubscriptionsByTopic",
+        ]
+        Resource = local.project_topics
+      },
+      {
+        # The announcements SES configuration set and its event destination.
+        Sid    = "SesConfigurationSets"
+        Effect = "Allow"
+        Action = [
+          "ses:CreateConfigurationSet",
+          "ses:DeleteConfigurationSet",
+          "ses:DescribeConfigurationSet",
+          "ses:CreateConfigurationSetEventDestination",
+          "ses:UpdateConfigurationSetEventDestination",
+          "ses:DeleteConfigurationSetEventDestination",
+        ]
+        Resource = local.project_ses_sets
       },
       {
         # Read itself so plans can refresh this file; never write itself.

@@ -223,3 +223,24 @@ def test_no_button_without_an_https_api_address(mod, monkeypatch):
         assert mod.ack_url("t") == ""
     assert mod.with_ack_button("<p>Hi</p>", "") == "<p>Hi</p>"
     assert mod.with_ack_button("<p>Hi</p>", "https://a/ack/t").startswith("<p>Hi</p><table")
+
+
+def test_with_a_configuration_set_each_email_is_tagged_with_its_rollout_and_person(mod, aws, monkeypatch):
+    aws.ses.create_configuration_set(ConfigurationSet={"Name": "t-announcements"})
+    monkeypatch.setattr(mod, "CONFIGURATION_SET", "t-announcements")
+    sent = []
+    real = mod.ses_client.send_email
+    monkeypatch.setattr(mod.ses_client, "send_email", lambda **kw: (sent.append(kw), real(**kw))[1])
+    rollout(aws)
+    mod.lambda_handler({"announcementId": "ANR-001"}, ctx())
+    ids = {r["recipientEmail"]: r["recipientId"] for r in rows(aws)}
+    for kw in sent:
+        email = kw["Destination"]["ToAddresses"][0]
+        assert kw["ConfigurationSetName"] == "t-announcements"
+        assert kw["Tags"] == [{"Name": "announcementId", "Value": "ANR-001"}, {"Name": "recipientId", "Value": ids[email]}]
+    # without one, no set and no tags
+    monkeypatch.setattr(mod, "CONFIGURATION_SET", "")
+    sent.clear()
+    rollout(aws, announcementId="ANR-002")
+    mod.lambda_handler({"announcementId": "ANR-002"}, ctx())
+    assert sent and all("ConfigurationSetName" not in kw and "Tags" not in kw for kw in sent)

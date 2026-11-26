@@ -2679,9 +2679,10 @@ def rollout_sent(row, now_s):
 
 def announcement_outcome(row, now):
     """
-    Who a roll-out reached (announcement-sender's rows in recipients), who
-    pressed "I've read this" (acknowledgedAt) and, when it links a training
-    path, who has completed that path. Each answer is "yes", "no" or
+    Who a roll-out reached (announcement-sender's rows in recipients; a bounce,
+    from announcement-feedback, means it did not), who pressed "I've read
+    this" (acknowledgedAt) and, when it links a training path, who has
+    completed that path. Each answer is "yes", "no" or
     "unknown": acknowledged is unknown until it was sent to them, trained is
     unknown when the roll-out links no training.
     """
@@ -2695,12 +2696,16 @@ def announcement_outcome(row, now):
     rows = []
     for p in sorted(people, key=lambda x: str(x.get("recipientEmail", "")).lower()):
         email = str(p.get("recipientEmail", ""))
-        sent = p.get("sendStatus") == "SENT"
+        bounced = bool(p.get("bouncedAt"))
+        sent = p.get("sendStatus") == "SENT" and not bounced  # a bounce never reached them
+        reason = p.get("failureReason") or (f"Bounced ({p.get('bounceType') or 'Undetermined'})" if bounced else None)
         rows.append({
             "email": email,
             "name": p.get("recipientName") or "",
             "sent": "yes" if sent else "no",
-            "failureReason": p.get("failureReason") or None,
+            "delivered": "yes" if p.get("deliveredAt") and not bounced else "no" if bounced else "unknown",
+            "complained": "yes" if p.get("complainedAt") else "no",
+            "failureReason": reason,
             "acknowledged": "yes" if p.get("acknowledgedAt") else "no" if sent else "unknown",
             "acknowledgedAt": p.get("acknowledgedAt"),
             "trained": ("yes" if email.lower() in done else "no") if path else "unknown",
@@ -2718,6 +2723,8 @@ def announcement_outcome(row, now):
         "refreshedAt": now,
         "rows": rows,
         "totals": {"recipients": len(rows), "sent": count("sent"), "failed": count("sent", "no"),
+                   "delivered": count("delivered"), "bounced": sum(1 for p in people if p.get("bouncedAt")),
+                   "complained": count("complained"),
                    "acknowledged": count("acknowledged"), "trained": count("trained") if path else None},
     }
 
