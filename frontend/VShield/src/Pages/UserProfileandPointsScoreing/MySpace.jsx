@@ -235,7 +235,7 @@ const DraggableIdBadge = ({
               className={`w-full min-h-[80px] flex items-center gap-3 p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
                 isDark
                   ? "border-white/10 bg-white/[0.04] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
-                  : "border-white/80 bg-white/50 backdrop-blur-[2px] hover:bg-white/70 hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
+                  : "border-white/70 bg-white/30 backdrop-blur-[1px] hover:bg-white/50 hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
               }`}
             >
               <span className="w-[64px] h-[64px] flex-shrink-0 flex items-center justify-center">
@@ -273,7 +273,7 @@ const DraggableIdBadge = ({
             className={`group w-full min-h-[60px] flex items-center gap-3 mt-2 lg:mt-[calc(8px_+_var(--ms-extra,0)_*_22px)] p-2 pr-3 rounded-xl border text-left z-10 cursor-pointer transition-[box-shadow,transform] duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${
               isDark
                 ? "border-white/10 bg-white/[0.04] hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
-                : "border-white/80 bg-white/50 backdrop-blur-[2px] hover:bg-white/70 hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
+                : "border-white/70 bg-white/30 backdrop-blur-[1px] hover:bg-white/50 hover:shadow-[0_8px_18px_rgba(15,23,42,0.10)]"
             }`}
           >
             <span className="relative w-[64px] h-[44px] flex-shrink-0 flex items-center justify-center">
@@ -305,8 +305,8 @@ const DraggableIdBadge = ({
           <div className="w-full grid grid-cols-2 gap-2 mt-2 lg:mt-[calc(8px_+_var(--ms-extra,0)_*_22px)] z-10">
             {/* Centred: the number with its icon, the label under it */}
             {[
-              { label: "Campaigns Involved", value: "07", Icon: Sparkles, tone: "text-amber-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-white/80 bg-white/50 backdrop-blur-[2px]" },
-              { label: "Certificates Earned", value: "04", Icon: Award, tone: "text-purple-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-white/80 bg-white/50 backdrop-blur-[2px]" },
+              { label: "Campaigns Involved", value: "07", Icon: Sparkles, tone: "text-amber-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-white/70 bg-white/30 backdrop-blur-[1px]" },
+              { label: "Certificates Earned", value: "04", Icon: Award, tone: "text-purple-500", tint: isDark ? "border-white/10 bg-white/[0.04]" : "border-white/70 bg-white/30 backdrop-blur-[1px]" },
             ].map(({ label, value, Icon, tone, tint }) => (
               <div
                 key={label}
