@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { Suspense, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useUserType } from '../UserTypeContext/UserTypeContext';
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import TopHeaderSection from './TopHeaderSection';
+import PageLoading from './PageLoading';
 import useIsWide from './useIsWide';
 import useLayoutScale from './useLayoutScale';
 import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
@@ -564,7 +565,10 @@ const Layout = () => {
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto relative z-10 pt-[60px]"
         >
-          <Outlet />
+          {/* a page's code loads when it is first opened (App.jsx) */}
+          <Suspense fallback={<PageLoading show surface="page" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

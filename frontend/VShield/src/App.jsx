@@ -1,66 +1,69 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserTypeProvider, useUserType } from './UserTypeContext/UserTypeContext';
 
-// Layout & Main Views
+// Layout (the shell: sidebar and top bar) loads with the app; every page's
+// code loads when it is first opened (React.lazy), so a visit downloads only
+// what it shows. Layout shows the app's spinner while a page arrives.
 import Layout from './GlobalComponents/Layout';
-import LandingPage from './Pages/LandingPage/LandingPage';
-import HomeScreen from './Pages/HomeScreen/HomeScreen';
+import PageLoading from './GlobalComponents/PageLoading';
+const LandingPage = lazy(() => import('./Pages/LandingPage/LandingPage'));
+const HomeScreen = lazy(() => import('./Pages/HomeScreen/HomeScreen'));
 
 // Import Scenario Pages
-import Scenarios from './Pages/Scenarios/Scenarios';
-import NewScenario from './Pages/Scenarios/CreateNewScenario/CreateNewScenario';
+const Scenarios = lazy(() => import('./Pages/Scenarios/Scenarios'));
+const NewScenario = lazy(() => import('./Pages/Scenarios/CreateNewScenario/CreateNewScenario'));
 
 // 🌟 Import MySpace Page
-import MySpace from './Pages/UserProfileandPointsScoreing/MySpace';
+const MySpace = lazy(() => import('./Pages/UserProfileandPointsScoreing/MySpace'));
 
 // 🌟 Import Gamification Engine Page
-import GamificationEngine from './Pages/GamificationEngine/GamificationEngine';
+const GamificationEngine = lazy(() => import('./Pages/GamificationEngine/GamificationEngine'));
 
 // 🌟 Import Email IDs & Domains Page
-import EmailIDsAndDomains from './Pages/EmailIDsandDomains/EmailIDsAndDomains';
+const EmailIDsAndDomains = lazy(() => import('./Pages/EmailIDsandDomains/EmailIDsAndDomains'));
 
 // 🌟 Import Landing Page Catalogue Page
-import LandingPageCatalogue from './Pages/LandingPageCatalogue/LandingPageCatalogue';
+const LandingPageCatalogue = lazy(() => import('./Pages/LandingPageCatalogue/LandingPageCatalogue'));
 
 // 🌟 Insights (the analytics page)
-import Insights from './Pages/Insights/Insights';
+const Insights = lazy(() => import('./Pages/Insights/Insights'));
 
 // 🌟 Campaign lifecycle pages (wired to the backend)
-import Campaigns from './Pages/Campaigns/Campaigns';
-import RequestAndApprovals from './Pages/RequestsAndApprovals/RequestAndApprovals';
+const Campaigns = lazy(() => import('./Pages/Campaigns/Campaigns'));
+const RequestAndApprovals = lazy(() => import('./Pages/RequestsAndApprovals/RequestAndApprovals'));
 
 // 🌟 Announcements: the list, a three-step send (details, email, review) and a new announcement
-import Announcements from './Pages/Announcement/Announcement';
-import AnnouncementRequestAndApprovals from './Pages/Announcement/AnnouncementRequestsApprovals/AnnouncementRequestsApprovals';
-import AnnouncementsDetailsAndSettings from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateDetails/AnnouncementsDetailsAndSettings';
-import AnnouncementsTemplateEmail from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementTemplateEmail';
-import AnnouncementsReviewPublish from './Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateReview/AnnouncementsReviewPublish';
-import AnnouncementTemplateDetails from './Pages/Announcement/CreateAnnouncement/AnnouncementTemplateDetails/AnnouncementTemplateDetails';
+const Announcements = lazy(() => import('./Pages/Announcement/Announcement'));
+const AnnouncementRequestAndApprovals = lazy(() => import('./Pages/Announcement/AnnouncementRequestsApprovals/AnnouncementRequestsApprovals'));
+const AnnouncementsDetailsAndSettings = lazy(() => import('./Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateDetails/AnnouncementsDetailsAndSettings'));
+const AnnouncementsTemplateEmail = lazy(() => import('./Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementTemplateEmail'));
+const AnnouncementsReviewPublish = lazy(() => import('./Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateReview/AnnouncementsReviewPublish'));
+const AnnouncementTemplateDetails = lazy(() => import('./Pages/Announcement/CreateAnnouncement/AnnouncementTemplateDetails/AnnouncementTemplateDetails'));
 
 // 🌟 Leaderboard
-import Leaderboard from './Pages/Leaderboard/Leaderboard';
+const Leaderboard = lazy(() => import('./Pages/Leaderboard/Leaderboard'));
 
 // 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
-import Training from './Pages/Training/Training';
+const Training = lazy(() => import('./Pages/Training/Training'));
 
 // 🌟 Import Start New Campaign Page
-import ChooseAScenario from './Pages/StartCampaign/ChooseAScenario';
-import DetailsAndSettings from './Pages/StartCampaign/DetailsAndSettings';
-import CampaignEmail from './Pages/StartCampaign/CampaignEmail';
-import LandingPageDetails from './Pages/StartCampaign/LandingPageDetails';
-import AddTrainingPath from './Pages/StartCampaign/AddTrainingPath';
-import ReviewAndPublishCampaign from './Pages/StartCampaign/ReviewAndPublishCampaign';
+const ChooseAScenario = lazy(() => import('./Pages/StartCampaign/ChooseAScenario'));
+const DetailsAndSettings = lazy(() => import('./Pages/StartCampaign/DetailsAndSettings'));
+const CampaignEmail = lazy(() => import('./Pages/StartCampaign/CampaignEmail'));
+const LandingPageDetails = lazy(() => import('./Pages/StartCampaign/LandingPageDetails'));
+const AddTrainingPath = lazy(() => import('./Pages/StartCampaign/AddTrainingPath'));
+const ReviewAndPublishCampaign = lazy(() => import('./Pages/StartCampaign/ReviewAndPublishCampaign'));
 
 // 🌟 Import UserDLs Suite
-import UserDLsLandingPage from './Pages/UserDLs/UserDLsLandingPage';
-import UserListUploadViaDL from './Pages/UserDLs/UserListUploadViaDL';
-import UserListViaBulkUpload from './Pages/UserDLs/UserListViaBulkUpload';
+const UserDLsLandingPage = lazy(() => import('./Pages/UserDLs/UserDLsLandingPage'));
+const UserListUploadViaDL = lazy(() => import('./Pages/UserDLs/UserListUploadViaDL'));
+const UserListViaBulkUpload = lazy(() => import('./Pages/UserDLs/UserListViaBulkUpload'));
 
 // 🌟 My Training (a person's own training: pending, history, each path's details)
-import MyTraining from './Pages/MyTraining/MyTraining';
-import TrainingDetails from './Pages/MyTraining/PendingTraining/StartNewTraining';
-import AnnouncementHistory from './Pages/Announcement/AnnouncementHistory/AnnouncementHistory';
+const MyTraining = lazy(() => import('./Pages/MyTraining/MyTraining'));
+const TrainingDetails = lazy(() => import('./Pages/MyTraining/PendingTraining/StartNewTraining'));
+const AnnouncementHistory = lazy(() => import('./Pages/Announcement/AnnouncementHistory/AnnouncementHistory'));
 
 // Protected Route Wrapper with automatic fallback routing
 const ProtectedRoute = ({ children, requiredScreen }) => {
@@ -98,7 +101,14 @@ function App() {
       <Router>
         <Routes>
           {/* Public Landing Page */}
-          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/"
+            element={
+              <Suspense fallback={<PageLoading show surface="page" />}>
+                <LandingPage />
+              </Suspense>
+            }
+          />
 
           {/* Protected Application Layout with Sidebar */}
           <Route
