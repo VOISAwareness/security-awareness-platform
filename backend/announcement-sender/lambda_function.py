@@ -40,7 +40,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from email.utils import formataddr
-from html import unescape
+from html import escape, unescape
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -191,8 +191,10 @@ def sender_of(rollout):
     return FALLBACK_SENDER or None
 
 
-def render(text, name):
-    return str(text or "").replace(USER_NAME, name)
+def render(text, name, html=False):
+    """The text with {{USER_NAME}} filled in. For HTML the name is escaped, so a
+    name from an uploaded list can never become markup (a link, an image)."""
+    return str(text or "").replace(USER_NAME, escape(name, quote=True) if html else name)
 
 
 ACK_BUTTON = (
@@ -258,7 +260,7 @@ def send_one(rollout, person, source):
     if not allowed(person["email"]):
         return fail("NotAllowedDomain")
     url = ack_url(token)
-    body = render(rollout.get("announcementEmailBody"), person["name"])
+    body = render(rollout.get("announcementEmailBody"), person["name"], html=True)
     html = with_ack_button(body, url)
     text = plain_text(body) + (f"\n\nI've read this: {url}" if url else "")
     subject = render(rollout.get("announcementEmailSubject") or rollout.get("announcementCampaignTitle"), person["name"])

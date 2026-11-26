@@ -117,6 +117,29 @@ def test_the_name_is_filled_in_and_there_is_a_text_part(mod, aws):
     assert mod.plain_text("<p>Hello <b>Ana</b></p><p>Bye &amp; thanks</p>") == "Hello Ana\nBye & thanks"
 
 
+def test_a_name_from_a_list_cannot_become_markup_in_the_email(mod, aws):
+    evil = 'Bob <a href="https://evil.example/login">Click to re-verify</a>'
+    assert mod.render("<p>Hi {{USER_NAME}}</p>", evil, html=True) == (
+        "<p>Hi Bob &lt;a href=&quot;https://evil.example/login&quot;&gt;Click to re-verify&lt;/a&gt;</p>"
+    )
+    # the subject is plain text, and the text part reads the name back as typed
+    assert mod.render("Hi {{USER_NAME}}", evil) == f"Hi {evil}"
+    assert mod.plain_text(mod.render("<p>Hi {{USER_NAME}}</p>", evil, html=True)) == f"Hi {evil}"
+
+
+def test_the_sent_email_carries_the_escaped_name(mod, aws, monkeypatch):
+    evil = 'Eve <img src="https://evil.example/x.png">'
+    aws.mem.put_item(Item={"userListId": "UL-2", "email": "eve@x.example", "userName": evil})
+    rollout(aws, selectedListId="UL-2")
+    sent = []
+    real = aws.ses.send_email
+    monkeypatch.setattr(aws.ses, "send_email", lambda **kw: (sent.append(kw), real(**kw))[1], raising=False)
+    assert mod.lambda_handler({"announcementId": "ANR-001"}, ctx())["sent"] == 1
+    html = sent[0]["Message"]["Body"]["Html"]["Data"]
+    assert "<img" not in html and "&lt;img" in html and "evil.example/x.png" in html
+    assert evil in sent[0]["Message"]["Body"]["Text"]["Data"]
+
+
 def test_a_test_announcement_never_goes_to_its_list(mod, aws, monkeypatch):
     monkeypatch.setattr(mod, "TEST_RECIPIENT", "tester@x.example")
     rollout(aws, isAnnouncementTestCampaign=True)
