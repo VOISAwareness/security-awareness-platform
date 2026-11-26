@@ -2564,6 +2564,8 @@ def my_training(route, event, context):
 #          Campaign Manager; never a roll-out that has been sent)
 #   POST   /announcements/{id}/decision {actor, role, decision: "approve"|"reject", comments}
 #          (an Admin or a Campaign Manager, never on their own roll-out)
+#   POST   /announcements/{id}/cancel {actor, role, reason}  (its creator, an
+#          Admin or a Campaign Manager; an approved roll-out that has not ended)
 # A roll-out is APPROVED when its creator publishes it (submit "approve") or
 # PENDING_APPROVAL when sent for approval; nobody approves their own.
 ANNOUNCEMENT_ROUTES = frozenset({
@@ -2572,12 +2574,13 @@ ANNOUNCEMENT_ROUTES = frozenset({
     "PUT /announcements/{id}",
     "DELETE /announcements/{id}",
     "POST /announcements/{id}/decision",
+    "POST /announcements/{id}/cancel",
 })
 ANNOUNCEMENT_KINDS = {"TEMPLATE": "ANC", "ROLLOUT": "ANR"}
 ANNOUNCEMENT_SERVER_OWNED = frozenset({
     "announcementId", "kind", "status", "createdAt", "createdBy", "updatedAt",
     "approvedBy", "approvedAt", "rejectedBy", "rejectedAt", "decisionComments",
-    "actor", "submit", "role", "expiresAt",
+    "actor", "submit", "role", "expiresAt", "cancelledBy", "cancelledAt", "cancelReason",
 })
 MAX_ANNOUNCEMENT_BYTES = 380 * 1024
 MAX_ANNOUNCEMENT_NAME = 200
@@ -2714,6 +2717,34 @@ def announcements(route, event, params, context):
             merged["expiresAt"] = expires  # its times may have changed
         tbl.put_item(Item=to_dynamo(merged))
         return ok(merged)
+
+    if route == "POST /announcements/{id}/cancel":
+        role = str(body.get("role") or "")
+        if parse_identity(row.get("createdBy")) != actor and role not in ANNOUNCEMENT_DELETER_ROLES:
+            return err(403, "Only its creator, an Admin or a Campaign Manager can cancel it")
+        if row.get("kind") != "ROLLOUT":
+            return err(409, "Only a roll-out is cancelled")
+        reason = str(body.get("reason") or "").strip()[:500]
+        if not reason:
+            return err(400, "A reason is required to cancel")
+        ends = instant(row.get("announcementEndTime")) or instant(row.get("announcementStartTime"))
+        if ends is not None and ends <= time.time():
+            return err(409, "This announcement has already ended")
+        try:
+            updated = tbl.update_item(
+                Key={"announcementId": params["id"]},
+                UpdateExpression="SET #s = :new, cancelledBy = :actor, cancelledAt = :now, cancelReason = :r, updatedAt = :now",
+                ConditionExpression="#s = :approved",
+                ExpressionAttributeNames={"#s": "status"},
+                ExpressionAttributeValues={":new": "CANCELLED", ":actor": actor, ":now": now, ":r": reason, ":approved": "APPROVED"},
+                ReturnValues="ALL_NEW",
+            )
+        except ClientError as e:
+            if not conditional_failed(e):
+                raise
+            return err(409, "Only an approved announcement that has not ended can be cancelled")
+        log(context, "announcement cancelled", id=params["id"])
+        return ok(updated["Attributes"])
 
     if route == "DELETE /announcements/{id}":
         role = str(query.get("role") or body.get("role") or "")

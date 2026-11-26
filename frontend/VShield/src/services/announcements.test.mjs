@@ -102,3 +102,10 @@ test('a rejected roll-out becomes a draft and is saved back in place', async () 
   assert.equal(id, 'ANR-3');
   assert.deepEqual(sent, { announcementCampaignTitle: 'T2', selectedListId: 'UL-1', selectedListName: 'Finance', recipientCount: 40, actor: 'a@x' });
 });
+
+test('a cancelled roll-out reads as Cancelled, with its reason', () => {
+  const row = fromRollout({ announcementId: 'ANR-7', status: 'CANCELLED', cancelReason: 'Wrong week', cancelledBy: 'ben@x' });
+  assert.equal(row.AnnouncementStatus, 'Cancelled');
+  assert.equal(row.AnnouncementReasonForCancel, 'Wrong week');
+  assert.equal(fromRollout({ announcementId: 'ANR-8', status: 'APPROVED' }).AnnouncementReasonForCancel, 'NA');
+});

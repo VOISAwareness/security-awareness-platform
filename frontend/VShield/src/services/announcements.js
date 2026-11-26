@@ -8,7 +8,7 @@
  * ({ announcement: [] } and { savedUserLists, syncedDistributionLists }),
  * updated in place; useAnnouncementData() loads them and re-renders.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { api } from './api.js';
 import { currentActor } from './identity.js';
@@ -103,7 +103,7 @@ const personEmail = (v) => {
   return (m ? m[1] : String(v || '')).trim().toLowerCase();
 };
 
-const HISTORY_STATUS = { APPROVED: 'Published', SENDING: 'Published', SENT: 'Published', PENDING_APPROVAL: 'Pending', REJECTED: 'Rejected' };
+const HISTORY_STATUS = { APPROVED: 'Published', SENDING: 'Published', SENT: 'Published', PENDING_APPROVAL: 'Pending', REJECTED: 'Rejected', CANCELLED: 'Cancelled' };
 
 /**
  * A roll-out from the API in the shape the History page was written against
@@ -125,8 +125,10 @@ export function fromRollout(r, { emails = false } = {}) {
     AnnouncementEndTime: historyTime(r.announcementEndTime) || start,
     AnnouncementAutoEndPostCompletion: r.autoEndPostSending ? 'Yes' : 'No',
     TestAnnouncement: r.isAnnouncementTestCampaign ? 'Yes' : 'No',
-    AnnouncementReasonForCancel: 'NA',
+    AnnouncementReasonForCancel: r.status === 'CANCELLED' ? r.cancelReason || 'Cancelled' : 'NA',
+    AnnouncementCancelledBy: r.cancelledBy || '',
     AnnouncementCreatedBy: who(r.createdBy),
+    AnnouncementCreatorEmail: personEmail(r.createdBy),
     AnnouncementCreationDate: historyTime(r.createdAt),
     AnnouncementLastModified: historyTime(r.updatedAt || r.createdAt),
     'AnnouncementApproved/RejectedBy': who(r.approvedBy || r.rejectedBy),
@@ -144,6 +146,8 @@ export function fromRollout(r, { emails = false } = {}) {
 /** The roll-outs for the History page, from GET /announcements?kind=ROLLOUT. */
 export function useRollouts({ client = api } = {}) {
   const [state, setState] = useState({ loading: true, error: null, items: [] });
+  // put a roll-out the API returned (after an action) in place of its card
+  const replace = useCallback((row) => setState((s) => ({ ...s, items: s.items.map((x) => (x.announcementId === row.announcementId ? fromRollout(row) : x)) })), []);
   useEffect(() => {
     let active = true;
     client.announcements
@@ -157,7 +161,7 @@ export function useRollouts({ client = api } = {}) {
       active = false;
     };
   }, [client]);
-  return state;
+  return { ...state, replace };
 }
 
 // A stored roll-out's fields that are the server's, never a draft's.

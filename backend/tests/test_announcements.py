@@ -109,6 +109,35 @@ def test_admins_approve_too_and_no_one_else(mod, table):
     assert status == 200 and body["data"]["status"] == "REJECTED"
 
 
+def test_cancelling_an_approved_rollout_before_it_ends(mod, table):
+    later = {"kind": "ROLLOUT", "actor": ANA, "announcementCampaignTitle": "Later", "submit": "approve",
+             "announcementStartTime": "2998-01-01T09:00", "announcementEndTime": "2998-01-05T17:00"}
+    rid = call(mod, "POST /announcements", later)[1]["data"]["announcementId"]
+    cancel = lambda who, role=None, reason="Wrong week": call(  # noqa: E731
+        mod, "POST /announcements/{id}/cancel", {"actor": who, "role": role, "reason": reason}, rid)
+    assert cancel(BEN, "Campaign Creator")[0] == 403  # not hers, not an approver
+    assert cancel(ANA, reason=" ")[0] == 400  # a reason is required
+    status, body = cancel(BEN, "Campaign Manager")
+    assert status == 200 and body["data"]["status"] == "CANCELLED"
+    assert body["data"]["cancelledBy"] == BEN and body["data"]["cancelReason"] == "Wrong week"
+    assert cancel(ANA)[0] == 409  # already cancelled
+    # its creator cancels her own; a pending one is not cancelled (it is deleted or rejected)
+    rid = call(mod, "POST /announcements", later)[1]["data"]["announcementId"]
+    assert cancel(ANA)[0] == 200
+    rid = call(mod, "POST /announcements", {**later, "submit": "request"})[1]["data"]["announcementId"]
+    assert cancel(ANA, "Admin")[0] == 409
+    # over: nothing left to cancel
+    rid = call(mod, "POST /announcements", {**later, "announcementStartTime": "2026-01-01T09:00",
+                                            "announcementEndTime": "2026-01-02T09:00"})[1]["data"]["announcementId"]
+    status, body = cancel(ANA, "Admin")
+    assert status == 409 and "ended" in body["error"]["message"]
+    # a template is never cancelled; the body cannot set the cancel fields
+    tid = call(mod, "POST /announcements", {**TEMPLATE, "cancelledBy": "x", "cancelReason": "y"})[1]["data"]
+    assert "cancelledBy" not in tid and "cancelReason" not in tid
+    rid = tid["announcementId"]
+    assert cancel(ANA, "Admin")[0] == 409
+
+
 def test_what_is_refused(mod, table):
     assert call(mod, "POST /announcements", {**TEMPLATE, "actor": ""})[0] == 400
     assert call(mod, "POST /announcements", {**TEMPLATE, "kind": "EMAIL"})[0] == 400
