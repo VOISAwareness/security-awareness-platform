@@ -189,6 +189,31 @@ export async function updateRollout(id, draft, list, { actor = currentActor(), c
   });
 }
 
+// A stored roll-out's fields that are the server's, never a draft's.
+const ROLLOUT_SERVER_FIELDS = ['announcementId', 'kind', 'status', 'createdAt', 'createdBy', 'updatedAt', 'approvedBy', 'approvedAt',
+  'rejectedBy', 'rejectedAt', 'decisionComments', 'expiresAt', 'cancelledBy', 'cancelledAt', 'cancelReason'];
+
+/** A rejected roll-out as a Roll Out wizard draft, to change and resend (its id rides along). */
+export function draftFromRollout(row) {
+  const draft = Object.fromEntries(Object.entries(row || {}).filter(([k]) => !ROLLOUT_SERVER_FIELDS.includes(k)));
+  return { ...draft, editingRolloutId: row?.announcementId || '' };
+}
+
+/**
+ * A changed roll-out from the wizard (the creator editing a rejected one):
+ * saved in place, which the API sends for approval again.
+ */
+export async function updateRollout(id, draft, list, { actor = currentActor(), client = api } = {}) {
+  const fields = Object.fromEntries(Object.entries(draft || {}).filter(([k]) => !NOT_STORED.has(k) && !ROLLOUT_SERVER_FIELDS.includes(k)));
+  return client.announcements.update(id, {
+    ...fields,
+    actor,
+    selectedListId: list?.id || fields.selectedListId || '',
+    selectedListName: list?.name || fields.selectedListName || '',
+    recipientCount: Number(list?.totalUsers) || Number(fields.recipientCount) || 0,
+  });
+}
+
 /** Load the templates and lists for a component; it re-renders once they are in. */
 export function useAnnouncementData() {
   const [state, setState] = useState({ loading: true, error: null, version: 0 });
