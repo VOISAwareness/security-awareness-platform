@@ -2562,7 +2562,8 @@ def my_training(route, event, context):
 #   PUT    /announcements/{id} {actor, ...fields}
 #   DELETE /announcements/{id}?actor=&role=  (its creator, an Admin or a
 #          Campaign Manager; never a roll-out that has been sent)
-#   POST   /announcements/{id}/decision {actor, decision: "approve"|"reject", comments}
+#   POST   /announcements/{id}/decision {actor, role, decision: "approve"|"reject", comments}
+#          (an Admin or a Campaign Manager, never on their own roll-out)
 # A roll-out is APPROVED when its creator publishes it (submit "approve") or
 # PENDING_APPROVAL when sent for approval; nobody approves their own.
 ANNOUNCEMENT_ROUTES = frozenset({
@@ -2583,6 +2584,8 @@ MAX_ANNOUNCEMENT_NAME = 200
 # Who may delete any announcement, not only their own (client-asserted, as
 # elsewhere). Nobody deletes a roll-out that has been sent.
 ANNOUNCEMENT_DELETER_ROLES = frozenset({"Admin", "Campaign Manager"})
+# Who approves or rejects a roll-out (client-asserted); never their own.
+ANNOUNCEMENT_APPROVER_ROLES = frozenset({"Admin", "Campaign Manager"})
 # Retention: a roll-out is kept this many days after it ends (its end time,
 # else its start time, else when it was saved); then DynamoDB's TTL deletes
 # it (expiresAt, epoch seconds: schema_tables.tf). TTL works within a day or
@@ -2730,6 +2733,8 @@ def announcements(route, event, params, context):
         return err(409, "Only a roll-out is approved or rejected")
     if decision == "reject" and not comments:
         return err(400, "A reason is required to reject")
+    if str(body.get("role") or "") not in ANNOUNCEMENT_APPROVER_ROLES:
+        return err(403, "Only an Admin or a Campaign Manager can approve or reject a roll-out")
     if parse_identity(row.get("createdBy")) == actor:
         return err(403, "You cannot approve or reject your own roll-out")
     new_status = "APPROVED" if decision == "approve" else "REJECTED"
