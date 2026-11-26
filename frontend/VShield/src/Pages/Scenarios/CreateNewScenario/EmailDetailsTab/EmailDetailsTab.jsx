@@ -711,6 +711,11 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                 onChange={(updatedHtml) => {
                   updateField("emailBody", updatedHtml);
                 }}
+                previewMeta={{
+                  senderName: formData?.senderName || "",
+                  senderEmail: formData?.emailId || "",
+                  subject: emailSubject,
+                }}
                 browserPage={formData?.browserPageHtml || ""}
                 onBrowserPageChange={(updatedHtml) => {
                   updateField("browserPageHtml", updatedHtml);

@@ -28,7 +28,6 @@ import {
   Image as ImageIcon,
   Italic,
   Layers,
-  Link as LinkIcon,
   Maximize2,
   Minimize2,
   MousePointerClick,
@@ -54,6 +53,8 @@ import {
 import { createPortal } from "react-dom";
 import HtmlCodeEditor from "../../../../GlobalComponents/HtmlCodeEditor";
 import Toast from "../../../../GlobalComponents/Toast";
+import EmailPreviewModal from "./EmailPreviewModal";
+import { canRedo, canUndo, moveTo, newHistory, recordStep } from "../../../../services/pageHistory";
 import scenariosJsonData from "../../ScenariosData.json";
 import {
   BROWSER_PAGE_ID,
@@ -65,6 +66,7 @@ import {
   PHISH_LINK,
   dropBrowserLinks,
   isBlankHtml,
+  previewDocument,
   toBrowserPageHtml,
 } from "../../../../services/simulationPages";
 
@@ -579,6 +581,17 @@ const linkAction = (href) => {
 
 const CLOSED_ACTION_MODAL = { open: false, element: null, actionType: "landing" };
 
+// =========================================================================
+// BROWSER SAFE ZONE GUIDE (browser page only; visual only, never saved)
+// How far down the browser page is seen before the employee has to scroll,
+// on the smallest common laptop screen (1366 x 768, or 1920 x 1080 at 125%):
+// the window less the tab and address bars and the taskbar. The same line
+// the Landing page editor draws (its SAFE_ZONE_HEIGHT_PX). Bigger screens
+// show more, so whatever is above the line is seen on them too.
+// =========================================================================
+const BROWSER_SAFE_ZONE_PX = 580;
+
+
 const calculateAspectRatio = (width, height) => {
   if (!width || !height) return "1:1";
   const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
@@ -742,11 +755,12 @@ const EmailBodyRichTextEditor = ({
   // Page 2, the fake browser page an email element can open ("" for none).
   browserPage = "",
   onBrowserPageChange,
+  // Sender and subject for the email preview: { senderName, senderEmail, subject }.
+  previewMeta = {},
   placeholder = "Type your email content here or choose an Email Body template...",
   disabled = false,
   minHeight = 300,
   className = "",
-  compact = false,
 }) => {
   const editorRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -785,15 +799,26 @@ const EmailBodyRichTextEditor = ({
   });
   const [currentPageId, setCurrentPageId] = useState(EMAIL_PAGE_ID);
   const [showBrowserPreview, setShowBrowserPreview] = useState(false);
+  // Does the page run below its safe-zone line?
+  const [safeZoneOverflow, setSafeZoneOverflow] = useState(false);
+  const [emailPreview, setEmailPreview] = useState({ open: false, html: "" });
 
   const pagesRef = useRef(pages);
   pagesRef.current = pages;
   const currentPageIdRef = useRef(currentPageId);
   currentPageIdRef.current = currentPageId;
 
-  const [history, setHistory] = useState([value || ""]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const isHistoryActionRef = useRef(false);
+  // Undo / redo, one history per page: { [pageId]: { stack, index, lastAt } }.
+  // Held in a ref (undo needs it at once); `historyState` is what the
+  // toolbar shows for the page being edited.
+  const historiesRef = useRef({
+    [EMAIL_PAGE_ID]: newHistory(value || ""),
+    ...(isBlankHtml(browserPage) ? {} : { [BROWSER_PAGE_ID]: newHistory(browserPage) }),
+  });
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
+  // Set by typing (canvas or HTML source), so keystrokes close together
+  // become one undo step instead of one per character.
+  const typingRef = useRef(false);
 
   const [selectionColorMenu, setSelectionColorMenu] = useState({
     visible: false,
@@ -825,78 +850,134 @@ const EmailBodyRichTextEditor = ({
     [onChange, onBrowserPageChange],
   );
 
-  // Undo history belongs to one page; switching pages starts it afresh.
-  const resetHistory = useCallback((html) => {
-    setHistory([html || ""]);
-    setHistoryIndex(0);
+  // ---------------------------------------------------------------
+  // Undo / redo, kept separately for the email and the browser page
+  // ---------------------------------------------------------------
+  const publishHistory = useCallback((pageId = currentPageIdRef.current) => {
+    const h = historiesRef.current[pageId];
+    setHistoryState({ canUndo: canUndo(h), canRedo: canRedo(h) });
   }, []);
+
+  // A page's history starts again from `html` (a page created, or replaced
+  // from outside: a scenario loaded, a draft restored).
+  const resetPageHistory = useCallback(
+    (pageId, html) => {
+      historiesRef.current[pageId] = newHistory(html);
+      if (pageId === currentPageIdRef.current) publishHistory(pageId);
+    },
+    [publishHistory],
+  );
+
+  const forgetPageHistory = useCallback((pageId) => {
+    delete historiesRef.current[pageId];
+  }, []);
+
+  // One step on a page's history (typing close together is one step).
+  const recordHistory = useCallback(
+    (pageId, html, { typing = false } = {}) => {
+      historiesRef.current[pageId] = recordStep(historiesRef.current[pageId], html, { typing });
+      if (pageId === currentPageIdRef.current) publishHistory(pageId);
+    },
+    [publishHistory],
+  );
+
+  // Showing a page: its history carries on, and a change made to it while it
+  // was not shown (e.g. its links reset when page 2 was deleted) is one step.
+  const syncPageHistory = useCallback(
+    (pageId, html) => {
+      if (!historiesRef.current[pageId]) resetPageHistory(pageId, html);
+      else recordHistory(pageId, html);
+      publishHistory(pageId);
+    },
+    [publishHistory, recordHistory, resetPageHistory],
+  );
 
   const emitChange = useCallback(
     (html) => {
       const updatedHtml = html || "";
+      const pageId = currentPageIdRef.current;
       internalHtmlRef.current = updatedHtml;
       emitToParent(updatedHtml);
 
-      if (!isHistoryActionRef.current) {
-        setHistory((prev) => {
-          const upToCurrent = prev.slice(0, historyIndex + 1);
-          if (upToCurrent[upToCurrent.length - 1] === updatedHtml) return prev;
-          const nextStack = [...upToCurrent, updatedHtml];
-          if (nextStack.length > 5) nextStack.shift();
-          return nextStack;
-        });
-        setHistoryIndex((prev) => Math.min(prev + 1, 4));
-      }
+      const typing = typingRef.current;
+      typingRef.current = false;
+      recordHistory(pageId, updatedHtml, { typing });
 
       setPages((prev) =>
-        prev.map((p) =>
-          p.id === currentPageIdRef.current ? { ...p, html: updatedHtml } : p
-        )
+        prev.map((p) => (p.id === pageId ? { ...p, html: updatedHtml } : p))
       );
       pagesRef.current = pagesRef.current.map((p) =>
-        p.id === currentPageIdRef.current ? { ...p, html: updatedHtml } : p
+        p.id === pageId ? { ...p, html: updatedHtml } : p
       );
     },
-    [emitToParent, historyIndex],
+    [emitToParent, recordHistory],
+  );
+
+  // Put a step back on the page being edited, without recording it again.
+  const restoreHistoryStep = useCallback(
+    (step) => {
+      const pageId = currentPageIdRef.current;
+      const moved = moveTo(historiesRef.current[pageId], step);
+      if (!moved) return false;
+      historiesRef.current[pageId] = moved;
+      const restored = moved.stack[step];
+      internalHtmlRef.current = restored;
+      if (editorRef.current) editorRef.current.innerHTML = restored;
+      setRawHtmlCode(restored);
+      emitToParent(restored);
+      pagesRef.current = pagesRef.current.map((p) =>
+        p.id === pageId ? { ...p, html: restored } : p
+      );
+      setPages(pagesRef.current);
+      setActiveElement(null);
+      publishHistory(pageId);
+      return true;
+    },
+    [emitToParent, publishHistory],
   );
 
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      isHistoryActionRef.current = true;
-      const newIndex = historyIndex - 1;
-      const restored = history[newIndex];
-      setHistoryIndex(newIndex);
-      internalHtmlRef.current = restored;
-      if (editorRef.current) editorRef.current.innerHTML = restored;
-      setRawHtmlCode(restored);
-      emitToParent(restored);
-      setActiveElement(null);
-      setTimeout(() => {
-        isHistoryActionRef.current = false;
-      }, 50);
-      showToast("Undo", "info");
+    const h = historiesRef.current[currentPageIdRef.current];
+    if (h && restoreHistoryStep(h.index - 1)) {
+      showToast(`Undo (${PAGE_LABELS[currentPageIdRef.current]})`, "info");
     }
-  }, [history, historyIndex, emitToParent, showToast]);
+  }, [restoreHistoryStep, showToast]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      isHistoryActionRef.current = true;
-      const newIndex = historyIndex + 1;
-      const restored = history[newIndex];
-      setHistoryIndex(newIndex);
-      internalHtmlRef.current = restored;
-      if (editorRef.current) editorRef.current.innerHTML = restored;
-      setRawHtmlCode(restored);
-      emitToParent(restored);
-      setActiveElement(null);
-      setTimeout(() => {
-        isHistoryActionRef.current = false;
-      }, 50);
-      showToast("Redo", "info");
+    const h = historiesRef.current[currentPageIdRef.current];
+    if (h && restoreHistoryStep(h.index + 1)) {
+      showToast(`Redo (${PAGE_LABELS[currentPageIdRef.current]})`, "info");
     }
-  }, [history, historyIndex, emitToParent, showToast]);
+  }, [restoreHistoryStep, showToast]);
 
   const hasBrowserPage = pages.some((p) => p.id === BROWSER_PAGE_ID);
+
+  // The browser page's lowest content, against its safe-zone line. In
+  // layout pixels (offsets), so the page zoom and full screen do not matter.
+  const checkSafeZone = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor || currentPageIdRef.current !== BROWSER_PAGE_ID) return;
+    const limit = BROWSER_SAFE_ZONE_PX;
+    let bottom = 0;
+    for (const el of editor.children) {
+      bottom = Math.max(bottom, el.offsetTop - editor.offsetTop + el.offsetHeight);
+    }
+    const over = bottom > limit + 4;
+    setSafeZoneOverflow((prev) => (prev === over ? prev : over));
+  }, []);
+
+  // After every change, page switch, mode change or window resize.
+  useEffect(() => {
+    const frame = requestAnimationFrame(checkSafeZone);
+    return () => cancelAnimationFrame(frame);
+  }, [pages, currentPageId, rawHtmlMode, isExpanded, checkSafeZone]);
+  useEffect(() => {
+    window.addEventListener("resize", checkSafeZone);
+    return () => window.removeEventListener("resize", checkSafeZone);
+  }, [checkSafeZone]);
+  // Only an editor given somewhere to save page 2 (the scenario wizard) offers
+  // it; elsewhere (announcements) it is a plain one-page email editor.
+  const supportsBrowserPage = typeof onBrowserPageChange === "function";
 
   // The page being edited, as it stands now (the canvas or the HTML source).
   const currentPageHtml = () =>
@@ -913,7 +994,7 @@ const EmailBodyRichTextEditor = ({
       editorRef.current.innerHTML = html;
     }
     setRawHtmlCode(html);
-    resetHistory(html);
+    syncPageHistory(pageId, html);
     setActiveElement(null);
     setShowPagesMenu(false);
   };
@@ -956,6 +1037,7 @@ const EmailBodyRichTextEditor = ({
     const cleaned = dropBrowserLinks(emailHtml);
 
     storePages([{ ...emailPage, html: cleaned }]);
+    forgetPageHistory(BROWSER_PAGE_ID);
     onBrowserPageChange?.("");
     onChange?.(cleaned);
     showPage(EMAIL_PAGE_ID, cleaned);
@@ -980,6 +1062,7 @@ const EmailBodyRichTextEditor = ({
       ...emailPages,
       { id: BROWSER_PAGE_ID, name: PAGE_LABELS[BROWSER_PAGE_ID], html },
     ]);
+    resetPageHistory(BROWSER_PAGE_ID, html);
     showPage(BROWSER_PAGE_ID, html);
     onBrowserPageChange?.(html);
     showToast("Browser page created. Any button or link on it marks the employee compromised.", "success");
@@ -989,19 +1072,26 @@ const EmailBodyRichTextEditor = ({
     const handleKeyDown = (e) => {
       // Escape closes the topmost layer: a dialog, then the full-screen editor.
       if (e.key === "Escape") {
+        if (emailPreview.open) return; // the preview closes itself
         if (showBrowserPreview) setShowBrowserPreview(false);
         else if (actionConfigModal.open) setActionConfigModal(CLOSED_ACTION_MODAL);
         else if (showNewPageModal) setShowNewPageModal(false);
         else if (isExpanded) setIsExpanded(false);
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+      // Undo / redo is the editor's only while the editor has focus (or an
+      // element on it is selected): Ctrl+Z in the subject field, or in the
+      // HTML source, keeps its own meaning.
+      const inEditor =
+        workspaceRef.current?.contains(document.activeElement) ||
+        (activeElement?.element && document.activeElement === document.body);
+      if (!rawHtmlMode && inEditor && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) handleRedo();
         else handleUndo();
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+      if (!rawHtmlMode && inEditor && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
         e.preventDefault();
         handleRedo();
         return;
@@ -1048,7 +1138,7 @@ const EmailBodyRichTextEditor = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeElement, handleUndo, handleRedo, showBrowserPreview, actionConfigModal.open, showNewPageModal, isExpanded]);
+  }, [activeElement, rawHtmlMode, handleUndo, handleRedo, showBrowserPreview, emailPreview.open, actionConfigModal.open, showNewPageModal, isExpanded]);
 
   // The full-screen editor keeps the page behind it from scrolling.
   useEffect(() => {
@@ -1238,6 +1328,8 @@ const EmailBodyRichTextEditor = ({
       p.id === EMAIL_PAGE_ID ? { ...p, html: finalVal } : p
     );
     setPages(pagesRef.current);
+    // Loaded from outside: undo starts here, never back to what was there before.
+    resetPageHistory(EMAIL_PAGE_ID, finalVal);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, rawHtmlMode]);
 
@@ -1251,6 +1343,7 @@ const EmailBodyRichTextEditor = ({
     if (isBlankHtml(incoming)) {
       pagesRef.current = pagesRef.current.filter((p) => p.id !== BROWSER_PAGE_ID);
       setPages(pagesRef.current);
+      forgetPageHistory(BROWSER_PAGE_ID);
       if (onBrowser) {
         const email = pagesRef.current.find((p) => p.id === EMAIL_PAGE_ID)?.html || "";
         currentPageIdRef.current = EMAIL_PAGE_ID;
@@ -1258,6 +1351,7 @@ const EmailBodyRichTextEditor = ({
         internalHtmlRef.current = email;
         if (editorRef.current && !rawHtmlMode) editorRef.current.innerHTML = email;
         setRawHtmlCode(email);
+        publishHistory(EMAIL_PAGE_ID);
       }
       return;
     }
@@ -1266,6 +1360,7 @@ const EmailBodyRichTextEditor = ({
       ? pagesRef.current.map((p) => (p.id === BROWSER_PAGE_ID ? { ...p, html: incoming } : p))
       : [...pagesRef.current, { id: BROWSER_PAGE_ID, name: PAGE_LABELS[BROWSER_PAGE_ID], html: incoming }];
     setPages(pagesRef.current);
+    resetPageHistory(BROWSER_PAGE_ID, incoming);
     if (onBrowser && incoming !== internalHtmlRef.current) {
       internalHtmlRef.current = incoming;
       if (editorRef.current && !rawHtmlMode) editorRef.current.innerHTML = incoming;
@@ -1427,6 +1522,7 @@ const EmailBodyRichTextEditor = ({
   };
 
   const handleEditorInput = () => {
+    typingRef.current = true;
     synchroniseEditorValue();
   };
 
@@ -1480,6 +1576,7 @@ const EmailBodyRichTextEditor = ({
 
   const handleRawHtmlCode = (updatedHtml) => {
     setRawHtmlCode(updatedHtml);
+    typingRef.current = true;
     emitChange(updatedHtml);
   };
 
@@ -1493,16 +1590,6 @@ const EmailBodyRichTextEditor = ({
       internalHtmlRef.current = rawHtmlCode;
     }
     setIsExpanded((previousValue) => !previousValue);
-  };
-
-  const insertLink = () => {
-    const url = prompt(
-      "Enter Destination URL (e.g., {{phishLink}} for the tracked landing page):",
-      "{{phishLink}}",
-    );
-    if (url) {
-      runCommand("createLink", url);
-    }
   };
 
   const insertFxPlaceholder = (param) => {
@@ -2126,7 +2213,11 @@ const EmailBodyRichTextEditor = ({
     const targetEl = actionConfigModal.element || activeElement?.element;
     if (!targetEl) return;
     const onBrowser = currentPageIdRef.current === BROWSER_PAGE_ID;
-    const action = onBrowser ? "training" : actionConfigModal.actionType;
+    const action = onBrowser
+      ? "training"
+      : actionConfigModal.actionType === "page" && !supportsBrowserPage
+        ? "landing"
+        : actionConfigModal.actionType;
     const url =
       action === "training" ? COMPROMISE_LINK : action === "page" ? BROWSER_PAGE_LINK : PHISH_LINK;
 
@@ -2165,7 +2256,7 @@ const EmailBodyRichTextEditor = ({
     !editorRef.current?.querySelector(".vshield-canvas-item");
 
   const subtleToolbarBtnClass = `
-    flex h-6 px-1.5 items-center gap-1 justify-center rounded border
+    flex h-6 px-1 items-center gap-0.5 justify-center rounded border
     border-white/10 dark:border-black/10 bg-[#181A20] dark:bg-white
     text-slate-300 dark:text-slate-800 hover:bg-white/10 dark:hover:bg-slate-100
     hover:text-white dark:hover:text-black transition-colors cursor-pointer text-[8.5px] font-bold shadow-xs flex-shrink-0
@@ -2177,31 +2268,31 @@ const EmailBodyRichTextEditor = ({
     <>
       <button
         type="button"
-        disabled={disabled || rawHtmlMode || historyIndex <= 0}
+        disabled={disabled || rawHtmlMode || !historyState.canUndo}
         onClick={handleUndo}
         className="p-1 rounded hover:bg-white/10 cursor-pointer text-slate-300 dark:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
-        title="Undo (Ctrl+Z)"
+        title={`Undo on the ${PAGE_LABELS[currentPageId].toLowerCase()} (Ctrl+Z)`}
       >
         <RotateCcw className="h-3 w-3" />
       </button>
       <button
         type="button"
-        disabled={disabled || rawHtmlMode || historyIndex >= history.length - 1}
+        disabled={disabled || rawHtmlMode || !historyState.canRedo}
         onClick={handleRedo}
         className="p-1 rounded hover:bg-white/10 cursor-pointer text-slate-300 dark:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
-        title="Redo (Ctrl+Y)"
+        title={`Redo on the ${PAGE_LABELS[currentPageId].toLowerCase()} (Ctrl+Y)`}
       >
         <RotateCw className="h-3 w-3" />
       </button>
 
-      <div className="mx-0.5 h-3.5 w-px bg-white/20 flex-shrink-0" />
+      <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
 
       <select
         defaultValue="<p>"
         disabled={disabled || rawHtmlMode}
         onMouseDown={saveSelection}
         onChange={(event) => runCommand("formatBlock", event.target.value)}
-        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[65px]"
+        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[58px]"
         title="Paragraph format"
       >
         <option value="<p>">Paragraph</option>
@@ -2216,7 +2307,7 @@ const EmailBodyRichTextEditor = ({
         disabled={disabled || rawHtmlMode}
         onMouseDown={saveSelection}
         onChange={(event) => runCommand("fontName", event.target.value)}
-        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer max-w-[74px] flex-shrink-0"
+        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer max-w-[66px] flex-shrink-0"
         title="Font family"
       >
         {FONT_OPTIONS.map((f) => (
@@ -2231,7 +2322,7 @@ const EmailBodyRichTextEditor = ({
         disabled={disabled || rawHtmlMode}
         onMouseDown={saveSelection}
         onChange={(event) => runCommand("fontSize", event.target.value)}
-        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[42px]"
+        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[38px]"
         title="Font size"
       >
         {FONT_SIZES.map((s, idx) => (
@@ -2292,7 +2383,7 @@ const EmailBodyRichTextEditor = ({
         <RemoveFormatting className="h-3 w-3" />
       </button>
 
-      <div className="mx-0.5 h-3.5 w-px bg-white/20 flex-shrink-0" />
+      <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
 
       <button
         type="button"
@@ -2325,7 +2416,7 @@ const EmailBodyRichTextEditor = ({
         <AlignRight className="h-3 w-3" />
       </button>
 
-      <div className="mx-0.5 h-3.5 w-px bg-white/20 flex-shrink-0" />
+      <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
 
       {/* Insert Text */}
       <button
@@ -2549,7 +2640,7 @@ const EmailBodyRichTextEditor = ({
             setShowButtonMenu(false);
             setShowElementsMenu(false);
           }}
-          className="flex h-6 px-1.5 items-center justify-center rounded border border-white/10 dark:border-black/10 bg-[#181A20] dark:bg-white text-slate-300 dark:text-slate-700 hover:bg-white/10 dark:hover:bg-slate-100 cursor-pointer"
+          className="flex h-6 px-1 items-center justify-center rounded border border-white/10 dark:border-black/10 bg-[#181A20] dark:bg-white text-slate-300 dark:text-slate-700 hover:bg-white/10 dark:hover:bg-slate-100 cursor-pointer"
           title="Change Canvas Background Color"
         >
           <span className="text-[8.5px] font-bold border border-current px-0.5 rounded leading-none">BG</span>
@@ -2607,7 +2698,7 @@ const EmailBodyRichTextEditor = ({
         type="button"
         disabled={disabled || rawHtmlMode}
         onClick={handleClearAllCanvas}
-        className="flex h-6 px-1.5 items-center gap-1 justify-center rounded border border-white/10 dark:border-black/10 bg-[#181A20] dark:bg-white text-slate-300 dark:text-slate-800 hover:bg-red-500/10 hover:text-red-400 dark:hover:bg-red-50 dark:hover:text-red-600 hover:border-red-500/20 transition-colors cursor-pointer text-[8.5px] font-bold shadow-xs flex-shrink-0"
+        className="flex h-6 px-1 items-center gap-0.5 justify-center rounded border border-white/10 dark:border-black/10 bg-[#181A20] dark:bg-white text-slate-300 dark:text-slate-800 hover:bg-red-500/10 hover:text-red-400 dark:hover:bg-red-50 dark:hover:text-red-600 hover:border-red-500/20 transition-colors cursor-pointer text-[8.5px] font-bold shadow-xs flex-shrink-0"
         title="Erase Current Active Page"
       >
         <Eraser className="h-3 w-3 text-slate-400 dark:text-slate-600" />
@@ -2632,17 +2723,6 @@ const EmailBodyRichTextEditor = ({
         <ImageIcon className="h-3 w-3" />
       </button>
 
-      <button
-        type="button"
-        disabled={disabled || rawHtmlMode}
-        onMouseDown={handleToolbarMouseDown}
-        onClick={insertLink}
-        className="h-6 w-6 flex items-center justify-center rounded text-emerald-400 hover:bg-white/10 flex-shrink-0 cursor-pointer"
-        title="Insert link"
-      >
-        <LinkIcon className="h-3 w-3" />
-      </button>
-
       {/* Dynamic Placeholder */}
       <div ref={fxRef} className="relative flex-shrink-0">
         <button
@@ -2653,7 +2733,7 @@ const EmailBodyRichTextEditor = ({
             saveSelection();
           }}
           onClick={() => setShowFxMenu((prev) => !prev)}
-          className="flex h-6 items-center gap-0.5 rounded-xl bg-white px-1.5 text-[8.5px] font-bold text-black shadow-xs cursor-pointer"
+          className="flex h-6 items-center gap-0.5 rounded-xl bg-white px-1 text-[8.5px] font-bold text-black shadow-xs cursor-pointer flex-shrink-0"
           title="Insert Dynamic Placeholder"
         >
           <span>fx</span>
@@ -2687,6 +2767,35 @@ const EmailBodyRichTextEditor = ({
     </>
   );
 
+  // Preview a page as the employee meets it: the email in a mail client
+  // (inbox reading pane or its own window), the browser page full screen.
+  const openPreview = (pageId = currentPageIdRef.current) => {
+    const html =
+      pageId === currentPageIdRef.current
+        ? currentPageHtml()
+        : pagesRef.current.find((p) => p.id === pageId)?.html || "";
+    storePages(pagesRef.current.map((p) => (p.id === pageId ? { ...p, html } : p)));
+    setShowPagesMenu(false);
+    if (pageId === BROWSER_PAGE_ID) setShowBrowserPreview(true);
+    else setEmailPreview({ open: true, html });
+  };
+
+  const renderPreviewButton = () => (
+    <button
+      type="button"
+      onClick={() => openPreview()}
+      className={subtleToolbarBtnClass}
+      title={
+        currentPageId === BROWSER_PAGE_ID
+          ? "Preview the browser page full screen"
+          : "Preview the email as the employee sees it in their inbox"
+      }
+    >
+      <Eye className="h-3 w-3 text-slate-400 dark:text-slate-600" />
+      <span>Preview</span>
+    </button>
+  );
+
   // The simulation's pages: 1 the email, 2 the optional browser page.
   const renderPagesMenu = () => {
     const current = pages.find((p) => p.id === currentPageId);
@@ -2695,14 +2804,14 @@ const EmailBodyRichTextEditor = ({
         <button
           type="button"
           onClick={() => setShowPagesMenu((prev) => !prev)}
-          className={`flex h-6 items-center gap-1 rounded border px-2 text-[8.5px] font-bold transition-colors cursor-pointer shadow-xs ${
+          className={`flex h-6 items-center gap-0.5 rounded border px-1 text-[8.5px] font-bold transition-colors cursor-pointer shadow-xs flex-shrink-0 ${
             currentPageId === BROWSER_PAGE_ID
               ? "border-amber-400/40 bg-amber-500/30 text-amber-200 hover:bg-amber-500 hover:text-white"
               : "border-indigo-400/30 bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600 hover:text-white"
           }`}
           title="Simulation pages: the email, and an optional browser page it opens"
         >
-          {currentPageId === BROWSER_PAGE_ID ? <Globe className="h-2.5 w-2.5" /> : <FileText className="h-2.5 w-2.5" />}
+          {currentPageId === BROWSER_PAGE_ID ? <Globe className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
           <span>
             {current?.name || PAGE_LABELS[currentPageId]} ({currentPageId}/{pages.length})
           </span>
@@ -2733,23 +2842,16 @@ const EmailBodyRichTextEditor = ({
                 </span>
                 <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                   {p.id === currentPageId && <Check className="w-3 h-3 text-white" />}
+                  <button
+                    type="button"
+                    onClick={() => openPreview(p.id)}
+                    className="p-1 hover:bg-white/15 text-slate-300 hover:text-white rounded cursor-pointer"
+                    title={p.id === BROWSER_PAGE_ID ? "Preview the browser page full screen" : "Preview the email in an inbox"}
+                  >
+                    <Eye className="w-2.5 h-2.5" />
+                  </button>
                   {p.id === BROWSER_PAGE_ID && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (currentPageIdRef.current === BROWSER_PAGE_ID) {
-                            const html = currentPageHtml();
-                            storePages(pagesRef.current.map((q) => (q.id === BROWSER_PAGE_ID ? { ...q, html } : q)));
-                          }
-                          setShowPagesMenu(false);
-                          setShowBrowserPreview(true);
-                        }}
-                        className="p-1 hover:bg-white/15 text-slate-300 hover:text-white rounded cursor-pointer"
-                        title="Preview the browser page full screen"
-                      >
-                        <Eye className="w-2.5 h-2.5" />
-                      </button>
                       <button
                         type="button"
                         onClick={deleteBrowserPage}
@@ -2783,76 +2885,41 @@ const EmailBodyRichTextEditor = ({
     );
   };
 
-  // Compact Toolbar (with rounded-t-2xl matching outer container exactly)
-  const renderCompactToolbar = () => (
-    <div className="w-full h-8.5 px-2 flex items-center justify-between text-white select-none bg-[#202127] dark:bg-white border-b border-white/10 dark:border-black/10 rounded-t-2xl relative z-30 flex-nowrap overflow-visible">
-      <div className="flex items-center gap-1 text-xs flex-nowrap overflow-visible pr-1">
+  // The ribbon, the same in the editor and full screen. Its tools wrap onto
+  // a second row when the width runs out, so nothing is cut off or slides
+  // under the page controls on the right, and nothing needs scrolling. Rows
+  // align to the top, so the controls on the right stay level with row one.
+  const renderToolbar = () => (
+    <div className="relative z-30 flex w-full min-h-[34px] flex-shrink-0 flex-wrap items-start gap-x-1 gap-y-1 rounded-t-2xl border-b border-white/10 dark:border-black/10 bg-[#202127] dark:bg-white px-1.5 py-1 text-white select-none">
+      {/* Each row of tools is one button high (h-6); the page controls on
+          the right sit on the first row, level with the tools beside them. */}
+      <div className="flex min-w-0 flex-1 flex-wrap content-start items-center gap-[3px]">
         {renderSharedTools()}
       </div>
 
-      <div className="ml-auto flex flex-shrink-0 items-center gap-1.5">
-        {renderPagesMenu()}
+      <div className="ml-auto flex h-6 flex-shrink-0 items-center gap-[3px] self-start">
+        {supportsBrowserPage && renderPagesMenu()}
+        {renderPreviewButton()}
 
         <button
           type="button"
           disabled={disabled}
           onClick={handleToggleCodeMode}
-          className={`flex h-6 items-center gap-0.5 rounded border px-1.5 text-[8.5px] font-bold transition-colors cursor-pointer ${
+          className={
             rawHtmlMode
-              ? "border-red-600 bg-red-600 text-white"
-              : "border-white/20 bg-[#181A20] text-white hover:bg-white/15"
-          }`}
+              ? "flex h-6 px-1 items-center gap-0.5 justify-center rounded border border-red-600 bg-red-600 text-white text-[8.5px] font-bold shadow-xs flex-shrink-0 cursor-pointer select-none"
+              : subtleToolbarBtnClass
+          }
           title="Toggle HTML source code"
         >
-          <Code className="h-2.5 w-2.5" />
-          {rawHtmlMode ? "Visual" : "HTML"}
+          <Code className={`h-3 w-3 ${rawHtmlMode ? "" : "text-slate-400 dark:text-slate-600"}`} />
+          <span>{rawHtmlMode ? "Visual" : "HTML"}</span>
         </button>
 
         <button
           type="button"
           onClick={handleToggleExpand}
-          className="h-6 w-6 flex items-center justify-center rounded text-slate-200 hover:bg-white/15 cursor-pointer"
-          title={isExpanded ? "Minimize editor" : "Expand editor"}
-        >
-          {isExpanded ? (
-            <Minimize2 className="h-3 w-3" />
-          ) : (
-            <Maximize2 className="h-3 w-3" />
-          )}
-        </button>
-      </div>
-    </div>
-  );
-
-  // Full Toolbar (with rounded-t-2xl matching outer container exactly)
-  const renderFullToolbar = () => (
-    <div className="flex w-full h-8.5 flex-shrink-0 flex-nowrap items-center justify-between border-b border-white/10 dark:border-black/10 bg-[#202127] dark:bg-white px-2 text-white rounded-t-2xl relative z-30 overflow-visible select-none">
-      <div className="flex items-center gap-1 flex-nowrap overflow-visible pr-1">
-        {renderSharedTools()}
-      </div>
-
-      <div className="ml-auto flex flex-shrink-0 items-center gap-1.5">
-        {renderPagesMenu()}
-
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={handleToggleCodeMode}
-          className={`flex h-6 items-center gap-0.5 rounded border px-1.5 text-[8.5px] font-bold transition-colors cursor-pointer ${
-            rawHtmlMode
-              ? "border-red-600 bg-red-600 text-white"
-              : "border-white/20 bg-[#181A20] text-white hover:bg-white/15"
-          }`}
-          title="Toggle HTML source code"
-        >
-          <Code className="h-2.5 w-2.5" />
-          {rawHtmlMode ? "Visual" : "HTML"}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleToggleExpand}
-          className="h-6 w-6 flex items-center justify-center rounded text-slate-200 hover:bg-white/15 cursor-pointer"
+          className="p-1 rounded hover:bg-white/10 cursor-pointer text-slate-300 dark:text-slate-800 flex-shrink-0"
           title={isExpanded ? "Minimize editor" : "Expand editor"}
         >
           {isExpanded ? (
@@ -2866,7 +2933,7 @@ const EmailBodyRichTextEditor = ({
           <button
             type="button"
             onClick={() => setIsExpanded(false)}
-            className="h-6 w-6 flex items-center justify-center rounded text-slate-200 hover:bg-white/15 cursor-pointer"
+            className="p-1 rounded hover:bg-white/10 cursor-pointer text-slate-300 dark:text-slate-800 flex-shrink-0"
             title="Close full-screen editor"
           >
             <X className="h-3 w-3" />
@@ -3382,6 +3449,7 @@ const EmailBodyRichTextEditor = ({
                 </div>
               </label>
 
+              {supportsBrowserPage && (
               <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/10 hover:bg-white/5">
                 <input
                   type="radio"
@@ -3399,6 +3467,7 @@ const EmailBodyRichTextEditor = ({
                   </span>
                 </div>
               </label>
+              )}
             </div>
           )}
 
@@ -3537,41 +3606,26 @@ const EmailBodyRichTextEditor = ({
   const renderBrowserPreview = () => {
     if (!showBrowserPreview || typeof document === "undefined") return null;
     const html = pagesRef.current.find((p) => p.id === BROWSER_PAGE_ID)?.html || "";
-    const doc =
-      '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>html,body{margin:0;padding:0;}' +
-      "body{min-height:100vh;font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6;}" +
-      ".vshield-canvas-item{cursor:default!important;}</style></head><body>" +
-      html +
-      "</body></html>";
+    const doc = previewDocument(html, { background: "#f3f4f6", padding: "0" });
 
     return createPortal(
-      <div className="fixed inset-0 z-[2147483647] flex flex-col bg-[#0F1014]">
-        <div className="flex items-center gap-2 px-3 py-2 bg-[#202127] border-b border-white/10 text-white">
-          <span className="flex gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-          </span>
-          <span className="flex-1 mx-2 flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 text-[10px] text-slate-300 font-mono truncate">
-            <Globe className="w-3 h-3 flex-shrink-0" />
-            Browser page preview: served from the tracking link, buttons mark the employee compromised
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowBrowserPreview(false)}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold text-slate-200 hover:bg-white/10 cursor-pointer"
-            title="Close preview (Esc)"
-          >
-            <X className="w-3.5 h-3.5" />
-            Close
-          </button>
-        </div>
+      <div className="fixed inset-0 z-[2147483647] bg-white">
         <iframe
           title="Browser page preview"
           sandbox=""
           srcDoc={doc}
-          className="flex-1 w-full border-0 bg-white"
+          className="block h-full w-full border-0 bg-white"
         />
+        {/* The page fills the screen; only a small close control floats over it. */}
+        <button
+          type="button"
+          onClick={() => setShowBrowserPreview(false)}
+          className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/70 px-3 py-1.5 text-[11px] font-bold text-white shadow-lg backdrop-blur-sm hover:bg-black/85 cursor-pointer"
+          title="Close preview (Esc)"
+        >
+          <X className="h-3.5 w-3.5" />
+          Close
+        </button>
       </div>,
       document.body,
     );
@@ -3579,8 +3633,6 @@ const EmailBodyRichTextEditor = ({
 
   // Workspace Renderer (Ensuring seamless rounded outer edges in both compact & full views)
   const renderEditorWorkspace = (expanded = false) => {
-    const isCompactMode = compact;
-
     return (
       <div
         style={{ borderWidth: `${VarEditorOuterFrameThickness}px` }}
@@ -3590,7 +3642,7 @@ const EmailBodyRichTextEditor = ({
           ${expanded ? "h-[calc(100vh-80px)]" : "h-[220px]"}
         `}
       >
-        {isCompactMode ? renderCompactToolbar() : renderFullToolbar()}
+        {renderToolbar()}
 
         <div
           ref={workspaceRef}
@@ -3667,6 +3719,39 @@ const EmailBodyRichTextEditor = ({
                     ${disabled ? "cursor-not-allowed bg-slate-100 opacity-70" : "cursor-text"}
                   `}
                 />
+
+                {/* Browser safe-zone guide: where the employee has to start scrolling (never saved) */}
+                {currentPageId === BROWSER_PAGE_ID && (
+                <div
+                  data-floating-control="true"
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: `${BROWSER_SAFE_ZONE_PX}px`,
+                    left: 0,
+                    right: 0,
+                    pointerEvents: "none",
+                    zIndex: 5,
+                  }}
+                  className="flex items-center select-none"
+                >
+                  <div
+                    className={`w-full border-t-2 border-dashed ${
+                      safeZoneOverflow ? "border-amber-500/90" : "border-emerald-500/80"
+                    }`}
+                  />
+                  <span
+                    className={`absolute right-3 -top-2.5 whitespace-nowrap rounded px-2 py-0.5 font-mono-tech text-[8.5px] font-bold uppercase tracking-wider text-white shadow-xs ${
+                      safeZoneOverflow ? "bg-amber-500" : "bg-emerald-600/95"
+                    }`}
+                  >
+                    {safeZoneOverflow
+                      ? "Browser safe zone: content below needs scrolling"
+                      : "Browser safe zone"}{" "}
+                    ({BROWSER_SAFE_ZONE_PX}px)
+                  </span>
+                </div>
+                )}
               </>
             )}
           </div>
@@ -3743,6 +3828,16 @@ const EmailBodyRichTextEditor = ({
       {renderActionModal()}
       {renderNewPageTemplateModal()}
       {renderBrowserPreview()}
+      {emailPreview.open && (
+      <EmailPreviewModal
+        open
+        onClose={() => setEmailPreview({ open: false, html: "" })}
+        html={emailPreview.html}
+        senderName={previewMeta.senderName}
+        senderEmail={previewMeta.senderEmail}
+        subject={previewMeta.subject}
+      />
+      )}
 
       {toast && (
         <Toast

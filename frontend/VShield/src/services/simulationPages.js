@@ -91,3 +91,57 @@ export function simulationProblem({ emailBody, browserPageHtml } = {}) {
   }
   return '';
 }
+
+// Sample values a preview fills in, so it reads as the recipient would see it.
+export const PREVIEW_RECIPIENT = {
+  name: 'Alex Morgan',
+  email: 'alex.morgan@example.com',
+  department: 'Finance',
+  country: 'United Kingdom',
+  manager: 'Jordan Lee',
+  employeeId: 'EMP-10432',
+};
+export const PREVIEW_TRACKING_URL = 'https://track.example.com/t/preview';
+
+const PREVIEW_FIELDS = [
+  [['{{userName}}', '{{USER_NAME}}', '{{UserName}}', '@UserName', '@userName'], 'name'],
+  [['{{email}}', '{{userEmail}}', '@UserEmailID'], 'email'],
+  [['{{department}}', '@UserDepartment'], 'department'],
+  [['{{country}}', '@UserCountry'], 'country'],
+  [['{{managerName}}', '@ManagerName'], 'manager'],
+  [['{{employeeId}}', '@EmployeeID'], 'employeeId'],
+];
+
+const escapeHtml = (text) =>
+  String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * An email or page as the recipient sees it: placeholders filled with sample
+ * values and the editor's own marks (editable text, move cursors) taken out.
+ * Links point at a sample tracking address, so hovering one shows where it goes.
+ */
+export function previewHtml(html, { recipient = PREVIEW_RECIPIENT, date = new Date() } = {}) {
+  let out = String(html || '');
+  for (const [placeholders, field] of PREVIEW_FIELDS) {
+    const value = escapeHtml(recipient[field] ?? '');
+    for (const placeholder of placeholders) out = out.split(placeholder).join(value);
+  }
+  const today = escapeHtml(date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
+  out = out.split('{{currentDate}}').join(today).split('@CurrentDate').join(today);
+  return out
+    .replace(/\{\{\s*(?:phishLink|PHISH_LINK|phishingLink|trackingUrl|TRACKING_URL)\s*\}\}/g, PREVIEW_TRACKING_URL)
+    .replace(/\{\{\s*compromiseLink\s*\}\}/g, '#')
+    .replace(/\s+contenteditable\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/cursor\s*:\s*move/gi, 'cursor:default');
+}
+
+/** A whole document around a preview, for a sandboxed frame. */
+export function previewDocument(html, { background = '#ffffff', padding = '16px' } = {}) {
+  return (
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<style>html,body{margin:0;}body{padding:' + padding + ';background:' + background + ';' +
+    "font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:14px;color:#242424;}" +
+    'img{max-width:100%;}.vshield-canvas-item{cursor:default!important;}a{cursor:pointer;}</style>' +
+    '</head><body>' + previewHtml(html) + '</body></html>'
+  );
+}
