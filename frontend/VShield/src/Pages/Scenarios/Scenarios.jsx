@@ -1759,7 +1759,7 @@ const Scenarios = () => {
             : "You have a scenario in progress. Pick up where you left off, or start a new one. Your saved scenario stays under Scenarios → Drafts either way."
         }${
           inProgressInfo?.needsCoverReattach
-            ? " Its uploaded cover image could not be kept and will need to be attached again."
+            ? " Its uploaded cover image could not be kept, so choose a cover from the catalogue again."
             : ""
         }`}
         detail={
