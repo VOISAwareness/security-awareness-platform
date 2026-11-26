@@ -11,9 +11,9 @@ an APPROVED roll-out's start has come. It:
    to a list; otherwise the members of its recipient list (user-list-members
    by selectedListId), or its one chosen person;
 3. for each person, stores a row in recipients (campaignId = the roll-out's
-   id, a random tracking token for the acknowledgement link that comes in a
-   later change), sends the email through SES, and marks the row SENT or
-   FAILED with the SES error code;
+   id, a random token for its "I've read this" button, which opens
+   GET /ack/{token} on the tracking Lambda), sends the email through SES, and
+   marks the row SENT or FAILED with the SES error code;
 4. ends the roll-out SENT (something went out) or FAILED (nothing did).
 
 Safety:
@@ -58,6 +58,9 @@ ALLOWED_DOMAINS = frozenset(
 )
 # SES's sending rate: 1 a second in the sandbox; raise it with production access.
 MAX_PER_SECOND = max(1.0, float(os.environ.get("ANNOUNCEMENT_MAX_PER_SECOND", "1")))
+# The API's public address: each email's "I've read this" button opens
+# {API_BASE_URL}/ack/{token} (the tracking Lambda). Blank: no button.
+API_BASE_URL = os.environ.get("API_BASE_URL", "").strip().rstrip("/")
 CHECK_EVERY = 25  # people between looks at the roll-out (a cancel stops the send)
 RESUME_MARGIN_MS = 30_000  # carry on in a new run when less than this is left
 MAX_REASON = 300
@@ -192,6 +195,28 @@ def render(text, name):
     return str(text or "").replace(USER_NAME, name)
 
 
+ACK_BUTTON = (
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px"><tr>'
+    '<td style="border-radius:8px;background:#e60000">'
+    '<a href="{url}" style="display:inline-block;padding:12px 22px;font-family:Arial,Helvetica,sans-serif;'
+    'font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">'
+    "I&#8217;ve read this</a></td></tr></table>"
+)
+
+
+def ack_url(token):
+    return f"{API_BASE_URL}/ack/{token}" if API_BASE_URL.startswith("https://") else ""
+
+
+def with_ack_button(html, url):
+    """The body with its "I've read this" button at the end (inside </body> when there is one)."""
+    if not url:
+        return html
+    button = ACK_BUTTON.format(url=url)
+    at = html.lower().rfind("</body>")
+    return html[:at] + button + html[at:] if at >= 0 else html + button
+
+
 def plain_text(html):
     """A readable text part from the HTML body."""
     text = re.sub(r"(?is)<(script|style).*?</\1>", "", html)
@@ -232,7 +257,10 @@ def send_one(rollout, person, source):
 
     if not allowed(person["email"]):
         return fail("NotAllowedDomain")
-    html = render(rollout.get("announcementEmailBody"), person["name"])
+    url = ack_url(token)
+    body = render(rollout.get("announcementEmailBody"), person["name"])
+    html = with_ack_button(body, url)
+    text = plain_text(body) + (f"\n\nI've read this: {url}" if url else "")
     subject = render(rollout.get("announcementEmailSubject") or rollout.get("announcementCampaignTitle"), person["name"])
     try:
         response = ses_client.send_email(
@@ -241,7 +269,7 @@ def send_one(rollout, person, source):
             Message={
                 "Subject": {"Data": subject[:998], "Charset": "UTF-8"},
                 "Body": {"Html": {"Data": html, "Charset": "UTF-8"},
-                         "Text": {"Data": plain_text(html), "Charset": "UTF-8"}},
+                         "Text": {"Data": text, "Charset": "UTF-8"}},
             },
         )
     except ClientError as error:

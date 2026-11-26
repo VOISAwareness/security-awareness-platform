@@ -105,6 +105,9 @@ resource "aws_lambda_function" "announcement_sender" {
       ANNOUNCEMENT_TEST_RECIPIENT  = var.announcement_test_recipient
       ANNOUNCEMENT_ALLOWED_DOMAINS = var.announcement_allowed_domains
       ANNOUNCEMENT_MAX_PER_SECOND  = tostring(var.announcement_max_per_second)
+      # each email's "I've read this" button: {API_BASE_URL}/ack/{token}
+      # (tracking_ack_route.tf)
+      API_BASE_URL = aws_apigatewayv2_api.main.api_endpoint
     }
   }
 }
