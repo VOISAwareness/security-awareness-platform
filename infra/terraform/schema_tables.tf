@@ -65,6 +65,14 @@ resource "aws_dynamodb_table" "announcements" {
     range_key       = "createdAt"
     projection_type = "ALL"
   }
+
+  # Retention: reference-api stamps each roll-out with expiresAt (epoch
+  # seconds, a year after it ends) and DynamoDB deletes it after that time,
+  # within a day or two, at no cost. Templates carry no expiresAt and stay.
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
 }
 
 # stats-daily — small running totals per day, so Insights, Home and the Big

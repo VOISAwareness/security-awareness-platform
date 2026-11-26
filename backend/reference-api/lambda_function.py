@@ -2560,7 +2560,8 @@ def my_training(route, event, context):
 #   GET    /announcements?kind=TEMPLATE|ROLLOUT
 #   POST   /announcements {kind, actor, submit?: "approve"|"request", ...fields}
 #   PUT    /announcements/{id} {actor, ...fields}
-#   DELETE /announcements/{id}?actor=
+#   DELETE /announcements/{id}?actor=&role=  (its creator, an Admin or a
+#          Campaign Manager; never a roll-out that has been sent)
 #   POST   /announcements/{id}/decision {actor, decision: "approve"|"reject", comments}
 # A roll-out is APPROVED when its creator publishes it (submit "approve") or
 # PENDING_APPROVAL when sent for approval; nobody approves their own.
@@ -2575,10 +2576,45 @@ ANNOUNCEMENT_KINDS = {"TEMPLATE": "ANC", "ROLLOUT": "ANR"}
 ANNOUNCEMENT_SERVER_OWNED = frozenset({
     "announcementId", "kind", "status", "createdAt", "createdBy", "updatedAt",
     "approvedBy", "approvedAt", "rejectedBy", "rejectedAt", "decisionComments",
-    "actor", "submit", "role",
+    "actor", "submit", "role", "expiresAt",
 })
 MAX_ANNOUNCEMENT_BYTES = 380 * 1024
 MAX_ANNOUNCEMENT_NAME = 200
+# Who may delete any announcement, not only their own (client-asserted, as
+# elsewhere). Nobody deletes a roll-out that has been sent.
+ANNOUNCEMENT_DELETER_ROLES = frozenset({"Admin", "Campaign Manager"})
+# Retention: a roll-out is kept this many days after it ends (its end time,
+# else its start time, else when it was saved); then DynamoDB's TTL deletes
+# it (expiresAt, epoch seconds: schema_tables.tf). TTL works within a day or
+# two, so reads also leave out a roll-out already past it.
+ANNOUNCEMENT_RETENTION_DAYS = int(os.environ.get("ANNOUNCEMENT_RETENTION_DAYS") or 365)
+
+
+def rollout_expiry(row):
+    """When a roll-out's retention ends, in epoch seconds; None for a template."""
+    if row.get("kind") != "ROLLOUT":
+        return None
+    ended = (instant(row.get("announcementEndTime")) or instant(row.get("announcementStartTime"))
+             or instant(row.get("createdAt")))
+    return int(ended + ANNOUNCEMENT_RETENTION_DAYS * 86400) if ended else None
+
+
+def rollout_expired(row, now_s):
+    expires = row.get("expiresAt") or rollout_expiry(row)
+    return expires is not None and float(expires) <= now_s
+
+
+def rollout_sent(row, now_s):
+    """Whether a roll-out has gone out: sending or sent, or approved and past its start."""
+    if row.get("kind") != "ROLLOUT":
+        return False
+    status = row.get("status")
+    if status in ("SENDING", "SENT"):
+        return True
+    if status == "APPROVED":
+        start = instant(row.get("announcementStartTime"))
+        return start is None or start <= now_s
+    return False
 
 
 def announcement_fields(body):
@@ -2602,7 +2638,8 @@ def announcements(route, event, params, context):
 
     if route == "GET /announcements":
         kind = query.get("kind")
-        rows = scan_all("announcements")
+        now_s = time.time()
+        rows = [r for r in scan_all("announcements") if not rollout_expired(r, now_s)]
         if kind:
             rows = [r for r in rows if r.get("kind") == kind]
         rows.sort(key=lambda r: str(r.get("createdAt", "")), reverse=True)
@@ -2636,6 +2673,8 @@ def announcements(route, event, params, context):
         item = {**fields, "kind": kind, "status": status, "createdBy": actor, "createdAt": now, "updatedAt": now}
         if status == "APPROVED":
             item.update(approvedBy=actor, approvedAt=now)
+        if (expires := rollout_expiry(item)) is not None:
+            item["expiresAt"] = expires
         prefix = ANNOUNCEMENT_KINDS[kind]
         for _ in range(3):
             taken = [r for r in scan_all("announcements") if str(r.get("announcementId", "")).startswith(prefix)]
@@ -2668,14 +2707,17 @@ def announcements(route, event, params, context):
         merged = {**row, **fields, "updatedAt": now}
         if row.get("kind") == "ROLLOUT" and row.get("status") == "REJECTED":
             merged["status"] = "PENDING_APPROVAL"  # changed and sent again
+        if (expires := rollout_expiry(merged)) is not None:
+            merged["expiresAt"] = expires  # its times may have changed
         tbl.put_item(Item=to_dynamo(merged))
         return ok(merged)
 
     if route == "DELETE /announcements/{id}":
-        if parse_identity(row.get("createdBy")) != actor:
-            return err(403, "Only the person who created it can delete it")
-        if row.get("kind") == "ROLLOUT" and row.get("status") in ("APPROVED", "SENDING", "SENT"):
-            return err(409, "An approved roll-out cannot be deleted")
+        role = str(query.get("role") or body.get("role") or "")
+        if parse_identity(row.get("createdBy")) != actor and role not in ANNOUNCEMENT_DELETER_ROLES:
+            return err(403, "Only its creator, an Admin or a Campaign Manager can delete it")
+        if rollout_sent(row, time.time()):
+            return err(409, "An announcement that has been sent cannot be deleted")
         tbl.delete_item(Key={"announcementId": params["id"]})
         return respond(204, {"data": None})
 
