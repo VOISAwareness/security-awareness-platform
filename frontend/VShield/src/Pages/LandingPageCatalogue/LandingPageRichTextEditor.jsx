@@ -829,7 +829,7 @@ const LandingPageRichTextEditor = ({
   const [selectedFontFamily, setSelectedFontFamily] = useState("Vodafone, sans-serif");
   const [selectedFontSize, setSelectedFontSize] = useState("14px");
 
-  const [toastMessage, setToastMessage] = useState("");
+  const [toastMessage, setToastMessage] = useState(null);
   const [showFxMenu, setShowFxMenu] = useState(false);
   const [showShapeMenu, setShowShapeMenu] = useState(false);
   const [showButtonMenu, setShowButtonMenu] = useState(false);
@@ -880,9 +880,11 @@ const LandingPageRichTextEditor = ({
   const bodyMenuRef = useRef(null);
   const canvasBgRef = useRef(null);
 
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
+  // Every message says what kind it is: "success" | "error" | "warning" | "info".
+  const showToast = useCallback((message, type, title) => {
+    setToastMessage({ message, type, title });
   }, []);
+  const clearToast = useCallback(() => setToastMessage(null), []);
 
   // =========================================================================
   // 🌟 BROWSER SAFE ZONE BOTTOM CHECKER (Scale-Aware — Visual Only)
@@ -1019,7 +1021,7 @@ const LandingPageRichTextEditor = ({
       setTimeout(() => {
         isHistoryActionRef.current = false;
       }, 50);
-      showToast("Undo");
+      showToast("Undo", "success");
     }
   }, [notifyParent, showToast, syncUsedItemsList, checkSafeZoneOverflow]);
 
@@ -1043,7 +1045,7 @@ const LandingPageRichTextEditor = ({
       setTimeout(() => {
         isHistoryActionRef.current = false;
       }, 50);
-      showToast("Redo");
+      showToast("Redo", "success");
     }
   }, [notifyParent, showToast, syncUsedItemsList, checkSafeZoneOverflow]);
 
@@ -1362,7 +1364,7 @@ const LandingPageRichTextEditor = ({
 
   const handleEyedropperForText = async () => {
     if (!window.EyeDropper) {
-      showToast("EyeDropper is not supported in this browser.");
+      showToast("EyeDropper is not supported in this browser.", "warning");
       return;
     }
     try {
@@ -1386,7 +1388,7 @@ const LandingPageRichTextEditor = ({
     setSelectedElements([]);
     itemCounterRef.current = 1;
     emitChange("");
-    showToast("Canvas cleared.");
+    showToast("Canvas cleared.", "success");
   };
 
   // The canvas colour is part of the page: it goes to the parent with it.
@@ -1411,7 +1413,7 @@ const LandingPageRichTextEditor = ({
     emitChange(componentized);
     setActiveElement(null);
     setSelectedElements([]);
-    showToast('Applied "' + option.name + '".');
+    showToast('Applied "' + option.name + '".', "success");
   };
 
   const handleOpenFullScreenPreview = () => {
@@ -1694,7 +1696,7 @@ const LandingPageRichTextEditor = ({
     if (url) {
       // A script URL would run in the app when the page is edited or previewed.
       if (isScriptUrl(url)) {
-        showToast("That link type is not allowed. Use a web address.");
+        showToast("That link type is not allowed. Use a web address.", "warning");
         return;
       }
       runCommand("createLink", url);
@@ -1725,7 +1727,7 @@ const LandingPageRichTextEditor = ({
       itemName +
       '" style="position: relative; display: inline-block; width: 22%; min-width: 180px; padding: 8px 12px; margin: 0; cursor: move; border: 1px dashed rgba(100,116,139,0.35); border-radius: 6px; background-color: transparent; box-shadow: none; box-sizing: border-box;"><div contenteditable="true" spellcheck="true" style="outline: none; cursor: text; font-size: 14px; line-height: 1.5; color: #1E293B;">Click here to edit text...</div></div>';
     insertCanvasItem(textHtml);
-    showToast("Text box added. Click inside to edit.");
+    showToast("Text box added. Click inside to edit.", "success");
   };
 
   const insertShape = (shapeType) => {
@@ -1790,7 +1792,7 @@ const LandingPageRichTextEditor = ({
     }
 
     insertCanvasItem(shapeHtml);
-    showToast("Shape added. Stretch to canvas edge for full-width responsive fit.");
+    showToast("Shape added. Stretch to canvas edge for full-width responsive fit.", "success");
   };
 
   const insertButton = (buttonShape) => {
@@ -1820,7 +1822,7 @@ const LandingPageRichTextEditor = ({
       '; text-align: center; border: none; cursor: pointer; box-shadow: none;" contenteditable="true" spellcheck="false">Go to My Training</a></div>';
 
     insertCanvasItem(buttonHtml);
-    showToast("Button added. Click to edit text or set On Click.");
+    showToast("Button added. Click to edit text or set On Click.", "success");
   };
 
   const insertLandingPageElement = (elementId) => {
@@ -1881,7 +1883,7 @@ const LandingPageRichTextEditor = ({
     }
 
     insertCanvasItem(elemHtml);
-    showToast("Landing page element inserted.");
+    showToast("Landing page element inserted.", "success");
   };
 
   const handleImageUpload = (event) => {
@@ -1898,7 +1900,7 @@ const LandingPageRichTextEditor = ({
     ];
 
     if (!allowedImageTypes.includes(file.type)) {
-      showToast("Please select a valid image file.");
+      showToast("Please select a valid image file.", "warning");
       event.target.value = "";
       return;
     }
@@ -1909,7 +1911,7 @@ const LandingPageRichTextEditor = ({
       showToast(
         "Image must be under " + Math.round(MAX_EMBEDDED_IMAGE_BYTES / 1024) +
           " KB so the landing page stays within the " +
-          Math.round(MAX_LANDING_BYTES / 1024) + " KB limit."
+          Math.round(MAX_LANDING_BYTES / 1024) + " KB limit.", "warning"
       );
       event.target.value = "";
       return;
@@ -1919,7 +1921,7 @@ const LandingPageRichTextEditor = ({
     reader.onload = (readerEvent) => {
       const imageSource = readerEvent.target?.result;
       if (typeof imageSource !== "string") {
-        showToast("Unable to read the selected image.");
+        showToast("Unable to read the selected image.", "error");
         return;
       }
 
@@ -1938,11 +1940,11 @@ const LandingPageRichTextEditor = ({
         '" style="display: block; width: 100%; height: auto; border-radius: 8px; pointer-events: none; box-shadow: none;" /></div>';
 
       insertCanvasItem(imgHtml);
-      showToast("Image inserted. Click to resize or move.");
+      showToast("Image inserted. Click to resize or move.", "success");
     };
 
     reader.onerror = () => {
-      showToast("Unable to read the selected image.");
+      showToast("Unable to read the selected image.", "error");
     };
 
     reader.readAsDataURL(file);
@@ -2000,7 +2002,7 @@ const LandingPageRichTextEditor = ({
     );
 
     if (topLevelSelected.length < 2) {
-      showToast("Select at least 2 separate elements to group.");
+      showToast("Select at least 2 separate elements to group.", "warning");
       return;
     }
 
@@ -2031,7 +2033,7 @@ const LandingPageRichTextEditor = ({
 
     synchroniseEditorValue();
     selectSingleCanvasItem(groupDiv);
-    showToast("Grouped " + topLevelSelected.length + " elements into " + groupName + ".");
+    showToast("Grouped " + topLevelSelected.length + " elements into " + groupName + ".", "success");
   }, [selectedElements, synchroniseEditorValue, selectSingleCanvasItem, showToast]);
 
   const ungroupActiveItem = useCallback(() => {
@@ -2052,7 +2054,7 @@ const LandingPageRichTextEditor = ({
     setActiveElement(null);
     setSelectedElements([]);
     synchroniseEditorValue();
-    showToast("Ungrouped elements.");
+    showToast("Ungrouped elements.", "success");
   }, [activeElement, synchroniseEditorValue, showToast]);
 
   const deleteSelectedElements = useCallback(() => {
@@ -2063,7 +2065,7 @@ const LandingPageRichTextEditor = ({
     setSelectedElements([]);
     setActiveElement(null);
     synchroniseEditorValue();
-    showToast("Deleted selected elements.");
+    showToast("Deleted selected elements.", "success");
   }, [selectedElements, synchroniseEditorValue, showToast]);
 
   // =========================================================================
@@ -2077,7 +2079,7 @@ const LandingPageRichTextEditor = ({
     setRenamingItemId(null);
     setTempItemName("");
     synchroniseEditorValue();
-    showToast("Renamed to " + trimmed + ".");
+    showToast("Renamed to " + trimmed + ".", "success");
   };
 
   const deleteUsedItem = (item) => {
@@ -2088,7 +2090,7 @@ const LandingPageRichTextEditor = ({
     setSelectedElements((prev) => prev.filter((el) => el !== item.element));
     item.element.remove();
     synchroniseEditorValue();
-    showToast("Deleted " + item.name + ".");
+    showToast("Deleted " + item.name + ".", "success");
   };
 
   const handleLayerDrop = (targetId) => {
@@ -2144,7 +2146,7 @@ const LandingPageRichTextEditor = ({
       selectSingleCanvasItem(moved.element);
     }
     showToast(
-      moved.name + (toIndex < fromIndex ? " moved above & forward." : " moved below & backward.")
+      moved.name + (toIndex < fromIndex ? " moved above & forward." : " moved below & backward."), "success"
     );
   };
 
@@ -2407,7 +2409,7 @@ const LandingPageRichTextEditor = ({
           setActiveElement(null);
           setSelectedElements(candidates);
           showToast(
-            "Selected " + candidates.length + " elements. Click Group to combine."
+            "Selected " + candidates.length + " elements. Click Group to combine.", "info"
           );
         }
 
@@ -2703,7 +2705,7 @@ const LandingPageRichTextEditor = ({
 
   const handleEyedropperForObject = async () => {
     if (!window.EyeDropper) {
-      showToast("EyeDropper is not supported in this browser.");
+      showToast("EyeDropper is not supported in this browser.", "warning");
       return;
     }
     try {
@@ -2727,7 +2729,7 @@ const LandingPageRichTextEditor = ({
     target.style.boxShadow = shadowValue;
     setShowShadowMenu(false);
     synchroniseEditorValue();
-    showToast("Shadow updated.");
+    showToast("Shadow updated.", "success");
   };
 
   const updateActiveItemRoundedness = (radiusValue, closeMenu = false) => {
@@ -2761,7 +2763,7 @@ const LandingPageRichTextEditor = ({
 
     setShowBorderMenu(false);
     synchroniseEditorValue();
-    showToast("Border updated.");
+    showToast("Border updated.", "success");
   };
 
   const updateZIndex = (action) => {
@@ -2773,7 +2775,7 @@ const LandingPageRichTextEditor = ({
     else if (action === "forward") target.style.zIndex = String(Math.min(50, currentZ + 2));
     else if (action === "backward") target.style.zIndex = String(Math.max(1, currentZ - 2));
     synchroniseEditorValue();
-    showToast("Layer adjusted.");
+    showToast("Layer adjusted.", "success");
   };
 
   const duplicateActiveItem = useCallback(() => {
@@ -2799,7 +2801,7 @@ const LandingPageRichTextEditor = ({
     activeElement.element.parentNode.insertBefore(clone, activeElement.element.nextSibling);
     synchroniseEditorValue();
     selectSingleCanvasItem(clone);
-    showToast("Element duplicated.");
+    showToast("Element duplicated.", "success");
   }, [activeElement, synchroniseEditorValue, selectSingleCanvasItem, showToast]);
 
   const alignElement = (direction) => {
@@ -2820,7 +2822,7 @@ const LandingPageRichTextEditor = ({
       target.style.top = Math.round(centerTop) + "px";
     }
     synchroniseEditorValue();
-    showToast("Aligned to center.");
+    showToast("Aligned to center.", "success");
   };
 
   const getCurrentRadius = () => {
@@ -2841,7 +2843,7 @@ const LandingPageRichTextEditor = ({
     setShowRoundedMenu(false);
     setShowBorderMenu(false);
     synchroniseEditorValue();
-    showToast("Item deleted.");
+    showToast("Item deleted.", "success");
   }, [activeElement, synchroniseEditorValue, showToast]);
 
   useEffect(() => {
@@ -2963,7 +2965,7 @@ const LandingPageRichTextEditor = ({
 
     setActionConfigModal({ open: false, element: null, actionType: "training" });
     synchroniseEditorValue();
-    showToast("On Click attached to My Training (" + finalUrl + ").");
+    showToast("On Click attached to My Training (" + finalUrl + ").", "success");
   };
 
   const editorIsEmpty =
@@ -3455,10 +3457,10 @@ const LandingPageRichTextEditor = ({
             if (next) {
               setActiveElement(null);
               setSelectedElements([]);
-              showToast("Grid mode ON: Click any grid cell to place cursor and type.");
+              showToast("Grid mode ON: Click any grid cell to place cursor and type.", "info");
             } else {
               cleanupEmptyGridBoxes(null);
-              showToast("Grid mode OFF.");
+              showToast("Grid mode OFF.", "info");
             }
             return next;
           });
@@ -4763,11 +4765,13 @@ const LandingPageRichTextEditor = ({
 
       {toastMessage && (
         <Toast
-          message={String(toastMessage)}
-          type="success"
-          duration={2500}
+          message={toastMessage.message}
+          type={toastMessage.type}
+          title={toastMessage.title}
+          // A problem needs a moment longer to read than a "done".
+          duration={toastMessage.type === "success" || toastMessage.type === "info" ? 2500 : 5000}
           className="z-[2147483647]"
-          onClose={() => setToastMessage("")}
+          onClose={clearToast}
         />
       )}
     </>

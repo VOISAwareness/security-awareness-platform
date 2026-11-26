@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useUserType } from "../../../UserTypeContext/UserTypeContext";
+import Toast from "../../../GlobalComponents/Toast";
 import { useNavigate } from "react-router-dom";
 import TrainingCompletionDetails from "./TrainingHistoryDetails/TrainingCompletionDetails";
 
@@ -158,7 +159,9 @@ const StartNewTraining = () => {
   };
 
   const [activeTab, setActiveTab] = useState(0);
-  const [errorMsg, setErrorMsg] = useState("");
+  // The message shown at the top right: { message, type, title }.
+  const [notice, setNotice] = useState(null);
+  const clearNotice = useCallback(() => setNotice(null), []);
   const navigate = useNavigate();
   const isPublishing = false;
   const [isVideoCompleted, setIsVideoCompleted] = useState(false);
@@ -223,7 +226,11 @@ const StartNewTraining = () => {
       })
       .catch((err) => {
         console.error("Could not save the quiz result", err);
-        setErrorMsg(`Your answers couldn't be saved: ${err?.message || "error"}. Try the quiz again.`);
+        setNotice({
+          message: `Your answers couldn't be saved: ${err?.message || "error"}. Try the quiz again.`,
+          type: "error",
+          title: "Answers Not Saved",
+        });
       });
   };
 
@@ -236,21 +243,6 @@ const StartNewTraining = () => {
     setQuizResult(null);
     setActiveTab(isPackage ? 0 : 1);
   };
-
-  // ==========================================================
-  // AUTO DISMISS VALIDATION TOAST
-  // ==========================================================
-  useEffect(() => {
-    if (!errorMsg) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setErrorMsg("");
-    }, 4000);
-
-    return () => clearTimeout(timer);
-  }, [errorMsg]);
 
   if (trainingLoading || trainingError) {
     return (
@@ -272,6 +264,15 @@ const StartNewTraining = () => {
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
+      {notice && (
+        <Toast
+          message={notice.message}
+          type={notice.type}
+          title={notice.title}
+          duration={notice.type === "error" ? 6000 : 4000}
+          onClose={clearNotice}
+        />
+      )}
 
       <div
         style={{
@@ -483,9 +484,11 @@ const StartNewTraining = () => {
                       } else if (activeTab === 1 && quizSubmitted) {
                         setActiveTab(2);
                       } else if (activeTab === 1 && !quizSubmitted) {
-                        setErrorMsg(
-                          "Please submit the assessment before continuing.",
-                        );
+                        setNotice({
+                          message: "Please submit the assessment before continuing.",
+                          type: "warning",
+                          title: "Assessment Not Submitted",
+                        });
                       }
                     }}
                     className={`

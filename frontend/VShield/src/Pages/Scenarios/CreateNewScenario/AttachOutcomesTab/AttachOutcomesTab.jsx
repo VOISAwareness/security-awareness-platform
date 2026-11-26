@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
 import OutcomeRichTextEditorModal from "./OutcomeRichTextEditorModal";
 import imageCatalogue from "../../imageCatalogue.json";
@@ -13,7 +13,6 @@ import {
   Eye,
   CheckCircle2,
   Award,
-  Upload,
   Play,
   CircleHelp,
 } from "lucide-react";
@@ -22,8 +21,9 @@ import {
    COVER IMAGE DROPZONE
 ============================================================ */
 
-// Click opens the image catalogue; dropping an image file here uploads it.
-const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
+// Covers come only from the image catalogue: clicking here opens it. There is
+// deliberately no upload from the computer (no file picker, no drag-and-drop).
+const CoverImageDropzone = ({ onClick, isDark }) => (
   <div
     onClick={onClick}
     role="button"
@@ -31,16 +31,6 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
     onKeyDown={(e) => {
       if (e.key === "Enter" || e.key === " ") {
         onClick();
-      }
-    }}
-    onDragOver={(e) => {
-      e.preventDefault();
-    }}
-    onDrop={(e) => {
-      e.preventDefault();
-      const file = e.dataTransfer?.files?.[0];
-      if (file) {
-        onFileDrop?.(file);
       }
     }}
     className={`
@@ -55,7 +45,7 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
       }
     `}
   >
-    <Upload
+    <ImageIcon
       className={`w-6 h-6 ${isDark ? "text-white/70" : "text-slate-500"}`}
     />
 
@@ -74,45 +64,9 @@ const CoverImageDropzone = ({ onClick, onFileDrop, isDark }) => (
         ${isDark ? "text-white/50" : "text-slate-500"}
       `}
     >
-      or drop your own image here
+      Pick a cover from the image catalogue
     </span>
   </div>
-);
-
-// "or" + "Upload your own image", under the cover dropzone. Same look as the
-// landing page card's OrDivider + secondary AttachButton, kept at module scope.
-const CoverUploadChoice = ({ onUpload, isDark }) => (
-  <>
-    <div className="flex items-center gap-2 my-3 w-full">
-      <span
-        className={`flex-1 h-px ${isDark ? "bg-white/10" : "bg-slate-200"}`}
-      />
-      <span className="text-[8px] font-voda font-bold uppercase text-slate-400">
-        or
-      </span>
-      <span
-        className={`flex-1 h-px ${isDark ? "bg-white/10" : "bg-slate-200"}`}
-      />
-    </div>
-
-    <button
-      type="button"
-      onClick={onUpload}
-      className={`
-        w-full max-w-[220px] mx-auto h-[38px] px-4 rounded-lg
-        text-[9px] font-bold uppercase tracking-wide
-        flex items-center justify-center gap-2 transition-all cursor-pointer
-        ${
-          isDark
-            ? "bg-white/10 text-white border border-white/15 hover:bg-white/15"
-            : "bg-white text-slate-800 border border-slate-300 hover:bg-slate-50"
-        }
-      `}
-    >
-      <Upload className="w-3.5 h-3.5" />
-      <span>Upload your own image</span>
-    </button>
-  </>
 );
 
 /* ============================================================
@@ -704,14 +658,11 @@ const LandingPageSelectedPreview = ({
 const AttachOutcomesTab = ({
   formData,
   setFormData,
-  onCoverFileChosen,
   onDesignNewLandingPage,
 }) => {
   const { isDark } = useUserType?.() || { isDark: false };
 
   const shellBg = isDark ? "#1C1E24" : "#F1F5F7";
-
-  const coverImageInputRef = React.useRef(null);
 
   const [isImageCatalogueOpen, setIsImageCatalogueOpen] = useState(false);
 
@@ -1959,73 +1910,6 @@ const AttachOutcomesTab = ({
     );
   };
 
-  /* ============================================================
-     COVER IMAGE CLICK
-  ============================================================ */
-
-  const handleCoverImageClick = () => {
-    coverImageInputRef.current?.click();
-  };
-
-  /* ============================================================
-     COVER IMAGE CHANGE
-  ============================================================ */
-
-  const handleCoverImageChange = (event) => {
-    const file = event.target.files?.[0];
-
-    // Clear the input so choosing the same file again still fires onChange.
-    event.target.value = "";
-
-    acceptCoverFile(file);
-  };
-
-  // Shared by the file picker and drag-and-drop onto the cover dropzone.
-  const acceptCoverFile = (file) => {
-    if (!file) {
-      return;
-    }
-
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
-
-    if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a PNG, JPEG or JPG image.");
-
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should not exceed 5MB.");
-
-      return;
-    }
-
-    const previewUrl = URL.createObjectURL(file);
-
-    setFormData((previous) => ({
-      ...previous,
-
-      coverImageSource: "upload",
-
-      coverImage: file,
-
-      coverImageName: file.name,
-
-      coverImagePreview: previewUrl,
-
-      // Filled in by onCoverFileChosen once this file is uploaded.
-      coverImageKey: "",
-
-      coverImageKeyScenarioId: "",
-
-      coverImageThumbnail: "",
-
-      coverImageReattach: "",
-    }));
-
-    onCoverFileChosen?.(file);
-  };
-
   return (
     <div className="w-full">
       <div
@@ -2208,16 +2092,10 @@ const AttachOutcomesTab = ({
               <>
                 <CoverImageDropzone
                   onClick={() => setIsImageCatalogueOpen(true)}
-                  onFileDrop={acceptCoverFile}
                   isDark={isDark}
                 />
 
-                <CoverUploadChoice
-                  onUpload={handleCoverImageClick}
-                  isDark={isDark}
-                />
-
-                {/* A resumed draft whose upload never reached storage */}
+                {/* A resumed draft whose earlier upload never reached storage */}
                 {formData.coverImageReattach && (
                   <p
                     className={`
@@ -2227,21 +2105,13 @@ const AttachOutcomesTab = ({
                       ${isDark ? "text-amber-200" : "text-amber-700"}
                     `}
                   >
-                    Please attach your cover image again (
-                    {formData.coverImageReattach}): it was not uploaded before
-                    you left.
+                    Your earlier cover image ({formData.coverImageReattach})
+                    was not saved before you left. Please choose a cover from
+                    the catalogue.
                   </p>
                 )}
               </>
             )}
-
-            <input
-              ref={coverImageInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg"
-              onChange={handleCoverImageChange}
-              className="hidden"
-            />
           </div>
         </div>
 

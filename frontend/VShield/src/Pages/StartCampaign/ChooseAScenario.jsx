@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUserType } from '../../UserTypeContext/UserTypeContext';
 import {
@@ -30,6 +30,7 @@ import {
   templatePick
 } from '../../services/campaignWizard';
 import DraftDialog from '../../GlobalComponents/DraftDialog';
+import Toast from '../../GlobalComponents/Toast';
 import DraftCards from '../../GlobalComponents/DraftCards';
 import { NEUTRAL_DRAFT_THEME } from '../../GlobalComponents/draftTheme';
 import ViewTabs from '../../GlobalComponents/ViewTabs';
@@ -187,11 +188,7 @@ const ChooseAScenario = () => {
       navigate(location.pathname, { replace: true, ...IN_WIZARD });
     }
   }, [location.state, location.pathname, navigate]);
-  useEffect(() => {
-    if (!savedNotice) return undefined;
-    const timer = setTimeout(() => setSavedNotice(''), 6000);
-    return () => clearTimeout(timer);
-  }, [savedNotice]);
+  const clearSavedNotice = useCallback(() => setSavedNotice(''), []);
   const {
     campaigns: draftCampaigns,
     loading: draftsLoading,
@@ -490,6 +487,16 @@ const ChooseAScenario = () => {
   return (
     <>
       <style>{VODAFONE_FONT_STYLE}</style>
+      {/* "Save as draft" in the editor lands here on Drafts, saying so. */}
+      {savedNotice && (
+        <Toast
+          message={`${savedNotice}. Continue it any time from its card.`}
+          type="success"
+          title="Saved to Drafts"
+          duration={6000}
+          onClose={clearSavedNotice}
+        />
+      )}
 
       {/* Screen Shell */}
       <div
@@ -752,14 +759,6 @@ const ChooseAScenario = () => {
             // No right padding here: the cards' own scroll area adds it, so the
             // drafts are exactly as wide as the template cards.
             <div className="vs-view-fade flex-1 min-h-0 flex flex-col p-4 pr-0 sm:p-3 sm:pr-0 mt-1 mb-3">
-              {savedNotice && (
-                <span
-                  role="status"
-                  className="mb-2 self-start px-3 py-1.5 rounded-lg text-[10.5px] font-bold bg-[#8ED973]/15 text-[#2F7A17] dark:text-[#A6E88E]"
-                >
-                  Saved to Drafts: {savedNotice}. Continue it any time from its card.
-                </span>
-              )}
               {draftsError && (
                 <span role="alert" className="mb-2 text-[10px] font-bold text-[#E60000]">{draftsError}</span>
               )}

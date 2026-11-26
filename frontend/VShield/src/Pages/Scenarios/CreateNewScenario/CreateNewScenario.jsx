@@ -22,10 +22,7 @@ import {
   openingNeedsServer,
   readScenarioDraftItems,
 } from "../../../services/scenarioDraftSync";
-import {
-  makeCoverThumbnail,
-  useScenarioDraft,
-} from "../../../services/useScenarioDraft";
+import { useScenarioDraft } from "../../../services/useScenarioDraft";
 import { currentActor } from "../../../services/identity";
 import {
   canOpenForEdit,
@@ -57,7 +54,7 @@ import EmailDetailsTab from "./EmailDetailsTab/EmailDetailsTab";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ScenarioDetailsTab from "./ScenarioDetailsTab/ScenarioDetailsTab";
-import { Check, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Check, CheckCircle2, AlertTriangle } from "lucide-react";
 import {SCENARIO_STEPS} from './ScenarioConstants';
 import { PAGE_SCALE } from '../../../shared/SharedStyles';
 import { formatDateTime } from '../../../shared/dateTime';
@@ -632,93 +629,22 @@ const ScenarioEditor = ({ opening }) => {
   const draftSavedAt = draftOffer?.savedAt ? formatDateTime(draftOffer.savedAt) : "";
 
   // ==========================================================
-  // COVER IMAGE UPLOAD (as soon as it is chosen)
-  // A File cannot be saved in a draft, so upload it now and keep only the
-  // returned key. If this fails (offline, no scenario id yet) the File stays in
-  // memory and Publish uploads it exactly as before.
+  // COVER IMAGE UPLOAD
+  // Covers are now chosen only from the image catalogue. What follows still
+  // publishes a cover uploaded before that (a scenario or draft that carries a
+  // stored key, or a File from an older session).
   // ==========================================================
-  const coverUploadRef = useRef(null);
   // The landing page created from the author's own design at publish, kept so a
   // retried publish (say the scenario ID was taken) links it instead of adding
   // a duplicate page to the catalogue.
   const createdLandingRef = useRef(null);
 
-  const handleCoverFileChosen = (file) => {
-    if (!file) {
-      return;
-    }
-
-    // Results are applied only if this file is still the chosen cover.
-    makeCoverThumbnail(file).then((thumbnail) => {
-      if (thumbnail) {
-        setFormData((previous) =>
-          previous.coverImage === file
-            ? { ...previous, coverImageThumbnail: thumbnail }
-            : previous,
-        );
-      }
-    });
-
-    // The same id Publish will send, so the key's folder matches the scenario.
-    const scenarioId = formData.scenarioId;
-    if (!scenarioId?.trim()) {
-      coverUploadRef.current = null;
-      return;
-    }
-
-    // A copy or revision is saved as a NEW scenario, whose id the API assigns.
-    // Its cover is uploaded under that id after Save creates it, never into the
-    // folder of the scenario it was made from (the id shown here).
-    if (edit && edit.mode !== "update") {
-      coverUploadRef.current = null;
-      return;
-    }
-
-    const promise = api.scenarios.uploadCover({
-      scenarioId,
-      file: withUniqueCoverName(file),
-    });
-    coverUploadRef.current = { file, scenarioId, promise };
-
-    promise
-      .then((key) => {
-        setFormData((previous) =>
-          previous.coverImage === file
-            ? {
-                ...previous,
-                coverImageKey: key || "",
-                coverImageKeyScenarioId: key ? scenarioId : "",
-              }
-            : previous,
-        );
-      })
-      .catch((error) => {
-        console.warn(
-          "Cover upload deferred to publish:",
-          error?.message || error,
-        );
-      });
-  };
-
   // Publish reuses an earlier upload when it was made for this scenario id,
-  // waits for one still in flight, and only otherwise uploads the File now.
+  // and only otherwise uploads the File now.
   const resolveUploadedCoverKey = async () => {
     const reusable = reusableCoverKey(formData);
     if (reusable) {
       return reusable;
-    }
-
-    const pending = coverUploadRef.current;
-    if (
-      pending &&
-      formData.coverImage &&
-      pending.file === formData.coverImage &&
-      pending.scenarioId === formData.scenarioId
-    ) {
-      const key = await pending.promise.catch(() => "");
-      if (key) {
-        return key;
-      }
     }
 
     if (formData.coverImage) {
@@ -1433,6 +1359,18 @@ useEffect(() => {
           }}
         />
       )}
+      {/* This work was kept as a draft of its own: someone else's save of the
+          same draft (another window or device) reached the server first.
+          Waits while an error toast is showing, as both sit in the same spot. */}
+      {scenarioDraft.conflictNotice && !(saveError || errorMsg) && (
+        <Toast
+          message={scenarioDraft.conflictNotice}
+          type="warning"
+          title="Saved as a separate draft"
+          duration={8000}
+          onClose={scenarioDraft.dismissConflictNotice}
+        />
+      )}
       <div
         style={{
           zoom: VarScenarioScale,
@@ -1453,25 +1391,6 @@ useEffect(() => {
             {edit || editRequest ? "EDIT SCENARIO" : "CREATE NEW SCENARIO"}
           </h1>
         </div>
-
-        {/* This work was kept as a draft of its own: someone else's save of the
-            same draft (another window or device) reached the server first. */}
-        {scenarioDraft.conflictNotice && (
-          <div
-            role="status"
-            className="w-full flex items-center justify-between gap-3 px-4 py-2 rounded-xl border text-[11px] font-semibold leading-snug bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:border-amber-500/25"
-          >
-            <span>{scenarioDraft.conflictNotice}</span>
-            <button
-              type="button"
-              onClick={scenarioDraft.dismissConflictNotice}
-              aria-label="Dismiss"
-              className="p-0.5 rounded opacity-70 hover:opacity-100 cursor-pointer flex-shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         {/* What changed about the scenario since this edit began. */}
         {edit && editNotice && (
@@ -1586,7 +1505,6 @@ useEffect(() => {
   setFormData={setFormData}
   goNext={goNext}
   goBack={goBack}
-  onCoverFileChosen={handleCoverFileChosen}
   onDesignNewLandingPage={handleDesignNewLandingPage}
 />
                 )}

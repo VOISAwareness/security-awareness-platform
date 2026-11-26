@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import Toast from "../../../../GlobalComponents/Toast";
 import { X, UploadCloud } from "lucide-react";
 import { useIsDarkMode } from "../../components/modals/helpers";
 import { checkPackageZip } from "../../../../services/zipEntries";
@@ -19,6 +20,9 @@ export const CreateNewPackages = ({
   const [isCompiling, setIsCompiling] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
+  // Why the chosen zip was not used: { message, type, title }.
+  const [zipProblem, setZipProblem] = useState(null);
+  const clearZipProblem = useCallback(() => setZipProblem(null), []);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -29,7 +33,7 @@ export const CreateNewPackages = ({
 
   const processFile = (file) => {
     if (!file.name.endsWith(".zip")) {
-      alert("Please select a valid ZIP archive.");
+      setZipProblem({ message: "Please select a valid ZIP archive.", type: "warning", title: "Not a Zip File" });
       return;
     }
     setSelectedFile(file);
@@ -87,7 +91,11 @@ export const CreateNewPackages = ({
       });
     } catch (err) {
       console.error(err);
-      alert(err?.message || "This zip can't be used as a training package.");
+      setZipProblem({
+        message: err?.message || "This zip can't be used as a training package.",
+        type: "error",
+        title: "Package Not Added",
+      });
       setIsCompiling(false);
       setProgress(0);
     }
@@ -95,6 +103,15 @@ export const CreateNewPackages = ({
 
   return (
     <div className={`w-full h-full min-h-0 flex flex-col text-left ${isDark ? "bg-[#0B1121] text-white" : "bg-white text-slate-800"}`}>
+      {zipProblem && (
+        <Toast
+          message={zipProblem.message}
+          type={zipProblem.type}
+          title={zipProblem.title}
+          duration={6000}
+          onClose={clearZipProblem}
+        />
+      )}
       {/* ── DOCKED TOP HEADER BAR ── */}
       <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
         isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
@@ -302,6 +319,9 @@ export const ZipUploader = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
+  // Why the chosen zip was not used: { message, type, title }.
+  const [zipProblem, setZipProblem] = useState(null);
+  const clearZipProblem = useCallback(() => setZipProblem(null), []);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -366,7 +386,11 @@ export const ZipUploader = ({
       onClose();
     } catch (err) {
       console.error(err);
-      alert(err?.message || "This zip can't be used as a training package.");
+      setZipProblem({
+        message: err?.message || "This zip can't be used as a training package.",
+        type: "error",
+        title: "Package Not Added",
+      });
       setIsUploading(false);
       setUploadProgress(0);
     }
@@ -380,6 +404,15 @@ export const ZipUploader = ({
             isDark ? "bg-[#0B1121] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800"
           }`
     }`}>
+      {zipProblem && (
+        <Toast
+          message={zipProblem.message}
+          type={zipProblem.type}
+          title={zipProblem.title}
+          duration={6000}
+          onClose={clearZipProblem}
+        />
+      )}
       {/* ── DOCKED TOP HEADER BAR ── */}
       <div className={`w-full h-12 flex items-stretch justify-between flex-shrink-0 select-none border-b ${
         isDark ? 'border-white/10 bg-[#12141A]' : 'border-slate-200/90 bg-white'
