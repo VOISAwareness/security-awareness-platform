@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useUserType } from "../../../UserTypeContext/UserTypeContext";
-// 👇 Adjust this path to where your JSON lives
-import data from "../AnnouncementMasterData.json";
+import { api } from "../../../services/api";
+import { currentActor } from "../../../services/identity";
+import { fromRollout } from "../../../services/announcements";
+import PageLoading from "../../../GlobalComponents/PageLoading";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 // Ported Galleries
@@ -10,7 +12,7 @@ import RequestedQueueGallery from "./Components/RequestedQueueGallery";
 import RejectedPathsGallery from "./Components/RejectedPathsGallery";
 import ApprovedPathsGallery from "./Components/ApprovedPathsGallery";
 import NotifyForChangeWindow from "./Components/NotifyForChangeWindow";
-import { APPROVER_KEY, canApprove, storedDateTime } from "./Components/announcementHelpers";
+import { canApprove } from "./Components/announcementHelpers";
 import Toast from "../../../GlobalComponents/Toast";
 
 // Assets (same as RequestsAndApprovals.jsx)
@@ -49,6 +51,9 @@ const VODAFONE_FONT_STYLE = `
   .rounded-lg  { border-radius: ${Math.round(10 * VarOverallCornerRoundednessAdjuster)}px !important; }
   .rounded-md  { border-radius: ${Math.round(6 * VarOverallCornerRoundednessAdjuster)}px !important; }
 `;
+
+// a roll-out from the API as a gallery item, people as their addresses
+const asItem = (row) => fromRollout(row, { emails: true });
 
 const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   const userContext = useUserType?.() || {};
@@ -97,55 +102,68 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
   // nobody approves their own.
   const isManager = canApprove(user.role);
 
-  // ---- State: starts from your JSON; changes live in memory until the DB is added ----
-  const [announcements, setAnnouncements] = useState(data.announcement);
+  // ---- The roll-outs from the backend (GET /announcements?kind=ROLLOUT), in
+  // the shape the galleries were written for, people as their addresses ----
+  const [announcements, setAnnouncements] = useState([]);
+  const [loadState, setLoadState] = useState("loading"); // loading | ready | failed
   const [activeTab, setActiveTab] = useState("queue");
   const [rejectingItem, setRejectingItem] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [actionError, setActionError] = useState("");
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState(null); // { type, message }
   const [notifyingItem, setNotifyingItem] = useState(null);
 
-  const showToast = (m) => {
-    setToast(m);
-  };
-
-  // In-memory update. When the DB is ready, call your API here before setAnnouncements.
-  const updateItem = (a, patch, msg) => {
-    const updated = {
-      ...a,
-      ...patch,
-      AnnouncementLastModified: storedDateTime(),
+  useEffect(() => {
+    let active = true;
+    api.announcements
+      .list("ROLLOUT")
+      .then((rows) => {
+        if (!active) return;
+        setAnnouncements((Array.isArray(rows) ? rows : []).map(asItem));
+        setLoadState("ready");
+      })
+      .catch((err) => {
+        console.error("Could not load the announcement roll-outs", err);
+        if (active) setLoadState("failed");
+      });
+    return () => {
+      active = false;
     };
-    setAnnouncements((prev) =>
-      prev.map((x) => (x.announcementId === a.announcementId ? updated : x)),
-    );
-    showToast(msg);
-  };
+  }, []);
+
+  const showToast = (message, type = "success") => setToast({ type, message });
+
+  // Each action goes to the API; the row it returns replaces the card, and
+  // a refusal (not an approver, your own roll-out, already decided) is said
+  // in a toast.
+  const run = (call, okMessage) =>
+    call
+      .then((row) => {
+        if (row?.announcementId) {
+          const item = asItem(row);
+          setAnnouncements((prev) => prev.map((x) => (x.announcementId === item.announcementId ? item : x)));
+        }
+        showToast(okMessage);
+        return true;
+      })
+      .catch((err) => {
+        showToast(err?.message || "Please try again.", "error");
+        return false;
+      });
+
+  const decide = (a, decision, comments, okMessage) =>
+    run(api.announcements.decide(a.announcementId, currentActor(), decision, comments, user.role), okMessage);
 
   const handleApprove = (a) => {
     if (!isManager) return; // only Admins and Campaign Managers approve
-    updateItem(
-      a,
-      {
-        AnnouncementStatus: "Published",
-        [APPROVER_KEY]: userEmail,
-        AnnouncementNotificationMessage: "Approved",
-      },
-      `"${a.AnnouncementTitle}" approved and published.`,
-    );
+    decide(a, "approve", "", `"${a.AnnouncementTitle}" approved and published.`);
   };
 
+  // Asking for changes sends it back to its creator with the message: the
+  // API's reject, which the creator answers by changing and resending it.
   const handleNotifySubmit = (a, message) => {
     if (!isManager) return; // only approvers can request changes
-    updateItem(
-      a,
-      {
-        AnnouncementNotifiedBy: userEmail,
-        AnnouncementNotificationMessage: message,
-      },
-      `Change request sent for "${a.AnnouncementTitle}".`,
-    );
+    decide(a, "reject", message, `"${a.AnnouncementTitle}" sent back for changes.`);
     setNotifyingItem(null);
   };
 
@@ -162,29 +180,14 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
       setActionError("Please provide a reason so the creator knows why.");
       return;
     }
-    updateItem(
-      rejectingItem,
-      {
-        AnnouncementStatus: "Rejected",
-        [APPROVER_KEY]: userEmail,
-        AnnouncementNotificationMessage: rejectReason.trim(),
-      },
-      `"${rejectingItem.AnnouncementTitle}" has been rejected.`,
-    );
+    decide(rejectingItem, "reject", rejectReason.trim(), `"${rejectingItem.AnnouncementTitle}" has been rejected.`);
     setRejectingItem(null);
     setRejectReason("");
   };
 
+  // The creator resends a rejected roll-out: saving it puts it back in the queue.
   const handleSendForApproval = (a) =>
-    updateItem(
-      a,
-      {
-        AnnouncementStatus: "Pending",
-        [APPROVER_KEY]: null,
-        AnnouncementNotificationMessage: null,
-      },
-      `"${a.AnnouncementTitle}" sent for approval.`,
-    );
+    run(api.announcements.update(a.announcementId, { actor: currentActor() }), `"${a.AnnouncementTitle}" sent for approval.`);
 
   // Switcher navigation items configuration
   const navTabs = [
@@ -340,7 +343,17 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
             }}
             className="flex flex-col min-w-0 h-full"
           >
-            {activeTab === "queue" &&
+            {loadState === "loading" && (
+              <div className="relative flex-1" style={{ minHeight: VarRightGalleryBaseHeight }}>
+                <PageLoading show isDark={isDark} />
+              </div>
+            )}
+            {loadState === "failed" && (
+              <div className="flex-1 flex items-center justify-center text-center" style={{ minHeight: VarRightGalleryBaseHeight }}>
+                <p className="text-xs font-bold text-slate-400">Couldn&apos;t load the announcements. Please try again.</p>
+              </div>
+            )}
+            {loadState === "ready" && activeTab === "queue" &&
               (isManager ? (
                 <ApprovalQueueGallery
                   announcements={announcements}
@@ -359,7 +372,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
                 />
               ))}
 
-            {activeTab === "rejected" && (
+            {loadState === "ready" && activeTab === "rejected" && (
               <RejectedPathsGallery
                 announcements={announcements}
                 isDark={isDark}
@@ -371,7 +384,7 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
               />
             )}
 
-            {activeTab === "approved" && (
+            {loadState === "ready" && activeTab === "approved" && (
               <ApprovedPathsGallery
                 announcements={announcements}
                 isDark={isDark}
@@ -459,10 +472,11 @@ const AnnouncementRequestsApprovals = ({ isDark: propIsDark, onEdit }) => {
 
         {toast && (
           <Toast
-            message={toast}
-            type="success"
-            duration={3000}
-            onClose={() => setToast("")}
+            message={toast.message}
+            type={toast.type}
+            title={toast.type === "error" ? "Couldn't do that" : undefined}
+            duration={3500}
+            onClose={() => setToast(null)}
           />
         )}
       </div>

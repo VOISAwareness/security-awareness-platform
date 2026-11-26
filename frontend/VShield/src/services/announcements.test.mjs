@@ -82,3 +82,11 @@ test('fromRollout maps a roll-out to the History page\'s fields', () => {
   assert.equal(row['AnnouncementApproved/RejectedBy'], 'ana@x');
   assert.equal(fromRollout({ announcementId: 'ANR-5', status: 'PENDING_APPROVAL' }).AnnouncementStatus, 'Pending');
 });
+
+test('fromRollout can give people as addresses, and carries the decision comments', () => {
+  const row = fromRollout({ announcementId: 'ANR-6', status: 'REJECTED', createdBy: 'Ana Rao <Ana@X.example>', rejectedBy: 'ben@x.example', decisionComments: 'Wrong list' }, { emails: true });
+  assert.equal(row.AnnouncementStatus, 'Rejected');
+  assert.equal(row.AnnouncementCreatedBy, 'ana@x.example');
+  assert.equal(row['AnnouncementApproved/RejectedBy'], 'ben@x.example');
+  assert.equal(row.AnnouncementNotificationMessage, 'Wrong list');
+});

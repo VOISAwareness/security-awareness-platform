@@ -97,15 +97,22 @@ export function historyTime(value) {
 
 // "Ana Rao <ana@x>" reads "Ana Rao"; a bare address stays as it is
 const personName = (v) => String(v || '').replace(/\s*<[^>]*>\s*$/, '').trim() || String(v || '');
+// "Ana Rao <ana@x>" -> "ana@x" (Requests & Approvals matches people by address)
+const personEmail = (v) => {
+  const m = /<([^>]+)>/.exec(String(v || ''));
+  return (m ? m[1] : String(v || '')).trim().toLowerCase();
+};
 
 const HISTORY_STATUS = { APPROVED: 'Published', SENDING: 'Published', SENT: 'Published', PENDING_APPROVAL: 'Pending', REJECTED: 'Rejected' };
 
 /**
  * A roll-out from the API in the shape the History page was written against
  * (AnnouncementMasterData.json). One that ends when sent (no end time) ends
- * at its start.
+ * at its start. `emails`: people as their addresses (Requests & Approvals
+ * matches on them) rather than their names.
  */
-export function fromRollout(r) {
+export function fromRollout(r, { emails = false } = {}) {
+  const who = emails ? personEmail : personName;
   const start = historyTime(r.announcementStartTime);
   return {
     announcementId: r.announcementId,
@@ -119,10 +126,11 @@ export function fromRollout(r) {
     AnnouncementAutoEndPostCompletion: r.autoEndPostSending ? 'Yes' : 'No',
     TestAnnouncement: r.isAnnouncementTestCampaign ? 'Yes' : 'No',
     AnnouncementReasonForCancel: 'NA',
-    AnnouncementCreatedBy: personName(r.createdBy),
+    AnnouncementCreatedBy: who(r.createdBy),
     AnnouncementCreationDate: historyTime(r.createdAt),
     AnnouncementLastModified: historyTime(r.updatedAt || r.createdAt),
-    'AnnouncementApproved/RejectedBy': personName(r.approvedBy || r.rejectedBy),
+    'AnnouncementApproved/RejectedBy': who(r.approvedBy || r.rejectedBy),
+    AnnouncementNotificationMessage: r.decisionComments || null,
     AnnouncementSenderName: r.announcementSenderName || '',
     AnnouncementSenderEmailID: r.announcementSenderEmailId || '',
     AnnouncementEmailSubject: r.announcementEmailSubject || '',
