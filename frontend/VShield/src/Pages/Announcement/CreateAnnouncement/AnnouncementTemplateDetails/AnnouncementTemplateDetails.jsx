@@ -4,6 +4,7 @@ import AnnouncementReviewPublishDashboard from "../AnnouncementReviewPublishDash
 import {
   announcementTemplatesLive,
   publishTemplate,
+  updateTemplate,
   useAnnouncementData,
 } from "../../../../services/announcements";
 // Templates and user lists from the backend (services/announcements.js),
@@ -279,7 +280,16 @@ const TemplateTabs = ({ activeTab, onTabChange }) => {
 // → Motivator/Difficulty → Description (bottom base).
 // Email side: Email ID/Sender (top arm) → Email Subject → Email Body.
 // ============================================================
-const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
+// The form's fields, filled in from a template being edited (only the
+// fields the form has; anything missing keeps its blank default).
+const withTemplate = (blank, template) =>
+  template
+    ? Object.fromEntries(
+        Object.entries(blank).map(([k, v]) => [k, template[k] ?? v]),
+      )
+    : blank;
+
+const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg, editing = false }) => {
   const { isDark } = useUserType?.() || { isDark: false };
   const [customTargetAudience, setCustomTargetAudience] = useState(false);
   const [customAnnouncementType, setCustomAnnouncementType] = useState(false);
@@ -405,6 +415,7 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                   updateField("announcementScenarioId", e.target.value)
                 }
                 placeholder="ANC-XXX"
+                disabled={editing}
               />
 
               <FormInput
@@ -449,7 +460,7 @@ const ScenarioDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                   ) : (
                     <FormSelect
                       label="Type"
-                      value={formData.type}
+                      value={formData.announcementCampaignType}
                       onChange={(e) =>
                         updateField("announcementCampaignType", e.target.value)
                       }
@@ -631,6 +642,10 @@ const AnnouncementTemplateDetails = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishSuccessModal, setPublishSuccessModal] = useState(false);
+  // Opened from a card's Edit: the template being changed (kept here, as the
+  // step routing below clears the route's state).
+  const [editing] = useState(() => location.state?.editTemplate || null);
+  const editId = editing?.announcementId || editing?.announcementScenarioId || "";
 
   // ==========================================================
   // AUTO DISMISS VALIDATION TOAST
@@ -660,7 +675,7 @@ const AnnouncementTemplateDetails = () => {
   // ==========================================================
   // FORM DATA
   // ==========================================================
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => withTemplate({
     // --------------------------------------------------------
     // Scenario Details
     // --------------------------------------------------------
@@ -689,7 +704,7 @@ const AnnouncementTemplateDetails = () => {
     outcomeDescription: "",
     outcomeRichText: "",
     outcomeSource: "",
-  });
+  }, editing));
 
   // ==========================================================
   // TAB NAVIGATION + VALIDATION
@@ -748,15 +763,10 @@ const AnnouncementTemplateDetails = () => {
     // Clear any previous validation error
     setErrorMsg("");
 
-    // Move to next tab
-    setActiveTab((previous) => {
-      if (previous < 2) {
-        return previous + 1;
-      }
-
-      handlePublishCampaign();
-      return previous;
-    });
+    // Move to next tab; on the last one, publish. (Not from inside the state
+    // updater: React may run an updater twice, which saved twice.)
+    if (activeTab < 2) setActiveTab(activeTab + 1);
+    else handlePublishCampaign();
   };
 
   const goBack = () => {
@@ -778,8 +788,10 @@ const AnnouncementTemplateDetails = () => {
     if (isPublishing) return;
     setIsPublishing(true);
     try {
-      // Saved to the backend; it joins the Announcement gallery.
-      await publishTemplate(formData);
+      // Saved to the backend: a new template joins the Announcement gallery;
+      // an edited one is changed in place.
+      if (editId) await updateTemplate(editId, formData);
+      else await publishTemplate(formData);
       setPublishSuccessModal(true);
     } catch (error) {
       console.error("Failed to save the announcement template:", error);
@@ -865,7 +877,7 @@ const AnnouncementTemplateDetails = () => {
             tracking-tight
           "
                 >
-                  Template Launched!
+                  {editId ? "Template Updated!" : "Template Launched!"}
                 </h3>
 
                 <p
@@ -882,7 +894,7 @@ const AnnouncementTemplateDetails = () => {
                     {" "}
                     "{formData.announcementScenarioName || "New Scenario"}"
                   </strong>{" "}
-                  has been successfully scheduled and published.
+                  {editId ? "has been saved." : "has been successfully scheduled and published."}
                 </p>
               </div>
 
@@ -959,12 +971,12 @@ const AnnouncementTemplateDetails = () => {
               <ArrowLeft className="w-4 h-4 stroke-[2.5] rounded-md text-white dark:text-black" />
             </button>
             <h1 className="text-[13.5px] font-bold tracking-tight uppercase">
-              CREATE NEW ANNOUNCEMENT TEMPLATE
+              {editId ? "EDIT ANNOUNCEMENT TEMPLATE" : "CREATE NEW ANNOUNCEMENT TEMPLATE"}
             </h1>
           </div>
 
           <span className="text-[9px] font-bold opacity-60 uppercase">
-            Template Creation
+            {editId ? "Template Editing" : "Template Creation"}
           </span>
         </div>
 
@@ -1006,6 +1018,7 @@ const AnnouncementTemplateDetails = () => {
             {/* Scenario Details */}
             {activeTab === 0 && (
               <ScenarioDetailsTab
+                editing={Boolean(editId)}
                 formData={formData}
                 setFormData={setFormData}
                 goNext={goNext}
@@ -1109,8 +1122,8 @@ const AnnouncementTemplateDetails = () => {
               >
                 {activeTab === 2
                   ? isPublishing
-                    ? "PUBLISHING..."
-                    : "PUBLISH"
+                    ? editId ? "SAVING..." : "PUBLISHING..."
+                    : editId ? "SAVE" : "PUBLISH"
                   : "NEXT"}
               </button>
             </div>

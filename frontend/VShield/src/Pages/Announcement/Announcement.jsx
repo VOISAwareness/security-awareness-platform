@@ -22,6 +22,10 @@ import {
 } from "../../services/announcements";
 import { TYPE_NAMES } from "../../services/campaignTypes";
 import { TARGET_AUDIENCES, namesOf } from "../../services/scenarioOptions";
+import { api } from "../../services/api";
+import { currentActor } from "../../services/identity";
+import DraftDialog from "../../GlobalComponents/DraftDialog";
+import { Toast } from "../../GlobalComponents/Toast";
 // Templates and user lists from the backend (services/announcements.js),
 // kept in objects shaped like the sample files they replace.
 const AnnouncamentScenariosJsonData = announcementTemplatesLive;
@@ -655,15 +659,43 @@ const Announcement = () => {
   // ---------------------------------------------------
   // Card actions — wire these up to your real edit/clone/delete flows
   // ---------------------------------------------------
+  // Edit opens the template form filled in with this template (the stored
+  // row, not the card's display defaults); saving there updates it.
   const handleEdit = (scenario) => {
-    // TODO: navigate to your scenario editor, e.g.
-    // navigate(`/scenarios/${scenario.id}/edit`);
-    console.log("Edit", scenario);
+    const id = scenario.announcementId || scenario.announcementScenarioId;
+    const row =
+      AnnouncamentScenariosJsonData.announcement.find(
+        (a) => (a.announcementId || a.announcementScenarioId) === id,
+      ) || scenario;
+    navigate("/new-announcement", { state: { editTemplate: row } });
   };
 
-  const handleDelete = (scenario) => {
-    // TODO: confirm + delete this scenario from your data source
-    console.log("Delete", scenario);
+  // Delete asks first in the app's own dialog (as the recipient lists do),
+  // then removes the template and says how it went in a toast. The API lets
+  // only the person who created a template delete it, and says so otherwise.
+  const [deleting, setDeleting] = useState(null); // the template asked about
+  const [toast, setToast] = useState(null);
+  const [, setRemoved] = useState(0); // re-render once the live list changes
+  const handleDelete = (scenario) => setDeleting(scenario);
+  const confirmDelete = () => {
+    const target = deleting;
+    const id = target.announcementId || target.announcementScenarioId || target.id;
+    const name = target.announcementScenarioName || id;
+    setDeleting(null);
+    api.announcements
+      .remove(id, currentActor())
+      .then(() => {
+        const live = AnnouncamentScenariosJsonData.announcement;
+        const at = live.findIndex((a) => (a.announcementId || a.announcementScenarioId || a.id) === id);
+        if (at >= 0) live.splice(at, 1);
+        setRemoved((n) => n + 1);
+        if (detailModalItem && (detailModalItem.announcementId || detailModalItem.announcementScenarioId) === id) setDetailModalItem(null);
+        setToast({ type: "success", title: "Announcement deleted", message: `"${name}" was deleted.` });
+      })
+      .catch((err) => {
+        console.error("Failed to delete announcement", err);
+        setToast({ type: "error", title: "Couldn't delete the announcement", message: err?.message || "Please try again." });
+      });
   };
 
   return (
@@ -1080,7 +1112,12 @@ const Announcement = () => {
                             {/* Edit */}
                             <button
                               type="button"
-                              onClick={() => handleEdit(scenario)}
+                              aria-label={`Edit ${scenario.announcementScenarioName || "announcement"}`}
+                              title="Edit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(scenario);
+                              }}
                               className={`
     h-[26px]
     px-2
@@ -1111,7 +1148,12 @@ const Announcement = () => {
                             {/* Delete */}
                             <button
                               type="button"
-                              onClick={() => handleDelete(scenario)}
+                              aria-label={`Delete ${scenario.announcementScenarioName || "announcement"}`}
+                              title="Delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(scenario);
+                              }}
                               className="
           h-[26px]
           px-2
@@ -1369,6 +1411,47 @@ const Announcement = () => {
           </div>
         </div>
       </div>
+
+      <DraftDialog
+        open={Boolean(deleting)}
+        isDark={isDark}
+        tone="danger"
+        title="Delete this announcement?"
+        body="It will be removed from the gallery for everyone, and this action can't be undone."
+        detail={
+          deleting && (
+            <div className="flex flex-col items-center gap-2 font-normal text-center">
+              {/* the template on one line: its id, its name, its type */}
+              <div className="w-full flex items-center justify-center gap-2 min-w-0">
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-white dark:bg-black/40 border border-black/5 dark:border-white/10 text-[9.5px] font-bold font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#E60000]" />
+                  {deleting.announcementScenarioId || deleting.announcementId}
+                </span>
+                <span className="min-w-0 truncate text-[13px] font-bold font-voda leading-snug" title={deleting.announcementScenarioName}>
+                  {deleting.announcementScenarioName}
+                </span>
+              </div>
+              <div className="w-full grid grid-cols-2 pt-2 mt-0.5 border-t border-black/5 dark:border-white/10 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                <span className="flex items-center justify-center gap-1.5 border-r border-black/5 dark:border-white/10 min-w-0">
+                  <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-[#E60000]" />
+                  <span className="truncate">{deleting.announcementCampaignType || "Announcement"}</span>
+                </span>
+                <span className="flex items-center justify-center min-w-0">
+                  <span className="truncate">{deleting.announcementTargetAudience || "All users"}</span>
+                </span>
+              </div>
+            </div>
+          )
+        }
+        primaryLabel="Delete"
+        onPrimary={confirmDelete}
+        secondaryLabel="Cancel"
+        onSecondary={() => setDeleting(null)}
+      />
+
+      {toast && (
+        <Toast message={toast.message} type={toast.type} title={toast.title} duration={3500} onClose={() => setToast(null)} />
+      )}
     </>
   );
 };
