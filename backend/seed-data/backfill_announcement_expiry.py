@@ -4,7 +4,7 @@ Give the announcement roll-outs saved before retention existed their
 expiresAt, so DynamoDB's TTL deletes them too (schema_tables.tf).
 
 reference-api stamps every roll-out it saves with expiresAt: a year after it
-ends (its end time, else its start time, else when it was saved). Older
+ends (its end, else its start, else when it was saved; times are UK time). Older
 roll-outs have none, so TTL never removes them; the app already leaves them
 out of its lists once they are past it. This sets the same expiresAt on
 them. Templates are never touched. Nothing is written without --write.
@@ -21,23 +21,39 @@ TABLE = "security-awareness-poc-announcements"
 RETENTION_DAYS = 365  # as reference-api's ANNOUNCEMENT_RETENTION_DAYS
 
 
-def instant(value):
-    """Epoch seconds of an ISO time, else None (as reference-api's)."""
+def _last_sunday(year, month):
+    nxt = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC)
+    last = datetime.fromtimestamp(nxt.timestamp() - 86400, UTC)
+    return last.day - (last.weekday() + 1) % 7
+
+
+def instant(value, uk=False):
+    """Epoch seconds of an ISO time, else None. A time with no zone is UTC, or
+    with uk=True a UK wall-clock time (BST from 01:00 UTC on the last Sunday of
+    March to the last Sunday of October), as reference-api's uk_instant."""
     if not isinstance(value, str) or not value.strip():
         return None
     try:
         dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
     except ValueError:
         return None
-    return (dt if dt.tzinfo else dt.replace(tzinfo=UTC)).timestamp()
+    if dt.tzinfo:
+        return dt.timestamp()
+    as_utc = dt.replace(tzinfo=UTC).timestamp()
+    if not uk:
+        return as_utc
+    bst_from = datetime(dt.year, 3, _last_sunday(dt.year, 3), 1, tzinfo=UTC).timestamp()
+    bst_to = datetime(dt.year, 10, _last_sunday(dt.year, 10), 1, tzinfo=UTC).timestamp()
+    return as_utc - (3600 if bst_from <= as_utc - 3600 < bst_to else 0)
 
 
 def expiry_of(row, days=RETENTION_DAYS):
     """A roll-out's expiresAt, or None for a template or a row with no times."""
     if row.get("kind") != "ROLLOUT":
         return None
-    ended = (instant(row.get("announcementEndTime")) or instant(row.get("announcementStartTime"))
-             or instant(row.get("createdAt")))
+    start = instant(row.get("startAt")) or instant(row.get("announcementStartTime"), uk=True)
+    end = instant(row.get("endAt")) or instant(row.get("announcementEndTime"), uk=True) or start
+    ended = end or instant(row.get("createdAt"))
     return int(ended + days * 86400) if ended else None
 
 
