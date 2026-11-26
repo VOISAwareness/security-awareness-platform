@@ -35,7 +35,7 @@ export const HubClayCard = ({
   // design, and roomier on a wide screen, so the card is not mostly empty.
   // Roomier than the first design so the heading and its 3–4 line
   // description fit in the arm beside it.
-  const capW = `clamp(${VarCapsuleWidth + 20}px, 31cqw, 260px)`;
+  const capW = `clamp(${VarCapsuleWidth + 8}px, 27cqw, 230px)`;
   // The capsule (and the arm beside it) also grows with the card's height,
   // towards the bottom row, but no taller than 0.85 of its width, so it stays a tile.
   const bottomRow = "calc(var(--hub-pad) * 2 + clamp(20px, 3.2cqw, 26px))";
