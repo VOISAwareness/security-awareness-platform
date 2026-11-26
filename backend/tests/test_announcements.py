@@ -243,3 +243,51 @@ def test_the_backfill_sets_the_same_expiry_as_the_api(mod):
     assert backfill.RETENTION_DAYS == mod.ANNOUNCEMENT_RETENTION_DAYS
     assert backfill.missing(rows) == [("ANR-001", mod.rollout_expiry(rows[0])), ("ANR-002", mod.rollout_expiry(rows[1])),
                                       ("ANR-004", mod.rollout_expiry(rows[4]))]
+
+
+def test_the_outcome_says_who_it_reached_read_it_and_finished_its_training(mod, table):
+    db = mod.dynamodb
+    rec = db.create_table(
+        TableName=f"{mod.TABLE_PREFIX}-recipients", BillingMode="PAY_PER_REQUEST",
+        KeySchema=[{"AttributeName": "campaignId", "KeyType": "HASH"}, {"AttributeName": "recipientId", "KeyType": "RANGE"}],
+        AttributeDefinitions=[{"AttributeName": "campaignId", "AttributeType": "S"}, {"AttributeName": "recipientId", "AttributeType": "S"}])
+    ta = db.create_table(
+        TableName=f"{mod.TABLE_PREFIX}-training-assignments", BillingMode="PAY_PER_REQUEST",
+        KeySchema=[{"AttributeName": "owner", "KeyType": "HASH"}, {"AttributeName": "assignmentId", "KeyType": "RANGE"}],
+        AttributeDefinitions=[{"AttributeName": n, "AttributeType": "S"} for n in ("owner", "assignmentId", "TrainingPathID", "assignedAt")],
+        GlobalSecondaryIndexes=[{"IndexName": "path-assignedAt-index", "Projection": {"ProjectionType": "ALL"},
+                                 "KeySchema": [{"AttributeName": "TrainingPathID", "KeyType": "HASH"},
+                                               {"AttributeName": "assignedAt", "KeyType": "RANGE"}]}])
+    table.put_item(Item={"announcementId": "ANR-010", "kind": "ROLLOUT", "status": "SENT", "createdBy": ANA,
+                         "announcementCampaignTitle": "VPN change", "selectedListName": "Finance", "trainingPathId": "TP-1"})
+    rows = [("R1", "ana@x.example", "SENT", "2026-11-20T10:00:00Z"), ("R2", "ben@x.example", "SENT", None),
+            ("R3", "cy@x.example", "FAILED", None)]
+    for rid, email, sent, ack in rows:
+        item = {"campaignId": "ANR-010", "recipientId": rid, "kind": "ANNOUNCEMENT", "recipientEmail": email, "sendStatus": sent,
+                "trackingToken": f"tok-{rid}"}
+        if ack:
+            item["acknowledgedAt"] = ack
+        if sent == "FAILED":
+            item["failureReason"] = "MessageRejected"
+        rec.put_item(Item=item)
+    ta.put_item(Item={"owner": "ana@x.example", "assignmentId": "A1", "TrainingPathID": "TP-1", "assignedAt": "x", "status": "COMPLETED"})
+    ta.put_item(Item={"owner": "ben@x.example", "assignmentId": "A2", "TrainingPathID": "TP-1", "assignedAt": "y", "status": "IN_PROGRESS"})
+    get = lambda q: call(mod, "GET /announcements/{id}/outcome", query=q, row_id="ANR-010")  # noqa: E731
+    assert get({"actor": BEN, "role": "Campaign Creator"})[0] == 403  # not hers, not an approver
+    status, body = get({"actor": BEN, "role": "Campaign Manager"})
+    assert status == 200
+    out = body["data"]
+    assert out["title"] == "VPN change" and out["listName"] == "Finance" and out["refreshedAt"]
+    assert out["totals"] == {"recipients": 3, "sent": 2, "failed": 1, "acknowledged": 1, "trained": 1}
+    by = {r["email"]: r for r in out["rows"]}
+    assert (by["ana@x.example"]["sent"], by["ana@x.example"]["acknowledged"], by["ana@x.example"]["trained"]) == ("yes", "yes", "yes")
+    assert (by["ben@x.example"]["acknowledged"], by["ben@x.example"]["trained"]) == ("no", "no")
+    assert by["cy@x.example"]["acknowledged"] == "unknown" and by["cy@x.example"]["failureReason"] == "MessageRejected"
+    assert all("trackingToken" not in r for r in out["rows"])  # tokens never leave the server
+    # its creator sees it too; with no training linked, trained is unknown
+    table.update_item(Key={"announcementId": "ANR-010"}, UpdateExpression="REMOVE trainingPathId")
+    out = get({"actor": ANA})[1]["data"]
+    assert out["totals"]["trained"] is None and {r["trained"] for r in out["rows"]} == {"unknown"}
+    # a template has no outcome
+    tid = call(mod, "POST /announcements", TEMPLATE)[1]["data"]["announcementId"]
+    assert call(mod, "GET /announcements/{id}/outcome", query={"actor": ANA}, row_id=tid)[0] == 409
