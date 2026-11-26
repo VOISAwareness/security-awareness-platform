@@ -5,7 +5,8 @@ import { PAGE_SCALE } from "../../../shared/SharedStyles";
 import { useNavigate } from "react-router-dom";
 
 // 👇 Adjust these two paths to where your JSON files live
-import data from "../AnnouncementMasterData.json";
+import { useRollouts } from "../../../services/announcements";
+import PageLoading from "../../../GlobalComponents/PageLoading";
 import outcomeData from "../AnnouncementOutcomeData.json";
 
 import AnnouncementGalleryCard, {
@@ -125,6 +126,11 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
 
   const lCardBg = getLCardBg(isDark);
 
+  // The roll-outs from the backend (GET /announcements?kind=ROLLOUT), in the
+  // shape the cards were written for. A roll-out past its retention (a year
+  // after it ends) is no longer returned, so it leaves Historical by itself.
+  const rollouts = useRollouts();
+
   // Everyone sees every announcement. Published ones split on their schedule;
   // a cancelled one goes to the Cancelled tab. Pending and rejected requests
   // live on Requests & Approvals.
@@ -135,7 +141,7 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
     const historical = [];
     const cancelled = [];
 
-    (data.announcement || []).forEach((a) => {
+    rollouts.items.forEach((a) => {
       if (isCancelled(a)) {
         cancelled.push(a);
       } else if (a.AnnouncementStatus === "Published") {
@@ -148,7 +154,7 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
     });
 
     return { ongoing, scheduled, historical, cancelled };
-  }, []);
+  }, [rollouts.items]);
 
   // Active category list filtered by search and sorted
   const currentCategoryList = useMemo(() => {
@@ -396,7 +402,17 @@ const AnnouncementHistory = ({ isDark: propIsDark }) => {
               }}
               className="w-full p-4 flex flex-col gap-3 overflow-y-auto border-b border-l border-r border-black/5 dark:border-white/5 transition-colors [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-md"
             >
-              {currentCategoryList.length === 0 ? (
+              {rollouts.loading ? (
+                <div className="relative w-full h-full min-h-[160px]">
+                  <PageLoading show isDark={isDark} />
+                </div>
+              ) : rollouts.error ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-center">
+                  <p className="text-xs font-bold text-slate-400">
+                    Couldn&apos;t load the announcements. Please try again.
+                  </p>
+                </div>
+              ) : currentCategoryList.length === 0 ? (
                 <div className="w-full h-full flex flex-col items-center justify-center text-center">
                   <p className="text-xs font-bold text-slate-400">
                     No {activeTabConfig.title.toLowerCase()} found matching

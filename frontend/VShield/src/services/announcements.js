@@ -85,6 +85,73 @@ export async function saveRollout(draft, submit, list, { actor = currentActor(),
   });
 }
 
+// "10/12/2026 09:00 AM": how the History page's cards read a time (local).
+const pad2 = (n) => String(n).padStart(2, '0');
+export function historyTime(value) {
+  if (!value) return '';
+  const d = new Date(value); // a datetime-local "2026-10-12T09:00" reads as local time
+  if (Number.isNaN(d.getTime())) return '';
+  const h = d.getHours() % 12 || 12;
+  return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()} ${pad2(h)}:${pad2(d.getMinutes())} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+}
+
+// "Ana Rao <ana@x>" reads "Ana Rao"; a bare address stays as it is
+const personName = (v) => String(v || '').replace(/\s*<[^>]*>\s*$/, '').trim() || String(v || '');
+
+const HISTORY_STATUS = { APPROVED: 'Published', SENDING: 'Published', SENT: 'Published', PENDING_APPROVAL: 'Pending', REJECTED: 'Rejected' };
+
+/**
+ * A roll-out from the API in the shape the History page was written against
+ * (AnnouncementMasterData.json). One that ends when sent (no end time) ends
+ * at its start.
+ */
+export function fromRollout(r) {
+  const start = historyTime(r.announcementStartTime);
+  return {
+    announcementId: r.announcementId,
+    AnnouncementStatus: HISTORY_STATUS[r.status] || r.status || '',
+    AnnouncementTitle: r.announcementCampaignTitle || r.announcementScenarioName || r.announcementId,
+    AnnouncementDescription: r.announcementCampaignDescription || r.announcementDescription || '',
+    AnnouncementTemplateID: r.announcementScenarioId || '',
+    AnnouncementStartType: 'Scenario',
+    AnnouncementStartTime: start,
+    AnnouncementEndTime: historyTime(r.announcementEndTime) || start,
+    AnnouncementAutoEndPostCompletion: r.autoEndPostSending ? 'Yes' : 'No',
+    TestAnnouncement: r.isAnnouncementTestCampaign ? 'Yes' : 'No',
+    AnnouncementReasonForCancel: 'NA',
+    AnnouncementCreatedBy: personName(r.createdBy),
+    AnnouncementCreationDate: historyTime(r.createdAt),
+    AnnouncementLastModified: historyTime(r.updatedAt || r.createdAt),
+    'AnnouncementApproved/RejectedBy': personName(r.approvedBy || r.rejectedBy),
+    AnnouncementSenderName: r.announcementSenderName || '',
+    AnnouncementSenderEmailID: r.announcementSenderEmailId || '',
+    AnnouncementEmailSubject: r.announcementEmailSubject || '',
+    AnnouncementEmailBody: r.announcementEmailBody || '',
+    AnnouncementUserListID: r.selectedListName || r.selectedListId || '',
+    AnnouncementRecipientGroupType: r.selectedListName ? 'User List' : '',
+    AnnouncementTrainingPathID: r.trainingPathId || 'NA',
+  };
+}
+
+/** The roll-outs for the History page, from GET /announcements?kind=ROLLOUT. */
+export function useRollouts({ client = api } = {}) {
+  const [state, setState] = useState({ loading: true, error: null, items: [] });
+  useEffect(() => {
+    let active = true;
+    client.announcements
+      .list('ROLLOUT')
+      .then((rows) => active && setState({ loading: false, error: null, items: (Array.isArray(rows) ? rows : []).map(fromRollout) }))
+      .catch((error) => {
+        console.error('Could not load the announcement roll-outs', error);
+        if (active) setState({ loading: false, error, items: [] });
+      });
+    return () => {
+      active = false;
+    };
+  }, [client]);
+  return state;
+}
+
 /** Load the templates and lists for a component; it re-renders once they are in. */
 export function useAnnouncementData() {
   const [state, setState] = useState({ loading: true, error: null, version: 0 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { announcementTemplatesLive, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
+import { announcementTemplatesLive, fromRollout, historyTime, loadAnnouncementData, publishTemplate, saveRollout, splitUserLists, updateTemplate, userListsLive } from './announcements.js';
 
 const client = (calls = []) => ({
   calls,
@@ -55,4 +55,30 @@ test('saveRollout keeps the list by id and name, never its members', async () =>
 
 test('splitUserLists', () => {
   assert.deepEqual(splitUserLists(null), { savedUserLists: [], syncedDistributionLists: [] });
+});
+
+test('historyTime writes the History page\'s local "MM/DD/YYYY hh:mm AM"', () => {
+  assert.equal(historyTime('2026-10-12T09:05'), '10/12/2026 09:05 AM');
+  assert.equal(historyTime('2026-10-12T00:30'), '10/12/2026 12:30 AM');
+  assert.equal(historyTime('2026-10-12T17:00'), '10/12/2026 05:00 PM');
+  assert.equal(historyTime(''), '');
+  assert.equal(historyTime('not a date'), '');
+});
+
+test('fromRollout maps a roll-out to the History page\'s fields', () => {
+  const row = fromRollout({
+    announcementId: 'ANR-004', status: 'APPROVED', announcementCampaignTitle: 'VPN change', announcementScenarioId: 'ANC-002',
+    announcementStartTime: '2026-10-12T09:00', autoEndPostSending: true, createdBy: 'Ana <ana@x>', approvedBy: 'ana@x',
+    selectedListName: 'Finance', announcementEmailSubject: 'Heads up',
+  });
+  assert.equal(row.AnnouncementStatus, 'Published');
+  assert.equal(row.AnnouncementTitle, 'VPN change');
+  assert.equal(row.AnnouncementTemplateID, 'ANC-002');
+  assert.equal(row.AnnouncementStartTime, '10/12/2026 09:00 AM');
+  assert.equal(row.AnnouncementEndTime, '10/12/2026 09:00 AM'); // ends when sent
+  assert.equal(row.AnnouncementReasonForCancel, 'NA');
+  assert.equal(row.AnnouncementUserListID, 'Finance');
+  assert.equal(row.AnnouncementCreatedBy, 'Ana');
+  assert.equal(row['AnnouncementApproved/RejectedBy'], 'ana@x');
+  assert.equal(fromRollout({ announcementId: 'ANR-5', status: 'PENDING_APPROVAL' }).AnnouncementStatus, 'Pending');
 });
