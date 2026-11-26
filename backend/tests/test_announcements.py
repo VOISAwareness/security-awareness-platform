@@ -269,7 +269,12 @@ def test_the_outcome_says_who_it_reached_read_it_and_finished_its_training(mod, 
             item["acknowledgedAt"] = ack
         if sent == "FAILED":
             item["failureReason"] = "MessageRejected"
+        if rid == "R1":
+            item.update(deliveredAt="2026-11-20T09:00:05Z", complainedAt="2026-11-20T11:00:00Z")
         rec.put_item(Item=item)
+    # SES accepted it, then the address bounced (announcement-feedback): it never reached them
+    rec.put_item(Item={"campaignId": "ANR-010", "recipientId": "R4", "kind": "ANNOUNCEMENT", "recipientEmail": "di@x.example",
+                       "sendStatus": "SENT", "bouncedAt": "2026-11-20T09:00:09Z", "bounceType": "Permanent"})
     ta.put_item(Item={"owner": "ana@x.example", "assignmentId": "A1", "TrainingPathID": "TP-1", "assignedAt": "x", "status": "COMPLETED"})
     ta.put_item(Item={"owner": "ben@x.example", "assignmentId": "A2", "TrainingPathID": "TP-1", "assignedAt": "y", "status": "IN_PROGRESS"})
     get = lambda q: call(mod, "GET /announcements/{id}/outcome", query=q, row_id="ANR-010")  # noqa: E731
@@ -278,11 +283,16 @@ def test_the_outcome_says_who_it_reached_read_it_and_finished_its_training(mod, 
     assert status == 200
     out = body["data"]
     assert out["title"] == "VPN change" and out["listName"] == "Finance" and out["refreshedAt"]
-    assert out["totals"] == {"recipients": 3, "sent": 2, "failed": 1, "acknowledged": 1, "trained": 1}
+    assert out["totals"] == {"recipients": 4, "sent": 2, "failed": 2, "delivered": 1, "bounced": 1, "complained": 1,
+                             "acknowledged": 1, "trained": 1}
     by = {r["email"]: r for r in out["rows"]}
     assert (by["ana@x.example"]["sent"], by["ana@x.example"]["acknowledged"], by["ana@x.example"]["trained"]) == ("yes", "yes", "yes")
     assert (by["ben@x.example"]["acknowledged"], by["ben@x.example"]["trained"]) == ("no", "no")
     assert by["cy@x.example"]["acknowledged"] == "unknown" and by["cy@x.example"]["failureReason"] == "MessageRejected"
+    assert (by["di@x.example"]["sent"], by["di@x.example"]["delivered"]) == ("no", "no")
+    assert by["di@x.example"]["failureReason"] == "Bounced (Permanent)" and by["di@x.example"]["acknowledged"] == "unknown"
+    assert (by["ana@x.example"]["delivered"], by["ana@x.example"]["complained"]) == ("yes", "yes")
+    assert by["ben@x.example"]["delivered"] == "unknown"
     assert all("trackingToken" not in r for r in out["rows"])  # tokens never leave the server
     # its creator sees it too; with no training linked, trained is unknown
     table.update_item(Key={"announcementId": "ANR-010"}, UpdateExpression="REMOVE trainingPathId")

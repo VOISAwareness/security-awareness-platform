@@ -61,6 +61,10 @@ MAX_PER_SECOND = max(1.0, float(os.environ.get("ANNOUNCEMENT_MAX_PER_SECOND", "1
 # The API's public address: each email's "I've read this" button opens
 # {API_BASE_URL}/ack/{token} (the tracking Lambda). Blank: no button.
 API_BASE_URL = os.environ.get("API_BASE_URL", "").strip().rstrip("/")
+# The SES configuration set whose Delivery, Bounce and Complaint events reach
+# announcement-feedback; each email is tagged with its roll-out and person so
+# the event finds their row. Blank: sent without one (no feedback).
+CONFIGURATION_SET = os.environ.get("ANNOUNCEMENT_CONFIGURATION_SET", "").strip()
 CHECK_EVERY = 25  # people between looks at the roll-out (a cancel stops the send)
 RESUME_MARGIN_MS = 30_000  # carry on in a new run when less than this is left
 MAX_REASON = 300
@@ -265,6 +269,11 @@ def send_one(rollout, person, source):
     text = plain_text(body) + (f"\n\nI've read this: {url}" if url else "")
     subject = render(rollout.get("announcementEmailSubject") or rollout.get("announcementCampaignTitle"), person["name"])
     try:
+        feedback = {}
+        if CONFIGURATION_SET:
+            feedback = {"ConfigurationSetName": CONFIGURATION_SET,
+                        "Tags": [{"Name": "announcementId", "Value": announcement_id},
+                                 {"Name": "recipientId", "Value": recipient_id}]}
         response = ses_client.send_email(
             Source=source,
             Destination={"ToAddresses": [person["email"]]},
@@ -273,6 +282,7 @@ def send_one(rollout, person, source):
                 "Body": {"Html": {"Data": html, "Charset": "UTF-8"},
                          "Text": {"Data": text, "Charset": "UTF-8"}},
             },
+            **feedback,
         )
     except ClientError as error:
         return fail(error.response.get("Error", {}).get("Code", "AWSClientError"))

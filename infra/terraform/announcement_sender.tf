@@ -108,6 +108,8 @@ resource "aws_lambda_function" "announcement_sender" {
       # each email's "I've read this" button: {API_BASE_URL}/ack/{token}
       # (tracking_ack_route.tf)
       API_BASE_URL = aws_apigatewayv2_api.main.api_endpoint
+      # Delivery, bounce and complaint events (announcement_feedback.tf)
+      ANNOUNCEMENT_CONFIGURATION_SET = aws_ses_configuration_set.announcements.name
     }
   }
 }
