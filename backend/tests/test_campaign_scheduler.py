@@ -124,3 +124,49 @@ def test_nothing_approved_sends_nothing(mod, monkeypatch):
     result, _, client = run(mod, monkeypatch, [[]])
     assert result == {"sent": [], "missed": [], "waiting": 0}
     assert client.invoked == []
+
+
+# ------------------------------------------------------------ announcements
+
+def run_announcements(mod, monkeypatch, rollouts, enabled=True):
+    campaigns, announcements, client = FakeTable([[]]), FakeTable([rollouts]), FakeLambda()
+    monkeypatch.setattr(mod, "campaigns_table", campaigns)
+    monkeypatch.setattr(mod, "announcements_table", announcements)
+    monkeypatch.setattr(mod, "ANNOUNCEMENT_SENDER_FUNCTION", "t-announcement-sender")
+    monkeypatch.setattr(mod, "ANNOUNCEMENT_SENDING_ENABLED", enabled)
+    monkeypatch.setattr(mod, "lambda_client", client)
+    monkeypatch.setattr(mod, "utc_now", lambda: NOW)
+    return mod.lambda_handler({}, CONTEXT), announcements, client
+
+
+ROLLOUTS = [
+    {"announcementId": "ANR-001", "kind": "ROLLOUT", "startAt": "2026-11-05T08:55:00Z"},  # due
+    {"announcementId": "ANR-002", "kind": "ROLLOUT", "startAt": "2026-11-05T12:00:00Z"},  # later today
+    {"announcementId": "ANR-003", "kind": "ROLLOUT", "startAt": "2026-11-05T07:00:00Z"},  # two hours late
+    {"announcementId": "ANR-004", "kind": "ROLLOUT"},  # no start
+    {"announcementId": "ANC-001", "kind": "TEMPLATE", "status": "APPROVED"},  # not a roll-out
+]
+
+
+def test_due_rollouts_go_to_the_announcement_sender(mod, monkeypatch):
+    result, table, client = run_announcements(mod, monkeypatch, ROLLOUTS)
+    a = result["announcements"]
+    assert a["sent"] == ["ANR-001"] and a["missed"] == ["ANR-003"] and a["waiting"] == 1
+    assert [json.loads(c["Payload"])["announcementId"] for c in client.invoked] == ["ANR-001"]
+    assert client.invoked[0]["FunctionName"] == "t-announcement-sender" and client.invoked[0]["InvocationType"] == "Event"
+    failed = {u["Key"]["announcementId"]: u["ExpressionAttributeValues"][":failed"] for u in table.updates}
+    assert failed == {"ANR-003": "FAILED", "ANR-004": "FAILED"}
+    assert all(u["ConditionExpression"] == "#s = :approved" for u in table.updates)
+
+
+def test_while_sending_is_off_due_rollouts_only_wait(mod, monkeypatch):
+    result, table, client = run_announcements(mod, monkeypatch, ROLLOUTS, enabled=False)
+    a = result["announcements"]
+    assert a["sent"] == [] and a["missed"] == [] and sorted(a["due"]) == ["ANR-001", "ANR-003", "ANR-004"]
+    assert client.invoked == [] and table.updates == []  # nothing sent, nothing marked missed
+
+
+def test_a_rollout_without_startAt_starts_at_its_uk_wall_clock_time(mod):
+    assert mod.rollout_start({"announcementStartTime": "2026-11-05T09:00"}) == datetime(2026, 11, 5, 9, 0, tzinfo=UTC)
+    assert mod.rollout_start({"announcementStartTime": "2026-07-01T09:00"}) == datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
+    assert mod.rollout_start({"announcementStartTime": "soon"}) is None

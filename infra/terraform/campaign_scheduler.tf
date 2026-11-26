@@ -1,6 +1,8 @@
 # campaign-scheduler: sends approved campaigns at their scheduled start. An
 # EventBridge rule runs it every minute; it invokes email-sender (looked up in
-# send_routes.tf) for each APPROVED campaign whose start has come. See
+# send_routes.tf) for each APPROVED campaign whose start has come, and
+# announcement-sender (announcement_sender.tf) for each due announcement
+# roll-out. See
 # backend/campaign-scheduler/lambda_function.py. Code is packaged here, as
 # for points-engine.
 
@@ -53,6 +55,23 @@ resource "aws_iam_role_policy" "campaign_scheduler" {
         Action   = "lambda:InvokeFunction"
         Resource = data.aws_lambda_function.email_sender.arn
       },
+      {
+        # Announcement roll-outs: read the APPROVED ones; mark one it can no
+        # longer send FAILED (only while APPROVED); start announcement-sender.
+        Effect   = "Allow"
+        Action   = "dynamodb:Query"
+        Resource = "${aws_dynamodb_table.announcements.arn}/index/status-index"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = aws_dynamodb_table.announcements.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = aws_lambda_function.announcement_sender.arn
+      },
     ]
   })
 }
@@ -77,6 +96,11 @@ resource "aws_lambda_function" "campaign_scheduler" {
       DEFAULT_UTC_OFFSET_MINUTES = "330"
       # A start more than an hour past is logged as missed, never sent late.
       MAX_LATENESS_MINUTES = "60"
+      # Announcement roll-outs (announcement_sender.tf); while sending is off
+      # due ones are only logged and stay APPROVED.
+      ANNOUNCEMENTS_TABLE          = aws_dynamodb_table.announcements.name
+      ANNOUNCEMENT_SENDER_FUNCTION = aws_lambda_function.announcement_sender.function_name
+      ANNOUNCEMENT_SENDING_ENABLED = tostring(var.announcement_sending_enabled)
     }
   }
 }

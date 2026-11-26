@@ -2565,7 +2565,8 @@ def my_training(route, event, context):
 #   POST   /announcements/{id}/decision {actor, role, decision: "approve"|"reject", comments}
 #          (an Admin or a Campaign Manager, never on their own roll-out)
 #   POST   /announcements/{id}/cancel {actor, role, reason}  (its creator, an
-#          Admin or a Campaign Manager; an approved roll-out that has not ended)
+#          Admin or a Campaign Manager; an approved or sending roll-out that has
+#          not ended: announcement-sender stops between batches)
 # A roll-out is APPROVED when its creator publishes it (submit "approve") or
 # PENDING_APPROVAL when sent for approval; nobody approves their own.
 ANNOUNCEMENT_ROUTES = frozenset({
@@ -2788,15 +2789,16 @@ def announcements(route, event, params, context):
             updated = tbl.update_item(
                 Key={"announcementId": params["id"]},
                 UpdateExpression="SET #s = :new, cancelledBy = :actor, cancelledAt = :now, cancelReason = :r, updatedAt = :now",
-                ConditionExpression="#s = :approved",
+                ConditionExpression="#s IN (:approved, :sending)",  # a send in progress stops between batches
                 ExpressionAttributeNames={"#s": "status"},
-                ExpressionAttributeValues={":new": "CANCELLED", ":actor": actor, ":now": now, ":r": reason, ":approved": "APPROVED"},
+                ExpressionAttributeValues={":new": "CANCELLED", ":actor": actor, ":now": now, ":r": reason,
+                                           ":approved": "APPROVED", ":sending": "SENDING"},
                 ReturnValues="ALL_NEW",
             )
         except ClientError as e:
             if not conditional_failed(e):
                 raise
-            return err(409, "Only an approved announcement that has not ended can be cancelled")
+            return err(409, "Only an approved or sending announcement that has not ended can be cancelled")
         log(context, "announcement cancelled", id=params["id"])
         return ok(updated["Attributes"])
 
