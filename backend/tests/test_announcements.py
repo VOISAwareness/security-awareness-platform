@@ -126,6 +126,11 @@ def test_cancelling_an_approved_rollout_before_it_ends(mod, table):
     assert cancel(ANA)[0] == 200
     rid = call(mod, "POST /announcements", {**later, "submit": "request"})[1]["data"]["announcementId"]
     assert cancel(ANA, "Admin")[0] == 409
+    # a send in progress is cancelled too (announcement-sender then stops)
+    table.put_item(Item={"announcementId": "ANR-077", "kind": "ROLLOUT", "status": "SENDING", "createdBy": ANA,
+                         "announcementStartTime": "2998-01-01T09:00"})
+    status, body = call(mod, "POST /announcements/{id}/cancel", {"actor": ANA, "reason": "Wrong list"}, "ANR-077")
+    assert status == 200 and body["data"]["status"] == "CANCELLED"
     # over: nothing left to cancel
     rid = call(mod, "POST /announcements", {**later, "announcementStartTime": "2026-01-01T09:00",
                                             "announcementEndTime": "2026-01-02T09:00"})[1]["data"]["announcementId"]

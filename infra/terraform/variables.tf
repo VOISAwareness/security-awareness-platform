@@ -31,3 +31,36 @@ variable "upload_allowed_origins" {
   type        = list(string)
   default     = ["https://*.app.github.dev"]
 }
+
+# ---------------------------------------------------------- announcement sending
+# announcement-sender (announcement_sender.tf). Off until announcement emails
+# are wanted; while off, campaign-scheduler leaves due roll-outs APPROVED.
+variable "announcement_sending_enabled" {
+  description = "Send approved announcement roll-outs by email at their start (SES)"
+  type        = bool
+  default     = false
+}
+
+variable "announcement_sender_email" {
+  description = "From address when a roll-out's chosen sender is not verified in SES (blank: such roll-outs fail, unsent)"
+  type        = string
+  default     = ""
+}
+
+variable "announcement_test_recipient" {
+  description = "Where a test announcement goes when it names no one (a verified address)"
+  type        = string
+  default     = ""
+}
+
+variable "announcement_allowed_domains" {
+  description = "Comma-separated email domains announcements may go to (blank: any). Set it outside production."
+  type        = string
+  default     = ""
+}
+
+variable "announcement_max_per_second" {
+  description = "Announcement emails per second: SES's rate (1 in the sandbox)"
+  type        = number
+  default     = 1
+}
