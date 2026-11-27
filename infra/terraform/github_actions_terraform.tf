@@ -83,13 +83,6 @@ resource "aws_iam_role_policy" "github_terraform" {
         Resource = aws_s3_bucket.assets.arn
       },
       {
-        # The address ranges allowed to open the hosted app (app_hosting.tf).
-        Sid      = "AppAllowedRanges"
-        Effect   = "Allow"
-        Action   = "ssm:GetParameter"
-        Resource = "arn:aws:ssm:${local.region}:${local.account_id}:parameter/${var.name_prefix}/app-allowed-cidrs"
-      },
-      {
         Sid    = "Tables"
         Effect = "Allow"
         Action = [
