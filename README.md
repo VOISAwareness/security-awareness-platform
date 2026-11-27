@@ -433,6 +433,18 @@ npm run dev
 
 Open the app and sign in with any role and the POC password `123456`.
 
+**Faster for everyday use: the built app.** `npm run dev` serves the source
+file by file (55-200 requests per page) and rebuilds as you edit, which is
+what you want while changing code, but slow to click around in. To use the app
+as it will run in production, build it and serve the build:
+
+```bash
+npm run start:built   # builds, then serves http://localhost:5174
+```
+
+It calls the API at `/api` through the same proxy as the dev server
+(`.env.built`), so nothing else changes. Re-run it to pick up new code.
+
 **How API calls are routed.** The HTTP API's CORS allowlist only contains
 `http://localhost:5173` and `:5174`, so a browser served from a Codespace or
 tunnel hostname would be blocked. `vite.config.js` therefore proxies `/api` to
