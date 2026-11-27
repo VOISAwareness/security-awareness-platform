@@ -400,8 +400,10 @@ export const api = {
     list: (status) =>
       request(`/campaigns${status ? `?status=${encodeURIComponent(status)}` : ''}`),
     // The list without each campaign's email and landing page HTML (most of
-    // its bytes), for screens that never show them: Home, the notices bell.
-    summary: () => request('/campaigns?view=summary'),
+    // its bytes): every campaign list uses it; a pop-up that shows a
+    // campaign's email reads that one campaign (campaignEmail.js).
+    summary: (status) =>
+      request(`/campaigns?view=summary${status ? `&status=${encodeURIComponent(status)}` : ''}`),
     // {campaignId: counts} for up to 50 campaigns in one read (Home).
     tallies: (ids) => request(`/campaigns/tallies?ids=${(ids || []).map(encodeURIComponent).join(',')}`),
     get: (id) => request(`/campaigns/${encodeURIComponent(id)}`),

@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from './api';
 import { normalizeCampaign } from './campaignStatus';
+import { forgetCampaignEmails } from './campaignEmail';
 
 export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
   const [campaigns, setCampaigns] = useState([]);
@@ -62,8 +63,12 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
   // updates nothing synchronously. This mirrors how the wizard screens fetch.
   useEffect(() => {
     let active = true;
+    // a fresh visit reads each campaign's email afresh (it may have been edited)
+    forgetCampaignEmails();
+    // the summary: without each campaign's email and landing page HTML, which
+    // only a detail pop-up shows (it reads that one campaign: campaignEmail.js)
     api.campaigns
-      .list(status || undefined)
+      .summary(status || undefined)
       .then((rows) => {
         if (active) applyRows(rows);
       })
@@ -82,7 +87,7 @@ export function useCampaigns({ status = null, actor = 'wizard-user' } = {}) {
    */
   const refetchQuietly = useCallback(async () => {
     try {
-      applyRows(await api.campaigns.list(status || undefined));
+      applyRows(await api.campaigns.summary(status || undefined));
     } catch (e) {
       applyError(e);
     }

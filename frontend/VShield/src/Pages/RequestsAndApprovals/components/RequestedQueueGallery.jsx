@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { formatDateTime } from "../../../services/campaignStatus";
+import { useCampaignEmail } from "../../../services/campaignEmail";
 import { Search, ChevronDown, ExternalLink, User, Eye, X } from "lucide-react";
 import { DEMO_USER } from "../../../appConfig";
 import { formatShortDate as shortDateUK } from '../../../shared/dateTime';
@@ -59,6 +60,11 @@ const RequestedQueueGallery = ({ campaigns = [], onViewDetails, isDark }) => {
   const [sortBy, setSortBy] = useState("Shortest Expiring Date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [detailModalItem, setDetailModalItem] = useState(null);
+  // its email, read when its pop-up opens (the list leaves the HTML out)
+  const detailEmail = useCampaignEmail(
+    detailModalItem?.campaignId,
+    detailModalItem?.EmailBody || detailModalItem?.emailBody || detailModalItem?.ScenarioEmailBody || detailModalItem?.EmailContent || "",
+  );
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
 
   const lCardBg = getLCardBg(isDark);
@@ -579,20 +585,15 @@ const RequestedQueueGallery = ({ campaigns = [], onViewDetails, isDark }) => {
                 </div>
 
                 {/* Preview Email Body Button */}
-                {(detailModalItem.EmailBody ||
-                  detailModalItem.emailBody ||
-                  detailModalItem.ScenarioEmailBody ||
-                  detailModalItem.EmailContent) && (
+                {detailEmail.loading && (
+                  <div className="pt-1.5 text-[10.5px] font-semibold text-slate-400">Loading the email…</div>
+                )}
+                {detailEmail.html && (
                   <div className="pt-1.5">
                     <button
                       type="button"
                       onClick={() =>
-                        setPreviewEmailHtml(
-                          detailModalItem.EmailBody ||
-                            detailModalItem.emailBody ||
-                            detailModalItem.ScenarioEmailBody ||
-                            detailModalItem.EmailContent,
-                        )
+                        setPreviewEmailHtml(detailEmail.html)
                       }
                       className="px-3 py-1 rounded-lg bg-white text-slate-800 border border-slate-300 text-[10.5px] font-bold flex items-center gap-1.5 hover:bg-slate-50 shadow-2xs cursor-pointer w-fit transition-colors"
                     >
