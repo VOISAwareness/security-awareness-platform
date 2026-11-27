@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useUserType } from "../../UserTypeContext/UserTypeContext";
 import { useCampaigns } from "../../services/useCampaigns";
+import { useCampaignEmail } from "../../services/campaignEmail";
 import { lastSaved } from "../../services/campaignWizard";
 import { DESIGN_STATUS, toDesignCampaign } from "../../services/campaignDesign";
 import { PHASE } from "../../services/campaignStatus";
@@ -161,6 +162,8 @@ const Campaigns = ({ isDark: propIsDark }) => {
 
   // Modals
   const [detailModalItem, setDetailModalItem] = useState(null);
+  // its email, read when its pop-up opens (the list leaves the HTML out)
+  const detailEmail = useCampaignEmail(detailModalItem?.campaignId, detailModalItem?.EmailBody);
   const [previewEmailHtml, setPreviewEmailHtml] = useState(null);
   // View Analytics pop-up: the campaign and its card's position (for its colour)
   const [analyticsItem, setAnalyticsItem] = useState(null);
@@ -1073,13 +1076,16 @@ const Campaigns = ({ isDark: propIsDark }) => {
                 </div>
 
                 {/* Preview Email Body Button */}
-                {detailModalItem.EmailBody && (
+                {detailEmail.loading && (
+                  <div className="pt-1.5 text-[10.5px] font-semibold text-slate-400">Loading the email…</div>
+                )}
+                {detailEmail.html && (
                   <div className="pt-1.5">
                     <button
                       type="button"
                       onClick={() =>
                         setPreviewEmailHtml({
-                          html: detailModalItem.EmailBody,
+                          html: detailEmail.html,
                           cardIdx: detailModalItem._cardIdx ?? 0,
                         })
                       }
