@@ -420,6 +420,19 @@ security-awareness-platform
 
 ---
 
+## Hosted app
+
+The built app is served by the project's CloudFront distribution
+(`terraform output app_url`), beside the API at `/api`, training packages at
+`/scorm` and pictures at `/media` (`infra/terraform/app_hosting.tf`).
+`.github/workflows/deploy-frontend.yml` uploads a new build on every merge to
+`main` that touches `frontend/VShield`.
+
+Until sign-in (Entra ID) exists, only the IPv4 ranges listed in the SSM
+parameter `/security-awareness-poc/app-allowed-cidrs` can open the app (others
+get 403); `/api`, `/scorm` and `/media` stay open for emails, tracking links and
+courses. To change the list, update the parameter and run `terraform apply`.
+
 ## Local development
 
 ### Frontend

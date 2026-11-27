@@ -6,7 +6,8 @@
 # is on the app's own origin. The app reaches these files at /scorm/... on its
 # own host: in development the Vite dev server forwards /scorm to this
 # distribution; when the app itself is hosted, this distribution (or the one
-# hosting it) serves /scorm/* beside it.
+# hosting it) serves /scorm/* beside it. The app itself is hosted here too
+# (app_hosting.tf): every path that is not /api/*, /scorm/* or /media/*.
 #
 # - The bucket stays private: CloudFront reads it with an origin access
 #   control, and the bucket policy lets only this distribution read, and only
@@ -87,17 +88,30 @@ resource "aws_cloudfront_origin_access_control" "assets" {
 resource "aws_cloudfront_function" "scorm_path" {
   name    = "${var.name_prefix}-scorm-path"
   runtime = "cloudfront-js-2.0"
-  comment = "/scorm/<id>/<path> -> training-content/, /media/<id>/<name> -> public-media/; 404 otherwise"
+  comment = "/scorm -> training-content/, /media -> public-media/, else the app (allowed IPs) from app/"
   publish = true
-  code    = file("${path.module}/functions/scorm_path.js")
+  code = templatefile("${path.module}/functions/site_path.js.tftpl", {
+    allowed_cidrs = jsonencode(local.app_allowed_cidrs)
+  })
+
+  lifecycle {
+    precondition {
+      condition = length(local.app_allowed_cidrs) > 0 && alltrue([
+        for c in local.app_allowed_cidrs : can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$", c)) && can(cidrhost(c, 0))
+      ])
+      error_message = "SSM /${var.name_prefix}/app-allowed-cidrs must hold one or more IPv4 ranges, comma-separated (e.g. 203.0.113.0/24,198.51.100.7/32)."
+    }
+  }
 }
 
 resource "aws_cloudfront_distribution" "scorm" {
-  enabled         = true
-  comment         = "${var.name_prefix} training packages (/scorm/*), pictures (/media/*) and the API (/api/*)"
-  price_class     = "PriceClass_200" # includes India
-  http_version    = "http2and3"
-  is_ipv6_enabled = true
+  enabled      = true
+  comment      = "${var.name_prefix} app, training packages (/scorm/*), pictures (/media/*) and the API (/api/*)"
+  price_class  = "PriceClass_200" # includes India
+  http_version = "http2and3"
+  # IPv4 only: the app's pages are open to allowed IPv4 ranges (app_hosting.tf),
+  # and a viewer reaching it over IPv6 would never match them.
+  is_ipv6_enabled = false
 
   origin {
     origin_id                = local.scorm_origin_id
@@ -134,7 +148,10 @@ resource "aws_cloudfront_distribution" "scorm" {
   }
 
   # Every other path goes through the function: /scorm/... and /media/... are
-  # served, the rest is 404.
+  # served to anyone; any other path is the app, for allowed addresses only
+  # (functions/site_path.js.tftpl). The build's files are content-hashed and
+  # uploaded with a year's Cache-Control; index.html with no-cache, so a new
+  # release is picked up at once (deploy-frontend.yml).
   default_cache_behavior {
     target_origin_id           = local.scorm_origin_id
     viewer_protocol_policy     = "redirect-to-https"
@@ -184,6 +201,15 @@ resource "aws_s3_bucket_policy" "assets" {
         Principal = { Service = "cloudfront.amazonaws.com" }
         Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.assets.arn}/public-media/*"
+        Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.scorm.arn } }
+      },
+      {
+        # The app's build (app_hosting.tf).
+        Sid       = "CloudFrontReadsApp"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.assets.arn}/${local.app_prefix}/*"
         Condition = { StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.scorm.arn } }
       },
     ]
