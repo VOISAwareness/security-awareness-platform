@@ -59,13 +59,20 @@ const LandingPage = () => {
       touchMultiplier: 1.2,
     });
 
+    // The frame loop is stopped when the page closes: signing in moves to Home
+    // without a reload, and a loop left running drives this page's scrolling
+    // on every frame of every page after it.
+    let frame = 0;
     function raf(time) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      frame = requestAnimationFrame(raf);
     }
-    requestAnimationFrame(raf);
+    frame = requestAnimationFrame(raf);
 
-    return () => lenis.destroy();
+    return () => {
+      cancelAnimationFrame(frame);
+      lenis.destroy();
+    };
   }, []);
 
   // Sync header glassmorphism across the entire page scroll
