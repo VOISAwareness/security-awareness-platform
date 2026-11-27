@@ -21,8 +21,8 @@ import {
 } from "lucide-react";
 
 // Card Background Texture Assets
-import MySpaceCardBgLight from "../../assets/MySpaceCardBgLightMode.png";
-import MySpaceCardBgDark from "../../assets/MySpaceCardBgDarkMode.png";
+import MySpaceCardBgLight from "../../assets/MySpaceCardBgLightMode.webp";
+import MySpaceCardBgDark from "../../assets/MySpaceCardBgDarkMode.webp";
 import { DEMO_USER } from "../../appConfig";
 import LevelBadge from "../../GlobalComponents/LevelBadge";
 import AllBadges from "../../GlobalComponents/AllBadges";
