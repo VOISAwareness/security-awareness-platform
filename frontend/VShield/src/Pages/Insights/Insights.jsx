@@ -333,6 +333,11 @@ function Waiting({ status, error, retry, isDark }) {
 const Insights = () => {
   const { isDark, user } = useUserType() || {};
   const source = useInsightsData(user?.role);
+  // The targets are read alongside the figures, not after them: the view reads
+  // them when it opens and finds them in the read cache (services/queryCache.js).
+  useEffect(() => {
+    api.insightsTargets.get().catch(() => {}); // the view reports a failed read
+  }, []);
   if (source.status !== 'ready') return <Waiting {...source} isDark={isDark} />;
   return <InsightsView data={source.data} />;
 };
