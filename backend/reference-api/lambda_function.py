@@ -3328,6 +3328,21 @@ def cache_headers(route, response):
     return {**response, "headers": headers}
 
 
+# A warm ping may ask the copy that answers it to stay busy for holdMs (at most
+# a second): the keep-warm schedule pings this Lambda twice at once, and while
+# one copy is held the other ping starts a second copy, so two stay started
+# and a page that asks for several things at once does not wait for one to
+# start (infra/terraform/keep_warm.tf).
+MAX_WARM_HOLD_MS = 1000
+
+
+def warm_reply(event):
+    hold = event.get("holdMs")
+    if isinstance(hold, int) and not isinstance(hold, bool) and hold > 0:
+        time.sleep(min(hold, MAX_WARM_HOLD_MS) / 1000)
+    return {"warm": True}
+
+
 def is_warm_ping(event):
     """The keep-warm schedule's event (infra/terraform/keep_warm.tf)."""
     return isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event
@@ -3399,7 +3414,7 @@ def media_images(route, event, context):
 
 def lambda_handler(event, context):
     if is_warm_ping(event):
-        return {"warm": True}
+        return warm_reply(event)
     return cache_headers(event.get("routeKey", ""), handle(event, context))
 
 
