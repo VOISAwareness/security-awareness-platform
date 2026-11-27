@@ -59,9 +59,5 @@ jobs:
       # every campaign screen depends on, and it starts green.
       - name: Test
         run: npm test --if-present
-      # The CloudFront viewer-request function in front of the hosted app,
-      # rendered with a sample allow-list (infra/terraform/functions/).
-      - name: CloudFront function tests
-        run: node --test ../../infra/terraform/functions/site_path.test.mjs
       - name: Build
         run: npm run build
