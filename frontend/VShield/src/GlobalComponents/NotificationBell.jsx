@@ -38,10 +38,13 @@ import { formatDateTime } from '../shared/dateTime';
 // the app (approvals, campaigns, training, announcements, badges) in one list,
 // newest first and grouped by day; each item's icon and colour say what it is. Read from
 // GET /notifications; until that is deployed, the campaign notices it has
-// always shown. Checked when the app opens, on each page change, every minute
-// and when the tab comes back into view.
+// always shown. Checked when the app opens, every minute, and on a page change
+// or the tab coming back into view when the last check is over 30s old.
 
 const POLL_MS = 60 * 1000;
+// A page change checks again only when the last check is older than this:
+// the minute's poll and coming back to the tab keep it fresh in between.
+const STALE_MS = 30 * 1000;
 
 const ICONS = {
   Award, Ban, Bell, CalendarClock, CircleAlert, CircleCheck, CirclePause, CirclePlay, CircleX,
@@ -79,8 +82,10 @@ export default function NotificationBell() {
   const boxRef = useRef(null);
   const signedIn = Boolean(actor && actor.includes('@'));
 
+  const lastLoad = useRef(0);
   const load = useCallback(() => {
     if (!signedIn) return;
+    lastLoad.current = Date.now();
     api.notifications
       .list(actor, role)
       .then((data) => {
@@ -99,13 +104,19 @@ export default function NotificationBell() {
       );
   }, [signedIn, actor, role]);
 
+  // someone else signed in: their first check is never skipped
   useEffect(() => {
-    load();
+    lastLoad.current = 0;
+  }, [load]);
+
+  // on opening the app, and on a page change once the last check is stale
+  useEffect(() => {
+    if (Date.now() - lastLoad.current >= STALE_MS) load();
   }, [load, location.pathname]);
 
   useEffect(() => {
     const t = setInterval(load, POLL_MS);
-    const onShow = () => document.visibilityState === 'visible' && load();
+    const onShow = () => document.visibilityState === 'visible' && Date.now() - lastLoad.current >= STALE_MS && load();
     document.addEventListener('visibilitychange', onShow);
     return () => {
       clearInterval(t);
