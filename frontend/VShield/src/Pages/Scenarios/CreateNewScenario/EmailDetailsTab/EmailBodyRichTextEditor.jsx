@@ -9,13 +9,22 @@ import {
 
 import {
   AlignCenter,
+  AlignEndHorizontal,
   AlignEndVertical,
+  AlignHorizontalSpaceAround,
+  AlignStartHorizontal,
   AlignHorizontalJustifyCenter,
   AlignStartVertical,
   AlignJustify,
   AlignLeft,
   AlignRight,
   AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  AlignVerticalSpaceAround,
+  ArrowDown,
+  ArrowUp,
+  Baseline,
   Bold,
   BringToFront,
   Check,
@@ -24,22 +33,27 @@ import {
   Copy,
   Eraser,
   Eye,
+  EyeOff,
   Globe,
   FileText,
-  GripVertical,
   Grid,
   Group,
   Image as ImageIcon,
+  ImageUp,
+  IndentDecrease,
+  IndentIncrease,
   Upload,
   Italic,
+  Keyboard,
   Layers,
+  Link as LinkIcon,
+  List as ListIcon,
+  ListOrdered,
   Maximize2,
   Menu,
   Minimize2,
   MousePointerClick,
-  Move,
   Palette,
-  Pencil,
   Pipette,
   Plus,
   RemoveFormatting,
@@ -49,6 +63,7 @@ import {
   Settings,
   Shapes,
   ShieldAlert,
+  SlidersHorizontal,
   Sparkles,
   Square,
   Strikethrough,
@@ -56,6 +71,7 @@ import {
   Type,
   Underline,
   Ungroup,
+  Unlink,
   X,
 } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -65,15 +81,42 @@ import EmailPreviewModal from "./EmailPreviewModal";
 import { canRedo, canUndo, moveTo, newHistory, recordStep } from "../../../../services/pageHistory";
 import {
   DRAG_START_PX,
-  clampMove,
-  groupPlan,
-  marginForGap,
+  GROUP_CLASS,
+  ITEM_CLASS,
+  PAGE_MIN_HEIGHT,
+  PAGE_WIDTH,
+  SNAP_PX,
+  alignRects,
+  clampToPage,
+  distributeRects,
+  emptyPageHtml,
+  fitPageHeight,
+  fitScale,
+  isLaidOut,
+  layerItems,
+  layoutPageHtml,
+  moveLayers,
+  pageOf,
+  readRect,
   rectsIntersect,
-  rememberPlaces,
-  snapToGuides,
-  toggleBlock,
-  visibleBounds,
-} from "../../../../services/canvasGroups";
+  renumberLayers,
+  resizeRect,
+  scaleIntoGroup,
+  snapLines,
+  snapRect,
+  unionRects,
+  writeRect,
+} from "../../../../services/canvasLayout";
+import {
+  FONT_SIZES_PX,
+  actionLink,
+  cleanPastedHtml,
+  firstFontFamily,
+  fontSizePx,
+  fromUnit,
+  plainTextToHtml,
+  toUnit,
+} from "../../../../services/canvasText";
 import { api } from "../../../../services/api";
 import {
   classifyPicture,
@@ -88,6 +131,7 @@ import {
 import scenariosJsonData from "../../ScenariosData.json";
 import {
   BROWSER_PAGE_ID,
+  ACTION_WORDS,
   BROWSER_PAGE_LINK,
   COMPROMISE_LINK,
   EMAIL_PAGE_ID,
@@ -98,19 +142,31 @@ import {
   isBlankHtml,
   previewDocument,
   toBrowserPageHtml,
+  PERSONAL_FX,
 } from "../../../../services/simulationPages";
 
 // =========================================================================
 // 🎛️ SCALE & FRAME CONTROL VARIABLES
 // =========================================================================
 const VarEditorOuterFrameThickness = 4; // Thickness of outer frame in pixels
-const PX_PER_CM = 37.7952755906; // 96 DPI standard conversion
 
-// The canvas is never laid out narrower than this (layout px, inside its
-// padding): the widest template cards and elements are 580px, and squeezed
-// below their real width they would all look alike, unlike the preview.
-// A narrower editor scrolls sideways instead.
-const CANVAS_MIN_CONTENT_WIDTH = 600;
+// What the Page size menu allows (px).
+const PAGE_SIZE_LIMITS = { minWidth: 320, maxWidth: 1920, minHeight: 200, maxHeight: 6000 };
+const PAGE_WIDTH_PRESETS = {
+  email: [
+    [600, "600px: standard, fits every inbox"],
+    [650, "650px"],
+    [700, "700px: the widest most reading panes show"],
+    [800, "800px: wide (employees may scroll sideways)"],
+  ],
+  browser: [
+    [1280, "1280px: laptop"],
+    [1440, "1440px: large laptop"],
+    [1920, "1920px: full HD"],
+  ],
+};
+// Grey room around the page on the canvas (px each side).
+const CANVAS_GUTTER_PX = 16;
 // The canvas's text looks as the preview (and the employee) shows it:
 // previewDocument() in simulationPages.js.
 const CANVAS_TEXT_STYLE = {
@@ -119,43 +175,13 @@ const CANVAS_TEXT_STYLE = {
   lineHeight: "normal",
 };
 
+const LEGACY_FX_SPAN =
+  /<span style="background-color: rgba\(153, ?0, ?153, ?0\.12\); color: #990099; font-weight: bold; padding: 1px 5px; border-radius: 4px; font-family: monospace;">/g;
+
+// The body's fx: the personal fields, and the phish link (put in as a link).
 const FX_PARAMETERS = [
-  { label: "@UserName", code: "{{userName}}", desc: "Target user full name" },
-  {
-    label: "@UserEmailID",
-    code: "{{email}}",
-    desc: "Target user email address",
-  },
-  {
-    label: "@UserDepartment",
-    code: "{{department}}",
-    desc: "Target user department",
-  },
-  {
-    label: "@UserCountry",
-    code: "{{country}}",
-    desc: "Target user work location",
-  },
-  {
-    label: "@PhishLink",
-    code: "{{phishLink}}",
-    desc: "Simulation trackable landing link",
-  },
-  {
-    label: "@ManagerName",
-    code: "{{managerName}}",
-    desc: "Target direct reporting manager",
-  },
-  {
-    label: "@EmployeeID",
-    code: "{{employeeId}}",
-    desc: "Corporate employee badge number",
-  },
-  {
-    label: "@CurrentDate",
-    code: "{{currentDate}}",
-    desc: "Simulation execution timestamp",
-  },
+  ...PERSONAL_FX,
+  { label: "@PhishLink", desc: "The landing page link", link: true },
 ];
 
 const PRESET_COLORS = [
@@ -177,15 +203,6 @@ const SHADOW_PRESETS = [
   { label: "Medium", value: "0 4px 16px rgba(0, 0, 0, 0.2)" },
   { label: "Deep", value: "0 10px 25px -5px rgba(0, 0, 0, 0.35)" },
   { label: "Glow Red", value: "0 0 16px rgba(230, 0, 0, 0.45)" },
-];
-
-const ROUNDED_PRESETS = [
-  { label: "0px", value: "0px" },
-  { label: "4px", value: "4px" },
-  { label: "8px", value: "8px" },
-  { label: "12px", value: "12px" },
-  { label: "20px", value: "20px" },
-  { label: "Pill", value: "9999px" },
 ];
 
 const BORDER_WIDTHS = ["0px", "1px", "2px", "3px", "4px"];
@@ -595,22 +612,6 @@ const FONT_OPTIONS = [
   { label: "Tahoma", value: "Tahoma, sans-serif" },
 ];
 
-const FONT_SIZES = [
-  { label: "8px", value: "1" },
-  { label: "10px", value: "1" },
-  { label: "12px", value: "2" },
-  { label: "14px", value: "3" },
-  { label: "16px", value: "3" },
-  { label: "18px", value: "4" },
-  { label: "20px", value: "4" },
-  { label: "24px", value: "5" },
-  { label: "28px", value: "5" },
-  { label: "32px", value: "6" },
-  { label: "36px", value: "6" },
-  { label: "40px", value: "7" },
-  { label: "48px", value: "7" },
-];
-
 const EMPTY_HTML_VALUES = ["", "<br>", "<div><br></div>", "<p><br></p>"];
 
 // The On-Click action a link already carries: the browser page, the
@@ -623,6 +624,9 @@ const linkAction = (href) => {
 };
 
 const CLOSED_ACTION_MODAL = { open: false, element: null, actionType: "landing" };
+
+// Marks canvas items copied to the clipboard, so a paste puts back the items.
+const ITEM_COPY_MARK = "data-vshield-copy";
 
 // =========================================================================
 // BROWSER SAFE ZONE GUIDE (browser page only; visual only, never saved)
@@ -824,6 +828,8 @@ const EmailBodyRichTextEditor = ({
   const [showGridlines, setShowGridlines] = useState(false);
   const [showShadowMenu, setShowShadowMenu] = useState(false);
   const [showRoundedMenu, setShowRoundedMenu] = useState(false);
+  // How much a corner rounds when turned on (per-corner controls).
+  const [cornerAmount, setCornerAmount] = useState(12);
   const [showBorderMenu, setShowBorderMenu] = useState(false);
   const [showPagesMenu, setShowPagesMenu] = useState(false);
   const [showNewPageModal, setShowNewPageModal] = useState(false);
@@ -840,15 +846,33 @@ const EmailBodyRichTextEditor = ({
   const [, setDragFrame] = useState(0);
   // A press that became a drag or a box-select is not also a click.
   const swallowClickRef = useRef(false);
-  // A blank line added for the caret by a click on empty canvas, taken away
-  // again if it is still empty when another is needed.
-  const spareLineRef = useRef(null);
+  // toOverlay (below) for the picture marks, which are measured earlier.
+  const toOverlayRef = useRef(null);
+  // tidyPage (below) for the callbacks defined before it.
+  const tidyPageRef = useRef(null);
+  // The scroll area the page sits in (frames and toolbars are drawn there).
+  const scrollerRef = useRef(null);
+  // The item whose text is being typed in (double-click), if any.
+  const editingRef = useRef(null);
+  const [editingItem, setEditingItem] = useState(null);
+  // Each paste of the same copy lands a little further down and right.
+  const pasteCountRef = useRef(0);
+  // The page drawn at this scale so its whole width fits the editor.
+  const [canvasFit, setCanvasFit] = useState(1);
+  const [pageHeightPx, setPageHeightPx] = useState(PAGE_MIN_HEIGHT.email);
+  const [pageWidthPx, setPageWidthPx] = useState(PAGE_WIDTH.email);
+  const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
+  const pageSizeMenuRef = useRef(null);
+  const [showOnclicksMenu, setShowOnclicksMenu] = useState(false);
+  const onclicksMenuRef = useRef(null);
   // The Items pane (hamburger button): every item on the page, to select,
   // reorder, group, rename and delete.
   const [showItemsPane, setShowItemsPane] = useState(false);
   const [renamingItem, setRenamingItem] = useState(null); // { el, name }
   const [dropTargetEl, setDropTargetEl] = useState(null);
   const draggedItemRef = useRef(null);
+  // Groups closed in the Selection pane.
+  const collapsedGroupsRef = useRef(new WeakSet());
   // Stable React keys for page elements, without writing ids into the HTML.
   const itemKeysRef = useRef(new WeakMap());
   const itemKeyCountRef = useRef(0);
@@ -898,6 +922,34 @@ const EmailBodyRichTextEditor = ({
   // Set by typing (canvas or HTML source), so keystrokes close together
   // become one undo step instead of one per character.
   const typingRef = useRef(false);
+
+  // What the text at the caret looks like, for the toolbar's style, font and
+  // size boxes (they show the text being edited, not a fixed default).
+  const [textFormat, setTextFormat] = useState({ block: "p", font: "", size: null });
+  // The units the size and spacing boxes use; remembered between visits.
+  const [lengthUnit, setLengthUnit] = useState(() => {
+    try {
+      return window.localStorage.getItem("vshield.editor.unit") === "cm" ? "cm" : "px";
+    } catch {
+      return "px";
+    }
+  });
+  const changeLengthUnit = (unit) => {
+    setLengthUnit(unit);
+    try {
+      window.localStorage.setItem("vshield.editor.unit", unit);
+    } catch {
+      // Private mode: the choice lasts this visit only.
+    }
+  };
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showTextColorMenu, setShowTextColorMenu] = useState(false);
+  const [showLinkMenu, setShowLinkMenu] = useState(false);
+  // Items copied with Ctrl+C / Ctrl+X, pasted with Ctrl+V (HTML, this tab only).
+  const itemClipboardRef = useRef(null);
+  const textColorMenuRef = useRef(null);
+  const linkMenuRef = useRef(null);
 
   const [selectionColorMenu, setSelectionColorMenu] = useState({
     visible: false,
@@ -1002,6 +1054,14 @@ const EmailBodyRichTextEditor = ({
       const restored = moved.stack[step];
       internalHtmlRef.current = restored;
       if (editorRef.current) editorRef.current.innerHTML = restored;
+      editingRef.current = null;
+      setEditingItem(null);
+      setPickedBlocks([]);
+      const restoredPage = pageOf(editorRef.current);
+      if (restoredPage) {
+        setPageHeightPx(restoredPage.offsetHeight);
+        setPageWidthPx(restoredPage.offsetWidth || PAGE_WIDTH.email);
+      }
       setRawHtmlCode(restored);
       emitToParent(restored);
       pagesRef.current = pagesRef.current.map((p) =>
@@ -1034,16 +1094,31 @@ const EmailBodyRichTextEditor = ({
   // The browser page's lowest content, against its safe-zone line. In
   // layout pixels (offsets), so the page zoom and full screen do not matter.
   const checkSafeZone = useCallback(() => {
-    const editor = editorRef.current;
-    if (!editor || currentPageIdRef.current !== BROWSER_PAGE_ID) return;
-    const limit = BROWSER_SAFE_ZONE_PX;
+    const page = pageOf(editorRef.current);
+    if (!page || currentPageIdRef.current !== BROWSER_PAGE_ID) return;
     let bottom = 0;
-    for (const el of editor.children) {
-      bottom = Math.max(bottom, el.offsetTop - editor.offsetTop + el.offsetHeight);
+    for (const el of layerItems(page)) {
+      if (el.style.display === "none") continue;
+      bottom = Math.max(bottom, (parseFloat(el.style.top) || 0) + el.offsetHeight);
     }
-    const over = bottom > limit + 4;
+    const over = bottom > BROWSER_SAFE_ZONE_PX + 4;
     setSafeZoneOverflow((prev) => (prev === over ? prev : over));
   }, []);
+
+  // The page scaled so its whole width fits the canvas (never above 100%).
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    if (!sc) return undefined;
+    const width = pageWidthPx;
+    const measure = () => {
+      const next = fitScale(sc.clientWidth - CANVAS_GUTTER_PX * 2, width);
+      setCanvasFit((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(sc);
+    return () => observer.disconnect();
+  }, [currentPageId, rawHtmlMode, isExpanded, showItemsPane, pageWidthPx]);
 
   // After every change, page switch, mode change or window resize.
   useEffect(() => {
@@ -1063,19 +1138,6 @@ const EmailBodyRichTextEditor = ({
     [failedPictures],
   );
 
-  // Where an element sits inside the canvas's scroll area, in layout pixels.
-  const offsetInCanvas = (el, container) => {
-    let x = 0;
-    let y = 0;
-    let node = el;
-    while (node && node !== container) {
-      x += node.offsetLeft;
-      y += node.offsetTop;
-      node = node.offsetParent;
-    }
-    return node === container ? { x, y } : null;
-  };
-
   const scanPictures = useCallback(() => {
     const html = rawHtmlMode ? rawHtmlCode : editorRef.current?.innerHTML ?? "";
     const missing = [
@@ -1087,19 +1149,18 @@ const EmailBodyRichTextEditor = ({
 
     const marks = [];
     const editor = editorRef.current;
-    const container = editor?.offsetParent;
-    if (!rawHtmlMode && editor && container) {
+    if (!rawHtmlMode && editor && scrollerRef.current) {
       const mark = (el, src, kind) => {
-        const at = offsetInCanvas(el, container);
+        const at = toOverlayRef.current?.(el.getBoundingClientRect());
         if (!at) return;
         marks.push({
           key: `${marks.length}-${src}`,
           src,
           kind,
-          left: at.x,
-          top: at.y,
-          width: Math.max(el.offsetWidth, 140),
-          height: Math.max(el.offsetHeight, 64),
+          left: at.left,
+          top: at.top,
+          width: Math.max(at.width, 140),
+          height: Math.max(at.height, 64),
         });
       };
       editor.querySelectorAll("img").forEach((img) => {
@@ -1331,7 +1392,11 @@ const EmailBodyRichTextEditor = ({
     const emailPages = pagesRef.current.map((p) =>
       p.id === currentPageIdRef.current ? { ...p, html: currentHtml } : p
     );
-    const html = toBrowserPageHtml(String(templateHtml || "").trim());
+    // Lay the template out into a page of items (a group, with its buttons
+    // solo), neutralising any pre-set On-Click, just like an email template.
+    const html = ensurePageHtml(String(templateHtml || "").trim(), BROWSER_PAGE_ID, PAGE_WIDTH.browser, {
+      fresh: true,
+    });
     storePages([
       ...emailPages,
       { id: BROWSER_PAGE_ID, name: PAGE_LABELS[BROWSER_PAGE_ID], html },
@@ -1339,87 +1404,160 @@ const EmailBodyRichTextEditor = ({
     resetPageHistory(BROWSER_PAGE_ID, html);
     showPage(BROWSER_PAGE_ID, html);
     onBrowserPageChange?.(html);
-    showToast("Browser page created. Any button or link on it marks the employee compromised.", "success");
+    showToast("Browser page created. Select its submit button (Next, Submit, Confirm...) and set On-Click to \"Mark compromised\".", "success");
   };
 
+  // The keyboard, as on a Power BI page. Typing in an item keeps its keys
+  // (only Esc leaves the text); otherwise keys act on the selected items.
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Escape closes the topmost layer: a dialog, then the full-screen editor.
+      // Escape closes the topmost layer: a dialog, the text being typed in,
+      // a part of a group (back to the group), the selection, full screen.
       if (e.key === "Escape") {
         if (emailPreview.open) return; // the preview closes itself
         if (showBrowserPreview) setShowBrowserPreview(false);
         else if (actionConfigModal.open) setActionConfigModal(CLOSED_ACTION_MODAL);
         else if (showNewPageModal) setShowNewPageModal(false);
-        else if (pickedBlocks.length) setPickedBlocks([]);
-        else if (activeElement?.element) setActiveElement(null);
+        else if (showShortcuts) setShowShortcuts(false);
+        else if (showLinkMenu || showTextColorMenu) {
+          setShowLinkMenu(false);
+          setShowTextColorMenu(false);
+        } else if (editingRef.current) {
+          const el = editingRef.current;
+          stopEditing();
+          selectCanvasItem(el);
+          scrollerRef.current?.focus({ preventScroll: true });
+        } else if (isGroupEl(activeElement?.element?.parentElement)) selectCanvasItem(activeElement.element.parentElement);
+        else if (pickedBlocks.length || activeElement?.element) clearSelection();
         else if (isExpanded) setIsExpanded(false);
         return;
       }
-      // Undo / redo is the editor's only while the editor has focus (or an
-      // element on it is selected): Ctrl+Z in the subject field, or in the
-      // HTML source, keeps its own meaning.
+      if (rawHtmlMode) return;
+      // Only while the canvas is in use (its focus, or an item selected with
+      // nothing else focused): Ctrl+Z in the subject field keeps its meaning.
+      const focus = document.activeElement;
       const inEditor =
-        workspaceRef.current?.contains(document.activeElement) ||
-        (activeElement?.element && document.activeElement === document.body);
-      if (!rawHtmlMode && inEditor && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        workspaceRef.current?.contains(focus) ||
+        ((activeElement?.element || pickedBlocks.length) && (focus === document.body || !focus));
+      if (!inEditor) return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      const typing = Boolean(editingRef.current) || ["INPUT", "TEXTAREA", "SELECT"].includes(focus?.tagName);
+
+      if (ctrl && key === "z" && !["INPUT", "TEXTAREA", "SELECT"].includes(focus?.tagName)) {
         e.preventDefault();
+        stopEditing();
         if (e.shiftKey) handleRedo();
         else handleUndo();
         return;
       }
-      if (!rawHtmlMode && inEditor && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+      if (ctrl && key === "y" && !["INPUT", "TEXTAREA", "SELECT"].includes(focus?.tagName)) {
         e.preventDefault();
+        stopEditing();
         handleRedo();
         return;
       }
-
-      // A selected group is moved with the arrow keys even while the editor
-      // has focus; any other item only once the caret has left the text.
-      const groupSelected = activeElement?.element?.classList.contains("vshield-group-item");
-      if (!rawHtmlMode && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g" && (inEditor || pickedBlocks.length)) {
+      if (ctrl && key === "k" && editingRef.current) {
         e.preventDefault();
-        if (e.shiftKey) ungroupActiveItem();
-        else groupPickedBlocks();
+        saveSelection();
+        setShowLinkMenu(true);
+        setShowTextColorMenu(false);
         return;
       }
+      if (typing) return;
 
-      if (activeElement?.element && (groupSelected || document.activeElement !== editorRef.current)) {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
-          e.preventDefault();
-          duplicateActiveItem();
-          return;
-        }
-
-        // Arrows move the caret while typing (a template's heading or
-        // paragraph has the focus); they move the item only when not, or
-        // when a whole group is selected.
-        const typing =
-          document.activeElement?.isContentEditable ||
-          ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
-        if (
-          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) &&
-          (groupSelected || !typing)
-        ) {
-          e.preventDefault();
-          const step = e.shiftKey ? 10 : 1;
-          nudgeActiveItem(
-            e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
-            e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0,
-          );
-          return;
-        }
-
-        if (e.key === "Delete" && !e.target.isContentEditable) {
-          e.preventDefault();
-          deleteActiveItem();
-          return;
-        }
+      const selected = selectedItems();
+      if (e.key === "?") {
+        e.preventDefault();
+        setShowShortcuts((open) => !open);
+        return;
+      }
+      if (ctrl && key === "a") {
+        e.preventDefault();
+        selectItems(layerItems(pageEl()).filter((el) => el.style.display !== "none"));
+        return;
+      }
+      if (ctrl && key === "g") {
+        e.preventDefault();
+        if (e.shiftKey) ungroupSelection();
+        else groupSelection();
+        return;
+      }
+      if (!selected.length) return;
+      if (ctrl && key === "d") {
+        e.preventDefault();
+        duplicateActiveItem();
+        return;
+      }
+      // Ctrl+] / Ctrl+[ one layer; with Shift, to the front / back.
+      if (ctrl && (e.key === "]" || e.key === "}" || e.code === "BracketRight")) {
+        e.preventDefault();
+        changeLayer(e.shiftKey ? "front" : "forward");
+        return;
+      }
+      if (ctrl && (e.key === "[" || e.key === "{" || e.code === "BracketLeft")) {
+        e.preventDefault();
+        changeLayer(e.shiftKey ? "back" : "backward");
+        return;
+      }
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        nudgeSelection(
+          e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
+          e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0,
+        );
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteActiveItem();
+        return;
+      }
+      // Enter or F2 types in the selected text item.
+      if ((e.key === "Enter" || e.key === "F2") && selected.length === 1 && hasText(selected[0])) {
+        e.preventDefault();
+        startEditing(selected[0]);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeElement, pickedBlocks, rawHtmlMode, handleUndo, handleRedo, showBrowserPreview, emailPreview.open, actionConfigModal.open, showNewPageModal, isExpanded]);
+  });
+
+  // Copy, cut and paste of whole items: with items selected and no text
+  // being typed in. A paste anywhere on the canvas is its onPaste.
+  useEffect(() => {
+    const ownsEvent = () =>
+      !rawHtmlMode &&
+      !disabled &&
+      !editingRef.current &&
+      (activeElement?.element || pickedBlocks.length) &&
+      !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName) &&
+      (workspaceRef.current?.contains(document.activeElement) || document.activeElement === document.body);
+    const onCopy = (e) => {
+      if (ownsEvent()) copyItemsToClipboard(e);
+    };
+    const onCut = (e) => {
+      if (ownsEvent()) copyItemsToClipboard(e, { cut: true });
+    };
+    // A paste with an item selected and the focus outside the canvas.
+    const onPaste = (e) => {
+      if (e.defaultPrevented || !ownsEvent() || workspaceRef.current?.contains(e.target)) return;
+      const html = e.clipboardData?.getData("text/html") || "";
+      if (!html.includes(ITEM_COPY_MARK)) return;
+      e.preventDefault();
+      pasteCopiedItems(html);
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+    };
+  });
 
   // The full-screen editor keeps the page behind it from scrolling.
   useEffect(() => {
@@ -1466,6 +1604,15 @@ const EmailBodyRichTextEditor = ({
     return list;
   }, []);
 
+  // The browser page's own templates: sign-in and 2FA screens.
+  const browserPageTemplates = useMemo(
+    () => [
+      ...CREDENTIAL_TEMPLATES.map((t) => ({ ...t, snippet: t.subtitle, section: "Sign-in screens" })),
+      ...TWO_FA_TEMPLATES.map((t) => ({ ...t, snippet: t.subtitle, section: "2FA and code screens" })),
+    ],
+    [],
+  );
+
   const isEditorSelection = useCallback((range) => {
     if (!range || !editorRef.current) return false;
     const commonAncestor = range.commonAncestorContainer;
@@ -1488,130 +1635,180 @@ const EmailBodyRichTextEditor = ({
     }
   }, [isEditorSelection, rawHtmlMode]);
 
-  const placeCaretAtEnd = useCallback(() => {
-    if (!editorRef.current) return;
-    const selection = window.getSelection();
-    const range = document.createRange();
 
-    range.selectNodeContents(editorRef.current);
-    range.collapse(false);
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    savedSelectionRef.current = range.cloneRange();
-  }, []);
-
+  // Back to the text being typed in (a toolbar click took the focus).
+  // Returns false when no item's text is being edited.
   const restoreSelection = useCallback(() => {
-    if (!editorRef.current) return;
-    editorRef.current.focus();
-
+    const host = editingRef.current;
+    if (!host || !host.isConnected) return false;
+    host.focus({ preventScroll: true });
     const selection = window.getSelection();
-    if (!selection) return;
-
+    if (!selection) return false;
     const savedRange = savedSelectionRef.current;
-    if (savedRange && isEditorSelection(savedRange)) {
+    if (savedRange && host.contains(savedRange.startContainer)) {
       try {
         selection.removeAllRanges();
         selection.addRange(savedRange);
-        return;
+        return true;
       } catch (error) {
         console.warn("Unable to restore editor selection:", error);
       }
     }
+    const range = document.createRange();
+    range.selectNodeContents(host);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+  }, []);
 
-    placeCaretAtEnd();
-  }, [isEditorSelection, placeCaretAtEnd]);
+  // A text command on what is selected: the highlighted text while typing in
+  // an item, else every selected item's whole text (as Power BI formats a
+  // selected text box). `run` does the work on the current selection.
+  const withTextTarget = (run, { wholeLine = false } = {}) => {
+    if (disabled || rawHtmlMode) return false;
+    if (restoreSelection()) {
+      if (wholeLine) selectLineAtCaret();
+      run();
+      saveSelection();
+      synchroniseEditorValue();
+      return true;
+    }
+    const items = selectedItems()
+      .flatMap((el) => (isGroupEl(el) ? layerItems(el) : [el]))
+      .filter(hasText);
+    if (!items.length) return false;
+    const selection = window.getSelection();
+    items.forEach((el) => {
+      el.setAttribute("contenteditable", "true");
+      el.focus({ preventScroll: true });
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      run();
+      el.removeAttribute("contenteditable");
+    });
+    selection.removeAllRanges();
+    synchroniseEditorValue();
+    return true;
+  };
 
   const synchroniseEditorValue = useCallback(() => {
     if (!editorRef.current) return;
-    const updatedHtml = editorRef.current.innerHTML;
+    tidyPageRef.current?.();
+    // The item being typed in is editable only while it is edited.
+    const updatedHtml = editorRef.current.innerHTML.replace(
+      /\s+(?:contenteditable|spellcheck)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      "",
+    );
+    const page = pageOf(editorRef.current);
+    if (page) setPageHeightPx(page.offsetHeight);
     emitChange(updatedHtml);
     saveSelection();
     // The Items pane and selection frames are read from the page.
     setDragFrame((n) => n + 1);
   }, [emitChange, saveSelection]);
 
-  const insertCanvasItem = useCallback(
-    (itemHtml) => {
-      const editor = editorRef.current;
-      if (!editor) return;
-      // On the browser page every link is the compromise action.
-      const html =
-        currentPageIdRef.current === BROWSER_PAGE_ID ? toBrowserPageHtml(itemHtml) : itemHtml;
+  // A new item goes on the page in front of everything, in the middle of
+  // what is in view (as Power BI drops a new visual), never past the edges.
+  // Returns the items placed.
+  const insertCanvasItem = (itemHtml, { select = true } = {}) => {
+    const page = pageOf(editorRef.current);
+    if (!page) return [];
+    stopEditing();
+    // On the browser page every link is the compromise action.
+    const html = currentPageIdRef.current === BROWSER_PAGE_ID ? toBrowserPageHtml(itemHtml) : itemHtml;
+    const temp = document.createElement("div");
+    temp.innerHTML = String(html).replace(/\s+contenteditable\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+    const blocks = Array.from(temp.children).filter(
+      (n) => !(n.tagName === "P" && !n.textContent.trim() && !n.querySelector("img, input")),
+    );
+    if (!blocks.length) return [];
 
-      const selection = window.getSelection();
-      let inserted = false;
-
-      const temp = document.createElement("div");
-      temp.innerHTML = html;
-      // No blank line after the item: it would show as empty space in the
-      // preview. A click below the item gives a line to type on when wanted.
-      const isBlank = (node) =>
-        (node.nodeType === 3 && !node.textContent.trim()) ||
-        (node.nodeType === 1 && node.tagName === "P" && !node.textContent.trim() && !node.querySelector("img, input"));
-      while (temp.lastChild && isBlank(temp.lastChild)) temp.lastChild.remove();
-      while (temp.firstChild && isBlank(temp.firstChild)) temp.firstChild.remove();
-      const frag = document.createDocumentFragment();
-      let node;
-      while ((node = temp.firstChild)) {
-        frag.appendChild(node);
+    const width = currentPageWidth();
+    // The middle of what is in view, in page px.
+    const sc = scrollerRef.current;
+    let viewTop = 20;
+    let viewHeight = 300;
+    if (sc) {
+      const scale = pageScale();
+      const pageTop = page.getBoundingClientRect().top;
+      const area = sc.getBoundingClientRect();
+      viewTop = Math.max(0, (area.top - pageTop) / scale);
+      viewHeight = area.height / scale;
+    }
+    let nextTop = null;
+    const placed = blocks.map((el) => {
+      if (!el.classList.contains(ITEM_CLASS)) {
+        el.classList.add(ITEM_CLASS);
+        el.setAttribute("data-type", el.querySelector("img") ? "image" : "text");
       }
+      // Measured at its natural size first (a 100% banner is the page's width).
+      el.style.position = "absolute";
+      el.style.left = "0px";
+      el.style.top = "0px";
+      el.style.margin = "0px";
+      el.style.visibility = "hidden";
+      page.appendChild(el);
+      const w = Math.min(width, el.offsetWidth || 200);
+      const h = el.offsetHeight || 40;
+      const top = nextTop ?? Math.max(viewTop + 16, viewTop + (viewHeight - h) / 2 - 40);
+      const rect = clampToPage({ left: (width - w) / 2, top, width: w, height: h }, width);
+      el.style.maxWidth = "none";
+      writeRect(el, rect, { height: Boolean(el.style.height && el.style.height !== "auto") });
+      el.style.visibility = "";
+      nextTop = rect.top + h + 12;
+      return el;
+    });
+    renumberLayers(page);
+    synchroniseEditorValue();
+    if (select) selectItems(placed);
+    return placed;
+  };
 
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        if (editor.contains(range.commonAncestorContainer)) {
-          try {
-            // A design item is a box, and a box can't sit inside a line of
-            // text (a paragraph, heading, link or a template's text part): the
-            // saved page would be read back differently, moving things in the
-            // preview. Then it goes just after that text instead.
-            let textHolder = null;
-            let at = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
-            while (at && at !== editor) {
-              const textLevel =
-                /^(P|H[1-6]|SPAN|A|B|STRONG|EM|I|U|FONT|LABEL|SMALL|CODE)$/.test(at.tagName) ||
-                at.getAttribute("contenteditable") === "true" ||
-                ["text", "button", "input", "shape"].includes(at.getAttribute("data-type"));
-              if (textLevel) textHolder = at;
-              at = at.parentElement;
-            }
-            if (textHolder) {
-              textHolder.after(frag);
-            } else {
-              range.deleteContents();
-              range.insertNode(frag);
-              range.collapse(false);
-            }
-            inserted = true;
-          } catch {
-            inserted = false;
-          }
-        }
-      }
+  // HTML from outside that was laid out here, by what came in, so the same
+  // HTML coming back is known.
+  const laidOutFromRef = useRef(new Map());
 
-      if (!inserted) {
-        editor.appendChild(frag);
-      }
+  // A page's HTML laid out as a canvas page (once), told to its field.
+  const adoptPageHtml = (pageId, html) => {
+    const incoming = String(html || "");
+    const known = laidOutFromRef.current.get(incoming);
+    const out = known ?? ensurePageHtml(incoming, pageId);
+    if (out !== incoming) {
+      laidOutFromRef.current.set(incoming, out);
+      if (pageId === BROWSER_PAGE_ID) onBrowserPageChange?.(out);
+      else onChange?.(out);
+    }
+    return out;
+  };
 
-      synchroniseEditorValue();
-    },
-    [synchroniseEditorValue],
-  );
-
+  // The page shown in the editor: from its stored HTML, laid out.
   useLayoutEffect(() => {
     if (rawHtmlMode || !editorRef.current) return;
     const target = pagesRef.current.find((p) => p.id === currentPageId);
-    let htmlToSync = target ? (target.html || "") : internalHtmlRef.current;
-    if (htmlToSync && !htmlToSync.includes("vshield-canvas-item") && !EMPTY_HTML_VALUES.includes(htmlToSync.trim().toLowerCase())) {
-      htmlToSync = componentizeTemplateHtml(htmlToSync);
-      if (currentPageId === BROWSER_PAGE_ID) htmlToSync = toBrowserPageHtml(htmlToSync);
+    const stored = target ? target.html || "" : internalHtmlRef.current;
+    const htmlToSync = adoptPageHtml(currentPageId, stored);
+    if (htmlToSync !== stored) {
+      pagesRef.current = pagesRef.current.map((p) => (p.id === currentPageId ? { ...p, html: htmlToSync } : p));
+      setPages(pagesRef.current);
+      resetPageHistory(currentPageId, htmlToSync);
     }
     if (editorRef.current.innerHTML !== htmlToSync) {
       editorRef.current.innerHTML = htmlToSync;
     }
+    editingRef.current = null;
+    setEditingItem(null);
     internalHtmlRef.current = htmlToSync;
     setRawHtmlCode(htmlToSync);
+    const page = pageOf(editorRef.current);
+    if (page) {
+      setPageHeightPx(page.offsetHeight);
+      setPageWidthPx(page.offsetWidth || PAGE_WIDTH.email);
+      setCanvasBgColor(page.style.backgroundColor || "#FFFFFF");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawHtmlMode, isExpanded, currentPageId]);
 
   // The email changed from outside (a scenario loaded, a draft restored).
@@ -1621,15 +1818,16 @@ const EmailBodyRichTextEditor = ({
     const known = onEmail
       ? internalHtmlRef.current
       : pagesRef.current.find((p) => p.id === EMAIL_PAGE_ID)?.html;
-    if (value === known) return;
-    let finalVal = value;
-    if (finalVal && !finalVal.includes("vshield-canvas-item") && !EMPTY_HTML_VALUES.includes(finalVal.trim().toLowerCase())) {
-      finalVal = componentizeTemplateHtml(finalVal);
-    }
+    if (value === known || laidOutFromRef.current.get(value) === known) return;
+    const finalVal = adoptPageHtml(EMAIL_PAGE_ID, value);
+    if (finalVal === known) return;
     if (onEmail) {
       internalHtmlRef.current = finalVal;
       if (editorRef.current && !rawHtmlMode) {
         editorRef.current.innerHTML = finalVal;
+        editingRef.current = null;
+        setActiveElement(null);
+        setPickedBlocks([]);
       }
       setRawHtmlCode(finalVal);
     }
@@ -1644,12 +1842,12 @@ const EmailBodyRichTextEditor = ({
 
   // The browser page changed from outside: added, replaced or cleared.
   useEffect(() => {
-    const incoming = browserPage || "";
+    const raw = browserPage || "";
     const stored = pagesRef.current.find((p) => p.id === BROWSER_PAGE_ID);
-    if (stored ? stored.html === incoming : isBlankHtml(incoming)) return;
+    if (stored ? stored.html === raw || laidOutFromRef.current.get(raw) === stored.html : isBlankHtml(raw)) return;
     const onBrowser = currentPageIdRef.current === BROWSER_PAGE_ID;
 
-    if (isBlankHtml(incoming)) {
+    if (isBlankHtml(raw)) {
       pagesRef.current = pagesRef.current.filter((p) => p.id !== BROWSER_PAGE_ID);
       setPages(pagesRef.current);
       forgetPageHistory(BROWSER_PAGE_ID);
@@ -1658,6 +1856,7 @@ const EmailBodyRichTextEditor = ({
         currentPageIdRef.current = EMAIL_PAGE_ID;
         setCurrentPageId(EMAIL_PAGE_ID);
         setPickedBlocks([]);
+        setActiveElement(null);
         internalHtmlRef.current = email;
         if (editorRef.current && !rawHtmlMode) editorRef.current.innerHTML = email;
         setRawHtmlCode(email);
@@ -1666,6 +1865,7 @@ const EmailBodyRichTextEditor = ({
       return;
     }
 
+    const incoming = adoptPageHtml(BROWSER_PAGE_ID, raw);
     pagesRef.current = stored
       ? pagesRef.current.map((p) => (p.id === BROWSER_PAGE_ID ? { ...p, html: incoming } : p))
       : [...pagesRef.current, { id: BROWSER_PAGE_ID, name: PAGE_LABELS[BROWSER_PAGE_ID], html: incoming }];
@@ -1674,6 +1874,8 @@ const EmailBodyRichTextEditor = ({
     if (onBrowser && incoming !== internalHtmlRef.current) {
       internalHtmlRef.current = incoming;
       if (editorRef.current && !rawHtmlMode) editorRef.current.innerHTML = incoming;
+      setActiveElement(null);
+      setPickedBlocks([]);
       setRawHtmlCode(incoming);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1702,12 +1904,49 @@ const EmailBodyRichTextEditor = ({
       if (pagesMenuRef.current && !pagesMenuRef.current.contains(event.target)) {
         setShowPagesMenu(false);
       }
+      if (textColorMenuRef.current && !textColorMenuRef.current.contains(event.target)) {
+        setShowTextColorMenu(false);
+      }
+      if (linkMenuRef.current && !linkMenuRef.current.contains(event.target)) {
+        setShowLinkMenu(false);
+      }
+      if (pageSizeMenuRef.current && !pageSizeMenuRef.current.contains(event.target)) {
+        setShowPageSizeMenu(false);
+      }
+      if (onclicksMenuRef.current && !onclicksMenuRef.current.contains(event.target)) {
+        setShowOnclicksMenu(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // The block style, font and size of the text at the caret.
+  const readTextFormat = useCallback((range) => {
+    const editor = editorRef.current;
+    if (!editor || !range) return;
+    let node = range.startContainer;
+    if (node.nodeType !== 1) node = node.parentElement;
+    if (!node || !editor.contains(node)) return;
+    let block = "p";
+    for (let at = node; at && at !== editor; at = at.parentElement) {
+      if (/^(P|H[1-6]|BLOCKQUOTE|PRE)$/.test(at.tagName)) {
+        block = at.tagName.toLowerCase();
+        break;
+      }
+    }
+    const cs = window.getComputedStyle(node);
+    const next = { block, font: firstFontFamily(cs.fontFamily), size: fontSizePx(cs.fontSize) };
+    setTextFormat((prev) =>
+      prev.block === next.block && prev.font === next.font && prev.size === next.size ? prev : next,
+    );
+  }, []);
+
   const handleTextSelectionChange = useCallback(() => {
+    const current = window.getSelection();
+    if (!rawHtmlMode && current?.rangeCount && isEditorSelection(current.getRangeAt(0))) {
+      readTextFormat(current.getRangeAt(0));
+    }
     if (rawHtmlMode || disabled) {
       setSelectionColorMenu((prev) => ({ ...prev, visible: false }));
       return;
@@ -1742,22 +1981,15 @@ const EmailBodyRichTextEditor = ({
       });
       savedSelectionRef.current = range.cloneRange();
     }
-  }, [disabled, isEditorSelection, rawHtmlMode]);
+  }, [disabled, isEditorSelection, rawHtmlMode, readTextFormat]);
 
   useEffect(() => {
     document.addEventListener("selectionchange", handleTextSelectionChange);
     return () => document.removeEventListener("selectionchange", handleTextSelectionChange);
   }, [handleTextSelectionChange]);
 
-  const applyTextColorToSelection = (color) => {
-    restoreSelection();
-    try {
-      document.execCommand("foreColor", false, color);
-      synchroniseEditorValue();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const applyTextColorToSelection = (color) => applyTextColour(color);
+
 
   const handleEyedropperForText = async () => {
     if (!window.EyeDropper) {
@@ -1775,60 +2007,339 @@ const EmailBodyRichTextEditor = ({
     }
   };
 
-  const handleClearAllCanvas = () => {
-    internalHtmlRef.current = "";
-    if (editorRef.current) {
-      editorRef.current.innerHTML = "";
-    }
-    setRawHtmlCode("");
+  // Show `html` as the page being edited, as one undo step.
+  const replaceCurrentPage = (html) => {
+    stopEditing();
+    internalHtmlRef.current = html;
+    if (editorRef.current) editorRef.current.innerHTML = html;
+    setRawHtmlCode(html);
     setActiveElement(null);
-
-    const updated = pagesRef.current.map((p) =>
-      p.id === currentPageIdRef.current ? { ...p, html: "" } : p
-    );
-    pagesRef.current = updated;
-    setPages(updated);
-
-    emitChange("");
-    showToast(`Erased active page.`, "success");
+    setPickedBlocks([]);
+    const page = pageOf(editorRef.current);
+    if (page) {
+      setPageHeightPx(page.offsetHeight);
+      setPageWidthPx(page.offsetWidth || PAGE_WIDTH.email);
+      setCanvasBgColor(page.style.backgroundColor || "#FFFFFF");
+    }
+    emitChange(html);
   };
 
-  // 🌟 Select template and decompose every element into standalone components
+  const handleClearAllCanvas = () => {
+    replaceCurrentPage(emptyPageHtml(currentPageWidth(), currentPageMin()));
+    showToast("Erased the page. Undo (Ctrl+Z) brings it back.", "success");
+  };
+
+  // A template from the library: laid out as items on the page, each one
+  // selectable, movable and layered; a template's panel becomes a group.
   const chooseEmailBody = (option) => {
     setShowBodyMenu(false);
     if (!option?.html) return;
-    let componentized = componentizeTemplateHtml(option.html);
-    if (currentPageIdRef.current === BROWSER_PAGE_ID) {
-      componentized = toBrowserPageHtml(componentized);
+    const laidOut = ensurePageHtml(option.html, currentPageIdRef.current, currentPageWidth(), { fresh: true });
+    const page = pageOf(editorRef.current);
+    if (!page || !layerItems(page).length) {
+      replaceCurrentPage(laidOut);
+      showToast(`Applied "${option.name}". Double-click a panel to select its parts.`, "success");
+      return;
     }
-    internalHtmlRef.current = componentized;
-    if (editorRef.current) {
-      editorRef.current.innerHTML = componentized;
+    // Something is on the page already: the template is added on top of it,
+    // in front, where it is in view, and selected to move into place.
+    stopEditing();
+    const holder = document.createElement("div");
+    holder.innerHTML = laidOut;
+    const incoming = layerItems(pageOf(holder));
+    if (!incoming.length) return;
+    const box = unionRects(incoming.map((el) => ({
+      left: parseFloat(el.style.left) || 0,
+      top: parseFloat(el.style.top) || 0,
+      width: parseFloat(el.style.width) || 0,
+      height: parseFloat(el.style.height) || 0,
+    })));
+    let viewTop = 16;
+    const sc = scrollerRef.current;
+    if (sc) {
+      viewTop = Math.max(16, (sc.getBoundingClientRect().top - page.getBoundingClientRect().top) / pageScale() + 16);
     }
-    setRawHtmlCode(componentized);
-    emitChange(componentized);
-    setActiveElement(null);
-    showToast(`Applied "${option.name}".`, "success");
+    const shiftY = viewTop - (box?.top || 0);
+    const added = incoming.map((el) => {
+      freshIds(el);
+      el.style.top = `${Math.round((parseFloat(el.style.top) || 0) + shiftY)}px`;
+      page.appendChild(el);
+      return el;
+    });
+    renumberLayers(page);
+    synchroniseEditorValue();
+    selectItems(added);
+    showToast(
+      `Added "${option.name}" on top of the page. Drag it into place; Ctrl+G groups it, Ctrl+[ sends it back.`,
+      "success",
+    );
   };
 
-  const runCommand = useCallback(
-    (command, commandValue = null) => {
-      if (disabled || rawHtmlMode) return;
-      restoreSelection();
+  // The page's own background colour (saved with it, so the preview and the
+  // email show it too).
+  const setPageBackground = (colour) => {
+    setCanvasBgColor(colour);
+    const page = pageOf(editorRef.current);
+    if (!page) return;
+    page.style.backgroundColor = colour;
+    synchroniseEditorValue();
+  };
 
+  const runCommand = (command, commandValue = null) => {
+    const done = withTextTarget(() => {
       try {
         document.execCommand(command, false, commandValue);
       } catch (error) {
         console.error(`Editor command failed: ${command}`, error);
       }
+    });
+    if (!done) showToast("Select a text item, or double-click one to type in it, first.", "info");
+  };
 
+  // Left / centre / right for text. While typing: the line(s) the caret is
+  // on. Otherwise: the selected items' whole text (a shape's or button's
+  // label too, which are laid out as rows).
+  const JUSTIFY = { left: "flex-start", center: "center", right: "flex-end" };
+  const alignText = (side) => {
+    if (disabled || rawHtmlMode) return;
+    const host = editingRef.current;
+    if (host && restoreSelection()) {
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const blockOf = (node) => {
+        let at = node?.nodeType === 1 ? node : node?.parentElement;
+        while (at && at !== host) {
+          if (/^(P|H[1-6]|LI|BLOCKQUOTE|PRE|DIV|TD)$/.test(at.tagName)) return at;
+          at = at.parentElement;
+        }
+        return host;
+      };
+      const blocks = new Set([blockOf(range?.startContainer), blockOf(range?.endContainer)]);
+      blocks.forEach((b) => {
+        b.style.textAlign = side;
+      });
       synchroniseEditorValue();
-    },
-    [disabled, rawHtmlMode, restoreSelection, synchroniseEditorValue],
-  );
+      return;
+    }
+    const items = selectedItems().flatMap((el) => (isGroupEl(el) ? layerItems(el) : [el])).filter(hasText);
+    if (!items.length) {
+      showToast("Select a text item, shape or button first, or double-click into its text.", "info");
+      return;
+    }
+    items.forEach((el) => {
+      el.style.textAlign = side;
+      // Inner lines that set their own alignment follow the item's.
+      el.querySelectorAll("[style*='text-align']").forEach((n) => {
+        n.style.textAlign = "";
+      });
+      el.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote, div, a").forEach((n) => {
+        if (n.style.textAlign) n.style.textAlign = side;
+      });
+      const flexParts = [el, ...el.querySelectorAll("*")].filter(
+        (n) => /flex/.test(window.getComputedStyle(n).display) && window.getComputedStyle(n).flexDirection.startsWith("row"),
+      );
+      flexParts.forEach((n) => {
+        n.style.justifyContent = JUSTIFY[side];
+      });
+    });
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
+  };
+
+  // Top / middle / bottom for an item's content inside its box (make the
+  // item taller than its text to see it move).
+  const VALIGN = { top: "flex-start", middle: "center", bottom: "flex-end" };
+  const VALIGN_WRAP = "vshield-valign";
+  const valignText = (where) => {
+    if (disabled || rawHtmlMode) return;
+    const items = (editingRef.current ? [editingRef.current] : selectedItems())
+      .flatMap((el) => (isGroupEl(el) ? layerItems(el) : [el]))
+      .filter((el) => !isGroupEl(el));
+    if (!items.length) {
+      showToast("Select an item first.", "info");
+      return;
+    }
+    items.forEach((el) => {
+      const cs = window.getComputedStyle(el);
+      if (/flex/.test(cs.display) && cs.flexDirection.startsWith("row")) {
+        // A shape or banner laid out as a row: its cross axis is up and down.
+        el.style.alignItems = VALIGN[where];
+      } else {
+        // Its content goes in one inner box, moved up and down as one, so
+        // its words and links keep flowing as they did.
+        let wrap = el.children.length === 1 && el.firstElementChild.classList.contains(VALIGN_WRAP) ? el.firstElementChild : null;
+        if (!wrap) {
+          wrap = document.createElement("div");
+          wrap.className = VALIGN_WRAP;
+          wrap.style.width = "100%";
+          while (el.firstChild) wrap.appendChild(el.firstChild);
+          el.appendChild(wrap);
+        }
+        el.style.display = "flex";
+        el.style.flexDirection = "column";
+        el.style.justifyContent = VALIGN[where];
+      }
+      // Room to move in: at least as tall as it is now.
+      if (!el.style.height || el.style.height === "auto") el.style.height = `${el.offsetHeight}px`;
+    });
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
+    showToast(
+      `${where === "top" ? "Top" : where === "middle" ? "Middle" : "Bottom"} of the box. Make the item taller to see the space.`,
+      "success",
+    );
+  };
 
   const handleToolbarMouseDown = (event) => {
     event.preventDefault();
+  };
+
+  // With only a caret, a text command applies to the whole line it is on
+  // (its paragraph, heading or text part); returns false when there is none.
+  const selectLineAtCaret = () => {
+    const editor = editingRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection?.rangeCount) return false;
+    if (!selection.isCollapsed) return true;
+    let node = selection.getRangeAt(0).startContainer;
+    if (node.nodeType !== 1) node = node.parentElement;
+    let line = null;
+    for (let at = node; at && at !== editor; at = at.parentElement) {
+      if (/^(P|H[1-6]|LI|BLOCKQUOTE|A|SPAN|DIV|TD)$/.test(at.tagName) && at.textContent.trim()) {
+        line = at;
+        if (/^(P|H[1-6]|LI|BLOCKQUOTE)$/.test(at.tagName) || at.getAttribute("contenteditable") === "true") break;
+      }
+    }
+    const range = document.createRange();
+    range.selectNodeContents(line || editor);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+  };
+
+  // A real pixel size on the selected text (or the caret's line). The
+  // browser's own fontSize command only knows seven sizes, so it marks the
+  // text with size 7 and each mark becomes a span with the size picked.
+  const applyFontSizePx = (px) => {
+    const editor = editorRef.current;
+    if (!editor || !px) return;
+    const done = withTextTarget(
+      () => {
+        const before = new Set(editor.querySelectorAll('font[size="7"]'));
+        document.execCommand("styleWithCSS", false, false);
+        document.execCommand("fontSize", false, "7");
+        editor.querySelectorAll('font[size="7"]').forEach((font) => {
+          if (before.has(font)) return;
+          const span = document.createElement("span");
+          span.style.fontSize = `${px}px`;
+          if (font.getAttribute("color")) span.style.color = font.getAttribute("color");
+          if (font.getAttribute("face")) span.style.fontFamily = font.getAttribute("face");
+          while (font.firstChild) span.appendChild(font.firstChild);
+          // Sizes set inside it before would win over the new one.
+          span.querySelectorAll('[style*="font-size"]').forEach((n) => {
+            n.style.fontSize = "";
+            if (!n.getAttribute("style")) n.removeAttribute("style");
+          });
+          font.replaceWith(span);
+        });
+      },
+      { wholeLine: true },
+    );
+    if (done) setTextFormat((prev) => ({ ...prev, size: px }));
+    else showToast("Select a text item, or double-click one to type in it, to change its size.", "info");
+  };
+
+  const applyFontFamily = (family) => {
+    const done = withTextTarget(
+      () => {
+        document.execCommand("styleWithCSS", false, false);
+        document.execCommand("fontName", false, family);
+      },
+      { wholeLine: true },
+    );
+    if (done) setTextFormat((prev) => ({ ...prev, font: firstFontFamily(family) }));
+    else showToast("Select a text item, or double-click one to type in it, to change its font.", "info");
+  };
+
+  // Text colour, or the highlight behind the text ("transparent" removes it).
+  const applyTextColour = (colour, { highlight = false } = {}) => {
+    const done = withTextTarget(
+      () => {
+        document.execCommand("styleWithCSS", false, true);
+        document.execCommand(highlight ? "hiliteColor" : "foreColor", false, colour);
+        document.execCommand("styleWithCSS", false, false);
+      },
+      { wholeLine: true },
+    );
+    if (!done) showToast("Select a text item, or highlight some text, to colour it.", "info");
+  };
+
+  // The selected words become a link with an On-Click action. Email clients
+  // only follow links, so this is how a phrase in the text becomes the lure.
+  const linkSelectedText = (action) => {
+    const editor = editorRef.current;
+    setShowLinkMenu(false);
+    if (disabled || rawHtmlMode || !editor) return;
+    const typing = restoreSelection();
+    const selection = window.getSelection();
+    if (!typing || !selection?.rangeCount || selection.isCollapsed || !selection.toString().trim()) {
+      showToast(
+        "Double-click a text item and highlight the words to turn into a link. (To make a whole item clickable, use its On Click.)",
+        "info",
+        "Nothing Highlighted",
+      );
+      return;
+    }
+    const onBrowser = currentPageIdRef.current === BROWSER_PAGE_ID;
+    const chosen = onBrowser ? "training" : action === "page" && !supportsBrowserPage ? "landing" : action;
+    const marker = `vshield-link-${Date.now()}`;
+    document.execCommand("createLink", false, marker);
+    editor.querySelectorAll(`a[href="${marker}"]`).forEach((a) => {
+      a.setAttribute("href", actionLink(chosen));
+      a.setAttribute("data-action", chosen);
+      if (!a.style.color) a.style.color = "#0563C1";
+      if (!a.style.textDecoration) a.style.textDecoration = "underline";
+    });
+    synchroniseEditorValue();
+    if (chosen === "page" && !pagesRef.current.some((p) => p.id === BROWSER_PAGE_ID)) {
+      setShowNewPageModal(true);
+      showToast("Link made. Now design the browser page it opens.", "info");
+    } else {
+      showToast(
+        chosen === "training"
+          ? "Link made: clicking it marks the employee compromised."
+          : chosen === "page"
+            ? "Link made: it opens the browser page."
+            : "Link made: it opens the landing page and records the click.",
+        "success",
+      );
+    }
+  };
+
+  const unlinkSelectedText = () => {
+    setShowLinkMenu(false);
+    if (disabled || rawHtmlMode) return;
+    if (!restoreSelection()) {
+      showToast("Double-click the text with the link, then put the caret in the link.", "info");
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    if (selection.isCollapsed) {
+      const at = selection.getRangeAt(0).startContainer;
+      const link = (at.nodeType === 1 ? at : at.parentElement)?.closest("a");
+      if (!link || !editorRef.current?.contains(link)) {
+        showToast("Put the caret in a link, or select it, to remove it.", "info");
+        return;
+      }
+      const range = document.createRange();
+      range.selectNode(link);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    document.execCommand("unlink");
+    synchroniseEditorValue();
+    showToast("Link removed.", "success");
   };
 
   const handleEditorInput = () => {
@@ -1838,38 +2349,51 @@ const EmailBodyRichTextEditor = ({
 
   const handleEditorBlur = () => {
     saveSelection();
-    if (!editorRef.current) return;
-    emitChange(editorRef.current.innerHTML);
   };
 
-  // Pasted HTML keeps its formatting; plain text is escaped, line breaks kept.
+  // A paste on the canvas:
+  //  - items copied here (Ctrl+C) come back as items;
+  //  - while typing in an item, into its text (cleaned: no scripts, handlers
+  //    or Office markup go into an email);
+  //  - otherwise a picture becomes a picture item, and text a text item.
   const handlePaste = (event) => {
     if (disabled || rawHtmlMode) return;
     const clipboardData = event.clipboardData;
     if (!clipboardData) return;
-
     const htmlContent = clipboardData.getData("text/html");
     const plainText = clipboardData.getData("text/plain");
     event.preventDefault();
-    restoreSelection();
 
-    if (htmlContent) {
-      document.execCommand("insertHTML", false, htmlContent);
-    } else {
-      const safeText = plainText
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\n/g, "<br>");
-      document.execCommand("insertHTML", false, safeText);
+    if (htmlContent && htmlContent.includes(ITEM_COPY_MARK)) {
+      pasteCopiedItems(htmlContent);
+      return;
     }
-    synchroniseEditorValue();
+    const cleaned = htmlContent ? cleanPastedHtml(htmlContent) : "";
+    if (restoreSelection()) {
+      if (cleaned) document.execCommand("insertHTML", false, cleaned);
+      else if (plainText) document.execCommand("insertHTML", false, plainTextToHtml(plainText));
+      synchroniseEditorValue();
+      return;
+    }
+    const file = Array.from(clipboardData.files || []).find((f) => /^image\//.test(f.type));
+    if (file) {
+      insertPictureFile(file);
+      return;
+    }
+    const content = cleaned || (plainText ? plainTextToHtml(plainText) : "");
+    if (!content) return;
+    const [item] = insertCanvasItem(
+      `<div class="vshield-canvas-item" data-type="text" style="display:block;width:${Math.min(480, currentPageWidth() - 40)}px;padding:4px 6px;font-size:14px;line-height:1.5;color:#1E293B;">${content}</div>`,
+    );
+    if (item) showToast("Pasted as a new text item. Double-click it to edit.", "success");
   };
 
   const handleToggleCodeMode = () => {
     if (disabled) return;
 
     if (!rawHtmlMode) {
+      stopEditing();
+      setActiveElement(null);
       const currentHtml =
         editorRef.current?.innerHTML ?? internalHtmlRef.current ?? "";
 
@@ -1907,10 +2431,40 @@ const EmailBodyRichTextEditor = ({
     setShowFxMenu(false);
     if (disabled || rawHtmlMode) return;
 
-    restoreSelection();
-    const spanHtml = `<span style="background-color: rgba(153,0,153,0.12); color: #990099; font-weight: bold; padding: 1px 5px; border-radius: 4px; font-family: monospace;">${param.label}</span>&nbsp;`;
-    document.execCommand("insertHTML", false, spanHtml);
-    synchroniseEditorValue();
+    // The phish link goes in as a real link: around the highlighted words,
+    // else as "Click here".
+    if (param.link) {
+      // On the browser page a link marks the employee compromised.
+      const action = currentPageIdRef.current === BROWSER_PAGE_ID ? "training" : "landing";
+      const typing = restoreSelection();
+      const selection = window.getSelection();
+      if (typing && selection?.rangeCount && !selection.isCollapsed && selection.toString().trim()) {
+        linkSelectedText(action);
+        return;
+      }
+      const linkHtml = `<a href="${actionLink(action)}" data-action="${action}" style="color:#2563eb;text-decoration:underline;">Click here</a>&nbsp;`;
+      if (typing) {
+        document.execCommand("insertHTML", false, linkHtml);
+        synchroniseEditorValue();
+        return;
+      }
+      insertCanvasItem(
+        `<div class="vshield-canvas-item" data-type="text" style="display:inline-block;padding:4px 6px;font-size:14px;">${linkHtml}</div>`,
+      );
+      return;
+    }
+    // Tinted in the editor only (vshield-fx); employees get the plain value.
+    const spanHtml = `<span class="vshield-fx">${param.label}</span>&nbsp;`;
+    if (restoreSelection()) {
+      document.execCommand("insertHTML", false, spanHtml);
+      synchroniseEditorValue();
+      return;
+    }
+    // Not typing anywhere: the placeholder comes as a text item of its own.
+    const [item] = insertCanvasItem(
+      `<div class="vshield-canvas-item" data-type="text" style="display:inline-block;padding:4px 6px;font-size:14px;">${spanHtml}</div>`,
+    );
+    if (item) showToast("Placeholder added as a text item. Double-click text to put one inside it instead.", "info");
   };
 
   const insertTextBox = () => {
@@ -1918,13 +2472,12 @@ const EmailBodyRichTextEditor = ({
 
     const textId = `txt-${Date.now()}`;
     const textHtml = `
-      <div id="${textId}" class="vshield-canvas-item vshield-textbox" data-type="text" style="position: relative; display: inline-block; min-width: 220px; max-width: 100%; padding: 8px 12px; margin: 10px 0; cursor: move; border: 1px dashed rgba(100,116,139,0.35); border-radius: 6px; background-color: transparent; box-shadow: none;">
-        <div contenteditable="true" spellcheck="true" style="outline: none; cursor: text; font-size: 14px; line-height: 1.5; color: #1E293B;">Click here to edit text...</div>
-      </div><p><br></p>
+      <div id="${textId}" class="vshield-canvas-item vshield-textbox" data-type="text" style="display: block; width: 260px; padding: 6px 8px; background-color: transparent; box-shadow: none; font-size: 14px; line-height: 1.5; color: #1E293B;">Type your text here</div>
     `;
 
-    insertCanvasItem(textHtml);
-    showToast("Text box added. Click inside to edit.", "success");
+    const [item] = insertCanvasItem(textHtml);
+    // Straight into typing, with the sample text selected to type over.
+    if (item) startEditing(item, { selectAll: true });
   };
 
   const insertShape = (shapeType) => {
@@ -1993,14 +2546,15 @@ const EmailBodyRichTextEditor = ({
     if (buttonShape === "sharp") borderRadius = "0px";
     if (buttonShape === "soft") borderRadius = "8px";
 
+    // A new button starts with NO On-Click: the author sets it (Set On Click).
     const buttonHtml = `
-      <div id="${buttonId}" class="vshield-canvas-item vshield-custom-btn" data-type="button" data-action="landing" data-url="{{phishLink}}" style="position: relative; display: inline-block; margin: 14px 0; cursor: move; user-select: none; box-shadow: none;">
-        <a href="{{phishLink}}" onclick="return false;" style="display: inline-block; padding: 10px 26px; background-color: #E60000; color: #FFFFFF; font-family: 'Vodafone ExB', Arial, sans-serif; font-size: 13px; font-weight: 800; text-decoration: none; border-radius: ${borderRadius}; text-align: center; border: none; cursor: pointer; box-shadow: none;" contenteditable="true" spellcheck="false">Click Here to Verify</a>
+      <div id="${buttonId}" class="vshield-canvas-item vshield-custom-btn" data-type="button" style="position: relative; display: inline-block; margin: 14px 0; cursor: move; user-select: none; box-shadow: none;">
+        <a href="#" onclick="return false;" style="display: inline-block; padding: 10px 26px; background-color: #E60000; color: #FFFFFF; font-family: 'Vodafone ExB', Arial, sans-serif; font-size: 13px; font-weight: 800; text-decoration: none; border-radius: ${borderRadius}; text-align: center; border: none; cursor: pointer; box-shadow: none;" contenteditable="true" spellcheck="false">Click Here to Verify</a>
       </div><p><br></p>
     `;
 
     insertCanvasItem(buttonHtml);
-    showToast("Button added. Click to edit text or set On Click.", "success");
+    showToast("Button added. Double-click to edit its text, then set its On Click.", "success");
   };
 
   const insertPhishingElement = (elementId) => {
@@ -2083,16 +2637,23 @@ const EmailBodyRichTextEditor = ({
         break;
     }
 
-    insertCanvasItem(elemHtml);
-    showToast("Phishing element inserted. Sub-items are fully modular.", "success");
+    // Ready-made elements also start with no On-Click (set it on the button).
+    insertCanvasItem(toBrowserPageHtml(elemHtml));
+    showToast("Element inserted. Select its button and set its On Click.", "success");
   };
 
   // The toolbar's picture button: the file goes to picture hosting and the
   // email or page links to it (never a copy inside the HTML, which breaks
   // the size limit and is not shown by Gmail).
-  const handleImageUpload = async (event) => {
+  const handleImageUpload = (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
+    if (file) insertPictureFile(file);
+  };
+
+  // A picture file (the toolbar's picker, or pasted) goes to picture hosting
+  // and onto the page as a picture item.
+  const insertPictureFile = async (file) => {
     if (!file || !editorRef.current) return;
 
     const problem = pictureFileProblem(file);
@@ -2108,11 +2669,11 @@ const EmailBodyRichTextEditor = ({
       const alt = String(file.name || "Picture").replace(/[&<>"]/g, "");
       const imageId = `img-${Date.now()}`;
       insertCanvasItem(`
-        <div id="${imageId}" class="vshield-canvas-item" data-type="image" style="position: relative; display: inline-block; max-width: 100%; margin: 12px 0; cursor: move; text-align: center; box-shadow: none;">
-          <img src="${url}" alt="${alt}" style="display: block; width: 240px; height: auto; border-radius: 8px; pointer-events: none; box-shadow: none;" />
-        </div><p><br></p>
+        <div id="${imageId}" class="vshield-canvas-item" data-type="image" style="display: block; width: 240px; box-shadow: none;">
+          <img src="${url}" alt="${alt}" style="display: block; width: 100%; height: auto; border-radius: 8px; pointer-events: none; box-shadow: none;" />
+        </div>
       `);
-      showToast("Picture added. Click it to resize or move.", "success");
+      showToast("Picture added. Drag it to move it, or a handle to resize it.", "success");
     } catch (error) {
       showToast(error?.message || "The picture couldn't be uploaded.", "error");
     } finally {
@@ -2120,25 +2681,266 @@ const EmailBodyRichTextEditor = ({
     }
   };
 
-  // Select one item on the canvas: its frame, size readout and tools.
+  // =================================================================
+  // THE CANVAS (services/canvasLayout.js): a page of fixed width, scaled to
+  // fit the editor, with every item at its own place on its own layer, as
+  // on a Power BI report page.
+  // =================================================================
+  const pageKind = () => (currentPageIdRef.current === BROWSER_PAGE_ID ? "browser" : "email");
+  const pageEl = () => pageOf(editorRef.current);
+  // The page's own size (Page size menu), saved on it; else the default.
+  const currentPageWidth = () =>
+    parseInt(pageEl()?.getAttribute("data-page-width"), 10) || PAGE_WIDTH[pageKind()];
+  const currentPageMin = () =>
+    parseInt(pageEl()?.getAttribute("data-min-height"), 10) || PAGE_MIN_HEIGHT[pageKind()];
+
+  // A new page width: items past the new right edge come back inside it.
+  const setPageWidth = (typed) => {
+    const page = pageEl();
+    const width = Math.round(Number(typed));
+    if (!page || !Number.isFinite(width)) return;
+    const next = Math.max(PAGE_SIZE_LIMITS.minWidth, Math.min(PAGE_SIZE_LIMITS.maxWidth, width));
+    page.setAttribute("data-page-width", String(next));
+    page.style.width = `${next}px`;
+    layerItems(page).forEach((el) => writeRect(el, clampToPage(readRect(el), next), { height: false }));
+    setPageWidthPx(next);
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
+    showToast(
+      pageKind() === "email" && next > 700
+        ? `Page is ${next}px wide. Outlook and Gmail reading panes are about 600-700px, so employees will scroll sideways.`
+        : `Page is ${next}px wide.`,
+      pageKind() === "email" && next > 700 ? "warning" : "success",
+    );
+  };
+
+  // The least height the page keeps (it still grows to hold its items).
+  const setPageMinHeight = (typed) => {
+    const page = pageEl();
+    const height = Math.round(Number(typed));
+    if (!page || !Number.isFinite(height)) return;
+    const next = Math.max(PAGE_SIZE_LIMITS.minHeight, Math.min(PAGE_SIZE_LIMITS.maxHeight, height));
+    page.setAttribute("data-min-height", String(next));
+    synchroniseEditorValue();
+  };
+
+  // The handle on the page's bottom edge: drag down for more room.
+  const startPageHeightDrag = (e) => {
+    const page = pageEl();
+    if (!page) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const scale = pageScale();
+    const startY = e.clientY;
+    const start = page.offsetHeight;
+    // Never shorter than what is on it.
+    let lowest = 0;
+    layerItems(page).forEach((el) => {
+      if (el.style.display !== "none") lowest = Math.max(lowest, (parseFloat(el.style.top) || 0) + el.offsetHeight);
+    });
+    const onMove = (ev) => {
+      const next = Math.round(
+        Math.max(PAGE_SIZE_LIMITS.minHeight, lowest, Math.min(PAGE_SIZE_LIMITS.maxHeight, start + (ev.clientY - startY) / scale)),
+      );
+      page.style.height = `${next}px`;
+      page.setAttribute("data-min-height", String(next));
+      setPageHeightPx(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      synchroniseEditorValue();
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  const isGroupEl = (el) => Boolean(el?.classList?.contains(GROUP_CLASS));
+  const isItemEl = (el) => Boolean(el?.classList?.contains(ITEM_CLASS));
+
+  // Screen px per page px (the app's own zoom times the fit-to-editor scale).
+  const pageScale = () => {
+    const page = pageEl();
+    if (!page || !page.offsetWidth) return 1;
+    const k = page.getBoundingClientRect().width / page.offsetWidth;
+    return k > 0.05 && Number.isFinite(k) ? k : 1;
+  };
+
+  // Screen px per px of the scroll area, where frames and toolbars are drawn
+  // (at full size, so they stay readable however small the page is shown).
+  const overlayScale = () => {
+    const sc = scrollerRef.current;
+    if (!sc || !sc.offsetWidth) return 1;
+    const k = sc.getBoundingClientRect().width / sc.offsetWidth;
+    return k > 0.05 && Number.isFinite(k) ? k : 1;
+  };
+
+  // A screen rectangle in the scroll area's px.
+  const toOverlay = (rect) => {
+    const sc = scrollerRef.current;
+    if (!sc || !rect) return null;
+    const k = overlayScale();
+    const area = sc.getBoundingClientRect();
+    return {
+      left: (rect.left - area.left) / k + sc.scrollLeft,
+      top: (rect.top - area.top) / k + sc.scrollTop,
+      width: rect.width / k,
+      height: rect.height / k,
+    };
+  };
+
+  toOverlayRef.current = toOverlay;
+
+
+  // Where an item is on the page (a group's part: its group's place added).
+  const pageRectOf = (el) => {
+    const own = readRect(el);
+    const parent = el.parentElement;
+    if (isGroupEl(parent)) {
+      const g = readRect(parent);
+      return { ...own, left: own.left + g.left, top: own.top + g.top };
+    }
+    return own;
+  };
+
+  // The box an item moves in: the page, or its group (in the item's own coordinates).
+  const containerBoxOf = (el) => {
+    const parent = el.parentElement;
+    if (isGroupEl(parent)) {
+      const g = readRect(parent);
+      return { left: 0, top: 0, width: g.width, height: g.height };
+    }
+    const page = pageEl();
+    return { left: 0, top: 0, width: currentPageWidth(), height: page?.offsetHeight || currentPageMin() };
+  };
+
+  // The page's top-level item holding `node`.
+  const topItemOf = (node) => {
+    const page = pageEl();
+    let at = node?.nodeType === 1 ? node : node?.parentElement;
+    while (at && at !== page && editorRef.current?.contains(at)) {
+      if (at.parentElement === page && isItemEl(at)) return at;
+      at = at.parentElement;
+    }
+    return null;
+  };
+
+  // The part of `group` holding `node`.
+  const partOf = (group, node) => {
+    let at = node?.nodeType === 1 ? node : node?.parentElement;
+    while (at && at !== group) {
+      if (at.parentElement === group && isItemEl(at)) return at;
+      at = at.parentElement;
+    }
+    return null;
+  };
+
+  // Keep the page tidy after a change: only items on it, layers numbered,
+  // every group sized to its parts, and the page as tall as what is on it.
+  const fitGroup = (group) => {
+    if (!layerItems(group).length) {
+      group.remove();
+      return;
+    }
+    const parts = layerItems(group).filter((p) => p.style.display !== "none");
+    if (!parts.length) return;
+    const box = unionRects(parts.map(readRect));
+    const g = readRect(group);
+    if (Math.abs(box.left) >= 0.5 || Math.abs(box.top) >= 0.5) {
+      parts.forEach((p) => {
+        const r = readRect(p);
+        writeRect(p, { left: r.left - box.left, top: r.top - box.top }, { height: false });
+      });
+      layerItems(group)
+        .filter((p) => p.style.display === "none")
+        .forEach((p) => writeRect(p, { left: px0(p.style.left) - box.left, top: px0(p.style.top) - box.top }, { height: false }));
+    }
+    const placed = clampToPage(
+      { left: g.left + box.left, top: g.top + box.top, width: box.width, height: box.height },
+      currentPageWidth(),
+    );
+    writeRect(group, placed);
+  };
+
+  const px0 = (v) => parseFloat(v) || 0;
+
+  const tidyPage = () => {
+    const page = pageEl();
+    if (!page) return;
+    for (const node of Array.from(page.childNodes)) {
+      if (node.nodeType !== 1 || !isItemEl(node)) {
+        if (node.nodeType === 1 && node.textContent.trim()) {
+          // Something typed or pasted outside an item: it becomes one.
+          node.classList.add(ITEM_CLASS);
+          node.setAttribute("data-type", "text");
+          writeRect(node, { left: 20, top: page.offsetHeight - 40, width: Math.min(400, currentPageWidth() - 40) }, { height: false });
+        } else {
+          node.remove();
+        }
+      }
+    }
+    layerItems(page).forEach((el) => {
+      if (isGroupEl(el)) {
+        renumberLayers(el);
+        fitGroup(el);
+      }
+    });
+    renumberLayers(page);
+    fitPageHeight(page, currentPageMin());
+  };
+
+  tidyPageRef.current = tidyPage;
+
+  // A page made for the old flowing canvas (a template, an older scenario)
+  // is laid out as items once, where they were seen.
+  const ensurePageHtml = (html, pageId = currentPageIdRef.current, width = null, { fresh = false } = {}) => {
+    const kind = pageId === BROWSER_PAGE_ID ? "browser" : "email";
+    const pageWidth = width || PAGE_WIDTH[kind];
+    // Older fx tags carried their purple tint inline, so it was sent too:
+    // now a class the editor alone styles.
+    let out = String(html || "").replace(LEGACY_FX_SPAN, '<span class="vshield-fx">');
+    if (!isLaidOut(out)) {
+      if (EMPTY_HTML_VALUES.includes(out.trim().toLowerCase()) || isBlankHtml(out)) {
+        out = emptyPageHtml(pageWidth, PAGE_MIN_HEIGHT[kind]);
+      } else {
+        const marked = out.includes(ITEM_CLASS) ? out : componentizeTemplateHtml(out);
+        out = layoutPageHtml(marked, {
+          width: pageWidth,
+          minHeight: PAGE_MIN_HEIGHT[kind],
+          textStyle: CANVAS_TEXT_STYLE,
+        });
+      }
+    }
+    // A freshly applied template arrives with NO On-Click on either page: the
+    // author wires the submit / phishing button themselves. A saved page keeps
+    // whatever it already has (this runs only when fresh).
+    if (fresh) out = toBrowserPageHtml(out);
+    // Text is edited one item at a time (double-click), never all at once.
+    return out.replace(/\s+contenteditable\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  };
+
+  // ---------------------------------------------------------------
+  // Selecting
+  // ---------------------------------------------------------------
+  const selectedItems = () => {
+    const live = (el) => el?.isConnected && editorRef.current?.contains(el);
+    if (pickedBlocks.length) return pickedBlocks.filter(live);
+    return live(activeElement?.element) ? [activeElement.element] : [];
+  };
+
+  // Select one item: its frame, size and tools.
   const selectCanvasItem = (canvasItem) => {
-    const isGroup = canvasItem.classList.contains("vshield-group-item");
-    // Real (layout) size, as saved and previewed, not the zoomed screen size.
-    const rect = { width: canvasItem.offsetWidth, height: canvasItem.offsetHeight };
-    // A group's colour and corners are its own, never its first link's.
+    if (!canvasItem) return;
+    const isGroup = isGroupEl(canvasItem);
     const innerA = isGroup ? null : canvasItem.querySelector("a");
     const innerImg = isGroup ? null : canvasItem.querySelector("img");
     const currentBg = innerA
       ? innerA.style.backgroundColor
-      : canvasItem.style.backgroundColor ||
-        window.getComputedStyle(canvasItem).backgroundColor;
-
+      : canvasItem.style.backgroundColor || window.getComputedStyle(canvasItem).backgroundColor;
     const elForRadius = innerA || innerImg || canvasItem;
     const currentRadius =
-      elForRadius.style.borderRadius ||
-      window.getComputedStyle(elForRadius).borderRadius ||
-      "0px";
-
+      elForRadius.style.borderRadius || window.getComputedStyle(elForRadius).borderRadius || "0px";
+    const rect = readRect(canvasItem);
+    setPickedBlocks([]);
     setActiveElement({
       element: canvasItem,
       type: canvasItem.getAttribute("data-type") || "shape",
@@ -2147,334 +2949,39 @@ const EmailBodyRichTextEditor = ({
       color: currentBg,
       borderRadius: currentRadius,
     });
-
     setAspectRatioText(calculateAspectRatio(rect.width, rect.height));
     setShowShadowMenu(false);
     setShowRoundedMenu(false);
     setShowBorderMenu(false);
+    setShowLayoutMenu(false);
   };
 
-  // The outermost group holding `node` on the canvas (null when none).
-  const outermostGroup = (node) => {
-    let found = null;
-    let group = node?.closest?.(".vshield-group-item");
-    while (group && editorRef.current?.contains(group)) {
-      found = group;
-      group = group.parentElement?.closest(".vshield-group-item");
-    }
-    return found;
-  };
-
-  const handleCanvasClick = (e) => {
-    const target = e.target;
-    if (target.closest("[data-floating-control]")) {
-      return;
-    }
-    // The press was a drag, a box-select or a Ctrl/Shift pick: already handled.
-    if (swallowClickRef.current) {
-      swallowClickRef.current = false;
-      return;
-    }
-    setPickedBlocks([]);
-
-    let canvasItem =
-      target.closest(".vshield-canvas-item") ||
-      (target.tagName === "IMG" ? target.parentElement : null);
-
-    // A click inside a group picks the whole group; once it is picked, a
-    // click picks the part under the mouse (as in PowerPoint).
-    const group = outermostGroup(target);
-    const active = activeElement?.element;
-    if (group && !(active && group.contains(active))) {
-      canvasItem = group;
-    } else if (group && active === group) {
-      // Going into the selected group. Its press was held back in case it
-      // became a drag, so put the caret where it was clicked; plain text in
-      // the group is then edited like anywhere else.
-      placeCaretAt(e.clientX, e.clientY);
-      if (canvasItem === group) {
-        setActiveElement(null);
-        return;
-      }
-    }
-
-    if (canvasItem && editorRef.current?.contains(canvasItem)) {
-      e.stopPropagation();
-      selectCanvasItem(canvasItem);
-    } else {
+  // Several items at once (2 or more), or one, or none.
+  const selectItems = (items) => {
+    const unique = [...new Set(items.filter(Boolean))];
+    if (unique.length === 1) selectCanvasItem(unique[0]);
+    else {
       setActiveElement(null);
-      setShowShadowMenu(false);
-      setShowRoundedMenu(false);
-      setShowBorderMenu(false);
+      setPickedBlocks(unique);
     }
   };
 
-  // Screen pixels per layout pixel: the scenario page is drawn with CSS zoom,
-  // and mouse positions and getBoundingClientRect() are in screen pixels.
-  const canvasScale = () => {
-    const el = editorRef.current;
-    if (!el || !el.offsetWidth) return 1;
-    const ratio = el.getBoundingClientRect().width / el.offsetWidth;
-    return ratio > 0.1 && Number.isFinite(ratio) ? ratio : 1;
+  const clearSelection = () => {
+    stopEditing();
+    setActiveElement(null);
+    setPickedBlocks([]);
+    setShowShadowMenu(false);
+    setShowRoundedMenu(false);
+    setShowBorderMenu(false);
+    setShowLayoutMenu(false);
   };
 
-  // How far an item may be moved: sideways, its style left (layout px) stays
-  // inside the canvas; up, `rise` is how far it can go before the canvas top.
-  // Positions are in layout px from the canvas's left edge.
-  const moveLimits = (targetEl) => {
-    const container = editorRef.current || workspaceRef.current;
-    const scale = canvasScale();
-    const containerRect = container.getBoundingClientRect();
-    const targetRect = targetEl.getBoundingClientRect();
-    const currentLeft = parseFloat(targetEl.style.left) || 0;
-    // Where the item would sit with no sideways offset, from the canvas's edge.
-    const baseLeft = (targetRect.left - containerRect.left) / scale - currentLeft;
-    const width = targetRect.width / scale;
-    return {
-      baseLeft,
-      width,
-      minLeft: -baseLeft + 4,
-      maxLeft: container.clientWidth - baseLeft - width - 4,
-      minTop: -Infinity,
-      rise: Math.max(0, (targetRect.top - containerRect.top) / scale - 4),
-    };
-  };
-
-  // The left edge, centre and right edge of the box holding `el` (its parent's
-  // content area), in the same canvas coordinates: what a drag snaps to.
-  const containerGuides = (el) => {
-    const container = editorRef.current;
-    const parent = el.parentElement || container;
-    const scale = canvasScale();
-    const cs = window.getComputedStyle(parent);
-    const padLeft = parseFloat(cs.paddingLeft) || 0;
-    const padRight = parseFloat(cs.paddingRight) || 0;
-    const left =
-      (parent.getBoundingClientRect().left - container.getBoundingClientRect().left) / scale +
-      parent.clientLeft +
-      padLeft;
-    const right = left + parent.clientWidth - padLeft - padRight;
-    return [
-      { x: left, kind: "start" },
-      { x: (left + right) / 2, kind: "centre" },
-      { x: right, kind: "end" },
-    ];
-  };
-
-  // Sideways, positions are kept relative to the item's container, not as a
-  // distance from the canvas's left edge: the preview is wider than the
-  // canvas (a browser page fills the screen), and a pixel distance from the
-  // left would put the item somewhere else there. An item is anchored to the
-  // left, centre or right of its container with its side margins, and a
-  // dragged item keeps its offset from that anchor.
-  const canAnchor = (el) => {
-    const cs = window.getComputedStyle(el);
-    if (cs.display === "inline" || cs.position === "absolute" || cs.position === "fixed" || cs.float !== "none") {
-      return false;
-    }
-    // In a row (flex/grid), side margins mean something else; keep the slot.
-    const parentDisplay = el.parentElement ? window.getComputedStyle(el.parentElement).display : "";
-    return !/flex|grid/.test(parentDisplay);
-  };
-
-  const horizontalAnchor = (el) => {
-    const { marginLeft, marginRight } = el.style;
-    if (marginLeft === "auto" && marginRight === "auto") return "centre";
-    if (marginLeft === "auto") return "end";
-    if (marginRight === "auto") return "start";
-    return null;
-  };
-
-  // Anchor `el` to the left (`start`), centre or right (`end`) of its
-  // container. With `keepPlace` it stays where it is seen (its offset is
-  // adjusted); without, it goes to that anchor exactly.
-  const anchorItem = (el, anchor, { keepPlace = true } = {}) => {
-    if (!canAnchor(el)) return false;
-    const scale = canvasScale();
-    const before = el.getBoundingClientRect();
-    const cs = window.getComputedStyle(el);
-    if (cs.display.startsWith("inline")) {
-      el.style.display =
-        cs.display === "inline-flex" ? "flex" : cs.display === "inline-grid" ? "grid" : cs.display === "inline-table" ? "table" : "block";
-    }
-    // A width of its own (as seen), so side margins can place it, never wider
-    // than its container.
-    const seenWidth = before.width / scale;
-    if (el.offsetWidth > seenWidth + 1) {
-      el.style.boxSizing = "border-box";
-      el.style.width = `${Math.round(seenWidth)}px`;
-    }
-    if (!el.style.maxWidth) el.style.maxWidth = "100%";
-    el.style.marginLeft = anchor === "start" ? "0px" : "auto";
-    el.style.marginRight = anchor === "end" ? "0px" : "auto";
-    if (!el.style.position || el.style.position === "static") el.style.position = "relative";
-    if (keepPlace) {
-      const after = el.getBoundingClientRect();
-      el.style.left = `${Math.round((parseFloat(el.style.left) || 0) + (before.left - after.left) / scale)}px`;
-    } else {
-      el.style.left = "0px";
-    }
-    return true;
-  };
-
-  // Ready an item to move sideways: anchored to its container's centre
-  // unless it already has an anchor (so a left- or right-aligned item stays so).
-  const readyHorizontalMove = (el) => {
-    if (!horizontalAnchor(el)) anchorItem(el, "centre");
-  };
-
-  // Up and down, an item moves by its top margin, so the page keeps flowing:
-  // what is below follows it and no empty hole is left where it was (a `top`
-  // offset leaves one, and the preview shows it). Only inline text, which
-  // has no top margin, still moves by `top`.
-  const blockAbove = (el) => {
-    let above = el.previousSibling;
-    while (above && above.nodeType === 3 && !above.textContent.trim()) above = above.previousSibling;
-    if (!above || above.nodeType !== 1) return null;
-    const cs = window.getComputedStyle(above);
-    if (
-      cs.display === "none" ||
-      cs.display.startsWith("inline") ||
-      cs.position === "absolute" ||
-      cs.position === "fixed" ||
-      cs.float !== "none"
-    ) {
-      return null;
-    }
-    return above;
-  };
-
-  // Ready an item to move up or down. An old `top` offset is folded into its
-  // margin first (it stays where it is seen, and its hole closes).
-  const startVerticalMove = (el, scale) => {
-    const cs = window.getComputedStyle(el);
-    if (cs.display === "inline" || cs.position === "absolute" || cs.position === "fixed") {
-      return { byTop: true, start: parseFloat(el.style.top) || 0 };
-    }
-    const oldTop = parseFloat(el.style.top) || 0;
-    if (oldTop) el.style.top = "0px";
-    const above = cs.display.startsWith("inline") ? null : blockAbove(el);
-    if (!above) {
-      return { byTop: false, gap: (parseFloat(cs.marginTop) || 0) + oldTop, aboveMargin: null };
-    }
-    const aboveBottom =
-      above.getBoundingClientRect().bottom / scale - (parseFloat(above.style.top) || 0);
-    return {
-      byTop: false,
-      gap: el.getBoundingClientRect().top / scale - aboveBottom + oldTop,
-      aboveMargin: parseFloat(window.getComputedStyle(above).marginBottom) || 0,
-    };
-  };
-
-  const applyVerticalMove = (el, move, dy) => {
-    if (move.byTop) el.style.top = `${Math.round(move.start + dy)}px`;
-    else el.style.marginTop = `${Math.round(marginForGap(move.gap + dy, move.aboveMargin))}px`;
-  };
-
-  // Moves the selected item with the mouse. Called from the Move handle, or
-  // from a press anywhere on a selected group (`fromBody`), which waits for
-  // a few pixels of travel so a plain click still goes into the group.
-  // It snaps to its container's left edge, centre and right edge (hold Alt
-  // to place freely), with a guide line where it snapped.
-  const startDragItem = (e, { fromBody = false } = {}) => {
-    if (!activeElement?.element || !workspaceRef.current) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    const targetEl = activeElement.element;
-    const scale = canvasScale();
-    const initialX = e.clientX;
-    const initialY = e.clientY;
-    let currentLeft = 0;
-    let vertical = null;
-    let limits = null;
-    let guides = [];
-    let frame = 0;
-
-    const onMouseMove = (moveEvent) => {
-      const deltaX = (moveEvent.clientX - initialX) / scale;
-      const deltaY = (moveEvent.clientY - initialY) / scale;
-      if (!vertical) {
-        if (fromBody && Math.hypot(deltaX, deltaY) < DRAG_START_PX) return;
-        readyHorizontalMove(targetEl);
-        vertical = startVerticalMove(targetEl, scale);
-        currentLeft = parseFloat(targetEl.style.left) || 0;
-        limits = moveLimits(targetEl);
-        guides = containerGuides(targetEl);
-      }
-
-      let { left } = clampMove({ left: currentLeft + deltaX, top: 0 }, limits);
-      let guide = null;
-      if (!moveEvent.altKey) {
-        const snap = snapToGuides({ left: limits.baseLeft + left, width: limits.width, guides });
-        guide = snap.guide;
-        if (guide) left = snap.left - limits.baseLeft;
-      }
-      setSnapGuide(guide ? guide.x : null);
-
-      targetEl.style.position = "relative";
-      targetEl.style.left = `${Math.round(left)}px`;
-      applyVerticalMove(targetEl, vertical, Math.max(-limits.rise, deltaY));
-
-      // Redraw the selection frame once per screen frame, not per mouse event.
-      if (!frame) {
-        frame = requestAnimationFrame(() => {
-          frame = 0;
-          setDragFrame((n) => n + 1);
-        });
-      }
-    };
-
-    const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      if (frame) cancelAnimationFrame(frame);
-      setSnapGuide(null);
-      if (!vertical) return;
-      if (fromBody) swallowClickRef.current = true;
-      setActiveElement((prev) =>
-        prev?.element === targetEl
-          ? { ...prev, width: targetEl.offsetWidth, height: targetEl.offsetHeight }
-          : prev,
-      );
-      synchroniseEditorValue();
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  // A screen rectangle in the canvas's scroll area, in layout px (where the
-  // selection outlines and the drag-select box are drawn).
-  const toScrollArea = (rect) => {
-    const scroller = editorRef.current?.offsetParent;
-    if (!rect || !scroller) return null;
-    const scale = canvasScale();
-    const area = scroller.getBoundingClientRect();
-    return {
-      left: (rect.left - area.left) / scale + scroller.scrollLeft,
-      top: (rect.top - area.top) / scale + scroller.scrollTop,
-      width: rect.width / scale,
-      height: rect.height / scale,
-    };
-  };
-
-  // Put the caret at `range`, focusing whichever editable part holds it: a
-  // template's heading or paragraph is editable on its own, and typing only
-  // reaches it while it has the focus.
-  const focusCaret = (range) => {
-    const editor = editorRef.current;
-    if (!editor || !range || !editor.contains(range.startContainer)) return false;
-    const node = range.startContainer;
-    const host =
-      (node.nodeType === 1 ? node : node.parentElement)?.closest('[contenteditable="true"]') || editor;
-    (editor.contains(host) ? host : editor).focus({ preventScroll: true });
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    saveSelection();
-    return true;
-  };
+  // ---------------------------------------------------------------
+  // Editing text: double-click an item (or Enter / F2 with it selected).
+  // Only that item is editable while its text is edited.
+  // ---------------------------------------------------------------
+  const hasText = (el) =>
+    Boolean(el) && !isGroupEl(el) && el.getAttribute("data-type") !== "image" && !el.matches("img, hr");
 
   const caretRangeAt = (x, y) => {
     if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
@@ -2489,149 +2996,146 @@ const EmailBodyRichTextEditor = ({
     return null;
   };
 
-  // Put the caret at the text under the mouse (used when a press inside a
-  // selected group was held back in case it became a drag).
-  const placeCaretAt = (x, y) => {
-    if (!focusCaret(caretRangeAt(x, y))) editorRef.current?.focus({ preventScroll: true });
-  };
-
-  // An empty line of the canvas's own (not part of a design element).
-  const isBlankLine = (node) =>
-    node?.nodeType === 1 &&
-    (node.tagName === "P" || node.tagName === "DIV") &&
-    !node.classList.contains("vshield-canvas-item") &&
-    !node.textContent.trim() &&
-    !node.querySelector("img, input, table, .vshield-canvas-item");
-
-  // The next or previous top-level node, skipping the blank text between tags.
-  const siblingBlock = (node, direction) => {
-    let next = direction === "after" ? node.nextSibling : node.previousSibling;
-    while (next && next.nodeType === 3 && !next.textContent.trim()) {
-      next = direction === "after" ? next.nextSibling : next.previousSibling;
-    }
-    return next;
-  };
-
-  // A design element (a template card, picture, button...) rather than a
-  // plain line of text: the caret cannot sit beside it, only next to it.
-  const isDesignBlock = (node) =>
-    node.nodeType === 1 &&
-    (node.classList.contains("vshield-canvas-item") ||
-      Boolean(node.querySelector('.vshield-canvas-item, [contenteditable="true"], img, input, table')));
-
-  // A blank line beside `block` (before or after it) to type on: an existing
-  // one is reused, else one is added. A line added earlier and left empty is
-  // taken away again, so clicking around does not pile up empty lines.
-  const lineBeside = (block, direction) => {
-    const editor = editorRef.current;
-    const existing = block ? siblingBlock(block, direction) : null;
-    if (isBlankLine(existing)) return existing;
-    const earlier = spareLineRef.current;
-    if (earlier && earlier.isConnected && isBlankLine(earlier) && earlier !== block) {
-      earlier.remove();
-    }
-    const line = document.createElement("p");
-    line.appendChild(document.createElement("br"));
-    if (!block) editor.appendChild(line);
-    else if (direction === "after") block.after(line);
-    else block.before(line);
-    spareLineRef.current = line;
-    return line;
-  };
-
-  // A click on empty canvas puts the caret there: on a text line, at that
-  // point of the line; beside, between, above or below design elements, on a
-  // blank line at that spot (so there is always a way out of a template).
-  const placeCaretOnCanvas = (x, y) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const blocks = Array.from(editor.childNodes)
-      .map((node) => ({
-        node,
-        rect: node.nodeType === 1 ? node.getBoundingClientRect() : visibleBounds([node]),
-      }))
-      .filter(({ node, rect }) => rect && (node.nodeType === 1 || node.textContent.trim()) && rect.height > 0);
-
-    const toLine = (line) => {
-      const range = document.createRange();
-      range.setStart(line, 0);
-      range.collapse(true);
-      focusCaret(range);
+  const stopEditing = () => {
+    const el = editingRef.current;
+    if (!el) return;
+    editingRef.current = null;
+    setEditingItem(null);
+    if (el.isConnected) {
+      el.removeAttribute("contenteditable");
+      el.removeAttribute("spellcheck");
+      window.getSelection()?.removeAllRanges();
       synchroniseEditorValue();
-    };
-
-    if (!blocks.length) {
-      toLine(lineBeside(null, "after"));
-      return;
     }
-    const hit = blocks.find(({ rect }) => y >= rect.top && y <= rect.top + rect.height);
-    if (hit) {
-      if (!isDesignBlock(hit.node)) {
-        // A text line: the nearest point on it, even clicked off to the side.
-        const r = hit.rect;
-        const range = caretRangeAt(Math.max(r.left + 1, Math.min(r.left + r.width - 1, x)), y);
-        if (!focusCaret(range)) toLine(lineBeside(hit.node, "after"));
-        return;
-      }
-      toLine(isBlankLine(hit.node) ? hit.node : lineBeside(hit.node, "after"));
-      return;
-    }
-    const first = blocks[0];
-    if (y < first.rect.top) {
-      toLine(isBlankLine(first.node) ? first.node : lineBeside(first.node, "before"));
-      return;
-    }
-    // Between two blocks, or below the last: just after the one above.
-    const above = blocks.filter(({ rect }) => rect.top + rect.height < y).pop() || blocks[blocks.length - 1];
-    toLine(isBlankLine(above.node) ? above.node : lineBeside(above.node, "after"));
   };
 
-  // The canvas's top-level blocks that show something (not blank lines).
-  const visibleBlocks = () =>
-    Array.from(editorRef.current?.childNodes || []).filter((node) => visibleBounds([node]));
-
-  // A press on the canvas: drags a selected group from anywhere on it, draws a
-  // drag-select box from empty canvas, and Ctrl+click picks items. Anything
-  // else is left to ordinary editing.
-  const handleWorkspaceMouseDown = (e) => {
-    swallowClickRef.current = false;
-    if (rawHtmlMode || disabled || e.button !== 0) return;
-    const target = e.target;
-    if (target.closest?.("[data-floating-control]")) return;
-    const editor = editorRef.current;
-    const scroller = editor?.offsetParent;
-    if (!editor || !scroller) return;
-
-    const active = activeElement?.element;
-    // Ctrl/Cmd+click picks items. Shift+click does too once items are picked
-    // or one is selected; otherwise it keeps extending a text selection.
-    const additive =
-      e.ctrlKey || e.metaKey || (e.shiftKey && (pickedBlocks.length > 0 || Boolean(active)));
-    if (!additive && active?.classList.contains("vshield-group-item") && active.contains(target)) {
-      startDragItem(e, { fromBody: true });
-      return;
+  const startEditing = (el, { x, y, selectAll = false } = {}) => {
+    if (!hasText(el) || disabled || rawHtmlMode) return;
+    if (editingRef.current && editingRef.current !== el) stopEditing();
+    editingRef.current = el;
+    setEditingItem(el);
+    el.setAttribute("contenteditable", "true");
+    el.setAttribute("spellcheck", "true");
+    el.focus({ preventScroll: true });
+    const selection = window.getSelection();
+    let range = x != null ? caretRangeAt(x, y) : null;
+    if (!range || !el.contains(range.startContainer) || selectAll) {
+      range = document.createRange();
+      range.selectNodeContents(el);
+      if (!selectAll) range.collapse(false);
     }
-    const onEmptyCanvas = target === editor || !editor.contains(target);
-    if (!additive && !onEmptyCanvas) return;
-    // No caret or text highlight while picking; a plain click on empty
-    // canvas gets its caret back on release.
-    e.preventDefault();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    saveSelection();
+  };
 
-    const scale = canvasScale();
+  // ---------------------------------------------------------------
+  // Pressing on the canvas: select (Ctrl/Shift adds), drag to move, drag
+  // on empty canvas to box-select. Double-click goes into a group, then
+  // into text.
+  // ---------------------------------------------------------------
+  // Which item a press picks: the top-level item under it; inside a group
+  // whose part is selected, the part under it (as in Power BI).
+  const pickAt = (target) => {
+    const top = topItemOf(target);
+    if (!top) return null;
+    const active = activeElement?.element;
+    if (isGroupEl(top) && active && active !== top && top.contains(active)) {
+      return partOf(top, target) || top;
+    }
+    return top;
+  };
+
+  const startMove = (e, items) => {
+    const scale = pageScale();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const starts = items.map((el) => ({ el, rect: readRect(el) }));
+    // All moving items share a container (the page, or one group).
+    const container = containerBoxOf(items[0]);
+    const unionStart = unionRects(starts.map((s) => s.rect));
+    const others = layerItems(items[0].parentElement)
+      .filter((el) => !items.includes(el) && el.style.display !== "none")
+      .map(readRect);
+    const lines = snapLines(container, others);
+    const inGroup = isGroupEl(items[0].parentElement);
+    const groupAt = inGroup ? readRect(items[0].parentElement) : { left: 0, top: 0 };
+    let moved = false;
+    let frame = 0;
+
+    const onMove = (ev) => {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_START_PX) return;
+      moved = true;
+      let box = { ...unionStart, left: unionStart.left + dx, top: unionStart.top + dy };
+      let guides = { x: null, y: null };
+      if (!ev.altKey) {
+        const snapped = snapRect(box, lines, SNAP_PX / Math.max(0.25, scale));
+        box = snapped.rect;
+        guides = { x: snapped.guideX, y: snapped.guideY };
+      }
+      // Never past the page's edges (inside a group: as placed on the page).
+      const onPage = clampToPage(
+        { ...box, left: box.left + groupAt.left, top: box.top + groupAt.top },
+        currentPageWidth(),
+      );
+      box = { ...box, left: onPage.left - groupAt.left, top: onPage.top - groupAt.top };
+      const shiftX = box.left - unionStart.left;
+      const shiftY = box.top - unionStart.top;
+      starts.forEach(({ el, rect }) =>
+        writeRect(el, { left: rect.left + shiftX, top: rect.top + shiftY }, { height: false }),
+      );
+      // Dragged below the bottom: the page grows with it, so it stays in view.
+      const page = pageEl();
+      const bottom = box.top + groupAt.top + box.height + 24;
+      if (page && bottom > page.offsetHeight) {
+        page.style.height = `${Math.ceil(bottom)}px`;
+        setPageHeightPx(Math.ceil(bottom));
+      }
+      setSnapGuide(
+        guides.x == null && guides.y == null
+          ? null
+          : {
+              x: guides.x == null ? null : guides.x + groupAt.left,
+              y: guides.y == null ? null : guides.y + groupAt.top,
+            },
+      );
+      if (!frame) {
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          setDragFrame((n) => n + 1);
+        });
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      if (frame) cancelAnimationFrame(frame);
+      setSnapGuide(null);
+      if (moved) {
+        swallowClickRef.current = true;
+        synchroniseEditorValue();
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const startBoxSelect = (e, additive) => {
+    const sc = scrollerRef.current;
+    if (!sc) return;
+    const k = overlayScale();
     const toArea = (x, y) => {
-      const area = scroller.getBoundingClientRect();
-      return {
-        x: (x - area.left) / scale + scroller.scrollLeft,
-        y: (y - area.top) / scale + scroller.scrollTop,
-      };
+      const a = sc.getBoundingClientRect();
+      return { x: (x - a.left) / k + sc.scrollLeft, y: (y - a.top) / k + sc.scrollTop };
     };
     const start = toArea(e.clientX, e.clientY);
+    const before = selectedItems();
     let box = null;
-
-    const onMouseMove = (moveEvent) => {
-      const at = toArea(moveEvent.clientX, moveEvent.clientY);
+    const onMove = (ev) => {
+      const at = toArea(ev.clientX, ev.clientY);
       if (!box && Math.hypot(at.x - start.x, at.y - start.y) < DRAG_START_PX + 1) return;
-      if (!box) setActiveElement(null);
       box = {
         left: Math.min(start.x, at.x),
         top: Math.min(start.y, at.y),
@@ -2640,172 +3144,490 @@ const EmailBodyRichTextEditor = ({
       };
       setSelectBox(box);
     };
-
-    const onMouseUp = (upEvent) => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
       setSelectBox(null);
-
-      // The items already picked, or the selected item, to add to.
-      const startingSet = () => {
-        if (pickedBlocks.length) return pickedBlocks;
-        return active ? [active] : [];
-      };
-
-      if (box) {
-        swallowClickRef.current = true;
-        const hits = visibleBlocks().filter((node) =>
-          rectsIntersect(box, toScrollArea(visibleBounds([node]))),
-        );
-        setActiveElement(null);
-        setPickedBlocks(additive ? [...new Set([...startingSet(), ...hits])] : hits);
+      if (!box) {
+        if (!additive) clearSelection();
         return;
       }
-      if (additive) {
-        const item = pickableAt(target);
-        if (item) {
-          swallowClickRef.current = true;
-          setActiveElement(null);
-          setPickedBlocks(toggleBlock(startingSet(), item));
-        }
-        return;
-      }
-      placeCaretOnCanvas(upEvent.clientX, upEvent.clientY);
+      swallowClickRef.current = true;
+      const hits = layerItems(pageEl()).filter(
+        (el) => el.style.display !== "none" && rectsIntersect(box, toOverlay(el.getBoundingClientRect())),
+      );
+      selectItems(additive ? [...before, ...hits] : hits);
     };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
-  // Arrow keys: move the selected item by `dx`, `dy` layout px, within the canvas.
-  const nudgeActiveItem = (dx, dy) => {
-    const targetEl = activeElement?.element;
-    if (!targetEl) return;
-    const scale = canvasScale();
-    if (dx) readyHorizontalMove(targetEl);
-    const vertical = startVerticalMove(targetEl, scale);
-    const limits = moveLimits(targetEl);
-    const { left } = clampMove({ left: (parseFloat(targetEl.style.left) || 0) + dx, top: 0 }, limits);
-    targetEl.style.position = "relative";
-    targetEl.style.left = `${Math.round(left)}px`;
-    if (dy) applyVerticalMove(targetEl, vertical, Math.max(-limits.rise, dy));
-    synchroniseEditorValue();
-    setDragFrame((n) => n + 1);
+  const handleWorkspaceMouseDown = (e) => {
+    swallowClickRef.current = false;
+    if (rawHtmlMode || disabled || e.button !== 0) return;
+    const target = e.target;
+    if (target.closest?.("[data-floating-control]")) return;
+    // Keys (arrows, Delete, Ctrl+C...) go to the canvas while it is in use.
+    if (!editingRef.current?.contains(target)) scrollerRef.current?.focus({ preventScroll: true });
+
+    // Typing in an item: its text takes the press.
+    if (editingRef.current && editingRef.current.contains(target)) return;
+    if (editingRef.current) stopEditing();
+
+    const additive = e.ctrlKey || e.metaKey || e.shiftKey;
+    const item = pickAt(target);
+    if (!item) {
+      e.preventDefault();
+      startBoxSelect(e, additive);
+      return;
+    }
+    e.preventDefault();
+    const current = selectedItems();
+    if (additive) {
+      // Only items side by side (all on the page, or all in one group).
+      const sameLevel = current.every((el) => el.parentElement === item.parentElement);
+      const next = current.includes(item)
+        ? current.filter((el) => el !== item)
+        : sameLevel
+          ? [...current, item]
+          : [item];
+      selectItems(next);
+      swallowClickRef.current = true;
+      return;
+    }
+    const moving = current.includes(item) && current.length > 1 ? current : [item];
+    if (!(current.length === 1 && current[0] === item)) selectItems(moving);
+    startMove(e, moving);
   };
 
-  const startResizeItem = (e, corner) => {
-    if (!activeElement?.element || !workspaceRef.current) return;
+  // Links on the canvas never navigate.
+  const handleCanvasClick = (e) => {
+    if (e.target.closest?.("a") && editorRef.current?.contains(e.target)) e.preventDefault();
+    if (swallowClickRef.current) swallowClickRef.current = false;
+  };
+
+  const handleCanvasDoubleClick = (e) => {
+    if (rawHtmlMode || disabled) return;
+    if (e.target.closest?.("[data-floating-control]")) return;
+    const top = topItemOf(e.target);
+    if (!top) return;
+    const active = activeElement?.element;
+    // Into a group: the part under the mouse.
+    if (isGroupEl(top) && (active === top || !active || !top.contains(active))) {
+      const part = partOf(top, e.target);
+      if (part) {
+        selectCanvasItem(part);
+        return;
+      }
+    }
+    const item = isGroupEl(top) ? partOf(top, e.target) || top : top;
+    if (hasText(item)) {
+      selectCanvasItem(item);
+      startEditing(item, { x: e.clientX, y: e.clientY });
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // Resizing from the eight handles (Shift keeps proportions; pictures
+  // always keep theirs). A group's parts scale with it.
+  // ---------------------------------------------------------------
+  const startResizeItem = (e, handle) => {
+    const el = activeElement?.element;
+    if (!el) return;
     e.preventDefault();
     e.stopPropagation();
-
-    const targetEl = activeElement.element;
-    const container = editorRef.current || workspaceRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const elemRect = targetEl.getBoundingClientRect();
-    // Mouse travel is in screen px; sizes are layout px (the page is zoomed).
-    const scale = canvasScale();
-    const isImage =
-      targetEl.getAttribute("data-type") === "image" ||
-      targetEl.querySelector("img");
-    const innerImg = targetEl.querySelector("img");
-    const innerA = targetEl.querySelector("a");
-    const isInput = targetEl.getAttribute("data-type") === "input";
-    const innerInput = isInput ? targetEl.querySelector("input") : null;
-
-    const startWidth = targetEl.offsetWidth;
-    const startHeight = targetEl.offsetHeight;
-    // The edge opposite the corner being dragged stays where it is.
-    const fixedEdge = corner.includes("left") ? elemRect.right : elemRect.left;
+    const scale = pageScale();
     const startX = e.clientX;
     const startY = e.clientY;
+    const start = readRect(el);
+    const isGroup = isGroupEl(el);
+    const parts = isGroup ? layerItems(el).map((p) => ({ p, rect: readRect(p) })) : [];
+    const innerImg = isGroup ? null : el.querySelector("img");
+    const isImage = !isGroup && (el.getAttribute("data-type") === "image" || el.tagName === "IMG");
+    const innerA = !isGroup && el.getAttribute("data-type") === "button" ? el.querySelector("a") : null;
+    const innerInput = !isGroup && el.getAttribute("data-type") === "input" ? el.querySelector("input") : null;
+    const groupAt = isGroupEl(el.parentElement) ? readRect(el.parentElement) : { left: 0, top: 0 };
 
-    const offsetFromLeft = (elemRect.left - containerRect.left) / scale;
-    const maxAvailableWidth = Math.max(40, container.clientWidth - Math.max(0, offsetFromLeft) - 16);
-
-    const onMouseMove = (moveEvent) => {
-      const deltaX = (moveEvent.clientX - startX) / scale;
-      const deltaY = (moveEvent.clientY - startY) / scale;
-
-      let newWidth = Math.max(
-        40,
-        startWidth + (corner.includes("right") ? deltaX : -deltaX),
-      );
-      newWidth = Math.min(newWidth, maxAvailableWidth);
-
-      let newHeight = Math.max(
-        24,
-        startHeight + (corner.includes("bottom") ? deltaY : -deltaY),
-      );
-
-      targetEl.style.width = `${newWidth}px`;
-      targetEl.style.maxWidth = "100%";
-      targetEl.style.boxSizing = "border-box";
-      const nowRect = targetEl.getBoundingClientRect();
-      const drift = (fixedEdge - (corner.includes("left") ? nowRect.right : nowRect.left)) / scale;
-      if (Math.abs(drift) >= 0.5) {
-        if (!targetEl.style.position || targetEl.style.position === "static") {
-          targetEl.style.position = "relative";
-        }
-        targetEl.style.left = `${Math.round((parseFloat(targetEl.style.left) || 0) + drift)}px`;
-      }
-      if (innerA) {
+    const onMove = (ev) => {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      let next = resizeRect(start, handle, dx, dy, { keepRatio: ev.shiftKey || isImage });
+      // Not past the page's right edge.
+      const maxWidth = currentPageWidth() - (next.left + groupAt.left);
+      if (next.left + groupAt.left < 0) next = { ...next, width: next.width + next.left + groupAt.left, left: -groupAt.left };
+      if (next.width > maxWidth) next = { ...next, width: Math.max(16, maxWidth) };
+      if (next.top + groupAt.top < 0) next = { ...next, height: next.height + next.top + groupAt.top, top: -groupAt.top };
+      writeRect(el, next);
+      if (isGroup) {
+        parts.forEach(({ p, rect }) => writeRect(p, scaleIntoGroup(rect, start, next)));
+      } else if (innerImg) {
+        innerImg.style.width = "100%";
+        innerImg.style.height = "100%";
+        innerImg.style.objectFit = innerImg.style.objectFit || "cover";
+      } else if (innerA) {
         innerA.style.width = "100%";
+        innerA.style.height = "100%";
         innerA.style.boxSizing = "border-box";
-        innerA.style.minHeight = `${newHeight}px`;
         innerA.style.display = "flex";
         innerA.style.alignItems = "center";
         innerA.style.justifyContent = "center";
       } else if (innerInput) {
         innerInput.style.width = "100%";
+        innerInput.style.height = "100%";
         innerInput.style.boxSizing = "border-box";
-        innerInput.style.height = `${newHeight}px`;
-      } else if (!isImage) {
-        targetEl.style.height = `${newHeight}px`;
-      } else if (innerImg) {
-        innerImg.style.width = `${newWidth}px`;
-        innerImg.style.height = "auto";
-        newHeight = innerImg.offsetHeight;
       }
-
-      setActiveElement((prev) => (prev ? { ...prev, width: newWidth, height: newHeight } : null));
-      setAspectRatioText(calculateAspectRatio(newWidth, newHeight));
+      setActiveElement((prev) => (prev?.element === el ? { ...prev, width: next.width, height: next.height } : prev));
+      setAspectRatioText(calculateAspectRatio(next.width, next.height));
     };
-
-    const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
       synchroniseEditorValue();
     };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
-  const setDimensionsCm = (type, valCm) => {
-    if (!activeElement?.element || isNaN(valCm)) return;
-    const targetEl = activeElement.element;
-    const isImage = targetEl.getAttribute("data-type") === "image" || targetEl.querySelector("img");
-    const innerA = targetEl.querySelector("a");
-    const isInput = targetEl.getAttribute("data-type") === "input";
-    const innerInput = isInput ? targetEl.querySelector("input") : null;
-    const innerImg = targetEl.querySelector("img");
-    const newPx = Math.max(20, Math.round(parseFloat(valCm) * PX_PER_CM));
+  // X, Y, W or H typed in the item's toolbar (in the units picked).
+  const setItemBox = (field, typed) => {
+    const el = activeElement?.element;
+    const value = fromUnit(typed, lengthUnit);
+    if (!el || value == null) return;
+    const r = readRect(el);
+    const groupAt = isGroupEl(el.parentElement) ? readRect(el.parentElement) : { left: 0, top: 0 };
+    let next = { ...r, [{ x: "left", y: "top", w: "width", h: "height" }[field]]: value };
+    // X and Y are on the page, as Power BI shows them.
+    if (field === "x") next.left = value - groupAt.left;
+    if (field === "y") next.top = value - groupAt.top;
+    const onPage = clampToPage({ ...next, left: next.left + groupAt.left, top: next.top + groupAt.top }, currentPageWidth());
+    next = { ...onPage, left: onPage.left - groupAt.left, top: onPage.top - groupAt.top };
+    if (isGroupEl(el)) {
+      layerItems(el).forEach((p) => writeRect(p, scaleIntoGroup(readRect(p), r, next)));
+    }
+    writeRect(el, next, { height: field === "h" || isGroupEl(el) || Boolean(el.style.height && el.style.height !== "auto") });
+    synchroniseEditorValue();
+    selectCanvasItem(el);
+  };
 
-    if (type === "width") {
-      targetEl.style.width = `${newPx}px`;
-      if (innerA) innerA.style.width = "100%";
-      if (innerInput) innerInput.style.width = "100%";
-      if (innerImg) innerImg.style.width = `${newPx}px`;
-      setActiveElement((prev) => (prev ? { ...prev, width: newPx } : null));
-    } else {
-      if (!isImage) {
-        targetEl.style.height = `${newPx}px`;
+  // Arrow keys: move the selection by `dx`, `dy` page px.
+  const nudgeSelection = (dx, dy) => {
+    const items = selectedItems();
+    if (!items.length) return;
+    const box = unionRects(items.map(readRect));
+    const groupAt = isGroupEl(items[0].parentElement) ? readRect(items[0].parentElement) : { left: 0, top: 0 };
+    const onPage = clampToPage(
+      { ...box, left: box.left + dx + groupAt.left, top: box.top + dy + groupAt.top },
+      currentPageWidth(),
+    );
+    const sx = onPage.left - groupAt.left - box.left;
+    const sy = onPage.top - groupAt.top - box.top;
+    items.forEach((el) => {
+      const r = readRect(el);
+      writeRect(el, { left: r.left + sx, top: r.top + sy }, { height: false });
+    });
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
+  };
+
+  // ---------------------------------------------------------------
+  // Layers: forward / backward one layer, or to the front / back.
+  // ---------------------------------------------------------------
+  const LAYER_LABELS = {
+    forward: "Brought forward one layer.",
+    backward: "Sent backward one layer.",
+    front: "Brought to the front.",
+    back: "Sent to the back.",
+  };
+
+  const changeLayer = (op, items = selectedItems()) => {
+    if (!items.length) return;
+    const parent = items[0].parentElement;
+    const same = items.filter((el) => el.parentElement === parent);
+    const order = layerItems(parent);
+    const next = moveLayers(order, same, op);
+    if (next.every((el, i) => el === order[i])) {
+      showToast(op === "forward" || op === "front" ? "Already at the front." : "Already at the back.", "info");
+      return;
+    }
+    next.forEach((el) => parent.appendChild(el));
+    renumberLayers(parent);
+    synchroniseEditorValue();
+    const at = next.indexOf(same[same.length - 1]) + 1;
+    showToast(`${LAYER_LABELS[op]} Layer ${at} of ${next.length}${isGroupEl(parent) ? " in its group" : ""}.`, "success");
+  };
+
+  // ---------------------------------------------------------------
+  // Groups: one level only. Items on the page are grouped; a group's parts
+  // keep their own layers inside it.
+  // ---------------------------------------------------------------
+  const groupSelection = () => {
+    const page = pageEl();
+    const items = selectedItems();
+    if (items.length < 2) {
+      showToast(
+        "Select two or more items to group: Ctrl+click each, drag a box around them, or Ctrl+click them in the Selection pane.",
+        "warning",
+        "Nothing To Group",
+      );
+      return;
+    }
+    if (items.some((el) => el.parentElement !== page)) {
+      showToast("Parts of a group can't be grouped again. Groups are one level deep.", "warning", "Not Grouped");
+      return;
+    }
+    if (items.some(isGroupEl)) {
+      showToast("A group can't hold another group. Ungroup it first, then group everything together.", "warning", "Not Grouped");
+      return;
+    }
+    stopEditing();
+    const order = layerItems(page);
+    const members = order.filter((el) => items.includes(el));
+    const box = unionRects(members.map(readRect));
+    const group = document.createElement("div");
+    group.className = `${ITEM_CLASS} ${GROUP_CLASS}`;
+    group.setAttribute("data-type", "group");
+    group.id = `grp-${Date.now()}`;
+    writeRect(group, box);
+    // The group takes the layer of its frontmost part.
+    const front = members[members.length - 1];
+    page.insertBefore(group, front.nextSibling);
+    members.forEach((el) => {
+      const r = readRect(el);
+      group.appendChild(el);
+      writeRect(el, { left: r.left - box.left, top: r.top - box.top }, { height: false });
+    });
+    renumberLayers(group);
+    renumberLayers(page);
+    synchroniseEditorValue();
+    selectCanvasItem(group);
+    showToast("Grouped. Click it to move it as one; double-click a part to select it.", "success", "Group Made");
+  };
+
+  const ungroupSelection = (groupEl) => {
+    const page = pageEl();
+    const group = groupEl || selectedItems().find(isGroupEl) || (isGroupEl(activeElement?.element?.parentElement) ? activeElement.element.parentElement : null);
+    if (!group || group.parentElement !== page) return;
+    stopEditing();
+    const g = readRect(group);
+    const parts = layerItems(group);
+    parts.forEach((p) => {
+      const r = readRect(p);
+      page.insertBefore(p, group);
+      writeRect(p, { left: r.left + g.left, top: r.top + g.top }, { height: false });
+    });
+    group.remove();
+    renumberLayers(page);
+    synchroniseEditorValue();
+    selectItems(parts);
+    showToast("Ungrouped. Each part keeps its place and layer.", "success", "Ungrouped");
+  };
+
+  // ---------------------------------------------------------------
+  // Align and distribute (one item: in its page or group; several: to each other).
+  // ---------------------------------------------------------------
+  const ALIGN_LABELS = {
+    left: "Aligned left.",
+    center: "Centred across.",
+    right: "Aligned right.",
+    top: "Aligned to the top.",
+    middle: "Centred top to bottom.",
+    bottom: "Aligned to the bottom.",
+  };
+
+  const alignSelection = (mode) => {
+    const items = selectedItems();
+    if (!items.length) return;
+    const rects = items.map(readRect);
+    let bounds;
+    if (items.length === 1) {
+      bounds = containerBoxOf(items[0]);
+      // On the browser page, up and down is within what is seen before scrolling.
+      if (!isGroupEl(items[0].parentElement) && pageKind() === "browser" && /top|middle|bottom/.test(mode)) {
+        bounds = { ...bounds, height: Math.min(bounds.height, BROWSER_SAFE_ZONE_PX) };
       }
-      if (innerA) innerA.style.minHeight = `${newPx}px`;
-      if (innerInput) innerInput.style.height = `${newPx}px`;
-      setActiveElement((prev) => (prev ? { ...prev, height: newPx } : null));
+    } else {
+      bounds = unionRects(rects);
+    }
+    alignRects(rects, mode, bounds).forEach((r, i) => writeRect(items[i], r, { height: false }));
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
+    showToast(ALIGN_LABELS[mode] || "Aligned.", "success");
+  };
+
+  const distributeSelection = (axis) => {
+    const items = selectedItems();
+    if (items.length < 3) {
+      showToast("Select three or more items to space them evenly.", "info");
+      return;
+    }
+    distributeRects(items.map(readRect), axis).forEach((r, i) => writeRect(items[i], r, { height: false }));
+    synchroniseEditorValue();
+    setDragFrame((n) => n + 1);
+    showToast(axis === "vertical" ? "Spaced evenly top to bottom." : "Spaced evenly across.", "success");
+  };
+
+  // ---------------------------------------------------------------
+  // Duplicate, delete, copy, cut and paste
+  // ---------------------------------------------------------------
+  const freshIds = (root) => {
+    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    if (root.id) root.id = `dup-${stamp}`;
+    root.querySelectorAll("[id]").forEach((el, i) => {
+      el.id = `dup-${stamp}-${i}`;
+    });
+  };
+
+  // Copies of `sources` put in front, a little down and right of where they were.
+  const placeCopies = (sources, parent, offset = 16) => {
+    const copies = sources.map((src) => {
+      const copy = src.cloneNode(true);
+      copy.removeAttribute("contenteditable");
+      freshIds(copy);
+      parent.appendChild(copy);
+      const r = readRect(src);
+      const groupAt = isGroupEl(parent) ? readRect(parent) : { left: 0, top: 0 };
+      const onPage = clampToPage(
+        { ...r, left: r.left + offset + groupAt.left, top: r.top + offset + groupAt.top },
+        currentPageWidth(),
+      );
+      writeRect(copy, { left: onPage.left - groupAt.left, top: onPage.top - groupAt.top }, { height: false });
+      return copy;
+    });
+    renumberLayers(parent);
+    return copies;
+  };
+
+  const duplicateActiveItem = () => {
+    const items = selectedItems();
+    if (!items.length) return;
+    stopEditing();
+    const copies = placeCopies(items, items[0].parentElement);
+    synchroniseEditorValue();
+    selectItems(copies);
+    showToast(copies.length === 1 ? "Duplicated." : `${copies.length} items duplicated.`, "success");
+  };
+
+  const deleteActiveItem = () => {
+    const items = selectedItems();
+    if (!items.length) return;
+    stopEditing();
+    items.forEach((el) => el.remove());
+    clearSelection();
+    synchroniseEditorValue();
+    showToast(items.length === 1 ? "Item deleted." : `${items.length} items deleted.`, "success");
+  };
+
+  const copyItemsToClipboard = (event, { cut = false } = {}) => {
+    const items = selectedItems();
+    if (!items.length) return false;
+    const html = `<div ${ITEM_COPY_MARK}="1">${items.map((el) => el.outerHTML).join("")}</div>`;
+    itemClipboardRef.current = html;
+    event.clipboardData?.setData("text/html", html);
+    event.clipboardData?.setData("text/plain", items.map((el) => el.textContent.trim()).join("\n"));
+    event.preventDefault();
+    if (cut) {
+      items.forEach((el) => el.remove());
+      clearSelection();
+      synchroniseEditorValue();
+    }
+    showToast(
+      `${items.length === 1 ? "Item" : `${items.length} items`} ${cut ? "cut" : "copied"}. Ctrl+V pastes ${cut ? "it back" : "a copy"}.`,
+      "success",
+    );
+    return true;
+  };
+
+  // Copied items go on the page in front, a little down and right each time.
+  const pasteCopiedItems = (html) => {
+    const page = pageEl();
+    if (!page) return;
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const holder = doc.querySelector(`[${ITEM_COPY_MARK}]`);
+    if (!holder) return;
+    pasteCountRef.current += 1;
+    const sources = Array.from(holder.children).filter((n) => n.classList.contains(ITEM_CLASS));
+    // Measured where they would sit, then placed as copies.
+    const staged = sources.map((n) => {
+      const el = document.importNode(n, true);
+      el.style.visibility = "hidden";
+      page.appendChild(el);
+      return el;
+    });
+    const copies = placeCopies(staged, page, 16 * pasteCountRef.current);
+    staged.forEach((el) => el.remove());
+    copies.forEach((el) => {
+      el.style.visibility = "";
+    });
+    renumberLayers(page);
+    synchroniseEditorValue();
+    selectItems(copies);
+    showToast(copies.length === 1 ? "Item pasted." : `${copies.length} items pasted.`, "success");
+  };
+
+  // ---------------------------------------------------------------
+  // The item's own box, padding and picture
+  // ---------------------------------------------------------------
+  const styledPart = (el) => {
+    const type = el.getAttribute("data-type");
+    if (type === "button") return el.querySelector("a") || el;
+    if (type === "input") return el.querySelector("input") || el;
+    return el;
+  };
+
+  const readItemPadding = (el) => {
+    if (!el || isGroupEl(el)) return 0;
+    return Math.round(parseFloat(window.getComputedStyle(styledPart(el)).paddingTop) || 0);
+  };
+
+  const setItemPadding = (typed) => {
+    const el = activeElement?.element;
+    const value = fromUnit(typed, lengthUnit);
+    if (!el || value == null) return;
+    const part = styledPart(el);
+    part.style.padding = `${Math.max(0, value)}px`;
+    part.style.boxSizing = "border-box";
+    synchroniseEditorValue();
+    selectCanvasItem(el);
+  };
+
+  // A picture's alt text: what the employee sees while pictures are blocked.
+  const activePicture = () => {
+    const el = activeElement?.element;
+    if (!el || isGroupEl(el)) return null;
+    return el.tagName === "IMG" ? el : el.querySelector("img");
+  };
+
+  const setPictureAlt = (alt) => {
+    const img = activePicture();
+    if (!img) return;
+    img.setAttribute("alt", alt);
+    synchroniseEditorValue();
+  };
+
+  // Visibility (the Selection pane's eye): a hidden item is not on the page,
+  // in the preview, or in what is sent.
+  const toggleHidden = (el) => {
+    const hidden = el.getAttribute("data-hidden") === "true";
+    if (hidden) {
+      el.removeAttribute("data-hidden");
+      el.style.display = el.getAttribute("data-display") || "";
+      el.removeAttribute("data-display");
+    } else {
+      el.setAttribute("data-hidden", "true");
+      if (el.style.display && el.style.display !== "none") el.setAttribute("data-display", el.style.display);
+      el.style.display = "none";
+      if (selectedItems().includes(el)) clearSelection();
     }
     synchroniseEditorValue();
+  };
+
+  const setAllHidden = (hide) => {
+    const page = pageEl();
+    if (!page) return;
+    const all = layerItems(page).flatMap((el) => [el, ...(isGroupEl(el) ? layerItems(el) : [])]);
+    all.forEach((el) => {
+      if ((el.getAttribute("data-hidden") === "true") !== hide) toggleHidden(el);
+    });
   };
 
   const updateActiveItemColor = (newColor) => {
@@ -2897,251 +3719,82 @@ const EmailBodyRichTextEditor = ({
     showToast("Border updated.", "success");
   };
 
-  const updateZIndex = (action) => {
+  // ---- Per-corner rounding: round only one corner, or only the two on one
+  // side (e.g. a tab with just its top corners rounded). ----------------
+  const CORNER_PROP = {
+    tl: "borderTopLeftRadius",
+    tr: "borderTopRightRadius",
+    br: "borderBottomRightRadius",
+    bl: "borderBottomLeftRadius",
+  };
+  const CORNERS = ["tl", "tr", "br", "bl"];
+  const SIDE_CORNERS = {
+    top: ["tl", "tr"],
+    right: ["tr", "br"],
+    bottom: ["br", "bl"],
+    left: ["bl", "tl"],
+  };
+
+  // The element plus the inner link / field / image that actually shows the box.
+  const radiusTargets = (el) => {
+    const out = [el];
+    const inner =
+      (el.getAttribute("data-type") === "button" && el.querySelector("a")) ||
+      (el.getAttribute("data-type") === "input" && el.querySelector("input")) ||
+      (el.tagName === "IMG" ? null : el.querySelector(":scope > img"));
+    if (inner) out.push(inner);
+    return out;
+  };
+
+  const cornerRadiusOf = (corner) => {
+    if (!activeElement?.element) return 0;
+    const targets = radiusTargets(activeElement.element);
+    const probe = targets[targets.length - 1];
+    return Math.round(parseFloat(window.getComputedStyle(probe)[CORNER_PROP[corner]]) || 0);
+  };
+
+  // Apply a map of { corner: px } to the element in one pass.
+  const applyCorners = (map) => {
     if (!activeElement?.element) return;
-    const target = activeElement.element;
-    const currentZ = parseInt(target.style.zIndex) || 10;
-    if (action === "front") target.style.zIndex = "50";
-    else if (action === "back") target.style.zIndex = "1";
-    else if (action === "forward") target.style.zIndex = `${Math.min(50, currentZ + 2)}`;
-    else if (action === "backward") target.style.zIndex = `${Math.max(1, currentZ - 2)}`;
-    synchroniseEditorValue();
-    showToast(`Layer adjusted.`, "success");
-  };
-
-  const duplicateActiveItem = () => {
-    if (!activeElement?.element) return;
-    const clone = activeElement.element.cloneNode(true);
-    const newId = `dup-${Date.now()}`;
-    clone.id = newId;
-
-    // The copy follows the original on the page, in the same place sideways.
-    clone.querySelectorAll("[id]").forEach((el, i) => {
-      el.id = `${newId}-${i}`;
+    radiusTargets(activeElement.element).forEach((t) => {
+      Object.entries(map).forEach(([corner, px]) => {
+        t.style[CORNER_PROP[corner]] = `${Math.max(0, Math.round(px))}px`;
+      });
     });
-    activeElement.element.parentNode.insertBefore(clone, activeElement.element.nextSibling);
-    synchroniseEditorValue();
-
-    setActiveElement({
-      element: clone,
-      type: clone.getAttribute("data-type") || "shape",
-      width: clone.offsetWidth,
-      height: clone.offsetHeight,
-      color: clone.style.backgroundColor,
-      borderRadius: clone.style.borderRadius,
-    });
-    showToast("Element duplicated.", "success");
-  };
-
-  // Align the selected item in its container: left, centre or right (kept
-  // so at any width, so the preview matches), or centred top to bottom.
-  // Up and down, the browser page centres in what is seen before scrolling.
-  const ALIGN_LABELS = {
-    left: "Aligned left.",
-    "center-h": "Centred left to right.",
-    right: "Aligned right.",
-    "center-v": "Centred top to bottom.",
-  };
-
-  const alignElement = (direction) => {
-    if (!activeElement?.element || !workspaceRef.current) return;
-    const target = activeElement.element;
-    const container = editorRef.current || workspaceRef.current;
-    const scale = canvasScale();
-
-    if (direction === "center-v") {
-      const vertical = startVerticalMove(target, scale);
-      const box = container.getBoundingClientRect();
-      const at = target.getBoundingClientRect();
-      const visibleHeight =
-        currentPageIdRef.current === BROWSER_PAGE_ID
-          ? Math.min(BROWSER_SAFE_ZONE_PX, container.clientHeight)
-          : container.clientHeight;
-      const dy = (box.top + (visibleHeight * scale) / 2 - (at.top + at.height / 2)) / scale;
-      applyVerticalMove(target, vertical, Math.max(-moveLimits(target).rise, dy));
-    } else {
-      const anchor = direction === "left" ? "start" : direction === "right" ? "end" : "centre";
-      if (!anchorItem(target, anchor, { keepPlace: false })) {
-        // Inline text or an item in a row: shift it to that spot in its box.
-        const guide = containerGuides(target).find((g) => g.kind === anchor);
-        const limits = moveLimits(target);
-        const wantedEdge =
-          anchor === "centre" ? guide.x - limits.width / 2 : anchor === "end" ? guide.x - limits.width : guide.x;
-        target.style.position = "relative";
-        target.style.left = `${Math.round(wantedEdge - limits.baseLeft)}px`;
-      }
-    }
-    synchroniseEditorValue();
+    setActiveElement((prev) => (prev ? { ...prev, borderRadius: undefined } : null));
     setDragFrame((n) => n + 1);
-    showToast(ALIGN_LABELS[direction] || "Aligned.", "success");
-  };
-
-  // ---------------------------------------------------------------
-  // Grouping (canvasGroups.js): pick top-level blocks, wrap them in one box
-  // that moves as a whole, and unwrap it again.
-  // ---------------------------------------------------------------
-
-  // The canvas's top-level block holding `node` (null for the canvas itself).
-  const topLevelBlock = (node) => {
-    const editor = editorRef.current;
-    let block = node;
-    while (block && block.parentNode !== editor) block = block.parentNode;
-    return block && block !== editor ? block : null;
-  };
-
-
-  // What a Ctrl+click picks: the item under the mouse, at any depth (a
-  // template's heading, field or button too); a closed group as a whole;
-  // plain text as its line.
-  const pickableAt = (target) => {
-    const editor = editorRef.current;
-    if (!editor || target === editor || !editor.contains(target)) return null;
-    let item =
-      target.closest?.(".vshield-canvas-item") || (target.tagName === "IMG" ? target.parentElement : null);
-    if (item && !editor.contains(item)) item = null;
-    const group = outermostGroup(target);
-    const active = activeElement?.element;
-    if (group && !(active && group.contains(active))) item = group;
-    return item || topLevelBlock(target);
-  };
-
-  // Put each remembered element back where it was seen sideways, anchored to
-  // its container (so the place holds in the wider preview too).
-  const restoreSideways = (places, scale) => {
-    for (const [el, was] of places) {
-      let now = visibleBounds([el]);
-      if (!now || Math.abs(now.left - was.left) < 0.5) continue;
-      readyHorizontalMove(el);
-      now = visibleBounds([el]);
-      if (!now) continue;
-      if (!el.style.position || el.style.position === "static") el.style.position = "relative";
-      el.style.left = `${Math.round((parseFloat(el.style.left) || 0) + (was.left - now.left) / scale)}px`;
-    }
-  };
-
-  const groupPickedBlocks = () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    let picked = pickedBlocks.filter((node) => node.isConnected && editor.contains(node));
-    // With nothing picked, group the selected item on its own, so a line of
-    // text or a picture can be moved as one too.
-    if (!picked.length && activeElement?.element) picked = [activeElement.element];
-    const plan = groupPlan(editor, picked);
-    if (!plan) {
-      showToast(
-        "Select what to group first: Ctrl+click each item, drag a box on empty canvas, or tick items in the Items pane.",
-        "warning",
-        "Nothing Selected",
-      );
-      return;
-    }
-    const { parent, anchors } = plan;
-    if (anchors.length === 1 && anchors[0].classList?.contains("vshield-group-item")) {
-      showToast("That is already a group. Drag it to move it.", "info", "Already Grouped");
-      return;
-    }
-
-    const scale = canvasScale();
-    const places = rememberPlaces(anchors);
-    const seen = visibleBounds(anchors);
-
-    // The blank lines between the grouped items go: a group is one tight
-    // block, with no empty space inside it (the preview would show it).
-    const first = anchors[0];
-    const last = anchors[anchors.length - 1];
-    let node = first.nextSibling;
-    while (node && node !== last) {
-      const next = node.nextSibling;
-      const blank =
-        (node.nodeType === 3 && !node.textContent.trim()) ||
-        (node.nodeType === 1 && (node.tagName === "BR" || isBlankLine(node)));
-      if (blank && !anchors.includes(node)) node.remove();
-      node = next;
-    }
-
-    const group = document.createElement("div");
-    group.id = `grp-${Date.now()}`;
-    group.className = "vshield-canvas-item vshield-group-item";
-    group.setAttribute("data-type", "group");
-    Object.assign(group.style, {
-      position: "relative",
-      display: "block",
-      boxSizing: "border-box",
-      margin: "0px auto",
-      padding: "0px",
-      maxWidth: "100%",
-      left: "0px",
-      cursor: "move",
-    });
-    // As wide as what can be seen of the parts (a little slack so text does
-    // not re-wrap), anchored to its container's centre so it keeps its place
-    // beside centred templates at any preview width.
-    if (seen) group.style.width = `${Math.ceil(seen.width / scale) + 2}px`;
-
-    parent.insertBefore(group, first);
-    anchors.forEach((anchor) => {
-      // Stacked tightly: an old up/down offset would leave a hole.
-      if (parseFloat(anchor.style?.top)) anchor.style.top = "0px";
-      group.appendChild(anchor);
-    });
-    // The parts are seen where they were: the group is shifted by the
-    // difference, then each part inside it.
-    const nowSeen = visibleBounds([group]);
-    if (seen && nowSeen && Math.abs(nowSeen.left - seen.left) >= 0.5) {
-      group.style.left = `${Math.round((seen.left - nowSeen.left) / scale)}px`;
-    }
-    restoreSideways(places, scale);
-
-    setPickedBlocks([]);
     synchroniseEditorValue();
-    selectCanvasItem(group);
-    showToast(
-      "Grouped. Drag it from anywhere on it, or use the arrow keys. It snaps to the centre.",
-      "success",
-      "Group Made",
-    );
   };
 
-  const ungroupActiveItem = (groupEl = activeElement?.element) => {
-    const group = groupEl;
-    if (!group?.classList?.contains("vshield-group-item") || !group.parentNode) return;
-    const scale = canvasScale();
-    const parts = Array.from(group.childNodes);
-    const places = rememberPlaces(parts);
-    const firstPart = parts.find((n) => n.nodeType === 1);
-    const firstTop = firstPart ? firstPart.getBoundingClientRect().top : 0;
-    parts.forEach((part) => group.parentNode.insertBefore(part, group));
-    group.remove();
-    restoreSideways(places, scale);
-    // The group's own up/down move passes to its first part, so nothing jumps.
-    if (firstPart) {
-      const dy = (firstTop - firstPart.getBoundingClientRect().top) / scale;
-      if (Math.abs(dy) >= 0.5) applyVerticalMove(firstPart, startVerticalMove(firstPart, scale), dy);
-    }
-    if (activeElement?.element === group) setActiveElement(null);
-    synchroniseEditorValue();
-    showToast("Ungrouped. Each part stays where it was.", "success", "Ungrouped");
+  // Turn one corner on (to the chosen amount) or off (0).
+  const toggleCorner = (corner) =>
+    applyCorners({ [corner]: cornerRadiusOf(corner) > 0 ? 0 : cornerAmount });
+  // Round only the two corners of one side; square the other two.
+  const roundOnlySide = (side) =>
+    applyCorners(Object.fromEntries(CORNERS.map((c) => [c, SIDE_CORNERS[side].includes(c) ? cornerAmount : 0])));
+  // All four corners, or none.
+  const setAllCorners = (px) => applyCorners(Object.fromEntries(CORNERS.map((c) => [c, px])));
+
+  // On the browser page, only a real submit button (Next, Submit, Confirm,
+  // Sign in...) carries an On-Click. Everything else (logos, labels, fields,
+  // body text) is just there to look real.
+  const isActionButton = (el) => {
+    if (!el) return false;
+    if (isGroupEl(el)) return false;
+    if (el.getAttribute("data-type") === "button") return true;
+    if (el.querySelector?.("button, input[type=submit], input[type=button], input[type=image]")) return true;
+    const tag = el.tagName;
+    const type = (el.getAttribute?.("type") || "").toLowerCase();
+    if (tag === "BUTTON") return type !== "reset";
+    if (tag === "INPUT") return ["submit", "button", "image"].includes(type);
+    const text = (el.textContent || el.getAttribute?.("value") || "").trim();
+    return text.length > 0 && text.length <= 40 && ACTION_WORDS.test(text);
   };
 
-  const getCurrentRadius = () => {
-    if (!activeElement?.element) return "0px";
-    if (activeElement.borderRadius !== undefined) return activeElement.borderRadius;
-    const innerA = activeElement.element.querySelector("a");
-    const innerImg = activeElement.element.querySelector("img");
-    const el = innerA || innerImg || activeElement.element;
-    return el.style.borderRadius || window.getComputedStyle(el).borderRadius || "0px";
-  };
-
-  const deleteActiveItem = () => {
-    if (!activeElement?.element) return;
-    activeElement.element.remove();
-    setActiveElement(null);
-    setShowShadowMenu(false);
-    setShowRoundedMenu(false);
-    setShowBorderMenu(false);
-    synchroniseEditorValue();
-    showToast("Item deleted.", "success");
-  };
+  // Whether this element may be given an On-Click: any element on the email,
+  // but only an action button on the browser page.
+  const canHaveAction = (el) =>
+    !!el && !isGroupEl(el) && (currentPageIdRef.current !== BROWSER_PAGE_ID || isActionButton(el));
 
   const openActionModal = (e) => {
     e?.stopPropagation();
@@ -3154,7 +3807,13 @@ const EmailBodyRichTextEditor = ({
     setActionConfigModal({
       open: true,
       element: el,
-      actionType: onBrowser ? "training" : current === "page" ? "page" : "landing",
+      // Nothing is pre-selected on the browser page: start from what the
+      // element already has (compromise or nothing). On the email, when a
+      // browser page already exists this element must open it, so the only
+      // option is "page".
+      actionType: onBrowser
+        ? current === "training" ? "training" : "none"
+        : hasBrowserPage ? "page" : current === "page" ? "page" : "landing",
     });
   };
 
@@ -3163,10 +3822,40 @@ const EmailBodyRichTextEditor = ({
   //   email  landing  {{phishLink}}              -> click, landing page
   //   email  page     {{phishLink}}?next=browser -> click, browser page
   //   page 2 training {{compromiseLink}}         -> compromised, landing page
+  // Take any On-Click off an element: it becomes inert again (no action, a
+  // dead '#' link), so a browser-page button that is not the submit button
+  // never marks the employee compromised.
+  const clearElementAction = (targetEl) => {
+    if (!targetEl) return;
+    targetEl.removeAttribute("data-action");
+    targetEl.removeAttribute("data-url");
+    targetEl.removeAttribute("data-target-page");
+    targetEl.onclick = null;
+    [targetEl, ...targetEl.querySelectorAll("a")].forEach((a) => {
+      if (a.tagName === "A") {
+        a.setAttribute("href", "#");
+        a.setAttribute("onclick", "return false;");
+        a.removeAttribute("data-action");
+      }
+    });
+  };
+
   const saveActionConfig = () => {
     const targetEl = actionConfigModal.element || activeElement?.element;
     if (!targetEl) return;
     const onBrowser = currentPageIdRef.current === BROWSER_PAGE_ID;
+
+    // Browser page: the author chose "No action" or "Mark compromised".
+    if (onBrowser) {
+      if (actionConfigModal.actionType !== "training") {
+        clearElementAction(targetEl);
+        setActionConfigModal(CLOSED_ACTION_MODAL);
+        synchroniseEditorValue();
+        showToast("On Click cleared. This element no longer does anything.", "info");
+        return;
+      }
+    }
+
     const action = onBrowser
       ? "training"
       : actionConfigModal.actionType === "page" && !supportsBrowserPage
@@ -3192,6 +3881,7 @@ const EmailBodyRichTextEditor = ({
     anchors.forEach((a) => {
       a.setAttribute("href", url);
       a.setAttribute("data-action", action);
+      if (onBrowser) a.setAttribute("onclick", "return false;");
     });
 
     setActionConfigModal(CLOSED_ACTION_MODAL);
@@ -3200,14 +3890,14 @@ const EmailBodyRichTextEditor = ({
     if (action === "page" && !pagesRef.current.some((p) => p.id === BROWSER_PAGE_ID)) {
       setShowNewPageModal(true);
       showToast("On Click saved. Now design the browser page it opens.", "info");
+    } else if (onBrowser) {
+      showToast("On Click saved: clicking this button marks the employee compromised.", "success");
     } else {
       showToast("On Click action saved.", "success");
     }
   };
 
-  const editorIsEmpty =
-    EMPTY_HTML_VALUES.includes((internalHtmlRef.current || "").trim().toLowerCase()) &&
-    !editorRef.current?.querySelector(".vshield-canvas-item");
+  const editorIsEmpty = !layerItems(pageOf(editorRef.current)).length;
 
   const subtleToolbarBtnClass = `
     flex h-6 px-1 items-center gap-0.5 justify-center rounded border
@@ -3242,10 +3932,13 @@ const EmailBodyRichTextEditor = ({
       <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
 
       <select
-        defaultValue="<p>"
+        value={["p", "h1", "h2", "h3", "h4", "blockquote", "pre"].includes(textFormat.block) ? `<${textFormat.block}>` : "<p>"}
         disabled={disabled || rawHtmlMode}
         onMouseDown={saveSelection}
-        onChange={(event) => runCommand("formatBlock", event.target.value)}
+        onChange={(event) => {
+          runCommand("formatBlock", event.target.value);
+          setTextFormat((prev) => ({ ...prev, block: event.target.value.replace(/[<>]/g, "") }));
+        }}
         className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[58px]"
         title="Paragraph format"
       >
@@ -3253,17 +3946,28 @@ const EmailBodyRichTextEditor = ({
         <option value="<h1>">Heading 1</option>
         <option value="<h2>">Heading 2</option>
         <option value="<h3>">Heading 3</option>
+        <option value="<h4>">Heading 4</option>
         <option value="<blockquote>">Quote</option>
+        <option value="<pre>">Code</option>
       </select>
 
       <select
-        defaultValue="Vodafone, sans-serif"
+        value={
+          FONT_OPTIONS.find((f) => firstFontFamily(f.value).toLowerCase() === textFormat.font.toLowerCase())?.value ||
+          (textFormat.font ? "__current" : FONT_OPTIONS[0].value)
+        }
         disabled={disabled || rawHtmlMode}
         onMouseDown={saveSelection}
-        onChange={(event) => runCommand("fontName", event.target.value)}
+        onChange={(event) => {
+          if (event.target.value !== "__current") applyFontFamily(event.target.value);
+        }}
         className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer max-w-[66px] flex-shrink-0"
         title="Font family"
       >
+        {textFormat.font &&
+          !FONT_OPTIONS.some((f) => firstFontFamily(f.value).toLowerCase() === textFormat.font.toLowerCase()) && (
+            <option value="__current">{textFormat.font}</option>
+          )}
         {FONT_OPTIONS.map((f) => (
           <option key={f.label} value={f.value}>
             {f.label}
@@ -3272,16 +3976,20 @@ const EmailBodyRichTextEditor = ({
       </select>
 
       <select
-        defaultValue="3"
+        value={textFormat.size ? String(textFormat.size) : ""}
         disabled={disabled || rawHtmlMode}
         onMouseDown={saveSelection}
-        onChange={(event) => runCommand("fontSize", event.target.value)}
-        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[38px]"
-        title="Font size"
+        onChange={(event) => applyFontSizePx(Number(event.target.value))}
+        className="px-1 py-0.5 rounded bg-[#181A20] dark:bg-white text-white dark:text-black border-white/20 dark:border-black/20 text-[8.5px] font-bold border outline-none cursor-pointer flex-shrink-0 max-w-[42px]"
+        title="Font size (px). With no text selected, it sizes the whole line."
       >
-        {FONT_SIZES.map((s, idx) => (
-          <option key={`${s.label}-${idx}`} value={s.value}>
-            {s.label}
+        {textFormat.size && !FONT_SIZES_PX.includes(textFormat.size) && (
+          <option value={String(textFormat.size)}>{textFormat.size}px</option>
+        )}
+        {!textFormat.size && <option value="">Size</option>}
+        {FONT_SIZES_PX.map((px) => (
+          <option key={px} value={String(px)}>
+            {px}px
           </option>
         ))}
       </select>
@@ -3337,13 +4045,197 @@ const EmailBodyRichTextEditor = ({
         <RemoveFormatting className="h-3 w-3" />
       </button>
 
+      {/* Text colour and highlight */}
+      <div ref={textColorMenuRef} className="relative flex-shrink-0">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
+          onClick={() => {
+            setShowTextColorMenu((open) => !open);
+            setShowLinkMenu(false);
+          }}
+          className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Text colour and highlight"
+        >
+          <Baseline className="h-3 w-3" />
+        </button>
+        {showTextColorMenu && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className="absolute left-0 top-full z-[9999] mt-1 flex w-48 flex-col gap-1.5 rounded-xl border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl"
+          >
+            <span className="text-[7.5px] font-mono-tech font-bold uppercase text-slate-400">Text colour</span>
+            <div className="grid grid-cols-6 gap-1">
+              {[...PRESET_COLORS, "#0563C1", "#64748B"].map((c) => (
+                <button
+                  key={`fg-${c}`}
+                  type="button"
+                  onClick={() => applyTextColour(c)}
+                  style={{ backgroundColor: c }}
+                  className="h-4 w-4 rounded border border-white/30 hover:scale-110 transition-transform cursor-pointer"
+                  title={c}
+                />
+              ))}
+            </div>
+            <label className="flex items-center justify-between text-[8.5px] text-slate-300">
+              Custom
+              <input
+                type="color"
+                onChange={(e) => applyTextColour(e.target.value)}
+                className="h-4 w-6 cursor-pointer rounded border border-white/20 bg-transparent"
+              />
+            </label>
+            <span className="border-t border-white/10 pt-1.5 text-[7.5px] font-mono-tech font-bold uppercase text-slate-400">
+              Highlight
+            </span>
+            <div className="flex items-center gap-1">
+              {["#FEF08A", "#BBF7D0", "#BFDBFE", "#FECACA", "#E9D5FF"].map((c) => (
+                <button
+                  key={`bg-${c}`}
+                  type="button"
+                  onClick={() => applyTextColour(c, { highlight: true })}
+                  style={{ backgroundColor: c }}
+                  className="h-4 w-4 rounded border border-white/30 hover:scale-110 transition-transform cursor-pointer"
+                  title={`Highlight ${c}`}
+                />
+              ))}
+              <input
+                type="color"
+                onChange={(e) => applyTextColour(e.target.value, { highlight: true })}
+                className="h-4 w-5 cursor-pointer rounded border border-white/20 bg-transparent"
+                title="Custom highlight"
+              />
+              <button
+                type="button"
+                onClick={() => applyTextColour("transparent", { highlight: true })}
+                className="ml-auto rounded px-1 text-[8px] font-bold text-slate-300 hover:bg-white/10 cursor-pointer"
+                title="Remove the highlight"
+              >
+                None
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Link the selected words */}
+      <div ref={linkMenuRef} className="relative flex-shrink-0">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            saveSelection();
+          }}
+          onClick={() => {
+            setShowLinkMenu((open) => !open);
+            setShowTextColorMenu(false);
+          }}
+          className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Make the selected words a link (Ctrl+K)"
+        >
+          <LinkIcon className="h-3 w-3" />
+        </button>
+        {showLinkMenu && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className="absolute left-0 top-full z-[9999] mt-1 flex w-56 flex-col gap-0.5 rounded-xl border border-white/20 bg-[#1A1C23] p-1 text-left shadow-2xl"
+          >
+            <span className="px-2 py-0.5 font-mono-tech text-[7.5px] font-bold uppercase text-slate-400">
+              Selected words open...
+            </span>
+            {(currentPageId === BROWSER_PAGE_ID
+              ? [["training", "Mark compromised", "Records a compromise, then shows the landing page"]]
+              : hasBrowserPage
+                ? // A browser page exists, so an email link must open it.
+                  [["page", "Browser page (page 2)", "Records the click, then opens the browser page"]]
+                : [
+                    ["landing", "Landing page", "Records the click, then shows the landing page"],
+                    ...(supportsBrowserPage
+                      ? [["page", "Browser page (page 2)", "Records the click, then opens the browser page"]]
+                      : []),
+                  ]
+            ).map(([action, label, desc]) => (
+              <button
+                key={action}
+                type="button"
+                onClick={() => linkSelectedText(action)}
+                className="flex flex-col gap-0.5 rounded-lg p-1.5 px-2 text-left hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <span className="text-[9px] font-bold text-white">{label}</span>
+                <span className="text-[7.5px] text-slate-400">{desc}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={unlinkSelectedText}
+              className="mt-0.5 flex items-center gap-1.5 border-t border-white/10 rounded-lg p-1.5 px-2 text-left text-[9px] font-bold text-red-300 hover:bg-white/10 cursor-pointer"
+            >
+              <Unlink className="h-3 w-3" />
+              Remove link
+            </button>
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("insertUnorderedList")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Bulleted list"
+      >
+        <ListIcon className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("insertOrderedList")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Numbered list"
+      >
+        <ListOrdered className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("outdent")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Decrease indent"
+      >
+        <IndentDecrease className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => runCommand("indent")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        title="Increase indent"
+      >
+        <IndentIncrease className="h-3 w-3" />
+      </button>
+
       <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
 
       <button
         type="button"
         disabled={disabled || rawHtmlMode}
         onMouseDown={handleToolbarMouseDown}
-        onClick={() => runCommand("justifyLeft")}
+        onClick={() => alignText("left")}
         className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0"
         title="Align left"
       >
@@ -3353,7 +4245,7 @@ const EmailBodyRichTextEditor = ({
         type="button"
         disabled={disabled || rawHtmlMode}
         onMouseDown={handleToolbarMouseDown}
-        onClick={() => runCommand("justifyCenter")}
+        onClick={() => alignText("center")}
         className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0"
         title="Align center"
       >
@@ -3363,11 +4255,44 @@ const EmailBodyRichTextEditor = ({
         type="button"
         disabled={disabled || rawHtmlMode}
         onMouseDown={handleToolbarMouseDown}
-        onClick={() => runCommand("justifyRight")}
+        onClick={() => alignText("right")}
         className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0"
         title="Align right"
       >
         <AlignRight className="h-3 w-3" />
+      </button>
+
+      <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
+
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => valignText("top")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0"
+        title="Text to the top of its box"
+      >
+        <AlignVerticalJustifyStart className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => valignText("middle")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0"
+        title="Text to the middle of its box"
+      >
+        <AlignVerticalJustifyCenter className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled || rawHtmlMode}
+        onMouseDown={handleToolbarMouseDown}
+        onClick={() => valignText("bottom")}
+        className="p-1 rounded hover:bg-white/10 cursor-pointer bg-[#181A20] dark:bg-white text-white dark:text-black flex-shrink-0"
+        title="Text to the bottom of its box"
+      >
+        <AlignVerticalJustifyEnd className="h-3 w-3" />
       </button>
 
       <div className="h-3.5 w-px bg-white/20 flex-shrink-0" />
@@ -3532,7 +4457,11 @@ const EmailBodyRichTextEditor = ({
             setShowCanvasBgMenu(false);
           }}
           className={subtleToolbarBtnClass}
-          title="Use an email body from the template library"
+          title={
+            currentPageId === BROWSER_PAGE_ID
+              ? "Use a sign-in or 2FA screen for the browser page"
+              : "Use an email body from the template library"
+          }
         >
           <FileText className="h-3 w-3 text-slate-400 dark:text-slate-600" />
           <span>Templates</span>
@@ -3547,11 +4476,21 @@ const EmailBodyRichTextEditor = ({
             className="absolute left-0 top-full mt-1 w-64 max-h-64 overflow-y-auto vshield-canvas-scroll rounded-xl bg-[#1A1C23] border border-white/20 p-1 shadow-2xl flex flex-col gap-0.5 text-left z-[9999]"
           >
             <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 px-2 py-0.5 font-bold">
-              Email Body Templates
+              {currentPageId === BROWSER_PAGE_ID ? "Browser Page Templates" : "Email Body Templates"}
             </span>
-            {emailBodyTemplates.map((option) => {
+            {(currentPageId === BROWSER_PAGE_ID ? browserPageTemplates : emailBodyTemplates).map((option, index, list) => {
+              const heading =
+                option.section && option.section !== list[index - 1]?.section ? (
+                  <span
+                    key={`section-${option.section}`}
+                    className="mt-1 px-2 pt-1 text-[7.5px] font-mono-tech font-bold uppercase text-indigo-300"
+                  >
+                    {option.section}
+                  </span>
+                ) : null;
               const inEditor = isSameBody(option.html, internalHtmlRef.current);
-              return (
+              return [
+                heading,
                 <button
                   key={option.id}
                   type="button"
@@ -3575,8 +4514,8 @@ const EmailBodyRichTextEditor = ({
                     </span>
                   </div>
                   <span className="text-[8px] text-slate-400 truncate pointer-events-none">{option.snippet}</span>
-                </button>
-              );
+                </button>,
+              ];
             })}
           </div>
         )}
@@ -3613,7 +4552,7 @@ const EmailBodyRichTextEditor = ({
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setCanvasBgColor(c);
+                    setPageBackground(c);
                     setShowCanvasBgMenu(false);
                   }}
                   style={{ backgroundColor: c }}
@@ -3628,10 +4567,85 @@ const EmailBodyRichTextEditor = ({
                 value={canvasBgColor}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setCanvasBgColor(e.target.value)}
+                onChange={(e) => setPageBackground(e.target.value)}
                 className="h-4.5 w-6 cursor-pointer rounded border border-white/20 bg-transparent"
               />
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Page size (as Power BI's canvas settings) */}
+      <div ref={pageSizeMenuRef} className="relative flex-shrink-0">
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onClick={() => setShowPageSizeMenu((open) => !open)}
+          className={subtleToolbarBtnClass}
+          title="Page size: width, and the least height"
+        >
+          <Maximize2 className="h-3 w-3 text-slate-400 dark:text-slate-600" />
+          <span>{pageWidthPx}px</span>
+          <ChevronDown className="h-2.5 w-2.5" />
+        </button>
+        {showPageSizeMenu && (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute left-0 top-full z-[9999] mt-1 flex w-64 flex-col gap-1 rounded-xl border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl"
+          >
+            <span className="text-[7.5px] font-mono-tech font-bold uppercase text-slate-400">Page width</span>
+            {PAGE_WIDTH_PRESETS[currentPageId === BROWSER_PAGE_ID ? "browser" : "email"].map(([w, label]) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setPageWidth(w)}
+                className={`flex items-center justify-between rounded-lg px-2 py-1 text-left text-[9px] font-semibold cursor-pointer ${
+                  pageWidthPx === w ? "bg-white/15 text-white" : "text-slate-200 hover:bg-white/10"
+                }`}
+              >
+                <span>{label}</span>
+                {pageWidthPx === w && <Check className="h-3 w-3 text-[#8ED973]" />}
+              </button>
+            ))}
+            <label className="flex items-center justify-between gap-2 border-t border-white/10 pt-1.5 text-[8.5px] text-slate-300">
+              Custom width (px)
+              <input
+                key={`w-${pageWidthPx}`}
+                type="number"
+                defaultValue={pageWidthPx}
+                min={PAGE_SIZE_LIMITS.minWidth}
+                max={PAGE_SIZE_LIMITS.maxWidth}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                onBlur={(e) => {
+                  if (Number(e.target.value) !== pageWidthPx) setPageWidth(e.target.value);
+                }}
+                className="w-16 rounded border border-white/20 bg-black/60 px-1 py-0.5 text-[8.5px] text-white outline-none"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-2 text-[8.5px] text-slate-300">
+              Least height (px)
+              <input
+                key={`h-${pageHeightPx}`}
+                type="number"
+                defaultValue={pageHeightPx}
+                min={PAGE_SIZE_LIMITS.minHeight}
+                max={PAGE_SIZE_LIMITS.maxHeight}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                onBlur={(e) => {
+                  if (Number(e.target.value) !== pageHeightPx) setPageMinHeight(e.target.value);
+                }}
+                className="w-16 rounded border border-white/20 bg-black/60 px-1 py-0.5 text-[8.5px] text-white outline-none"
+              />
+            </label>
+            <span className="text-[7.5px] leading-snug text-slate-500">
+              The page also grows on its own as you add or drag items lower, and its bottom edge can be dragged down.
+            </span>
           </div>
         )}
       </div>
@@ -3835,6 +4849,114 @@ const EmailBodyRichTextEditor = ({
   // a second row when the width runs out, so nothing is cut off or slides
   // under the page controls on the right, and nothing needs scrolling. Rows
   // align to the top, so the controls on the right stay level with row one.
+  // Every element on this page with an On-Click set: the compromise button on
+  // the browser page, or the phishing elements on the email. The outermost one
+  // is kept when a configured anchor sits inside a configured item.
+  const ACTION_LABELS = {
+    training: "Mark compromised",
+    landing: "Landing page (Oops)",
+    page: "Open browser page",
+  };
+  const configuredActionItems = () => {
+    const page = pageEl();
+    if (!page) return [];
+    const wanted = pageKind() === "browser" ? ["training"] : ["landing", "page"];
+    const all = [...page.querySelectorAll("[data-action]")].filter((el) =>
+      wanted.includes(el.getAttribute("data-action")),
+    );
+    return all.filter((el) => !all.some((other) => other !== el && other.contains(el)));
+  };
+
+  const selectActionItem = (el) => {
+    const item = el.classList.contains(ITEM_CLASS) ? el : el.closest(`.${ITEM_CLASS}`);
+    if (!item) return;
+    setShowOnclicksMenu(false);
+    selectCanvasItem(item);
+    item.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const renderOnclicksMenu = () => {
+    if (rawHtmlMode) return null;
+    const items = configuredActionItems();
+    const onBrowser = currentPageId === BROWSER_PAGE_ID;
+    return (
+      <div ref={onclicksMenuRef} className="relative flex-shrink-0">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            setShowOnclicksMenu((open) => !open);
+            setShowPageSizeMenu(false);
+          }}
+          className={subtleToolbarBtnClass}
+          title="Every element on this page with an On-Click action set"
+        >
+          <MousePointerClick className={`h-3 w-3 ${items.length ? "text-emerald-400" : "text-slate-400 dark:text-slate-600"}`} />
+          <span>On-Clicks</span>
+          {items.length > 0 && (
+            <span className="ml-0.5 rounded-full bg-emerald-600 px-1 text-[8px] font-bold text-white">{items.length}</span>
+          )}
+          <ChevronDown className="h-2.5 w-2.5" />
+        </button>
+        {showOnclicksMenu && (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute right-0 top-full z-[9999] mt-1 flex w-72 flex-col gap-1 rounded-xl border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl"
+          >
+            <span className="px-1 text-[7.5px] font-mono-tech font-bold uppercase text-slate-400">
+              Configured On-Clicks · {onBrowser ? "Browser page" : "Email"}
+            </span>
+            {items.length === 0 ? (
+              <p className="px-1 py-2 text-[9.5px] leading-snug text-slate-400">
+                {onBrowser
+                  ? "No On-Click set yet. Select the submit button (Next, Submit, Confirm...) and set its On-Click to \"Mark compromised\"."
+                  : "No On-Click set yet. Select the phishing button or a link and set its On-Click action."}
+              </p>
+            ) : (
+              items.map((el, index) => {
+                const action = el.getAttribute("data-action");
+                return (
+                  <div
+                    key={itemKey(el)}
+                    className="flex items-center justify-between gap-1 rounded-lg border border-white/10 bg-white/5 p-1.5 hover:bg-white/10"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectActionItem(el)}
+                      className="flex min-w-0 flex-1 flex-col text-left cursor-pointer"
+                      title="Select this element on the canvas"
+                    >
+                      <span className="truncate text-[10px] font-bold text-white">
+                        {index + 1}. {itemName(el)}
+                      </span>
+                      <span className="flex items-center gap-1 text-[8.5px] text-emerald-300">
+                        <ShieldAlert className="h-2.5 w-2.5" />
+                        {ACTION_LABELS[action] || action}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearElementAction(el.classList.contains(ITEM_CLASS) ? el : el.closest(`.${ITEM_CLASS}`) || el);
+                        synchroniseEditorValue();
+                        setDragFrame((n) => n + 1);
+                        showToast("On Click removed.", "info");
+                      }}
+                      className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-red-500/20 hover:text-red-300 cursor-pointer"
+                      title="Remove this On-Click"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderToolbar = () => (
     <div className="relative z-30 flex w-full min-h-[34px] flex-shrink-0 flex-wrap items-start gap-x-1 gap-y-1 rounded-t-2xl border-b border-white/10 dark:border-black/10 bg-[#202127] dark:bg-white px-1.5 py-1 text-white select-none">
       {/* The picture pickers live here, not with the formatting tools, because
@@ -3871,6 +4993,7 @@ const EmailBodyRichTextEditor = ({
       </div>
 
       <div className="ml-auto flex h-6 flex-shrink-0 items-center gap-[3px] self-start">
+        {renderOnclicksMenu()}
         {supportsBrowserPage && renderPagesMenu()}
         {renderPreviewButton()}
 
@@ -3912,6 +5035,19 @@ const EmailBodyRichTextEditor = ({
             <X className="h-3 w-3" />
           </button>
         )}
+
+        <button
+          type="button"
+          disabled={disabled || rawHtmlMode}
+          onClick={() => setShowShortcuts((open) => !open)}
+          className={`p-1 rounded cursor-pointer flex-shrink-0 disabled:cursor-not-allowed disabled:opacity-40 ${
+            showShortcuts ? "bg-white/20 text-white" : "text-slate-300 dark:text-slate-800 hover:bg-white/10"
+          }`}
+          title="Keyboard shortcuts (?)"
+          aria-pressed={showShortcuts}
+        >
+          <Keyboard className="h-3 w-3" />
+        </button>
 
         {/* Items pane: every item on the page, to select, reorder and group. */}
         <button
@@ -3991,7 +5127,9 @@ const EmailBodyRichTextEditor = ({
   };
 
   // ---------------------------------------------------------------
-  // Items pane: the page's items in order, nested as on the page.
+  // Selection pane (as Power BI's): every item in layer order, front first;
+  // groups open to their parts. Select, show / hide, rename, and drag to
+  // change the layer order or to move an item into or out of a group.
   // ---------------------------------------------------------------
   const ITEM_TYPE_LABELS = {
     group: "Group",
@@ -4012,51 +5150,15 @@ const EmailBodyRichTextEditor = ({
     return itemKeysRef.current.get(el);
   };
 
-  // Every design item, and each plain line of text on the page itself.
-  const listPageItems = () => {
-    const editor = editorRef.current;
-    if (!editor) return [];
-    const items = [];
-    const walk = (parent, depth) => {
-      for (const el of parent.children) {
-        const isItem = el.classList.contains("vshield-canvas-item");
-        const isTextLine =
-          parent === editor && !isItem && !isBlankLine(el) && Boolean(el.textContent.trim());
-        if (isItem || isTextLine) {
-          items.push({ el, depth });
-          walk(el, depth + 1);
-        } else {
-          walk(el, depth);
-        }
-      }
-    };
-    walk(editor, 0);
-    return items;
-  };
-
-  const itemType = (el) =>
-    el.classList.contains("vshield-canvas-item")
-      ? ITEM_TYPE_LABELS[el.getAttribute("data-type")] || "Element"
-      : "Text";
+  const itemType = (el) => ITEM_TYPE_LABELS[el.getAttribute("data-type")] || "Element";
 
   const itemName = (el) => {
     const named = el.getAttribute("data-item-name");
     if (named) return named;
     const text = (el.textContent || "").replace(/\s+/g, " ").trim();
     const alt = el.querySelector?.("img")?.getAttribute("alt") || "";
-    const label = text || alt;
-    return label ? (label.length > 32 ? `${label.slice(0, 30)}...` : label) : itemType(el);
-  };
-
-  const togglePickedItem = (el) => {
-    setActiveElement(null);
-    setPickedBlocks((prev) => toggleBlock(prev.length ? prev : activeElement?.element ? [activeElement.element] : [], el));
-  };
-
-  const selectItemFromPane = (el) => {
-    setPickedBlocks([]);
-    selectCanvasItem(el);
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const label = isGroupEl(el) ? "" : text || alt;
+    return label ? (label.length > 30 ? `${label.slice(0, 28)}...` : label) : itemType(el);
   };
 
   const saveItemName = () => {
@@ -4068,290 +5170,455 @@ const EmailBodyRichTextEditor = ({
     synchroniseEditorValue();
   };
 
-  const deletePageItem = (el) => {
-    const name = itemName(el);
-    if (activeElement?.element && el.contains(activeElement.element)) setActiveElement(null);
-    setPickedBlocks((prev) => prev.filter((node) => !el.contains(node)));
-    el.remove();
-    synchroniseEditorValue();
-    showToast(`Deleted ${name}.`, "success");
+  // A row clicked: select it; Ctrl/Shift+click adds it (items side by side only).
+  const selectFromPane = (el, e) => {
+    stopEditing();
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      const current = selectedItems();
+      const next = current.includes(el)
+        ? current.filter((x) => x !== el)
+        : current.every((x) => x.parentElement === el.parentElement)
+          ? [...current, el]
+          : [el];
+      selectItems(next);
+      return;
+    }
+    if (el.getAttribute("data-hidden") === "true") {
+      showToast("That item is hidden. Click its eye to show it.", "info");
+      return;
+    }
+    selectCanvasItem(el);
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
-  // Drag a row onto another: the item moves just above it (when dragged up)
-  // or just below it (when dragged down), in that item's place on the page.
-  const dropPageItem = (target) => {
+  // Drop a dragged row on another: in front of it (upper half) or behind it
+  // (lower half), in its page or group. A group can't go into a group.
+  const dropPaneItem = (target, inFront) => {
     const moved = draggedItemRef.current;
     draggedItemRef.current = null;
     setDropTargetEl(null);
-    if (!moved || !target || moved === target) return;
-    if (moved.contains(target) || target.contains(moved)) {
-      showToast("An item can't be moved into itself.", "warning", "Not Moved");
+    if (!moved || !target || moved === target || moved.contains(target)) return;
+    const toParent = target.parentElement;
+    if (isGroupEl(toParent) && isGroupEl(moved)) {
+      showToast("A group can't go inside another group.", "warning", "Not Moved");
       return;
     }
-    const movingDown = Boolean(moved.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING);
-    target.parentNode.insertBefore(moved, movingDown ? target.nextSibling : target);
+    const onPage = pageRectOf(moved);
+    const fromParent = moved.parentElement;
+    toParent.insertBefore(moved, inFront ? target.nextSibling : target);
+    // Same place on the page, now measured from its new box.
+    const at = isGroupEl(toParent) ? readRect(toParent) : { left: 0, top: 0 };
+    writeRect(moved, { left: onPage.left - at.left, top: onPage.top - at.top }, { height: false });
+    renumberLayers(toParent);
+    if (fromParent !== toParent) renumberLayers(fromParent);
     synchroniseEditorValue();
-    if (activeElement?.element === moved) selectCanvasItem(moved);
+    selectCanvasItem(moved);
     showToast(
-      `Moved ${itemName(moved)} ${movingDown ? "below" : "above"} ${itemName(target)}.`,
+      fromParent !== toParent
+        ? isGroupEl(toParent)
+          ? `Moved ${itemName(moved)} into ${itemName(toParent)}.`
+          : `Moved ${itemName(moved)} out of its group.`
+        : `${itemName(moved)} is now ${inFront ? "in front of" : "behind"} ${itemName(target)}.`,
       "success",
     );
   };
 
-  const renderItemsPane = () => {
+  const SHORTCUTS = [
+    ["Select an item", "Click it"],
+    ["Select a part of a group", "Double-click it"],
+    ["Type in a text item", "Double-click it, or Enter"],
+    ["Select several", "Ctrl+click, or drag a box on empty canvas"],
+    ["Select everything", "Ctrl+A"],
+    ["Group / ungroup", "Ctrl+G / Ctrl+Shift+G"],
+    ["One layer forward / back", "Ctrl+] / Ctrl+["],
+    ["To the front / back", "Ctrl+Shift+] / Ctrl+Shift+["],
+    ["Move", "Drag, or arrow keys (Shift: 10px)"],
+    ["Place freely (no snapping)", "Hold Alt while dragging"],
+    ["Keep proportions", "Hold Shift while resizing"],
+    ["Copy / cut / paste", "Ctrl+C / Ctrl+X / Ctrl+V"],
+    ["Duplicate", "Ctrl+D"],
+    ["Delete", "Delete or Backspace"],
+    ["Link the highlighted words", "Ctrl+K"],
+    ["Undo / redo", "Ctrl+Z / Ctrl+Y"],
+    ["Stop typing, up a level, deselect", "Esc"],
+  ];
+
+  const renderShortcuts = () => {
+    if (!showShortcuts || rawHtmlMode) return null;
+    return (
+      <div
+        data-floating-control="true"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        className="absolute right-2 top-2 z-[60] w-80 rounded-xl border border-white/20 bg-[#1A1C23] p-2 text-white shadow-2xl select-none"
+        role="dialog"
+        aria-label="Keyboard shortcuts"
+      >
+        <div className="mb-1 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider">
+            <Keyboard className="h-3.5 w-3.5 text-blue-400" />
+            Shortcuts
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowShortcuts(false)}
+            className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+            aria-label="Close shortcuts"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+        <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-[8.5px]">
+          {SHORTCUTS.map(([what, keys]) => (
+            <div key={what} className="contents">
+              <dt className="text-slate-300">{what}</dt>
+              <dd className="text-right font-mono-tech text-slate-100">{keys}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    );
+  };
+
+  const paneBtn =
+    "flex h-5 items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 text-[8.5px] font-bold text-slate-200 hover:bg-white/15 hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-35";
+
+  const renderSelectionPane = () => {
     if (!showItemsPane || rawHtmlMode) return null;
-    const items = listPageItems();
-    const picked = pickedBlocks.filter((node) => node.isConnected && editorRef.current?.contains(node));
+    const page = pageEl();
+    const selected = selectedItems();
+    const top = page ? layerItems(page).reverse() : [];
+    const canGroup = selected.length >= 2 && selected.every((el) => el.parentElement === page && !isGroupEl(el));
+    const canUngroup = selected.some(isGroupEl) || isGroupEl(selected[0]?.parentElement);
+
+    const renderRow = (el, depth) => {
+      const key = itemKey(el);
+      const isGroup = isGroupEl(el);
+      const hidden = el.getAttribute("data-hidden") === "true";
+      const isSelected = selected.includes(el);
+      const open = !collapsedGroupsRef.current.has(el);
+      const drop = dropTargetEl?.el === el ? dropTargetEl.inFront : null;
+      const name = itemName(el);
+      return (
+        <div key={key}>
+          <div
+            draggable={!renamingItem}
+            onDragStart={(e) => {
+              draggedItemRef.current = el;
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              const r = e.currentTarget.getBoundingClientRect();
+              const inFront = e.clientY < r.top + r.height / 2;
+              if (dropTargetEl?.el !== el || dropTargetEl.inFront !== inFront) setDropTargetEl({ el, inFront });
+            }}
+            onDragLeave={() => {
+              if (dropTargetEl?.el === el) setDropTargetEl(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const r = e.currentTarget.getBoundingClientRect();
+              dropPaneItem(el, e.clientY < r.top + r.height / 2);
+            }}
+            onDragEnd={() => {
+              draggedItemRef.current = null;
+              setDropTargetEl(null);
+            }}
+            onClick={(e) => selectFromPane(el, e)}
+            style={{ paddingLeft: `${6 + depth * 14}px` }}
+            className={`relative flex items-center gap-1 rounded-md border py-1 pr-1 text-[9.5px] transition-colors cursor-pointer ${
+              isSelected ? "border-blue-500 bg-blue-600/25" : "border-transparent hover:bg-white/10"
+            } ${hidden ? "opacity-50" : ""}`}
+          >
+            {drop !== null && (
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute left-1 right-1 h-0.5 rounded bg-emerald-400 ${drop ? "-top-px" : "-bottom-px"}`}
+              />
+            )}
+            {isGroup ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (open) collapsedGroupsRef.current.add(el);
+                  else collapsedGroupsRef.current.delete(el);
+                  setDragFrame((n) => n + 1);
+                }}
+                className="flex-shrink-0 rounded p-0.5 text-slate-400 hover:text-white cursor-pointer"
+                aria-label={open ? `Close ${name}` : `Open ${name}`}
+              >
+                <ChevronDown className={`h-3 w-3 transition-transform ${open ? "" : "-rotate-90"}`} />
+              </button>
+            ) : (
+              <span className="w-4 flex-shrink-0" />
+            )}
+            {renamingItem?.el === el ? (
+              <input
+                autoFocus
+                type="text"
+                value={renamingItem.name}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setRenamingItem({ el, name: e.target.value })}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") saveItemName();
+                  if (e.key === "Escape") setRenamingItem(null);
+                }}
+                onBlur={saveItemName}
+                className="min-w-0 flex-1 rounded border border-white/30 bg-black/60 px-1 py-0.5 text-[9px] font-semibold text-white outline-none"
+              />
+            ) : (
+              <span
+                className="flex min-w-0 flex-1 items-center gap-1.5 leading-tight"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setRenamingItem({ el, name: el.getAttribute("data-item-name") || name });
+                }}
+                title={`${name}: double-click to rename, drag to change its layer`}
+              >
+                <span className={`truncate ${isGroup ? "font-bold" : "font-semibold"}`}>{name}</span>
+                <span className="flex-shrink-0 font-mono-tech text-[7px] uppercase text-slate-500">{itemType(el)}</span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleHidden(el);
+              }}
+              className="flex-shrink-0 rounded p-0.5 text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer"
+              title={hidden ? "Hidden: not on the page or in what is sent. Click to show." : "Hide"}
+              aria-label={hidden ? `Show ${name}` : `Hide ${name}`}
+            >
+              {hidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            </button>
+          </div>
+          {isGroup && open && layerItems(el).reverse().map((part) => renderRow(part, depth + 1))}
+        </div>
+      );
+    };
 
     return (
       <div
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
-        className="flex w-56 flex-shrink-0 flex-col rounded-br-2xl border-l border-t border-white/15 bg-[#181A20] text-white select-none dark:border-black/10"
+        className="flex min-h-0 w-60 flex-shrink-0 flex-col overflow-hidden rounded-br-2xl border-l border-t border-white/15 bg-[#181A20] text-white select-none dark:border-black/10"
       >
         <div className="flex items-center justify-between border-b border-white/10 bg-[#1F2128] px-2.5 py-1.5">
           <span className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider">
             <Layers className="h-3.5 w-3.5 text-blue-400" />
-            Items ({items.length})
+            Selection
           </span>
           <button
             type="button"
             onClick={() => setShowItemsPane(false)}
             className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
-            title="Close the Items pane"
-            aria-label="Close the Items pane"
+            title="Close the Selection pane"
+            aria-label="Close the Selection pane"
           >
             <X className="h-3 w-3" />
           </button>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-black/20 px-2.5 py-1">
-          <span className="text-[8px] leading-tight text-slate-400">
-            Drag to reorder · tick or Ctrl+click to select
-          </span>
-          {picked.length > 0 && (
-            <button
-              type="button"
-              onClick={groupPickedBlocks}
-              className="flex flex-shrink-0 items-center gap-1 rounded bg-[#2563EB] px-1.5 py-0.5 text-[8.5px] font-bold text-white hover:bg-blue-700 cursor-pointer"
-              title="Group the selected items so they move together (Ctrl+G)"
-            >
-              <Group className="h-2.5 w-2.5" />
-              Group selected ({picked.length})
-            </button>
-          )}
+        <div className="flex flex-wrap items-center gap-1 border-b border-white/10 px-2 py-1.5">
+          <button type="button" className={paneBtn} onClick={() => setAllHidden(false)} title="Show every item">
+            <Eye className="h-2.5 w-2.5" /> Show all
+          </button>
+          <button type="button" className={paneBtn} onClick={() => setAllHidden(true)} title="Hide every item">
+            <EyeOff className="h-2.5 w-2.5" /> Hide all
+          </button>
+          <span className="mx-0.5 h-3 w-px bg-white/15" />
+          <button
+            type="button"
+            className={paneBtn}
+            disabled={!selected.length}
+            onClick={() => changeLayer("forward")}
+            title="Bring forward one layer (Ctrl+])"
+            aria-label="Bring forward one layer"
+          >
+            <ArrowUp className="h-2.5 w-2.5" />
+          </button>
+          <button
+            type="button"
+            className={paneBtn}
+            disabled={!selected.length}
+            onClick={() => changeLayer("backward")}
+            title="Send backward one layer (Ctrl+[)"
+            aria-label="Send backward one layer"
+          >
+            <ArrowDown className="h-2.5 w-2.5" />
+          </button>
+          <span className="mx-0.5 h-3 w-px bg-white/15" />
+          <button type="button" className={paneBtn} disabled={!canGroup} onClick={groupSelection} title="Group (Ctrl+G)">
+            <Group className="h-2.5 w-2.5" /> Group
+          </button>
+          <button
+            type="button"
+            className={paneBtn}
+            disabled={!canUngroup}
+            onClick={() => ungroupSelection()}
+            title="Ungroup (Ctrl+Shift+G)"
+          >
+            <Ungroup className="h-2.5 w-2.5" /> Ungroup
+          </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1.5 vshield-canvas-scroll">
-          {items.length === 0 ? (
+        <div className="flex items-center justify-between px-2.5 pt-1.5 pb-0.5">
+          <span className="text-[7.5px] font-bold uppercase tracking-wider text-slate-400">Layer order</span>
+          <span className="text-[7.5px] text-slate-500">Front at the top</span>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto p-1.5 pt-0.5 vshield-canvas-scroll">
+          {top.length === 0 ? (
             <p className="px-2 py-6 text-center text-[9.5px] text-slate-400">
-              Nothing on this page yet. Add a template, element, shape, button or text.
+              Nothing on this page yet. Add a template, element, shape, button, picture or text.
             </p>
           ) : (
-            items.map(({ el, depth }) => {
-              const key = itemKey(el);
-              const isPicked = picked.includes(el);
-              const isSelected = activeElement?.element === el || isPicked;
-              const isGroup = el.classList.contains("vshield-group-item");
-              const isDropTarget = dropTargetEl === el && draggedItemRef.current !== el;
-              const name = itemName(el);
-
-              return (
-                <div
-                  key={key}
-                  draggable={!renamingItem}
-                  onDragStart={(e) => {
-                    draggedItemRef.current = el;
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (dropTargetEl !== el) setDropTargetEl(el);
-                  }}
-                  onDragLeave={() => {
-                    if (dropTargetEl === el) setDropTargetEl(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    dropPageItem(el);
-                  }}
-                  onDragEnd={() => {
-                    draggedItemRef.current = null;
-                    setDropTargetEl(null);
-                  }}
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey || e.shiftKey) togglePickedItem(el);
-                    else selectItemFromPane(el);
-                  }}
-                  style={{ marginLeft: `${Math.min(depth, 6) * 10}px` }}
-                  className={`flex items-center gap-1 rounded-md border px-1.5 py-1 text-[9.5px] transition-colors cursor-pointer ${
-                    isDropTarget
-                      ? "border-emerald-400 bg-emerald-500/15"
-                      : isSelected
-                        ? "border-blue-500 bg-blue-600/20"
-                        : "border-white/10 bg-white/5 hover:bg-white/10"
-                  }`}
-                >
-                  <GripVertical className="h-3 w-3 flex-shrink-0 cursor-grab text-slate-500" aria-hidden="true" />
-                  <input
-                    type="checkbox"
-                    checked={isPicked}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => togglePickedItem(el)}
-                    className="h-3 w-3 flex-shrink-0 cursor-pointer accent-blue-500"
-                    title="Select for grouping"
-                    aria-label={`Select ${name} for grouping`}
-                  />
-
-                  {renamingItem?.el === el ? (
-                    <input
-                      autoFocus
-                      type="text"
-                      value={renamingItem.name}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setRenamingItem({ el, name: e.target.value })}
-                      onKeyDown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === "Enter") saveItemName();
-                        if (e.key === "Escape") setRenamingItem(null);
-                      }}
-                      onBlur={saveItemName}
-                      className="min-w-0 flex-1 rounded border border-white/30 bg-black/60 px-1 py-0.5 text-[9px] font-semibold text-white outline-none"
-                    />
-                  ) : (
-                    <span
-                      className="flex min-w-0 flex-1 flex-col leading-tight"
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setRenamingItem({ el, name: el.getAttribute("data-item-name") || name });
-                      }}
-                      title={`${name} (double-click to rename)`}
-                    >
-                      <span className="truncate font-bold">{name}</span>
-                      <span className="font-mono-tech text-[7px] uppercase text-slate-400">{itemType(el)}</span>
-                    </span>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRenamingItem({ el, name: el.getAttribute("data-item-name") || name });
-                    }}
-                    className="flex-shrink-0 rounded p-0.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
-                    title="Rename"
-                    aria-label={`Rename ${name}`}
-                  >
-                    <Pencil className="h-2.5 w-2.5" />
-                  </button>
-                  {isGroup && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        ungroupActiveItem(el);
-                      }}
-                      className="flex-shrink-0 rounded p-0.5 text-cyan-400 hover:bg-white/10 hover:text-cyan-300 cursor-pointer"
-                      title="Ungroup: each part stays where it is"
-                      aria-label={`Ungroup ${name}`}
-                    >
-                      <Ungroup className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePageItem(el);
-                    }}
-                    className="flex-shrink-0 rounded p-0.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 cursor-pointer"
-                    title={`Delete ${name}`}
-                    aria-label={`Delete ${name}`}
-                  >
-                    <Trash2 className="h-2.5 w-2.5" />
-                  </button>
-                </div>
-              );
-            })
+            top.map((el) => renderRow(el, 0))
           )}
         </div>
+        <p className="border-t border-white/10 px-2.5 py-1.5 text-[7.5px] leading-snug text-slate-500">
+          Drag a row to change its layer, or onto a group's part to move it into that group. Ctrl+click to select several.
+        </p>
       </div>
     );
   };
 
-  // Grouping aids drawn over the canvas, never saved: an outline on each
-  // picked part with a Group bar, the drag-select box, and the centre line
-  // line of the edge or centre a dragged item is snapped to.
+  // Drawn over the canvas, never saved: frames on several selected items
+  // with their toolbar, the drag-select box, and the group around a
+  // selected part.
   const renderGroupingOverlays = () => {
     const editor = editorRef.current;
     if (!editor) return null;
-    // An item's own box; a plain line of text by its text.
-    const picked = pickedBlocks
-      .filter((node) => node.isConnected && editor.contains(node))
-      .map((node) =>
-        toScrollArea(
-          node.nodeType === 1 && node.classList.contains("vshield-canvas-item")
-            ? node.getBoundingClientRect()
-            : visibleBounds([node]),
-        ),
-      )
-      .filter(Boolean);
-    const top = picked.length ? Math.min(...picked.map((b) => b.top)) : 0;
-    const left = picked.length ? Math.min(...picked.map((b) => b.left)) : 0;
+    const multi = pickedBlocks.filter((el) => el.isConnected && editor.contains(el));
+    const frames = multi.map((el) => toOverlay(el.getBoundingClientRect())).filter(Boolean);
+    const box = frames.length ? unionRects(frames) : null;
+    const parentGroup = isGroupEl(activeElement?.element?.parentElement)
+      ? toOverlay(activeElement.element.parentElement.getBoundingClientRect())
+      : multi.length && isGroupEl(multi[0].parentElement)
+        ? toOverlay(multi[0].parentElement.getBoundingClientRect())
+        : null;
+    const sc = scrollerRef.current;
+    const multiBarAbove = box ? box.top - (sc?.scrollTop || 0) > 48 : false;
+    const barTop = box ? (multiBarAbove ? box.top - 8 : box.top + box.height + 8) : 0;
+    const allOnPage = multi.length >= 2 && multi.every((el) => el.parentElement === pageEl() && !isGroupEl(el));
+    const tool = "rounded p-1 text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer";
 
     return (
       <>
-        {picked.map((b, i) => (
+        {parentGroup && (
+          <div
+            data-floating-control="true"
+            aria-hidden="true"
+            style={{ position: "absolute", ...parentGroup, pointerEvents: "none", zIndex: 6 }}
+            className="rounded-sm border border-dashed border-slate-400/80"
+          />
+        )}
+        {frames.map((b, i) => (
           <div
             key={`picked-${i}`}
             data-floating-control="true"
             aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: b.left - 3,
-              top: b.top - 3,
-              width: b.width + 6,
-              height: b.height + 6,
-              pointerEvents: "none",
-              zIndex: 7,
-            }}
-            className="rounded border-2 border-dashed border-[#2563EB] bg-[#2563EB]/5"
+            style={{ position: "absolute", ...b, pointerEvents: "none", zIndex: 7 }}
+            className="border-2 border-[#2563EB]"
           />
         ))}
-
-        {picked.length > 0 && (
-          <div
-            data-floating-control="true"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            style={{ position: "absolute", left: Math.max(0, left - 3), top: Math.max(0, top - 32), zIndex: 41 }}
-            className="flex items-center gap-1 rounded-lg border border-white/20 bg-[#1A1C23] p-1 text-white shadow-2xl select-none"
-          >
-            <span className="px-1 text-[8.5px] font-bold text-slate-300">
-              {picked.length} selected
-            </span>
-            <button
-              type="button"
-              onClick={groupPickedBlocks}
-              className="flex items-center gap-1 rounded bg-[#2563EB] px-1.5 py-0.5 text-[9px] font-bold text-white hover:bg-blue-700 cursor-pointer"
-              title="Group the selected items so they move together (Ctrl+G)"
+        {box && (
+          <>
+            <div
+              data-floating-control="true"
+              aria-hidden="true"
+              style={{ position: "absolute", left: box.left - 4, top: box.top - 4, width: box.width + 8, height: box.height + 8, pointerEvents: "none", zIndex: 7 }}
+              className="border border-dashed border-[#2563EB]/70"
+            />
+            <div
+              data-floating-control="true"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                left: Math.max(0, box.left - 4),
+                top: Math.max(0, barTop),
+                transform: multiBarAbove ? "translateY(-100%)" : "none",
+                maxWidth: Math.max(240, (sc?.clientWidth || 600) - Math.max(0, box.left - 4) - 8),
+                zIndex: 41,
+              }}
+              className="flex flex-wrap items-center gap-0.5 rounded-lg border border-white/20 bg-[#1A1C23] p-1 text-white shadow-2xl select-none"
             >
-              <Group className="h-3 w-3" />
-              Group selected
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickedBlocks([])}
-              className="rounded p-0.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
-              title="Clear the selection (Esc)"
-              aria-label="Clear the selection"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
+              <span className="px-1 text-[8.5px] font-bold text-slate-300">{multi.length} selected</span>
+              <span className="mx-0.5 h-3.5 w-px bg-white/15" />
+              <button type="button" onClick={() => alignSelection("left")} className={tool} title="Align left edges">
+                <AlignStartVertical className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => alignSelection("center")} className={tool} title="Align centres across">
+                <AlignHorizontalJustifyCenter className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => alignSelection("right")} className={tool} title="Align right edges">
+                <AlignEndVertical className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => alignSelection("top")} className={tool} title="Align top edges">
+                <AlignStartHorizontal className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => alignSelection("middle")} className={tool} title="Align middles">
+                <AlignVerticalJustifyCenter className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => alignSelection("bottom")} className={tool} title="Align bottom edges">
+                <AlignEndHorizontal className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => distributeSelection("horizontal")}
+                disabled={multi.length < 3}
+                className={`${tool} disabled:opacity-30`}
+                title="Space evenly across (3 or more)"
+              >
+                <AlignHorizontalSpaceAround className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => distributeSelection("vertical")}
+                disabled={multi.length < 3}
+                className={`${tool} disabled:opacity-30`}
+                title="Space evenly top to bottom (3 or more)"
+              >
+                <AlignVerticalSpaceAround className="h-3.5 w-3.5" />
+              </button>
+              <span className="mx-0.5 h-3.5 w-px bg-white/15" />
+              <button type="button" onClick={() => changeLayer("forward")} className={tool} title="Bring forward one layer (Ctrl+])">
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => changeLayer("backward")} className={tool} title="Send backward one layer (Ctrl+[)">
+                <ArrowDown className="h-3.5 w-3.5" />
+              </button>
+              {allOnPage && (
+                <button
+                  type="button"
+                  onClick={groupSelection}
+                  className="ml-0.5 flex items-center gap-1 rounded bg-[#2563EB] px-1.5 py-0.5 text-[9px] font-bold text-white hover:bg-blue-700 cursor-pointer"
+                  title="Group (Ctrl+G)"
+                >
+                  <Group className="h-3 w-3" />
+                  Group
+                </button>
+              )}
+              <button type="button" onClick={duplicateActiveItem} className={tool} title="Duplicate (Ctrl+D)">
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={deleteActiveItem}
+                className="rounded p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300 cursor-pointer"
+                title="Delete (Delete key)"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </>
         )}
 
         {selectBox && (
@@ -4362,529 +5629,492 @@ const EmailBodyRichTextEditor = ({
             className="rounded-sm border border-[#2563EB] bg-[#2563EB]/10"
           />
         )}
-
-        {snapGuide !== null && (
-          <div
-            data-floating-control="true"
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: editor.offsetLeft + snapGuide,
-              top: 0,
-              height: Math.max(editor.scrollHeight, editor.offsetHeight),
-              pointerEvents: "none",
-              zIndex: 8,
-            }}
-            className="w-0 border-l border-dashed border-fuchsia-500"
-          />
-        )}
       </>
     );
   };
 
-  // Universal Floating Controller for Selected Elements (PowerPoint style)
+  // One selected item (or group, or part of a group): its frame, eight
+  // handles, and its toolbar (place and size, look, layers, On Click).
   const renderFloatingObjectControls = () => {
-    if (!activeElement?.element) return null;
-
-    const isGroup = activeElement.element.classList.contains("vshield-group-item");
-    const workspace = workspaceRef.current;
-    const workspaceRect = workspace?.getBoundingClientRect();
-    if (!workspaceRect || !workspace.offsetWidth) return null;
-    // The frame is drawn in layout px inside the zoomed page, so screen
-    // measurements are divided by the zoom to line up with the item.
-    const scale = workspaceRect.width / workspace.offsetWidth || 1;
-    const screenRect = activeElement.element.getBoundingClientRect();
-    const targetRect = {
-      width: screenRect.width / scale,
-      height: screenRect.height / scale,
+    const el = activeElement?.element;
+    if (!el || !el.isConnected || el.style.display === "none") return null;
+    const sc = scrollerRef.current;
+    const frame = toOverlay(el.getBoundingClientRect());
+    if (!sc || !frame) return null;
+    const isGroup = isGroupEl(el);
+    const editing = editingItem === el;
+    const r = pageRectOf(el);
+    const picture = activePicture();
+    const visibleTop = frame.top - sc.scrollTop;
+    const roomBelow = sc.clientHeight - (visibleTop + frame.height);
+    const barAbove = roomBelow < 90 && visibleTop > 90;
+    const openMenuUpward = barAbove ? visibleTop > 200 : roomBelow < 200 && visibleTop > 200;
+    const barMaxWidth = Math.max(240, Math.min(700, sc.clientWidth - 12));
+    const barLeft = Math.max(4, Math.min(frame.left, sc.clientWidth - barMaxWidth - 4));
+    const tool = "p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer";
+    const chip = "flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] font-bold cursor-pointer";
+    const menuStyle = {
+      bottom: openMenuUpward ? "100%" : "auto",
+      top: openMenuUpward ? "auto" : "100%",
+      marginBottom: openMenuUpward ? "4px" : "0px",
+      marginTop: openMenuUpward ? "0px" : "4px",
     };
 
-    const top = (screenRect.top - workspaceRect.top) / scale;
-    const left = (screenRect.left - workspaceRect.left) / scale;
+    // A length box: typed freely, applied on Enter or when it loses focus.
+    const lengthInput = (value, onCommit, label, width = "w-11") => (
+      <input
+        key={`${label}-${value}-${lengthUnit}`}
+        type="number"
+        step={lengthUnit === "cm" ? "0.05" : "1"}
+        defaultValue={value}
+        aria-label={label}
+        title={`${label} (${lengthUnit}). Enter to apply.`}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            e.currentTarget.value = value;
+            e.currentTarget.blur();
+          }
+        }}
+        onBlur={(e) => {
+          if (e.target.value !== String(value)) onCommit(e.target.value);
+        }}
+        className={`${width} px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none`}
+      />
+    );
 
-    const spaceAbove = top;
-    const spaceBelow = workspace.offsetHeight - (top + targetRect.height);
-
-    const isActionBarAbove = spaceBelow < 45 && spaceAbove > 45;
-    const openMenuUpward = isActionBarAbove
-      ? spaceAbove > 180
-      : spaceBelow < 180 && spaceAbove > 180;
-
-    const widthCm = (activeElement.width / PX_PER_CM).toFixed(2);
-    const heightCm = (activeElement.height / PX_PER_CM).toFixed(2);
+    const handles = [
+      ["top-left", "-top-1.5 -left-1.5 cursor-nwse-resize"],
+      ["top-right", "-top-1.5 -right-1.5 cursor-nesw-resize"],
+      ["bottom-left", "-bottom-1.5 -left-1.5 cursor-nesw-resize"],
+      ["bottom-right", "-bottom-1.5 -right-1.5 cursor-nwse-resize"],
+      ...(frame.height >= 28
+        ? [
+            ["left", "top-1/2 -left-1.5 -translate-y-1/2 cursor-ew-resize"],
+            ["right", "top-1/2 -right-1.5 -translate-y-1/2 cursor-ew-resize"],
+          ]
+        : []),
+      ...(frame.width >= 48
+        ? [
+            ["top", "-top-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize"],
+            ["bottom", "-bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize"],
+          ]
+        : []),
+    ];
 
     return (
-      <div
-        data-floating-control="true"
-        style={{
-          position: "absolute",
-          top: `${Math.max(0, top)}px`,
-          left: `${Math.max(0, left)}px`,
-          width: `${targetRect.width}px`,
-          height: `${targetRect.height}px`,
-          pointerEvents: "none",
-          border: "2px dashed #2563EB",
-          zIndex: 40,
-        }}
-      >
-        {isGroup ? (
-          <div
-            style={{ top: top < 26 ? "4px" : "-26px", left: "2px" }}
-            className="absolute flex items-center gap-1 rounded border border-white/20 bg-[#1A1C23] px-2 py-0.5 text-[8.5px] font-bold text-white shadow-lg select-none"
-          >
-            <Group className="h-3 w-3 text-blue-400" />
-            Group: drag anywhere on it to move
-          </div>
-        ) : (
-          <div
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              top: top < 26 ? "4px" : "-26px",
-              left: "2px",
-            }}
-            className="absolute bg-[#1A1C23] text-white px-2 py-0.5 rounded text-[8.5px] font-mono-tech whitespace-nowrap shadow-lg pointer-events-auto flex items-center gap-1.5 border border-white/20 select-none"
-          >
-            <div className="flex items-center gap-0.5">
-              <span className="text-slate-400">W:</span>
-              <input
-                type="number"
-                step="0.05"
-                value={widthCm}
-                onChange={(e) => setDimensionsCm("width", e.target.value)}
-                className="w-11 px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none"
-              />
-              <span className="text-slate-400">cm</span>
-            </div>
-            <span className="text-slate-600">|</span>
-            <div className="flex items-center gap-0.5">
-              <span className="text-slate-400">H:</span>
-              <input
-                type="number"
-                step="0.05"
-                value={heightCm}
-                onChange={(e) => setDimensionsCm("height", e.target.value)}
-                className="w-11 px-1 py-0 bg-black/60 rounded border border-white/20 text-[8.5px] text-white outline-none"
-              />
-              <span className="text-slate-400">cm</span>
-            </div>
-            <span className="text-emerald-400 font-bold ml-1">({aspectRatioText})</span>
-          </div>
-        )}
-
+      <>
         <div
-          onMouseDown={startDragItem}
-          onClick={(e) => e.stopPropagation()}
+          data-floating-control="true"
           style={{
-            top: top < 16 ? "2px" : "-12px",
-            right: "2px",
+            position: "absolute",
+            ...frame,
+            pointerEvents: "none",
+            border: editing ? "2px solid #16A34A" : `2px ${isGroup ? "dashed" : "solid"} #2563EB`,
+            zIndex: 40,
           }}
-          className="absolute h-5 px-1.5 bg-[#2563EB] text-white rounded cursor-move pointer-events-auto flex items-center gap-1 shadow select-none"
-          title="Move: Drag to reposition anywhere"
         >
-          <Move className="w-2.5 h-2.5" />
-          <span className="text-[7.5px] font-bold uppercase">Move</span>
+          {editing && (
+            <span className="absolute -top-5 left-0 rounded bg-[#16A34A] px-1.5 py-0.5 text-[8px] font-bold text-white shadow">
+              Typing: Esc to finish
+            </span>
+          )}
+          {!editing &&
+            handles.map(([handle, place]) => (
+              <div
+                key={handle}
+                onMouseDown={(e) => startResizeItem(e, handle)}
+                onClick={(e) => e.stopPropagation()}
+                className={`absolute h-3 w-3 rounded-sm border-2 border-[#2563EB] bg-white pointer-events-auto ${place}`}
+                title={isGroup ? "Resize the group: its parts scale with it (Shift keeps proportions)" : "Resize (Shift keeps proportions)"}
+              />
+            ))}
         </div>
 
-        {/* A group sizes itself to its parts, so it has no resize corners. */}
-        {!isGroup && (
-          <>
-            <div
-              onMouseDown={(e) => startResizeItem(e, "top-left")}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize pointer-events-auto"
-            />
-            <div
-              onMouseDown={(e) => startResizeItem(e, "top-right")}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize pointer-events-auto"
-            />
-            <div
-              onMouseDown={(e) => startResizeItem(e, "bottom-left")}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize pointer-events-auto"
-            />
-            <div
-              onMouseDown={(e) => startResizeItem(e, "bottom-right")}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize pointer-events-auto"
-            />
-          </>
-        )}
-
-        {isGroup && (
-          <div
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              bottom: isActionBarAbove ? "auto" : "-38px",
-              top: isActionBarAbove ? "-38px" : "auto",
-              left: "0px",
-            }}
-            className="absolute bg-[#1A1C23] border border-white/20 rounded-lg p-1 flex items-center gap-1.5 shadow-2xl pointer-events-auto select-none"
-          >
-            <button
-              type="button"
-              onClick={() => alignElement("left")}
-              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-              title="Align left in its container (stays left at any width)"
-            >
-              <AlignStartVertical className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => alignElement("center-h")}
-              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-              title="Centre left to right in its container (stays centred at any width)"
-            >
-              <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => alignElement("right")}
-              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-              title="Align right in its container (stays right at any width)"
-            >
-              <AlignEndVertical className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => alignElement("center-v")}
-              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-              title={
-                currentPageId === BROWSER_PAGE_ID
-                  ? "Centre top to bottom in the browser safe zone"
-                  : "Centre top to bottom"
-              }
-            >
-              <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={ungroupActiveItem}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] font-bold cursor-pointer"
-              title="Ungroup: each part stays where it is (Ctrl+Shift+G)"
-            >
-              <Ungroup className="w-3 h-3 text-cyan-400" />
-              <span>Ungroup</span>
-            </button>
-            <button
-              type="button"
-              onClick={duplicateActiveItem}
-              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-              title="Duplicate (Ctrl+D)"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteActiveItem();
-              }}
-              className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 cursor-pointer"
-              title="Delete the group and everything in it (Delete key)"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {!isGroup && (
         <div
+          data-floating-control="true"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           style={{
-            bottom: isActionBarAbove ? "auto" : "-38px",
-            top: isActionBarAbove ? "-38px" : "auto",
-            left: "0px",
+            position: "absolute",
+            left: barLeft,
+            // Above: its bottom edge 8px over the item, however tall it wraps.
+            top: barAbove ? frame.top - 8 : frame.top + frame.height + 8,
+            transform: barAbove ? "translateY(-100%)" : "none",
+            maxWidth: barMaxWidth,
+            width: "max-content",
+            zIndex: 41,
           }}
-          className="absolute bg-[#1A1C23] border border-white/20 rounded-lg p-1 flex items-center gap-1.5 shadow-2xl pointer-events-auto select-none"
+          className="flex flex-wrap items-center gap-1 rounded-lg border border-white/20 bg-[#1A1C23] p-1 text-white shadow-2xl select-none"
         >
-          {/* Color */}
-          <div className="flex items-center gap-1 pr-1 border-r border-white/15">
-            {PRESET_COLORS.slice(0, 3).map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateActiveItemColor(color);
-                }}
-                style={{ backgroundColor: color }}
-                className="w-4 h-4 rounded-full border border-white/30 cursor-pointer hover:scale-110"
-                title={`Apply ${color}`}
+          {/* Place and size, on the page (as Power BI's General > Properties) */}
+          <div className="flex items-center gap-1 pr-1 border-r border-white/15 font-mono-tech text-[8.5px]">
+            <span className="text-slate-400">X</span>
+            {lengthInput(toUnit(r.left, lengthUnit), (v) => setItemBox("x", v), "X position")}
+            <span className="text-slate-400">Y</span>
+            {lengthInput(toUnit(r.top, lengthUnit), (v) => setItemBox("y", v), "Y position")}
+            <span className="text-slate-400">W</span>
+            {lengthInput(toUnit(r.width, lengthUnit), (v) => setItemBox("w", v), "Width")}
+            <span className="text-slate-400">H</span>
+            {lengthInput(toUnit(r.height, lengthUnit), (v) => setItemBox("h", v), "Height")}
+            <button
+              type="button"
+              onClick={() => changeLengthUnit(lengthUnit === "px" ? "cm" : "px")}
+              className="rounded border border-white/20 px-1 text-[8px] font-bold uppercase text-slate-300 hover:bg-white/10 hover:text-white cursor-pointer"
+              title={`In ${lengthUnit}. Click for ${lengthUnit === "px" ? "cm" : "px"}.`}
+            >
+              {lengthUnit}
+            </button>
+            <span className="text-emerald-400 font-bold">({aspectRatioText})</span>
+          </div>
+
+          {!isGroup && (
+            <div className="flex items-center gap-1 pr-1 border-r border-white/15">
+              {PRESET_COLORS.slice(0, 3).map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => updateActiveItemColor(color)}
+                  style={{ backgroundColor: color }}
+                  className="w-4 h-4 rounded-full border border-white/30 cursor-pointer hover:scale-110"
+                  title={`Fill ${color}`}
+                />
+              ))}
+              <input
+                type="color"
+                onChange={(e) => updateActiveItemColor(e.target.value)}
+                className="w-4 h-4 rounded cursor-pointer border-none bg-transparent"
+                title="Custom fill colour"
               />
-            ))}
-            <input
-              type="color"
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => updateActiveItemColor(e.target.value)}
-              className="w-4 h-4 rounded cursor-pointer border-none bg-transparent"
-              title="Custom HEX Color"
-            />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEyedropperForObject();
-              }}
-              className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-              title="Eyedropper Tool"
-            >
-              <Pipette className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              <button type="button" onClick={handleEyedropperForObject} className={tool} title="Pick a fill colour from the screen">
+                <Pipette className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
-          {/* Border */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowBorderMenu((prev) => !prev);
-                setShowShadowMenu(false);
-                setShowRoundedMenu(false);
-              }}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] font-bold cursor-pointer"
-              title="Border Styling"
-            >
-              <Square className="w-3 h-3 text-cyan-400" />
-              <span>Border</span>
-            </button>
-            {showBorderMenu && (
-              <div
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  bottom: openMenuUpward ? "100%" : "auto",
-                  top: openMenuUpward ? "auto" : "100%",
-                  marginBottom: openMenuUpward ? "4px" : "0px",
-                  marginTop: openMenuUpward ? "0px" : "4px",
+          {!isGroup && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBorderMenu((prev) => !prev);
+                  setShowShadowMenu(false);
+                  setShowRoundedMenu(false);
+                  setShowLayoutMenu(false);
                 }}
-                className="absolute left-0 w-36 flex flex-col gap-1 rounded-lg border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl z-50 pointer-events-auto"
+                className={chip}
+                title="Border"
               >
-                <span className="text-[7.5px] font-mono-tech uppercase text-slate-400">Width</span>
-                <div className="flex gap-1">
-                  {BORDER_WIDTHS.map((w) => (
-                    <button
-                      key={w}
-                      type="button"
-                      onClick={() => updateActiveItemBorder(undefined, w, undefined)}
-                      className="px-1.5 py-0.5 text-[8px] bg-white/10 rounded hover:bg-white/20 text-white cursor-pointer"
-                    >
-                      {w}
+                <Square className="w-3 h-3 text-cyan-400" />
+                <span>Border</span>
+              </button>
+              {showBorderMenu && (
+                <div style={menuStyle} className="absolute left-0 w-40 flex flex-col gap-1 rounded-lg border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl z-50">
+                  <span className="text-[7.5px] font-mono-tech uppercase text-slate-400">Width</span>
+                  <div className="flex gap-1">
+                    {BORDER_WIDTHS.map((w) => (
+                      <button key={w} type="button" onClick={() => updateActiveItemBorder(undefined, w, undefined)} className="px-1.5 py-0.5 text-[8px] bg-white/10 rounded hover:bg-white/20 text-white cursor-pointer">
+                        {w}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 mt-1">Style</span>
+                  <div className="flex gap-1">
+                    {BORDER_STYLES.map((st) => (
+                      <button key={st} type="button" onClick={() => updateActiveItemBorder(st, undefined, undefined)} className="px-1.5 py-0.5 text-[8px] bg-white/10 rounded hover:bg-white/20 text-white cursor-pointer">
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 mt-1">Colour</span>
+                  <div className="flex items-center gap-1">
+                    {PRESET_COLORS.slice(0, 6).map((c) => (
+                      <button key={c} type="button" onClick={() => updateActiveItemBorder(undefined, undefined, c)} style={{ backgroundColor: c }} className="h-3.5 w-3.5 rounded-full border border-white/30 hover:scale-110 cursor-pointer" title={`Border ${c}`} />
+                    ))}
+                    <input type="color" onChange={(e) => updateActiveItemBorder(undefined, undefined, e.target.value)} className="h-4 w-4 cursor-pointer rounded border-none bg-transparent" title="Custom border colour" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isGroup && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowShadowMenu((prev) => !prev);
+                  setShowRoundedMenu(false);
+                  setShowBorderMenu(false);
+                  setShowLayoutMenu(false);
+                }}
+                className={chip}
+                title="Shadow"
+              >
+                <Layers className="w-3 h-3 text-amber-400" />
+                <span>Shadow</span>
+              </button>
+              {showShadowMenu && (
+                <div style={menuStyle} className="absolute left-0 w-28 flex flex-col gap-0.5 rounded-lg border border-white/20 bg-[#1A1C23] p-1 text-left shadow-2xl z-50">
+                  {SHADOW_PRESETS.map((s) => (
+                    <button key={s.label} type="button" onClick={() => updateActiveItemShadow(s.value)} className="w-full text-left px-2 py-1 text-[9px] font-semibold text-slate-200 hover:bg-white/10 rounded cursor-pointer">
+                      {s.label}
                     </button>
                   ))}
                 </div>
-                <span className="text-[7.5px] font-mono-tech uppercase text-slate-400 mt-1">Style</span>
-                <div className="flex gap-1">
-                  {BORDER_STYLES.map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => updateActiveItemBorder(st, undefined, undefined)}
-                      className="px-1.5 py-0.5 text-[8px] bg-white/10 rounded hover:bg-white/20 text-white cursor-pointer"
-                    >
-                      {st}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          {/* Shadow */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowShadowMenu((prev) => !prev);
-                setShowRoundedMenu(false);
-                setShowBorderMenu(false);
-              }}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] font-bold cursor-pointer"
-              title="Shadow Options"
-            >
-              <Layers className="w-3 h-3 text-amber-400" />
-              <span>Shadow</span>
-            </button>
-            {showShadowMenu && (
-              <div
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  bottom: openMenuUpward ? "100%" : "auto",
-                  top: openMenuUpward ? "auto" : "100%",
-                  marginBottom: openMenuUpward ? "4px" : "0px",
-                  marginTop: openMenuUpward ? "0px" : "4px",
+          {!isGroup && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRoundedMenu((prev) => {
+                    // Opening: start the amount from the roundest corner it has,
+                    // so a half-round item keeps its size when you toggle corners.
+                    if (!prev) {
+                      const max = Math.max(...CORNERS.map(cornerRadiusOf), 0);
+                      if (max > 0) setCornerAmount(Math.min(50, max));
+                    }
+                    return !prev;
+                  });
+                  setShowShadowMenu(false);
+                  setShowBorderMenu(false);
+                  setShowLayoutMenu(false);
                 }}
-                className="absolute left-0 w-28 flex flex-col gap-0.5 rounded-lg border border-white/20 bg-[#1A1C23] p-1 text-left shadow-2xl z-50 pointer-events-auto vshield-canvas-scroll max-h-48 overflow-y-auto"
+                className={chip}
+                title="Corners"
               >
-                {SHADOW_PRESETS.map((s) => (
-                  <button
-                    key={s.label}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateActiveItemShadow(s.value);
-                    }}
-                    className="w-full text-left px-2 py-1 text-[9px] font-semibold text-slate-200 hover:bg-white/10 rounded cursor-pointer"
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Edge Roundedness */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowRoundedMenu((prev) => !prev);
-                setShowShadowMenu(false);
-                setShowBorderMenu(false);
-              }}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white text-[9px] font-bold cursor-pointer"
-              title="Edge Roundedness Adjuster"
-            >
-              <Square className="w-3 h-3 text-emerald-400" />
-              <span>Rounded</span>
-            </button>
-            {showRoundedMenu && (
-              <div
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  bottom: openMenuUpward ? "100%" : "auto",
-                  top: openMenuUpward ? "auto" : "100%",
-                  marginBottom: openMenuUpward ? "4px" : "0px",
-                  marginTop: openMenuUpward ? "0px" : "4px",
-                }}
-                className="absolute left-0 w-44 flex flex-col gap-1.5 rounded-lg border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl z-50 pointer-events-auto vshield-canvas-scroll max-h-56 overflow-y-auto"
-              >
-                <div className="flex items-center justify-between text-[8px] font-mono-tech text-slate-400 uppercase">
-                  <span>Edge Radius</span>
-                  <span className="text-white font-bold">{getCurrentRadius() === "9999px" ? "Pill" : getCurrentRadius()}</span>
-                </div>
-                <div className="flex items-center gap-1.5 py-0.5">
+                <Square className="w-3 h-3 text-emerald-400" />
+                <span>Corners</span>
+              </button>
+              {showRoundedMenu && (
+                <div style={menuStyle} className="absolute left-0 w-52 flex flex-col gap-2 rounded-lg border border-white/20 bg-[#1A1C23] p-2.5 text-left shadow-2xl z-50">
+                  <div className="flex items-center justify-between text-[8px] font-mono-tech text-slate-400 uppercase">
+                    <span>Corner radius</span>
+                    <span className="text-white font-bold">{cornerAmount}px</span>
+                  </div>
                   <input
                     type="range"
                     min="0"
                     max="50"
-                    value={getCurrentRadius() === "9999px" ? 50 : Math.min(50, parseInt(getCurrentRadius()) || 0)}
-                    onChange={(e) => updateActiveItemRoundedness(`${e.target.value}px`, false)}
+                    value={cornerAmount}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value) || 0;
+                      setCornerAmount(v);
+                      setAllCorners(v);
+                    }}
                     className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#2563EB]"
+                    title="How much a corner rounds when turned on"
                   />
-                </div>
-                <div className="grid grid-cols-3 gap-1 pt-1 border-t border-white/10">
-                  {ROUNDED_PRESETS.map((r) => (
-                    <button
-                      key={r.label}
-                      type="button"
-                      onClick={() => updateActiveItemRoundedness(r.value, false)}
-                      className="px-1 py-0.5 text-[8.5px] font-semibold text-center text-slate-200 hover:bg-white/10 rounded cursor-pointer"
-                    >
-                      {r.label}
+
+                  {/* Round each corner on its own (one, two or three corners). */}
+                  <div className="border-t border-white/10 pt-1.5">
+                    <span className="text-[7.5px] font-mono-tech font-bold uppercase text-slate-400">Round each corner</span>
+                    <div className="mx-auto mt-1 grid w-[72px] grid-cols-2 gap-1">
+                      {[["tl", "↖"], ["tr", "↗"], ["bl", "↙"], ["br", "↘"]].map(([corner, arrow]) => {
+                        const on = cornerRadiusOf(corner) > 0;
+                        return (
+                          <button
+                            key={corner}
+                            type="button"
+                            onClick={() => toggleCorner(corner)}
+                            title={`${on ? "Square" : "Round"} the ${corner === "tl" ? "top-left" : corner === "tr" ? "top-right" : corner === "bl" ? "bottom-left" : "bottom-right"} corner`}
+                            className={`flex h-7 items-center justify-center rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                              on ? "bg-[#2563EB] text-white" : "bg-white/10 text-slate-300 hover:bg-white/20"
+                            }`}
+                          >
+                            {arrow}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Round only one side's two corners (e.g. a top tab). */}
+                  <div className="border-t border-white/10 pt-1.5">
+                    <span className="text-[7.5px] font-mono-tech font-bold uppercase text-slate-400">Round one side only</span>
+                    <div className="mt-1 grid grid-cols-4 gap-1">
+                      {["top", "right", "bottom", "left"].map((side) => (
+                        <button
+                          key={side}
+                          type="button"
+                          onClick={() => roundOnlySide(side)}
+                          title={`Round only the two ${side} corners, square the rest`}
+                          className="rounded bg-white/10 px-1 py-1 text-[8px] font-bold capitalize text-slate-200 hover:bg-white/20 cursor-pointer"
+                        >
+                          {side}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1 border-t border-white/10 pt-1.5">
+                    <button type="button" onClick={() => setAllCorners(cornerAmount || 12)} className="rounded px-1 py-0.5 text-[8.5px] font-semibold text-slate-200 hover:bg-white/10 cursor-pointer">
+                      All
                     </button>
-                  ))}
+                    <button type="button" onClick={() => setAllCorners(0)} className="rounded px-1 py-0.5 text-[8.5px] font-semibold text-slate-200 hover:bg-white/10 cursor-pointer">
+                      None
+                    </button>
+                    <button type="button" onClick={() => updateActiveItemRoundedness("9999px", false)} className="rounded px-1 py-0.5 text-[8.5px] font-semibold text-slate-200 hover:bg-white/10 cursor-pointer">
+                      Pill
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
+
+          {!isGroup && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLayoutMenu((prev) => !prev);
+                  setShowShadowMenu(false);
+                  setShowRoundedMenu(false);
+                  setShowBorderMenu(false);
+                }}
+                className={chip}
+                title="Padding inside the item"
+              >
+                <SlidersHorizontal className="w-3 h-3 text-violet-300" />
+                <span>Padding</span>
+              </button>
+              {showLayoutMenu && (
+                <div style={menuStyle} className="absolute left-0 w-40 flex flex-col gap-1.5 rounded-lg border border-white/20 bg-[#1A1C23] p-2 text-left shadow-2xl z-50">
+                  <label className="flex items-center justify-between gap-2 text-[8.5px] text-slate-200">
+                    <span>Padding ({lengthUnit})</span>
+                    {lengthInput(toUnit(readItemPadding(el), lengthUnit), setItemPadding, "Padding", "w-14")}
+                  </label>
+                  <span className="text-[7.5px] leading-snug text-slate-500">Space between the item's edge and its content. Enter to apply.</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Align: in its page (or group) */}
+          <div className="flex items-center gap-0.5 pl-1 border-l border-white/15">
+            <button type="button" onClick={() => alignSelection("left")} className={tool} title="Align to the left edge">
+              <AlignStartVertical className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => alignSelection("center")} className={tool} title="Centre across">
+              <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => alignSelection("right")} className={tool} title="Align to the right edge">
+              <AlignEndVertical className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => alignSelection("top")} className={tool} title="Align to the top">
+              <AlignStartHorizontal className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => alignSelection("middle")}
+              className={tool}
+              title={pageKind() === "browser" && !isGroupEl(el.parentElement) ? "Centre top to bottom in the browser safe zone" : "Centre top to bottom"}
+            >
+              <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => alignSelection("bottom")} className={tool} title="Align to the bottom">
+              <AlignEndHorizontal className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Alignment */}
-          <button
-            type="button"
-            onClick={() => alignElement("left")}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Align left in its container (stays left at any width)"
-          >
-            <AlignStartVertical className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => alignElement("center-h")}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Centre left to right in its container (stays centred at any width)"
-          >
-            <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => alignElement("right")}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Align right in its container (stays right at any width)"
-          >
-            <AlignEndVertical className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => alignElement("center-v")}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Align Center Vertically"
-          >
-            <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
-          </button>
+          {/* Layers: one at a time, or all the way */}
+          <div className="flex items-center gap-0.5 pl-1 border-l border-white/15">
+            <button type="button" onClick={() => changeLayer("forward")} className={tool} title="Bring forward one layer (Ctrl+])">
+              <ArrowUp className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => changeLayer("backward")} className={tool} title="Send backward one layer (Ctrl+[)">
+              <ArrowDown className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => changeLayer("front")} className={tool} title="Bring to front (Ctrl+Shift+])">
+              <BringToFront className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => changeLayer("back")} className={tool} title="Send to back (Ctrl+Shift+[)">
+              <SendToBack className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-          {/* Layer Ordering */}
-          <button
-            type="button"
-            onClick={() => updateZIndex("front")}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Bring to Front"
-          >
-            <BringToFront className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => updateZIndex("back")}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Send to Back"
-          >
-            <SendToBack className="w-3.5 h-3.5" />
-          </button>
+          {picture && (
+            <div className="flex items-center gap-1 pl-1 border-l border-white/15">
+              <button
+                type="button"
+                onClick={() => startPictureReplace(picture.getAttribute("src") || "")}
+                className={chip}
+                title="Replace this picture with another file (PNG, JPEG, GIF or WebP, up to 2 MB)"
+              >
+                <ImageUp className="w-3 h-3 text-blue-300" />
+                <span>Replace</span>
+              </button>
+              <input
+                key={`alt-${itemKey(picture)}-${picture.getAttribute("alt") || ""}`}
+                type="text"
+                defaultValue={picture.getAttribute("alt") || ""}
+                placeholder="Alt text"
+                aria-label="Picture alt text"
+                title="Alt text: shown while the employee's mail app blocks pictures, and read by screen readers. Enter to apply."
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                onBlur={(e) => {
+                  if (e.target.value !== (picture.getAttribute("alt") || "")) setPictureAlt(e.target.value.trim());
+                }}
+                className="w-20 rounded border border-white/20 bg-black/60 px-1 py-0.5 text-[8.5px] text-white outline-none placeholder:text-slate-500"
+              />
+            </div>
+          )}
 
-          {/* Duplicate (Ctrl+D) */}
-          <button
-            type="button"
-            onClick={duplicateActiveItem}
-            className="p-1 hover:bg-white/10 rounded text-slate-300 hover:text-white cursor-pointer"
-            title="Duplicate (Ctrl+D)"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-
-          {/* On Click */}
-          <button
-            type="button"
-            onClick={openActionModal}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold cursor-pointer"
-            title="Configure On-Click action"
-          >
-            <Settings className="w-3 h-3 text-white" />
-            <span>On Click</span>
-          </button>
-
-          {/* Delete */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteActiveItem();
-            }}
-            className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 cursor-pointer"
-            title="Delete Element (Delete key)"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+          <div className="flex items-center gap-0.5 pl-1 border-l border-white/15">
+            {isGroup && (
+              <button type="button" onClick={() => ungroupSelection(el)} className={chip} title="Ungroup: each part keeps its place and layer (Ctrl+Shift+G)">
+                <Ungroup className="w-3 h-3 text-cyan-400" />
+                <span>Ungroup</span>
+              </button>
+            )}
+            {!isGroup && hasText(el) && !editing && (
+              <button type="button" onClick={() => startEditing(el, { selectAll: false })} className={chip} title="Type in this item (double-click, Enter or F2)">
+                <Type className="w-3 h-3 text-slate-300" />
+                <span>Edit text</span>
+              </button>
+            )}
+            {canHaveAction(el) && (
+              <button
+                type="button"
+                onClick={openActionModal}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-white text-[9px] font-bold cursor-pointer ${
+                  ["training", "landing", "page"].includes(el.getAttribute("data-action"))
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+                title={
+                  currentPageId === BROWSER_PAGE_ID
+                    ? "What happens when the employee clicks this button (No action, or Mark compromised)"
+                    : "What happens when the employee clicks it"
+                }
+              >
+                <Settings className="w-3 h-3 text-white" />
+                <span>On Click</span>
+              </button>
+            )}
+            <button type="button" onClick={duplicateActiveItem} className={tool} title="Duplicate (Ctrl+D)">
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={deleteActiveItem}
+              className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 cursor-pointer"
+              title={isGroup ? "Delete the group and its parts (Delete key)" : "Delete (Delete key)"}
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
         </div>
-        )}
-      </div>
+      </>
     );
   };
 
@@ -4917,38 +6147,71 @@ const EmailBodyRichTextEditor = ({
 
           {currentPageId === BROWSER_PAGE_ID ? (
             <div className="flex flex-col gap-2 text-xs">
-              <div className="flex items-start gap-2 p-2.5 rounded-lg border border-amber-400/30 bg-amber-500/10">
-                <ShieldAlert className="w-4 h-4 text-amber-300 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-slate-400">
+                Choose what this button does when the employee clicks it. Only the real submit
+                button (Next, Submit, Confirm...) should mark them compromised.
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/10 hover:bg-white/5">
+                <input
+                  type="radio"
+                  name="elemAction"
+                  checked={actionConfigModal.actionType !== "training"}
+                  onChange={() => setActionConfigModal((prev) => ({ ...prev, actionType: "none" }))}
+                  className="text-red-600"
+                />
                 <div>
-                  <span className="font-bold block">Mark compromised, then the landing page and My Training</span>
+                  <span className="font-bold block">No action</span>
+                  <span className="text-[10px] text-slate-400">
+                    Clicking does nothing. Use this for every element except the submit button.
+                  </span>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-amber-400/30 bg-amber-500/10">
+                <input
+                  type="radio"
+                  name="elemAction"
+                  checked={actionConfigModal.actionType === "training"}
+                  onChange={() => setActionConfigModal((prev) => ({ ...prev, actionType: "training" }))}
+                  className="mt-0.5 text-red-600"
+                />
+                <div>
+                  <span className="font-bold flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-300" />
+                    Mark compromised, then the landing page and My Training
+                  </span>
                   <span className="text-[10px] text-slate-300 block mt-0.5">
-                    Every button and link on the browser page does this. The employee is marked
-                    compromised, sees the campaign's landing page (Oops), and goes on to My Training.
+                    The employee is marked compromised, sees the campaign's landing page (Oops),
+                    and goes on to My Training. Link: <code>{COMPROMISE_LINK}</code>
                   </span>
                   <span className="text-[10px] text-slate-400 block mt-1">
                     Nothing typed on this page is ever sent or stored.
                   </span>
                 </div>
-              </div>
+              </label>
             </div>
           ) : (
             <div className="flex flex-col gap-2 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/10 hover:bg-white/5">
-                <input
-                  type="radio"
-                  name="elemAction"
-                  checked={actionConfigModal.actionType === "landing"}
-                  onChange={() => setActionConfigModal((prev) => ({ ...prev, actionType: "landing" }))}
-                  className="text-red-600"
-                />
-                <div>
-                  <span className="font-bold block">Attach Landing Page (Oops Page)</span>
-                  <span className="text-[10px] text-slate-400">
-                    Records the click (phished), then opens the campaign's landing page (Oops), chosen in
-                    Attach Outcomes. Link: <code>{PHISH_LINK}</code>
-                  </span>
-                </div>
-              </label>
+              {/* A browser page already exists: this element must open it, or
+                  the browser page would never be shown. So the landing-page
+                  option is hidden until the browser page is deleted. */}
+              {!hasBrowserPage && (
+                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/10 hover:bg-white/5">
+                  <input
+                    type="radio"
+                    name="elemAction"
+                    checked={actionConfigModal.actionType === "landing"}
+                    onChange={() => setActionConfigModal((prev) => ({ ...prev, actionType: "landing" }))}
+                    className="text-red-600"
+                  />
+                  <div>
+                    <span className="font-bold block">Attach Landing Page (Oops Page)</span>
+                    <span className="text-[10px] text-slate-400">
+                      Records the click (phished), then opens the campaign's landing page (Oops), chosen in
+                      Attach Outcomes. Link: <code>{PHISH_LINK}</code>
+                    </span>
+                  </div>
+                </label>
+              )}
 
               {supportsBrowserPage && (
               <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/10 hover:bg-white/5">
@@ -4960,7 +6223,9 @@ const EmailBodyRichTextEditor = ({
                   className="text-red-600"
                 />
                 <div className="flex-1">
-                  <span className="font-bold block">Add one more page for compromised part</span>
+                  <span className="font-bold block">
+                    {hasBrowserPage ? "Open the browser page (page 2)" : "Add one more page for compromised part"}
+                  </span>
                   <span className="text-[10px] text-slate-400">
                     Records the click, then opens a fake page (e.g. a sign-in form) in the employee's
                     browser. Submitting it marks them compromised.
@@ -4968,6 +6233,13 @@ const EmailBodyRichTextEditor = ({
                   </span>
                 </div>
               </label>
+              )}
+
+              {hasBrowserPage && (
+                <p className="text-[10px] leading-snug text-slate-400 px-0.5">
+                  A browser page exists, so this element must open it. To use a landing page instead,
+                  delete the browser page first.
+                </p>
               )}
             </div>
           )}
@@ -5013,8 +6285,8 @@ const EmailBodyRichTextEditor = ({
                   Design the browser page (page 2)
                 </h3>
                 <p className="text-[10px] text-slate-400 normal-case">
-                  It opens in the employee's browser from an email element. Any button or link on it marks
-                  them compromised, then shows the landing page. Nothing typed is sent or stored.
+                  It opens in the employee's browser from an email element. Set its submit button's On-Click to
+                  "Mark compromised"; that marks them compromised and shows the landing page. Nothing typed is sent or stored.
                 </p>
               </div>
             </div>
@@ -5140,7 +6412,7 @@ const EmailBodyRichTextEditor = ({
         className={`
           w-full rounded-2xl border border-[#202127] dark:border-white/10 bg-[#202127] dark:bg-white
           shadow-xs flex flex-col relative z-20 overflow-visible
-          ${expanded ? "h-[calc(100vh-80px)]" : "h-[220px]"}
+          ${expanded ? "h-[calc(100vh-80px)]" : "h-[220px] max-h-[220px]"}
         `}
       >
         {renderToolbar()}
@@ -5160,36 +6432,23 @@ const EmailBodyRichTextEditor = ({
           </div>
         )}
 
-        <div className="flex min-h-0 w-full flex-1">
+        {/* Fixed by the frame: a long design scrolls inside, never stretches it. */}
+        <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         <div
           ref={workspaceRef}
-          onMouseDown={handleWorkspaceMouseDown}
-          onClick={handleCanvasClick}
-          style={{ backgroundColor: canvasBgColor }}
           className={`
-            relative min-w-0 w-full flex-1 p-2
+            relative min-h-0 min-w-0 w-full flex-1
             ${showItemsPane && !rawHtmlMode ? "rounded-bl-2xl" : "rounded-b-2xl"}
             border-t border-slate-200 dark:border-white/10
-            overflow-hidden transition-colors duration-200
+            overflow-hidden bg-[#E9EBEF] dark:bg-[#2A2C33]
             ${expanded ? "min-h-0" : ""}
           `}
         >
-          {showGridlines && (
-            <div
-              style={{
-                backgroundImage: `linear-gradient(to right, rgba(100, 116, 139, 0.12) 1px, transparent 1px),
-                                  linear-gradient(to bottom, rgba(100, 116, 139, 0.12) 1px, transparent 1px)`,
-                backgroundSize: "20px 20px",
-              }}
-              className="pointer-events-none absolute inset-0 z-10"
-            />
-          )}
-
-          {renderFloatingObjectControls()}
           {renderFloatingTextSelectionColorBar()}
+          {renderShortcuts()}
 
-          <div className="w-full h-full overflow-y-auto vshield-canvas-scroll relative z-0">
-            {rawHtmlMode ? (
+          {rawHtmlMode ? (
+            <div className="absolute inset-0 overflow-y-auto vshield-canvas-scroll z-0 bg-white">
               <HtmlCodeEditor
                 value={rawHtmlCode}
                 disabled={disabled}
@@ -5202,134 +6461,184 @@ const EmailBodyRichTextEditor = ({
                 }}
                 placeholder="Write email HTML code here..."
               />
-            ) : (
-              <>
-                {editorIsEmpty && (
-                  <div className="pointer-events-none absolute left-4 top-4 z-10 text-xs text-slate-400">
-                    {currentPageId === BROWSER_PAGE_ID
-                      ? "Design the browser page: pick a sign-in or 2FA screen from Templates, or build one. Every button marks the employee compromised."
-                      : placeholder}
-                  </div>
-                )}
-
+            </div>
+          ) : (
+            // The page at its real width, scaled to fit: the canvas never
+            // scrolls sideways, only down. Frames and toolbars are drawn
+            // over it at full size.
+            <div
+              ref={scrollerRef}
+              tabIndex={-1}
+              onMouseDown={handleWorkspaceMouseDown}
+              onClick={handleCanvasClick}
+              onDoubleClick={handleCanvasDoubleClick}
+              onPaste={handlePaste}
+              onScroll={() => setDragFrame((n) => n + 1)}
+              className="vshield-canvas-scroll absolute inset-0 z-0 overflow-y-auto overflow-x-hidden outline-none"
+            >
+              <div
+                style={{
+                  width: `${pageWidthPx * canvasFit}px`,
+                  height: `${pageHeightPx * canvasFit}px`,
+                  margin: `${CANVAS_GUTTER_PX}px auto`,
+                  position: "relative",
+                }}
+              >
                 <div
-                  ref={editorRef}
-                  contentEditable={!disabled}
-                  suppressContentEditableWarning
-                  role="textbox"
-                  aria-label={
-                    currentPageId === BROWSER_PAGE_ID
-                      ? "Browser page rich text editor"
-                      : "Email body rich text editor"
-                  }
-                  aria-multiline="true"
-                  spellCheck
-                  onInput={handleEditorInput}
-                  onKeyUp={saveSelection}
-                  onMouseUp={saveSelection}
-                  onFocus={saveSelection}
-                  onBlur={handleEditorBlur}
-                  onPaste={handlePaste}
-                  style={{
-                    backgroundColor: canvasBgColor,
-                    // Real widths: content keeps at least the reading width
-                    // (plus this p-2 padding), and the canvas scrolls sideways.
-                    minWidth: `${CANVAS_MIN_CONTENT_WIDTH + 16}px`,
-                    ...CANVAS_TEXT_STYLE,
-                  }}
-                  className={`
-                    vshield-editor-canvas
-                    w-full h-full outline-none
-                    text-[#242424] dark:text-slate-100 p-2
-                    [&_a]:text-blue-600 [&_a]:underline
-                    [&_blockquote]:mx-10 [&_blockquote]:my-[1em]
-                    [&_h1]:my-[0.67em] [&_h1]:text-[2em] [&_h1]:font-bold
-                    [&_h2]:my-[0.83em] [&_h2]:text-[1.5em] [&_h2]:font-bold
-                    [&_h3]:my-[1em] [&_h3]:text-[1.17em] [&_h3]:font-bold
-                    [&_p]:my-[1em]
-                    [&_ul]:my-[1em] [&_ul]:list-disc [&_ul]:pl-10
-                    [&_ol]:my-[1em] [&_ol]:list-decimal [&_ol]:pl-10
-                    [&_img]:inline [&_img]:align-baseline
-                    ${disabled ? "cursor-not-allowed bg-slate-100 opacity-70" : "cursor-text"}
-                  `}
-                />
-
-                {/* Missing pictures: a light dashed outline where each one is, with an
-                    Upload button (never saved: outside the editable canvas) */}
-                {pictureIssues.marks.map((m) => (
-                  <div
-                    key={m.key}
-                    data-floating-control="true"
-                    style={{
-                      position: "absolute",
-                      left: m.left,
-                      top: m.top,
-                      width: m.width,
-                      height: m.height,
-                      zIndex: 6,
-                      pointerEvents: "none",
-                    }}
-                    className="flex flex-col items-center justify-center gap-1 rounded-md border-[1.5px] border-dashed border-slate-400/80 bg-slate-100/40 dark:bg-white/5"
-                  >
-                    <button
-                      type="button"
-                      disabled={pictureBusy === m.src}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => startPictureReplace(m.src)}
-                      title={`Upload the picture for ${m.src.length > 60 ? `${m.src.slice(0, 57)}...` : m.src}`}
-                      style={{ pointerEvents: "auto" }}
-                      className="flex items-center gap-1 rounded-md border border-slate-300 bg-slate-200 px-2 py-1 text-[9.5px] font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 cursor-pointer"
-                    >
-                      <Upload className="h-3 w-3" />
-                      {pictureBusy === m.src ? "Uploading..." : "Upload picture"}
-                    </button>
-                    {m.height >= 80 && (
-                      <span className="max-w-[90%] truncate text-[8.5px] font-medium text-slate-500">
-                        {m.kind === "background" ? "Background picture missing" : "Picture missing"}
-                      </span>
-                    )}
-                  </div>
-                ))}
-
-                {renderGroupingOverlays()}
-
-                {/* Browser safe-zone guide: where the employee has to start scrolling (never saved) */}
-                {currentPageId === BROWSER_PAGE_ID && (
-                <div
-                  data-floating-control="true"
-                  aria-hidden="true"
                   style={{
                     position: "absolute",
-                    top: `${BROWSER_SAFE_ZONE_PX}px`,
                     left: 0,
-                    right: 0,
-                    pointerEvents: "none",
-                    zIndex: 5,
+                    top: 0,
+                    width: `${pageWidthPx}px`,
+                    transform: `scale(${canvasFit})`,
+                    transformOrigin: "0 0",
                   }}
-                  className="flex items-center select-none"
+                  className="shadow-[0_1px_4px_rgba(15,23,42,0.18)]"
                 >
                   <div
-                    className={`w-full border-t-2 border-dashed ${
-                      safeZoneOverflow ? "border-amber-500/90" : "border-emerald-500/80"
-                    }`}
+                    ref={editorRef}
+                    role="application"
+                    aria-label={
+                      currentPageId === BROWSER_PAGE_ID ? "Browser page canvas" : "Email canvas"
+                    }
+                    onInput={handleEditorInput}
+                    onKeyUp={saveSelection}
+                    onMouseUp={saveSelection}
+                    onBlur={handleEditorBlur}
+                    // Behind the page, what its preview shows behind it.
+                    style={{
+                      ...CANVAS_TEXT_STYLE,
+                      color: "#242424",
+                      backgroundColor: currentPageId === BROWSER_PAGE_ID ? "#f3f4f6" : "#FFFFFF",
+                    }}
+                    className={`
+                      vshield-editor-canvas relative outline-none
+                      [&_a]:text-blue-600 [&_a]:underline
+                      [&_blockquote]:mx-10 [&_blockquote]:my-[1em]
+                      [&_h1]:my-[0.67em] [&_h1]:text-[2em] [&_h1]:font-bold
+                      [&_h2]:my-[0.83em] [&_h2]:text-[1.5em] [&_h2]:font-bold
+                      [&_h3]:my-[1em] [&_h3]:text-[1.17em] [&_h3]:font-bold
+                      [&_p]:my-[1em]
+                      [&_ul]:my-[1em] [&_ul]:list-disc [&_ul]:pl-10
+                      [&_ol]:my-[1em] [&_ol]:list-decimal [&_ol]:pl-10
+                      [&_img]:inline [&_img]:align-baseline
+                      ${disabled ? "cursor-not-allowed opacity-70" : ""}
+                    `}
                   />
-                  <span
-                    className={`absolute right-3 -top-2.5 whitespace-nowrap rounded px-2 py-0.5 font-mono-tech text-[8.5px] font-bold uppercase tracking-wider text-white shadow-xs ${
-                      safeZoneOverflow ? "bg-amber-500" : "bg-emerald-600/95"
-                    }`}
-                  >
-                    {safeZoneOverflow
-                      ? "Browser safe zone: content below needs scrolling"
-                      : "Browser safe zone"}{" "}
-                    ({BROWSER_SAFE_ZONE_PX}px)
-                  </span>
+
+                  {/* The page's bottom edge: drag down for more room (never saved). */}
+                  {!disabled && (
+                    <div
+                      data-floating-control="true"
+                      onMouseDown={startPageHeightDrag}
+                      title="Drag to make the page taller or shorter"
+                      style={{ position: "absolute", left: 0, top: pageHeightPx - 4, width: pageWidthPx, height: 10, zIndex: 9997 }}
+                      className="group flex cursor-ns-resize items-center justify-center"
+                    >
+                      <span
+                        className="h-1.5 rounded-full bg-slate-400/70 group-hover:bg-[#2563EB]"
+                        style={{ width: `${Math.min(80 / canvasFit, 160)}px` }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Snap guides, in page px (never saved). */}
+                  {snapGuide?.x != null && (
+                    <div
+                      aria-hidden="true"
+                      style={{ position: "absolute", left: snapGuide.x, top: 0, height: pageHeightPx, pointerEvents: "none", zIndex: 9999 }}
+                      className="w-0 border-l border-dashed border-fuchsia-500"
+                    />
+                  )}
+                  {snapGuide?.y != null && (
+                    <div
+                      aria-hidden="true"
+                      style={{ position: "absolute", top: snapGuide.y, left: 0, width: pageWidthPx, pointerEvents: "none", zIndex: 9999 }}
+                      className="h-0 border-t border-dashed border-fuchsia-500"
+                    />
+                  )}
+
+                  {/* Browser safe-zone guide: where the employee has to start scrolling (never saved) */}
+                  {currentPageId === BROWSER_PAGE_ID && (
+                    <div
+                      aria-hidden="true"
+                      style={{ position: "absolute", top: `${BROWSER_SAFE_ZONE_PX}px`, left: 0, right: 0, pointerEvents: "none", zIndex: 9998 }}
+                      className="flex items-center select-none"
+                    >
+                      <div
+                        className={`w-full border-t-2 border-dashed ${
+                          safeZoneOverflow ? "border-amber-500/90" : "border-emerald-500/80"
+                        }`}
+                      />
+                      <span
+                        className={`absolute right-3 -top-3 whitespace-nowrap rounded px-2 py-0.5 font-mono-tech text-[11px] font-bold uppercase tracking-wider text-white shadow-xs ${
+                          safeZoneOverflow ? "bg-amber-500" : "bg-emerald-600/95"
+                        }`}
+                      >
+                        {safeZoneOverflow
+                          ? "Browser safe zone: content below needs scrolling"
+                          : "Browser safe zone"}{" "}
+                        ({BROWSER_SAFE_ZONE_PX}px)
+                      </span>
+                    </div>
+                  )}
                 </div>
-                )}
-              </>
-            )}
-          </div>
+              </div>
+
+              {editorIsEmpty && (
+                <div
+                  className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 text-center text-xs text-slate-400"
+                  style={{ top: `${CANVAS_GUTTER_PX + 24}px`, maxWidth: `${Math.max(200, pageWidthPx * canvasFit - 40)}px` }}
+                >
+                  {currentPageId === BROWSER_PAGE_ID
+                    ? "Design the browser page: pick a sign-in or 2FA screen from Templates, or build one. Set the submit button\u2019s On-Click to mark them compromised."
+                    : placeholder}
+                </div>
+              )}
+
+              {/* Missing pictures: a light dashed outline where each one is, with an
+                  Upload button (never saved: outside the page) */}
+              {pictureIssues.marks.map((m) => (
+                <div
+                  key={m.key}
+                  data-floating-control="true"
+                  style={{
+                    position: "absolute",
+                    left: m.left,
+                    top: m.top,
+                    width: m.width,
+                    height: m.height,
+                    zIndex: 6,
+                    pointerEvents: "none",
+                  }}
+                  className="flex flex-col items-center justify-center gap-1 rounded-md border-[1.5px] border-dashed border-slate-400/80 bg-slate-100/40 dark:bg-white/5"
+                >
+                  <button
+                    type="button"
+                    disabled={pictureBusy === m.src}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => startPictureReplace(m.src)}
+                    title={`Upload the picture for ${m.src.length > 60 ? `${m.src.slice(0, 57)}...` : m.src}`}
+                    style={{ pointerEvents: "auto" }}
+                    className="flex items-center gap-1 rounded-md border border-slate-300 bg-slate-200 px-2 py-1 text-[9.5px] font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+                  >
+                    <Upload className="h-3 w-3" />
+                    {pictureBusy === m.src ? "Uploading..." : "Upload picture"}
+                  </button>
+                  {m.height >= 80 && (
+                    <span className="max-w-[90%] truncate text-[8.5px] font-medium text-slate-500">
+                      {m.kind === "background" ? "Background picture missing" : "Picture missing"}
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              {renderGroupingOverlays()}
+              {renderFloatingObjectControls()}
+            </div>
+          )}
         </div>
-        {renderItemsPane()}
+        {renderSelectionPane()}
         </div>
       </div>
     );
@@ -5344,6 +6653,24 @@ const EmailBodyRichTextEditor = ({
           min-width: 140px;
           min-height: 64px;
         }
+        /* The canvas: an outline on the item under the mouse, a text cursor
+           in the item being typed in, links that don't look clickable (never saved). */
+        .vshield-editor-canvas .vshield-canvas-item { cursor: default; }
+        .vshield-editor-canvas .vshield-page > .vshield-canvas-item:hover,
+        .vshield-editor-canvas .vshield-group-item > .vshield-canvas-item:hover {
+          outline: 1px dashed rgba(37, 99, 235, 0.55);
+          outline-offset: 0px;
+        }
+        .vshield-editor-canvas [contenteditable="true"] { cursor: text; outline: none !important; }
+        .vshield-editor-canvas .vshield-fx {
+          background-color: rgba(153, 0, 153, 0.12);
+          color: #990099;
+          font-weight: bold;
+          padding: 1px 5px;
+          border-radius: 4px;
+          font-family: monospace;
+        }
+        .vshield-editor-canvas a { cursor: default; }
         .vshield-canvas-scroll {
           scrollbar-width: thin;
           scrollbar-color: #cbd5e1 transparent;

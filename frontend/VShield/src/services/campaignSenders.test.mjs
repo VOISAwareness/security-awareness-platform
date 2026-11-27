@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { noVerifiedSender, senderChoices } from './campaignSenders.js';
+import { addedTime, noVerifiedSender, senderChoices, sortByAdded } from './campaignSenders.js';
 
 const rows = [
   { email: 'payroll@vodafone.com', verificationStatus: 'Pending' },
@@ -38,4 +38,22 @@ test('a saved sender not on the list is kept at the top', () => {
 test('nothing verified yet is noticed', () => {
   assert.ok(noVerifiedSender(senderChoices([{ email: 'a@x.com', verificationStatus: 'Pending' }], 'z@x.com')));
   assert.ok(noVerifiedSender(senderChoices([])));
+});
+
+test('addedTime reads both date spellings', () => {
+  assert.equal(addedTime('17th July 2026'), Date.parse('17 July 2026'));
+  assert.equal(addedTime('27 Nov 2026'), Date.parse('27 Nov 2026'));
+  assert.ok(Number.isNaN(addedTime('')));
+});
+
+test('sortByAdded orders by added date, pickable ones first, undated last', () => {
+  const c = senderChoices([
+    { email: 'old@x.com', verificationStatus: 'Verified', createdDate: '1st Jan 2026' },
+    { email: 'new@x.com', verificationStatus: 'Verified', createdDate: '27 Nov 2026' },
+    { email: 'nodate@x.com', verificationStatus: 'Verified' },
+    { email: 'pending@x.com', verificationStatus: 'Pending', createdDate: '30 Nov 2026' },
+  ]);
+  assert.deepEqual(sortByAdded(c, 'newest').map((x) => x.email), ['new@x.com', 'old@x.com', 'nodate@x.com', 'pending@x.com']);
+  assert.deepEqual(sortByAdded(c, 'oldest').map((x) => x.email), ['old@x.com', 'new@x.com', 'nodate@x.com', 'pending@x.com']);
+  assert.equal(sortByAdded(c, null), c);
 });

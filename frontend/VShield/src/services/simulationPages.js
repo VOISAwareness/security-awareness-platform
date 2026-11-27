@@ -47,20 +47,35 @@ export function emailOpensBrowserPage(html) {
   return BROWSER_RE.test(String(html || ''));
 }
 
-/** Can the person do anything on the browser page (a link, button or submit)? */
+// Words on a real action button: the only elements that take an On-Click on
+// the browser page (Next, Submit, Confirm, Sign in...). Matched on its text.
+export const ACTION_WORDS =
+  /\b(next|submit|confirm|continue|proceed|sign\s*in|signin|log\s*in|login|log\s*on|logon|verify|validate|authenticate|authori[sz]e|unlock|access|send|ok|okay|done|finish|register|activate|reset|update|save|go|enter)\b/i;
+
+/**
+ * Has the browser page a configured On-Click: a submit button wired to mark
+ * the employee compromised? (Nothing is wired automatically any more; the
+ * author sets it on the real button, so this is what a save needs.)
+ */
 export function browserPageHasAction(html) {
-  return /<a\b[^>]*\bhref\s*=|<button\b|<input\b[^>]*type\s*=\s*["']?(?:submit|button|image)/i.test(String(html || ''));
+  return /data-action\s*=\s*"training"|\{\{\s*compromiseLink\s*\}\}/i.test(String(html || ''));
 }
 
 /**
- * Page-2 HTML: its phishing links (from a template or an inserted button)
- * become the compromise action, which is the only action page 2 has.
+ * Page-2 HTML with nothing pre-wired. A template or an inserted button arrives
+ * with NO On-Click: every pre-set action and every phishing / compromise link
+ * is stripped to an inert '#', and links do nothing when clicked in the editor.
+ * The author then sets the On-Click on the real submit button (Next, Submit,
+ * Confirm...) through the modal, which is the only thing that marks compromise.
  */
 export function toBrowserPageHtml(html) {
   return String(html || '')
-    .replace(new RegExp(PHISH_RE.source + '(?:\\?next=browser)?', 'gi'), COMPROMISE_LINK)
-    .replace(/data-action\s*=\s*"(?:landing|page)"/gi, 'data-action="training"')
-    .replace(/\s+data-target-page\s*=\s*"[^"]*"/gi, '');
+    .replace(/\s+data-action\s*=\s*"(?:landing|page|training)"/gi, '')
+    .replace(/\s+data-url\s*=\s*"[^"]*"/gi, '')
+    .replace(/\s+data-target-page\s*=\s*"[^"]*"/gi, '')
+    .replace(new RegExp(PHISH_RE.source + '(?:\\?next=browser)?', 'gi'), '#')
+    .replace(/\{\{\s*compromiseLink\s*\}\}/gi, '#')
+    .replace(/<a\b(?![^>]*\bonclick\s*=)/gi, '<a onclick="return false;" ');
 }
 
 /** The email with every browser-page link turned back into a landing link. */
@@ -88,7 +103,7 @@ export function simulationProblem({ emailBody, browserPageHtml } = {}) {
     return 'An email element opens the browser page, but the browser page is empty. Design page 2 or change that element\'s On-Click action.';
   }
   if (hasBrowserPage && !browserPageHasAction(browserPageHtml)) {
-    return 'The browser page (page 2) needs a button or link for the employee to submit.';
+    return 'The browser page (page 2) has no On-Click yet. Select its submit button (Next, Submit, Confirm...) and set On-Click to "Mark compromised".';
   }
   if (hasBrowserPage && !emailOpensBrowserPage(emailBody)) {
     return 'The browser page (page 2) is never opened. Set an email element\'s On-Click action to "Add one more page for compromised part", or delete page 2.';
@@ -119,7 +134,7 @@ const PREVIEW_FIELDS = [
   [['{{userName}}', '{{USER_NAME}}', '{{UserName}}', '@UserName', '@userName'], 'name'],
   [['{{email}}', '{{userEmail}}', '@UserEmailID'], 'email'],
   [['{{department}}', '@UserDepartment'], 'department'],
-  [['{{country}}', '@UserCountry'], 'country'],
+  [['{{country}}', '{{location}}', '@UserCountry'], 'country'],
   [['{{managerName}}', '@ManagerName'], 'manager'],
   [['{{employeeId}}', '@EmployeeID'], 'employeeId'],
 ];
@@ -134,17 +149,55 @@ const escapeHtml = (text) =>
  */
 export function previewHtml(html, { recipient = PREVIEW_RECIPIENT, date = new Date() } = {}) {
   let out = String(html || '');
+  const values = recipient;
   for (const [placeholders, field] of PREVIEW_FIELDS) {
-    const value = escapeHtml(recipient[field] ?? '');
+    const value = escapeHtml(values[field] ?? '');
     for (const placeholder of placeholders) out = out.split(placeholder).join(value);
   }
   const today = escapeHtml(date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
   out = out.split('{{currentDate}}').join(today).split('@CurrentDate').join(today);
   return out
-    .replace(/\{\{\s*(?:phishLink|PHISH_LINK|phishingLink|trackingUrl|TRACKING_URL)\s*\}\}/g, PREVIEW_TRACKING_URL)
+    .replace(/\{\{\s*(?:phishLink|PHISH_LINK|phishingLink|trackingUrl|TRACKING_URL)\s*\}\}|@PhishLink\b/g, PREVIEW_TRACKING_URL)
     .replace(/\{\{\s*compromiseLink\s*\}\}/g, '#')
     .replace(/\s+contenteditable\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/cursor\s*:\s*move/gi, 'cursor:default');
+}
+
+// The fx a scenario's email template can carry (filled in later, when a
+// campaign made from it is sent).
+export const PERSONAL_FX = [
+  { label: '@UserName', desc: 'Target user full name' },
+  { label: '@UserEmailID', desc: 'Target user email address' },
+  { label: '@UserDepartment', desc: 'Target user department' },
+  { label: '@UserCountry', desc: 'Target user work location' },
+  { label: '@ManagerName', desc: 'Target direct reporting manager' },
+  { label: '@EmployeeID', desc: 'Corporate employee badge number' },
+  { label: '@CurrentDate', desc: 'Simulation execution timestamp' },
+];
+// A subject line is plain text: no links in it.
+export const SUBJECT_FX = PERSONAL_FX;
+
+const SUBJECT_FIELDS = [
+  [['{{userName}}', '{{USER_NAME}}', '{{UserName}}', '@UserName', '@userName'], (r) => r.name || ''],
+  [['{{email}}', '{{userEmail}}', '@UserEmailID'], (r) => r.email || ''],
+  [['{{department}}', '@UserDepartment'], (r) => r.department || ''],
+  [['{{country}}', '{{location}}', '@UserCountry'], (r) => r.country || ''],
+  [['{{managerName}}', '@ManagerName'], (r) => r.manager || ''],
+  [['{{employeeId}}', '@EmployeeID'], (r) => r.employeeId || ''],
+];
+const SUBJECT_BLANKED =
+  /\{\{\s*(?:phishLink|PHISH_LINK|phishingLink|trackingUrl|TRACKING_URL|compromiseLink)\s*\}\}|@PhishLink\b/g;
+
+/** A subject line as the recipient sees it (plain text, not HTML). */
+export function previewSubject(subject, { recipient = PREVIEW_RECIPIENT, date = new Date() } = {}) {
+  let out = String(subject || '');
+  for (const [placeholders, valueOf] of SUBJECT_FIELDS) {
+    const value = valueOf(recipient);
+    for (const placeholder of placeholders) out = out.split(placeholder).join(value);
+  }
+  const today = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  out = out.split('{{currentDate}}').join(today).split('@CurrentDate').join(today);
+  return out.replace(SUBJECT_BLANKED, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 /** A whole document around a preview, for a sandboxed frame. */

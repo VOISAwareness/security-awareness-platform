@@ -18,7 +18,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { PREVIEW_RECIPIENT, previewDocument } from "../../../../services/simulationPages";
+import { PREVIEW_RECIPIENT, previewDocument, previewSubject } from "../../../../services/simulationPages";
 
 // =========================================================================
 // Email preview in a desktop mail client's look, the way the employee meets
@@ -135,7 +135,8 @@ const EmailPreviewModal = ({
 
   const from = senderName?.trim() || senderEmail?.trim() || "Unknown sender";
   const fromEmail = senderEmail?.trim() || "";
-  const title = subject?.trim() || "(no subject)";
+  // Placeholders shown with sample values.
+  const title = previewSubject(subject) || "(no subject)";
   const now = new Date();
   const sentAt = now.toLocaleString("en-GB", {
     weekday: "short",

@@ -30,22 +30,26 @@ test('the email opens the browser page only through ?next=browser', () => {
   assert.equal(emailOpensBrowserPage(LANDING), false);
 });
 
-test('page 2 needs something to click', () => {
+test('page 2 needs a configured compromise action, not just something clickable', () => {
   assert.equal(browserPageHasAction(PAGE2), true);
-  assert.equal(browserPageHasAction('<button>Go</button>'), true);
-  assert.equal(browserPageHasAction('<input type="submit" value="Go">'), true);
+  assert.equal(browserPageHasAction('<div data-action="training"><button>Go</button></div>'), true);
+  // A bare button is not an action until the author configures it.
+  assert.equal(browserPageHasAction('<button>Go</button>'), false);
   assert.equal(browserPageHasAction('<input type="password"><p>No way out</p>'), false);
 });
 
-test('a template on page 2 has only the compromise action', () => {
+test('a template on page 2 arrives with nothing pre-wired', () => {
   const template =
     '<div data-action="landing" data-url="{{phishLink}}"><a href="{{phishLink}}">Sign in</a></div>' +
     '<a href="{{ phishLink }}?next=browser" data-action="page" data-target-page="2">x</a>';
   const out = toBrowserPageHtml(template);
-  assert.equal(out.includes('phishLink'), false);
-  assert.equal(out.match(/\{\{compromiseLink\}\}/g).length, 3);
-  assert.equal(out.includes('data-action="landing"') || out.includes('data-target-page'), false);
-  assert.equal(out.match(/data-action="training"/g).length, 2);
+  // No phishing/compromise link and no action is pre-selected.
+  assert.equal(/phishLink|compromiseLink/.test(out), false);
+  assert.equal(/data-action=/.test(out), false);
+  assert.equal(/data-target-page/.test(out), false);
+  assert.equal(browserPageHasAction(out), false);
+  // Links do nothing in the editor.
+  assert.equal(out.match(/onclick="return false;"/g).length, 2);
 });
 
 test('deleting page 2 turns its email links back into landing links', () => {
@@ -61,7 +65,7 @@ test('what stops a save', () => {
   assert.equal(simulationProblem({ emailBody: LANDING }), '');
   assert.equal(simulationProblem({ emailBody: LANDING, browserPageHtml: '<p><br></p>' }), '');
   assert.match(simulationProblem({ emailBody: BROWSER, browserPageHtml: '' }), /browser page is empty/);
-  assert.match(simulationProblem({ emailBody: BROWSER, browserPageHtml: '<p>Hi</p>' }), /needs a button/);
+  assert.match(simulationProblem({ emailBody: BROWSER, browserPageHtml: '<p>Hi</p>' }), /no On-Click yet/);
   assert.match(simulationProblem({ emailBody: LANDING, browserPageHtml: PAGE2 }), /never opened/);
   assert.equal(simulationProblem({ emailBody: LANDING + BROWSER, browserPageHtml: PAGE2 }), '');
 });
@@ -86,4 +90,14 @@ test('a picture employees could not see stops a save, on either page', () => {
     simulationProblem({ emailBody: LANDING + BROWSER, browserPageHtml: PAGE2 + '<img src="a.png"><div style="background:url(b.jpg)"></div>' }),
     /^2 pictures on the browser page/,
   );
+});
+
+test('previewSubject fills sample values and drops links', async () => {
+  const { previewSubject } = await import('./simulationPages.js');
+  const r = { name: 'Alex Morgan', email: 'alex@example.com' };
+  const d = new Date('2026-11-27T10:00:00Z');
+  assert.equal(previewSubject('@UserName, check @UserEmailID', { recipient: r, date: d }), 'Alex Morgan, check alex@example.com');
+  assert.equal(previewSubject('Hi @UserName (@UserDepartment) @PhishLink', { recipient: r, date: d }), 'Hi Alex Morgan ()');
+  assert.equal(previewSubject('@UserDepartment', { recipient: { department: 'Finance' }, date: d }), 'Finance');
+  assert.equal(previewSubject('Due @CurrentDate', { recipient: r, date: d }), 'Due 27 Nov 2026');
 });
