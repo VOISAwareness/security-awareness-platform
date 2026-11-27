@@ -7,6 +7,16 @@
 # touching DynamoDB. About 9,000 tiny runs a month per Lambda: inside the free
 # tier. (Provisioned concurrency would keep them started for sure, but is
 # billed by the hour.)
+#
+# One started copy answers one request at a time: when a page asks
+# reference-api or campaigns-api for several things at once, the others waited
+# for more copies to start (about half a second each). So those two are pinged
+# twice at once, each ping asking its copy to stay busy for holdMs: while one
+# copy is held, the other ping starts a second one, and two stay started.
+# Both pings are targets of the one rule, so they arrive together (a rule
+# takes at most five targets). insights-api keeps one copy: its built Insights
+# live in that copy's memory, and a second copy would have to build them
+# again. About 35,000 extra 0.3 s runs a month: inside the free tier.
 
 locals {
   keep_warm = {
@@ -14,6 +24,12 @@ locals {
     campaigns-api = aws_lambda_function.campaigns_api
     insights-api  = aws_lambda_function.insights_api
   }
+  # the Lambdas kept at two started copies, and how long each ping holds one
+  keep_warm_second_copy = {
+    reference-api = aws_lambda_function.reference_api
+    campaigns-api = aws_lambda_function.campaigns_api
+  }
+  keep_warm_hold_ms = 300
 }
 
 resource "aws_cloudwatch_event_rule" "keep_warm" {
@@ -27,7 +43,19 @@ resource "aws_cloudwatch_event_target" "keep_warm" {
   rule      = aws_cloudwatch_event_rule.keep_warm.name
   target_id = each.key
   arn       = each.value.arn
-  input     = jsonencode({ warm = true })
+  input = (contains(keys(local.keep_warm_second_copy), each.key)
+    ? jsonencode({ warm = true, holdMs = local.keep_warm_hold_ms })
+  : jsonencode({ warm = true }))
+}
+
+# The second ping of a Lambda kept at two copies (the permissions below
+# already allow this rule to invoke it).
+resource "aws_cloudwatch_event_target" "keep_warm_second_copy" {
+  for_each  = local.keep_warm_second_copy
+  rule      = aws_cloudwatch_event_rule.keep_warm.name
+  target_id = "${each.key}-2"
+  arn       = each.value.arn
+  input     = jsonencode({ warm = true, holdMs = local.keep_warm_hold_ms })
 }
 
 resource "aws_lambda_permission" "keep_warm" {
