@@ -199,6 +199,86 @@ def test_a_warm_ping_returns_at_once(mod):
     assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
 
 
+class Clock:
+    def __init__(self, now):
+        self.now = now
+
+    def time(self):
+        return self.now
+
+
+@pytest.fixture
+def clocked(mod, monkeypatch):
+    """A clean cache, a clock the test moves, and a count of table reads."""
+    clock, reads, real_load = Clock(1_000_000.0), [], mod.load
+    monkeypatch.setattr(mod, "time", clock)
+    monkeypatch.setattr(mod, "_cache", {"at": 0.0, "until": 0.0, "body": None, "board": None, "used": {}})
+    monkeypatch.setattr(mod, "load", lambda: reads.append(clock.now) or real_load())
+    return clock, reads
+
+
+INSIGHTS = {"routeKey": "GET /insights", "queryStringParameters": {"role": "Admin"}}
+BOARD = {"routeKey": "GET /insights/board", "queryStringParameters": {"role": "Admin", "viewer": "x@x.example"}}
+
+
+def test_a_warm_ping_reads_nothing_until_someone_has_looked(mod, clocked):
+    clock, reads = clocked
+    clock.now += 3600
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
+    assert reads == []
+
+
+def test_a_warm_ping_builds_again_ahead_of_time_while_people_are_looking(mod, clocked):
+    clock, reads = clocked
+    assert mod.lambda_handler(INSIGHTS, None)["statusCode"] == 200
+    assert len(reads) == 1
+    clock.now += 60  # too soon: still fresh
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True} and len(reads) == 1
+    clock.now += 240  # 300 s old: the ping builds it again, body included
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True, "refreshed": ["insights"]}
+    assert len(reads) == 2 and mod._cache["body"] and mod._cache["board"] is None  # only what was opened
+    # the next ping is a little late; a viewer meanwhile still gets the ready copy
+    clock.now += 320
+    assert mod.lambda_handler(INSIGHTS, None)["statusCode"] == 200 and len(reads) == 2
+    assert mod.lambda_handler({"warm": True}, None)["refreshed"] == ["insights"] and len(reads) == 3
+
+
+def test_the_board_is_refreshed_too_and_nothing_after_people_stop_looking(mod, clocked):
+    clock, reads = clocked
+    mod.lambda_handler(BOARD, None)
+    clock.now += 300
+    assert mod.lambda_handler({"warm": True}, None)["refreshed"] == ["board"] and mod._cache["board"]
+    for _ in range(6):  # 30 minutes of pings with no one opening it: refreshed, then left alone
+        clock.now += 300
+        mod.lambda_handler({"warm": True}, None)
+    reads_then = len(reads)
+    clock.now += 300
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True} and len(reads) == reads_then
+
+
+def test_without_pings_a_viewer_still_reads_again_once_it_runs_out(mod, clocked):
+    clock, reads = clocked
+    mod.lambda_handler(INSIGHTS, None)
+    clock.now += mod.CACHE_SECONDS - 1
+    mod.lambda_handler(INSIGHTS, None)
+    assert len(reads) == 1
+    clock.now += 2
+    mod.lambda_handler(INSIGHTS, None)
+    assert len(reads) == 2
+
+
+def test_a_failed_warm_refresh_keeps_the_copy_viewers_have(mod, clocked, monkeypatch):
+    clock, reads = clocked
+    body = mod.lambda_handler(INSIGHTS, None)["body"]
+    clock.now += 300
+
+    def broken():
+        raise RuntimeError("throttled")
+    monkeypatch.setattr(mod, "load", broken)
+    assert mod.lambda_handler({"warm": True}, None) == {"warm": True, "refreshed": []}
+    assert mod._cache["body"] == body
+
+
 def test_board_lists_recipients_who_are_not_users(mod):
     """A campaign sent to an address that isn't in the users table still ranks it."""
     sent_at = dt.datetime(2026, 11, 23, 9, tzinfo=dt.UTC)

@@ -34,6 +34,9 @@ Everything is read from recipients (one row per person per campaign),
 training-assignments, users and campaigns. At this size (about 15,000
 recipient rows) the whole payload takes a second or two to build, and a warm
 container keeps it for CACHE_SECONDS, so opening Insights again is instant.
+While Insights or the board has been opened in the last ACTIVE_SECONDS, the
+keep-warm ping (every 5 minutes) builds them again before they run out, so a
+viewer never waits for the rebuild; with no one looking, nothing is read.
 Insights is for the roles that have the Analytics page; the role is
 client-asserted until SSO (as everywhere else for now).
 """
@@ -68,6 +71,12 @@ log.setLevel(logging.INFO)
 INSIGHTS_ROLES = frozenset({"Admin", "Campaign Creator", "Campaign Manager", "GMT"})
 BOARD_ROLES = INSIGHTS_ROLES | {"Gamification Engine Manager"}
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "300"))
+# The keep-warm ping rebuilds what was opened in the last ACTIVE_SECONDS once it
+# is REFRESH_AFTER old, and what it builds is kept WARM_GRACE longer, so a ping
+# that arrives a little late still finds it (infra/terraform/keep_warm.tf).
+ACTIVE_SECONDS = int(os.environ.get("ACTIVE_SECONDS", "1800"))
+REFRESH_AFTER = max(CACHE_SECONDS - 120, 0)
+WARM_GRACE = 120
 STEP_DAYS = 30
 STEPS = 24  # two years of 30-day steps: a period, the one before, and the trends
 PEOPLE_MONTHS = 6  # the steps each person's level is kept for
@@ -81,7 +90,7 @@ SENT_STATUSES = frozenset({"SENDING", "SENT"})
 COHORT_KEYS = ("trained", "untrained", "trainedClicks", "untrainedClicks",
                "assigned", "voluntary", "assignedClicks", "voluntaryClicks")
 
-_cache = {"at": 0.0, "body": None, "board": None}
+_cache = {"at": 0.0, "until": 0.0, "body": None, "board": None, "used": {}}
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -601,14 +610,57 @@ def board_for(board, viewer):
     return {**board, "you": you, "people": [{k: v for k, v in p.items() if k != "email"} for p in board["people"]]}
 
 
+def reload_ctx(context, grace=0):
+    """Read the rows again; what was built from the old ones is dropped."""
+    started = time.time()
+    ctx = load()
+    now = time.time()
+    _cache.update(ctx=ctx, at=now, until=now + CACHE_SECONDS + grace, body=None, board=None)
+    log_step(context, "loaded", campaigns=len(ctx["items"]), people=len(ctx["people"]),
+             ms=round((now - started) * 1000))
+    return ctx
+
+
 def fresh_ctx(context, force=False):
-    """The loaded rows, worked out again once CACHE_SECONDS have passed."""
-    if force or not _cache.get("ctx") or time.time() - _cache["at"] > CACHE_SECONDS:
-        started = time.time()
-        _cache.update(ctx=load(), at=time.time(), body=None, board=None)
-        log_step(context, "loaded", campaigns=len(_cache["ctx"]["items"]), people=len(_cache["ctx"]["people"]),
-                 ms=round((time.time() - started) * 1000))
+    """The loaded rows, worked out again once they run out (CACHE_SECONDS)."""
+    if force or not _cache.get("ctx") or time.time() > _cache.get("until", 0):
+        return reload_ctx(context)
     return _cache["ctx"]
+
+
+def insights_body(context, ctx):
+    if not _cache["body"]:
+        data = insights_of(ctx)
+        _cache["body"] = json.dumps({"data": data}, cls=DecimalEncoder, separators=(",", ":"))
+        log_step(context, "built", people=len(data["people"]["rows"]), bytes=len(_cache["body"]))
+    return _cache["body"]
+
+
+def full_board(ctx):
+    if not _cache["board"]:
+        _cache["board"] = board_of(ctx, ledger_totals())
+    return _cache["board"]
+
+
+def warm_refresh(context):
+    """On the keep-warm ping: build again, ahead of time, what someone opened in
+    the last ACTIVE_SECONDS, once it is REFRESH_AFTER old. Nothing else is read."""
+    now = time.time()
+    wanted = sorted(k for k, at in _cache["used"].items() if now - at <= ACTIVE_SECONDS)
+    if not wanted or not _cache.get("ctx") or now - _cache["at"] < REFRESH_AFTER:
+        return {"warm": True}
+    try:
+        ctx = reload_ctx(context, grace=WARM_GRACE)
+        if "insights" in wanted:
+            insights_body(context, ctx)
+        if "board" in wanted:
+            full_board(ctx)
+    except Exception as e:  # noqa: BLE001 - a viewer's read builds it instead
+        log.exception(json.dumps({"step": "warm refresh failed", "requestId": getattr(context, "aws_request_id", None),
+                                  "error": type(e).__name__}))
+        return {"warm": True, "refreshed": []}
+    log_step(context, "warm refresh", refreshed=wanted)
+    return {"warm": True, "refreshed": wanted}
 
 
 # Insights and the board are the same for everyone with the same query (role,
@@ -627,9 +679,10 @@ def cache_headers(event, response):
 
 def lambda_handler(event, context):
     # the keep-warm schedule (infra/terraform/keep_warm.tf): staying started
-    # also keeps the built Insights in memory for the next viewer
+    # also keeps the built Insights in memory for the next viewer, and builds
+    # them again before they run out while people are looking (warm_refresh)
     if isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event:
-        return {"warm": True}
+        return warm_refresh(context)
     return cache_headers(event, handle(event, context))
 
 
@@ -641,18 +694,14 @@ def handle(event, context):
             if qs.get("role") not in INSIGHTS_ROLES:
                 return err(403, "Insights is for admins, campaign creators, campaign managers and GMT.")
             ctx = fresh_ctx(context, force=qs.get("fresh") == "1" and qs.get("role") == "Admin")
-            if not _cache["body"]:
-                data = insights_of(ctx)
-                _cache["body"] = json.dumps({"data": data}, cls=DecimalEncoder, separators=(",", ":"))
-                log_step(context, "built", people=len(data["people"]["rows"]), bytes=len(_cache["body"]))
-            return respond(200, _cache["body"])
+            _cache["used"]["insights"] = time.time()
+            return respond(200, insights_body(context, ctx))
         if route == "GET /insights/board":
             if qs.get("role") not in BOARD_ROLES:
                 return err(403, "The campaign boards and the Big Picture are not for this role.")
             ctx = fresh_ctx(context, force=qs.get("fresh") == "1" and qs.get("role") == "Admin")
-            if not _cache["board"]:
-                _cache["board"] = board_of(ctx, ledger_totals())
-            return respond(200, {"data": board_for(_cache["board"], qs.get("viewer"))})
+            _cache["used"]["board"] = time.time()
+            return respond(200, {"data": board_for(full_board(ctx), qs.get("viewer"))})
         return err(404, f"No route {route}")
     except Exception as e:  # noqa: BLE001 - one clear 500 with the request id
         log.exception(json.dumps({"step": "failed", "requestId": getattr(context, "aws_request_id", None),
