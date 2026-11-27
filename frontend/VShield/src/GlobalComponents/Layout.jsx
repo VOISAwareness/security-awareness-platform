@@ -28,7 +28,7 @@ import PageLoading from './PageLoading';
 import ErrorBoundary from './ErrorBoundary';
 import useIsWide from './useIsWide';
 import useLayoutScale from './useLayoutScale';
-import { preparePage, queuePage } from '../services/pagePrefetch';
+import { hoverPage, leavePage, preparePage, queuePage } from '../services/pagePrefetch';
 
 // The side menu's pages and the permission each needs (as the NavLinks below),
 // in menu order: loaded ahead of time for the pages this person can open.
@@ -236,7 +236,9 @@ const Layout = () => {
       >
         <Link
           to={to}
-          onPointerEnter={() => preparePage(to)}
+          // the page's reads start only if the pointer rests here (pagePrefetch.js)
+          onPointerEnter={() => hoverPage(to)}
+          onPointerLeave={() => leavePage(to)}
           onFocus={() => preparePage(to)}
           title={!isHovered ? label : undefined}
           style={{ height: `${VarNavPaneButtonHeightAdjuster}px` }}

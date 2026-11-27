@@ -1,6 +1,6 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { preparePage, queuePage, resetPagePrefetch } from './pagePrefetch.js';
+import { HEAVY_REST_MS, REST_MS, hoverPage, leavePage, preparePage, queuePage, resetPagePrefetch } from './pagePrefetch.js';
 
 // An idle callback the test runs by hand, one at a time.
 function idleWindow() {
@@ -68,4 +68,63 @@ test('code that fails to load is tried again next time', async () => {
   preparePage('/a', { code, reads: {} });
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(tries, 2);
+});
+
+// Timers the test fires by hand.
+function manualTimers() {
+  let now = 0;
+  const pending = new Map();
+  let id = 0;
+  return {
+    setTimeout: (fn, ms) => { pending.set(++id, { fn, at: now + ms }); return id; },
+    clearTimeout: (t) => pending.delete(t),
+    advance(ms) {
+      now += ms;
+      for (const [t, { fn, at }] of [...pending]) if (at <= now) { pending.delete(t); fn(); }
+    },
+  };
+}
+
+test('passing the pointer over several links starts no reads', () => {
+  const started = [];
+  const timers = manualTimers();
+  const reads = { '/a': () => [started.push('a')], '/b': () => [started.push('b')], '/c': () => [started.push('c')] };
+  const code = { '/a': async () => {}, '/b': async () => {}, '/c': async () => {} };
+  for (const path of ['/a', '/b', '/c']) {
+    hoverPage(path, { code, reads, timers, viewer: 'v', role: 'r' });
+    timers.advance(40); // on to the next link before REST_MS
+    leavePage(path);
+  }
+  timers.advance(5000);
+  assert.deepEqual(started, []);
+});
+
+test('resting on a link starts its reads once; leaving early cancels', () => {
+  const started = [];
+  const timers = manualTimers();
+  const reads = { '/a': () => [started.push('a')] };
+  const code = { '/a': async () => {} };
+  hoverPage('/a', { code, reads, timers, viewer: 'v', role: 'r' });
+  timers.advance(REST_MS - 1);
+  assert.deepEqual(started, []);
+  timers.advance(1);
+  assert.deepEqual(started, ['a']);
+  timers.advance(5000);
+  assert.deepEqual(started, ['a']);
+  // entering another link, then leaving this one, does not cancel the other
+  hoverPage('/a', { code, reads, timers, viewer: 'v', role: 'r' });
+  leavePage('/b');
+  timers.advance(REST_MS);
+  assert.deepEqual(started, ['a', 'a']);
+});
+
+test('the heaviest pages wait longer before reading', () => {
+  const started = [];
+  const timers = manualTimers();
+  const reads = { '/analytics': () => [started.push('insights')] };
+  hoverPage('/analytics', { code: {}, reads, timers, viewer: 'v', role: 'Admin' });
+  timers.advance(REST_MS);
+  assert.deepEqual(started, []);
+  timers.advance(HEAVY_REST_MS - REST_MS);
+  assert.deepEqual(started, ['insights']);
 });

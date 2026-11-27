@@ -7,10 +7,14 @@
  *   page at a time: the side menu queues each page this person can open, so
  *   by the time they click, its code is usually already here. Nothing is
  *   queued on a data-saver or 2G connection.
- * - `preparePage` is for a hover or focus on a menu link: it loads the page's
+ * - `preparePage` is for a keyboard focus on a menu link: it loads the page's
  *   code now and starts its main reads. Reads go through the app's read cache
  *   (services/queryCache.js) under the same paths the page itself asks for,
  *   so the page finds them there, or joins the request already on its way.
+ * - `hoverPage` is for the pointer: the code at once (it costs the API
+ *   nothing), the reads only once the pointer has rested on the link for
+ *   REST_MS (HEAVY_REST_MS for the heaviest reads). Moving across the menu
+ *   reads nothing: entering another link, or `leavePage`, cancels the wait.
  *
  * Failures are ignored here: the page reads (and reports) them itself.
  */
@@ -62,6 +66,13 @@ const pageReads = {
   ],
 };
 
+// How long the pointer rests on a link before its page's reads start, so
+// passing over the menu costs the API nothing; longer for the largest reads
+// (Insights, the Leaderboard's boards).
+export const REST_MS = 150;
+export const HEAVY_REST_MS = 400;
+const HEAVY_PAGES = new Set(['/analytics', '/leaderboard']);
+
 const loaded = new Set();
 const queue = [];
 let scheduled = false;
@@ -103,7 +114,7 @@ export function queuePage(path, { code = pageCode, win = globalThis.window, nav 
   whenIdle(win, next);
 }
 
-/** A hover or focus on a menu link: its code now, and its first reads. */
+/** A keyboard focus on a menu link: its code now, and its first reads. */
 export function preparePage(path, { code = pageCode, reads = pageReads, viewer = currentActor(), role = currentRole() } = {}) {
   loadCode(path, code);
   const start = reads[path];
@@ -115,9 +126,35 @@ export function preparePage(path, { code = pageCode, reads = pageReads, viewer =
   }
 }
 
+// The one link the pointer is resting on, waiting for its reads to start.
+let resting = null; // { path, timer, timers }
+
+/**
+ * The pointer entered a menu link: its code now, its reads once the pointer
+ * has rested there (a pointer is on one link at a time).
+ */
+export function hoverPage(path, { code = pageCode, timers = globalThis, ...options } = {}) {
+  loadCode(path, code);
+  leavePage();
+  const wait = HEAVY_PAGES.has(path) ? HEAVY_REST_MS : REST_MS;
+  const timer = timers.setTimeout(() => {
+    resting = null;
+    preparePage(path, { code, ...options });
+  }, wait);
+  resting = { path, timer, timers };
+}
+
+/** The pointer left a menu link (or any, without a path): stop waiting. */
+export function leavePage(path) {
+  if (!resting || (path && resting.path !== path)) return;
+  resting.timers.clearTimeout(resting.timer);
+  resting = null;
+}
+
 /** For tests: forget what was loaded or queued. */
 export function resetPagePrefetch() {
   loaded.clear();
   queue.length = 0;
   scheduled = false;
+  leavePage();
 }
