@@ -1,5 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// the side menu's pages, also loaded ahead of time (services/pagePrefetch.js)
+import { pageCode } from './services/pagePrefetch';
 import { UserTypeProvider, useUserType } from './UserTypeContext/UserTypeContext';
 
 // Layout (the shell: sidebar and top bar) loads with the app; every page's
@@ -9,33 +11,33 @@ import Layout from './GlobalComponents/Layout';
 import PageLoading from './GlobalComponents/PageLoading';
 import ErrorBoundary from './GlobalComponents/ErrorBoundary';
 const LandingPage = lazy(() => import('./Pages/LandingPage/LandingPage'));
-const HomeScreen = lazy(() => import('./Pages/HomeScreen/HomeScreen'));
+const HomeScreen = lazy(pageCode['/home']);
 
 // Import Scenario Pages
-const Scenarios = lazy(() => import('./Pages/Scenarios/Scenarios'));
+const Scenarios = lazy(pageCode['/create-scenario']);
 const NewScenario = lazy(() => import('./Pages/Scenarios/CreateNewScenario/CreateNewScenario'));
 
 // 🌟 Import MySpace Page
-const MySpace = lazy(() => import('./Pages/UserProfileandPointsScoreing/MySpace'));
+const MySpace = lazy(pageCode['/my-space']);
 
 // 🌟 Import Gamification Engine Page
-const GamificationEngine = lazy(() => import('./Pages/GamificationEngine/GamificationEngine'));
+const GamificationEngine = lazy(pageCode['/gamification']);
 
 // 🌟 Import Email IDs & Domains Page
-const EmailIDsAndDomains = lazy(() => import('./Pages/EmailIDsandDomains/EmailIDsAndDomains'));
+const EmailIDsAndDomains = lazy(pageCode['/email-domains']);
 
 // 🌟 Import Landing Page Catalogue Page
-const LandingPageCatalogue = lazy(() => import('./Pages/LandingPageCatalogue/LandingPageCatalogue'));
+const LandingPageCatalogue = lazy(pageCode['/landing-page-catalogue']);
 
 // 🌟 Insights (the analytics page)
-const Insights = lazy(() => import('./Pages/Insights/Insights'));
+const Insights = lazy(pageCode['/analytics']);
 
 // 🌟 Campaign lifecycle pages (wired to the backend)
-const Campaigns = lazy(() => import('./Pages/Campaigns/Campaigns'));
-const RequestAndApprovals = lazy(() => import('./Pages/RequestsAndApprovals/RequestAndApprovals'));
+const Campaigns = lazy(pageCode['/campaigns']);
+const RequestAndApprovals = lazy(pageCode['/requests-approvals']);
 
 // 🌟 Announcements: the list, a three-step send (details, email, review) and a new announcement
-const Announcements = lazy(() => import('./Pages/Announcement/Announcement'));
+const Announcements = lazy(pageCode['/announcements']);
 const AnnouncementRequestAndApprovals = lazy(() => import('./Pages/Announcement/AnnouncementRequestsApprovals/AnnouncementRequestsApprovals'));
 const AnnouncementsDetailsAndSettings = lazy(() => import('./Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateDetails/AnnouncementsDetailsAndSettings'));
 const AnnouncementsTemplateEmail = lazy(() => import('./Pages/Announcement/RollOutAnnouncement/AnnouncementTemplateEmail/AnnouncementTemplateEmail'));
@@ -43,13 +45,13 @@ const AnnouncementsReviewPublish = lazy(() => import('./Pages/Announcement/RollO
 const AnnouncementTemplateDetails = lazy(() => import('./Pages/Announcement/CreateAnnouncement/AnnouncementTemplateDetails/AnnouncementTemplateDetails'));
 
 // 🌟 Leaderboard
-const Leaderboard = lazy(() => import('./Pages/Leaderboard/Leaderboard'));
+const Leaderboard = lazy(pageCode['/leaderboard']);
 
 // 🌟 Training (LMS): paths, videos, quizzes, certificates, SCORM packages, approvals
-const Training = lazy(() => import('./Pages/Training/Training'));
+const Training = lazy(pageCode['/training']);
 
 // 🌟 Import Start New Campaign Page
-const ChooseAScenario = lazy(() => import('./Pages/StartCampaign/ChooseAScenario'));
+const ChooseAScenario = lazy(pageCode['/start-campaign']);
 const DetailsAndSettings = lazy(() => import('./Pages/StartCampaign/DetailsAndSettings'));
 const CampaignEmail = lazy(() => import('./Pages/StartCampaign/CampaignEmail'));
 const LandingPageDetails = lazy(() => import('./Pages/StartCampaign/LandingPageDetails'));
@@ -57,12 +59,12 @@ const AddTrainingPath = lazy(() => import('./Pages/StartCampaign/AddTrainingPath
 const ReviewAndPublishCampaign = lazy(() => import('./Pages/StartCampaign/ReviewAndPublishCampaign'));
 
 // 🌟 Import UserDLs Suite
-const UserDLsLandingPage = lazy(() => import('./Pages/UserDLs/UserDLsLandingPage'));
+const UserDLsLandingPage = lazy(pageCode['/user-dls']);
 const UserListUploadViaDL = lazy(() => import('./Pages/UserDLs/UserListUploadViaDL'));
 const UserListViaBulkUpload = lazy(() => import('./Pages/UserDLs/UserListViaBulkUpload'));
 
 // 🌟 My Training (a person's own training: pending, history, each path's details)
-const MyTraining = lazy(() => import('./Pages/MyTraining/MyTraining'));
+const MyTraining = lazy(pageCode['/my-training']);
 const TrainingDetails = lazy(() => import('./Pages/MyTraining/PendingTraining/StartNewTraining'));
 const AnnouncementHistory = lazy(() => import('./Pages/Announcement/AnnouncementHistory/AnnouncementHistory'));
 
