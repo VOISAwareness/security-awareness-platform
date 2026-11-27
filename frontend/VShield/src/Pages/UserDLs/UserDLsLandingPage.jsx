@@ -182,11 +182,13 @@ const UserDLsLandingPage = ({ onNavigateToBulkUpload, onNavigateToAddDL }) => {
 
   // "Used N times": counted from the campaigns sent to each list (null until
   // they load, or if they cannot; then the number stored on the list shows).
+  // The summary carries each campaign's list and status without its email and
+  // landing page HTML, so it is under half the size of the full list.
   const [usageCounts, setUsageCounts] = useState(null);
   useEffect(() => {
     let active = true;
     api.campaigns
-      .list()
+      .summary()
       .then((rows) => {
         if (active) setUsageCounts(listUsageCounts(rows));
       })
