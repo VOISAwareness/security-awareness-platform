@@ -1,0 +1,92 @@
+name: Deploy Frontend
+
+# Builds the app and uploads it to app/ in the assets bucket, which the
+# project's CloudFront distribution serves (infra/terraform/app_hosting.tf).
+# Runs on every merge to main that touches the frontend, and by hand.
+#
+# Order matters: the build's files first, index.html last, so a browser never
+# gets an index.html that points at files not uploaded yet. Files of earlier
+# builds are left in place: their names are content-hashed, so they never
+# clash, and a tab still open on the previous release can keep loading its
+# pages. The role can only add files under app/ (no delete).
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/VShield/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+# one deploy at a time; a newer push waits for the one running
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  BUCKET: security-awareness-poc-satyajit-2026
+  PREFIX: app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/VShield
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test --if-present
+
+      # The hosted app calls the API on its own address (/api on the same
+      # CloudFront distribution), so no CORS applies.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: /api
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::798299234472:role/security-awareness-poc-frontend-deploy
+          aws-region: ap-south-1
+
+      # Content-hashed: a new release has new names, so they can be kept a year.
+      - name: Upload the build's files
+        run: |
+          aws s3 sync dist/assets "s3://$BUCKET/$PREFIX/assets" \
+            --cache-control "public, max-age=31536000, immutable" --no-progress
+
+      # favicon and the like: not hashed, kept five minutes
+      - name: Upload the top-level files
+        run: |
+          aws s3 sync dist "s3://$BUCKET/$PREFIX" \
+            --exclude "assets/*" --exclude "index.html" \
+            --cache-control "public, max-age=300" --no-progress
+
+      # Last, and never kept: the next page load gets this release.
+      - name: Upload index.html
+        run: |
+          aws s3 cp dist/index.html "s3://$BUCKET/$PREFIX/index.html" \
+            --cache-control "no-cache" --content-type "text/html; charset=utf-8" --no-progress
+
+      - name: Summary
+        run: |
+          {
+            echo "### Frontend deployed"
+            echo "Commit \`${GITHUB_SHA::7}\` uploaded to \`s3://$BUCKET/$PREFIX/\`."
+            echo "Served at the CloudFront address in \`terraform output app_url\` (allowed IP ranges only)."
+          } >> "$GITHUB_STEP_SUMMARY"

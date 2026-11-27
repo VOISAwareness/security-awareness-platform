@@ -24,7 +24,7 @@ gamification and executive reporting — built on AWS serverless services.
 | | State |
 |---|---|
 | Backend API | **Live** — HTTP API + Python Lambdas + DynamoDB, serving the UI with real data |
-| Frontend | **Live locally** — runs via `npm run dev`; there is **no** hosting/deploy pipeline yet |
+| Frontend | **Hosted** on the project's CloudFront distribution for allowed IP ranges (`deploy-frontend.yml` on merge to `main`); also runs locally |
 | Infrastructure | **Partly codified** — Terraform owns tables, bucket and three Lambdas; five Lambdas' config is still click-ops |
 | Authentication | **Not implemented** — Entra ID SSO is designed for but deferred; the UI uses a local role picker |
 | Email sending | **SES sandbox** — real sends only reach verified identities |
