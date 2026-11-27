@@ -28,6 +28,27 @@ import PageLoading from './PageLoading';
 import ErrorBoundary from './ErrorBoundary';
 import useIsWide from './useIsWide';
 import useLayoutScale from './useLayoutScale';
+import { preparePage, queuePage } from '../services/pagePrefetch';
+
+// The side menu's pages and the permission each needs (as the NavLinks below),
+// in menu order: loaded ahead of time for the pages this person can open.
+const MENU_PAGES = [
+  ['/home', 'home'],
+  ['/start-campaign', 'start-campaign'],
+  ['/create-scenario', 'scenarios'],
+  ['/campaigns', 'campaigns'],
+  ['/training', 'training'],
+  ['/landing-page-catalogue', 'landing-page-catalogue'],
+  ['/announcements', 'announcements'],
+  ['/user-dls', 'user-dls'],
+  ['/email-domains', 'email-domains'],
+  ['/requests-approvals', 'requests-approvals'],
+  ['/gamification', 'gamification-engine'],
+  ['/analytics', 'analytics'],
+  ['/my-space', 'always'],
+  ['/my-training', 'always'],
+  ['/leaderboard', 'leaderboard'],
+];
 import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
 import { ANNOUNCEMENT_STEPS } from '../Pages/Announcement/CreateAnnouncement/AnnouncementConstants';
 
@@ -179,6 +200,15 @@ const Layout = () => {
     setIsScrolled(e.currentTarget.scrollTop > 10);
   };
 
+  // The pages in this person's menu: their code is loaded while the browser
+  // is idle, so opening one does not wait for it (services/pagePrefetch.js).
+  useEffect(() => {
+    if (!user) return;
+    MENU_PAGES.forEach(([path, perm]) => {
+      if (perm === 'always' || !hasAccess || hasAccess(perm)) queuePage(path);
+    });
+  }, [user, hasAccess]);
+
   // Resolved colors based on current theme state
   const resolvedIconColor = VarNavPaneIconColor(Boolean(isDark));
   const resolvedTextColor = VarNavPaneIconTextColor(Boolean(isDark));
@@ -206,6 +236,8 @@ const Layout = () => {
       >
         <Link
           to={to}
+          onPointerEnter={() => preparePage(to)}
+          onFocus={() => preparePage(to)}
           title={!isHovered ? label : undefined}
           style={{ height: `${VarNavPaneButtonHeightAdjuster}px` }}
           className={`relative flex items-center rounded-lg transition-colors duration-150 select-none ${
