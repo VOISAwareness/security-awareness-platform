@@ -35,6 +35,7 @@ Deliberate safeguards (see vault note 18, mapped from the frontend):
 import decimal
 import json
 import os
+import time
 import uuid
 from datetime import UTC, datetime
 
@@ -545,10 +546,25 @@ def results(campaign_id):
     return ok(out, summary=summary, campaignId=campaign_id, status=campaign.get("status"))
 
 
+# A warm ping may ask the copy that answers it to stay busy for holdMs (at most
+# a second): the keep-warm schedule pings this Lambda twice at once, and while
+# one copy is held the other ping starts a second copy, so two stay started
+# and a page that asks for several things at once does not wait for one to
+# start (infra/terraform/keep_warm.tf).
+MAX_WARM_HOLD_MS = 1000
+
+
+def warm_reply(event):
+    hold = event.get("holdMs")
+    if isinstance(hold, int) and not isinstance(hold, bool) and hold > 0:
+        time.sleep(min(hold, MAX_WARM_HOLD_MS) / 1000)
+    return {"warm": True}
+
+
 def lambda_handler(event, context):
     # the keep-warm schedule (infra/terraform/keep_warm.tf)
     if isinstance(event, dict) and event.get("warm") is True and "routeKey" not in event:
-        return {"warm": True}
+        return warm_reply(event)
     route = event.get("routeKey", "")
     params = event.get("pathParameters") or {}
     qs = event.get("queryStringParameters") or {}

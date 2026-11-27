@@ -256,6 +256,16 @@ def test_a_warm_ping_returns_at_once(mod):
     assert mod.lambda_handler({"warm": True}, None) == {"warm": True}
 
 
+def test_a_warm_ping_holds_its_copy_only_as_asked_and_never_long(mod, monkeypatch):
+    slept = []
+    monkeypatch.setattr(mod.time, "sleep", slept.append)
+    assert mod.lambda_handler({"warm": True, "holdMs": 300}, None) == {"warm": True}
+    assert mod.lambda_handler({"warm": True, "holdMs": 60_000}, None) == {"warm": True}  # capped
+    for odd in (0, -5, "300", True, None, 1.5):
+        assert mod.lambda_handler({"warm": True, "holdMs": odd}, None) == {"warm": True}
+    assert slept == [0.3, 1.0]
+
+
 TALLY_CASES = Path(__file__).resolve().parents[2] / "frontend" / "VShield" / "src" / "services" / "fixtures" / "tallyCases.json"
 
 
