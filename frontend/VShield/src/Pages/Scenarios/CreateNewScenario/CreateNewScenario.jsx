@@ -668,6 +668,15 @@ const ScenarioEditor = ({ opening }) => {
   const simulationHint = simulationProblem(formData);
   const emailActionConfigured = !simulationHint;
 
+  // The Next/Publish button stays green and clickable. When an On-Click is
+  // still missing, clicking it shows a toast instead of advancing; other
+  // problems (an empty browser page, a missing picture) keep their own text.
+  const onClickStillMissing = () => {
+    if (emailActionConfigured) return false;
+    setErrorMsg(/On-Click/i.test(simulationHint) ? "Please configure On click!" : simulationHint);
+    return true;
+  };
+
   const goNext = () => {
     // ========================================================
     // TAB 0 - SCENARIO DETAILS VALIDATION
@@ -738,8 +747,7 @@ const ScenarioEditor = ({ opening }) => {
         return;
       }
 
-      if (!emailActionConfigured) {
-        setErrorMsg(simulationHint);
+      if (onClickStillMissing()) {
         return;
       }
     }
@@ -752,8 +760,7 @@ const ScenarioEditor = ({ opening }) => {
     // first saved the scenario and the second came back 409 as a duplicate id,
     // so a successful publish reported itself as a failure.
     if (activeTab >= 3) {
-      if (!emailActionConfigured) {
-        setErrorMsg(simulationHint);
+      if (onClickStillMissing()) {
         return;
       }
       handlePublishScenario();
@@ -1582,11 +1589,7 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={goNext}
-                    disabled={
-                      (activeTab === 3 && isPublishing) ||
-                      ((activeTab === 1 || activeTab === 3) &&
-                        !emailActionConfigured)
-                    }
+                    disabled={activeTab === 3 && isPublishing}
                     title={
                       (activeTab === 1 || activeTab === 3) &&
                       !emailActionConfigured

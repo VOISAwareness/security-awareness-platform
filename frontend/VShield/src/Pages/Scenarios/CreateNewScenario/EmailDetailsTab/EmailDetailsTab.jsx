@@ -1,54 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useUserType } from "../../../../UserTypeContext/UserTypeContext";
-import { ChevronDown } from "lucide-react";
+import { ArrowDownUp, ArrowDownWideNarrow, ArrowUpNarrowWide, Check, ChevronDown, Search } from "lucide-react";
 
 import EmailBodyRichTextEditor from "./EmailBodyRichTextEditor";
 import scenariosJsonData from "../../ScenariosData.json";
 import { api } from "../../../../services/api";
-import { noVerifiedSender, senderChoices } from "../../../../services/campaignSenders";
+import { noVerifiedSender, senderChoices, sortByAdded } from "../../../../services/campaignSenders";
+import { SUBJECT_FX } from "../../../../services/simulationPages";
 
-const FX_PARAMETERS = [
-  {
-    label: "@UserName",
-    code: "{{userName}}",
-    desc: "Target user full name",
-  },
-  {
-    label: "@UserEmailID",
-    code: "{{email}}",
-    desc: "Target user email address",
-  },
-  {
-    label: "@UserDepartment",
-    code: "{{department}}",
-    desc: "Target user department",
-  },
-  {
-    label: "@UserCountry",
-    code: "{{country}}",
-    desc: "Target user work location",
-  },
-  {
-    label: "@PhishLink",
-    code: "{{phishLink}}",
-    desc: "Simulation trackable landing link",
-  },
-  {
-    label: "@ManagerName",
-    code: "{{managerName}}",
-    desc: "Target direct reporting manager",
-  },
-  {
-    label: "@EmployeeID",
-    code: "{{employeeId}}",
-    desc: "Corporate employee badge number",
-  },
-  {
-    label: "@CurrentDate",
-    code: "{{currentDate}}",
-    desc: "Simulation execution timestamp",
-  },
-];
 
 const FormInput = ({ label, value, onChange, placeholder = "Type here" }) => {
   return (
@@ -119,6 +78,41 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
     };
   }, []);
   const senderOptions = senderChoices(senderRows || [], formData?.emailId);
+
+  // The Email ID picker (as Start Campaign's "Add email IDs one by one"):
+  // a search box over the senders already loaded, filtered as you type.
+  const [showSenderMenu, setShowSenderMenu] = useState(false);
+  const [senderSearch, setSenderSearch] = useState("");
+  const senderMenuRef = useRef(null);
+  // Sort by the date each Email ID was added: off, newest first, oldest first.
+  const [senderOrder, setSenderOrder] = useState(null);
+  const nextSenderOrder = { null: "newest", newest: "oldest", oldest: null }[String(senderOrder)];
+  const senderOrderTip = {
+    null: "Sort by date added. Click to show the newest Email IDs first.",
+    newest: "Sorted by date added, newest first. Click for oldest first.",
+    oldest: "Sorted by date added, oldest first. Click to go back to A to Z.",
+  }[String(senderOrder)];
+  const senderQuery = senderSearch.trim().toLowerCase();
+  const shownSenders = sortByAdded(
+    senderQuery
+      ? senderOptions.filter((choice) => choice.email.toLowerCase().includes(senderQuery))
+      : senderOptions,
+    senderOrder,
+  );
+  const addedLabel = (choice) =>
+    Number.isNaN(choice.addedAt)
+      ? ""
+      : new Date(choice.addedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const senderNote = (choice) =>
+    choice.label === choice.email ? "Verified" : choice.label.slice(choice.email.length).trim().replace(/^\(|\)$/g, "");
+  useEffect(() => {
+    if (!showSenderMenu) return undefined;
+    const close = (event) => {
+      if (senderMenuRef.current && !senderMenuRef.current.contains(event.target)) setShowSenderMenu(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showSenderMenu]);
 
   const emailSubject = formData?.emailSubject ?? "";
 
@@ -357,79 +351,128 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                   </span>
                 </label>
 
-                <div
-                  className="
-                    w-full
-                    h-7
-                    px-2.5
-                    mb-2
-                    rounded-xl
-                    flex
-                    items-center
-                    shadow-2xs
-                    relative
-                    bg-white
-                    text-slate-900
-                    dark:bg-[#15161A]
-                    dark:border-white/10
-                    dark:text-white
-                  "
-                >
-                  <select
-                    value={formData?.emailId || ""}
-                    onChange={handleEmailIdChange}
-                    className="
-                      w-full
-                      bg-transparent
-                      text-[10.5px]
-                      font-medium
-                      outline-none
-                      cursor-pointer
-                      pr-4
-                      appearance-none
-                      
-                    "
+                <div ref={senderMenuRef} className="relative z-40 mb-2">
+                  <button
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={showSenderMenu}
+                    onClick={() => {
+                      setShowSenderMenu((open) => !open);
+                      setSenderSearch("");
+                    }}
+                    className="w-full h-7 px-2.5 rounded-xl flex items-center justify-between shadow-2xs bg-white text-slate-900 dark:bg-[#15161A] dark:text-white cursor-pointer select-none"
                   >
-                    <option value="">Select Email</option>
+                    <span className={`text-[10.5px] font-medium truncate pr-2 ${formData?.emailId ? "" : "text-slate-400"}`}>
+                      {formData?.emailId || "Select Email"}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  </button>
 
-                    {senderRows === null && (
-                      <option value="__loading" disabled>
-                        Loading Email IDs…
-                      </option>
-                    )}
-                    {senderRows !== null && noVerifiedSender(senderOptions) && (
-                      <option value="__none" disabled>
-                        No verified Email IDs yet: add one on Email IDs &amp; Domains
-                      </option>
-                    )}
-                    {senderOptions.map((choice) => (
-                      <option
-                        key={choice.email}
-                        value={choice.email}
-                        disabled={!choice.selectable}
-                        data-sender-choice={choice.selectable ? "verified" : "unverified"}
-                        className="
-                            bg-white
-                            text-slate-900
-                            dark:bg-[#15161A]
-                            dark:text-white
-                          "
+                  {showSenderMenu && (
+                    <div
+                      role="listbox"
+                      aria-label="Email IDs"
+                      style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 9999 }}
+                      className={`mt-1 rounded-2xl p-2 shadow-2xl border flex flex-col gap-1.5 ${
+                        isDark ? "bg-[#181A20] border-white/15 text-white" : "bg-white border-slate-200 text-slate-900"
+                      }`}
+                    >
+                      <div
+                        className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
+                          isDark ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200"
+                        }`}
                       >
-                        {choice.label}
-                      </option>
-                    ))}
-                  </select>
+                        <Search className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                        <input
+                          type="text"
+                          autoFocus
+                          value={senderSearch}
+                          onChange={(event) => setSenderSearch(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") setShowSenderMenu(false);
+                          }}
+                          placeholder="Filter by email ID..."
+                          aria-label="Filter email IDs"
+                          className="w-full bg-transparent text-[9.5px] outline-none"
+                        />
+                        <span className="group relative flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setSenderOrder(nextSenderOrder)}
+                            aria-label={senderOrderTip}
+                            className={`flex h-4 w-4 items-center justify-center rounded cursor-pointer transition-colors ${
+                              senderOrder
+                                ? "text-[#2563EB] bg-[#2563EB]/10"
+                                : isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            {senderOrder === "newest" ? (
+                              <ArrowDownWideNarrow className="h-3 w-3" />
+                            ) : senderOrder === "oldest" ? (
+                              <ArrowUpNarrowWide className="h-3 w-3" />
+                            ) : (
+                              <ArrowDownUp className="h-3 w-3" />
+                            )}
+                          </button>
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute right-0 top-full z-10 mt-1.5 w-44 rounded-lg bg-[#1A1C23] px-2 py-1.5 text-[8.5px] font-medium leading-snug text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100"
+                          >
+                            {senderOrderTip}
+                          </span>
+                        </span>
+                      </div>
 
-                  <ChevronDown
-                    className="
-                      w-3.5
-                      h-3.5
-                      text-slate-400
-                      absolute
-                      right-2.5
-                      pointer-events-none
-                    "
-                  />
+                      <div className="flex flex-col gap-1 max-h-60 overflow-y-auto pr-1">
+                        {senderRows === null && (
+                          <span className="p-2 text-[9.5px] text-slate-400">Loading Email IDs...</span>
+                        )}
+                        {senderRows !== null && noVerifiedSender(senderOptions) && (
+                          <span className="p-2 text-[9.5px] text-slate-400">
+                            No verified Email IDs yet: add one on Email IDs &amp; Domains.
+                          </span>
+                        )}
+                        {senderRows !== null && senderOptions.length > 0 && shownSenders.length === 0 && (
+                          <span className="p-2 text-[9.5px] text-slate-400">No Email ID matches "{senderSearch.trim()}".</span>
+                        )}
+                        {shownSenders.map((choice) => {
+                          const isSelected = choice.email.toLowerCase() === String(formData?.emailId || "").toLowerCase();
+                          const note = senderNote(choice);
+                          return (
+                            <button
+                              key={choice.email}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              disabled={!choice.selectable}
+                              data-sender-choice={choice.selectable ? "verified" : "unverified"}
+                              onClick={() => {
+                                handleEmailIdChange({ target: { value: choice.email } });
+                                setShowSenderMenu(false);
+                              }}
+                              title={choice.selectable ? choice.email : `${choice.email}: ${note}. Verify it on Email IDs & Domains first.`}
+                              className={`p-2 rounded-xl flex items-center justify-between gap-2 text-left transition-all ${
+                                !choice.selectable
+                                  ? "opacity-45 cursor-not-allowed"
+                                  : isSelected
+                                    ? isDark ? "bg-white/10 cursor-pointer" : "bg-[#EBF1F5] cursor-pointer"
+                                    : isDark ? "hover:bg-white/5 cursor-pointer" : "hover:bg-[#F2F5F8] cursor-pointer"
+                              }`}
+                            >
+                              <span className="flex min-w-0 flex-col pr-2">
+                                <span className="text-[10px] font-bold tracking-tight truncate">{choice.email}</span>
+                                <span className={`text-[8.5px] truncate ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                                  {note}
+                                  {addedLabel(choice) && ` · Added ${addedLabel(choice)}`}
+                                </span>
+                              </span>
+                              {isSelected && <Check className="w-3 h-3 flex-shrink-0 text-emerald-500" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -459,6 +502,7 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
               className="
                 flex
                 flex-col
+                justify-center
                 min-w-0
                 lg:border-l
                 lg:border-slate-200
@@ -483,15 +527,19 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                   </span>
                 </label>
 
+                {/* As tall as Email ID + Sender Name beside it; 3+ lines show,
+                    a longer subject scrolls. */}
                 <div
                   className="
                     w-full
-                    h-16
-                    px-2.5
+                    h-[92px]
+                    pl-2.5
+                    pr-1
+                    py-1.5
                     mb-2
                     rounded-xl
                     flex
-                    items-center
+                    items-start
                     shadow-2xs
                     relative
                     bg-white
@@ -501,22 +549,34 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                     dark:text-white
                   "
                 >
-                  <input
+                  <textarea
                     ref={subjectInputRef}
-                    type="text"
+                    rows={3}
                     value={emailSubject}
                     onChange={(event) =>
-                      updateField("emailSubject", event.target.value)
+                      // A subject is one line: Enter and pasted line breaks become spaces.
+                      updateField("emailSubject", event.target.value.replace(/[\r\n]+/g, " "))
                     }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.preventDefault();
+                    }}
                     placeholder="Type here"
                     className="
+                      vshield-canvas-scroll
                       w-full
+                      h-full
+                      min-h-[3lh]
+                      resize-none
+                      overflow-y-auto
                       bg-transparent
                       text-[10.5px]
+                      leading-[15px]
                       font-medium
+                      text-left
+                      align-top
                       outline-none
                       placeholder-slate-400
-                      pr-12
+                      pr-14
                     "
                   />
 
@@ -526,9 +586,8 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                     ref={subjectFxRef}
                     className="
     absolute
-    right-2
-    top-1/2
-    -translate-y-1/2
+    right-3
+    top-1.5
     z-[99999]
   "
                     style={{
@@ -607,7 +666,7 @@ const EmailDetailsTab = ({ formData, setFormData, setErrorMsg }) => {
                           Insert Into Subject
                         </span>
 
-                        {FX_PARAMETERS.map((fx) => (
+                        {SUBJECT_FX.map((fx) => (
                           <button
                             key={fx.label}
                             type="button"
