@@ -7,6 +7,7 @@ import { UserTypeProvider, useUserType } from './UserTypeContext/UserTypeContext
 // what it shows. Layout shows the app's spinner while a page arrives.
 import Layout from './GlobalComponents/Layout';
 import PageLoading from './GlobalComponents/PageLoading';
+import ErrorBoundary from './GlobalComponents/ErrorBoundary';
 const LandingPage = lazy(() => import('./Pages/LandingPage/LandingPage'));
 const HomeScreen = lazy(() => import('./Pages/HomeScreen/HomeScreen'));
 
@@ -104,9 +105,11 @@ function App() {
           <Route
             path="/"
             element={
-              <Suspense fallback={<PageLoading show surface="page" />}>
-                <LandingPage />
-              </Suspense>
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoading show surface="page" />}>
+                  <LandingPage />
+                </Suspense>
+              </ErrorBoundary>
             }
           />
 

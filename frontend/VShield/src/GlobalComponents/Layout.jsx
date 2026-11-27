@@ -25,6 +25,7 @@ import {
 
 import TopHeaderSection from './TopHeaderSection';
 import PageLoading from './PageLoading';
+import ErrorBoundary from './ErrorBoundary';
 import useIsWide from './useIsWide';
 import useLayoutScale from './useLayoutScale';
 import { SCENARIO_STEPS } from '../Pages/Scenarios/CreateNewScenario/ScenarioConstants';
@@ -566,9 +567,12 @@ const Layout = () => {
           className="flex-1 overflow-y-auto relative z-10 pt-[60px]"
         >
           {/* a page's code loads when it is first opened (App.jsx) */}
-          <Suspense fallback={<PageLoading show surface="page" />}>
-            <Outlet />
-          </Suspense>
+          {/* keyed by route: a page that failed to load clears when another is opened */}
+          <ErrorBoundary key={location.pathname}>
+            <Suspense fallback={<PageLoading show surface="page" />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 
